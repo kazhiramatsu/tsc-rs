@@ -1445,18 +1445,17 @@ impl<'a> CheckerState<'a> {
                     return Ok(true);
                 }
             }
-            let class_name_node = self.name_of_node(type_class);
-            let class_display = match class_name_node {
-                Some(name) => self.entity_name_to_string(name)?,
-                // diagnosticName(typeClass.name || anon): tsc's
-                // shared anonymous declaration sentinel includes
-                // the parentheses.
-                None => "(anonymous)".to_owned(),
+            // tsgo names the class by `SymbolToString(typeClass.Symbol())`
+            // (checker.go:11724): a class expression takes the name it is
+            // assigned to (`c1`, `k`), where tsc 6.0 wrote `(anonymous)`.
+            let class_display = match self.binder.node_symbol(type_class) {
+                Some(class_symbol) => self.emit_symbol_to_string_default(class_symbol)?,
+                None => tsc_types::JsString::from("(Anonymous class)"),
             };
             self.error_at_js(
                 Some(right),
                 &tsc_diagnostics::gen::Property_0_is_not_accessible_outside_class_1_because_it_has_a_private_identifier,
-                &[(&diag_name).into(), (&class_display).into()],
+                &[(&diag_name).into(), class_display.as_js()],
             );
             return Ok(true);
         }

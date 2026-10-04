@@ -2571,11 +2571,14 @@ impl<'a> CheckerState<'a> {
                                         {
                                             let symbol_name =
                                                 self.symbol_display_name(exported_type);
-                                            let property_name =
-                                                node_util::declaration_name_to_string(
-                                                    self.binder.source_of_node(property),
-                                                    Some(property),
-                                                );
+                                            // tsgo passes `qualified.Right.Text()`
+                                            // (checker.go:16199), empty for a
+                                            // missing name, where tsc 6.0 wrote
+                                            // `(Missing)`.
+                                            let property_name = self
+                                                .identifier_text_of(property)
+                                                .unwrap_or_default()
+                                                .to_owned();
                                             self.error_at_js(
                                                 Some(property),
                                                 &diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,

@@ -46,10 +46,11 @@ pub(crate) fn missing_init_global_type_diagnostics(options: &CompilerOptions) ->
         .into_iter()
         .filter(|(_, live)| *live)
         .map(|(name, _)| {
+            // The checker's zero range, as `create_error` without a node.
             Diagnostic::new(
                 None,
-                None,
-                None,
+                Some(0),
+                Some(0),
                 MessageChain::new(&diagnostics::Cannot_find_global_type_0, &[name.to_owned()]),
             )
         })

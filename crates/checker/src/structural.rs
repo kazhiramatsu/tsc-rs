@@ -2747,15 +2747,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
 
         if properties.len() == 1 {
-            // 66736-66742: the single-property face is the one
-            // relation-property report that requests
-            // SymbolFormatFlags.WriteComputedProps. It reprints a
-            // computed declaration name structurally instead of using
-            // the default symbolToString face used by every
-            // propertyRelatedTo failure arm.
-            let name = self
-                .st
-                .missing_property_display_name(unmatched_property, true)?;
+            // tsgo's single-property face is plain symbolToString
+            // (relater.go:4394); tsc 6.0 asked for WriteComputedProps.
+            let name = self.st.missing_property_display_name(unmatched_property)?;
             let mut source_text = self.st.type_to_string_with_error_enclosing(source)?;
             let mut target_text = self.st.type_to_string_with_error_enclosing(target)?;
             if source_text == target_text {
@@ -2802,7 +2796,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         };
         let mut displayed_names = Vec::with_capacity(displayed_property_count);
         for &property in properties.iter().take(displayed_property_count) {
-            displayed_names.push(self.st.missing_property_display_name(property, false)?);
+            displayed_names.push(self.st.missing_property_display_name(property)?);
         }
         let names = crate::join_js_texts(&displayed_names, ", ");
         if properties.len() > 5 {

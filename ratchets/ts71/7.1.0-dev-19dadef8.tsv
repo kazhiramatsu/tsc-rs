@@ -223,8 +223,8 @@ compiler/arrayFromAsync	full	js
 compiler/arrayIndexWithArrayFails	full	js
 compiler/arrayIterationLibES5TargetDifferent(nolib=false,target=es2015)	full	js
 compiler/arrayIterationLibES5TargetDifferent(nolib=false,target=esnext)	full	js
-compiler/arrayIterationLibES5TargetDifferent(nolib=true,target=es2015)	text	js
-compiler/arrayIterationLibES5TargetDifferent(nolib=true,target=esnext)	text	js
+compiler/arrayIterationLibES5TargetDifferent(nolib=true,target=es2015)	full	js
+compiler/arrayIterationLibES5TargetDifferent(nolib=true,target=esnext)	full	js
 compiler/arrayLiteral1	full	js
 compiler/arrayLiteral2	full	js
 compiler/arrayLiteralAndArrayConstructorEquivalence1	full	js
@@ -2162,7 +2162,7 @@ compiler/elaboratedErrorsOnNullableTargets01	full	js
 compiler/elaborationForPossiblyCallableTypeStillReferencesArgumentAtTopLevel	full	js
 compiler/elementAccessExpressionInternalComments	full	js
 compiler/elidedEmbeddedStatementsReplacedWithSemicolon	full	js
-compiler/elidedJSImport1	category	js
+compiler/elidedJSImport1	full	js
 compiler/elidedJSImport2(module=commonjs)	full	js
 compiler/elidedJSImport2(module=es2022)	full	js
 compiler/elidingImportNames	full	js
@@ -2304,7 +2304,7 @@ compiler/errorElaboration	full	js
 compiler/errorElaborationDivesIntoApparentlyPresentPropsOnly	full	js
 compiler/errorForBareSpecifierWithImplicitModuleResolutionNone	full	js
 compiler/errorForConflictingExportEqualsValue	full	js
-compiler/errorForUsingPropertyOfTypeAsType01	category	js
+compiler/errorForUsingPropertyOfTypeAsType01	full	js
 compiler/errorForUsingPropertyOfTypeAsType02	full	js
 compiler/errorForUsingPropertyOfTypeAsType03	full	js
 compiler/errorForwardReferenceForwadingConstructor	full	js
@@ -2499,6 +2499,7 @@ compiler/esModuleInteropImportNamespace	full	js
 compiler/esModuleInteropImportTSLibHasImport	full	js
 compiler/esModuleInteropNamedDefaultImports	full	js
 compiler/esModuleInteropPrettyErrorRelatedInformation	full	js
+compiler/esModuleInteropTslibHelpers	full	js
 compiler/esModuleInteropUsesExportStarWhenDefaultPlusNames	full	js
 compiler/esModuleInteropWithExportStar(target=es2015)	full	js
 compiler/esModuleIntersectionCrash	full	js
@@ -5555,7 +5556,7 @@ compiler/requireOfJsonFileWithoutEsModuleInterop	full	js
 compiler/requireOfJsonFileWithoutExtension	full	js
 compiler/requireOfJsonFileWithoutExtensionResolvesToTs	full	js
 compiler/requireOfJsonFileWithoutOutDir	full	js
-compiler/requireTypesOnly	category	js
+compiler/requireTypesOnly	full	js
 compiler/requiredInitializedParameter1	full	js
 compiler/requiredInitializedParameter2	full	js
 compiler/requiredInitializedParameter3	full	js
@@ -6194,7 +6195,10 @@ compiler/tsconfigExtendsPackageJsonExportsWildcard	full	js
 compiler/tsconfigMapOptionsAreCaseInsensitive	full	js
 compiler/tsconfigRootdirInclude	full	js
 compiler/tsconfigSimpleTest	full	js
+compiler/tslibImportDefaultHelperCommonJS	full	js
 compiler/tslibInJs	full	js
+compiler/tslibMissingHelper	full	js
+compiler/tslibMultipleMissingHelper	full	js
 compiler/tslibNotFoundDifferentModules	full	js
 compiler/tslibReExportHelpers	full	js
 compiler/tslibReExportHelpers2	full	js
@@ -7172,7 +7176,7 @@ conformance/assignmentCompatWithConstructSignatures5	full	js
 conformance/assignmentCompatWithConstructSignatures6	full	js
 conformance/assignmentCompatWithConstructSignaturesWithOptionalParameters	full	js
 conformance/assignmentCompatWithDiscriminatedUnion	full	js
-conformance/assignmentCompatWithEnumIndexer	category	js
+conformance/assignmentCompatWithEnumIndexer	full	js
 conformance/assignmentCompatWithGenericCallSignatures	full	js
 conformance/assignmentCompatWithGenericCallSignatures2	full	js
 conformance/assignmentCompatWithGenericCallSignatures3	full	js
@@ -9429,7 +9433,7 @@ conformance/importTypeNested	full	js
 conformance/importTypeNestedNoRef	full	js
 conformance/importTypeNonString	full	js
 conformance/importWithTypeArguments	full	js
-conformance/importingExportingTypes	text	js
+conformance/importingExportingTypes	full	js
 conformance/importsImplicitlyReadonly	full	js
 conformance/inOperatorWithInvalidOperands	full	js
 conformance/inOperatorWithValidOperands	full	js
@@ -11739,7 +11743,7 @@ conformance/privateNameMethodAccess	full	js
 conformance/privateNameMethodAssignment	full	js
 conformance/privateNameMethodAsync	full	js
 conformance/privateNameMethodCallExpression	full	js
-conformance/privateNameMethodClassExpression	category	js
+conformance/privateNameMethodClassExpression	full	js
 conformance/privateNameMethodInStaticFieldInit	full	js
 conformance/privateNameMethodsDerivedClasses	full	js
 conformance/privateNameNestedClassAccessorsShadowing	full	js

@@ -7047,21 +7047,20 @@ fn alias_typed_computed_member_splits_prop_name_and_face() {
 }
 
 #[test]
-fn early_bound_computed_string_name_reprints_the_bracket_face() {
-    // oracle (vendored 6.0.3, strict, noLib, 2026-07-23):
-    // Property '["ab"]' is missing in type '{}' but required in
-    // type '{ ab: number; }'. The single-quoted, space-padded
-    // source name normalizes through the printer: double quotes,
-    // no padding — while the TYPE face keeps the identifier form.
+fn early_bound_computed_string_name_prints_its_source_text() {
+    // tsgo's TS2741 names the property by plain symbolToString
+    // (relater.go:4394): an early-bound computed name without a name type
+    // prints its declaration's source text, `[ 'ab' ]` (tsgo, strict); tsc
+    // 6.0 asked for WriteComputedProps and printed `["ab"]`. The TYPE face
+    // keeps the identifier form.
     assert_eq!(
         checked_diags("declare const a5: {};\nlet b5: { [ 'ab' ]: number } = a5;\n"),
         [(
             2741,
             26,
             2,
-            "Property '[\"ab\"]' is missing in type '{}' but required in type '{ ab: number; \
-                 }'."
-            .to_owned()
+            "Property '[ 'ab' ]' is missing in type '{}' but required in type '{ ab: number; }'."
+                .to_owned()
         )]
     );
 }

@@ -5079,11 +5079,10 @@ impl<'a> CheckerState<'a> {
         };
         if unmatched.len() == 1 {
             let prop = unmatched[0];
-            // 66736-66742: the single-property face is symbolToString
-            // with WriteComputedProps — computed-name declarations
-            // re-print their name node; the related 2728 reuses the
-            // same string.
-            let prop_name = self.missing_property_display_name(unmatched[0], true)?;
+            // tsgo's single-property face is plain symbolToString
+            // (relater.go:4394); tsc 6.0 asked for WriteComputedProps.
+            // The related 2728 reuses the same string.
+            let prop_name = self.missing_property_display_name(unmatched[0])?;
             let declaration = self.binder.symbol(prop).declarations.first().copied();
             let related = declaration
                 .map(|declaration| {
@@ -5108,11 +5107,11 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(diagnostic));
         }
         // 66752-66757: the multi-property lists ride plain
-        // symbolToString (no WriteComputedProps) — late-bound computed
-        // names print their declaration SOURCE text verbatim.
+        // symbolToString — late-bound computed names print their
+        // declaration SOURCE text verbatim.
         let mut names: Vec<JsString> = Vec::with_capacity(unmatched.len());
         for &prop in &unmatched {
-            names.push(self.missing_property_display_name(prop, false)?);
+            names.push(self.missing_property_display_name(prop)?);
         }
         let diagnostic = if unmatched.len() > 5 {
             let head: Vec<JsString> = names[..4].to_vec();
@@ -5142,28 +5141,16 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: the missing-property display name — private
-    /// identifiers print their declaration text (`#x`), computed-name
-    /// declarations follow the two symbolToString flavors, everything
-    /// else unescapes like symbolToString.
-    ///
-    /// write_computed_props mirrors SymbolFormatFlags.WriteComputedProps
-    /// (symbolToNode, 51122-51135): a computed-name value declaration
-    /// re-prints its name node through the comment-stripping printer
-    /// (51124-51127; entity chains normalize whitespace, strings
-    /// re-quote double, numerics print the scanner's cooked value —
-    /// all oracle-probed), and a declaration-less EnumLiteral /
-    /// UniqueESSymbol nameType re-encloses at the name symbol's own
-    /// declaration (51128-51133). WITHOUT the flag
-    /// (getNameOfSymbolAsWritten, 50682-50690) late-bound computed
-    /// names print declarationNameToString — SOURCE text verbatim
-    /// (oracle: `other, [ B . sym ]`) — while early-bound
-    /// string/number computed names ride the
-    /// getNameOfSymbolFromNameType value face, which the unescape
-    /// tail matches for bound names.
+    /// identifiers print their declaration text (`#x`), late-bound
+    /// computed names print declarationNameToString — SOURCE text
+    /// verbatim (`other, [ B . sym ]`) — and everything else follows
+    /// getNameOfSymbolAsWritten: early-bound string/number computed
+    /// names ride the getNameOfSymbolFromNameType value face. tsgo never
+    /// asks for WriteComputedProps (relater.go:4394), so a mapped
+    /// property keyed by an enum member prints its value (`0`).
     pub(crate) fn missing_property_display_name(
         &mut self,
         prop: SymbolId,
-        write_computed_props: bool,
     ) -> CheckResult<JsString> {
         let escaped = self.binder.symbol(prop).escaped_name;
         if escaped.starts_with("#") {
@@ -5188,9 +5175,6 @@ impl<'a> CheckerState<'a> {
                 .filter(|&name| matches!(self.data_of(name), NodeData::ComputedPropertyName(_)))
         });
         if let Some(name) = computed_name {
-            if write_computed_props {
-                return self.computed_property_name_face(name);
-            }
             if self
                 .links
                 .read_symbol(prop, |links| links.check_flags)
@@ -5201,49 +5185,8 @@ impl<'a> CheckerState<'a> {
                     tsc_binder::node_util::declaration_name_to_string(source, Some(name)).into(),
                 );
             }
-        } else if write_computed_props {
-            if let Some(name_type) = self.links.symbol(prop).name_type {
-                if self
-                    .tables
-                    .flags_of(name_type)
-                    .intersects(TypeFlags::ENUM_LITERAL | TypeFlags::UNIQUE_ES_SYMBOL)
-                {
-                    let name_symbol = self
-                        .tables
-                        .type_of(name_type)
-                        .symbol
-                        .expect("enum-literal/unique-symbol name types carry their symbol");
-                    let enclosing = self.binder.symbol(name_symbol).value_declaration;
-                    let face = self.symbol_expression_face(name_symbol, enclosing, false)?;
-                    return Ok(crate::concat_js(&[&"[", &(face), &"]"]));
-                }
-            }
         }
         Ok(self.symbol_name_as_written(prop))
-    }
-
-    /// tsc-port: symbolToNode @6.0.3 (WriteComputedProps name reprint)
-    /// tsc-hash: ba015cf97ede8e4493cf851a6464d86bfd06e225e4fed66cae72ea6a2d91ff41
-    /// tsc-span: _tsc.js:51122-51135
-    ///
-    /// The 51124-51127 arm returns the declaration's computed name
-    /// NODE and symbolToStringWorker prints it without a source file:
-    /// entity chains re-print structurally (whitespace normalizes),
-    /// string literals re-escape double-quoted (probed: `[ 'ab' ]` →
-    /// `["ab"]`), numeric literals print the scanner's cooked value
-    /// (probed: `[0x10]` → `[16]`), prefix-minus numerics keep the
-    /// operator. Other expression shapes (templates, bigints,
-    /// element-access names) use the same synthesized-expression
-    /// printer leaf below.
-    fn computed_property_name_face(&mut self, name: NodeId) -> CheckResult<JsString> {
-        let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
-            unreachable!("WriteComputedProps supplies a ComputedPropertyName node");
-        };
-        let expression = data
-            .expression
-            .expect("ComputedPropertyName carries its expression");
-        let text = self.expression_text_display(expression)?;
-        Ok(crate::concat_js(&[&"[", &(text), &"]"]))
     }
 
     /// tsc-port: getLiteralText @6.0.3
@@ -13585,6 +13528,31 @@ impl<'a> CheckerState<'a> {
             .intersects(tsc_types::SymbolFlags::METHOD);
         if let Some(name_type) = name_type {
             let flags = self.tables.flags_of(name_type);
+            // tsgo (nodebuilderimpl.go:2535-2552): an enum member's name is
+            // a computed reference to the member when its enum is accessible
+            // as a value from the enclosing declaration of the render.
+            if flags.intersects(TypeFlags::ENUM_LITERAL) {
+                if let (Some(enclosing), Some(member)) = (
+                    self.display_enclosing,
+                    self.tables.type_of(name_type).symbol,
+                ) {
+                    let enum_symbol = self.binder.symbol(member).parent.unwrap_or(member);
+                    let accessibility = self
+                        .is_symbol_accessible_worker(
+                            Some(enum_symbol),
+                            Some(enclosing),
+                            tsc_types::SymbolFlags::VALUE,
+                            false,
+                            false,
+                        )?
+                        .accessibility;
+                    if accessibility == tsc_emitter::EmitSymbolAccessibility::Accessible {
+                        let face =
+                            self.symbol_expression_face(member, Some(enclosing), fully_qualified)?;
+                        return Ok(crate::concat_js(&[&"[", &(face), &"]"]));
+                    }
+                }
+            }
             if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                 let name = match &self.tables.type_of(name_type).data {
                     TypeData::Literal { value } => match value {

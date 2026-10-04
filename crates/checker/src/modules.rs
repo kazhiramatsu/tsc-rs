@@ -6531,8 +6531,9 @@ impl<'a> CheckerState<'a> {
     /// by ordinary imports. An ambient or in-program `tslib` is
     /// authoritative; a definite miss reports 2354; a package-host
     /// miss remains FN-side so node_modules cannot fabricate 2343 or
-    /// 2807. requestedExternalEmitHelpers is module-wide in tsc and is
-    /// therefore keyed by the resolved module symbol here.
+    /// 2807. tsgo keeps requestedExternalEmitHelpers in the source
+    /// file's links (checker.go:29053), so every file reports its own
+    /// missing helpers; tsc 6.0 kept them on the helpers module.
     pub(crate) fn check_external_emit_helpers(
         &mut self,
         location: NodeId,
@@ -6593,7 +6594,7 @@ impl<'a> CheckerState<'a> {
 
         let requested = self
             .requested_external_emit_helpers
-            .get(&helpers_module)
+            .get(&source_root)
             .copied()
             .unwrap_or(0);
         let unchecked = helpers & !requested;
@@ -6622,10 +6623,11 @@ impl<'a> CheckerState<'a> {
                         );
                         continue;
                     };
+                    // tsgo checks only the private field helpers' arity
+                    // (checker.go:29064-29072).
                     let required_parameter_count = match helper {
                         EMIT_HELPER_CLASS_PRIVATE_FIELD_GET => Some(4usize),
                         EMIT_HELPER_CLASS_PRIVATE_FIELD_SET => Some(5usize),
-                        EMIT_HELPER_SPREAD_ARRAY => Some(3usize),
                         _ => None,
                     };
                     if let Some(required) = required_parameter_count {
@@ -6650,7 +6652,7 @@ impl<'a> CheckerState<'a> {
             helper <<= 1;
         }
         self.requested_external_emit_helpers
-            .insert(helpers_module, requested | helpers);
+            .insert(source_root, requested | helpers);
         Ok(())
     }
 
@@ -6685,20 +6687,6 @@ impl<'a> CheckerState<'a> {
                 &["__addDisposableResource", "__disposeResources"]
             }
             _ => &[],
-        }
-    }
-
-    /// host.getEmitModuleFormatOfFile(location) < ModuleKind.System.
-    /// Node-flavored module kinds use their per-file package format;
-    /// ordinary kinds use the explicit/computed module kind directly.
-    /// tsrs-native: reduction over the in-memory host's modeled module
-    /// format seam.
-    pub(crate) fn emit_module_format_is_pre_system(&self, location: NodeId) -> bool {
-        let module_kind = self.options.emit_module_kind();
-        if (100..=199).contains(&module_kind) {
-            self.implied_node_format_for_emit(location) == Some(ModuleResolutionMode::CommonJs)
-        } else {
-            module_kind < 4
         }
     }
 
@@ -9133,10 +9121,16 @@ impl<'a> CheckerState<'a> {
                     related,
                 );
             } else {
+                // tsgo (checker.go:6935-6950): the specifier of the nearest
+                // import, import-equals or variable declaration (a `require`
+                // or `import()` initializer), and the imported name only
+                // for an import specifier.
                 let declaration = self.find_ancestor(Some(node), |state, ancestor| {
                     if matches!(
                         state.kind_of(ancestor),
-                        SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
+                        SyntaxKind::ImportDeclaration
+                            | SyntaxKind::ImportEqualsDeclaration
+                            | SyntaxKind::VariableDeclaration
                     ) {
                         Ancestor::Yes
                     } else {
@@ -9144,7 +9138,12 @@ impl<'a> CheckerState<'a> {
                     }
                 });
                 let module_specifier = declaration
-                    .and_then(|declaration| self.get_external_module_name_of(declaration))
+                    .and_then(|declaration| {
+                        crate::node_builder::specifier::try_get_module_specifier_from_declaration(
+                            self,
+                            declaration,
+                        )
+                    })
                     .and_then(|specifier| match self.data_of(specifier) {
                         NodeData::StringLiteral(data) => Some(data.text.as_js()),
                         _ => None,
@@ -9157,12 +9156,11 @@ impl<'a> CheckerState<'a> {
                     _ => unescape_leading_underscores(self.binder.symbol(symbol).escaped_name)
                         .to_owned(),
                 };
-                let import_type = crate::concat_js(&[
-                    &"import(\"",
-                    &module_specifier,
-                    &"\").",
-                    &imported_identifier,
-                ]);
+                let mut import_type = crate::concat_js(&[&"import(\"", &module_specifier, &"\")"]);
+                if self.kind_of(node) == SyntaxKind::ImportSpecifier {
+                    import_type.push('.');
+                    import_type.push_js(imported_identifier.as_js());
+                }
                 self.error_at_js(
                     Some(error_node),
                     &diagnostics::_0_is_a_type_and_cannot_be_imported_in_JavaScript_files_Use_1_in_a_JSDoc_type_annotation,
@@ -9453,8 +9451,13 @@ impl<'a> CheckerState<'a> {
             })?;
         let display =
             unescape_leading_underscores(self.binder.symbol(already_exported).escaped_name);
+        // tsgo reparses the tag into a JSTypeAliasDeclaration, whose error
+        // range is its name (checker.go:6928, scanner GetErrorRangeForNode).
+        let anchor = self
+            .name_of_node(exporting_declaration)
+            .unwrap_or(exporting_declaration);
         Some(self.related_info_for_node_js(
-            exporting_declaration,
+            anchor,
             &diagnostics::_0_is_automatically_exported_here,
             &[display],
         ))
@@ -9483,10 +9486,11 @@ impl<'a> CheckerState<'a> {
             };
             self.check_module_export_name(property_name, true)?;
             let imported_name = property_name.or(name);
+            // tsgo (checker.go:5509-5513) asks for the helper whenever the
+            // file emits CommonJS; esModuleInterop is always on in 7.x.
             if imported_name
                 .is_some_and(|name| self.module_export_name_text_unescaped(name) == "default")
-                && self.options.es_module_interop_effective()
-                && self.emit_module_format_is_pre_system(node)
+                && self.emit_module_format_of_file(node) == 1
             {
                 self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_DEFAULT)?;
             }
@@ -9812,12 +9816,15 @@ impl<'a> CheckerState<'a> {
                     if name.is_some() {
                         self.check_import_binding(import_clause)?;
                     }
+                    // tsgo (checker.go:5419-5447): a CommonJS file asks for
+                    // `__importStar` for a namespace import, else for
+                    // `__importDefault` for a default import.
+                    let mut needs_import_star = false;
                     if let Some(named_bindings) = named_bindings {
                         if self.kind_of(named_bindings) == SyntaxKind::NamespaceImport {
                             self.check_import_binding(named_bindings)?;
-                            if self.options.es_module_interop_effective()
-                                && self.emit_module_format_is_pre_system(node)
-                            {
+                            if self.emit_module_format_of_file(node) == 1 {
+                                needs_import_star = true;
                                 self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_STAR)?;
                             }
                         } else {
@@ -9839,6 +9846,12 @@ impl<'a> CheckerState<'a> {
                                 }
                             }
                         }
+                    }
+                    if name.is_some()
+                        && !needs_import_star
+                        && self.emit_module_format_of_file(node) == 1
+                    {
+                        self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_DEFAULT)?;
                     }
                     let is_type_only = matches!(
                         self.data_of(import_clause),
@@ -10217,11 +10230,10 @@ impl<'a> CheckerState<'a> {
                     };
                     self.check_module_export_name(clause_name, true)?;
                 }
-                if self.emit_module_format_is_pre_system(node) {
+                // tsgo (checker.go:5688-5695): a CommonJS file only.
+                if self.emit_module_format_of_file(node) == 1 {
                     if export_clause.is_some() {
-                        if self.options.es_module_interop_effective() {
-                            self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_STAR)?;
-                        }
+                        self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_STAR)?;
                     } else {
                         self.check_external_emit_helpers(node, EMIT_HELPER_EXPORT_STAR)?;
                     }
@@ -10325,9 +10337,9 @@ impl<'a> CheckerState<'a> {
         } else if property_name
             .or(name)
             .is_some_and(|name| self.module_export_name_text_unescaped(name) == "default")
-            && self.options.es_module_interop_effective()
-            && self.emit_module_format_is_pre_system(node)
+            && self.emit_module_format_of_file(node) == 1
         {
+            // tsgo (checker.go:5734-5737): a CommonJS file only.
             self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_DEFAULT)?;
         }
         Ok(())

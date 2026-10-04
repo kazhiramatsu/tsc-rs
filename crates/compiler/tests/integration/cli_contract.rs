@@ -2903,6 +2903,113 @@ fn path_reference_diagnostics_name_the_reference_as_written() {
 }
 
 #[test]
+fn diagnostic_message_details_follow_tsgo() {
+    // tsgo names a missing property by plain symbolToString
+    // (relater.go:4394: the source text of an early-bound computed name, the
+    // value of a mapped enum key), writes an enum-keyed property of a type
+    // as a computed reference when the enum is reachable from the render's
+    // enclosing declaration (nodebuilderimpl.go:2535-2552), and names the
+    // class of a private member by symbolToString (checker.go:11724). The
+    // expected diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "enum E { A, B }\n",
+            "interface I4 { [0x10]: number }\n",
+            "const x4: I4 = {};\n",
+            "type R = Record<E, any>;\n",
+            "const x5: R = { [E.B]: 1 };\n",
+            "const c1 = class { #m() {} };\n",
+            "new c1().#m;\n",
+            "const holder = { k: class { #n = 1 } };\n",
+            "new holder.k().#n;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"target":"esnext","strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(3,7): error TS2741: Property '[0x10]' is missing in type '{}' but required in type 'I4'.\n",
+            "a.ts(5,7): error TS2741: Property '0' is missing in type '{ [E.B]: number; }' but required in type 'R'.\n",
+            "a.ts(7,10): error TS18013: Property '#m' is not accessible outside class 'c1' because it has a private identifier.\n",
+            "a.ts(9,16): error TS18013: Property '#n' is not accessible outside class 'k' because it has a private identifier.\n",
+        )
+    );
+}
+
+#[test]
+fn imported_helpers_are_checked_per_file_like_tsgo() {
+    // tsgo keeps requestedExternalEmitHelpers in each source file's links
+    // (checker.go:29053), so every file reports its own missing helper, and
+    // a CommonJS default import asks for `__importDefault`
+    // (checker.go:5442-5447). The expected diagnostics are tsgo's for the
+    // same project.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/tslib")).expect("create tslib");
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export {};\n",
+            "async function foo(): Promise<void> {}\n",
+            "async function bar(): Promise<void> {}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import greet from \"./dep\";\n",
+            "export const m = greet();\n",
+            "async function baz(): Promise<void> {}\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("dep.ts"),
+        "export default function greet() { return 1; }\n",
+    )
+    .expect("write dep.ts");
+    fs::write(
+        tree.path("node_modules/tslib/package.json"),
+        r#"{"name":"tslib","main":"tslib.js","typings":"tslib.d.ts"}"#,
+    )
+    .expect("write package.json");
+    fs::write(
+        tree.path("node_modules/tslib/tslib.d.ts"),
+        "export const notAHelper: any;\n",
+    )
+    .expect("write tslib.d.ts");
+    fs::write(
+        tree.path("node_modules/tslib/tslib.js"),
+        "module.exports.notAHelper = 3;\n",
+    )
+    .expect("write tslib.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"target":"es2016","module":"commonjs","importHelpers":true,"strict":true},"files":["a.ts","b.ts","dep.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(2,16): error TS2343: This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.\n",
+            "b.ts(1,1): error TS2343: This syntax requires an imported helper named '__importDefault' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.\n",
+            "b.ts(3,16): error TS2343: This syntax requires an imported helper named '__awaiter' which does not exist in 'tslib'. Consider upgrading your version of 'tslib'.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

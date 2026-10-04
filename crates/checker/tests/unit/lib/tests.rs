@@ -2091,8 +2091,11 @@ fn external_emit_helpers_report_only_definite_tslib_misses() {
     );
 }
 
+/// tsgo checks only the private field helpers' arity
+/// (checker.go:29064-29072); tsc 6.0 also required a three-parameter
+/// `__spreadArray`.
 #[test]
-fn external_emit_helpers_check_spread_array_arity() {
+fn external_emit_helpers_do_not_check_spread_array_arity() {
     let result = check_program(
             &[
                 InputFile::new("types.d.ts".to_owned(), "declare module \"tslib\" {\n  export function __spreadArray(to: any[], from: any[]): any[];\n}\n".to_owned()),
@@ -2104,16 +2107,14 @@ fn external_emit_helpers_check_spread_array_arity() {
                 ..CompilerOptions::default()
             },
         );
-    let helper = result
-        .diagnostics
-        .iter()
-        .find(|diagnostic| diagnostic.code() == 2807)
-        .expect("two-parameter __spreadArray should report");
-    assert!(helper
-        .message_text()
-        .as_str()
-        .expect("scalar diagnostic observation")
-        .contains("3 parameters"));
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 2807),
+        "{:?}",
+        result.diagnostics
+    );
 }
 
 #[test]
