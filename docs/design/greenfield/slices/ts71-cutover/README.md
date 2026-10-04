@@ -2309,3 +2309,5 @@ P3-5asの後、import elisionの範囲とmodule変換の5件：
   - 10回のA/B：Effect `--noEmit` 518→495、Playwright `--noEmit` 363→361、hono `bench-full` 147→142、Next.js
     `bench-full` 997→985。1 checkerの命令数branch÷main：zod `--noEmit` 1.00019、Playwright `--noEmit` 0.99946、hono
     `bench-full` 0.99970、Next.js `bench-full` 0.99982。3回の差はnoiseで、劣化無し。
+- hosted：PR #671（head `fa1781cc6`）、run 37231610173 — `plan` 26s、`rust` 6m39s、`conformance (TypeScript 7.1)` 21m0s、
+  `gates` 15s。
