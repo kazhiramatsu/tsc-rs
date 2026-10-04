@@ -276,6 +276,42 @@ fn h1_4_emit_entry_runs_the_checked_transform_and_memory_sink_path() {
 }
 
 #[test]
+fn a_program_emit_writes_no_build_info_like_compiler_program_emit() {
+    // tsgo's `compiler.Program.Emit` writes the JavaScript and declarations
+    // of an `incremental` or `composite` program; only the command's
+    // incremental program adds the build info
+    // (execute/incremental/program.go:243-273).
+    for (incremental, composite) in [(Some(true), None), (None, Some(true))] {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                module: Some(99),
+                incremental,
+                composite,
+                ..CompilerOptions::default()
+            },
+            &[("/project/input.ts", "export const value: number = 1;\n")],
+        );
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("Program emit");
+        assert!(!outcome.emit_skipped());
+        let written: Vec<_> = sink
+            .writes()
+            .iter()
+            .map(|artifact| artifact.path().scalar_test_path().to_path_buf())
+            .collect();
+        let mut expected = vec![PathBuf::from("/project/input.js")];
+        if composite.is_some() {
+            expected.push(PathBuf::from("/project/input.d.ts"));
+        }
+        assert_eq!(written, expected);
+    }
+}
+
+#[test]
 fn h2_1a_omitted_and_explicit_esnext_select_the_exact_esm_path() {
     for module in [None, Some(99)] {
         let prepared = prepared_with_sources(

@@ -1448,6 +1448,21 @@ impl ProgramSession {
         self,
         sink: &mut dyn OutputSink,
     ) -> Result<CliEmitSessionOutcome, DriverError> {
+        // tsgo's command compiles an incremental program for `incremental`
+        // or `composite` (`IsIncremental`, execute/tsc.go:245), whose emit
+        // also writes the build info (execute/incremental/program.go:243-273).
+        // This command does not write build info, so it refuses that emit.
+        let options = self.prepared.compiler_options();
+        for (active, option) in [
+            (options.incremental == Some(true), "incremental"),
+            (options.composite == Some(true), "composite"),
+        ] {
+            if active {
+                return Err(DriverError::Emit(EmitFailure::UnsupportedCompilerOption {
+                    option,
+                }));
+            }
+        }
         self.emit_with_command_outcome(sink, None)
     }
 
