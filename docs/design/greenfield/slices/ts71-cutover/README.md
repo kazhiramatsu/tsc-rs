@@ -1759,3 +1759,14 @@ P3-5afの後、errorsのCategory／Textの不一致のうち、診断文の型�
 - ratchet：0 regressions、6行raise。`intersectionConstructorReductionCrash`は今回も通ったがratchetに入れない。
 - local：formatとworkspace全体のclippy。syntax・binder・emitter・checker・compiler・conformanceのtest（49 targets、
   2,965件）。試行（filter `verload`・`ixin`・`iteral`・`urrogate`・`lassExpression`）で下がった構成は無かった。
+- hosted：PR #658（head `fd5924fc6`、merge `371167833`）、run 37201677255 — `plan` 24s、`rust` 7m25s、
+  `conformance (TypeScript 7.1)` 20m19s、`gates` 47s。
+- perf（README corpora、nice 20、main（P3-5afのcode `7ee088e7f`）と本branch（`965d874de`）のrelease build対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 143→130、zod 538→554、Playwright 384→353、
+    TypeScript `src/compiler` 363→339、Next.js 807→798、Effect 524→587、VS Code 3,702→3,528。tsc-rs÷tsgo 0.60–0.91。
+    7 corporaとも診断と読み込んだ文書数はmainと同一。
+  - zodとEffectは10回のA/B：zod 512→511、Effect 521→516。1 checkerの命令数（5回のmedian）branch÷main
+    0.99986（zod）、0.99976（Effect）。3回のmedianの差はnoise。
+  - `tsconfig.bench-full.json` 3回：hono 149→148、zod 669→649、Playwright 504→506、TypeScript `src/compiler`
+    567→534、Next.js 1,083→1,111、Effect 812→807。tsc-rs÷tsgo 0.63–0.81。6 corporaとも出力fileと診断はmainと同一。
+    Next.jsは6回のA/Bで997→984、命令数branch÷main 1.00016。劣化無し。
