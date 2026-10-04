@@ -5368,3 +5368,204 @@ fn missing_project_selection_uses_typescript_command_line_diagnostics() {
     );
     assert!(missing_config.stderr.is_empty());
 }
+
+/// Emit each `(name, text)` file of one program and read back the outputs.
+fn emit_files(files: &[(&str, &str)], options: &str) -> Vec<String> {
+    let tree = TempTree::new();
+    for (name, text) in files {
+        fs::write(tree.path(name), text).expect("write source");
+    }
+    let names = files
+        .iter()
+        .map(|(name, _)| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(",");
+    fs::write(
+        tree.path("tsconfig.json"),
+        format!(r#"{{"compilerOptions":{{{options},"outDir":"out"}},"files":[{names}]}}"#),
+    )
+    .expect("write config");
+    run(&tree, &["--pretty", "false"]);
+    files
+        .iter()
+        .map(|(name, _)| {
+            let output = format!("out/{}.js", name.rsplit_once('.').expect("extension").0);
+            fs::read_to_string(tree.path(&output)).expect("read output")
+        })
+        .collect()
+}
+
+#[test]
+fn statementless_files_keep_the_comments_after_their_skipped_tokens_like_tsgo() {
+    // tsgo emits a source file's remaining comments at its statement list's
+    // end, the EOF token's full start after any skipped token
+    // (emitDetachedCommentsAfterStatementList, printer.go:5404-5417), and
+    // GetLeadingCommentRanges leaves a comment on that position's line to the
+    // preceding token. The expected bytes are tsgo's.
+    let outputs = emit_files(
+        &[
+            ("a.ts", "/*foo*/ \\"),
+            ("b.ts", "/*foo*/ \\ /*bar*/\n"),
+            ("c.ts", "/*foo*/ )\n"),
+            ("d.ts", "/*a*/\n\n/*b*/ \\ /*c*/\n/*d*/\n"),
+            ("e.ts", "/*a*/ /*c*/\n\n/*b*/\n"),
+            ("f.ts", "//x\n)\n//y\n"),
+        ],
+        r#""types":[],"target":"es2015""#,
+    );
+    assert_eq!(
+        outputs,
+        [
+            "\"use strict\";\n",
+            "\"use strict\";\n",
+            "\"use strict\";\n",
+            "\"use strict\";\n/*a*/\n/*d*/\n",
+            "\"use strict\";\n/*a*/ /*c*/\n/*b*/\n",
+            "\"use strict\";\n//y\n",
+        ]
+    );
+}
+
+#[test]
+fn unclosed_lists_leave_their_comments_to_the_statement_like_tsgo() {
+    // tsgo's emitList writes the comments within an empty list through
+    // emitTrailingComments and emitLeadingComments (printer.go:4765-4798),
+    // and a trailing comma's through emitCommentsAfterToken (5371-5380);
+    // emitTrailingComments leaves them to a container ending there
+    // (5604-5611), which an unclosed list's statement does. The expected
+    // bytes are tsgo's.
+    let outputs = emit_files(
+        &[
+            (
+                "a.ts",
+                "class Type {\n    public examples = [ // typing here\n}\n",
+            ),
+            ("b.ts", "var x = [ // typing here\n"),
+            ("c.ts", "var x = [ // typing here\n];\n"),
+            ("d.ts", "var x = [1, // typing here\n"),
+            ("e.ts", "f( // typing here\n"),
+            ("f.ts", "f(1, [ /*x*/\n"),
+            ("g.ts", "var o = { /*o*/\n"),
+            (
+                "h.ts",
+                "var y = [ // t\n  // u\n];\nvar z = [ /*a*/ /*b*/ ];\n",
+            ),
+        ],
+        r#""types":[],"target":"es2015","useDefineForClassFields":false"#,
+    );
+    assert_eq!(
+        outputs,
+        [
+            concat!(
+                "\"use strict\";\n",
+                "class Type {\n",
+                "    constructor() {\n",
+                "        this.examples = []; // typing here\n",
+                "    }\n",
+                "}\n",
+            ),
+            "\"use strict\";\nvar x = []; // typing here\n",
+            "\"use strict\";\nvar x = [ // typing here\n];\n",
+            "\"use strict\";\nvar x = [1,]; // typing here\n",
+            "\"use strict\";\nf(); // typing here\n",
+            "\"use strict\";\nf(1, []); /*x*/\n",
+            "\"use strict\";\nvar o = {}; /*o*/\n",
+            "\"use strict\";\nvar y = [ // t\n// u\n];\nvar z = [ /*a*/ /*b*/];\n",
+        ]
+    );
+}
+
+#[test]
+fn jsx_runtime_names_in_commonjs_scripts_keep_their_names_like_tsgo() {
+    // tsgo's CommonJS transform leaves a script alone
+    // (commonjsmodule.go:228-233), so the JSX runtime names stay as written.
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/react")).expect("create react");
+    fs::write(tree.path("node_modules/react/index.d.ts"), "export {};\n").expect("write index");
+    fs::write(
+        tree.path("node_modules/react/jsx-runtime.d.ts"),
+        concat!(
+            "export namespace JSX { interface IntrinsicElements { [k: string]: any } interface Element {} }\n",
+            "export function jsx(...a: any[]): any;\n",
+            "export function jsxs(...a: any[]): any;\n",
+            "export const Fragment: any;\n",
+        ),
+    )
+    .expect("write jsx-runtime");
+    fs::write(
+        tree.path("node_modules/react/package.json"),
+        r#"{"name":"react","version":"1.0.0","types":"index.d.ts"}"#,
+    )
+    .expect("write package.json");
+    fs::write(
+        tree.path("a.tsx"),
+        concat!(
+            "class C {\n",
+            "    render() { return <div>{null /* p */}</div>; }\n",
+            "}\n",
+            "const x = <><span /></>;\n",
+        ),
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2020","module":"commonjs","moduleDetection":"legacy","jsx":"react-jsx","outDir":"out"},"files":["a.tsx"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "class C {\n",
+            "    render() { return _jsx(\"div\", { children: null /* p */ }); }\n",
+            "}\n",
+            "const x = _jsx(_Fragment, { children: _jsx(\"span\", {}) });\n",
+        )
+    );
+}
+
+#[test]
+fn the_command_refuses_only_an_emit_that_writes_build_info() {
+    // tsgo's command compiles an incremental program for `incremental` or
+    // `composite` (execute/tsc.go:245), whose emit writes the build info this
+    // command cannot write yet; `tsBuildInfoFile` alone selects none
+    // (outputpaths.GetBuildInfoFileName), so tsgo emits the JavaScript alone.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export const x = 1;\n").expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2020","module":"esnext","tsBuildInfoFile":"out/a.tsbuildinfo","outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        "export const x = 1;\n"
+    );
+    assert!(!tree.path("out/a.tsbuildinfo").exists());
+
+    for option in ["incremental", "composite"] {
+        let tree = TempTree::new();
+        fs::write(tree.path("a.ts"), "export const x = 1;\n").expect("write a.ts");
+        fs::write(
+            tree.path("tsconfig.json"),
+            format!(
+                r#"{{"compilerOptions":{{"types":[],"target":"es2020","module":"esnext","{option}":true,"outDir":"out"}},"files":["a.ts"]}}"#
+            ),
+        )
+        .expect("write config");
+        let output = run(&tree, &["--pretty", "false"]);
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(
+            String::from_utf8_lossy(&output.stderr),
+            format!("tsc-rs: compiler failure: unsupported emit compiler option: {option}\n")
+        );
+        assert!(!tree.path("out").exists());
+    }
+}
