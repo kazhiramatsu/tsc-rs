@@ -2427,3 +2427,5 @@ P3-5avの後の4件（前の2件はREADMEのNext.jsの出力の差から）：
   - 10回のA/B：Playwright `bench-full` 497→495、zod `bench-full` 640→638、hono `bench-full` 147→148、Next.js
     `bench-full` 1,056→1,039。1 checkerの命令数branch÷main：zod `--noEmit` 0.99971、Playwright `bench-full` 1.00012、
     hono `bench-full` 1.00024、Next.js `bench-full` 0.99961。3回の差はnoiseで、劣化無し。
+- hosted：PR #674（head `e3c293e19`）、run 37238181312 — `plan` 29s、`rust` 9m33s、`conformance (TypeScript 7.1)` 20m47s、
+  `gates` 11s。
