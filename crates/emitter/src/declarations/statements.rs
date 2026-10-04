@@ -197,7 +197,14 @@ pub(crate) fn transform_top_level_declaration(
             .resolver
             .is_implementation_of_overload(resolver_node)?
         {
-            return Ok(VisitResult::None);
+            // A JavaScript implementation's overloads come from its
+            // `@overload` tags, which tsgo's parser puts before it.
+            let overloads = transformer.reparsed_overloads(context, input)?;
+            return Ok(if overloads.is_empty() {
+                VisitResult::None
+            } else {
+                VisitResult::Nodes(overloads)
+            });
         }
     }
 

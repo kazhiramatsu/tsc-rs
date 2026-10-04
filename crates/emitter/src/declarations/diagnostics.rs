@@ -689,9 +689,9 @@ const fn external(
 
 /// The node's parent in tsgo's reparsed tree: the type parameter of a
 /// `@template` tag belongs to the function, method or class whose type
-/// parameters it becomes (reparser.go:440-457), or to the type alias of the
+/// parameters it becomes (reparser.go:440-457), to the type alias of the
 /// `@typedef` or `@callback` tag in its comment (gatherTypeParameters,
-/// 297-344).
+/// 297-344), or to the overloads of its comment's `@overload` tags.
 fn parent(source: &SourceFile, node: NodeId) -> Option<NodeId> {
     let parent = source.arena.node(node).parent?;
     if source.arena.node(parent).kind == SyntaxKind::JSDocTemplateTag {
@@ -700,21 +700,25 @@ fn parent(source: &SourceFile, node: NodeId) -> Option<NodeId> {
         }
         let comment = source.arena.node(parent).parent?;
         if let NodeData::JSDoc(data) = &source.arena.node(comment).data {
-            if let Some(alias) = data.tags.and_then(|tags| {
-                source
-                    .arena
-                    .node_array(tags)
-                    .nodes
-                    .iter()
-                    .copied()
-                    .find(|&tag| {
-                        matches!(
-                            source.arena.node(tag).kind,
-                            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
-                        )
-                    })
+            let tags = data
+                .tags
+                .map_or(&[][..], |tags| source.arena.node_array(tags).nodes);
+            if let Some(alias) = tags.iter().copied().find(|&tag| {
+                matches!(
+                    source.arena.node(tag).kind,
+                    SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+                )
             }) {
                 return Some(alias);
+            }
+            // The overloads of an `@overload` comment take its type
+            // parameters (reparser.go:162-164).
+            if let Some(host) = tags.iter().copied().find_map(|tag| {
+                (source.arena.node(tag).kind == SyntaxKind::JSDocOverloadTag)
+                    .then(|| tsc_binder::hosted::reparsed_overload_host(source, tag))
+                    .flatten()
+            }) {
+                return Some(host);
             }
         }
     }

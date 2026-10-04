@@ -82,7 +82,14 @@ impl DeclarationTransformer<'_> {
                 .resolver
                 .is_implementation_of_overload(self.required_resolver_node(cx, input)?)?
         {
-            return Ok(VisitResult::None);
+            // A JavaScript implementation's overloads come from its
+            // `@overload` tags, which tsgo's parser puts before it.
+            let overloads = self.reparsed_overloads(cx, input)?;
+            return Ok(if overloads.is_empty() {
+                VisitResult::None
+            } else {
+                VisitResult::Nodes(overloads)
+            });
         }
         if self.kind(cx, input)? == SyntaxKind::SemicolonClassElement {
             return Ok(VisitResult::None);

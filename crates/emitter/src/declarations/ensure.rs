@@ -502,6 +502,20 @@ impl DeclarationTransformer<'_> {
         cx: &TransformationContext,
         node: TransformNode,
     ) -> Result<ModifierFlags, TransformError> {
+        let source = cx.arena().source(node.source())?.syntax();
+        let flags = effective_modifier_flags(source, node.node());
+        self.ensure_modifier_flags_of(cx, node, flags)
+    }
+
+    /// ensureModifierFlags for a declaration at `node`'s position whose
+    /// modifiers are `flags`: the overload tsgo's reparser copies from a
+    /// JavaScript declaration has that declaration's written modifiers.
+    pub(crate) fn ensure_modifier_flags_of(
+        &self,
+        cx: &TransformationContext,
+        node: TransformNode,
+        flags: ModifierFlags,
+    ) -> Result<ModifierFlags, TransformError> {
         let mask = ModifierFlags::from_bits(
             ModifierFlags::ALL.bits()
                 ^ (ModifierFlags::PUBLIC.bits()
@@ -534,7 +548,7 @@ impl DeclarationTransformer<'_> {
         } else {
             (mask, additions)
         };
-        mask_modifier_flags(cx, node, mask, additions)
+        Ok(mask_flags(flags, mask, additions))
     }
 
     /// tsc-port: shouldStripInternal @6.0.3
@@ -745,15 +759,26 @@ pub(crate) fn mask_modifier_flags(
     modifier_additions: ModifierFlags,
 ) -> Result<ModifierFlags, TransformError> {
     let source = cx.arena().source(node.source())?.syntax();
-    let mut bits = (effective_modifier_flags(source, node.node()).bits() & modifier_mask.bits())
-        | modifier_additions.bits();
+    Ok(mask_flags(
+        effective_modifier_flags(source, node.node()),
+        modifier_mask,
+        modifier_additions,
+    ))
+}
+
+fn mask_flags(
+    flags: ModifierFlags,
+    modifier_mask: ModifierFlags,
+    modifier_additions: ModifierFlags,
+) -> ModifierFlags {
+    let mut bits = (flags.bits() & modifier_mask.bits()) | modifier_additions.bits();
     if bits & ModifierFlags::DEFAULT.bits() != 0 && bits & ModifierFlags::EXPORT.bits() == 0 {
         bits ^= ModifierFlags::EXPORT.bits();
     }
     if bits & ModifierFlags::DEFAULT.bits() != 0 && bits & ModifierFlags::AMBIENT.bits() != 0 {
         bits ^= ModifierFlags::AMBIENT.bits();
     }
-    Ok(ModifierFlags::from_bits(bits))
+    ModifierFlags::from_bits(bits)
 }
 
 /// tsc-port: isAlwaysType @6.0.3
@@ -938,7 +963,7 @@ fn modifier_array(
     Ok(modifiers.and_then(|array| cx.arena().node_array_ref(node.source(), array)))
 }
 
-const fn is_modifier_kind(kind: SyntaxKind) -> bool {
+pub(crate) const fn is_modifier_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::AbstractKeyword

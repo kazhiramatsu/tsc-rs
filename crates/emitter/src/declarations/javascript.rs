@@ -419,6 +419,33 @@ fn push_reparsed_tags(source: &SourceFile, host: NodeId, tags: &mut Vec<Reparsed
     }
 }
 
+/// The `@overload` tags tsgo's reparser turns into overloads of `host`, in
+/// the order of their comments (reparser.go:58-72, 138-142).
+fn overload_tags(source: &SourceFile, host: NodeId) -> Vec<ReparsedTag> {
+    let mut tags = Vec::new();
+    let Some(comments) = source.arena.node(host).js_doc else {
+        return tags;
+    };
+    for &comment in source.arena.node_array(comments).nodes {
+        let NodeData::JSDoc(data) = &source.arena.node(comment).data else {
+            continue;
+        };
+        for &tag in data
+            .tags
+            .map_or(&[][..], |list| source.arena.node_array(list).nodes)
+        {
+            if matches!(
+                &source.arena.node(tag).data,
+                NodeData::JSDocOverloadTag(overload) if overload.type_expression.is_some()
+            ) && tsc_binder::hosted::reparsed_overload_host(source, tag) == Some(host)
+            {
+                tags.push(ReparsedTag { tag, comment });
+            }
+        }
+    }
+    tags
+}
+
 fn template_tags_of_comment(source: &SourceFile, comment: NodeId) -> Vec<NodeId> {
     let NodeData::JSDoc(data) = &source.arena.node(comment).data else {
         return Vec::new();
@@ -841,6 +868,23 @@ impl DeclarationTransformer<'_> {
         signature: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let source = signature.source();
+        let (parameters, return_type) = self.reparsed_signature_parts(cx, signature)?;
+        let mut factory = cx.factory()?;
+        let return_type = match return_type {
+            Some(r#type) => r#type,
+            None => factory.create_keyword_type_node(source, SyntaxKind::AnyKeyword)?,
+        };
+        factory.create_function_type_node(source, None, parameters, return_type)
+    }
+
+    /// The parameters and the reused return type of a JSDoc signature as
+    /// tsgo's reparseJSDocSignature builds them (reparser.go:146-242).
+    fn reparsed_signature_parts(
+        &mut self,
+        cx: &mut TransformationContext,
+        signature: TransformNode,
+    ) -> Result<(TransformNodeArray, Option<TransformNode>), TransformError> {
+        let source = signature.source();
         let (parameters, return_type) = {
             let syntax = cx.arena().source(source)?.syntax();
             let NodeData::JSDocSignature(data) = &syntax.arena.node(signature.node()).data else {
@@ -944,13 +988,180 @@ impl DeclarationTransformer<'_> {
             }
             None => None,
         };
+        let parameters = cx.factory()?.create_node_array(source, declarations)?;
+        Ok((parameters, return_type))
+    }
+
+    /// The overloads tsgo's reparser makes of the `@overload` tags of a
+    /// JavaScript function, method or constructor, which its parser puts
+    /// before the declaration (reparser.go:138-142, 146-242). The declaration
+    /// itself is then the implementation and is left out.
+    pub(crate) fn reparsed_overloads(
+        &mut self,
+        cx: &mut TransformationContext,
+        host: TransformNode,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let source = host.source();
+        let tags = {
+            let syntax = cx.arena().source(source)?.syntax();
+            if !is_javascript_file(syntax) {
+                return Ok(Vec::new());
+            }
+            overload_tags(syntax, host.node())
+        };
+        let mut overloads = Vec::new();
+        for tag in tags {
+            overloads.push(self.reparsed_overload(cx, host, tag)?);
+        }
+        Ok(overloads)
+    }
+
+    fn reparsed_overload(
+        &mut self,
+        cx: &mut TransformationContext,
+        host: TransformNode,
+        tag: ReparsedTag,
+    ) -> Result<TransformNode, TransformError> {
+        let source = host.source();
+        let (kind, name, written_modifiers, signature, templates) = {
+            let syntax = cx.arena().source(source)?.syntax();
+            let host_record = syntax.arena.node(host.node());
+            let (name, modifiers) = match &host_record.data {
+                NodeData::FunctionDeclaration(data) => (data.name, data.modifiers),
+                NodeData::MethodDeclaration(data) => (data.name, data.modifiers),
+                NodeData::Constructor(data) => (None, data.modifiers),
+                _ => return Err(Self::contract("overload host is not a function")),
+            };
+            let NodeData::JSDocOverloadTag(overload) = &syntax.arena.node(tag.tag).data else {
+                return Err(Self::contract(
+                    "reparsed overload tag is not an @overload tag",
+                ));
+            };
+            let signature = overload
+                .type_expression
+                .ok_or_else(|| Self::contract("@overload tag has no signature"))?;
+            // gatherTypeParameters (reparser.go:297-344): none when the
+            // comment declares a type alias.
+            let comment_declares_alias = match &syntax.arena.node(tag.comment).data {
+                NodeData::JSDoc(data) => data.tags.is_some_and(|tags| {
+                    syntax.arena.node_array(tags).nodes.iter().any(|&tag| {
+                        matches!(
+                            syntax.arena.node(tag).kind,
+                            SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+                        )
+                    })
+                }),
+                _ => false,
+            };
+            let templates = if comment_declares_alias {
+                Vec::new()
+            } else {
+                template_tags_of_comment(syntax, tag.comment)
+            };
+            (
+                host_record.kind,
+                name,
+                modifiers,
+                TransformNode::new(source, signature),
+                templates,
+            )
+        };
+        let tag_node = TransformNode::new(source, tag.tag);
+        // The overload carries a copy of the host's written modifiers, which
+        // the declaration transform reuses, source positions included, when
+        // it adds none (DeepCloneReparseModifiers, ensureModifiers).
+        let written = written_modifiers.and_then(|list| cx.arena().node_array_ref(source, list));
+        let written_flags = {
+            let syntax = cx.arena().source(source)?.syntax();
+            written.map_or(ModifierFlags::NONE, |list| {
+                let mut flags = ModifierFlags::NONE;
+                for &modifier in syntax.arena.node_array(list.array()).nodes {
+                    flags |=
+                        tsc_binder::node_util::modifier_to_flag(syntax.arena.node(modifier).kind);
+                }
+                flags
+            })
+        };
+        let ensured = self.ensure_modifier_flags_of(cx, host, written_flags)?;
+        let modifiers = match written {
+            Some(list) if ensured == written_flags => {
+                let retained = cx
+                    .arena()
+                    .node_array(list)?
+                    .nodes
+                    .iter()
+                    .copied()
+                    .filter(|&modifier| {
+                        cx.arena()
+                            .node(TransformNode::new(source, modifier))
+                            .is_ok_and(|node| super::ensure::is_modifier_kind(node.kind))
+                    })
+                    .map(|modifier| TransformNode::new(source, modifier))
+                    .collect::<Vec<_>>();
+                Some(cx.factory()?.update_node_array(list, retained)?)
+            }
+            _ => cx
+                .factory()?
+                .create_modifiers_from_modifier_flags(source, ensured)?,
+        };
+        let previous_enclosing =
+            std::mem::replace(&mut self.state_mut()?.enclosing_declaration, Some(tag_node));
+        let saved = if self.tracker.suppress_new_diagnostic_contexts {
+            None
+        } else {
+            Some(
+                self.tracker
+                    .replace_diagnostic_context(cx.arena(), DiagnosticContext::ForNode(host))?,
+            )
+        };
+        let parts = (|| {
+            let type_parameters = if templates.is_empty() || kind == SyntaxKind::Constructor {
+                None
+            } else {
+                Some(self.visit_hosted_type_parameters(cx, host, &templates)?)
+            };
+            let (parameters, return_type) = self.reparsed_signature_parts(cx, signature)?;
+            Ok::<_, TransformError>((type_parameters, parameters, return_type))
+        })();
+        if let Some(saved) = saved {
+            self.tracker.restore_diagnostic_context(saved);
+        }
+        self.state_mut()?.enclosing_declaration = previous_enclosing;
+        let (type_parameters, parameters, return_type) = parts?;
         let mut factory = cx.factory()?;
+        // Without `@returns` the overload's return type is the `any` of a
+        // signature with neither annotation nor body.
         let return_type = match return_type {
             Some(r#type) => r#type,
             None => factory.create_keyword_type_node(source, SyntaxKind::AnyKeyword)?,
         };
-        let parameters = factory.create_node_array(source, declarations)?;
-        factory.create_function_type_node(source, None, parameters, return_type)
+        match kind {
+            SyntaxKind::FunctionDeclaration => factory.create_function_declaration(
+                source,
+                modifiers,
+                None,
+                name.map(|name| TransformNode::new(source, name)),
+                type_parameters,
+                parameters,
+                Some(return_type),
+                None,
+            ),
+            SyntaxKind::MethodDeclaration => factory.create_method_declaration(
+                source,
+                modifiers,
+                None,
+                TransformNode::new(
+                    source,
+                    name.ok_or_else(|| Self::contract("overloaded method has no name"))?,
+                ),
+                None,
+                type_parameters,
+                parameters,
+                Some(return_type),
+                None,
+            ),
+            _ => factory.create_constructor_declaration(source, modifiers, parameters, None),
+        }
     }
 
     /// tsgo ensureType of a declaration its reparser builds from a JSDoc tag

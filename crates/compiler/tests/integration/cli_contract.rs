@@ -1132,6 +1132,140 @@ fn javascript_import_tags_follow_tsgo() {
 }
 
 #[test]
+fn javascript_overload_tags_follow_tsgo() {
+    // tsgo's parser turns each `@overload` tag of a function, method or
+    // constructor into a bodyless declaration before it, and the
+    // declaration itself becomes the implementation that declarations leave
+    // out. The overload copies the implementation's written modifiers and
+    // name with their source positions: when the transform reuses them, the
+    // implementation's comments print before the overload. The expected
+    // bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/**\n",
+            " * Adds things.\n",
+            " * @overload\n",
+            " * @param {number} a\n",
+            " * @param {number} b\n",
+            " * @returns {number}\n",
+            " *\n",
+            " * @overload\n",
+            " * @param {string} a\n",
+            " * @param {string} [b]\n",
+            " * @returns {string}\n",
+            " *\n",
+            " * @param {string | number} a\n",
+            " * @param {string | number} [b]\n",
+            " * @returns {string | number}\n",
+            " */\n",
+            "export function add(a, b) {\n",
+            "    return a;\n",
+            "}\n",
+            "\n",
+            "export class Box {\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} a\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} a\n",
+            "     * @param {number} b\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} a\n",
+            "     * @param {number} [b]\n",
+            "     */\n",
+            "    constructor(a, b) {\n",
+            "        void [a, b];\n",
+            "    }\n",
+            "\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} key\n",
+            "     * @returns {string}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} key\n",
+            "     * @returns {number}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} key\n",
+            "     */\n",
+            "    get(key) {\n",
+            "        return key;\n",
+            "    }\n",
+            "\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     */\n",
+            "    static make() {}\n",
+            "}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "lib.js(57,9): error TS7010: 'make', which lacks return-type annotation, implicitly has an 'any' return type.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "export declare function add(a: number, b: number): number;\n",
+            "export declare function add(a: string, b?: string): string;\n",
+            "export declare class Box {\n",
+            "    constructor(a: string);\n",
+            "    constructor(a: number, b: number);\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} key\n",
+            "     * @returns {string}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} key\n",
+            "     * @returns {number}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} key\n",
+            "     */\n",
+            "    get(key: string): string;\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} key\n",
+            "     * @returns {string}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} key\n",
+            "     * @returns {number}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} key\n",
+            "     */\n",
+            "    get(key: number): number;\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     */\n",
+            "    static make(): any;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already
