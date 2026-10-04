@@ -1433,39 +1433,30 @@ pub fn load_emitting_config_program_with_no_emit_override_and_overrides(
 /// cannot accidentally bypass config diagnostics or the H0 fail-closed
 /// option/root-scope boundary.
 pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
-    validate_config_plan_for_mode(plan, false, false)
-}
-
-fn validate_config_plan_for_mode(
-    plan: &ConfigRootPlan,
-    force_no_emit: bool,
-    emitting: bool,
-) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
-    // Ordinary emit creates the Program before reporting option relations;
-    // noEmitOnError checks option/syntax/global/semantic diagnostics, while
-    // config conversion diagnostics are reported separately and do not block
-    // writes. H0 retains its explicit validation gate.
     let options = plan
         .option_diagnostics()
         .iter()
-        .filter(|diagnostic| {
-            !(emitting
-                || is_non_fatal_option_diagnostic(diagnostic)
-                || force_no_emit && diagnostic.code() == 5096)
-        })
+        .filter(|diagnostic| !is_non_fatal_option_diagnostic(diagnostic))
         .cloned()
         .collect::<Vec<_>>();
-    if !emitting && (!config.is_empty() || !options.is_empty()) {
+    if !config.is_empty() || !options.is_empty() {
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
+    validate_config_plan_for_mode(plan, false)
+}
 
-    if let Some((feature, detail)) = unsupported_config_scope(
-        &plan.options,
-        &plan.raw,
-        plan.unsupported_root_scopes(),
-        emitting,
-    ) {
+/// The gate of a config Program load. tsgo creates the Program whatever the
+/// config reports: the config parsing diagnostics and the option
+/// diagnostics are the Program's (`GetConfigFileParsingDiagnostics`,
+/// `GetProgramDiagnostics`) while it still loads, checks and emits
+/// (compiler/program.go:2010-2065). Only an unsupported config scope stops
+/// the load.
+fn validate_config_plan_for_mode(
+    plan: &ConfigRootPlan,
+    emitting: bool,
+) -> Result<(), ConfigProgramLoadError> {
+    if let Some((feature, detail)) = unsupported_config_scope(&plan.options, &plan.raw, emitting) {
         return Err(ConfigProgramLoadError::Program(
             ProgramLoadError::unsupported_js(
                 crate::loader::ProgramLoadOperation::ValidateOptions,
@@ -1501,12 +1492,7 @@ fn load_config_program_inner(
     mode: ConfigProgramMode,
     overrides: ConfigEmitOptionOverrides,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    let force_no_emit = matches!(mode, ConfigProgramMode::NoEmit { force: true });
-    validate_config_plan_for_mode(
-        plan,
-        force_no_emit,
-        matches!(mode, ConfigProgramMode::Emit { .. }),
-    )?;
+    validate_config_plan_for_mode(plan, matches!(mode, ConfigProgramMode::Emit { .. }))?;
 
     match mode {
         ConfigProgramMode::NoEmit { force: false }
@@ -1854,10 +1840,13 @@ fn parse_config_root_plan_inner(
 /// carry through the narrower `CompilerOptions` projection. This check runs
 /// at the program-load gate rather than during parsing so the config oracle
 /// can still observe TypeScript's complete partial `ParsedCommandLine` shape.
+/// Root config scopes (`watchOptions`, `typeAcquisition`, `compileOnSave`)
+/// are inert for a command that neither watches nor serves an editor: tsgo
+/// reports their conversion diagnostics and reads them no further, so every
+/// command admits them and the plan only observes them.
 fn unsupported_config_scope(
     options: &ConfigOptionBag,
     raw: &Value,
-    unsupported_root_scopes: impl IntoIterator<Item = impl AsRef<str>>,
     emitting: bool,
 ) -> Option<(&'static str, String)> {
     if let Some(references) = raw.as_object().and_then(|raw| raw.get("references")) {
@@ -1869,37 +1858,25 @@ fn unsupported_config_scope(
         }
     }
 
-    if let Some(scope) = unsupported_root_scopes
-        .into_iter()
-        .find(|scope| !emitting && !H0_NO_EMIT_INERT_ROOT_SCOPES.contains(&scope.as_ref()))
-    {
-        let scope = scope.as_ref();
-        let detail = match scope {
-            "watchOptions" => "watchOptions are outside the H0 single-project no-emit driver",
-            "typeAcquisition" => "typeAcquisition is outside the H0 single-project no-emit driver",
-            "compileOnSave" => "compileOnSave is outside the H0 single-project no-emit driver",
-            _ => "root config scope is outside the H0 single-project no-emit driver",
-        };
-        return Some(("unsupported-config-scope", detail.to_owned()));
-    }
-
     for option in options.entries() {
         // Unknown names have already produced config conversion diagnostics
-        // and do not request a feature in the converted options.
-        if emitting && compiler_option_declaration(&option.name).is_none() {
+        // (TS5023) and do not request a feature in the converted options;
+        // tsgo creates the Program after reporting them.
+        if compiler_option_declaration(&option.name).is_none() {
             continue;
         }
-        // sourceMap is already projected and validated. An ordinary no-emit
-        // command retains it without constructing an emitter, as it does the
-        // emitter-only options below, which change no diagnostic. Keep this
-        // later extension separate from the frozen H0 qualification inventory.
+        // The source map options are already projected and validated. An
+        // ordinary no-emit command retains them without constructing an
+        // emitter, as it does the emitter-only options below, which change
+        // no diagnostic but their option rows. Keep this later extension
+        // separate from the frozen H0 qualification inventory.
         let no_emit_projection = !emitting
-            && (option.name == "sourceMap"
-                || H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS
-                    .iter()
-                    .chain(H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS)
-                    .chain(H0_NO_EMIT_CHECKER_CONFIG_OPTIONS)
-                    .any(|candidate| option.name == *candidate));
+            && H0_NO_EMIT_SOURCE_MAP_CONFIG_OPTIONS
+                .iter()
+                .chain(H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS)
+                .chain(H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS)
+                .chain(H0_NO_EMIT_CHECKER_CONFIG_OPTIONS)
+                .any(|candidate| option.name == *candidate);
         let service_option = LANGUAGE_SERVICE_CONFIG_OPTIONS
             .iter()
             .any(|candidate| option.name == *candidate);
@@ -2214,6 +2191,18 @@ pub const H0_SUPPORTED_CONFIG_OPTIONS: &[&str] = &[
     "declarationDir",
 ];
 
+/// Source map options a no-emit command retains without an emitter: they
+/// select no checker behaviour, and their cross-option rows (TS5053,
+/// TS5051, TS5069) are the option diagnostics tsgo reports for a `--noEmit`
+/// check as well.
+const H0_NO_EMIT_SOURCE_MAP_CONFIG_OPTIONS: &[&str] = &[
+    "sourceMap",
+    "inlineSourceMap",
+    "inlineSources",
+    "sourceRoot",
+    "mapRoot",
+];
+
 /// Emitter-only options a no-emit command retains without an emitter: none
 /// of them selects a checker behaviour or carries a cross-option config
 /// diagnostic, so a `--noEmit` check of a project that sets them (Next.js's
@@ -2270,16 +2259,6 @@ const H0_NO_EMIT_CHECKER_CONFIG_OPTIONS: &[&str] = &[
     "erasableSyntaxOnly",
     "stableTypeOrdering",
 ];
-
-/// Root config scopes tsc parses for editors only: `compileOnSave` reaches
-/// ParsedCommandLine.compileOnSave (convertCompileOnSaveOptionFromJson,
-/// _tsc.js:39338) and executeCommandLine never reads it, so a `--noEmit`
-/// check of a project that sets it (Playwright's root tsconfig) reports
-/// exactly what tsc reports, as an emitting command already does. The plan
-/// still observes the scope; only the no-emit gate admits it. `watchOptions`
-/// and `typeAcquisition` keep their explicit gate until a real-project
-/// control needs them.
-const H0_NO_EMIT_INERT_ROOT_SCOPES: &[&str] = &["compileOnSave"];
 
 fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
     let name = name.into();

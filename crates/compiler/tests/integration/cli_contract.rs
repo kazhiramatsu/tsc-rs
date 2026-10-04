@@ -3121,6 +3121,110 @@ fn json_values_are_validated_like_tsgo() {
 }
 
 #[test]
+fn config_errors_do_not_stop_the_program_like_tsgo() {
+    // tsgo creates the Program whatever the config reports
+    // (compiler/program.go:2010-2065): a conversion error (TS5024) and an
+    // unknown option (TS5023) are config parsing diagnostics printed with
+    // the semantic ones, while an option relation row (TS5053) is a Program
+    // diagnostic that suppresses them (GetDiagnosticsOfAnyProgram). The
+    // expected diagnostics are tsgo's for the same projects.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "const x: number = \"s\";\nexport {};\n").expect("write a.ts");
+    for (options, expected) in [
+        (
+            r#""strict":"yes""#,
+            concat!(
+                "a.ts(1,7): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+                "tsconfig.json(1,55): error TS5024: Compiler option 'strict' requires a value of type boolean.\n",
+            ),
+        ),
+        (
+            r#""notAnOption":true"#,
+            concat!(
+                "a.ts(1,7): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+                "tsconfig.json(1,46): error TS5023: Unknown compiler option 'notAnOption'.\n",
+            ),
+        ),
+        (
+            r#""sourceMap":true,"inlineSourceMap":true"#,
+            "tsconfig.json(1,46): error TS5053: Option 'sourceMap' cannot be specified with option 'inlineSourceMap'.\n",
+        ),
+    ] {
+        fs::write(
+            tree.path("tsconfig.json"),
+            format!(
+                r#"{{"compilerOptions":{{"noEmit":true,"types":[],{options}}},"files":["a.ts"]}}"#
+            ),
+        )
+        .expect("write config");
+        let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+        assert_eq!(output.status.code(), Some(2), "{options}");
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("utf-8 stdout"),
+            expected,
+            "{options}"
+        );
+        assert!(output.stderr.is_empty(), "{options}");
+    }
+}
+
+#[test]
+fn config_file_names_are_absolute_and_print_relative_like_tsgo() {
+    // tsgo names the config by its normalized absolute path
+    // (GetParsedCommandLineOfConfigFile, tsoptions/tsconfigparsing.go:2071):
+    // diagnostics print it relative to the current directory however `-p`
+    // spells it, and the include-pattern explanation names the absolute
+    // path. The expected diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("proj/src")).expect("create src");
+    fs::create_dir_all(tree.path("proj/other")).expect("create other");
+    fs::write(
+        tree.path("proj/src/a.ts"),
+        "export const a: number = \"s\";\n",
+    )
+    .expect("write a.ts");
+    fs::write(tree.path("proj/other/b.ts"), "export const b = 1;\n").expect("write b.ts");
+    fs::write(
+        tree.path("proj/tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"rootDir":"./src","strict":"yes"},"include":["src","other"]}"#,
+    )
+    .expect("write config");
+    let project = compiler_current_directory(&tree).join("proj");
+    let project = project.display();
+    let expected = |config: &str| {
+        format!(
+            concat!(
+                "error TS6059: File '{project}/other/b.ts' is not under 'rootDir' '{project}/src'. 'rootDir' is expected to contain all source files.\n",
+                "  The file is in the program because:\n",
+                "    Matched by include pattern 'other' in '{project}/tsconfig.json'\n",
+                "{config}(1,73): error TS5024: Compiler option 'strict' requires a value of type boolean.\n",
+            ),
+            project = project,
+            config = config,
+        )
+    };
+    for (directory, arguments, config) in [
+        (".", &["-p", "proj"][..], "proj/tsconfig.json"),
+        ("proj", &["-p", "./tsconfig.json"][..], "tsconfig.json"),
+        ("proj", &["-p", "."][..], "tsconfig.json"),
+        ("proj", &[][..], "tsconfig.json"),
+    ] {
+        let output = run_from(
+            &tree,
+            directory,
+            &[arguments, &["--pretty", "false"]].concat(),
+        );
+        assert_eq!(output.status.code(), Some(2), "{arguments:?}");
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("utf-8 stdout"),
+            expected(config),
+            "{arguments:?}"
+        );
+        assert!(output.stderr.is_empty(), "{arguments:?}");
+    }
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

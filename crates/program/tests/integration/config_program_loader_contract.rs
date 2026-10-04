@@ -8,10 +8,10 @@ use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
     decode_host_text, load_config_program, load_config_program_with_no_emit_override,
     load_emitting_config_program, load_emitting_config_program_with_no_emit_override,
-    load_emitting_config_program_with_overrides, parse_config_root_plan, CompilerConfigHost,
-    ConfigEmitOptionOverrides, ConfigHostError, ConfigHostOperation, ConfigParseHost,
-    ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog, PreparedProgramMode,
-    ProgramLoadLimits,
+    load_emitting_config_program_with_overrides, parse_config_root_plan, validate_config_plan,
+    CompilerConfigHost, ConfigEmitOptionOverrides, ConfigHostError, ConfigHostOperation,
+    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog,
+    PreparedProgramMode, ProgramLoadLimits,
 };
 
 const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22);
@@ -133,23 +133,12 @@ fn inherited_root_scopes_respect_acquisition_noninheritance() {
             assert_eq!(plan.unsupported_root_scopes().next(), None);
             continue;
         }
-        if scope == "compileOnSave" {
-            // tsc copies an inherited truthy compileOnSave into the child's
-            // raw config and executeCommandLine never reads it: the plan
-            // observes the scope and the no-emit loader admits it.
-            assert!(loaded.is_ok(), "compileOnSave is inert for a tsc command");
-            assert_eq!(
-                plan.unsupported_root_scopes().collect::<Vec<_>>(),
-                ["compileOnSave"]
-            );
-            continue;
-        }
-        let error = loaded.expect_err("inherited H0 root scope must retain its explicit gate");
-        let ConfigProgramLoadError::Program(error) = error else {
-            panic!("unported root scope should be a typed program-scope failure");
-        };
-        assert_eq!(error.kind(), tsc_program::ProgramLoadErrorKind::Unsupported);
-        assert!(error.to_string().contains(scope));
+        // An inherited watchOptions and a truthy compileOnSave reach the
+        // child's config, and a command that neither watches nor serves an
+        // editor never reads them: the plan observes the scope and the
+        // no-emit loader admits it.
+        assert!(loaded.is_ok(), "{scope} is inert for a tsc command");
+        assert_eq!(plan.unsupported_root_scopes().collect::<Vec<_>>(), [scope]);
     }
 }
 
@@ -1232,7 +1221,11 @@ fn emitting_config_loader_applies_typed_command_line_precedence() {
 }
 
 #[test]
-fn config_diagnostics_are_a_gate_and_remain_separate_from_option_diagnostics() {
+fn config_diagnostics_remain_separate_and_do_not_stop_program_construction() {
+    // tsgo creates the Program whatever the config reports: the config
+    // parsing diagnostics stay apart from the option diagnostics
+    // (GetConfigFileParsingDiagnostics, compiler/program.go:2010-2065). The
+    // public validation gate still names both lists.
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
     let plan = parse_config_root_plan(
@@ -1242,13 +1235,7 @@ fn config_diagnostics_are_a_gate_and_remain_separate_from_option_diagnostics() {
         ),
     )
     .expect("parse diagnostic plan");
-    let error = load_config_program(
-        &host,
-        &plan,
-        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
-        LIMITS,
-    )
-    .expect_err("config diagnostic must stop program construction");
+    let error = validate_config_plan(&plan).expect_err("the validation gate reports TS5023");
     let ConfigProgramLoadError::Diagnostics { config, options } = error else {
         panic!("expected separated config/option diagnostics");
     };
@@ -1256,6 +1243,24 @@ fn config_diagnostics_are_a_gate_and_remain_separate_from_option_diagnostics() {
     assert_eq!(options.len(), plan.option_diagnostics().len());
     assert!(options.is_empty());
     assert_eq!(config[0].code(), 5023);
+
+    let prepared = load_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("a config diagnostic does not stop program construction");
+    let diagnostics = prepared.diagnostics();
+    assert_eq!(
+        diagnostics
+            .config()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5023]
+    );
+    assert!(diagnostics.options().is_empty());
 }
 
 #[test]
@@ -1336,13 +1341,18 @@ fn removed_options_are_reported_without_blocking_no_emit_loading() {
             .expect("scalar diagnostic observation"),
         "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext'."
     );
-    let error = load_config_program(&host, &removed, &catalog, LIMITS)
-        .expect_err("an invalid option value stops program construction");
-    let ConfigProgramLoadError::Diagnostics { config, options } = error else {
-        panic!("expected separated config/option diagnostics");
-    };
-    assert_eq!(config[0].code(), 6046);
-    assert!(options.is_empty());
+    let prepared = load_config_program(&host, &removed, &catalog, LIMITS)
+        .expect("an invalid option value does not stop program construction");
+    let diagnostics = prepared.diagnostics();
+    assert_eq!(
+        diagnostics
+            .config()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6046]
+    );
+    assert!(diagnostics.options().is_empty());
 }
 
 #[test]
@@ -1519,14 +1529,30 @@ fn allow_importing_ts_extensions_requires_no_emit_unless_overridden() {
             .collect::<Vec<_>>(),
         [5096]
     );
+    // TS5096 does not stop the Program (tsgo reports it among the Program
+    // diagnostics); the no-emit route itself still needs a noEmit setting.
     let error = load_config_program(
         &host,
         &plan,
         &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
-    .expect_err("allowImportingTsExtensions needs a noEmit setting");
-    assert_eq!(error.options_diagnostics()[0].code(), 5096);
+    .expect_err("the no-emit route needs a noEmit setting");
+    assert!(
+        matches!(
+            error,
+            ConfigProgramLoadError::NoEmitRequired { value: None }
+        ),
+        "{error:?}"
+    );
+    let prepared = load_emitting_config_program(
+        &host,
+        &plan,
+        &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
+        LIMITS,
+    )
+    .expect("TS5096 does not stop an emitting program");
+    assert_eq!(prepared.compiler_options().no_emit, None);
 
     let prepared = load_config_program_with_no_emit_override(
         &host,

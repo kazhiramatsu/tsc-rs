@@ -616,19 +616,8 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                 );
             }
         };
-        let requested = absolutize(&current_directory, project);
-        let config_display = if requested == config_file {
-            project.clone()
-        } else {
-            project.join(CONFIG_FILE_NAME)
-        };
         let config_started = std::time::Instant::now();
-        let (plan, source_texts) = parse_config_file(
-            &host,
-            &current_directory,
-            &config_file,
-            Some(&config_display),
-        )?;
+        let (plan, source_texts) = parse_config_file(&host, &current_directory, &config_file)?;
         tsc_types::trace::mark("cli: project config plan", config_started);
         return execute_config(
             &host,
@@ -693,7 +682,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             current_directory.display()
         ))
     })?;
-    let (plan, source_texts) = parse_config_file(&host, &current_directory, &config_file, None)?;
+    let (plan, source_texts) = parse_config_file(&host, &current_directory, &config_file)?;
     execute_config(
         &host,
         &current_directory,
@@ -1607,11 +1596,13 @@ fn normalize_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
     super::normalize_source_slashes(path.into())
 }
 
+/// tsgo names the config by its normalized absolute path
+/// (GetParsedCommandLineOfConfigFile, tsoptions/tsconfigparsing.go:2071), and
+/// diagnostics print it relative to the current directory.
 fn parse_config_file(
     host: &dyn CompilerHost,
     current_directory: &Path,
     config_file: &Path,
-    display_file_name: Option<&Path>,
 ) -> Result<(ConfigRootPlan, DiagnosticSourceMap), CliError> {
     let bytes = host
         .read_file(config_file)
@@ -1623,10 +1614,11 @@ fn parse_config_file(
             ))
         })?;
     let text = decode_host_text(bytes).map_err(|error| CliError::Config(error.to_string()))?;
-    let display_file_name = display_file_name
-        .unwrap_or(config_file)
-        .to_str()
-        .ok_or_else(|| CliError::Config("config display path is not Unicode".to_owned()))?;
+    let display_file_name = tsc_program::normalize_path(JsStr::from_str(
+        absolutize(current_directory, config_file)
+            .to_str()
+            .ok_or_else(|| CliError::Config("config path is not Unicode".to_owned()))?,
+    ));
     let base_path = current_directory
         .to_str()
         .ok_or_else(|| CliError::Config("current directory is not Unicode".to_owned()))?;
@@ -1634,7 +1626,7 @@ fn parse_config_file(
     let plan = parse_config_root_plan_with_cache(
         &adapter,
         ConfigRootPlanRequest {
-            file_name: display_file_name.into(),
+            file_name: display_file_name.clone(),
             text,
             base_path: base_path.into(),
         },
@@ -1642,10 +1634,7 @@ fn parse_config_file(
     )
     .map_err(config_error)?;
     let mut source_texts = BTreeMap::new();
-    source_texts.insert(
-        display_file_name.into(),
-        Arc::clone(plan.source().snapshot()),
-    );
+    source_texts.insert(display_file_name, Arc::clone(plan.source().snapshot()));
     Ok((plan, source_texts))
 }
 
