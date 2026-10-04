@@ -142,6 +142,23 @@ node化を使う。isolatedDeclarationsの診断も宣言と戻り値の両方�
   - formatとworkspace全体のclippy。binder・emitter・checker・compiler・conformanceのtest（38 targets）。
   - 試行（release runner、filter `isolatedDeclaration`・`declarationEmit`・`jsDeclarations`・`onstAssert`・`iteral`・
     `ccessor`・`ymbol`・`xpando`・`eclaration`）で、mainのreportより下がった構成は無かった。
+- hosted：PR #653（head `5a90ccc31`、merge `21f09a2e7`）、run 37190701375 — `plan` 20s、`rust` 8m30s、
+  `conformance (TypeScript 7.1)` 19m27s、`gates` 12s。
+- perf（README corpora、nice 20、main（P3-5acのcode `91fea3f56`）と本branch（`b06ff367b`）のrelease build対tsgo
+  7.1.0-dev、median wall ms main→本branch）：
+  - `--noEmit`（3 rounds）：hono 144→131、zod 549→538、Playwright 367→384、TypeScript `src/compiler` 349→347、
+    Next.js 797→762、Effect 562→527、VS Code 3,655→3,597。tsc-rs÷tsgoは0.60〜0.99。診断の出力と読み込んだ
+    document数は7 corpusともmainと同一。
+  - `tsconfig.bench-full.json`（3 rounds）：hono 152→154、zod 708→660、Playwright 555→538、TypeScript
+    `src/compiler` 560→522、Next.js 1,110→1,103、Effect 870→861（tsgo比0.59〜0.76）。診断はmainと同一。
+  - A/B：Playwrightの`--noEmit` 10 roundsは366／363 ms。5 roundsはPlaywright full 487／486、Effect full 812／772、
+    Next.js full 1,026／1,017 ms。
+  - 単一checker（`TSRS_CHECKERS=1`、5回のmedian）の命令数：Playwrightの`--noEmit` 22.342／22.346 G（peak memory
+    footprint 516.2／516.4 MB）、full 34.105／34.133 G、Effect full 54.792／52.966 G（929.4／835.7 MB）。退行なし。
+  - fullの出力をtsgoと比べた（6構成）：mainから変わった719 fileのうち591（d.ts 42、declaration map 549）がtsgoと
+    byte単位で同じになり、tsgoと同じだったfileで違うようになったものは無い。残る128（map 126、Effectのd.ts 2）は
+    mainと同じ差。変わったmapのmapping segmentは11,468がtsgoに近づき、300が離れた（既存のd.tsの差で行がずれた所と、
+    上の直列化cacheの複製）。
 - 残り（PC4以降）：
   - classの`extends`の式の型（`CreateTypeOfExpression`）をtsgoの`serializeTypeForExpression`にし、6.0の
     syntactic builderの残りの推論を消す（PC4）。
