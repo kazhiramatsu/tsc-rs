@@ -2504,6 +2504,16 @@ impl ParseContext<'_> {
                 )
             })?
         };
+        // tsgo recovers a root array holding an object without reporting the
+        // root value (convertConfigFileToObject, tsoptions/tsconfigparsing.go:
+        // 319-335); only a root without one is TS5092.
+        let first_object = raw
+            .as_array()
+            .and_then(|values| values.iter().find(|value| value.is_object()))
+            .cloned();
+        if let Some(first_object) = first_object {
+            raw = first_object;
+        }
         if !raw.is_object() {
             let config_kind = if source
                 .file_name
@@ -2522,11 +2532,7 @@ impl ParseContext<'_> {
                 &[config_kind.to_owned()],
                 config_root_expression(&parsed).and_then(|node| config_location(&parsed, node)),
             ));
-            raw = raw
-                .as_array()
-                .and_then(|values| values.iter().find(|value| value.is_object()))
-                .cloned()
-                .unwrap_or_else(|| Value::Object(Map::new()));
+            raw = Value::Object(Map::new());
         }
         let object = raw
             .as_object()
@@ -5074,7 +5080,12 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
         .with_diagnostic_file_name(source.file_name.clone());
     let parsed =
         tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
-    let Some(root) = config_root_object(&parsed) else {
+    // tsgo locates the program's option syntax in the root object literal
+    // only (getTsConfigObjectLiteralExpression); the object a root array
+    // recovers is converted but locates nothing.
+    let Some(root) = config_root_expression(&parsed)
+        .filter(|root| parsed.arena.node(*root).kind == SyntaxKind::ObjectLiteralExpression)
+    else {
         return config_file;
     };
     let root_properties = config_object_properties(&parsed, root);
