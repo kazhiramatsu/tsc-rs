@@ -122,7 +122,7 @@ fn clone_parse_node(
     };
     let clone = arena
         .factory()
-        .clone_node(original)
+        .clone_node_keeping_quote(original)
         .map_err(factory_error)?;
     arena
         .factory()
@@ -3026,7 +3026,10 @@ pub(crate) fn set_text_range2(
         || !flags.contains(NodeFlags::SYNTHESIZED)
         || !source_matches_enclosing_file(checker, arena, context, original)?
     {
-        range = arena.factory().clone_node(range).map_err(factory_error)?;
+        range = arena
+            .factory()
+            .clone_node_keeping_quote(range)
+            .map_err(factory_error)?;
     }
     if location == Some(range) {
         return Ok(range);

@@ -1326,6 +1326,129 @@ fn javascript_this_tags_follow_tsgo() {
 }
 
 #[test]
+fn javascript_script_declarations_follow_tsgo() {
+    // A JavaScript script (neither an ES module nor CommonJS) goes through
+    // the same declaration transform as TypeScript in tsgo: global
+    // declarations with `declare`, type aliases without `export`, a function
+    // typed by `@type` kept rather than left out as an overload
+    // implementation, reused literal types with their quotes, and the
+    // text of a multi-line JSDoc type without its ` * ` line prefixes. The
+    // expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("global.js"),
+        concat!(
+            "/**\n",
+            " * @typedef {Object} Options\n",
+            " * @property {string} name\n",
+            " * @property {number} [size] The size.\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * A global helper.\n",
+            " * @param {Options} options\n",
+            " * @returns {'ok' | 'failed'}\n",
+            " */\n",
+            "function run(options) {\n",
+            "    void options;\n",
+            "    return 'ok';\n",
+            "}\n",
+            "\n",
+            "/** @typedef {(value: string) => void} Callback */\n",
+            "\n",
+            "/** @type {Callback} */\n",
+            "function log(value) {\n",
+            "    void value;\n",
+            "}\n",
+            "\n",
+            "class Widget {\n",
+            "    constructor() {\n",
+            "        /** @type {number} */\n",
+            "        this.width = 0;\n",
+            "    }\n",
+            "    /** @returns {Widget} */\n",
+            "    clone() {\n",
+            "        return new Widget();\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "const settings = {\n",
+            "    verbose: false,\n",
+            "    level: 1,\n",
+            "};\n",
+            "\n",
+            "/**\n",
+            " * @param {string} text\n",
+            " */\n",
+            "const shout = (text) => text.toUpperCase();\n",
+            "\n",
+            "/**\n",
+            " * @typedef {'a' |\n",
+            " *     'b' |\n",
+            " *     'c'} Letter\n",
+            " */\n",
+        ),
+    )
+    .expect("write script");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["global.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/global.d.ts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * @typedef {Object} Options\n",
+            " * @property {string} name\n",
+            " * @property {number} [size] The size.\n",
+            " */\n",
+            "type Options = {\n",
+            "    name: string;\n",
+            "    /**\n",
+            "     * The size.\n",
+            "     */\n",
+            "    size?: number;\n",
+            "};\n",
+            "/**\n",
+            " * A global helper.\n",
+            " * @param {Options} options\n",
+            " * @returns {'ok' | 'failed'}\n",
+            " */\n",
+            "declare function run(options: Options): 'ok' | 'failed';\n",
+            "type Callback = (value: string) => void;\n",
+            "/** @typedef {(value: string) => void} Callback */\n",
+            "/** @type {Callback} */\n",
+            "declare function log(value: string): void;\n",
+            "declare class Widget {\n",
+            "    /** @type {number} */\n",
+            "    width: number;\n",
+            "    constructor();\n",
+            "    /** @returns {Widget} */\n",
+            "    clone(): Widget;\n",
+            "}\n",
+            "declare const settings: {\n",
+            "    verbose: boolean;\n",
+            "    level: number;\n",
+            "};\n",
+            "/**\n",
+            " * @param {string} text\n",
+            " */\n",
+            "declare const shout: (text: string) => string;\n",
+            "type Letter = 'a' | 'b' | 'c';\n",
+            "/**\n",
+            " * @typedef {'a' |\n",
+            " *     'b' |\n",
+            " *     'c'} Letter\n",
+            " */\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

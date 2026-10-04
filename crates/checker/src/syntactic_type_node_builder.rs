@@ -526,7 +526,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     fn clone_node(&mut self, node: TransformNode) -> Result<TransformNode, EmitResolverError> {
         self.arena
             .factory()
-            .clone_node(node)
+            .clone_node_keeping_quote(node)
             .map_err(|error| EmitResolverError::Factory {
                 method: self.method,
                 error: Box::new(error),
@@ -924,16 +924,25 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                         continue;
                     };
                     let name = self.rightmost_name(name)?;
-                    let Some(name) = self.visit_existing_node_tree_symbols(name)? else {
-                        continue;
+                    // tsgo's reparser makes the literal a type literal whose
+                    // property names that are not identifiers are string
+                    // literals and whose types are the tags' types as written
+                    // (reparseJSDocTypeLiteral, reparser.go:244-283).
+                    let invalid_name = match &self.node(name)?.data {
+                        NodeData::Identifier(identifier)
+                            if !tsc_syntax::is_identifier_text(identifier.text()) =>
+                        {
+                            Some(identifier.text().to_owned())
+                        }
+                        _ => None,
                     };
-                    let override_type = self.resolver.get_js_doc_property_override(
-                        self.arena,
-                        self.target,
-                        self.context,
-                        node,
-                        tag,
-                    )?;
+                    let name = match invalid_name {
+                        Some(text) => self.create_string_literal(source, text)?,
+                        None => match self.visit_existing_node_tree_symbols(name)? {
+                            Some(name) => name,
+                            None => continue,
+                        },
+                    };
                     let type_expression = match self.child(source, tag_type_expression) {
                         Some(expression) => self.jsdoc_type_expression_type(expression)?,
                         None => None,
@@ -954,9 +963,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     } else {
                         None
                     };
-                    let property_type = if let Some(override_type) = override_type {
-                        override_type
-                    } else if let Some(r#type) = type_expression {
+                    let property_type = if let Some(r#type) = type_expression {
                         match self.visit_existing_node_tree_symbols(r#type)? {
                             Some(r#type) => r#type,
                             None => self.create_keyword_type(source, SyntaxKind::AnyKeyword)?,
@@ -976,7 +983,11 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     )?;
                     members.push(property);
                 }
-                return self.create_type_literal(source, members).map(Some);
+                let literal = self.create_type_literal(source, members)?;
+                if data.is_array_type {
+                    return self.create_array_type(source, literal).map(Some);
+                }
+                return Ok(Some(literal));
             }
             _ => {}
         }

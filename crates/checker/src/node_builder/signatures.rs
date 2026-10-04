@@ -1629,7 +1629,7 @@ impl BindingNameVisitor<'_, '_, '_> {
             visited = self
                 .arena
                 .factory()
-                .clone_node(visited)
+                .clone_node_keeping_quote(visited)
                 .map_err(factory_error)?;
         }
         self.arena

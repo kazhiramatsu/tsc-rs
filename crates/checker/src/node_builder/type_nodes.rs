@@ -1045,7 +1045,7 @@ pub(super) fn clone_parse_node(
     // range write is second; callers attach metadata only after this helper.
     let clone = arena
         .factory()
-        .clone_node(original)
+        .clone_node_keeping_quote(original)
         .map_err(factory_error)?;
     arena
         .factory()
@@ -1076,7 +1076,7 @@ pub(super) fn clone_parameter_name_to_source(
     }
     arena
         .factory()
-        .clone_node(original)
+        .clone_node_keeping_quote(original)
         .map(Some)
         .map_err(factory_error)
 }
@@ -3129,7 +3129,10 @@ fn deep_clone_or_reuse_node(
     if arena.is_parsed_node(node).map_err(factory_error)? {
         return Ok(node);
     }
-    let clone = arena.factory().clone_node(node).map_err(factory_error)?;
+    let clone = arena
+        .factory()
+        .clone_node_keeping_quote(node)
+        .map_err(factory_error)?;
     arena
         .factory()
         .set_text_range(clone, node)

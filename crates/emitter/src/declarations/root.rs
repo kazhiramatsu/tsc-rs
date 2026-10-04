@@ -125,17 +125,16 @@ pub(crate) fn transform_root(
 
     let original_statements = source_statements(context.arena(), root_node)?;
     // tsgo builds JavaScript declarations with the same transform as
-    // TypeScript (ts71-js-declarations). An ES module without a CommonJS
-    // indicator takes that route now (J1); scripts and CommonJS files keep
-    // tsc 6.0's symbol serialization until their slices.
-    let serialize_javascript = is_javascript
-        && (!is_external_module || {
-            let resolver_node = transformer.required_resolver_node(context, root_node)?;
-            transformer
-                .resolver
-                .is_common_js_module(resolver_node)
-                .map_err(TransformError::from)?
-        });
+    // TypeScript (ts71-js-declarations). ES modules (J1) and scripts (J2)
+    // take that route; CommonJS files keep tsc 6.0's symbol serialization
+    // until their slice.
+    let serialize_javascript = is_javascript && {
+        let resolver_node = transformer.required_resolver_node(context, root_node)?;
+        transformer
+            .resolver
+            .is_common_js_module(resolver_node)
+            .map_err(TransformError::from)?
+    };
     let combined = if serialize_javascript {
         transform_declarations_for_js(transformer, context, source, root_node)?
     } else {

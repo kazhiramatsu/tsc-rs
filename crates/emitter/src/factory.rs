@@ -5517,6 +5517,18 @@ impl<'arena> NodeFactory<'arena> {
         Ok(clone)
     }
 
+    /// cloneNode as tsgo's node builder deep-clones a reused node: the clone
+    /// of a parsed string literal keeps its quote, which tsgo's scanner
+    /// records in the literal's token flags (TokenFlagsSingleQuote).
+    pub fn clone_node_keeping_quote(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let clone = self.clone_node(original)?;
+        keep_parsed_single_quote(self.arena, original, clone)?;
+        Ok(clone)
+    }
+
     /// `setParent(setTextRange(cloneNode(name), name), name.parent)` — the
     /// `getName` family (_tsc.js:24788-24799) threads the parsed name's range
     /// and parent through the clone, so `getTextOfNode` prints it from the
@@ -8047,6 +8059,39 @@ impl<'arena> NodeFactory<'arena> {
     }
 }
 
+/// The clone of a parsed single-quoted string literal prints with single
+/// quotes, as tsgo's deep clone of a literal with TokenFlagsSingleQuote does.
+fn keep_parsed_single_quote(
+    arena: &mut TransformArena,
+    original: TransformNode,
+    clone: TransformNode,
+) -> Result<(), TransformError> {
+    let record = arena.node(original)?;
+    if record.kind != SyntaxKind::StringLiteral
+        || record.end == u32::MAX
+        || arena
+            .literal_properties(original)
+            .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
+            .is_some()
+    {
+        return Ok(());
+    }
+    let last = (record.end as usize).checked_sub(1);
+    let single = last.is_some_and(|last| {
+        arena
+            .source(original.source)
+            .ok()
+            .and_then(|source| source.syntax().text().as_bytes().get(last).copied())
+            == Some(b'\'')
+    });
+    if single {
+        arena
+            .literal_properties_mut(clone)?
+            .set_string_literal_single_quote(true);
+    }
+    Ok(())
+}
+
 struct CrossSourceReuseClone<'a> {
     arena: &'a mut TransformArena,
     source: TransformSourceId,
@@ -8113,6 +8158,7 @@ impl<'a> CrossSourceReuseClone<'a> {
         self.arena.set_transform_flags(cloned, transform_flags);
         self.arena.set_original_node(cloned, Some(original))?;
         self.arena.copy_literal_properties(original, cloned);
+        keep_parsed_single_quote(self.arena, original, cloned)?;
         Ok(cloned)
     }
 
