@@ -6944,11 +6944,19 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             });
             if direct_export && binding_pattern {
                 if let (Some(pattern), Some(initializer)) = (local_name, variable.initializer) {
-                    let expression = self.flatten_module_destructuring_declaration(
-                        pattern,
-                        self.node(initializer),
-                        declaration,
-                    )?;
+                    let expression = if self.module_binding_pattern_needs_flattening(pattern)? {
+                        self.flatten_module_destructuring_declaration(
+                            pattern,
+                            self.node(initializer),
+                            declaration,
+                        )?
+                    } else {
+                        self.create_module_native_destructuring(
+                            pattern,
+                            self.node(initializer),
+                            declaration,
+                        )?
+                    };
                     exported_expressions.push(expression);
                     if self.state.info.appends_declaration_exports() {
                         trailing
@@ -9082,6 +9090,251 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     /// tsc-port: flattenDestructuringAssignment @6.0.3
     /// tsc-hash: 8303d862131f74b895085ac8968b52d5d0267330e000e0e91546757aaf278ee0
     /// tsc-span: _tsc.js:93251-93328
+    /// tsgo `destructuringNeedsFlattening` for an exported binding pattern
+    /// (commonjsmodule.go:1428-1480): native destructuring can assign every
+    /// leaf of a directly exported declaration unless an `export { … }` also
+    /// publishes the leaf under another name or under several names.
+    fn module_binding_pattern_needs_flattening(
+        &self,
+        name: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let elements = match &self.context.arena().node(name)?.data {
+            NodeData::ObjectBindingPattern(data) => data.elements,
+            NodeData::ArrayBindingPattern(data) => data.elements,
+            NodeData::Identifier(identifier) => {
+                let Some(exports) = self
+                    .state
+                    .info
+                    .export_specifiers_by_local
+                    .get(identifier.text().as_bytes())
+                else {
+                    return Ok(false);
+                };
+                return Ok(!exports.is_empty()
+                    && !(exports.len() == 1 && exports[0].as_js() == identifier.text()));
+            }
+            _ => return Ok(false),
+        };
+        for element in node_array_nodes(self.context.arena(), self.source, elements)? {
+            let NodeData::BindingElement(data) = &self.context.arena().node(element)?.data else {
+                continue;
+            };
+            let Some(target) = data
+                .name
+                .and_then(|name| self.context.arena().node_ref(self.source, name))
+            else {
+                continue;
+            };
+            if self.module_binding_pattern_needs_flattening(target)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsgo `transformInitializedVariable` for an exported binding pattern
+    /// that needs no flattening (commonjsmodule.go:1110-1128): the
+    /// declaration becomes a destructuring assignment
+    /// (`ConvertVariableDeclarationToAssignmentExpression`) whose leaves are
+    /// `exports.name` (`visitExpressionIdentifier`), so array patterns keep
+    /// their iterator semantics.
+    fn create_module_native_destructuring(
+        &mut self,
+        pattern: TransformNode,
+        initializer: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let target = self.module_binding_name_to_assignment_target(pattern)?;
+        let value = self
+            .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                visitor.visit(initializer.node())
+            })?;
+        let assignment = self.create_assignment(target, value)?;
+        self.set_original_with_comment_and_source_map_ranges(assignment, original)
+    }
+
+    /// tsgo `convertBindingNameToAssignmentElementTarget` and its pattern
+    /// conversions (transformers/utilities.go:112-211), with each leaf
+    /// written as its export reference.
+    fn module_binding_name_to_assignment_target(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let data = self.context.arena().node(name)?.data.clone();
+        match data {
+            NodeData::ObjectBindingPattern(data) => {
+                let mut properties = Vec::new();
+                for element in node_array_nodes(self.context.arena(), self.source, data.elements)? {
+                    properties
+                        .push(self.module_binding_element_to_object_assignment_element(element)?);
+                }
+                let properties = self
+                    .context
+                    .factory()?
+                    .create_node_array(self.source, properties)?;
+                if let Some(elements) = data
+                    .elements
+                    .and_then(|elements| self.context.arena().node_array_ref(self.source, elements))
+                {
+                    let (pos, end) = {
+                        let array = self.context.arena().node_array(elements)?;
+                        (array.pos, array.end)
+                    };
+                    self.context
+                        .factory()?
+                        .set_node_array_text_range(properties, pos, end)?;
+                }
+                let object = self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::ObjectLiteralExpression(
+                        tsc_syntax::nodes::ObjectLiteralExpressionData {
+                            properties: Some(properties.array()),
+                        },
+                    ),
+                    TransformFlags::NONE,
+                )?;
+                self.set_original_with_comment_and_source_map_ranges(object, name)
+            }
+            NodeData::ArrayBindingPattern(data) => {
+                let mut elements = Vec::new();
+                for element in node_array_nodes(self.context.arena(), self.source, data.elements)? {
+                    elements
+                        .push(self.module_binding_element_to_array_assignment_element(element)?);
+                }
+                let array = self.create_array_literal(elements)?;
+                self.set_original_with_comment_and_source_map_ranges(array, name)
+            }
+            NodeData::Identifier(identifier) => {
+                let access = self.create_export_access(identifier.text())?;
+                self.set_original_and_range(access, name)
+            }
+            _ => Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::VariableDeclaration,
+                field: "destructuring binding leaf",
+            }),
+        }
+    }
+
+    fn module_binding_element_to_array_assignment_element(
+        &mut self,
+        element: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::BindingElement(data) = self.context.arena().node(element)?.data.clone()
+        else {
+            // An array binding hole.
+            let omitted = self.create_omitted_expression()?;
+            return self.set_original_with_comment_and_source_map_ranges(omitted, element);
+        };
+        let name = data
+            .name
+            .and_then(|name| self.context.arena().node_ref(self.source, name))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::BindingElement,
+                field: "name",
+            })?;
+        let target = self.module_binding_name_to_assignment_target(name)?;
+        if data.dot_dot_dot_token.is_some() {
+            let spread = self.context.factory()?.create_node(
+                self.source,
+                NodeData::SpreadElement(tsc_syntax::nodes::SpreadElementData {
+                    expression: Some(target.node()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            return self.set_original_with_comment_and_source_map_ranges(spread, element);
+        }
+        self.module_binding_element_default(element, target, data.initializer)
+    }
+
+    fn module_binding_element_to_object_assignment_element(
+        &mut self,
+        element: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::BindingElement(data) = self.context.arena().node(element)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ObjectBindingPattern,
+                field: "binding element",
+            });
+        };
+        let name = data
+            .name
+            .and_then(|name| self.context.arena().node_ref(self.source, name))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::BindingElement,
+                field: "name",
+            })?;
+        let target = self.module_binding_name_to_assignment_target(name)?;
+        if data.dot_dot_dot_token.is_some() {
+            let spread = self.context.factory()?.create_node(
+                self.source,
+                NodeData::SpreadAssignment(tsc_syntax::nodes::SpreadAssignmentData {
+                    expression: Some(target.node()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            return self.set_original_with_comment_and_source_map_ranges(spread, element);
+        }
+        // A shorthand element names its property after its binding; with an
+        // export reference as the target it becomes `name: exports.name`
+        // (visitShorthandAssignmentProperty, commonjsmodule.go:1550-1584).
+        let property_name = match data
+            .property_name
+            .and_then(|name| self.context.arena().node_ref(self.source, name))
+        {
+            Some(property_name) => self.visit_module_property_name(property_name)?,
+            None => name,
+        };
+        let initializer = self.module_binding_element_default(element, target, data.initializer)?;
+        let assignment = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAssignment(tsc_syntax::nodes::PropertyAssignmentData {
+                name: Some(property_name.node()),
+                initializer: Some(initializer.node()),
+                modifiers: None,
+                question_token: None,
+                exclamation_token: None,
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.set_original_with_comment_and_source_map_ranges(assignment, element)
+    }
+
+    /// A binding element's default becomes an assignment in the pattern
+    /// (`exports.a = 1`), its initializer visited as an expression.
+    fn module_binding_element_default(
+        &mut self,
+        element: TransformNode,
+        target: TransformNode,
+        initializer: Option<NodeId>,
+    ) -> Result<TransformNode, TransformError> {
+        let Some(initializer) = initializer
+            .and_then(|initializer| self.context.arena().node_ref(self.source, initializer))
+        else {
+            return Ok(target);
+        };
+        let value = self
+            .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                visitor.visit(initializer.node())
+            })?;
+        let assignment = self.create_assignment(target, value)?;
+        self.set_original_with_comment_and_source_map_ranges(assignment, element)
+    }
+
+    /// A computed property name's expression is visited; any other name is
+    /// kept as written.
+    fn visit_module_property_name(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if self.context.arena().node(name)?.kind != SyntaxKind::ComputedPropertyName {
+            return Ok(name);
+        }
+        self.with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+            visitor.visit(name.node())
+        })
+    }
+
     fn flatten_module_destructuring_declaration(
         &mut self,
         pattern: TransformNode,
@@ -11623,6 +11876,36 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(())
     }
 
+    /// tsgo `SetOriginal` with `AssignCommentAndSourceMapRanges`: the node
+    /// takes the original's comment and source-map ranges but keeps no text
+    /// range, so the printer lays it out as synthesized.
+    fn set_original_with_comment_and_source_map_ranges(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .arena_mut()?
+            .set_original_node(node, Some(original))?;
+        self.set_source_map_range_from(node, original)?;
+        let comment_range = {
+            let arena = self.context.arena();
+            let record = arena.node(original)?;
+            let source = arena.source(original.source())?.syntax();
+            SourceRange::from_raw(record.pos, record.end, source.positions())
+                .map(|range| CommentRange::new(original.source(), range))
+                .map_err(|error| TransformError::InvalidSourceRange {
+                    node: original,
+                    error,
+                })?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_comment_range(comment_range);
+        Ok(node)
+    }
+
     fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {
         self.context.arena().require_parse_tree_resolver_node(node)
     }
@@ -12038,6 +12321,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .is_some_and(|parent| parent.kind == SyntaxKind::FunctionDeclaration);
         let namespace_modifier = !self.namespace_stack.is_empty()
             && matches!(kind, SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword);
+        // tsgo erases the `in` and `out` variance keywords wherever they are
+        // not the `in` operator: as modifiers of anything but a type
+        // parameter they are a grammar error (typeeraser.go:99-106).
+        let variance_modifier = matches!(kind, SyntaxKind::InKeyword | SyntaxKind::OutKeyword)
+            && !parent
+                .and_then(|parent| self.context.arena().node_ref(self.source, parent))
+                .and_then(|parent| self.context.arena().node(parent).ok())
+                .is_some_and(|parent| parent.kind == SyntaxKind::BinaryExpression);
         if !force
             && !namespace_modifier
             && !self
@@ -12110,6 +12401,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             )
         } else if is_type_node(kind)
             || is_typescript_modifier(kind)
+            || variance_modifier
             || (!self.namespace_stack.is_empty()
                 && (kind == SyntaxKind::ExportKeyword
                     || kind == SyntaxKind::DefaultKeyword && !retain_namespace_function_default))
@@ -15313,9 +15605,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             original,
             runtime_data.modifiers,
             runtime_data.name,
-            runtime_data.type_parameters,
+            None,
             runtime_data.parameters,
-            runtime_data.r#type,
+            None,
             runtime_data.body,
             flags,
         )?;
@@ -15337,10 +15629,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         };
         let updated = self.context.factory()?.update_constructor_declaration(
             original,
-            runtime_data.modifiers,
-            runtime_data.type_parameters,
+            None,
+            None,
             runtime_data.parameters,
-            runtime_data.r#type,
+            None,
             runtime_data.body,
             flags,
         )?;
@@ -15364,9 +15656,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             original,
             runtime_data.modifiers,
             runtime_data.name,
-            runtime_data.type_parameters,
+            None,
             runtime_data.parameters,
-            runtime_data.r#type,
+            None,
             runtime_data.body,
             flags,
         )?;
@@ -16755,12 +17047,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let parent_kind = self.context.arena().node(self.node(parent))?.kind;
         let kind = self.context.arena().node(self.node(member))?.kind;
         match kind {
-            SyntaxKind::Constructor | SyntaxKind::PropertyDeclaration => {
-                self.visit_typescript(member)
-            }
-            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
-                self.visit(member)
-            }
+            SyntaxKind::PropertyDeclaration => self.visit_typescript(member),
+            // tsgo's type eraser visits a constructor through the ordinary
+            // TypeScript gate (typeeraser.go:43-46): one without TypeScript,
+            // such as `accessor constructor() {}`, is kept as written.
+            SyntaxKind::Constructor
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::MethodDeclaration => self.visit(member),
             SyntaxKind::ClassStaticBlockDeclaration => {
                 self.visit_class_static_block_children(member)
             }
@@ -17990,6 +18284,16 @@ fn factory_child_transform_flags(
     let body_flags = |body: Option<NodeId>| {
         child_flags(body).map(|flags| flags & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
     };
+    // tsgo counts a member's type parameters and type as TypeScript even
+    // where only a grammar error allows them (ast.go:1931-1962,
+    // propagateEraseableSyntaxSubtreeFacts).
+    let erasable_flags = |present: bool| {
+        if present {
+            TransformFlags::CONTAINS_TYPE_SCRIPT
+        } else {
+            TransformFlags::NONE
+        }
+    };
     let name_flags = |name: Option<NodeId>| -> Result<TransformFlags, TransformError> {
         let flags = child_flags(name)?;
         let is_identifier = name
@@ -18025,7 +18329,10 @@ fn factory_child_transform_flags(
             if data.body.is_none() {
                 return Ok(TransformFlags::NONE);
             }
-            Ok(array_flags(data.modifiers) | array_flags(data.parameters) | body_flags(data.body)?)
+            Ok(array_flags(data.modifiers)
+                | erasable_flags(data.type_parameters.is_some() || data.r#type.is_some())
+                | array_flags(data.parameters)
+                | body_flags(data.body)?)
         }
         FactoryTransformChildren::GetAccessor(data) => {
             if data.body.is_none() {
@@ -18033,6 +18340,7 @@ fn factory_child_transform_flags(
             }
             Ok(array_flags(data.modifiers)
                 | name_flags(data.name)?
+                | erasable_flags(data.type_parameters.is_some())
                 | array_flags(data.parameters)
                 | child_flags(data.r#type)?
                 | body_flags(data.body)?)
@@ -18043,6 +18351,7 @@ fn factory_child_transform_flags(
             }
             Ok(array_flags(data.modifiers)
                 | name_flags(data.name)?
+                | erasable_flags(data.type_parameters.is_some() || data.r#type.is_some())
                 | array_flags(data.parameters)
                 | body_flags(data.body)?)
         }
@@ -18109,7 +18418,10 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             | SyntaxKind::VoidKeyword
             | SyntaxKind::UnknownKeyword
             | SyntaxKind::UndefinedKeyword
-            | SyntaxKind::ReadonlyKeyword => {
+            | SyntaxKind::ReadonlyKeyword
+            // tsgo also counts `export` (ast.go:1623-1649), so a member
+            // whose grammar error is an `export` modifier is erased.
+            | SyntaxKind::ExportKeyword => {
                 flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
             }
             SyntaxKind::ThisKeyword => flags |= TransformFlags::CONTAINS_LEXICAL_THIS,
