@@ -2347,3 +2347,5 @@ P3-5atの後、ES変換の5件：
   - 10回のA/B：zod `bench-full` 628→609、Playwright `--noEmit` 362→360、hono `bench-full` 144→141、Next.js
     `bench-full` 1,002→993。1 checkerの命令数branch÷main：zod `--noEmit` 0.99945、Playwright `--noEmit` 1.00021、hono
     `bench-full` 0.99932、Next.js `bench-full` 0.99913。3回の差はnoiseで、劣化無し。
+- hosted：PR #672（head `979ff750b`）、run 37233885526 — `plan` 36s、`rust` 9m44s、`conformance (TypeScript 7.1)` 20m9s、
+  `gates` 16s。
