@@ -1590,3 +1590,55 @@ P3-5aa後のemitの不一致458構成のうち、TypeScript fileで原因がは�
     namespaceのimport alias（`moduleElementsInWrongContext`）など。
 - hosted：PR #652（head `f70f1f07f`、merge `5de8ec7f5`）、run 37183720437 — `plan` 27s、`rust` 7m19s、`conformance (TypeScript 7.1)` 19m36s、`gates` 16s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main（J4のcode `de729e110`）と本branch（`91fea3f56`）のrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→135、zod 549→516、Playwright 364→377、TypeScript `src/compiler` 345→337、Next.js 779→753、Effect 541→520、VS Code 3,494→3,483。tsc-rs÷tsgoは0.57〜0.95、診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（3 rounds）：hono 141→144、zod 626→623、Playwright 484→499、TypeScript `src/compiler` 536→506、Next.js 1,067→1,039、Effect 823→810（tsgo比0.60〜0.79）、出力と診断は6 corpusともmainと同一。Playwrightの差をA/Bで確かめた：5 roundsは`--noEmit` 357／355 ms、full 471／472 ms、honoのfull 140／140 ms。単一checker（`TSRS_CHECKERS=1`、5回のmedian）の命令数はPlaywrightの`--noEmit` 22.313／22.318 G（peak memory footprint 517.4／517.9 MB）、full 33.970／33.980 G（556.3／555.9 MB）。退行なし。
+
+## P3-5ad runnerのemit baselineをtsgoのrunnerと同じく描く（2026-10-04）
+
+[pseudochecker](../ts71-pseudochecker/README.md)のPC4の後、emitの不一致111構成のうち、runnerが描かない部分と
+optionの扱いが原因の3 class：
+- **`suppressOutputPathCheck`**：tsgoではcompiler option（core/compileroptions.go:114）。harnessはdirectiveをoptionとして
+  読み（harnessutil.go:317-333）、Programは出力pathを検査しない（compiler/program.go:1340）。tsc-rsではtranspileの経路
+  だけが検査を止めていたので、出力pathが入力と同じJavaScript fileがemitされず、`output missing`になっていた。
+  内部用のtyped option（tsconfigには無い）にし、emitの計画が検査を止める。runnerの、出力pathの診断を集めるか
+  どうかの専用のflagは消した。
+- **`[DtsFileErrors]`**（`DoJSEmitBaseline`、js_emit_baseline.go:76-97）：宣言を求め、診断が無く、d.tsを出した構成では、
+  fixtureの各sourceのd.ts（outDirとcommon source directoryから探す。tsgoと同じくdeclarationDirは見ない）と、d.tsと
+  JSONのfixtureを、同じoptionでもう一度compileし、その診断を書く。harnessに`load_native_declaration_program`を加え、
+  file systemとProgramの読み込みを`load_native_compiler_program`と共有した。outDirが相対のとき、emitterが書くpathも
+  相対（`./out/a.d.ts`）なので、current directoryで解決してから探す。
+- **noCheckの比較**（js_emit_baseline.go:99-131）：tsgoはnoCheckでもう一度emitし、出力の違いを書く。referenceに差が
+  出るのは、`noEmitOnError`が診断でemitを止めた構成だけ（2 baseline）なので、その構成だけemitし直す。両方が書いた
+  fileの内容の違いは、tsgoの見出しだけを書く（行のdiffを書くreferenceは無い）。
+- d.tsの再compileで見つかったcheckerの差：tsgoはTS18057（es2015／es2020での文字列のexport名）をd.tsでは報告しない
+  （checker.go:5523）。tsc-rsは報告し、`moduleExportAliasElementAccessExpression`にtsgoに無い`[DtsFileErrors]`が出た。
+- supervisor（`scripts/conformance_ts71.py`）：workerのresident sizeはそれまでのcaseの分も含むので、`--max-rss-mib`を
+  超えた構成は、まず新しいworkerでもう一度実行し、そこでも超えたときだけharness errorにする。1回目のfull run
+  （`282caf330`、480 s）では、宣言の再compileの分だけworkerが早く上限に達し、単独では通る
+  `nestedSpreadsAndWidening`（1.1 GB、3.5 s）がharness errorになった。
+- unit test：
+  - runner：`[DtsFileErrors]`の見出し、noCheckの比較（tsgoの`noEmitOnError.js`と同じ形）、d.tsの名前
+    （`ChangeToDeclarationExtension`、`IsDeclarationFileName`）。
+  - harness：`suppressOutputPathCheck`はcompiler option。
+  - CLI（tsgoの出力にpin）：d.tsの文字列のexport名にTS18057を出さない。
+- conformance（release build、`d5ed710d5`、`--workers 2`、523 s）：
+  - 15,228構成、lane A 13,467（変化なし）。errorsは変化なし（描いたbaselineのdigestもすべて同じ）。
+  - emit full 13,326→13,363（+37）、emit mismatch 111→74：
+    - `suppressOutputPathCheck` 12構成（`checkJsdocOptionalParamOrder`、`checkJsdocParamOnVariableDeclaredFunctionExpression`、
+      `checkJsdocParamTag1`、`checkJsdocTypeTag1`／`2`、`checkJsdocTypeTagOnObjectProperty1`／`2`、
+      `checkJsdocTypedefInParamTag1`、`checkJsdocTypedefOnlySourceFile`、`malformedTags`、`jsdocTypeTag`、`jsdocTypeTagCast`）。
+    - `[DtsFileErrors]` 23構成（`fakeInfinity2`／`3`、`typeReferenceDirectives3`／`4`、`moduleAugmentationInAmbientModule5`、
+      `privacyCannotName*`の4つ、`commonSourceDirectory`、`declarationEmitToDeclarationDirWithDeclarationOption`、
+      `jsDeclarationsExpandoInternal`、`jsDeclarationsJson`、`jsDeclarationsNonIdentifierInferredNames`、
+      `jsDeclarationsPackageJson`、`importTag16`、`tsNoCheckForTypescript`・`…Comments1`／`2`、
+      `nodeModulesTripleSlashReferenceModeDeclarationEmit7`の4構成）。
+    - noCheckの比較 2構成（`noEmitOnError`、`isolatedModulesNoEmitOnError`）。
+  - 下がった構成は無い。不一致のまま出力が変わったのは2構成で、どちらも既存のd.tsの差が再compileで診断になった：
+    `enumComputedPropertyDeclarationEmit`（enumのcomputed key、TS2344）、`typeTagOnFunctionReferencesGeneric`（JSDocの
+    `@type`の関数型の型parameter、TS2304）。
+  - 実行時間は442 sから523 sになった。宣言の再compileと、memory上限で止まる重い2構成
+    （`excessivelyDeepConditionalTypes`、`intersectionConstructorReductionCrash`）を新しいworkerでもう一度実行する分。
+    この2構成は新しいworkerでも上限を超え、今までどおりharness errorで、ratchetに入れない。
+- ratchet：0 regressions、37行raise（emit none→js）。
+- local：formatとworkspace全体のclippy。harness・conformance・compiler・emitter・programのtest（43 targets、1,447件、
+  `282caf330`）とCLIのtest。
+- 残り：emitの不一致74構成。`composite`と`incremental`（buildinfo、8構成）、TypeScriptのd.tsの差（computed key、
+  型の括弧、型parameterの名前の付け直し、unionの順）、JavaScriptの出力の差など。
