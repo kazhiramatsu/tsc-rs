@@ -16293,8 +16293,46 @@ impl Printer {
                 start: u32::try_from(start).expect("source position exceeds u32"),
                 end: u32::try_from(end).expect("source position exceeds u32"),
             })?;
+        // getTextOfNodeFromSourceText: the text of a node in a JSDoc type
+        // expression loses the leading `*` of each comment line.
+        if (slice.starts_with('*') || slice.contains(['\n', '\r']))
+            && self.is_jsdoc_type_expression_or_child(transformation, node)
+        {
+            let lines = slice
+                .split("\r\n")
+                .flat_map(|line| line.split(['\n', '\r']))
+                .map(|line| {
+                    let trimmed = line.trim_start();
+                    trimmed.strip_prefix('*').unwrap_or(trimmed).trim_start()
+                })
+                .collect::<Vec<_>>();
+            writer.write(&lines.join("\n"));
+            return Ok(());
+        }
         writer.write(slice);
         Ok(())
+    }
+
+    /// tsc isJSDocTypeExpressionOrChild: the node or an ancestor is a JSDoc
+    /// type expression.
+    fn is_jsdoc_type_expression_or_child(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> bool {
+        let mut current = Some(node);
+        while let Some(candidate) = current {
+            let Ok(record) = transformation.arena().node(candidate) else {
+                return false;
+            };
+            if record.kind == SyntaxKind::JSDocTypeExpression {
+                return true;
+            }
+            current = record
+                .parent
+                .and_then(|parent| transformation.arena().node_ref(candidate.source(), parent));
+        }
+        false
     }
 
     /// tsc's empty-JSX guard probes comments immediately after the opening

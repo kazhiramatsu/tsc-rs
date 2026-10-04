@@ -2088,7 +2088,10 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                 return set_text_range2(self.checker, arena, context, name, Some(node));
             }
         }
-        let cloned = arena.factory().clone_node(node).map_err(factory_error)?;
+        let cloned = arena
+            .factory()
+            .clone_node_keeping_quote(node)
+            .map_err(factory_error)?;
         if arena.node(cloned).map_err(factory_error)?.kind == SyntaxKind::Identifier {
             arena
                 .metadata_mut(cloned)
@@ -2737,68 +2740,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             type_arguments,
         )
         .map(Some)
-    }
-
-    fn get_js_doc_property_override(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        js_doc_type_literal: TransformNode,
-        js_doc_property: TransformNode,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let literal = arena
-            .require_parse_tree_resolver_node(js_doc_type_literal)
-            .map_err(factory_error)?
-            .node();
-        let property = arena
-            .require_parse_tree_resolver_node(js_doc_property)
-            .map_err(factory_error)?
-            .node();
-        // tsc-port: getJsDocPropertyOverride @6.0.3
-        // tsc-hash: 69a30c585d2d3343afe6661c5ffd0d9932212330ebe97890ddd0e5476e2b425d
-        // tsc-span: _tsc.js:50859-50864
-        let (property_name, type_expression) = match self.checker.data_of(property) {
-            NodeData::JSDocPropertyTag(data) => (data.name, data.type_expression),
-            NodeData::JSDocParameterTag(data) => (data.name, data.type_expression),
-            _ => return Ok(None),
-        };
-        let Some(property_name) = property_name else {
-            return Ok(None);
-        };
-        let name = match self.checker.data_of(property_name) {
-            NodeData::Identifier(data) => data.escaped_text.identifier_text().to_owned(),
-            NodeData::QualifiedName(data) => data
-                .right
-                .and_then(|right| self.checker.identifier_text_of(right).map(str::to_owned))
-                .unwrap_or_default(),
-            _ => return Ok(None),
-        };
-        let Some(parent_type) = get_type_from_type_node2(self.checker, context, literal, false)?
-        else {
-            return Ok(None);
-        };
-        let type_via_parent = self
-            .checker
-            .get_type_of_property_of_type(parent_type, &name)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        let Some(type_via_parent) = type_via_parent else {
-            return Ok(None);
-        };
-        let existing_type =
-            type_expression.and_then(|expression| match self.checker.data_of(expression) {
-                NodeData::JSDocTypeExpression(data) => data.r#type,
-                _ => None,
-            });
-        let Some(existing_type) = existing_type else {
-            return Ok(None);
-        };
-        if get_type_from_type_node2(self.checker, context, existing_type, false)?
-            == Some(type_via_parent)
-        {
-            return Ok(None);
-        }
-        type_to_type_node_helper(self.checker, arena, target, type_via_parent, context)
     }
 
     fn enter_new_scope(

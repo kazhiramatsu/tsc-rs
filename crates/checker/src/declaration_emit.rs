@@ -199,6 +199,12 @@ impl CheckerState<'_> {
             return Ok(false);
         }
         let signatures = self.get_signatures_of_symbol(Some(symbol))?;
+        // tsgo IsImplementationOfOverload (emitresolver.go:494-498): the
+        // signature a JavaScript function takes from its `@type` tag is its
+        // own.
+        if signatures.len() == 1 && self.get_signature_of_type_tag(node)? == Some(signatures[0]) {
+            return Ok(false);
+        }
         Ok(signatures.len() > 1
             || signatures.len() == 1 && self.signature_of(signatures[0]).declaration != Some(node))
     }

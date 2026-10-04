@@ -680,15 +680,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         type_arguments: Option<tsc_emitter::TransformNodeArray>,
     ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
 
-    fn get_js_doc_property_override(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        js_doc_type_literal: tsc_emitter::TransformNode,
-        js_doc_property: tsc_emitter::TransformNode,
-    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
-
     fn enter_new_scope(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,

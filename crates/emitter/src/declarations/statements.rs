@@ -1402,6 +1402,9 @@ pub(crate) fn transform_heritage_clauses(
             candidates.extend_from_slice(hosted_implements);
             hosted_pending = false;
         }
+        if is_empty_heritage(context, &candidates)? {
+            continue;
+        }
         let filtered = retained_heritage_types(transformer, context, data.token, candidates)?;
         let filtered_types = context
             .factory()?
@@ -1413,7 +1416,7 @@ pub(crate) fn transform_heritage_clauses(
             result.push(updated);
         }
     }
-    if hosted_pending {
+    if hosted_pending && !is_empty_heritage(context, hosted_implements)? {
         let filtered = retained_heritage_types(
             transformer,
             context,
@@ -1432,6 +1435,22 @@ pub(crate) fn transform_heritage_clauses(
     }
     let mut factory = context.factory()?;
     Ok(Some(factory.create_node_array(source, result)?))
+}
+
+/// tsgo visitDeclarationSubtree (transform.go:610-612) leaves out a heritage
+/// clause without types or whose only type is missing.
+fn is_empty_heritage(
+    context: &TransformationContext,
+    types: &[TransformNode],
+) -> Result<bool, TransformError> {
+    match types {
+        [] => Ok(true),
+        [only] => {
+            let record = context.arena().node(*only)?;
+            Ok(record.pos == record.end && record.pos != u32::MAX)
+        }
+        _ => Ok(false),
+    }
 }
 
 /// tsgo transformHeritageClause's filter (transform.go:742-747): the types
@@ -1547,6 +1566,9 @@ fn transform_heritage_clauses_with_base(
             candidates.extend_from_slice(hosted_implements);
             hosted_pending = false;
         }
+        if is_empty_heritage(context, &candidates)? {
+            continue;
+        }
         let mut updated_types = Vec::new();
         for type_node in candidates {
             if data.token == SyntaxKind::ExtendsKeyword {
@@ -1600,7 +1622,7 @@ fn transform_heritage_clauses_with_base(
             .update_node_array(original_types, updated_types)?;
         updated_clauses.push(context.factory()?.update_heritage_clause(clause, types)?);
     }
-    if hosted_pending {
+    if hosted_pending && !is_empty_heritage(context, hosted_implements)? {
         let filtered = retained_heritage_types(
             transformer,
             context,
