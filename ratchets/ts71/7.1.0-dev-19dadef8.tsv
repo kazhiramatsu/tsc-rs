@@ -1416,7 +1416,7 @@ compiler/convertKeywordsYes(alwaysstrict=true)	full	js
 compiler/copyrightWithNewLine1	full	js
 compiler/copyrightWithoutNewLine1	full	js
 compiler/correctOrderOfPromiseMethod	full	js
-compiler/correlatedUnions	full	none
+compiler/correlatedUnions	full	js
 compiler/couldNotSelectGenericOverload	full	js
 compiler/covariance1	full	js
 compiler/crashDeclareGlobalTypeofExport	full	js
@@ -1611,8 +1611,8 @@ compiler/declarationEmitDuplicateParameterDestructuring	full	js
 compiler/declarationEmitEnumNaN	full	js
 compiler/declarationEmitEnumReadonlyProperty	full	js
 compiler/declarationEmitEnumReferenceViaImportEquals	full	js
-compiler/declarationEmitExactOptionalPropertyTypesNodeNotReused(exactoptionalpropertytypes=false)	full	none
-compiler/declarationEmitExactOptionalPropertyTypesNodeNotReused(exactoptionalpropertytypes=true)	full	none
+compiler/declarationEmitExactOptionalPropertyTypesNodeNotReused(exactoptionalpropertytypes=false)	full	js
+compiler/declarationEmitExactOptionalPropertyTypesNodeNotReused(exactoptionalpropertytypes=true)	full	js
 compiler/declarationEmitExpandoArrowFunctionParameter	full	js
 compiler/declarationEmitExpandoFunction	full	js
 compiler/declarationEmitExpandoFunctionInNamespace	full	js
@@ -1709,11 +1709,11 @@ compiler/declarationEmitNoInvalidCommentReuse1	full	js
 compiler/declarationEmitNoInvalidCommentReuse2	full	js
 compiler/declarationEmitNoInvalidCommentReuse3	full	js
 compiler/declarationEmitNoNonRequiredParens	full	js
-compiler/declarationEmitNonAsciiStringLiteralType	full	none
+compiler/declarationEmitNonAsciiStringLiteralType	full	js
 compiler/declarationEmitNonExportedBindingPattern	full	js
 compiler/declarationEmitObjectAssignedDefaultExport	full	js
-compiler/declarationEmitObjectLiteralAccessors1	full	none
-compiler/declarationEmitObjectLiteralAccessorsJs1	full	none
+compiler/declarationEmitObjectLiteralAccessors1	full	js
+compiler/declarationEmitObjectLiteralAccessorsJs1	full	js
 compiler/declarationEmitObjectLiteralMethodGenericNoSuffix	full	js
 compiler/declarationEmitOfFuncspace	full	js
 compiler/declarationEmitOfTypeofAliasedExport	full	js
@@ -1722,7 +1722,7 @@ compiler/declarationEmitOptionalMappedTypePropertyNoStrictNullChecks2	full	js
 compiler/declarationEmitOptionalMappedTypePropertyNoStrictNullChecks3	full	js
 compiler/declarationEmitOptionalMappedTypePropertyNoStrictNullChecks4	full	js
 compiler/declarationEmitOptionalMethod	full	js
-compiler/declarationEmitOptionalParameterUndefined	full	none
+compiler/declarationEmitOptionalParameterUndefined	full	js
 compiler/declarationEmitOverloadedPrivateInference	full	js
 compiler/declarationEmitParameterProperty	full	js
 compiler/declarationEmitPartialNodeReuseTypeOf	full	js
@@ -1739,7 +1739,7 @@ compiler/declarationEmitPrivateReadonlyLiterals	full	js
 compiler/declarationEmitPrivateSymbolCausesVarDeclarationEmit2	full	js
 compiler/declarationEmitPrivateSymbolCausesVarDeclarationToBeEmitted	full	js
 compiler/declarationEmitPromise	full	none
-compiler/declarationEmitPropertyNumericStringKey	full	none
+compiler/declarationEmitPropertyNumericStringKey	full	js
 compiler/declarationEmitProtectedMembers(target=es2015)	full	js
 compiler/declarationEmitQualifiedAliasTypeArgument	full	js
 compiler/declarationEmitQualifiedName	full	js
@@ -3777,12 +3777,15 @@ compiler/isolatedDeclarationErrorsFunctionDeclarations	full	js
 compiler/isolatedDeclarationErrorsObjects	full	js
 compiler/isolatedDeclarationErrorsReturnTypes	full	js
 compiler/isolatedDeclarationLazySymbols	full	js
+compiler/isolatedDeclarationsAddUndefined	full	js
 compiler/isolatedDeclarationsAddUndefined2	full	js
 compiler/isolatedDeclarationsAllowJs	full	js
 compiler/isolatedDeclarationsArrowFunctionDefaultParameter	full	js
 compiler/isolatedDeclarationsAsConstNestedObjects	full	js
-compiler/isolatedDeclarationsLiterals	full	none
+compiler/isolatedDeclarationsJsThisPropertyAssignmentInference	full	js
+compiler/isolatedDeclarationsLiterals	full	js
 compiler/isolatedDeclarationsNonIdentifierAssignmentInference(isolateddeclarations=false)	full	js
+compiler/isolatedDeclarationsNonIdentifierAssignmentInference(isolateddeclarations=true)	full	js
 compiler/isolatedDeclarationsRequiresDeclaration	full	js
 compiler/isolatedDeclarationsStrictBuiltinIteratorReturn(isolateddeclarations=false,strictbuiltiniteratorreturn=false)	full	js
 compiler/isolatedDeclarationsStrictBuiltinIteratorReturn(isolateddeclarations=false,strictbuiltiniteratorreturn=true)	full	js
@@ -4166,7 +4169,7 @@ compiler/letAsIdentifier2	full	js
 compiler/letAsIdentifierInStrictMode	full	js
 compiler/letConstInCaseClauses(target=es2015)	full	js
 compiler/letConstMatchingParameterNames(target=es2015)	full	js
-compiler/letDeclarations	full	none
+compiler/letDeclarations	full	js
 compiler/letDeclarations-access	full	js
 compiler/letDeclarations-es5(target=es2015)	full	js
 compiler/letDeclarations-es5-1(target=es2015)	full	js
@@ -6459,7 +6462,7 @@ compiler/unicodeIdentifierNames	full	js
 compiler/unicodeLineSeparatorInMultilineComment	full	js
 compiler/unicodeSpellingSuggestions	full	js
 compiler/unicodeStringLiteral	full	js
-compiler/unicodeSurrogatesInStringLiterals	full	none
+compiler/unicodeSurrogatesInStringLiterals	full	js
 compiler/unionCallMixedTypeParameterPresence	full	js
 compiler/unionElementErrorTruncation	category	js
 compiler/unionErrorMessageOnMatchingDiscriminant	full	js
@@ -8048,7 +8051,7 @@ conformance/conditionalTypes2	full	js
 conformance/conditionalTypesExcessProperties	full	js
 conformance/conflictingCommonJSES2015Exports	full	js
 conformance/constAssertionOnEnum	full	js
-conformance/constAssertions	full	none
+conformance/constAssertions	full	js
 conformance/constEnum1	full	js
 conformance/constEnum2	full	js
 conformance/constEnum3	full	js
@@ -8331,7 +8334,7 @@ conformance/defaultExportsGetExportedCommonjs	full	js
 conformance/defaultPropertyAssignedClassWithPrototype	full	js
 conformance/defineProperty(target=esnext)	full	js
 conformance/definiteAssignmentAssertions	full	js
-conformance/definiteAssignmentAssertionsWithObjectShortHand	full	none
+conformance/definiteAssignmentAssertionsWithObjectShortHand	full	js
 conformance/deleteChain	full	js
 conformance/deleteOperatorInvalidOperations	full	js
 conformance/deleteOperatorWithAnyOtherType(alwaysstrict=true)	full	js
@@ -9837,7 +9840,7 @@ conformance/jsdocTypeDefAtStartOfFile	full	js
 conformance/jsdocTypeFromChainedAssignment	full	js
 conformance/jsdocTypeFromChainedAssignment2	full	js
 conformance/jsdocTypeFromChainedAssignment3	full	js
-conformance/jsdocTypeParameterTagConflict	full	none
+conformance/jsdocTypeParameterTagConflict	full	js
 conformance/jsdocTypeReferenceExports	full	js
 conformance/jsdocTypeReferenceToImport	full	js
 conformance/jsdocTypeReferenceToImportOfClassExpression	full	js
