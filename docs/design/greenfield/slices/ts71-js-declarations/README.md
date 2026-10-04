@@ -1,6 +1,6 @@
 # JavaScriptのd.tsをtsgoの方式で作る
 
-状態：**実装中**（J1・J1b 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
+状態：**実装中**（J1・J1b・J2 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
 [TypeScript 7.1への切替](../ts71-cutover/README.md)のP3-5ab。
 
 ## 背景
@@ -200,3 +200,52 @@ emitterは`tsc-binder`に依存するようになった。
   - scriptとCommonJSのfileは従来の経路（J2、J3）。
 - hosted：PR #647（head `74555efea`、merge `1f4897c29`）、run 37165101376 — `plan` 33s、`rust` 8m02s、`conformance (TypeScript 7.1)` 12m29s、`gates` 11s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `f67a5f294`（J1のcode `821b401f0`と同じcodeのrelease build）と本branch（`4c15abfbc`）のrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 136→134、zod 500→497、Playwright 369→356、TypeScript `src/compiler` 331→334、Next.js 758→741、Effect 501→474、VS Code 3,391→3,307。tsc-rs÷tsgoは0.58〜0.99、peak memory（MB main→本branch）：320→325、1,299→1,288、813→800、289→289、1,310→1,319、1,031→1,039、5,458→5,453。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 145→147、zod 610→606、Playwright 483→476、TypeScript `src/compiler` 496→489、Next.js 1,000→1,008、Effect 798→778（tsgo比0.52〜0.78）で、出力と診断は6 corpusともmainと同一。退行なし。
+
+## J2 scriptのJavaScriptをdeclaration transformに通す（2026-10-04）
+
+- **経路**：`declarations/root.rs`は、CommonJSのJavaScript（resolverの`is_common_js_module`）だけをtsc 6.0のsymbol直列化に
+  送り、ES module（J1）とscriptはTypeScriptと同じdeclaration transformに通す。
+- 経路を変えて見つかった差を、tsgoに合わせて直した：
+  - **`@type`の関数**：JavaScriptの関数が`@type`から取る署名はその関数自身のものなので、overloadの実装として
+    落とさない（`IsImplementationOfOverload`、emitresolver.go:494-498）。
+  - **JSDocの複数行の型**：JSDocの型の中のnodeのsource textは、commentの各行の先頭の`*`を除く
+    （`getTextOfNodeFromSourceText`）。
+  - **再利用した文字列literal型の引用符**：tsgoのscannerはliteralの引用符をtoken flags（`TokenFlagsSingleQuote`）に
+    残し、node builderの複製もそれを保つ。tsc-rsのnode builderの複製も、元の`'x'`の引用符を保つようにした。
+    emitterのtransformは、tsgoが新しいliteralを作る所（CommonJSの`require`など）があるので変えない。
+  - **JSDocの型literalの再利用**：tsgoが再解析した型literalと同じく、propertyの型を書かれたとおりに使い
+    （tsc 6.0の`typeViaParent`による`| undefined`の上書きをやめた）、identifierでない名前は文字列literal、
+    `Object[]`は配列にする。
+  - **関数式の`@template`**：syntacticな型の組み立てで、関数式・arrow関数・object literalのmethodに書かれた
+    型引数が無ければ、tsgoの再解析と同じく`@template`の型引数を付ける（reparser.go:440-457）。
+  - **空のheritage句**：型が無いか、唯一の型が欠けているheritage句は書かない（transform.go:610-612）。
+    型の無い`@implements`はこれに当たる。
+- unit test（CLI、tsgoの出力にpin）：
+  - scriptのJavaScriptのd.ts（大域の宣言、`export`の無い型alias、`@type`の関数、引用符、複数行のJSDocの型）。
+  - 関数式とobject literalのmethodの`@template`、型の無い`@implements`。
+- conformance：
+  - 15,228 configuration、lane A 13,467（変化なし）、445 s。
+  - errorsは変化なし。描いたbaselineのdigestが変わったのは`intersectionConstructorReductionCrash`だけ（memoryの
+    上限付近で比較とharness errorを行き来するstressのcase。今回はharness errorで、full 13,326→13,325、harness
+    errors 21→22はこのcase）。
+  - emit full 13,127→13,188、emit mismatch 311→249。上がった62構成は、JavaScriptのd.ts 58構成と、再利用した
+    文字列literal型の引用符が合ったTypeScriptのd.ts 4構成（`coAndContraVariantInferences`、
+    `declarationEmitClassMemberWithComputedPropertyName`、`destructuredDeclarationEmit`、`keyofAndIndexedAccess`）。
+    下がった構成は無く、それまでfullだったemitのdigestもすべて同じ（上のcaseを除く）。
+- ratchet：0 regressions、62行raise（emit none→js）。`intersectionConstructorReductionCrash`は入れない。
+- local：
+  - formatとworkspace全体のclippy。emitter・checker・compiler・conformanceのtest（35 targets、2,631 passed、
+    `4c54b986f`）。
+  - 2 workerのfull run（445 s、`4c54b986f`のrelease build）。
+  - 試行（devのrunner、JavaScriptのd.tsの288 case）：scriptの経路の変更だけで46構成上がり、下がった構成は無い。
+    node builderの複製で引用符を保つ変更を、最初はemitter全体の`clone_node`に入れたところ、CommonJSの
+    `require`の指定子が`'./b'`のままになり3構成が下がった（tsgoはそこで新しいliteralを作る）。そのため
+    node builderの複製に限った。
+- 残り：
+  - expando（`function f() {}`や`const f = () => {}`への`f.x = …`）：tsgoはdeclaration transformの中でexpandoを
+    集め、`declare function`とnamespaceに書く（`visitNestedExpression`、`transformExpandoAssignment`、
+    `createFullExpandoBlock`、transform.go:2700-2970）。namespaceのmemberは`let`で、keywordの名前は生成した名前と
+    `export { … as … }`にする。tsc-rsはTypeScriptでもtsc 6.0のexpandoの書き方なので、TypeScriptと合わせて次の
+    sliceで移植する。
+  - checkerの差（J1bの記録のとおり）。
+  - CommonJSのfileは従来の経路（J3）。
