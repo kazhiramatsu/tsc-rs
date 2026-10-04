@@ -5227,7 +5227,7 @@ impl<'a> CheckerState<'a> {
                 // Without a set accessor or synthetic write flags, the write
                 // accessibility is the read accessibility.
                 let write_modifiers = if prop_symbol_flags.intersects(SymbolFlags::SET_ACCESSOR)
-                    || prop_symbol_flags.intersects(SymbolFlags::TRANSIENT)
+                    || prop.index() & tsc_types::TRANSIENT_SYMBOL_BIT != 0
                         && self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC)
                 {
                     self.get_declaration_modifier_flags_from_symbol_write(prop, true)
@@ -5834,7 +5834,7 @@ impl<'a> CheckerState<'a> {
         // checker/utilities.go:761-776): the declaration of one constituent
         // does not decide the property's accessibility. Synthetic properties
         // are transient symbols, so a binder symbol needs no links read.
-        let check_flags = if self.symbol_flags(symbol).intersects(SymbolFlags::TRANSIENT) {
+        let check_flags = if symbol.index() & tsc_types::TRANSIENT_SYMBOL_BIT != 0 {
             self.get_check_flags(symbol)
         } else {
             CheckFlags::from_bits(0)
