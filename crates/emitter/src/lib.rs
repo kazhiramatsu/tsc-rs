@@ -62,7 +62,7 @@ pub use execute::{
 pub use factory::PreparedEmitSource;
 pub use factory::{
     GeneratedIdentifierFlags, NodeFactory, ParsedEmitMetadata, TransformArena, TransformNode,
-    TransformNodeArray, TransformSource, TransformSourceId, TypeParenthesizer,
+    TransformNodeArray, TransformSource, TransformSourceId,
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{

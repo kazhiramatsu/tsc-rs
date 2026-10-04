@@ -169,173 +169,6 @@ fn synthetic_export_names_preserve_ts_utf16_values_through_clones() {
     }
 }
 
-fn assert_parenthesized(factory: &NodeFactory<'_>, result: TransformNode, original: TransformNode) {
-    assert_ne!(result, original, "rule must allocate a fresh wrapper");
-    let NodeData::ParenthesizedType(data) = &factory.arena.node(result).unwrap().data else {
-        panic!("expected ParenthesizedType")
-    };
-    assert_eq!(data.r#type, Some(original.node()));
-}
-
-#[test]
-fn type_parenthesizer_rule_tables_cover_direct_and_delegated_kinds() {
-    let (mut arena, source) = synthetic_arena();
-    let mut factory = arena.factory();
-    let any = factory
-        .create_keyword_type_node(source, SyntaxKind::AnyKeyword)
-        .unwrap();
-    let empty = factory.create_node_array(source, Vec::new()).unwrap();
-    let function = factory
-        .create_function_type_node(source, None, empty, any)
-        .unwrap();
-    let empty = factory.create_node_array(source, Vec::new()).unwrap();
-    let constructor = factory
-        .create_constructor_type_node(source, None, None, empty, any)
-        .unwrap();
-    let conditional = factory
-        .create_conditional_type_node(source, any, any, any, any)
-        .unwrap();
-    let members = factory.create_node_array(source, vec![any]).unwrap();
-    let union = factory.create_union_type_node(source, members).unwrap();
-    let members = factory.create_node_array(source, vec![any]).unwrap();
-    let intersection = factory
-        .create_intersection_type_node(source, members)
-        .unwrap();
-    let parameter_name = factory.create_identifier(source, "T").unwrap();
-    let parameter = factory
-        .create_type_parameter_declaration(source, None, parameter_name, None, None)
-        .unwrap();
-    let infer = factory.create_infer_type_node(source, parameter).unwrap();
-    let operator = factory
-        .create_type_operator_node(source, SyntaxKind::KeyOfKeyword, any)
-        .unwrap();
-    let query_name = factory.create_identifier(source, "value").unwrap();
-    let query = factory
-        .create_type_query_node(source, query_name, None)
-        .unwrap();
-    let nullable = factory
-        .create_node(
-            source,
-            NodeData::JSDocNullableType(JSDocNullableTypeData {
-                r#type: Some(any.node()),
-                postfix: true,
-            }),
-            TransformFlags::CONTAINS_TYPE_SCRIPT,
-        )
-        .unwrap();
-
-    for node in [function, constructor, conditional] {
-        let result =
-            TypeParenthesizer::parenthesize_check_type_of_conditional_type(&mut factory, node)
-                .unwrap();
-        assert_parenthesized(&factory, result, node);
-    }
-    assert_eq!(
-        TypeParenthesizer::parenthesize_check_type_of_conditional_type(&mut factory, any).unwrap(),
-        any,
-    );
-    let result =
-        TypeParenthesizer::parenthesize_extends_type_of_conditional_type(&mut factory, conditional)
-            .unwrap();
-    assert_parenthesized(&factory, result, conditional);
-    assert_eq!(
-        TypeParenthesizer::parenthesize_extends_type_of_conditional_type(&mut factory, any)
-            .unwrap(),
-        any,
-    );
-
-    for node in [union, intersection, function] {
-        let result =
-            TypeParenthesizer::parenthesize_constituent_type_of_union_type(&mut factory, node)
-                .unwrap();
-        assert_parenthesized(&factory, result, node);
-    }
-    assert_eq!(
-        TypeParenthesizer::parenthesize_constituent_type_of_union_type(&mut factory, any).unwrap(),
-        any,
-    );
-    for node in [union, intersection, constructor] {
-        let result = TypeParenthesizer::parenthesize_constituent_type_of_intersection_type(
-            &mut factory,
-            node,
-        )
-        .unwrap();
-        assert_parenthesized(&factory, result, node);
-    }
-    assert_eq!(
-        TypeParenthesizer::parenthesize_constituent_type_of_intersection_type(&mut factory, any)
-            .unwrap(),
-        any,
-    );
-    let result =
-        TypeParenthesizer::parenthesize_operand_of_type_operator(&mut factory, intersection)
-            .unwrap();
-    assert_parenthesized(&factory, result, intersection);
-    assert_eq!(
-        TypeParenthesizer::parenthesize_operand_of_type_operator(&mut factory, any).unwrap(),
-        any,
-    );
-    let result =
-        TypeParenthesizer::parenthesize_operand_of_readonly_type_operator(&mut factory, operator)
-            .unwrap();
-    assert_parenthesized(&factory, result, operator);
-    assert_eq!(
-        TypeParenthesizer::parenthesize_operand_of_readonly_type_operator(&mut factory, any)
-            .unwrap(),
-        any,
-    );
-    for node in [infer, operator, query, union] {
-        let result =
-            TypeParenthesizer::parenthesize_non_array_type_of_postfix_type(&mut factory, node)
-                .unwrap();
-        assert_parenthesized(&factory, result, node);
-    }
-    assert_eq!(
-        TypeParenthesizer::parenthesize_non_array_type_of_postfix_type(&mut factory, any).unwrap(),
-        any,
-    );
-    let result =
-        TypeParenthesizer::parenthesize_element_type_of_tuple_type(&mut factory, nullable).unwrap();
-    assert_parenthesized(&factory, result, nullable);
-    assert_eq!(
-        TypeParenthesizer::parenthesize_element_type_of_tuple_type(&mut factory, any).unwrap(),
-        any,
-    );
-    let result =
-        TypeParenthesizer::parenthesize_type_of_optional_type(&mut factory, query).unwrap();
-    assert_parenthesized(&factory, result, query);
-    let result =
-        TypeParenthesizer::parenthesize_type_of_optional_type(&mut factory, nullable).unwrap();
-    assert_parenthesized(&factory, result, nullable);
-    assert_eq!(
-        TypeParenthesizer::parenthesize_type_of_optional_type(&mut factory, any).unwrap(),
-        any,
-    );
-
-    let type_parameters = factory.create_node_array(source, vec![parameter]).unwrap();
-    let parameters = factory.create_node_array(source, Vec::new()).unwrap();
-    let generic_function = factory
-        .create_function_type_node(source, Some(type_parameters), parameters, any)
-        .unwrap();
-    let result =
-        TypeParenthesizer::parenthesize_leading_type_argument(&mut factory, generic_function)
-            .unwrap();
-    assert_parenthesized(&factory, result, generic_function);
-    let type_parameters = factory.create_node_array(source, vec![parameter]).unwrap();
-    let parameters = factory.create_node_array(source, Vec::new()).unwrap();
-    let generic_constructor = factory
-        .create_constructor_type_node(source, None, Some(type_parameters), parameters, any)
-        .unwrap();
-    let result =
-        TypeParenthesizer::parenthesize_leading_type_argument(&mut factory, generic_constructor)
-            .unwrap();
-    assert_parenthesized(&factory, result, generic_constructor);
-    assert_eq!(
-        TypeParenthesizer::parenthesize_leading_type_argument(&mut factory, any).unwrap(),
-        any,
-    );
-}
-
 #[test]
 fn typed_faces_smoke_families_and_preserve_exact_type_flags() {
     let (mut arena, source) = synthetic_arena();
@@ -370,8 +203,8 @@ fn typed_faces_smoke_families_and_preserve_exact_type_flags() {
     let NodeData::ArrayType(array_data) = &factory.arena.node(array).unwrap().data else {
         panic!("ArrayType expected")
     };
-    let element = TransformNode::new(source, array_data.element_type.unwrap());
-    assert_parenthesized(&factory, element, union);
+    // The factory keeps the element as given; the printer parenthesizes it.
+    assert_eq!(array_data.element_type, Some(union.node()));
 
     let tuple_elements = factory.create_node_array(source, vec![any]).unwrap();
     let tuple = factory
@@ -561,12 +394,11 @@ fn typed_updates_reuse_identity_or_preserve_original_provenance() {
     assert_eq!(factory.arena.get_original_node(updated), reference);
 }
 
-/// updateUnionTypeNode rebuilds through createUnionTypeNode only when its
-/// constituents change: a flags-only update keeps the parsed `A & B | C`,
-/// while a changed list parenthesizes the intersection, as declaration emit
-/// prints `(A & B) | undefined`.
+/// tsgo's factory does not parenthesize types (the printer does, by
+/// precedence, printer.go:2271-2302): a rebuilt union keeps its constituents
+/// as given, and a flags-only update keeps the parsed list.
 #[test]
-fn a_union_parenthesizes_an_intersection_constituent_only_when_rebuilt() {
+fn a_rebuilt_union_keeps_its_constituents_unparenthesized() {
     fn members(arena: &TransformArena, union: TransformNode) -> Vec<NodeId> {
         let NodeData::UnionType(data) = &arena.node(union).unwrap().data else {
             panic!("union type")
@@ -620,10 +452,10 @@ fn a_union_parenthesizes_an_intersection_constituent_only_when_rebuilt() {
             flags,
         )
         .unwrap();
-    let rebuilt_members = members(factory.arena, rebuilt);
-    let first = factory.arena.node_ref(source, rebuilt_members[0]).unwrap();
-    assert_parenthesized(&factory, first, intersection);
-    assert_eq!(rebuilt_members[1], undefined.node());
+    assert_eq!(
+        members(factory.arena, rebuilt),
+        [intersection.node(), undefined.node()]
+    );
 }
 
 #[test]

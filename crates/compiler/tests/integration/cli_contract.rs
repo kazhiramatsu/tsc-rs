@@ -2619,6 +2619,76 @@ fn string_literal_export_names_are_allowed_in_declaration_files_like_tsgo() {
 }
 
 #[test]
+fn type_parentheses_follow_the_tsgo_printer() {
+    // tsgo's factory does not parenthesize types; its printer parenthesizes a
+    // type whose precedence is below its position's (printer.go:2271-2302,
+    // ast/precedence.go): a generic function type argument stays bare, an
+    // intersection in a union and a constrained `infer` in an `extends` clause
+    // are parenthesized, and a reused type keeps its written parentheses
+    // (nodecopy.go:452-466) and its parsed `typeof X[K]` (printer.go:1999-2012).
+    // The expected declarations are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const a: { a: string };\n",
+            "interface A { a: { b: number } }\n",
+            "interface B { b: 1 }\n",
+            "interface X<T> { x: T }\n",
+            "export type T = A & B | X<1>;\n",
+            "export type U = (A | B)[] | keyof A[];\n",
+            "export type W<V> = V extends (infer Y extends string) ? Y : never;\n",
+            "export declare var prop: X<<T>() => T>;\n",
+            "export const g = () => null! as X<<T>() => T>;\n",
+            "export const o3 = (o: typeof a['a']) => {};\n",
+            "export const o4 = (o: keyof (A['a'])) => {};\n",
+            "export const o5 = (o: (typeof a)['a']) => {};\n",
+            "export const o6 = (o: typeof a[]) => {};\n",
+            "export const o7 = (o: string | (number & {})) => {};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","declaration":true,"emitDeclarationOnly":true,"outDir":"out","types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "declare const a: {\n",
+            "    a: string;\n",
+            "};\n",
+            "interface A {\n",
+            "    a: {\n",
+            "        b: number;\n",
+            "    };\n",
+            "}\n",
+            "interface B {\n",
+            "    b: 1;\n",
+            "}\n",
+            "interface X<T> {\n",
+            "    x: T;\n",
+            "}\n",
+            "export type T = (A & B) | X<1>;\n",
+            "export type U = (A | B)[] | keyof A[];\n",
+            "export type W<V> = V extends (infer Y extends string) ? Y : never;\n",
+            "export declare var prop: X<<T>() => T>;\n",
+            "export declare const g: () => X<<T>() => T>;\n",
+            "export declare const o3: (o: typeof a['a']) => void;\n",
+            "export declare const o4: (o: keyof (A['a'])) => void;\n",
+            "export declare const o5: (o: (typeof a)['a']) => void;\n",
+            "export declare const o6: (o: typeof a[]) => void;\n",
+            "export declare const o7: (o: string | (number & {})) => void;\n",
+            "export {};\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
