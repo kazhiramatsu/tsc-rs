@@ -2386,3 +2386,46 @@ P3-5auの後、emitの3件：
     `bench-full` 1.00000、hono `bench-full` 1.00077、Next.js `bench-full` 0.99938。差はnoiseの範囲で、劣化無し。
 - hosted：PR #673（head `b479dbb51`）、run 37236018822 — `plan` 31s、`rust` 9m54s、`conformance (TypeScript 7.1)` 20m21s、
   `gates` 11s。
+
+## P3-5aw `??`の条件式の位置、JSXのruntime import、tsconfigのroot配列、`paths`の拡張子（2026-10-05）
+
+P3-5avの後の4件（前の2件はREADMEのNext.jsの出力の差から）：
+- **`??`の条件式の位置**：tsgoの`??`の変換は、作る条件式に位置もoriginalも付けない（nullishcoalescing.go:34-40）。
+  printerは位置の無い右辺の前で改行しないので、`x =\n  a ?? b`は1行になる。tsc-rsはtsc 6.0の、条件式に元の範囲を
+  付ける形で改行を残していた。
+- **JSXのruntime import**：tsgoの`getSortedSpecifiers`は、runtime importの指定子をimportする名前の順に並べる
+  （jsx.go:183-195）。tsc-rsは使われた順（`jsx`、`Fragment`、`jsxs`）だった。
+- **tsconfigのroot配列**：tsgoの`convertConfigFileToObject`は、root配列の最初のobjectを変換し、その時はTS5092を出さない
+  （tsoptions/tsconfigparsing.go:319-335）。optionの構文の位置はroot objectからしか探さない
+  （`getTsConfigObjectLiteralExpression`）。tsc-rsはTS5092を出し、配列の中のobjectにも位置を付けていた（TS2688の
+  related information）。`tsconfigMalformedNonObject`。
+- **`paths`の拡張子**：tsgoは、拡張子を持つ`paths`の置き換え先をconfigの拡張子として扱い
+  （`candidateEndingIsFromConfig`、module/resolver.go:1265-1283）、そこから見つけた宣言fileはTS拡張子を使った解決に
+  ならない。tsc-rsは`"./some-path/index.ts"`から`index.d.ts`を見つけた時にTS5097を出していた。
+  `pathsEntryReferencesDtsViaTsExtensionNoCrash`。
+- 既存のtest 2件（root配列のTS5092）をtsgoの形に直した。tsgoはJSONの単引用符（TS1327）をparserで全体について出し、
+  `extends`の循環で`{0}`の残ったTS18000を出す（どちらも以前からの差として残る）。
+- READMEのcorpora（`tsconfig.bench-full.json`）でtsgoと違う`.js`：Next.js 54→2 files、Playwright 33→0 files。
+  Next.jsの残りは`new (require(…) as T).X()`の括弧（tsgoは`new require(…).X()`と書き、意味が変わる）と、矢印関数の
+  本体の後のcommentの重複（tsgo）。
+- unit test：CLI（tsgoの出力にpin）で3件（`??`の条件式、JSXのruntime import、tsconfigと`paths`）。P3-5avのbuildでは
+  3件ともtsgoと違っていた。
+- conformance（release build、`205c4654b`（testを加えた`01eea9fcb`と同じcode）、`--workers 2`、528 s）：
+  - 15,228構成、lane A 13,467（変化なし）。errors full 13,400→13,403：上の2構成と
+    `intersectionConstructorReductionCrash`（今回は最後まで通った。負荷で結果の変わる構成で、ratchetの外）。
+  - emit full 13,400→13,401（`intersectionConstructorReductionCrash`）。emit mismatch 37（変化なし）。下がった構成は無い。
+- ratchet：0 regressions、2行追加（errors）。
+- local：formatとworkspace全体のclippy。program・compiler・emitterのtest（37 targets、1,456件）。filter `nullish`・
+  `Coalescing`・`jsx`・`tsx`・`tsconfig`・`onfig`で下がった構成は無かった。
+- perf（README corpora、nice 20、main（P3-5avのbuild `fd39404ac`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 122→129、zod 521→515、Playwright 353→364、TypeScript
+    `src/compiler` 332→326、Next.js 793→752、Effect 509→568（min 503→500）、VS Code 3,455→3,371。tsc-rs÷tsgo 0.60–0.92。
+    読み込んだ文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 143→147、zod 640→670、Playwright 493→587（min 483→499）、TypeScript
+    `src/compiler` 536→514、Next.js 1,051→1,033、Effect 784→772。診断は6 corporaで同一。出力fileはPlaywright 33 files、
+    Next.js 265 filesで変わり、どちらもtsgoの出力に近づいた（上の数）。
+  - 10回のA/B：Playwright `bench-full` 497→495、zod `bench-full` 640→638、hono `bench-full` 147→148、Next.js
+    `bench-full` 1,056→1,039。1 checkerの命令数branch÷main：zod `--noEmit` 0.99971、Playwright `bench-full` 1.00012、
+    hono `bench-full` 1.00024、Next.js `bench-full` 0.99961。3回の差はnoiseで、劣化無し。
+- hosted：PR #674（head `e3c293e19`）、run 37238181312 — `plan` 29s、`rust` 9m33s、`conformance (TypeScript 7.1)` 20m47s、
+  `gates` 11s。
