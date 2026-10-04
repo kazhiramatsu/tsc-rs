@@ -355,6 +355,11 @@ impl DeclarationTransformer<'_> {
             return cx.factory()?.create_node_array(owner.source(), Vec::new());
         }
         let mut updated = Vec::new();
+        // tsgo's reparser gives a JavaScript function a `this` parameter from
+        // its `@this` tag (reparser.go:478-506).
+        if let Some(this_parameter) = self.hosted_this_parameter(cx, owner, parameters)? {
+            updated.push(this_parameter);
+        }
         let mut has_trailing_comma = false;
         if let Some(parameters) =
             parameters.and_then(|array| cx.arena().node_array_ref(owner.source(), array))

@@ -1266,6 +1266,70 @@ fn javascript_overload_tags_follow_tsgo() {
 }
 
 #[test]
+fn javascript_this_tags_follow_tsgo() {
+    // tsgo's parser gives a JavaScript function whose first parameter is not
+    // `this` a `this` parameter from its `@this` tag, typed by the tag or
+    // `any`. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/** @this {string} */\n",
+            "export function f1() {}\n",
+            "\n",
+            "/** @this */\n",
+            "export function f2() {}\n",
+            "\n",
+            "export class C {\n",
+            "    /** @this {C} */\n",
+            "    m() {}\n",
+            "}\n",
+            "\n",
+            "/**\n",
+            " * @this {Window}\n",
+            " * @param {Window} self\n",
+            " */\n",
+            "export function f3(this_, self) {\n",
+            "    void [this_, self];\n",
+            "}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"lib":["es2022","dom"],"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "lib.js(4,10): error TS1110: Type expected.\n",
+            "lib.js(16,20): error TS7006: Parameter 'this_' implicitly has an 'any' type.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "/** @this {string} */\n",
+            "export declare function f1(this: string): void;\n",
+            "/** @this */\n",
+            "export declare function f2(this: any): void;\n",
+            "export declare class C {\n",
+            "    /** @this {C} */\n",
+            "    m(this: C): void;\n",
+            "}\n",
+            "/**\n",
+            " * @this {Window}\n",
+            " * @param {Window} self\n",
+            " */\n",
+            "export declare function f3(this: Window, this_: any, self: Window): void;\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

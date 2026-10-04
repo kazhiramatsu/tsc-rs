@@ -1164,6 +1164,67 @@ impl DeclarationTransformer<'_> {
         }
     }
 
+    /// The `this` parameter tsgo's reparser adds to a JavaScript function
+    /// whose first parameter is not `this` from its `@this` tag
+    /// (reparser.go:478-506), as ensureParameter prints it: the tag's type,
+    /// or `any`.
+    pub(crate) fn hosted_this_parameter(
+        &mut self,
+        cx: &mut TransformationContext,
+        owner: TransformNode,
+        parameters: Option<NodeArrayId>,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let source = owner.source();
+        let r#type = {
+            let syntax = cx.arena().source(source)?.syntax();
+            if !is_javascript_file(syntax) {
+                return Ok(None);
+            }
+            let Some(tag) = tsc_binder::jsdoc_hosted(syntax).this_tag_of(owner.node()) else {
+                return Ok(None);
+            };
+            let first_is_this = parameters
+                .and_then(|list| syntax.arena.node_array(list).nodes.first().copied())
+                .is_some_and(|first| match &syntax.arena.node(first).data {
+                    NodeData::Parameter(data) => {
+                        data.name
+                            .is_some_and(|name| match &syntax.arena.node(name).data {
+                                NodeData::Identifier(identifier) => identifier.text() == "this",
+                                _ => syntax.arena.node(name).kind == SyntaxKind::ThisKeyword,
+                            })
+                    }
+                    _ => false,
+                });
+            if first_is_this {
+                return Ok(None);
+            }
+            match &syntax.arena.node(tag).data {
+                NodeData::JSDocThisTag(data) => data.type_expression.and_then(|expression| {
+                    match &syntax.arena.node(expression).data {
+                        NodeData::JSDocTypeExpression(data) => data.r#type,
+                        _ => None,
+                    }
+                }),
+                _ => None,
+            }
+        };
+        let r#type = match r#type {
+            Some(r#type) => {
+                self.try_js_type_node_to_type_node(cx, TransformNode::new(source, r#type))?
+            }
+            None => None,
+        };
+        let mut factory = cx.factory()?;
+        let r#type = match r#type {
+            Some(r#type) => r#type,
+            None => factory.create_keyword_type_node(source, SyntaxKind::AnyKeyword)?,
+        };
+        let name = factory.create_identifier(source, "this")?;
+        factory
+            .create_parameter_declaration(source, None, None, name, None, Some(r#type), None)
+            .map(Some)
+    }
+
     /// tsgo ensureType of a declaration its reparser builds from a JSDoc tag
     /// (transform.go:1650-1666): the tag's type through the node builder,
     /// else the type of the tag's symbol.
