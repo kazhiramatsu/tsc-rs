@@ -4474,8 +4474,8 @@ compiler/moduleDeclarationExportStarShadowingGlobalIsNameable	full	js
 compiler/moduleDeclarationsInNonScopeBlock	full	js
 compiler/moduleDetectionIsolatedModulesCjsFileScope	full	js
 compiler/moduleDuplicateIdentifiers	full	js
-compiler/moduleElementsInWrongContext	full	none
-compiler/moduleElementsInWrongContext2	full	none
+compiler/moduleElementsInWrongContext	full	js
+compiler/moduleElementsInWrongContext2	full	js
 compiler/moduleElementsInWrongContext3	full	js
 compiler/moduleExportNonStructured	full	js
 compiler/moduleExports1	full	js
@@ -6153,7 +6153,7 @@ compiler/thisInInnerFunctions	full	js
 compiler/thisInLambda	full	js
 compiler/thisInModule	full	js
 compiler/thisInModuleFunction1	full	js
-compiler/thisInObjectJs	full	none
+compiler/thisInObjectJs	full	js
 compiler/thisInOuterClassBody	full	js
 compiler/thisInPropertyBoundDeclarations	full	js
 compiler/thisInStaticMethod1	full	js
@@ -6333,7 +6333,7 @@ compiler/typeOfPrototype	full	js
 compiler/typeOfSuperCall	full	js
 compiler/typeOfThisInStatics	full	js
 compiler/typeOfYieldWithUnionInContextualReturnType	full	js
-compiler/typeOnlyExportAsIfBody	full	none
+compiler/typeOnlyExportAsIfBody	full	js
 compiler/typeOnlyExportImportAliasElidesNamespaceImport	full	js
 compiler/typeParamExtendsOtherTypeParam	full	js
 compiler/typeParameterAndArgumentOfSameName1	full	js
@@ -7557,8 +7557,8 @@ conformance/bundlerNodeModules1(module=preserve)	full	js
 conformance/bundlerOptionsCompat	full	js
 conformance/bundlerRelative1(module=esnext)	full	js
 conformance/bundlerRelative1(module=preserve)	full	js
-conformance/bundlerSyntaxRestrictions(module=esnext)	full	none
-conformance/bundlerSyntaxRestrictions(module=preserve)	full	none
+conformance/bundlerSyntaxRestrictions(module=esnext)	full	js
+conformance/bundlerSyntaxRestrictions(module=preserve)	full	js
 conformance/callChain	full	js
 conformance/callChain.2	full	js
 conformance/callChain.3	full	js
@@ -9751,7 +9751,7 @@ conformance/jsDeclarationsGetterSetter	full	js
 conformance/jsDeclarationsImportAliasExposedWithinNamespace	full	js
 conformance/jsDeclarationsImportAliasExposedWithinNamespaceCjs	full	js
 conformance/jsDeclarationsImportNamespacedType	full	js
-conformance/jsDeclarationsInterfaces(target=es2015)	full	none
+conformance/jsDeclarationsInterfaces(target=es2015)	full	js
 conformance/jsDeclarationsJSDocRedirectedLookups	full	js
 conformance/jsDeclarationsJson(target=es2015)	full	js
 conformance/jsDeclarationsMissingGenerics(target=es2015)	full	js
@@ -11672,7 +11672,7 @@ conformance/partiallyNamedTuples	full	js
 conformance/partiallyNamedTuples2	full	js
 conformance/partiallyNamedTuples3	full	js
 conformance/plainJSBinderErrors	full	js
-conformance/plainJSGrammarErrors	full	none
+conformance/plainJSGrammarErrors	full	js
 conformance/plainJSGrammarErrors2	full	js
 conformance/plainJSGrammarErrors3	full	js
 conformance/plainJSGrammarErrors4	full	js
