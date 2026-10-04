@@ -495,6 +495,17 @@ pub trait AuthoritativeModuleProvider: Sync {
     fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
         None
     }
+
+    /// tsgo `GetIncludeProcessorDiagnostics` before its per-file filter
+    /// (compiler/program.go:840-846): the Program's rows located in one of
+    /// its source files (unresolved references, file-include explanations,
+    /// resolution diagnostics), each with the token of that source. A row
+    /// joins its file's semantic diagnostics unless the file skips type
+    /// checking or a comment directive precedes the row. Providers without
+    /// Program rows report none.
+    fn include_processor_diagnostics(&self) -> Vec<(AuthoritativeSourceToken, Diagnostic)> {
+        Vec::new()
+    }
 }
 
 /// Fail-closed authoritative execution error. The checker records only the
@@ -2517,7 +2528,7 @@ fn parse_program_inputs(
     tsc_types::trace::mark("checker: adopt (parallel rewrite)", rewrite_started);
 
     let host_current_directory = resolve_host_current_directory(current_directory);
-    let program_diagnostics = missing_path_reference_diagnostics(
+    let mut program_diagnostics = missing_path_reference_diagnostics(
         program_sources.iter().map(Arc::as_ref),
         libs.iter().chain(files.iter()).map(|file| {
             state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
@@ -2525,6 +2536,29 @@ fn parse_program_inputs(
         options,
         &host_current_directory,
     );
+    // The Program's include-processor rows join the semantic diagnostics of
+    // the source they belong to, under that source's checker name.
+    if let Some(run) = authoritative_run {
+        let rows = match run.provider {
+            AuthoritativeProviderSource::Shared(provider) => {
+                provider.include_processor_diagnostics()
+            }
+            AuthoritativeProviderSource::PerChecker(factory) => {
+                factory.provider().include_processor_diagnostics()
+            }
+        };
+        for (token, mut row) in rows {
+            if let Some(metadata) = run
+                .lib_metadata
+                .iter()
+                .chain(&authoritative_program_metadata)
+                .find(|metadata| metadata.token == token)
+            {
+                row.file_name = Some(metadata.file_name.clone());
+                program_diagnostics.push(row);
+            }
+        }
+    }
 
     let file_paths = files
         .iter()

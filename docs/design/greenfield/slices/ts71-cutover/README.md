@@ -2085,3 +2085,36 @@ P3-5amの後、残りの不一致のうち、それぞれ小さく閉じる10件
   - `tsconfig.bench-full.json` 3回：hono 155→155、zod 676→671、Playwright 521→511、TypeScript `src/compiler` 569→533、
     Next.js 1,131→1,083、Effect 823→794。tsc-rs÷tsgo 0.57–0.82。6 corporaとも出力fileと診断は同一。差はnoiseの範囲で、
     劣化無し。
+
+## P3-5ao 束縛の補い、include processorの診断、`export =`の型、unionのiteration（2026-10-05）
+
+P3-5anで残した4件：
+- **束縛の補い**：tsgoの`padObjectLiteralType`は、初期化子に無いpropertyを、rest要素以外の全ての要素について補う
+  （checker.go:17142-17168）。既定値の無い要素は暗黙の`any`（TS7031）になる。tsc-rsはtsc 6.0の、既定値の有る要素
+  だけを補う形で、TS2339やTS2353を出していた。`objectBindingPatternDefaultMissingElements`。
+- **include processorの診断**：tsgoは、Programの行のうちsource fileに位置を持つもの（解決できない参照、fileを含む
+  理由の説明、解決の診断）を、そのfileの意味診断として出す。fileが型検査の対象外（`skipLibCheck`の宣言fileなど）
+  なら出さず、直前のcomment directiveでも除く（`GetIncludeProcessorDiagnostics`、compiler/program.go:840-846）。
+  tsc-rsはcompilerがこれらをそのまま意味診断に加えていた。module providerがsourceのtokenを付けて行をcheckerに渡し、
+  checkerは既存のfile単位の組み立て（型検査の対象外のfileを飛ばし、新しいdirective表で除く）に加える。compilerは
+  どのsourceにも属さない行だけをoptionsの診断にする。`processingDiagnosticSkipLibCheck`、`processingDiagnosticTsIgnore`。
+- **`export =`のmoduleの型**：tsgoでは、`export =`で定義したmoduleも元のmoduleの型とnamespaceの宣言をexportし
+  （`getExportsOfModuleWorker`、checker.go:16518-16542）、名前付きimportは元のmodule symbolで探す
+  （`getExternalModuleMember`、checker.go:14947-14951）。`exportAssignmentMerging8`。
+- **unionのiteration**：tsgoの`getIterationTypesOfIterable`は、errorを報告する時はcacheされた失敗を計算し直し、その
+  結果はcacheしない（checker.go:6440-6454）。unionの各constituentはerrorの位置無しで解決し、iterableでないものが
+  あればunionを報告する（checker.go:6458-6473）。iterableでないunionを使う度にTS2488が出る。
+  `iterationErrorOverNotIterableUnions1`。
+- unit test：CLI（tsgoの出力にpin）で4件（include processorの3つの場合、束縛の補い、`export =`の型、unionの
+  iteration）。
+- conformance（release build、`9b029aa74`、`--workers 2`、522 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,383→13,389：上の4件の6構成と、束縛の補いによる`inferredRestTypeFixedOnce`。mismatch 53→47。
+  - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。`intersectionConstructorReductionCrash`は
+    今回もmemory制限でharness error（ratchetの外）。
+- ratchet：0 regressions、6行raise。
+- local：formatとworkspace全体のclippy。checker・compiler・harness・conformanceのtest（14 targets、2,054件）。filter
+  `terat`・`ForOf`・`orOf`・`pread`・`estructur`・`ield`（unionのiterationを入れたbuild）で下がった構成は無かった。
+  CLIの出力は6つの例でtsgoと同一で、修正前のbuildでは4つが違っていた。
+- 残り：`finallyLogicalOrAssignmentSwitchReturn`（tsgoの`isReachableFlowNodeWorker`はReduceLabelを辿る間は共有nodeの
+  cacheを使わない、checker/flow.go:2528-2537）、`awaitedTypeNoLib`（harnessでだけ出る`Awaited`のTS2318）。
