@@ -8367,7 +8367,7 @@ conformance/defaultExportWithOverloads01(target=es2015)	full	js
 conformance/defaultExportsCannotMerge01(target=es2015)	full	js
 conformance/defaultExportsCannotMerge02(target=es2015)	full	js
 conformance/defaultExportsCannotMerge03(target=es2015)	full	js
-conformance/defaultExportsCannotMerge04(target=es2015)	full	none
+conformance/defaultExportsCannotMerge04(target=es2015)	full	js
 conformance/defaultExportsGetExportedCommonjs	full	js
 conformance/defaultPropertyAssignedClassWithPrototype	full	js
 conformance/defineProperty(target=esnext)	full	js
@@ -8511,8 +8511,8 @@ conformance/dynamicImportDeferInvalidStandalone	full	js
 conformance/elementAccessChain	full	js
 conformance/elementAccessChain.2	full	js
 conformance/elementAccessChain.3	full	js
-conformance/emit(jsx=preserve)	full	none
-conformance/emit(jsx=react)	full	none
+conformance/emit(jsx=preserve)	full	js
+conformance/emit(jsx=react)	full	js
 conformance/emitArrowFunction(target=es2015)	full	js
 conformance/emitArrowFunctionAsIs(target=es2015)	full	js
 conformance/emitArrowFunctionAsIsES6	full	js
@@ -9539,7 +9539,7 @@ conformance/instantiateGenericClassWithZeroTypeArguments	full	js
 conformance/instantiateNonGenericTypeWithTypeArguments	full	js
 conformance/instantiateTemplateTagTypeParameterOnVariableStatement	full	js
 conformance/instantiatedModule	full	js
-conformance/instantiationExpressionErrors	full	none
+conformance/instantiationExpressionErrors	full	js
 conformance/instantiationExpressions	full	js
 conformance/interfaceDoesNotDependOnBaseTypes	full	js
 conformance/interfaceExtendingClass	full	js
