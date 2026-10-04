@@ -2025,3 +2025,54 @@ P3-5alの後、CLIのconfigの扱いの3件：
   - `tsconfig.bench-full.json` 3回：hono 145→146、zod 642→633、Playwright 491→479、TypeScript `src/compiler` 549→493、
     Next.js 1,070→1,025、Effect 758→762。tsc-rs÷tsgo 0.61–0.79。6 corporaとも出力fileと診断は同一。変えたのはconfigの
     読み込みだけで、差はnoiseの範囲。劣化無し。
+
+## P3-5an 小さな検査と構文の10件（2026-10-05）
+
+P3-5amの後、残りの不一致のうち、それぞれ小さく閉じる10件：
+- **TS6807の提案**：tsgoの`errorOrSuggestion`は、enum memberの外で32以上のshiftを提案として出す（checker.go:
+  12604-12612、複合代入でも）。tsc-rsはenum memberの中のerrorだけだった。`overshifts`。
+- **assertionの後の二項式**：tsgoの`parseBinaryExpressionRest`は、`a ## b as T $$ c`で`as T`を消すと`$$`が`##`より
+  先に結び付く時、assertionの後で式を終える（parser.go:4686-4703、TypeScript issue 63527）。
+  `disallowUnerasableAssertion`（errorsとemit）。
+- **JSXの属性値の前の空白**：tsgoの`ScanJsxAttributeValue`は`=`の後の空白と改行を飛ばし、tokenを引用符から始める
+  （scanner.go:1330-1347）。`jsxMultilineAttributeStringValues2`（errorsとemit）。
+- **constructorのaccess**：tsgoの`getConstructorAccessibilityError`は全てのconstruct signatureを見る（checker.go:
+  8834-8862）。class型の交差でも、privateやprotectedのconstructorを持つclassを報告する。TS2675の名前は
+  そのconstructorを宣言したclass。`extendPrivateConstructorClass2`。
+- **import typeの属性**：tsgoの`checkImportType`は、属性の値が文字列literalであること（TS2858）と、属性の型が
+  大域の`ImportAttributes`型に代入できることを検査する（checker.go:3372-3381）。TS2858のmessageは`assert`でも同じ
+  （tsc 6.0のTS2837は使わない）。`importAttributes12`。
+- **分割代入のprivate identifier**：TS18064（checker.go:5979、12805）。`privateNamesNotAllowedAsDestructuringPatterns`。
+- **namespaceの中のexportされたclass**：tsgoの`parseClassDeclarationOrExpression`は、source elementsの中でblockや
+  switch節の外にあるexportされたclassにだけ、moduleのtop levelのawait文脈を与える（parser.go:1753-1759）。
+  namespaceの本体はblockなので、その中の`await`はTS1308。`awaitInNamespaceExportedClassComputedProperty`。
+- **`??`のnullishの意味**：tsgoの`getSyntacticNullishnessSemantics`は、`??`と`??=`を左のoperandのnullishの道筋で
+  決める（checker.go:13185-13194）。`b ?? null`などが`??`の左にある時のTS2871の誤検出が消えた。
+  `nullishCoalescingAlwaysNullFalsePositive`、`predicateSemantics`。
+- **binary file**：tsgoのscannerは、tokenの外のU+FFFDでTS1490をfileの先頭に出す（scanner.go:931-936）。
+  `TransportStream`。
+- **CommonJSの分割代入の`require`**：`--module preserve`のTS1293の対象から`BindingElement`も外す（checker.go:7011）。
+  `modulePreserveRequireDestructuring`。
+- unit test：CLI（tsgoの出力にpin）で9件（assertion、JSXの属性値、constructorのaccess、import typeの属性、TS18064、
+  namespaceのawait、`??`、binary file（pretty出力も）、CommonJSの`require`）。checkerのTS6807のtestは提案として
+  pinし直した。
+- conformance（release build、`908ccd489`、`--workers 2`、514 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,371→13,383：上の10件の12構成（`corrupted`もTS1490で一致）。mismatch 65→53。
+  - emit full 13,376→13,378：`disallowUnerasableAssertion`、`jsxMultilineAttributeStringValues2`。emit mismatch 61→59。
+  - 下がった構成も、不一致のまま描いた文が変わった構成も無い。`intersectionConstructorReductionCrash`は今回は
+    memory制限でharness error（負荷で結果の変わる構成で、ratchetの外）。
+- ratchet：0 regressions、12行raise。
+- local：formatとworkspace全体のclippy。syntax・checker・compilerのtest（19 targets、2,252件）、CLIのtest 2件を加えた後の
+  compilerの`contracts` 198件。最初の5件を入れたbuildのfilter `mportAttribute`・`mportAssertion`・`hift`・`atisfies`・
+  `sOperator`・`ssertion`・`onstructor`・`rivate`で下がった構成は無かった。CLIの出力は9件の例でtsgoと同一。
+- 残り（次のslice）：
+  - `objectBindingPatternDefaultMissingElements`：tsgoの`padObjectLiteralType`は既定値の無い要素も補い、TS7031を出す
+    （checker.go:17142-17168）。tsc-rsはtsc 6.0の、既定値の有る要素だけを補う形。
+  - `processingDiagnosticSkipLibCheck`・`processingDiagnosticTsIgnore`：tsgoはinclude processorの位置付きの診断を
+    そのfileの意味診断とし、`SkipTypeChecking`と直前の`@ts-ignore`で除く（compiler/program.go:840-846）。
+  - `exportAssignmentMerging8`：`export =`のmoduleからの名前付きimportは、元のmodule symbolのexportを探す
+    （checker.go:14947-14951、16518-16542）。
+  - `iterationErrorOverNotIterableUnions1`：tsgoの`getIterationTypesOfIterable`はcacheを型とuseで持ち、errorを報告する
+    時はcacheされた失敗を計算し直す（checker.go:6435-6473）。
+  - `awaitedTypeNoLib`：`Awaited`のTS2318を要求する経路（`maybeAddMissingAwaitInfo`からと見られる）は未調査。
