@@ -2586,6 +2586,7 @@ compiler/exportAssignmentMerging4	full	js
 compiler/exportAssignmentMerging5	full	js
 compiler/exportAssignmentMerging6	full	js
 compiler/exportAssignmentMerging7	full	js
+compiler/exportAssignmentMerging8	full	js
 compiler/exportAssignmentMerging9	full	js
 compiler/exportAssignmentOfDeclaredExternalModule	full	js
 compiler/exportAssignmentOfGenericType1	full	js
@@ -3511,6 +3512,7 @@ compiler/inferentiallyTypingAnEmptyArray	full	js
 compiler/inferredFunctionReturnTypeIsEmptyType	full	js
 compiler/inferredIndexerOnNamespaceImport	full	js
 compiler/inferredNonidentifierTypesGetQuotes	full	js
+compiler/inferredRestTypeFixedOnce	full	js
 compiler/inferredReturnTypeIncorrectReuse1	full	js
 compiler/inferrenceInfiniteLoopWithSubtyping	full	js
 compiler/inferringAnyFunctionType1	full	js
@@ -3843,6 +3845,7 @@ compiler/isolatedModules_resolveJsonModule_strict_outDir_commonJs	full	js
 compiler/iterableTReturnTNext(strictbuiltiniteratorreturn=false)	full	js
 compiler/iterableTReturnTNext(strictbuiltiniteratorreturn=true)	full	js
 compiler/iterableWithNeverAsUnionMember(target=esnext)	full	js
+compiler/iterationErrorOverNotIterableUnions1	full	js
 compiler/iteratorExtraParameters	full	js
 compiler/iteratorsAndStrictNullChecks	full	js
 compiler/javascriptCommonjsModule	full	js
@@ -4944,6 +4947,7 @@ compiler/numericUnderscoredSeparator(target=es2019)	full	js
 compiler/numericUnderscoredSeparator(target=esnext)	full	js
 compiler/objectAssignLikeNonUnionResult	full	js
 compiler/objectBindingPatternContextuallyTypesArgument	full	js
+compiler/objectBindingPatternDefaultMissingElements	full	js
 compiler/objectBindingPattern_restElementWithPropertyName	full	js
 compiler/objectCreate	full	js
 compiler/objectCreate-errors	full	js
@@ -5280,6 +5284,8 @@ compiler/privatePropertyUsingObjectType	full	js
 compiler/privateVisibility	full	js
 compiler/privateVisibles	full	js
 compiler/processingDiagnostic	full	js
+compiler/processingDiagnosticSkipLibCheck	full	js
+compiler/processingDiagnosticTsIgnore	full	js
 compiler/promiseAllOnAny01	full	js
 compiler/promiseChaining	full	js
 compiler/promiseChaining1	full	js
