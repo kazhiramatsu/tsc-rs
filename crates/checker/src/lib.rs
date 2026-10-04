@@ -919,6 +919,10 @@ pub(crate) fn should_skip_type_checking_file(
     options.skip_lib_check == Some(true) && source.is_declaration_file
         || options.skip_default_lib_check == Some(true) && facts.is_default_library()
         || options.no_check == Some(true)
+        // tsgo canIncludeBindAndCheckDiagnostics (compiler/program.go:856-873)
+        // checks TypeScript, plain JS and checked JS files only: a JSON
+        // source file is never checked.
+        || source.file_name.as_js().ends_with(".json")
         || !can_include_bind_and_check_diagnostics(
             is_js_file_name(&source.file_name),
             check_directive(source.text()),

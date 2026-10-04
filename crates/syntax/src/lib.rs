@@ -433,6 +433,8 @@ pub fn parse_json_text_from_snapshot(
     parser::parse_json_text_from_snapshot(file_name.into(), snapshot)
 }
 
+/// A Program's JSON source file (`resolveJsonModule`): parsed like
+/// `parse_json_text`, with tsgo's value validation (TS1327, TS1328, TS1136).
 pub fn parse_json_text_from_snapshot_in_identity_domain(
     file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
@@ -443,7 +445,7 @@ pub fn parse_json_text_from_snapshot_in_identity_domain(
         IdentityAllocationPolicy::EphemeralBump => {
             let reservation =
                 domain.reserve_provisional(&[IdentitySpace::Node, IdentitySpace::NodeArray])?;
-            let mut source = parser::parse_json_text_from_snapshot_with_bases(
+            let mut source = parser::parse_json_source_text_from_snapshot_with_bases(
                 file_name,
                 snapshot,
                 reservation.base(IdentitySpace::Node)?,
@@ -458,7 +460,8 @@ pub fn parse_json_text_from_snapshot_in_identity_domain(
             Ok(source)
         }
         IdentityAllocationPolicy::Reclaiming => {
-            let mut source = parser::parse_json_text_from_snapshot(file_name, snapshot);
+            let mut source =
+                parser::parse_json_source_text_from_snapshot_with_bases(file_name, snapshot, 0, 0);
             source.relocate_into_identity_domain(domain)?;
             Ok(source)
         }

@@ -10515,6 +10515,28 @@ pub fn parse_json_text_from_snapshot_with_bases(
     node_id_base: u32,
     node_array_id_base: u32,
 ) -> SourceFile {
+    parse_json_text_with_options(file_name, snapshot, node_id_base, node_array_id_base, false)
+}
+
+/// A JSON source file of a Program (`resolveJsonModule`), whose value tsgo
+/// validates as it parses (parser/parser.go:218-221). Config files keep the
+/// conversion's own diagnostics for now.
+pub fn parse_json_source_text_from_snapshot_with_bases(
+    file_name: JsString,
+    snapshot: Arc<TextSnapshot>,
+    node_id_base: u32,
+    node_array_id_base: u32,
+) -> SourceFile {
+    parse_json_text_with_options(file_name, snapshot, node_id_base, node_array_id_base, true)
+}
+
+fn parse_json_text_with_options(
+    file_name: JsString,
+    snapshot: Arc<TextSnapshot>,
+    node_id_base: u32,
+    node_array_id_base: u32,
+    validate_value: bool,
+) -> SourceFile {
     let text = snapshot.text();
     let mut parser = Parser::new_with_target(
         file_name,
@@ -10602,6 +10624,9 @@ pub fn parse_json_text_from_snapshot_with_bases(
             .alloc_array(&[statement], pos, parser.node_pos(), false);
         let end_of_file_token =
             parser.parse_expected_token(SyntaxKind::EndOfFileToken, Some(&gen::Unexpected_token));
+        if validate_value {
+            parser.validate_json_value(expression);
+        }
         (statements, end_of_file_token)
     };
 
@@ -10633,6 +10658,120 @@ pub fn parse_json_text_from_snapshot_with_bases(
         jsx_runtime_pragma: finished.jsx_runtime_pragma,
         comment_directives: finished.comment_directives,
         jsdoc_hosted: crate::JsDocHostedCell::default(),
+    }
+}
+
+impl Parser<'_> {
+    /// tsgo validateJsonValue (parser/parser.go:233-261): a JSON value is a
+    /// keyword literal, a number, a double-quoted string, a negated number,
+    /// an object literal or an array literal.
+    fn validate_json_value(&mut self, value: NodeId) {
+        match self.arena.node(value).kind {
+            SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::NumericLiteral => return,
+            SyntaxKind::StringLiteral => {
+                if !self.is_double_quoted_json_string(value) {
+                    self.json_error_at_node(
+                        value,
+                        &gen::String_literal_with_double_quotes_expected,
+                    );
+                }
+                return;
+            }
+            SyntaxKind::PrefixUnaryExpression => {
+                if let NodeData::PrefixUnaryExpression(data) = &self.arena.node(value).data {
+                    if data.operator == SyntaxKind::MinusToken
+                        && data.operand.is_some_and(|operand| {
+                            self.arena.node(operand).kind == SyntaxKind::NumericLiteral
+                        })
+                    {
+                        return;
+                    }
+                }
+            }
+            SyntaxKind::ObjectLiteralExpression => {
+                self.validate_json_object_literal(value);
+                return;
+            }
+            SyntaxKind::ArrayLiteralExpression => {
+                let elements = match &self.arena.node(value).data {
+                    NodeData::ArrayLiteralExpression(data) => data.elements,
+                    _ => None,
+                };
+                if let Some(elements) = elements {
+                    let elements = self.arena.node_array(elements).nodes.to_vec();
+                    for element in elements {
+                        self.validate_json_value(element);
+                    }
+                }
+                return;
+            }
+            _ => {}
+        }
+        self.json_error_at_node(
+            value,
+            &gen::Property_value_can_only_be_string_literal_numeric_literal_true_false_null_object_literal_or_array_literal,
+        );
+    }
+
+    /// tsgo validateJsonObjectLiteral (parser/parser.go:268-279).
+    fn validate_json_object_literal(&mut self, node: NodeId) {
+        let properties = match &self.arena.node(node).data {
+            NodeData::ObjectLiteralExpression(data) => data.properties,
+            _ => None,
+        };
+        let Some(properties) = properties else {
+            return;
+        };
+        let elements = self.arena.node_array(properties).nodes.to_vec();
+        for element in elements {
+            let NodeData::PropertyAssignment(data) = &self.arena.node(element).data else {
+                self.json_error_at_node(element, &gen::Property_assignment_expected);
+                continue;
+            };
+            let (name, initializer) = (data.name, data.initializer);
+            if let Some(name) = name {
+                if !self.is_double_quoted_json_string(name) {
+                    self.json_error_at_node(name, &gen::String_literal_with_double_quotes_expected);
+                }
+            }
+            if let Some(initializer) = initializer {
+                self.validate_json_value(initializer);
+            }
+        }
+    }
+
+    /// tsgo isDoubleQuotedString: a string literal not opened by `'`.
+    fn is_double_quoted_json_string(&self, node: NodeId) -> bool {
+        let node = self.arena.node(node);
+        node.kind == SyntaxKind::StringLiteral && {
+            let text = self.scanner.text();
+            let start = crate::scanner::skip_trivia(text, node.pos as usize);
+            text.as_bytes().get(start) != Some(&b'\'')
+        }
+    }
+
+    /// tsgo getErrorSpanForNode (parser/parser.go:225-231): the node's
+    /// range, past leading trivia unless the node is missing.
+    fn json_error_at_node(&mut self, node: NodeId, message: &'static DiagnosticMessage) {
+        let (pos, end) = {
+            let node = self.arena.node(node);
+            (node.pos as usize, node.end as usize)
+        };
+        let start = if pos == end {
+            pos
+        } else {
+            crate::scanner::skip_trivia(self.scanner.text(), pos)
+        };
+        self.push_parse_diagnostic(
+            start,
+            end.saturating_sub(start),
+            message,
+            Vec::new(),
+            ParseDiagnosticOrigin::Parser,
+        );
     }
 }
 

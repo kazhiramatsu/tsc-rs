@@ -3078,6 +3078,49 @@ fn long_type_strings_are_cut_like_tsgo() {
 }
 
 #[test]
+fn json_values_are_validated_like_tsgo() {
+    // tsgo's JSON parser validates the value (parser/parser.go:233-279):
+    // strings and property names take double quotes, values are literals,
+    // objects or arrays. A JSON source file is never type checked
+    // (canIncludeBindAndCheckDiagnostics), so `[b]` reports no TS2304. The
+    // expected diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("data.json"),
+        concat!(
+            "{\n",
+            "    'a': true,\n",
+            "    [b]: 1,\n",
+            "    \"c\": undefined,\n",
+            "    \"d\": [1, -2, 'x', {\"e\": null}]\n",
+            "}\n",
+        ),
+    )
+    .expect("write data.json");
+    fs::write(
+        tree.path("a.ts"),
+        "import data = require(\"./data.json\");\nexport const x = data;\n",
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"strict":true,"module":"commonjs","resolveJsonModule":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "data.json(2,5): error TS1327: String literal with double quotes expected.\n",
+            "data.json(3,5): error TS1327: String literal with double quotes expected.\n",
+            "data.json(4,10): error TS1328: Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.\n",
+            "data.json(5,18): error TS1327: String literal with double quotes expected.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
