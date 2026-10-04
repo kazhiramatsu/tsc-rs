@@ -1725,3 +1725,11 @@ P3-5aeの後、TypeScriptのd.tsの不一致から、原因が独立した4つ�
 - local：formatとworkspace全体のclippy。syntax・binder・emitter・checker・compiler・conformanceのtest（49 targets、
   2,964件）。試行（filter `num`・`declarationEmit`・`omputed`・`ccessor`・`apped`・`rivate`・`ypeQuery`・`ypeof`）で
   下がった構成は無かった。
+- hosted：PR #657（head `1a6704876`、merge `6dd401ccf`）、run 37199882545 — `plan` 29s、`rust` 8m12s、
+  `conformance (TypeScript 7.1)` 14m12s、`gates` 11s。
+- perf（README corpora、nice 20、main（P3-5aeのcode `f1ecdeba1`）と本branch（`7ee088e7f`）のrelease build対tsgo 7.1.0-dev、
+  median wall ms main→本branch）：`--noEmit`（3 rounds）hono 142→143、zod 550→552、Playwright 396→382、TypeScript
+  `src/compiler` 357→351、Next.js 818→810、Effect 555→519、VS Code 3,813→3,768（tsgo比0.63〜0.94）。診断の出力と
+  読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（3 rounds）：hono 158→153、zod 670→665、
+  Playwright 527→531、TypeScript `src/compiler` 572→528、Next.js 1,148→1,100、Effect 837→834（tsgo比0.61〜0.78）、
+  出力と診断は6 corpusともmainと同一。退行なし。
