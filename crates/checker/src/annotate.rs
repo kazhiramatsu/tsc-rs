@@ -1468,7 +1468,8 @@ impl<'a> CheckerState<'a> {
                 /*ignore_errors*/ false,
             )?;
             symbol = Some(resolved_symbol);
-            resolved = Some(self.get_type_reference_type(node, resolved_symbol)?);
+            let reference_type = self.get_type_reference_type(node, resolved_symbol)?;
+            resolved = Some(self.get_distributed_type_parameter(node, reference_type)?);
         }
         let resolved = resolved.expect("all type-reference paths resolve");
         // links.resolvedSymbol + links.resolvedType (60587-60588):
@@ -1483,6 +1484,128 @@ impl<'a> CheckerState<'a> {
             resolved,
         );
         Ok(resolved)
+    }
+
+    /// tsgo getDistributedTypeParameter (checker.go:23440-23453): a
+    /// reference to a type parameter inside a conditional type whose check
+    /// type is a simple reference to that parameter, below the nearest
+    /// statement, resolves to the parameter's distributed form.
+    fn get_distributed_type_parameter(&mut self, node: NodeId, ty: TypeId) -> CheckResult<TypeId> {
+        let is_plain_type_parameter = matches!(
+            self.tables.type_of(ty).data,
+            TypeData::TypeParameter {
+                is_distributed: false,
+                ..
+            }
+        );
+        if !is_plain_type_parameter {
+            return Ok(ty);
+        }
+        let symbol = self.tables.type_of(ty).symbol;
+        let mut current = self.parent_of(node);
+        while let Some(ancestor) = current {
+            if self.is_statement_node(ancestor) {
+                break;
+            }
+            if let NodeData::ConditionalType(data) = self.data_of(ancestor) {
+                if let Some(check_type) = data.check_type {
+                    if self.is_simple_identifier_type_reference(check_type) {
+                        // tsgo getSymbolFromTypeReference: the check type's
+                        // own resolution reports its errors.
+                        let check_symbol = self.resolve_type_reference_name(
+                            check_type,
+                            SymbolFlags::TYPE,
+                            /*ignore_errors*/ true,
+                        )?;
+                        if Some(check_symbol) == symbol {
+                            return Ok(self.get_distributed_type_from_type_parameter(ty));
+                        }
+                    }
+                }
+            }
+            current = self.parent_of(ancestor);
+        }
+        Ok(ty)
+    }
+
+    /// tsgo getDistributedTypeFromTypeParameter (checker.go:23455-23463):
+    /// one distributed type parameter per type parameter, with the same
+    /// symbol and the original as its constraint.
+    pub(crate) fn get_distributed_type_from_type_parameter(&mut self, ty: TypeId) -> TypeId {
+        if let Some(&distributed) = self.distributed_type_parameters.get(&ty) {
+            return distributed;
+        }
+        let symbol = self.tables.type_of(ty).symbol;
+        let distributed = self.tables.create_type(
+            TypeFlags::TYPE_PARAMETER,
+            TypeData::TypeParameter {
+                is_this_type: false,
+                is_distributed: true,
+                constraint: Some(ty),
+            },
+        );
+        self.tables.type_mut(distributed).symbol = symbol;
+        self.distributed_type_parameters.insert(ty, distributed);
+        distributed
+    }
+
+    /// tsgo isSimpleIdentifierTypeReference (checker.go:23472-23474).
+    fn is_simple_identifier_type_reference(&self, node: NodeId) -> bool {
+        match self.data_of(node) {
+            NodeData::TypeReference(data) => {
+                data.type_arguments.is_none()
+                    && data
+                        .type_name
+                        .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+            }
+            _ => false,
+        }
+    }
+
+    /// tsgo ast.IsStatement (ast/utilities.go:628-710): statement kinds,
+    /// declaration statements and blocks that are not function bodies or
+    /// try/catch blocks.
+    fn is_statement_node(&self, node: NodeId) -> bool {
+        match self.kind_of(node) {
+            SyntaxKind::BreakStatement
+            | SyntaxKind::ContinueStatement
+            | SyntaxKind::DebuggerStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::ExpressionStatement
+            | SyntaxKind::EmptyStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::IfStatement
+            | SyntaxKind::LabeledStatement
+            | SyntaxKind::ReturnStatement
+            | SyntaxKind::SwitchStatement
+            | SyntaxKind::ThrowStatement
+            | SyntaxKind::TryStatement
+            | SyntaxKind::VariableStatement
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::WithStatement
+            | SyntaxKind::NotEmittedStatement
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::MissingDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::NamespaceExportDeclaration => true,
+            SyntaxKind::Block => self.parent_of(node).is_some_and(|parent| {
+                !matches!(
+                    self.kind_of(parent),
+                    SyntaxKind::TryStatement | SyntaxKind::CatchClause
+                ) && !node_util::is_function_like_kind(self.kind_of(parent))
+            }),
+            _ => false,
+        }
     }
 
     /// tsc-port: isJSDocTypeReference @6.0.3
@@ -3731,6 +3854,7 @@ impl<'a> CheckerState<'a> {
                 TypeFlags::TYPE_PARAMETER,
                 TypeData::TypeParameter {
                     is_this_type: true,
+                    is_distributed: false,
                     constraint: Some(id),
                 },
             );

@@ -555,6 +555,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 194568789a48a4a0e08ba0b934c9acafdf81244913ba01c0b5e42a0ca99c5983
     /// tsc-span: _tsc.js:62631-62639
     ///
+    /// tsgo (checker.go:32054-32067) rebuilds an indexed access whose
+    /// object or index type changes, and ends with the original of a
+    /// distributed type parameter.
     pub(crate) fn get_actual_type_variable(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::SUBSTITUTION) {
@@ -572,17 +575,9 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("IndexedAccess flag implies data");
             };
-            if self
-                .tables
-                .flags_of(object_type)
-                .intersects(TypeFlags::SUBSTITUTION)
-                || self
-                    .tables
-                    .flags_of(index_type)
-                    .intersects(TypeFlags::SUBSTITUTION)
-            {
-                let actual_object = self.get_actual_type_variable(object_type)?;
-                let actual_index = self.get_actual_type_variable(index_type)?;
+            let actual_object = self.get_actual_type_variable(object_type)?;
+            let actual_index = self.get_actual_type_variable(index_type)?;
+            if actual_object != object_type || actual_index != index_type {
                 return self.get_indexed_access_type(
                     actual_object,
                     actual_index,
@@ -593,7 +588,7 @@ impl<'a> CheckerState<'a> {
                 );
             }
         }
-        Ok(ty)
+        Ok(self.get_non_distributed_type_parameter(ty))
     }
 
     /// tsc-port: isGenericType @6.0.3

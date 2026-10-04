@@ -307,11 +307,28 @@ impl<'a> CheckerState<'a> {
         self.create_type_mapper(sources, None)
     }
 
+    /// tsgo getNonDistributedTypeParameter (checker.go:23465-23470): the
+    /// original of a distributed type parameter, else the type itself.
+    pub(crate) fn get_non_distributed_type_parameter(&self, ty: TypeId) -> TypeId {
+        match self.tables.type_of(ty).data {
+            TypeData::TypeParameter {
+                is_distributed: true,
+                constraint: Some(original),
+                ..
+            } => original,
+            _ => ty,
+        }
+    }
+
     /// tsc-port: getMappedType @6.0.3
     /// tsc-hash: 1de145bdc6a4fc936f2d547c707305081eede73870da72023bc151fa83e65252
     /// tsc-span: _tsc.js:63327-63358
+    ///
+    /// tsgo maps a distributed type parameter by its original
+    /// (mapper.go:40-42).
     pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
+        let ty = self.get_non_distributed_type_parameter(ty);
         match *self.mapper(mapper) {
             TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
             TypeMapper::Array { sources, targets } => {
@@ -440,6 +457,8 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         mapper: Option<MapperId>,
     ) -> MapperId {
+        // tsgo maps the original of a distributed source (mapper.go:76-81).
+        let source = self.get_non_distributed_type_parameter(source);
         match mapper {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => {
@@ -458,6 +477,8 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
     ) -> MapperId {
+        // tsgo maps the original of a distributed source (mapper.go:83-88).
+        let source = self.get_non_distributed_type_parameter(source);
         match mapper {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => {
@@ -507,6 +528,7 @@ impl<'a> CheckerState<'a> {
             TypeFlags::TYPE_PARAMETER,
             TypeData::TypeParameter {
                 is_this_type: false,
+                is_distributed: false,
                 constraint: None,
             },
         );
@@ -528,6 +550,7 @@ impl<'a> CheckerState<'a> {
             TypeFlags::TYPE_PARAMETER,
             TypeData::TypeParameter {
                 is_this_type: false,
+                is_distributed: false,
                 constraint: None,
             },
         );

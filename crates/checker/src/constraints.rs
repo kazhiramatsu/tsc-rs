@@ -34,6 +34,7 @@ impl<'a> CheckerState<'a> {
             TypeFlags::TYPE_PARAMETER,
             TypeData::TypeParameter {
                 is_this_type: false,
+                is_distributed: false,
                 constraint: None,
             },
         );

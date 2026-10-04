@@ -2107,8 +2107,26 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             && target != self.st.marker_sub_type_for_check
         {
             let constraint = self.st.get_base_constraint_of_type(target)?;
+            // tsgo (relater.go:4802-4804): a distributed type parameter
+            // explains a source assignable to its original.
+            let distributed_original = match self.st.tables.type_of(target).data {
+                TypeData::TypeParameter {
+                    is_distributed: true,
+                    constraint: Some(original),
+                    ..
+                } => Some(original),
+                _ => None,
+            };
+            let only_assignable_to_original = match distributed_original {
+                Some(original) => self
+                    .st
+                    .is_type_assignable_to(generalized_source, original)?,
+                None => false,
+            };
             let mut needs_original_source = false;
-            let assignable_to_constraint = if let Some(constraint) = constraint {
+            let assignable_to_constraint = if only_assignable_to_original {
+                false
+            } else if let Some(constraint) = constraint {
                 if self
                     .st
                     .is_type_assignable_to(generalized_source, constraint)?
@@ -2123,7 +2141,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             } else {
                 false
             };
-            if assignable_to_constraint {
+            if only_assignable_to_original {
+                self.report_error_js(
+                    &diagnostics::_0_is_only_assignable_to_the_non_distributed_1_but_1_has_been_distributed_here,
+                    vec![generalized_source_text.clone(), target_text.clone()],
+                )?;
+            } else if assignable_to_constraint {
                 let constraint_text = self.st.type_to_string_with_error_enclosing(
                     constraint.expect("successful constraint relation has a constraint"),
                 )?;

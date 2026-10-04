@@ -2393,6 +2393,7 @@ impl TypeTables {
             TypeFlags::TYPE_PARAMETER,
             TypeData::TypeParameter {
                 is_this_type,
+                is_distributed: false,
                 constraint,
             },
         )

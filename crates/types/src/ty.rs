@@ -347,6 +347,10 @@ pub enum TypeData {
     /// declared type parameters are M4.
     TypeParameter {
         is_this_type: bool,
+        /// tsgo's `isDistributed` (checker.go:23455-23462): the form a
+        /// type parameter takes inside the branches of a conditional type
+        /// that distributes over it; `constraint` is the original.
+        is_distributed: bool,
         constraint: Option<TypeId>,
     },
     /// getTemplateLiteralType (62057): texts.len() == types.len() + 1.

@@ -123,11 +123,22 @@ fn conditional_resolution_distribution_inference_and_simplification() {
                 annotation_type(state, "expectedDefault"),
             );
 
+            // The true branch's `T` is T's distributed form (tsgo
+            // getDistributedTypeParameter), which the simplification returns
+            // as is (checker.go:28477-28479).
             let same = annotation_type(state, "same");
             let simplified = state
                 .get_simplified_type(same, /*writing*/ false)
                 .expect("conditional simplification");
-            assert_eq!(simplified, annotation_type(state, "expectedSame"));
+            let expected_same = annotation_type(state, "expectedSame");
+            assert_eq!(
+                simplified,
+                state.get_distributed_type_from_type_parameter(expected_same)
+            );
+            assert_eq!(
+                state.get_non_distributed_type_parameter(simplified),
+                expected_same
+            );
         },
     );
 }
