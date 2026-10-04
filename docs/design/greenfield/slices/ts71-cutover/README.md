@@ -2132,3 +2132,37 @@ P3-5anで残した4件：
   - `tsconfig.bench-full.json` 3回：hono 151→149、zod 661→675、Playwright 500→501、TypeScript `src/compiler` 555→515、
     Next.js 1,097→1,066、Effect 797→800。tsc-rs÷tsgo 0.58–0.79。出力fileは6 corporaで同一、診断はhonoとNext.jsで
     上と同じだけ増えた。劣化無し。
+
+## P3-5ap 到達可能性のcache、束縛の親の型、JSXの型と名前（2026-10-05）
+
+P3-5aoの後の4件：
+- **到達可能性のcache**：tsgoの`isReachableFlowNodeWorker`は、ReduceLabelがlabelの前件を狭めている間は、共有nodeの
+  到達可能性をcacheから読まず、書かない（checker/flow.go:2528-2537）。tsc 6.0はcacheしたので、`finally`の中の
+  論理代入を辿った結果が残り、網羅したswitchの後を到達可能と見てTS2366を出していた。
+  `finallyLogicalOrAssignmentSwitchReturn`。
+- **束縛の親の型**：tsgoの`getTypeForBindingElementParent`は、strictNullChecksで省略可能な宣言の時、cacheされた
+  parameterの型（省略可能性で`undefined`を含みうる）を使わない（checker.go:18031-18041）。
+  `bindingPatternOptionalParameterCached`。
+- **JSXの型**：tsgoの`instantiateAliasOrInterfaceWithDefaults`は、型の別名でもclassやinterfaceでもない宣言型
+  （enumの`JSX.ElementType`など）には型を返さない（jsx.go:1030-1048）。tsc-rsはtsc 6.0のcrashを避ける分岐で宣言型を
+  返し、TS2786を出していた。`jsxElementTypeUnexpectedType`。
+- **JSXの名前**：tsgoの`getLiteralTypeFromPropertyName`は、JSXの属性名`ns:name`をその文字列のliteral型にする
+  （`GetPropertyNameForPropertyNameNode`）。tsc-rsは式として検査し、合わないtemplate literalのindex signatureと
+  比べていた。`jsxNamespacedNameNotComparedToNonMatchingIndexSignature`。
+- unit test：CLI（tsgoの出力にpin）で4件。修正前のbuildでは4件ともtsgoと違っていた。
+- conformance（release build、`092d910b3`、`--workers 2`、525 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,389→13,395：上の4件と、到達可能性のcacheによる`dependentDestructuredVariablesNoCrash1`（category→
+    full）。mismatch 47→43、category 6→5。
+  - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。`intersectionConstructorReductionCrash`は
+    今回は最後まで通ったが、負荷で結果の変わる構成なので、ratchetの更新ではreportから除いた。
+- ratchet：0 regressions、5行raise。
+- local：formatとworkspace全体のclippy。checker・compiler・harness・conformanceのtest（14 targets、2,058件）。
+- perf（README corpora、nice 20、main（P3-5aoのbuild `9b029aa74`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 158→136、zod 535→531、Playwright 370→367、TypeScript
+    `src/compiler` 343→329、Next.js 784→790、Effect 517→525、VS Code 3,515→3,536。tsc-rs÷tsgo 0.60–0.91。読み込んだ
+    文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 149→147、zod 636→627、Playwright 480→505、TypeScript `src/compiler` 544→508、
+    Next.js 1,031→999、Effect 771→759。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B：Playwright `bench-full` 476→478、Effect `--noEmit` 516→527、Next.js `--noEmit` 768→766。1 checkerの
+    命令数branch÷main：Playwright 0.99977、Effect 1.00005。3回のPlaywrightの差とEffectの差はnoiseで、劣化無し。
