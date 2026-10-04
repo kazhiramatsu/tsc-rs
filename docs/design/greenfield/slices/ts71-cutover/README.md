@@ -2166,3 +2166,5 @@ P3-5aoの後の4件：
     Next.js 1,031→999、Effect 771→759。6 corporaとも出力fileと診断は同一。
   - 10回のA/B：Playwright `bench-full` 476→478、Effect `--noEmit` 516→527、Next.js `--noEmit` 768→766。1 checkerの
     命令数branch÷main：Playwright 0.99977、Effect 1.00005。3回のPlaywrightの差とEffectの差はnoiseで、劣化無し。
+- hosted：PR #667（head `a5572a012`）、run 37222682145 — `plan` 22s、`rust` 8m40s、`conformance (TypeScript 7.1)` 20m15s、
+  `gates` 14s。
