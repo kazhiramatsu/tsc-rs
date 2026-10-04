@@ -1905,6 +1905,16 @@ impl<'a> CheckerState<'a> {
                 }));
             }
         }
+        // tsgo instantiateAliasOrInterfaceWithDefaults (jsx.go:1043-1047):
+        // only a class or interface declared type instantiates; any other
+        // type (an enum `JSX.ElementType`, say) is no type.
+        if !self
+            .tables
+            .object_flags_of(declared_managed_type)
+            .intersects(tsc_types::ObjectFlags::CLASS | tsc_types::ObjectFlags::INTERFACE)
+        {
+            return Ok(None);
+        }
         let declared_params = self.interface_type_parameters(declared_managed_type);
         if declared_params.as_ref().map_or(0, Vec::len) >= type_arguments.len() {
             if declared_params.is_none() {

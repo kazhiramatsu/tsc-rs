@@ -1639,7 +1639,10 @@ impl<'a> CheckerState<'a> {
             }
             let flags = self.flow_flags_of(file, flow);
             if flags.intersects(FlowFlags::SHARED) {
-                if !no_cache_check {
+                // tsgo isReachableFlowNodeWorker (checker/flow.go:2528-2537):
+                // a shared node's reachability is cached only while no
+                // ReduceLabel narrows a label's antecedents.
+                if !no_cache_check && self.reduce_label_overrides.is_empty() {
                     if let Some(&reachable) = self.flow_node_reachable.get(&(file, flow)) {
                         return Ok(reachable);
                     }

@@ -8782,7 +8782,14 @@ impl<'a> CheckerState<'a> {
         // pattern-named declarations (the binder hangs the symbols
         // off the binding ELEMENTS) — the falsy probe falls through
         // to getTypeForVariableLikeDeclaration.
-        if self.get_symbol_of_declaration_opt(node).is_some() {
+        // tsgo getTypeForBindingElementParent (checker.go:18031-18041): the
+        // cached type serves only when it can carry no optionality.
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        if self.get_symbol_of_declaration_opt(node).is_some()
+            && !(strict_null_checks && self.is_optional_declaration(node))
+        {
             let symbol = self.get_symbol_of_declaration(node)?;
             if let Some(cached) = self
                 .links

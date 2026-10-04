@@ -420,6 +420,12 @@ impl<'a> CheckerState<'a> {
                 let text = data.text.clone();
                 Ok(self.tables.get_string_literal_type(&text))
             }
+            // tsgo GetPropertyNameForPropertyNameNode names a JSX attribute
+            // `ns:name` by its text (ast/utilities.go:3205-3209).
+            NodeData::JsxNamespacedName(_) => {
+                let text = self.jsx_attribute_name_text(name);
+                Ok(self.tables.get_string_literal_type(&text))
+            }
             // isExpression(name) tail (61979-61981): remaining name
             // kinds (BigIntLiteral et al) check as expressions; true
             // non-expressions bottom out in checkExpression's own
