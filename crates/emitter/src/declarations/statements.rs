@@ -33,9 +33,16 @@ pub(crate) fn visit_declaration_statement(
     context: &mut TransformationContext,
     input: TransformNode,
 ) -> Result<VisitResult, TransformError> {
-    if !is_preserved_declaration_statement(context, input)?
-        || transformer.should_strip_internal(context, Some(input))?
-    {
+    if !is_preserved_declaration_statement(context, input)? {
+        // tsgo elides the executable statements and visits any other one,
+        // such as `export as namespace`, as a declaration subtree
+        // (transform.go:226-274).
+        if is_elided_declaration_statement(context, input)? {
+            return Ok(VisitResult::None);
+        }
+        return transformer.visit_declaration_subtree(context, input);
+    }
+    if transformer.should_strip_internal(context, Some(input))? {
         return Ok(VisitResult::None);
     }
 
@@ -838,13 +845,42 @@ pub(crate) fn transform_variable_statement(
     if !any_visible {
         return Ok(VisitResult::None);
     }
-    let mut declarations = Vec::new();
+    // tsgo transformVariableStatement (transform.go:2227-2251): in a CommonJS
+    // file, the declarations initialized by `require` become imports written
+    // before the statement.
+    let mut extra_imports = Vec::new();
+    let mut normal_declarations = Vec::with_capacity(source_declarations.len());
+    let common_js = transformer.state()?.common_js.is_common_js;
     for declaration in source_declarations {
+        if common_js
+            && super::commonjs::is_variable_declaration_initialized_to_require(
+                context,
+                declaration,
+            )?
+        {
+            match transformer.visit_declaration_subtree(context, declaration)? {
+                VisitResult::None => {}
+                VisitResult::Node(import) => extra_imports.push(import),
+                VisitResult::Nodes(imports) => extra_imports.extend(imports),
+            }
+        } else {
+            normal_declarations.push(declaration);
+        }
+    }
+    let mut declarations = Vec::new();
+    for declaration in normal_declarations {
         match transformer.visit_declaration_subtree(context, declaration)? {
             VisitResult::None => {}
             VisitResult::Node(declaration) => declarations.push(declaration),
             VisitResult::Nodes(result) => declarations.extend(result),
         }
+    }
+    if declarations.is_empty() {
+        return Ok(if extra_imports.is_empty() {
+            VisitResult::None
+        } else {
+            VisitResult::Nodes(extra_imports)
+        });
     }
     let modifiers = transformer.ensure_modifiers(context, input)?;
     let modifiers = Some(array_or_empty(
@@ -893,7 +929,12 @@ pub(crate) fn transform_variable_statement(
         context
             .factory()?
             .update_variable_statement(input, modifiers, declaration_list)?;
-    Ok(VisitResult::Node(statement))
+    if extra_imports.is_empty() {
+        Ok(VisitResult::Node(statement))
+    } else {
+        extra_imports.push(statement);
+        Ok(VisitResult::Nodes(extra_imports))
+    }
 }
 
 fn first_constructor_with_body(
@@ -1921,6 +1962,35 @@ pub(crate) fn is_preserved_declaration_statement(
     ))
 }
 
+fn is_elided_declaration_statement(
+    context: &TransformationContext,
+    node: TransformNode,
+) -> Result<bool, TransformError> {
+    Ok(matches!(
+        context.arena().node(node)?.kind,
+        SyntaxKind::BreakStatement
+            | SyntaxKind::ContinueStatement
+            | SyntaxKind::DebuggerStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::EmptyStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::IfStatement
+            | SyntaxKind::LabeledStatement
+            | SyntaxKind::ReturnStatement
+            | SyntaxKind::SwitchStatement
+            | SyntaxKind::ThrowStatement
+            | SyntaxKind::TryStatement
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::WithStatement
+            | SyntaxKind::NotEmittedStatement
+            | SyntaxKind::Block
+            | SyntaxKind::MissingDeclaration
+            | SyntaxKind::ExpressionStatement
+    ))
+}
+
 fn is_late_visibility_painted_statement(
     context: &TransformationContext,
     node: TransformNode,
@@ -2006,6 +2076,15 @@ pub(crate) fn modifier_flags(
     context: &TransformationContext,
     node: TransformNode,
 ) -> Result<ModifierFlags, TransformError> {
+    let array = modifiers_of(context, node)?;
+    modifier_flags_from_array(context, array)
+}
+
+/// The modifiers of a declaration statement or parameter.
+pub(crate) fn modifiers_of(
+    context: &TransformationContext,
+    node: TransformNode,
+) -> Result<Option<TransformNodeArray>, TransformError> {
     let array = match &context.arena().node(node)?.data {
         NodeData::FunctionDeclaration(data) => data.modifiers,
         NodeData::ClassDeclaration(data) => data.modifiers,
@@ -2022,7 +2101,7 @@ pub(crate) fn modifier_flags(
         _ => None,
     }
     .and_then(|array| context.arena().node_array_ref(node.source(), array));
-    modifier_flags_from_array(context, array)
+    Ok(array)
 }
 
 fn modifier_flags_from_array(

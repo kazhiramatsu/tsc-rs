@@ -1775,6 +1775,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 self.type_from_property_assignment(node, symbol)?
             }
+            // tsgo GetTypeOfDeclaration answers no pseudo type for a
+            // JavaScript `Object.defineProperty(exports, …)` call
+            // (pseudochecker/lookup.go:50-62), so its symbol's type is written.
+            SyntaxKind::CallExpression => self.infer_type_of_declaration(node, symbol, false)?,
             _ => return Ok(None),
         };
         Ok(result)

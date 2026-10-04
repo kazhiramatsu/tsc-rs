@@ -200,7 +200,6 @@ impl DeclarationTransformer<'_> {
         let unwrapped = unwrap_parenthesized(cx, initial)?;
         if !is_primitive_literal_value(cx, unwrapped)?
             && self.options.isolated_declarations == Some(true)
-            && !current_source_is_js(cx, node.source())?
         {
             self.tracker
                 .report_isolated_inference(super::tracker::TrackerAnchor::Transform(node));
@@ -1066,6 +1065,7 @@ const fn has_inferred_type(kind: SyntaxKind) -> bool {
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression
             | SyntaxKind::BinaryExpression
+            | SyntaxKind::CallExpression
             | SyntaxKind::VariableDeclaration
             | SyntaxKind::ExportAssignment
             | SyntaxKind::PropertyAssignment

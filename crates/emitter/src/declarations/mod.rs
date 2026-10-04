@@ -1,6 +1,7 @@
 //! Dormant TypeScript declaration-transform foundation.
 
 mod bundle;
+mod commonjs;
 mod diagnostics;
 mod ensure;
 mod expando;

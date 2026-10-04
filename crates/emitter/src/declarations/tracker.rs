@@ -82,9 +82,14 @@ pub(crate) struct DeclarationSymbolTracker<'t> {
     pub(crate) error_name_node: Option<TransformNode>,
     pub(crate) error_fallback_node: Option<TrackerAnchor>,
     pub(crate) error_fallback_stack: Vec<Option<TrackerAnchor>>,
+    /// tsgo SymbolTrackerImpl watchedClassSymbol and classSymbolTracked: a
+    /// class expression exported by CommonJS whose own symbol names one of
+    /// its members' types needs a namespace of its own
+    /// (transformCommonJSExportWorker, transform.go:1376-1415).
+    pub(crate) watched_class_symbol: Option<crate::EmitTrackerSymbol>,
+    pub(crate) class_symbol_tracked: bool,
     current_program_source: Option<SourceFileId>,
     current_transform_source: Option<crate::TransformSourceId>,
-    current_source_is_js: bool,
     pending_effects: VecDeque<TrackerEffect>,
 }
 
@@ -102,9 +107,10 @@ impl<'t> DeclarationSymbolTracker<'t> {
             error_name_node: None,
             error_fallback_node: None,
             error_fallback_stack: Vec::new(),
+            watched_class_symbol: None,
+            class_symbol_tracked: false,
             current_program_source: None,
             current_transform_source: None,
-            current_source_is_js: false,
             pending_effects: VecDeque::new(),
         }
     }
@@ -114,7 +120,6 @@ impl<'t> DeclarationSymbolTracker<'t> {
         &mut self,
         program_source: Option<SourceFileId>,
         transform_source: crate::TransformSourceId,
-        source_is_js: bool,
     ) {
         self.diagnostic_context = DiagnosticContext::None;
         self.diagnostic_plan = DiagnosticContextPlan::None;
@@ -125,7 +130,6 @@ impl<'t> DeclarationSymbolTracker<'t> {
         self.error_fallback_stack.clear();
         self.current_program_source = program_source;
         self.current_transform_source = Some(transform_source);
-        self.current_source_is_js = source_is_js;
         self.pending_effects.clear();
     }
 
@@ -400,6 +404,13 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
         if symbol_flags.contains(SymbolFlags::TYPE_PARAMETER) {
             return Ok(false);
         }
+        // tsgo TrackSymbol (tracker.go:193-199): a watched class expression's
+        // own symbol is recorded without an accessibility check; its caller
+        // puts the class in a namespace.
+        if self.watched_class_symbol == Some(symbol) {
+            self.class_symbol_tracked = true;
+            return Ok(false);
+        }
         let result = access.is_symbol_accessible(
             symbol,
             enclosing_declaration,
@@ -417,7 +428,8 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
         access: &mut dyn EmitTrackerAccess,
         node: EmitTrackerNode,
     ) -> Result<(), EmitResolverError> {
-        if self.options.isolated_declarations != Some(true) || self.current_source_is_js {
+        // tsgo also reports in JavaScript files (tracker.go:87-100).
+        if self.options.isolated_declarations != Some(true) {
             return Ok(());
         }
         let description = access.describe_node(node);

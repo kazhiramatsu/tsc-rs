@@ -35,6 +35,7 @@ pub(crate) struct TransformState {
     /// tsgo inClassExpressionDeclaration (transform.go:99): the members of a
     /// class expression written as a class declaration are being serialized.
     pub(crate) in_class_expression_declaration: bool,
+    pub(crate) common_js: super::commonjs::CommonJsState,
 }
 
 impl TransformState {
@@ -54,6 +55,7 @@ impl TransformState {
             references: RawFileReferences::default(),
             expandos: super::expando::ExpandoState::default(),
             in_class_expression_declaration: false,
+            common_js: super::commonjs::CommonJsState::default(),
         }
     }
 }

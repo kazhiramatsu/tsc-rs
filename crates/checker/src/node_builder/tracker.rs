@@ -471,7 +471,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     }
 }
 
-fn tracker_symbol(symbol: SymbolId) -> EmitTrackerSymbol {
+pub(crate) fn tracker_symbol(symbol: SymbolId) -> EmitTrackerSymbol {
     EmitTrackerSymbol(u64::from(symbol.index()))
 }
 

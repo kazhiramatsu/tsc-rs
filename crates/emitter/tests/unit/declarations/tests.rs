@@ -126,7 +126,7 @@ impl Transformer for ProbeTransformer<'_> {
         self.declaration.state = Some(TransformState::for_source(source, root_node));
         self.declaration
             .tracker
-            .reset_for_file(program_source, source, false);
+            .reset_for_file(program_source, source);
 
         match self.action.clone() {
             ProbeAction::Visit(node) => {
@@ -502,7 +502,7 @@ fn tracker_assigns_first_alias_vector_verbatim_then_merges_uniquely() {
     let mut arena = TransformArena::new();
     let transform_source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
     let mut tracker = DeclarationSymbolTracker::new(&options, &host);
-    tracker.reset_for_file(Some(SourceFileId::from_raw(0)), transform_source, false);
+    tracker.reset_for_file(Some(SourceFileId::from_raw(0)), transform_source);
 
     assert!(
         !tracker.handle_symbol_accessibility_error(accessibility_result(
@@ -529,7 +529,7 @@ fn tracker_assigns_first_alias_vector_verbatim_then_merges_uniquely() {
         tracker.late_marked_statements,
         Some(vec![first_transform, first_transform, second_transform])
     );
-    tracker.reset_for_file(Some(SourceFileId::from_raw(0)), transform_source, false);
+    tracker.reset_for_file(Some(SourceFileId::from_raw(0)), transform_source);
     assert_eq!(tracker.late_marked_statements, None);
     assert_eq!(tracker.diagnostic_context, DiagnosticContext::None);
     assert!(!tracker.suppress_new_diagnostic_contexts);

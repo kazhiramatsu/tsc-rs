@@ -1788,10 +1788,10 @@ fn export_assignments_follow_tsgo() {
         concat!("/** The answer. */\n", "export default 42;\n",),
     )
     .expect("write literal.ts");
-    fs::write(tree.path("unary.ts"), concat!("export default +1;\n",)).expect("write unary.ts");
+    fs::write(tree.path("unary.ts"), "export default +1;\n").expect("write unary.ts");
     fs::write(
         tree.path("arrow.ts"),
-        concat!("export default (a: number, b: string) => ({ a, b });\n",),
+        "export default (a: number, b: string) => ({ a, b });\n",
     )
     .expect("write arrow.ts");
     fs::write(
@@ -1813,11 +1813,8 @@ fn export_assignments_follow_tsgo() {
         ),
     )
     .expect("write point.ts");
-    fs::write(
-        tree.path("constant.ts"),
-        concat!("export default \"x\" as const;\n",),
-    )
-    .expect("write constant.ts");
+    fs::write(tree.path("constant.ts"), "export default \"x\" as const;\n")
+        .expect("write constant.ts");
     fs::write(
         tree.path("tsconfig.json"),
         r#"{"compilerOptions":{"target":"es2022","module":"commonjs","strict":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["literal.ts","unary.ts","arrow.ts","named.ts","point.ts","constant.ts"]}"#,
@@ -1875,6 +1872,211 @@ fn export_assignments_follow_tsgo() {
         concat!(
             "declare const _default: \"x\";\n",
             "export default _default;\n",
+        )
+    );
+}
+
+#[test]
+fn common_js_declarations_follow_tsgo() {
+    // tsgo collects a CommonJS file's `module.exports =` and `exports.name =`
+    // assignments before it visits the statements (visitCJSExportAssignments,
+    // transformCommonJSExport, transform.go:1343-1562, 2680-2698): an assignment
+    // of an identifier exports it, a value types an exported `var` or a generated
+    // `const`, a class becomes an exported class, members assigned after
+    // `module.exports =` go in a namespace or follow `export =`, and `require`
+    // calls are elided when unused. A typedef namespace after a `return` merges
+    // with the variable of its name, as tsgo's reparsed statement does, and an
+    // `import()` type in a callback is kept. The expected bytes are tsgo's for
+    // the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.js"),
+        concat!(
+            "const fs = require(\"fs\");\n",
+            "const { join, dirname: dir } = require(\"path\");\n",
+            "function helper() { return 1; }\n",
+            "/** The version. */\n",
+            "exports.version = \"1.0\";\n",
+            "exports.helper = helper;\n",
+            "exports[\"kebab-case\"] = 2;\n",
+            "module.exports.count = 3;\n",
+            "Object.defineProperty(exports, \"flag\", { value: true });\n",
+            "exports.Klass = class Klass {\n",
+            "    constructor() { this.x = 1; }\n",
+            "};\n",
+            "exports.default = 42;\n",
+        ),
+    )
+    .expect("write a.js");
+    fs::write(
+        tree.path("b.js"),
+        concat!(
+            "class Thing {\n",
+            "    constructor() { this.y = 2; }\n",
+            "}\n",
+            "module.exports = Thing;\n",
+            "module.exports.extra = 1;\n",
+        ),
+    )
+    .expect("write b.js");
+    fs::write(
+        tree.path("c.js"),
+        concat!(
+            "module.exports = {\n",
+            "    a: 1,\n",
+            "    b: \"x\",\n",
+            "};\n",
+            "module.exports.c = true;\n",
+        ),
+    )
+    .expect("write c.js");
+    fs::write(
+        tree.path("d.js"),
+        "module.exports = function (x) { return x; };\n",
+    )
+    .expect("write d.js");
+    fs::write(
+        tree.path("e.js"),
+        concat!(
+            "const types = {};\n",
+            "/** @typedef {boolean} types.flag */\n",
+            "/**\n",
+            " * @callback Factory\n",
+            " * @param {import('./b')} thing\n",
+            " * @returns {void}\n",
+            " */\n",
+            "/** @param {types.flag} flag */\n",
+            "function check(flag) { return 1; }\n",
+            "module.exports = { check };\n",
+        ),
+    )
+    .expect("write e.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"allowJs":true,"declaration":true,"emitDeclarationOnly":true,"outDir":"out","target":"es2022","module":"commonjs","types":[]},"files":["a.js","b.js","c.js","d.js","e.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "export declare var version: \"1.0\";\n",
+            "export { helper };\n",
+            "declare const _exported: 2;\n",
+            "export { _exported as \"kebab-case\" };\n",
+            "export declare var count: 3;\n",
+            "export declare var flag: boolean;\n",
+            "export declare class Klass {\n",
+            "    x: number;\n",
+            "    constructor();\n",
+            "}\n",
+            "declare const _default: 42;\n",
+            "export default _default;\n",
+            "declare function helper(): number;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.d.ts")).expect("read b.d.ts"),
+        concat!(
+            "export = Thing;\n",
+            "export declare var extra: 1;\n",
+            "declare class Thing {\n",
+            "    y: number;\n",
+            "    constructor();\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/c.d.ts")).expect("read c.d.ts"),
+        concat!(
+            "declare const _exports: {\n",
+            "    a: number;\n",
+            "    b: string;\n",
+            "};\n",
+            "export = _exports;\n",
+            "declare namespace _exports {\n",
+            "    export var c: true;\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/d.d.ts")).expect("read d.d.ts"),
+        concat!(
+            "export = _exports;\n",
+            "declare function _exports(x: any): any;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/e.d.ts")).expect("read e.d.ts"),
+        concat!(
+            "declare const _exports: {\n",
+            "    check: typeof check;\n",
+            "};\n",
+            "export = _exports;\n",
+            "declare const types: {};\n",
+            "export declare namespace types {\n",
+            "    export type flag = boolean;\n",
+            "}\n",
+            "export type Factory = (thing: import('./b')) => void;\n",
+            "/** @typedef {boolean} types.flag */\n",
+            "/**\n",
+            " * @callback Factory\n",
+            " * @param {import('./b')} thing\n",
+            " * @returns {void}\n",
+            " */\n",
+            "/** @param {types.flag} flag */\n",
+            "declare function check(flag: types.flag): number;\n",
+        )
+    );
+}
+
+#[test]
+fn namespace_export_declarations_follow_tsgo() {
+    // tsgo visits a statement it neither keeps nor elides, such as `export as
+    // namespace`, as a declaration subtree (transform.go:226-274), so the
+    // declaration file keeps it in TypeScript and JavaScript alike. The expected
+    // diagnostics and bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!("export const z = 3;\n", "export as namespace Lib;\n",),
+    )
+    .expect("write lib.js");
+    fs::write(
+        tree.path("glo.ts"),
+        concat!(
+            "/** A value. */\n",
+            "export const x = 1;\n",
+            "export as namespace Glo;\n",
+        ),
+    )
+    .expect("write glo.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"allowJs":true,"declaration":true,"emitDeclarationOnly":true,"outDir":"out","target":"es2022","module":"esnext","types":[]},"files":["lib.js","glo.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "glo.ts(3,1): error TS1315: Global module exports may only appear in declaration files.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read lib.d.ts"),
+        concat!(
+            "export declare const z = 3;\n",
+            "export as namespace Lib;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/glo.d.ts")).expect("read glo.d.ts"),
+        concat!(
+            "/** A value. */\n",
+            "export declare const x = 1;\n",
+            "export as namespace Glo;\n",
         )
     );
 }

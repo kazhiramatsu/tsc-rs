@@ -84,6 +84,20 @@ fn unwrap_parenthesized_expression(
     Ok(Some(node))
 }
 
+/// tsgo ast.SkipParentheses.
+pub(crate) fn unwrap_parentheses(
+    cx: &TransformationContext,
+    mut node: TransformNode,
+) -> Result<TransformNode, TransformError> {
+    while let NodeData::ParenthesizedExpression(data) = &cx.arena().node(node)?.data {
+        let Some(expression) = data.expression else {
+            break;
+        };
+        node = TransformNode::new(node.source(), expression);
+    }
+    Ok(node)
+}
+
 fn is_parenthesized(
     cx: &TransformationContext,
     node: TransformNode,
@@ -300,11 +314,13 @@ impl DeclarationTransformer<'_> {
                 .resolver
                 .is_name_resolvable(self.required_resolver_node(cx, enclosing)?, &text)?;
             let mut factory = cx.factory()?;
-            return if resolvable {
-                factory.create_unique_name(source, text, GeneratedIdentifierFlags::OPTIMISTIC)
+            let name = if resolvable {
+                factory.create_unique_name(source, text, GeneratedIdentifierFlags::OPTIMISTIC)?
             } else {
-                factory.create_identifier(source, text)
+                factory.create_identifier(source, text)?
             };
+            self.state_mut()?.common_js.export_assignment_name = Some(name);
+            return Ok(name);
         }
         let javascript = super::javascript::is_javascript_file(cx.arena().source(source)?.syntax());
         let base = if is_export_equals && javascript {
@@ -312,8 +328,11 @@ impl DeclarationTransformer<'_> {
         } else {
             "_default"
         };
-        cx.factory()?
-            .create_unique_name(source, base, GeneratedIdentifierFlags::OPTIMISTIC)
+        let name =
+            cx.factory()?
+                .create_unique_name(source, base, GeneratedIdentifierFlags::OPTIMISTIC)?;
+        self.state_mut()?.common_js.export_assignment_name = Some(name);
+        Ok(name)
     }
 
     /// tsgo transformFunctionLikeToDeclaration (transform.go:1298-1322): a

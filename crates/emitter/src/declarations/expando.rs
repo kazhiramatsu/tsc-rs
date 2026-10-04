@@ -38,18 +38,31 @@ pub(crate) struct ExpandoState {
 
 type SavedDiagnosticContext = (DiagnosticContext, DiagnosticContextPlan);
 
-/// The assignments that declare properties, in tsgo's visiting order
-/// (visitNestedExpression, transform.go:2700-2723): a node before its
-/// children.
-fn property_assignments(source: &SourceFile) -> Vec<NodeId> {
+/// The assignment declarations tsgo's declaration transform handles before
+/// it visits the statements, in its visiting order (visitCJSExportAssignments
+/// and visitNestedExpression, transform.go:2680-2723): a node before its
+/// children. In TypeScript only `F.x = …` expandos are assignment
+/// declarations; JavaScript adds `module.exports = …`, `exports.x = …` and
+/// `Object.defineProperty(exports, …)`.
+fn assignment_declarations(source: &SourceFile) -> Vec<(NodeId, AssignmentDeclarationKind)> {
+    let javascript = super::javascript::is_javascript_file(source);
     let mut found = Vec::new();
     let mut stack = vec![source.root];
     while let Some(node) = stack.pop() {
         let record = source.arena.node(node);
         if record.kind == SyntaxKind::BinaryExpression
-            && get_assignment_declaration_kind(source, node) == AssignmentDeclarationKind::Property
+            || javascript && record.kind == SyntaxKind::CallExpression
         {
-            found.push(node);
+            let kind = get_assignment_declaration_kind(source, node);
+            if matches!(
+                kind,
+                AssignmentDeclarationKind::Property
+                    | AssignmentDeclarationKind::ModuleExports
+                    | AssignmentDeclarationKind::ExportsProperty
+                    | AssignmentDeclarationKind::ObjectDefinePropertyExports
+            ) {
+                found.push((node, kind));
+            }
         }
         let start = stack.len();
         tsc_syntax::for_each_child(&source.arena, record, |child| {
@@ -70,17 +83,39 @@ fn is_non_contextual_keyword(text: &str) -> bool {
 }
 
 impl DeclarationTransformer<'_> {
-    /// tsgo transformSourceFile's `expressionVisitor` pass
-    /// (transform.go:351), run before the statements are visited.
-    pub(crate) fn collect_expandos(
+    /// tsgo transformSourceFile's `cjsExportAssignmentVisitor` and
+    /// `expressionVisitor` passes (transform.go:350-351), run before the
+    /// statements are visited: a CommonJS file's `module.exports = …` first,
+    /// then expandos and CommonJS exports in order.
+    pub(crate) fn collect_assignment_declarations(
         &mut self,
         cx: &mut TransformationContext,
         root: TransformNode,
     ) -> Result<(), TransformError> {
-        let assignments = property_assignments(cx.arena().source(root.source())?.syntax());
-        for assignment in assignments {
-            let assignment = TransformNode::new(root.source(), assignment);
-            self.transform_expando_assignment(cx, assignment)?;
+        let declarations = assignment_declarations(cx.arena().source(root.source())?.syntax());
+        let common_js = self.state()?.common_js.is_common_js;
+        if common_js {
+            for &(node, kind) in &declarations {
+                if kind == AssignmentDeclarationKind::ModuleExports {
+                    let node = TransformNode::new(root.source(), node);
+                    self.collect_module_exports_assignment(cx, node)?;
+                }
+            }
+        }
+        for (node, kind) in declarations {
+            let node = TransformNode::new(root.source(), node);
+            match kind {
+                AssignmentDeclarationKind::Property => {
+                    self.transform_expando_assignment(cx, node)?
+                }
+                AssignmentDeclarationKind::ExportsProperty
+                | AssignmentDeclarationKind::ObjectDefinePropertyExports
+                    if common_js =>
+                {
+                    self.collect_common_js_export(cx, node)?
+                }
+                _ => {}
+            }
         }
         Ok(())
     }

@@ -59,7 +59,7 @@ pub(super) fn transform_bundle(
         transformer.state_mut()?.needs_declare = !wrapped;
         transformer
             .tracker
-            .reset_for_file(Some(program_source), source, is_javascript);
+            .reset_for_file(Some(program_source), source);
         let references = RawFileReferences::collect(context.arena(), source)?;
         raw_references.referenced.extend(references.referenced);
         raw_references
@@ -72,7 +72,7 @@ pub(super) fn transform_bundle(
         let mut statements = if is_javascript {
             transform_declarations_for_js(transformer, context, source, root)?
         } else {
-            transformer.collect_expandos(context, root)?;
+            transformer.collect_assignment_declarations(context, root)?;
             let mut statements = Vec::new();
             for statement in source_statements(context.arena(), root)? {
                 match super::statements::visit_declaration_statement(

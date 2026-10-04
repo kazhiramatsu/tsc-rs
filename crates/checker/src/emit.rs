@@ -485,6 +485,73 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn get_referenced_value_declaration_of_name(
+        &self,
+        location: EmitResolverNode,
+        name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetReferencedValueDeclarationOfName,
+            location,
+            |state, location| {
+                let declaration =
+                    state.emit_get_referenced_value_declaration_of_name(location, name)?;
+                Ok(declaration.map(|declaration| project_resolver_node(state, declaration)))
+            },
+        )
+    }
+
+    fn is_common_js_alias_export(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsCommonJsAliasExport,
+            node,
+            |state, node| Ok(state.emit_is_common_js_alias_export(node)),
+        )
+    }
+
+    fn get_tracker_symbol_of_node(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<tsc_emitter::EmitTrackerSymbol>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetTrackerSymbolOfNode,
+            node,
+            |state, node| {
+                Ok(state
+                    .node_symbol(node)
+                    .map(crate::node_builder::tracker_symbol))
+            },
+        )
+    }
+
+    fn precalculate_declaration_emit_visibility(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<(), EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::PrecalculateDeclarationEmitVisibility,
+            node,
+            |state, file| state.emit_precalculate_declaration_emit_visibility(file),
+        )
+    }
+
+    fn get_export_equals_declarations(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetExportEqualsDeclarations,
+            node,
+            |state, file| {
+                let declarations = state.emit_get_export_equals_declarations(file);
+                Ok(declarations
+                    .into_iter()
+                    .map(|declaration| project_resolver_node(state, declaration))
+                    .collect())
+            },
+        )
+    }
+
     fn is_assignment_declaration(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
         self.with_resolver_node(
             EmitResolverMethod::IsAssignmentDeclaration,
