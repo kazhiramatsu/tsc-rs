@@ -2076,3 +2076,12 @@ P3-5amの後、残りの不一致のうち、それぞれ小さく閉じる10件
   - `iterationErrorOverNotIterableUnions1`：tsgoの`getIterationTypesOfIterable`はcacheを型とuseで持ち、errorを報告する
     時はcacheされた失敗を計算し直す（checker.go:6435-6473）。
   - `awaitedTypeNoLib`：`Awaited`のTS2318を要求する経路（`maybeAddMissingAwaitInfo`からと見られる）は未調査。
+- hosted：PR #665（head `d186d3410`）、run 37219473404 — `plan` 28s、`rust` 10m21s、`conformance (TypeScript 7.1)` 20m1s、
+  `gates` 12s。
+- perf（README corpora、nice 20、main（P3-5amのbuild `e52457b1b`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 153→148、zod 542→535、Playwright 370→373、TypeScript `src/compiler`
+    342→341、Next.js 837→815、Effect 536→533、VS Code 3,576→3,542。tsc-rs÷tsgo 0.61–0.94。読み込んだ文書数と診断は
+    7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 155→155、zod 676→671、Playwright 521→511、TypeScript `src/compiler` 569→533、
+    Next.js 1,131→1,083、Effect 823→794。tsc-rs÷tsgo 0.57–0.82。6 corporaとも出力fileと診断は同一。差はnoiseの範囲で、
+    劣化無し。
