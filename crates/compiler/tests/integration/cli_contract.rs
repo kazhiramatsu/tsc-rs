@@ -4207,6 +4207,34 @@ fn misplaced_module_elements_follow_the_module_transform_like_tsgo() {
             ),
             "if (c)\n    ;\nwhile (c)\n    ;\n{\n}\nexport {};\n",
         ),
+        (
+            // EmitContext.VisitEmbeddedStatement (printer/emitcontext.go:
+            // 998-1010) puts an empty statement with the removed one's
+            // position and comments in its place.
+            "esnext",
+            concat!(
+                "export {};\n",
+                "declare const c: boolean;\n",
+                "if (c) /*x*/ import x = require(\"./b\"); // t\n",
+                "if (c) /*y*/ export type {}; // u\n",
+                "while (c) /*z*/ interface I {} // v\n",
+            ),
+            concat!(
+                "a.ts(3,14): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+                "a.ts(3,33): error TS2307: Cannot find module './b' or its corresponding type declarations.\n",
+                "a.ts(4,14): error TS1233: An export declaration can only be used at the top level of a namespace or module.\n",
+                "a.ts(5,27): error TS1156: 'interface' declarations can only be declared inside a block.\n",
+            ),
+            concat!(
+                "if (c) /*x*/\n",
+                "    ; // t\n",
+                "if (c) /*y*/\n",
+                "    ; // u\n",
+                "while (c) /*z*/\n",
+                "    ; // v\n",
+                "export {};\n",
+            ),
+        ),
     ];
     for (module, text, diagnostics, js) in cases {
         let tree = TempTree::new();

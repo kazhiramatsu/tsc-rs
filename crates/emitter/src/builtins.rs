@@ -1943,14 +1943,11 @@ impl NodeDataChildVisitor for EcmaScriptModuleEqualsVisitor<'_> {
         let Some(mut statements) = self.transform_nested_module_element(node)? else {
             return Ok(Some(update_children_lazily(self, node)?.node()));
         };
-        // VisitEmbeddedStatement (ast/visitor.go:74-84): a removed statement
-        // leaves no statement, and several lift to a block.
+        // EmitContext.VisitEmbeddedStatement (printer/emitcontext.go:998-1010)
+        // leaves an empty statement for a removed one, and several lift to a
+        // block (ast/visitor.go:74-84).
         let statement = match statements.len() {
-            0 => self.context.factory()?.create_node(
-                self.source,
-                NodeData::EmptyStatement(tsc_syntax::nodes::EmptyStatementData {}),
-                TransformFlags::NONE,
-            )?,
+            0 => self.context.factory()?.create_not_emitted_statement(node)?,
             1 => statements.remove(0),
             _ => {
                 let statements = self
@@ -17370,7 +17367,43 @@ impl NodeDataChildVisitor for TypeScriptVisitor<'_, '_> {
     }
 
     fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
-        self.visit(id)
+        let visited = self.visit(id)?;
+        if visited.is_some() {
+            return Ok(visited);
+        }
+        // EmitContext.VisitEmbeddedStatement (printer/emitcontext.go:998-1010):
+        // an embedded statement the transform removed, such as a misplaced
+        // `export type {}`, leaves an empty statement at its position.
+        let original = self.node(id);
+        let embedded = self
+            .context
+            .arena()
+            .node(original)?
+            .parent
+            .and_then(|parent| self.context.arena().node_ref(self.source, parent))
+            .and_then(|parent| self.context.arena().node(parent).ok())
+            .is_some_and(|parent| {
+                matches!(
+                    parent.kind,
+                    SyntaxKind::IfStatement
+                        | SyntaxKind::DoStatement
+                        | SyntaxKind::WhileStatement
+                        | SyntaxKind::ForStatement
+                        | SyntaxKind::ForInStatement
+                        | SyntaxKind::ForOfStatement
+                        | SyntaxKind::WithStatement
+                        | SyntaxKind::LabeledStatement
+                )
+            });
+        if !embedded {
+            return Ok(None);
+        }
+        Ok(Some(
+            self.context
+                .factory()?
+                .create_not_emitted_statement(original)?
+                .node(),
+        ))
     }
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
