@@ -4472,6 +4472,173 @@ fn lowered_optional_chains_take_one_access_paren_like_tsgo() {
 }
 
 #[test]
+fn nullish_and_optional_chain_temps_are_declared_apart_like_tsgo() {
+    // tsgo lowers `??` and optional chains in separate transformers
+    // (estransforms/definitions.go:16), and EmitContext.MergeEnvironment puts
+    // the later transformer's hoisted `var` statement first, so each scope
+    // declares the optional-chain temps and then the nullish ones; the
+    // printer names them in that order. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const a: { b?: () => number } | undefined;\n",
+            "declare const x: number | undefined;\n",
+            "declare function g(): number | undefined;\n",
+            "export const p = g() ?? 1;\n",
+            "export const q = a?.b?.();\n",
+            "export function f() {\n",
+            "    const r = g() ?? (a?.b?.() ?? 2);\n",
+            "    const s = a?.b?.() ?? x;\n",
+            "    let t = x;\n",
+            "    t ??= g();\n",
+            "    return [r, s, t];\n",
+            "}\n",
+            "export const u = (a?.b ?? g)?.();\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2019","module":"esnext","outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "var _a, _b;\n",
+            "var _c, _d;\n",
+            "export const p = (_c = g()) !== null && _c !== void 0 ? _c : 1;\n",
+            "export const q = (_a = a === null || a === void 0 ? void 0 : a.b) === null || _a === void 0 ? void 0 : _a.call(a);\n",
+            "export function f() {\n",
+            "    var _a, _b;\n",
+            "    var _c, _d, _e;\n",
+            "    const r = (_c = g()) !== null && _c !== void 0 ? _c : ((_d = (_a = a === null || a === void 0 ? void 0 : a.b) === null || _a === void 0 ? void 0 : _a.call(a)) !== null && _d !== void 0 ? _d : 2);\n",
+            "    const s = (_e = (_b = a === null || a === void 0 ? void 0 : a.b) === null || _b === void 0 ? void 0 : _b.call(a)) !== null && _e !== void 0 ? _e : x;\n",
+            "    let t = x;\n",
+            "    t !== null && t !== void 0 ? t : (t = g());\n",
+            "    return [r, s, t];\n",
+            "}\n",
+            "export const u = (_b = ((_d = a === null || a === void 0 ? void 0 : a.b) !== null && _d !== void 0 ? _d : g)) === null || _b === void 0 ? void 0 : _b();\n",
+        )
+    );
+}
+
+#[test]
+fn namespace_and_enum_names_stay_local_in_commonjs_like_tsgo() {
+    // tsgo's CommonJS transform leaves the declaration name of an enum or
+    // namespace alone (commonjsmodule.go:2064-2068), so a declaration merged
+    // with an exported interface keeps `Foo || (Foo = {})`, while an exported
+    // one still assigns `exports.N = N = {}`. The expected diagnostics and
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export default function Foo() {\n",
+            "}\n",
+            "namespace Foo {\n",
+            "    export var x = 1;\n",
+            "}\n",
+            "export interface Foo {\n",
+            "}\n",
+            "export namespace N {\n",
+            "    export const y = 2;\n",
+            "}\n",
+            "export enum E { A }\n",
+            "enum F { B }\n",
+            "export interface F {}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","strict":false,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(1,25): error TS2652: Merged declaration 'Foo' cannot include a default export declaration. Consider adding a separate 'export default Foo' declaration instead.\n",
+            "a.ts(3,11): error TS2652: Merged declaration 'Foo' cannot include a default export declaration. Consider adding a separate 'export default Foo' declaration instead.\n",
+            "a.ts(12,6): error TS2567: Enum declarations can only merge with namespace or other enum declarations.\n",
+            "a.ts(13,18): error TS2567: Enum declarations can only merge with namespace or other enum declarations.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.E = exports.N = void 0;\n",
+            "exports.default = Foo;\n",
+            "function Foo() {\n",
+            "}\n",
+            "(function (Foo) {\n",
+            "    Foo.x = 1;\n",
+            "})(Foo || (Foo = {}));\n",
+            "var N;\n",
+            "(function (N) {\n",
+            "    N.y = 2;\n",
+            "})(N || (exports.N = N = {}));\n",
+            "var E;\n",
+            "(function (E) {\n",
+            "    E[E[\"A\"] = 0] = \"A\";\n",
+            "})(E || (exports.E = E = {}));\n",
+            "var F;\n",
+            "(function (F) {\n",
+            "    F[F[\"B\"] = 0] = \"B\";\n",
+            "})(F || (F = {}));\n",
+        )
+    );
+}
+
+#[test]
+fn import_equals_require_specifiers_are_rewritten_like_tsgo() {
+    // tsgo's ES module transform rewrites the specifier of the require call
+    // it creates for an import-equals declaration (createRequireCall,
+    // esmodule.go:290-296). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(tree.path("foo.ts"), "export const x = 1;\n").expect("write foo.ts");
+    fs::write(
+        tree.path("globals.d.ts"),
+        "declare function require(module: string): any;\n",
+    )
+    .expect("write globals.d.ts");
+    fs::write(
+        tree.path("main.ts"),
+        concat!(
+            "import foo = require(\"./foo.ts\");\n",
+            "export import bar = require(\"./foo.ts\");\n",
+            "export const y = foo.x + bar.x;\n",
+        ),
+    )
+    .expect("write main.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"esnext","module":"preserve","verbatimModuleSyntax":true,"rewriteRelativeImportExtensions":true,"outDir":"out"},"files":["globals.d.ts","foo.ts","main.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/main.js")).expect("read main.js"),
+        concat!(
+            "const foo = require(\"./foo.js\");\n",
+            "const bar = require(\"./foo.js\");\n",
+            "export { bar };\n",
+            "export const y = foo.x + bar.x;\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

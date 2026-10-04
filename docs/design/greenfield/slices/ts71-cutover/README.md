@@ -2349,3 +2349,38 @@ P3-5atの後、ES変換の5件：
     `bench-full` 0.99932、Next.js `bench-full` 0.99913。3回の差はnoiseで、劣化無し。
 - hosted：PR #672（head `979ff750b`）、run 37233885526 — `plan` 36s、`rust` 9m44s、`conformance (TypeScript 7.1)` 20m9s、
   `gates` 16s。
+
+## P3-5av 一時変数の`var`文、namespaceの名前、`import =`の指定子（2026-10-05）
+
+P3-5auの後、emitの3件：
+- **`??`とoptional chainの一時変数**：tsgoは`??`とoptional chainを別の変換で下げ（estransforms/definitions.go:16）、
+  `EmitContext.MergeEnvironment`は後の変換の`var`文を先に置く。各scopeはoptional chainの一時変数、`??`の一時変数の
+  順に別の`var`文で宣言し、printerはその順に名前を付ける。tsc-rsはtsc 6.0の1つの変換の形で、1つの`var`文に
+  まとめていた。`instantiationExpressionErrors`。
+- **namespaceとenumの名前**：tsgoのCommonJS変換は、enumとnamespaceの宣言名を`exports.`で置き換えない
+  （commonjsmodule.go:2064-2068、moduletransforms/utilities.go:12-20）。exportされたinterfaceと合わさった（exportされて
+  いない）namespaceは`Foo || (Foo = {})`のままになる。tsc-rsはcheckerのexportの持ち主に従って
+  `exports.Foo || (exports.Foo = {})`にしていた。`defaultExportsCannotMerge04(target=es2015)`。
+- **`import =`の指定子**：tsgoのES module変換は、`import x = require()`から作るrequireの呼び出しの指定子も
+  rewriteRelativeImportExtensionsで書き換える（`createRequireCall`、esmodule.go:290-296）。
+  `rewriteRelativeImportExtensions/emit`（2構成）。
+- 既存のtest 2件（namespaceの初期化の形）をtsgoの出力に合わせて直した。`export default function Foo`と合わさった
+  namespaceの`exports.Foo_1 = Foo = {}`（tsgo）は、以前からの差として残る。
+- unit test：CLI（tsgoの出力にpin）で3件。P3-5auのbuildでは3件ともtsgoと違っていた。
+- conformance（release build、`fd39404ac`（testだけを直した`306ddbde3`と同じcode）、`--workers 2`、510 s）：
+  - 15,228構成、lane A 13,467（変化なし）、errors full 13,400（変化なし）。
+  - emit full 13,396→13,400：上の4構成。emit mismatch 41→37。下がった構成は無い。
+- ratchet：0 regressions、4行raise（emit）。
+- local：formatとworkspace全体のclippy。compilerとemitterのtest（29 targets、871件）。filter `nullish`・`Coalescing`・
+  `ptional`・`Chain`・`amespace`・`num`・`xport`・`odule`・`rewriteRelative`で下がった構成は無かった。
+- perf（README corpora、nice 20、main（P3-5auのbuild `dc9ff072c`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 137→134、zod 534→515、Playwright 370→371、TypeScript
+    `src/compiler` 345→332、Next.js 793→766、Effect 544→525、VS Code 3,463→3,443。tsc-rs÷tsgo 0.59–0.94。読み込んだ
+    文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 146→144、zod 669→625、Playwright 480→495、TypeScript `src/compiler` 538→499、
+    Next.js 1,037→1,031、Effect 765→760。診断は6 corporaで同一。出力fileはNext.js（ES2019）の178 files（`.js`と
+    `.js.map`が89ずつ）で変わった（`??`の一時変数の`var`文）。tsgoの出力と違う`.js`は127→54 filesに減った。残りは
+    代入の`=`の後の改行など（tsgoの`??`の変換は条件式に位置を付けない）。
+  - 10回のA/B：Playwright `bench-full` 481→478、zod `bench-full` 623→628、hono `bench-full` 147→145、Next.js
+    `bench-full` 1,007→1,034（min 971→958）。1 checkerの命令数branch÷main：zod `--noEmit` 1.00017、Playwright
+    `bench-full` 1.00000、hono `bench-full` 1.00077、Next.js `bench-full` 0.99938。差はnoiseの範囲で、劣化無し。

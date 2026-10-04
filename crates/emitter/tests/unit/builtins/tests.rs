@@ -3219,7 +3219,7 @@ fn exported_import_equals_re_exports_from_the_export_object_owner() {
 }
 
 #[test]
-fn named_default_function_namespace_merge_uses_the_source_export_owner() {
+fn named_default_function_namespace_merge_keeps_its_local_name() {
     let parsed = parse_source_file(
         "default-function-namespace.ts",
         concat!(
@@ -3232,12 +3232,11 @@ fn named_default_function_namespace_merge_uses_the_source_export_owner() {
     let resolver = SourceNamedExportContainerResolver::new(&parsed, "Foo");
     let output = transform_and_print_typescript_module(&parsed, ModuleKind::COMMON_JS, &resolver);
 
+    // tsgo leaves the declaration name of a namespace alone even when the
+    // source file owns its export (commonjsmodule.go:2064-2068).
     assert!(output.contains("exports.default = Foo;"), "{output}");
-    assert!(
-        output.contains(")(exports.Foo || (exports.Foo = {}));"),
-        "{output}",
-    );
-    assert!(!output.contains(")(Foo || (Foo = {}));"), "{output}");
+    assert!(output.contains(")(Foo || (Foo = {}));"), "{output}");
+    assert!(!output.contains("exports.Foo ||"), "{output}");
 }
 
 #[test]

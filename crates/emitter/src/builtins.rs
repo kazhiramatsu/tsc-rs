@@ -1122,8 +1122,14 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
         }
         if was_external {
             let current_root = context.arena().root(source)?;
-            let mut visitor =
-                EcmaScriptModuleEqualsVisitor::new(context, source, self.module_kind, self.target);
+            let mut visitor = EcmaScriptModuleEqualsVisitor::new(
+                context,
+                source,
+                self.module_kind,
+                self.target,
+                self.rewrite_relative_import_extensions
+                    .then_some(self.preserve_jsx),
+            );
             let rewritten = visitor.transform_source_file(current_root)?;
             visitor
                 .context
@@ -1297,6 +1303,8 @@ struct EcmaScriptModuleEqualsVisitor<'context> {
     source: TransformSourceId,
     module_kind: i32,
     target: ScriptTarget,
+    /// `Some(preserve_jsx)` under rewriteRelativeImportExtensions.
+    rewrite_relative_import_extensions: Option<bool>,
     used_names: target_bindings::UsedNames,
     create_require_name: Option<String>,
     require_name: Option<String>,
@@ -1308,6 +1316,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         source: TransformSourceId,
         module_kind: i32,
         target: ScriptTarget,
+        rewrite_relative_import_extensions: Option<bool>,
     ) -> Self {
         let used_names = system::collect_identifier_texts(context.arena(), source);
         Self {
@@ -1315,6 +1324,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             source,
             module_kind,
             target,
+            rewrite_relative_import_extensions,
             used_names,
             create_require_name: None,
             require_name: None,
@@ -1545,6 +1555,13 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         // getExternalModuleNameLiteral's ordinary fallback preserves the
         // literal's original-node link through a synthesized clone.
         let module_specifier = self.context.factory()?.clone_node(module_specifier)?;
+        // createRequireCall rewrites the specifier (esmodule.go:290-296).
+        let module_specifier = match self.rewrite_relative_import_extensions {
+            Some(preserve_jsx) => {
+                relative_imports::rewrite_literal(self.context, module_specifier, preserve_jsx)?
+            }
+            None => module_specifier,
+        };
         let require = if self.module_kind == MODULE_PRESERVE {
             self.create_identifier("require")?
         } else {
@@ -10778,6 +10795,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if !self.is_module_reference_candidate(original)? {
             return Ok(original);
         }
+        // tsgo leaves the declaration name of an enum or namespace alone
+        // (commonjsmodule.go:2064-2068, moduletransforms/utilities.go:12-20),
+        // so a namespace merged with an exported declaration keeps its local
+        // name in `Foo || (Foo = {})`.
+        if self.is_declaration_name_of_enum_or_namespace(original)? {
+            return Ok(original);
+        }
         if !self.is_local_name(original) {
             let parsed = self.context.arena().get_original_node(original);
             if self.context.arena().node(parsed)?.pos != u32::MAX {
@@ -10816,6 +10840,26 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .arena()
             .metadata(node)
             .is_some_and(|metadata| metadata.flags().contains(EmitFlags::LOCAL_NAME))
+    }
+
+    fn is_declaration_name_of_enum_or_namespace(
+        &self,
+        node: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let arena = self.context.arena();
+        let original = arena.get_original_node(node);
+        let Some(parent) = arena
+            .node(original)?
+            .parent
+            .and_then(|parent| arena.node_ref(original.source(), parent))
+        else {
+            return Ok(false);
+        };
+        Ok(match &arena.node(parent)?.data {
+            NodeData::EnumDeclaration(data) => data.name == Some(original.node()),
+            NodeData::ModuleDeclaration(data) => data.name == Some(original.node()),
+            _ => false,
+        })
     }
 
     /// Whether a substitution can rewrite this identifier at all: a reference
