@@ -471,6 +471,33 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn get_referenced_member_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetReferencedMemberValueDeclaration,
+            node,
+            |state, reference| {
+                let declaration = state.emit_get_referenced_member_value_declaration(reference)?;
+                Ok(declaration.map(|declaration| project_resolver_node(state, declaration)))
+            },
+        )
+    }
+
+    fn is_this_property_assignment_declaration_redundant(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsThisPropertyAssignmentDeclarationRedundant,
+            node,
+            |state, declaration| {
+                state.emit_is_this_property_assignment_declaration_redundant(declaration)
+            },
+        )
+    }
+
     fn get_referenced_value_declarations(
         &self,
         node: EmitResolverNode,
@@ -948,6 +975,32 @@ impl EmitResolver for CheckerSession<'_> {
             flags,
             internal_flags,
             None,
+            tracker,
+        )
+    }
+
+    fn try_js_type_node_to_type_node(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        type_node: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
+        let method = EmitResolverMethod::TryJsTypeNodeToTypeNode;
+        let mut state = self.state.lock().expect("checker session state");
+        validate_resolver_node(&state, method, type_node)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        crate::node_builder::try_js_type_node_to_type_node(
+            &mut state,
+            arena,
+            target,
+            type_node.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
             tracker,
         )
     }

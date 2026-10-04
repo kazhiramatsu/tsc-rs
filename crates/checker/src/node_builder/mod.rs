@@ -31,7 +31,7 @@ pub(crate) use serialize::{
     serialize_type_for_declaration_seam, serialize_type_for_expression,
     serialize_type_for_symbolless_declaration, syntactic_serialize_name_of_parameter_seam,
     syntactic_track_existing_entity_name, syntactic_try_reuse_existing_type_node,
-    type_to_type_node,
+    try_js_type_node_to_type_node, type_to_type_node,
 };
 pub(crate) use signatures::{
     enter_new_scope, index_info_to_index_signature_declaration_helper,

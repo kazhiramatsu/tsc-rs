@@ -626,6 +626,706 @@ fn javascript_es_module_declarations_follow_tsgo() {
 }
 
 #[test]
+fn javascript_hosted_tags_and_this_members_follow_tsgo() {
+    // tsgo's declaration transform reads what its parser reparses from JSDoc:
+    // members from `this.x = …` assignments (only `static` kept, a member a
+    // base class already has left out), modifiers from `@private`,
+    // `@protected` and `@readonly`, `implements` from `@implements`, type
+    // arguments from `@augments` and type parameters from `@template`. The
+    // expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "export class Base {\n",
+            "    constructor() {\n",
+            "        /** @type {number} */\n",
+            "        this.shared = 1;\n",
+            "    }\n",
+            "    get value() {\n",
+            "        return 1;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "export class Point extends Base {\n",
+            "    /** @private */\n",
+            "    static secret() {}\n",
+            "    /** @protected */\n",
+            "    static helper() {}\n",
+            "    /**\n",
+            "     * @readonly\n",
+            "     * @type {string}\n",
+            "     */\n",
+            "    label = \"p\";\n",
+            "    constructor() {\n",
+            "        super();\n",
+            "        /** The x coordinate. */\n",
+            "        this.x = 0;\n",
+            "        this.y = \"y\";\n",
+            "        this.shared = 2;\n",
+            "        this.method = function () {};\n",
+            "        if (this.x) {\n",
+            "            this.later = true;\n",
+            "        }\n",
+            "        const nested = function () {\n",
+            "            this.ignored = 1;\n",
+            "        };\n",
+            "        const arrow = () => {\n",
+            "            this.fromArrow = 1;\n",
+            "        };\n",
+            "        void [nested, arrow];\n",
+            "    }\n",
+            "    static init() {\n",
+            "        this.count = 0;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/** @implements {Base} */\n",
+            "export class Copy {\n",
+            "    constructor() {\n",
+            "        this.shared = 0;\n",
+            "    }\n",
+            "    get value() {\n",
+            "        return 0;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} K\n",
+            " * @param {T} value\n",
+            " * @param {K} key\n",
+            " * @returns {T}\n",
+            " */\n",
+            "export function identity(value, key) {\n",
+            "    void key;\n",
+            "    return value;\n",
+            "}\n",
+            "\n",
+            "/** @template T */\n",
+            "export class Box {\n",
+            "    /** @param {T} value */\n",
+            "    constructor(value) {\n",
+            "        this.value = value;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/** @augments {Box<string>} */\n",
+            "export class StringBox extends Box {}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        "lib.js(32,13): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "export declare class Base {\n",
+            "    /** @type {number} */\n",
+            "    shared: number;\n",
+            "    constructor();\n",
+            "    get value(): number;\n",
+            "}\n",
+            "export declare class Point extends Base {\n",
+            "    /** The x coordinate. */\n",
+            "    x: number;\n",
+            "    y: string;\n",
+            "    method: () => void;\n",
+            "    later: boolean | undefined;\n",
+            "    fromArrow: number;\n",
+            "    static count: number | undefined;\n",
+            "    /** @private */\n",
+            "    private static secret;\n",
+            "    /** @protected */\n",
+            "    protected static helper(): void;\n",
+            "    /**\n",
+            "     * @readonly\n",
+            "     * @type {string}\n",
+            "     */\n",
+            "    readonly label: string;\n",
+            "    constructor();\n",
+            "    static init(): void;\n",
+            "}\n",
+            "/** @implements {Base} */\n",
+            "export declare class Copy implements Base {\n",
+            "    shared: number;\n",
+            "    constructor();\n",
+            "    get value(): number;\n",
+            "}\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} K\n",
+            " * @param {T} value\n",
+            " * @param {K} key\n",
+            " * @returns {T}\n",
+            " */\n",
+            "export declare function identity<T, K extends string>(value: T, key: K): T;\n",
+            "/** @template T */\n",
+            "export declare class Box<T> {\n",
+            "    value: T;\n",
+            "    /** @param {T} value */\n",
+            "    constructor(value: T);\n",
+            "}\n",
+            "/** @augments {Box<string>} */\n",
+            "export declare class StringBox extends Box<string> {\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_typedef_and_callback_declarations_follow_tsgo() {
+    // tsgo's parser turns each `@typedef` and `@callback` tag into a type
+    // alias before the top-level statement whose JSDoc (or whose nested
+    // node's JSDoc outside a block) holds it, and the declaration transform
+    // prints it: `export` in a module, `@property` tags as a type literal
+    // keeping their comments, a dotted name as namespaces, `@template` tags
+    // as type parameters. The comments stay with the statements that own
+    // them. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("types.js"),
+        concat!(
+            "/**\n",
+            " * @typedef {Object} Opts\n",
+            " * @property {string} name The name.\n",
+            " * @property {number} [count]\n",
+            " * @property {Object} nested\n",
+            " * @property {*} nested.any\n",
+            " * @property {?string} nested.maybe\n",
+            " * @property {string=} nested.opt Optional nested.\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} [K=string]\n",
+            " * @typedef {{ value: T, key: K }} Pair\n",
+            " */\n",
+            "\n",
+            "/** @typedef {string} NS.A */\n",
+            "/** @typedef {number} NS.Sub.B */\n",
+            "\n",
+            "/**\n",
+            " * @callback Handler\n",
+            " * @param {string} event\n",
+            " * @param {number} rest\n",
+            " * @returns {boolean}\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @callback NoReturn\n",
+            " * @param {Object} opts\n",
+            " * @param {string} opts.x\n",
+            " * @this {Opts}\n",
+            " */\n",
+            "\n",
+            "/** @typedef {Object} Empty */\n",
+            "\n",
+            "/**\n",
+            " * @param {Opts} foo\n",
+            " * @param {string} def\n",
+            " * @param {number} other\n",
+            " */\n",
+            "export function use(foo, def, other) {\n",
+            "    /** @typedef {string} Local */\n",
+            "    void [foo, def, other];\n",
+            "}\n",
+        ),
+    )
+    .expect("write types");
+    fs::write(
+        tree.path("order.js"),
+        concat!(
+            "// leading line comment\n",
+            "/** @typedef {string} A */\n",
+            "\n",
+            "/**\n",
+            " * Doc for B.\n",
+            " * @typedef {number} B\n",
+            " * @typedef {boolean} C\n",
+            " */\n",
+            "/** @param {A} a */\n",
+            "export function f(a) {}\n",
+            "\n",
+            "/** @typedef {A | B} D */\n",
+            "export const x = 1;\n",
+            "\n",
+            "export class K {\n",
+            "    /** @typedef {string} Inner */\n",
+            "    m() {}\n",
+            "}\n",
+            "\n",
+            "/** Free comment */\n",
+            "/** @typedef {C} E */\n",
+        ),
+    )
+    .expect("write order");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["types.js","order.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read_to_string(tree.path("out/types.d.ts")).expect("read types declarations"),
+        concat!(
+            "/**\n",
+            " * @typedef {Object} Opts\n",
+            " * @property {string} name The name.\n",
+            " * @property {number} [count]\n",
+            " * @property {Object} nested\n",
+            " * @property {*} nested.any\n",
+            " * @property {?string} nested.maybe\n",
+            " * @property {string=} nested.opt Optional nested.\n",
+            " */\n",
+            "export type Opts = {\n",
+            "    /**\n",
+            "     * The name.\n",
+            "     */\n",
+            "    name: string;\n",
+            "    count?: number;\n",
+            "    nested: {\n",
+            "        any: any;\n",
+            "        maybe: string | null;\n",
+            "        opt?: string | undefined;\n",
+            "    };\n",
+            "};\n",
+            "export type Pair<T, K extends string = string> = {\n",
+            "    value: T;\n",
+            "    key: K;\n",
+            "};\n",
+            "export declare namespace NS {\n",
+            "    export type A = string;\n",
+            "}\n",
+            "export declare namespace NS {\n",
+            "    namespace Sub {\n",
+            "        export type B = number;\n",
+            "    }\n",
+            "}\n",
+            "export type Handler = (event: string, rest: number) => boolean;\n",
+            "export type NoReturn = (opts: {\n",
+            "    x: string;\n",
+            "}) => any;\n",
+            "export type Empty = Object;\n",
+            "/**\n",
+            " * @template T\n",
+            " * @template {string} [K=string]\n",
+            " * @typedef {{ value: T, key: K }} Pair\n",
+            " */\n",
+            "/** @typedef {string} NS.A */\n",
+            "/** @typedef {number} NS.Sub.B */\n",
+            "/**\n",
+            " * @callback Handler\n",
+            " * @param {string} event\n",
+            " * @param {number} rest\n",
+            " * @returns {boolean}\n",
+            " */\n",
+            "/**\n",
+            " * @callback NoReturn\n",
+            " * @param {Object} opts\n",
+            " * @param {string} opts.x\n",
+            " * @this {Opts}\n",
+            " */\n",
+            "/** @typedef {Object} Empty */\n",
+            "/**\n",
+            " * @param {Opts} foo\n",
+            " * @param {string} def\n",
+            " * @param {number} other\n",
+            " */\n",
+            "export declare function use(foo: Opts, def: string, other: number): void;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/order.d.ts")).expect("read order declarations"),
+        concat!(
+            "/** @typedef {string} A */\n",
+            "export type A = string;\n",
+            "export type B = number;\n",
+            "export type C = boolean;\n",
+            "/**\n",
+            " * Doc for B.\n",
+            " * @typedef {number} B\n",
+            " * @typedef {boolean} C\n",
+            " */\n",
+            "/** @param {A} a */\n",
+            "export declare function f(a: A): void;\n",
+            "export type D = A | B;\n",
+            "/** @typedef {A | B} D */\n",
+            "export declare const x = 1;\n",
+            "export type Inner = string;\n",
+            "export declare class K {\n",
+            "    /** @typedef {string} Inner */\n",
+            "    m(): void;\n",
+            "}\n",
+            "export type E = C;\n",
+            "/** Free comment */\n",
+            "/** @typedef {C} E */\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_dotted_typedef_names_with_reexported_values_follow_tsgo() {
+    // A dotted `@typedef` name is a namespace that merges with a value the
+    // module re-exports with `export {…}`. tsgo counts that export
+    // specifier as a visible declaration and the reparsed namespace as
+    // exported, so the alias may refer to the namespace without an error.
+    // The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("file.js"),
+        concat!(
+            "/**\n",
+            " * @namespace myTypes\n",
+            " * @global\n",
+            " * @type {Object<string,*>}\n",
+            " */\n",
+            "const myTypes = {\n",
+            "    // SOME PROPS HERE\n",
+            "};\n",
+            "\n",
+            "/** @typedef {string|RegExp|Array<string|RegExp>} myTypes.typeA */\n",
+            "\n",
+            "/**\n",
+            " * @typedef myTypes.typeB\n",
+            " * @property {myTypes.typeA}    prop1 - Prop 1.\n",
+            " * @property {string}           prop2 - Prop 2.\n",
+            " */\n",
+            "\n",
+            "/** @typedef {myTypes.typeB|Function} myTypes.typeC */\n",
+            "\n",
+            "export {myTypes};\n",
+        ),
+    )
+    .expect("write file");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2015","module":"commonjs","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["file.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/file.d.ts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * @namespace myTypes\n",
+            " * @global\n",
+            " * @type {Object<string,*>}\n",
+            " */\n",
+            "declare const myTypes: Record<string, any>;\n",
+            "export declare namespace myTypes {\n",
+            "    export type typeA = string | RegExp | Array<string | RegExp>;\n",
+            "}\n",
+            "export declare namespace myTypes {\n",
+            "    export type typeB = {\n",
+            "        /**\n",
+            "         * - Prop 1.\n",
+            "         */\n",
+            "        prop1: myTypes.typeA;\n",
+            "        /**\n",
+            "         * - Prop 2.\n",
+            "         */\n",
+            "        prop2: string;\n",
+            "    };\n",
+            "}\n",
+            "export declare namespace myTypes {\n",
+            "    export type typeC = myTypes.typeB | Function;\n",
+            "}\n",
+            "/** @typedef {string|RegExp|Array<string|RegExp>} myTypes.typeA */\n",
+            "/**\n",
+            " * @typedef myTypes.typeB\n",
+            " * @property {myTypes.typeA}    prop1 - Prop 1.\n",
+            " * @property {string}           prop2 - Prop 2.\n",
+            " */\n",
+            "/** @typedef {myTypes.typeB|Function} myTypes.typeC */\n",
+            "export { myTypes };\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_import_tags_follow_tsgo() {
+    // tsgo's parser turns an `@import` tag into a type-only import before
+    // the top-level statement that holds it, a class member's included, and
+    // the declaration transform keeps the bindings the declarations use
+    // (late painting), with the specifier written as in the tag. The
+    // expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export interface Foo { a: number }\n",
+            "export default interface Def { b: string }\n",
+        ),
+    )
+    .expect("write module");
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/** @import { Foo } from \"./a\" */\n",
+            "/** @import Def, * as all from './a' */\n",
+            "/** @import { Foo as Unused } from \"./a\" */\n",
+            "\n",
+            "/**\n",
+            " * @param {Foo} foo\n",
+            " * @param {Def} def\n",
+            " * @param {all.Foo} other\n",
+            " */\n",
+            "export function use(foo, def, other) {\n",
+            "    void [foo, def, other];\n",
+            "}\n",
+            "\n",
+            "export class K {\n",
+            "    /** @import { Foo as Bar } from \"./a\" */\n",
+            "    /** @param {Bar} bar */\n",
+            "    m(bar) {\n",
+            "        void bar;\n",
+            "    }\n",
+            "}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "/** @import { Foo } from \"./a\" */\n",
+            "/** @import Def, * as all from './a' */\n",
+            "/** @import { Foo as Unused } from \"./a\" */\n",
+            "import type { Foo } from \"./a\";\n",
+            "import type Def, * as all from './a';\n",
+            "/**\n",
+            " * @param {Foo} foo\n",
+            " * @param {Def} def\n",
+            " * @param {all.Foo} other\n",
+            " */\n",
+            "export declare function use(foo: Foo, def: Def, other: all.Foo): void;\n",
+            "import type { Foo as Bar } from \"./a\";\n",
+            "export declare class K {\n",
+            "    /** @import { Foo as Bar } from \"./a\" */\n",
+            "    /** @param {Bar} bar */\n",
+            "    m(bar: Bar): void;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_overload_tags_follow_tsgo() {
+    // tsgo's parser turns each `@overload` tag of a function, method or
+    // constructor into a bodyless declaration before it, and the
+    // declaration itself becomes the implementation that declarations leave
+    // out. The overload copies the implementation's written modifiers and
+    // name with their source positions: when the transform reuses them, the
+    // implementation's comments print before the overload. The expected
+    // bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/**\n",
+            " * Adds things.\n",
+            " * @overload\n",
+            " * @param {number} a\n",
+            " * @param {number} b\n",
+            " * @returns {number}\n",
+            " *\n",
+            " * @overload\n",
+            " * @param {string} a\n",
+            " * @param {string} [b]\n",
+            " * @returns {string}\n",
+            " *\n",
+            " * @param {string | number} a\n",
+            " * @param {string | number} [b]\n",
+            " * @returns {string | number}\n",
+            " */\n",
+            "export function add(a, b) {\n",
+            "    return a;\n",
+            "}\n",
+            "\n",
+            "export class Box {\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} a\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} a\n",
+            "     * @param {number} b\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} a\n",
+            "     * @param {number} [b]\n",
+            "     */\n",
+            "    constructor(a, b) {\n",
+            "        void [a, b];\n",
+            "    }\n",
+            "\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} key\n",
+            "     * @returns {string}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} key\n",
+            "     * @returns {number}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} key\n",
+            "     */\n",
+            "    get(key) {\n",
+            "        return key;\n",
+            "    }\n",
+            "\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     */\n",
+            "    static make() {}\n",
+            "}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        "lib.js(57,9): error TS7010: 'make', which lacks return-type annotation, implicitly has an 'any' return type.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "export declare function add(a: number, b: number): number;\n",
+            "export declare function add(a: string, b?: string): string;\n",
+            "export declare class Box {\n",
+            "    constructor(a: string);\n",
+            "    constructor(a: number, b: number);\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} key\n",
+            "     * @returns {string}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} key\n",
+            "     * @returns {number}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} key\n",
+            "     */\n",
+            "    get(key: string): string;\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {string} key\n",
+            "     * @returns {string}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     * @param {number} key\n",
+            "     * @returns {number}\n",
+            "     */\n",
+            "    /**\n",
+            "     * @param {string | number} key\n",
+            "     */\n",
+            "    get(key: number): number;\n",
+            "    /**\n",
+            "     * @overload\n",
+            "     */\n",
+            "    static make(): any;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_this_tags_follow_tsgo() {
+    // tsgo's parser gives a JavaScript function whose first parameter is not
+    // `this` a `this` parameter from its `@this` tag, typed by the tag or
+    // `any`. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/** @this {string} */\n",
+            "export function f1() {}\n",
+            "\n",
+            "/** @this */\n",
+            "export function f2() {}\n",
+            "\n",
+            "export class C {\n",
+            "    /** @this {C} */\n",
+            "    m() {}\n",
+            "}\n",
+            "\n",
+            "/**\n",
+            " * @this {Window}\n",
+            " * @param {Window} self\n",
+            " */\n",
+            "export function f3(this_, self) {\n",
+            "    void [this_, self];\n",
+            "}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"lib":["es2022","dom"],"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "lib.js(4,10): error TS1110: Type expected.\n",
+            "lib.js(16,20): error TS7006: Parameter 'this_' implicitly has an 'any' type.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "/** @this {string} */\n",
+            "export declare function f1(this: string): void;\n",
+            "/** @this */\n",
+            "export declare function f2(this: any): void;\n",
+            "export declare class C {\n",
+            "    /** @this {C} */\n",
+            "    m(this: C): void;\n",
+            "}\n",
+            "/**\n",
+            " * @this {Window}\n",
+            " * @param {Window} self\n",
+            " */\n",
+            "export declare function f3(this: Window, this_: any, self: Window): void;\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

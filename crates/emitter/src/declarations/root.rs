@@ -126,11 +126,10 @@ pub(crate) fn transform_root(
     let original_statements = source_statements(context.arena(), root_node)?;
     // tsgo builds JavaScript declarations with the same transform as
     // TypeScript (ts71-js-declarations). An ES module without a CommonJS
-    // indicator takes that route now (J1); scripts, CommonJS files and
-    // files with `@overload` tags, whose reparsed declarations come later,
-    // keep tsc 6.0's symbol serialization until then.
+    // indicator takes that route now (J1); scripts and CommonJS files keep
+    // tsc 6.0's symbol serialization until their slices.
     let serialize_javascript = is_javascript
-        && (!is_external_module || has_jsdoc_overload_tags(context.arena(), source)? || {
+        && (!is_external_module || {
             let resolver_node = transformer.required_resolver_node(context, root_node)?;
             transformer
                 .resolver
@@ -142,12 +141,16 @@ pub(crate) fn transform_root(
     } else {
         let mut statements = Vec::new();
         for statement in original_statements {
+            // tsgo's parser puts the declarations it reparses from JSDoc
+            // before the statement (parser.go:614-643).
+            statements.extend(transformer.reparsed_statements_before(context, statement)?);
             match super::statements::visit_declaration_statement(transformer, context, statement)? {
                 VisitResult::None => {}
                 VisitResult::Node(statement) => statements.push(statement),
                 VisitResult::Nodes(result) => statements.extend(result),
             }
         }
+        statements.extend(transformer.reparsed_statements_at_end(context, root_node)?);
         let statements = super::statements::transform_and_replace_late_painted_statements(
             transformer,
             context,
@@ -352,20 +355,6 @@ fn statements_with_empty_exports(
 
 pub(super) fn normalize_slashes(path: JsString) -> JsString {
     crate::source_map::paths::normalize_slashes(&path)
-}
-
-/// Whether the source has an `@overload` tag, which tsgo reparses into
-/// overload declarations of its host.
-fn has_jsdoc_overload_tags(
-    arena: &TransformArena,
-    source: TransformSourceId,
-) -> Result<bool, TransformError> {
-    let syntax = arena.source(source)?.syntax();
-    Ok(syntax
-        .arena
-        .nodes()
-        .iter()
-        .any(|node| node.kind == tsc_syntax::SyntaxKind::JSDocOverloadTag))
 }
 
 pub(super) fn is_javascript_source(source: &SourceFile, flags: i32) -> bool {

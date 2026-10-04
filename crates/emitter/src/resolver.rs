@@ -464,6 +464,8 @@ pub enum EmitResolverMethod {
     GetReferencedDeclarationWithCollidingName,
     GetReferencedValueDeclaration,
     GetReferencedValueDeclarations,
+    GetReferencedMemberValueDeclaration,
+    IsThisPropertyAssignmentDeclarationRedundant,
     GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
     IsArgumentsLocalBinding,
@@ -498,6 +500,7 @@ pub enum EmitResolverMethod {
     CreateTypeOfDeclarationInExpandoScope,
     CreateReturnTypeOfSignatureDeclaration,
     CreateTypeOfExpression,
+    TryJsTypeNodeToTypeNode,
     CreateLiteralConstValue,
     GetDeclarationStatementsForSourceFile,
     CreateLateBoundIndexSignatures,
@@ -542,6 +545,10 @@ impl EmitResolverMethod {
             }
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::GetReferencedValueDeclarations => "getReferencedValueDeclarations",
+            Self::GetReferencedMemberValueDeclaration => "getReferencedMemberValueDeclaration",
+            Self::IsThisPropertyAssignmentDeclarationRedundant => {
+                "isThisPropertyAssignmentDeclarationRedundant"
+            }
             Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsArgumentsLocalBinding => "isArgumentsLocalBinding",
@@ -582,6 +589,7 @@ impl EmitResolverMethod {
                 "createReturnTypeOfSignatureDeclaration"
             }
             Self::CreateTypeOfExpression => "createTypeOfExpression",
+            Self::TryJsTypeNodeToTypeNode => "tryJSTypeNodeToTypeNode",
             Self::CreateLiteralConstValue => "createLiteralConstValue",
             Self::GetDeclarationStatementsForSourceFile => "getDeclarationStatementsForSourceFile",
             Self::CreateLateBoundIndexSignatures => "createLateBoundIndexSignatures",
@@ -895,6 +903,36 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedValueDeclaration,
+            node,
+        ))
+    }
+
+    /// The value declaration of the member a `this.x = …` assignment
+    /// declares: the node's resolved symbol, else its own merged symbol,
+    /// through its export symbol (tsgo GetReferencedMemberValueDeclaration,
+    /// binder/referenceresolver.go:251-262). `None` when the assignment
+    /// declares nothing.
+    fn get_referenced_member_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetReferencedMemberValueDeclaration,
+            node,
+        ))
+    }
+
+    /// Whether the member a `this.x = …` assignment declares is already
+    /// provided by an `extends` base type: an inherited accessor, method or
+    /// function, or a property with the same readonly-ness, optionality and
+    /// type (tsgo IsThisPropertyAssignmentDeclarationRedundant,
+    /// checker/emitresolver.go:1292-1323).
+    fn is_this_property_assignment_declaration_redundant(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsThisPropertyAssignmentDeclarationRedundant,
             node,
         ))
     }
@@ -1241,6 +1279,35 @@ pub trait EmitResolver {
         Err(unavailable(
             EmitResolverMethod::CreateTypeOfDeclaration,
             declaration,
+        ))
+    }
+
+    /// A JSDoc type node rewritten as TypeScript syntax by the node
+    /// builder's reuse of existing type nodes, or `None` when it cannot be
+    /// reused (tsgo TryJSTypeNodeToTypeNode, checker/emitresolver.go:1272-1279,
+    /// nodecopy.go:20-22).
+    #[allow(clippy::too_many_arguments)]
+    fn try_js_type_node_to_type_node(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        type_node: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::TryJsTypeNodeToTypeNode,
+            type_node,
         ))
     }
 

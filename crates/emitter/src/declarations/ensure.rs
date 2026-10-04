@@ -6,7 +6,9 @@ use crate::{
     TransformNode, TransformNodeArray, TransformationContext,
 };
 
-use super::diagnostics::{can_produce_diagnostics, effective_modifier_flags, DiagnosticContext};
+use super::diagnostics::{
+    can_produce_diagnostics, effective_modifier_flags, hosted_modifier_flags, DiagnosticContext,
+};
 use super::state::VisitResult;
 use super::tracker::materialize_effects;
 use super::DeclarationTransformer;
@@ -236,7 +238,13 @@ impl DeclarationTransformer<'_> {
             self.kind(cx, node)?,
             SyntaxKind::ExportAssignment | SyntaxKind::BindingElement
         ) {
-            if let Some(explicit) = type_annotation(cx, node)? {
+            // tsgo reads `node.Type()`, which in JavaScript includes the
+            // type its reparser takes from JSDoc.
+            let explicit = match type_annotation(cx, node)? {
+                Some(explicit) => Some(explicit),
+                None => super::javascript::hosted_type(cx, node)?,
+            };
+            if let Some(explicit) = explicit {
                 let needs_undefined = if self.kind(cx, node)? == SyntaxKind::Parameter {
                     self.resolver.requires_adding_implicit_undefined(
                         self.required_resolver_node(cx, node)?,
@@ -249,13 +257,22 @@ impl DeclarationTransformer<'_> {
                     false
                 };
                 if !needs_undefined {
-                    return match self.visit_declaration_subtree(cx, explicit)? {
-                        VisitResult::None => Ok(None),
-                        VisitResult::Node(node) => Ok(Some(node)),
-                        VisitResult::Nodes(_) => Err(Self::contract(
-                            "type-node visitor returned a statement array",
-                        )),
-                    };
+                    // A JavaScript type goes through the node builder, which
+                    // rewrites JSDoc constructs; when it cannot, the type is
+                    // serialized in full (transform.go:1650-1666).
+                    if current_source_is_js(cx, self.state()?.current_source_file)? {
+                        if let Some(reused) = self.try_js_type_node_to_type_node(cx, explicit)? {
+                            return Ok(Some(reused));
+                        }
+                    } else {
+                        return match self.visit_declaration_subtree(cx, explicit)? {
+                            VisitResult::None => Ok(None),
+                            VisitResult::Node(node) => Ok(Some(node)),
+                            VisitResult::Nodes(_) => Err(Self::contract(
+                                "type-node visitor returned a statement array",
+                            )),
+                        };
+                    }
                 }
             }
         }
@@ -338,6 +355,11 @@ impl DeclarationTransformer<'_> {
             return cx.factory()?.create_node_array(owner.source(), Vec::new());
         }
         let mut updated = Vec::new();
+        // tsgo's reparser gives a JavaScript function a `this` parameter from
+        // its `@this` tag (reparser.go:478-506).
+        if let Some(this_parameter) = self.hosted_this_parameter(cx, owner, parameters)? {
+            updated.push(this_parameter);
+        }
         let mut has_trailing_comma = false;
         if let Some(parameters) =
             parameters.and_then(|array| cx.arena().node_array_ref(owner.source(), array))
@@ -434,6 +456,14 @@ impl DeclarationTransformer<'_> {
         if self.has_effective_modifier(cx, owner, ModifierFlags::PRIVATE)? {
             return Ok(None);
         }
+        if parameters.is_none() {
+            let tags = super::javascript::hosted_template_tags(cx, owner)?;
+            if !tags.is_empty() {
+                return self
+                    .visit_hosted_type_parameters(cx, owner, &tags)
+                    .map(Some);
+            }
+        }
         self.visit_type_node_array(cx, owner.source(), parameters, SyntaxKind::TypeParameter)
     }
 
@@ -447,7 +477,11 @@ impl DeclarationTransformer<'_> {
     ) -> Result<Option<TransformNodeArray>, TransformError> {
         let current = self.effective_modifier_flags(cx, node)?;
         let ensured = self.ensure_modifier_flags(cx, node)?;
-        if current == ensured {
+        // tsgo canReuseModifierNodes (util.go:52-59): the modifiers the
+        // reparser added from JSDoc tags are not reused, so the list is
+        // rebuilt from the flags in canonical order.
+        let hosted = hosted_modifier_flags(cx.arena().source(node.source())?.syntax(), node.node());
+        if current == ensured && hosted == ModifierFlags::NONE {
             let Some(modifiers) = modifier_array(cx, node)? else {
                 return Ok(None);
             };
@@ -472,6 +506,20 @@ impl DeclarationTransformer<'_> {
         &self,
         cx: &TransformationContext,
         node: TransformNode,
+    ) -> Result<ModifierFlags, TransformError> {
+        let source = cx.arena().source(node.source())?.syntax();
+        let flags = effective_modifier_flags(source, node.node());
+        self.ensure_modifier_flags_of(cx, node, flags)
+    }
+
+    /// ensureModifierFlags for a declaration at `node`'s position whose
+    /// modifiers are `flags`: the overload tsgo's reparser copies from a
+    /// JavaScript declaration has that declaration's written modifiers.
+    pub(crate) fn ensure_modifier_flags_of(
+        &self,
+        cx: &TransformationContext,
+        node: TransformNode,
+        flags: ModifierFlags,
     ) -> Result<ModifierFlags, TransformError> {
         let mask = ModifierFlags::from_bits(
             ModifierFlags::ALL.bits()
@@ -505,7 +553,7 @@ impl DeclarationTransformer<'_> {
         } else {
             (mask, additions)
         };
-        mask_modifier_flags(cx, node, mask, additions)
+        Ok(mask_flags(flags, mask, additions))
     }
 
     /// tsc-port: shouldStripInternal @6.0.3
@@ -716,15 +764,26 @@ pub(crate) fn mask_modifier_flags(
     modifier_additions: ModifierFlags,
 ) -> Result<ModifierFlags, TransformError> {
     let source = cx.arena().source(node.source())?.syntax();
-    let mut bits = (effective_modifier_flags(source, node.node()).bits() & modifier_mask.bits())
-        | modifier_additions.bits();
+    Ok(mask_flags(
+        effective_modifier_flags(source, node.node()),
+        modifier_mask,
+        modifier_additions,
+    ))
+}
+
+fn mask_flags(
+    flags: ModifierFlags,
+    modifier_mask: ModifierFlags,
+    modifier_additions: ModifierFlags,
+) -> ModifierFlags {
+    let mut bits = (flags.bits() & modifier_mask.bits()) | modifier_additions.bits();
     if bits & ModifierFlags::DEFAULT.bits() != 0 && bits & ModifierFlags::EXPORT.bits() == 0 {
         bits ^= ModifierFlags::EXPORT.bits();
     }
     if bits & ModifierFlags::DEFAULT.bits() != 0 && bits & ModifierFlags::AMBIENT.bits() != 0 {
         bits ^= ModifierFlags::AMBIENT.bits();
     }
-    Ok(ModifierFlags::from_bits(bits))
+    ModifierFlags::from_bits(bits)
 }
 
 /// tsc-port: isAlwaysType @6.0.3
@@ -909,7 +968,7 @@ fn modifier_array(
     Ok(modifiers.and_then(|array| cx.arena().node_array_ref(node.source(), array)))
 }
 
-const fn is_modifier_kind(kind: SyntaxKind) -> bool {
+pub(crate) const fn is_modifier_kind(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::AbstractKeyword

@@ -592,7 +592,9 @@ fn type_parameter_template(
         SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature => &d::Type_parameter_0_of_method_from_exported_interface_has_or_is_using_private_name_1,
         SyntaxKind::FunctionType | SyntaxKind::FunctionDeclaration => &d::Type_parameter_0_of_exported_function_has_or_is_using_private_name_1,
         SyntaxKind::InferType => &d::Extends_clause_for_inferred_type_0_has_or_is_using_private_name_1,
-        SyntaxKind::TypeAliasDeclaration => &d::Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1,
+        SyntaxKind::TypeAliasDeclaration
+        | SyntaxKind::JSDocTypedefTag
+        | SyntaxKind::JSDocCallbackTag => &d::Type_parameter_0_of_exported_type_alias_has_or_is_using_private_name_1,
         _ => return Err(DeclarationTransformer::contract(
             "unknown parent for declaration type-parameter diagnostic",
         )),
@@ -685,8 +687,42 @@ const fn external(
     }
 }
 
+/// The node's parent in tsgo's reparsed tree: the type parameter of a
+/// `@template` tag belongs to the function, method or class whose type
+/// parameters it becomes (reparser.go:440-457), to the type alias of the
+/// `@typedef` or `@callback` tag in its comment (gatherTypeParameters,
+/// 297-344), or to the overloads of its comment's `@overload` tags.
 fn parent(source: &SourceFile, node: NodeId) -> Option<NodeId> {
-    source.arena.node(node).parent
+    let parent = source.arena.node(node).parent?;
+    if source.arena.node(parent).kind == SyntaxKind::JSDocTemplateTag {
+        if let Some(host) = tsc_binder::hosted::template_tag_host(source, parent) {
+            return Some(host);
+        }
+        let comment = source.arena.node(parent).parent?;
+        if let NodeData::JSDoc(data) = &source.arena.node(comment).data {
+            let tags = data
+                .tags
+                .map_or(&[][..], |tags| source.arena.node_array(tags).nodes);
+            if let Some(alias) = tags.iter().copied().find(|&tag| {
+                matches!(
+                    source.arena.node(tag).kind,
+                    SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+                )
+            }) {
+                return Some(alias);
+            }
+            // The overloads of an `@overload` comment take its type
+            // parameters (reparser.go:162-164).
+            if let Some(host) = tags.iter().copied().find_map(|tag| {
+                (source.arena.node(tag).kind == SyntaxKind::JSDocOverloadTag)
+                    .then(|| tsc_binder::hosted::reparsed_overload_host(source, tag))
+                    .flatten()
+            }) {
+                return Some(host);
+            }
+        }
+    }
+    Some(parent)
 }
 
 fn parent_kind(source: &SourceFile, node: NodeId) -> Option<SyntaxKind> {
@@ -727,8 +763,37 @@ fn modifiers(node: &Node) -> Option<tsc_syntax::NodeArrayId> {
     }
 }
 
-/// tsrs-native: declaration-local syntactic modifier projection.
+/// tsrs-native: declaration-local modifier projection: the written modifiers
+/// and, in a JavaScript file, the modifiers tsgo's reparser adds from JSDoc
+/// tags (`hosted_modifier_flags`).
 pub(crate) fn effective_modifier_flags(source: &SourceFile, node: NodeId) -> ModifierFlags {
+    syntactic_modifier_flags(source, node) | hosted_modifier_flags(source, node)
+}
+
+/// The modifiers tsgo's reparser appends to a JavaScript member,
+/// constructor or assignment declaration from its `@public`, `@private`,
+/// `@protected`, `@readonly` and `@override` tags (reparser.go:525-566). The
+/// declaration transform reads them as ordinary modifiers.
+pub(crate) fn hosted_modifier_flags(source: &SourceFile, node: NodeId) -> ModifierFlags {
+    if super::javascript::is_javascript_file(source) {
+        let mut flags = ModifierFlags::NONE;
+        for &tag in tsc_binder::jsdoc_hosted(source).modifier_tags_of(node) {
+            flags |= match source.arena.node(tag).kind {
+                SyntaxKind::JSDocPublicTag => ModifierFlags::PUBLIC,
+                SyntaxKind::JSDocPrivateTag => ModifierFlags::PRIVATE,
+                SyntaxKind::JSDocProtectedTag => ModifierFlags::PROTECTED,
+                SyntaxKind::JSDocReadonlyTag => ModifierFlags::READONLY,
+                SyntaxKind::JSDocOverrideTag => ModifierFlags::OVERRIDE,
+                _ => ModifierFlags::NONE,
+            };
+        }
+        flags
+    } else {
+        ModifierFlags::NONE
+    }
+}
+
+fn syntactic_modifier_flags(source: &SourceFile, node: NodeId) -> ModifierFlags {
     let Some(modifiers) = modifiers(source.arena.node(node)) else {
         return ModifierFlags::NONE;
     };

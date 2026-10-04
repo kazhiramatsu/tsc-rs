@@ -972,6 +972,38 @@ pub(crate) fn serialize_return_type_for_signature_seam(
         .transpose()
 }
 
+/// tsgo-port: NodeBuilder.TryJSTypeNodeToTypeNode @7.1
+/// (checker/nodebuilder.go:272-275, nodecopy.go:12-22): reuse a JSDoc type
+/// node in a fresh node-builder context.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn try_js_type_node_to_type_node(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    type_node: NodeId,
+    enclosing_declaration: NodeId,
+    flags: EmitNodeBuilderFlags,
+    internal_flags: EmitInternalNodeBuilderFlags,
+    tracker: &mut dyn EmitSymbolTracker,
+) -> BuildResult<Option<TransformNode>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        Some(enclosing_declaration),
+        Some(flags),
+        Some(internal_flags),
+        Some(tracker),
+        None,
+        None,
+        |checker, arena, target, context| {
+            syntactic_try_reuse_existing_type_node(checker, arena, target, context, type_node)
+        },
+        None,
+    )
+    .map(Option::flatten)
+}
+
 /// tsrs-native: checker-side routing seam behind the syntactic tryReuse member.
 pub(crate) fn syntactic_try_reuse_existing_type_node(
     checker: &mut CheckerState<'_>,

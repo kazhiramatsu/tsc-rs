@@ -82,7 +82,14 @@ impl DeclarationTransformer<'_> {
                 .resolver
                 .is_implementation_of_overload(self.required_resolver_node(cx, input)?)?
         {
-            return Ok(VisitResult::None);
+            // A JavaScript implementation's overloads come from its
+            // `@overload` tags, which tsgo's parser puts before it.
+            let overloads = self.reparsed_overloads(cx, input)?;
+            return Ok(if overloads.is_empty() {
+                VisitResult::None
+            } else {
+                VisitResult::Nodes(overloads)
+            });
         }
         if self.kind(cx, input)? == SyntaxKind::SemicolonClassElement {
             return Ok(VisitResult::None);
@@ -224,6 +231,24 @@ impl DeclarationTransformer<'_> {
                                     })?;
                                 self.check_entity_name_visibility(cx, expression, enclosing)?;
                             }
+                        }
+                        // tsgo's reparser gives a JavaScript `extends` element
+                        // the type arguments of its `@augments` tag
+                        // (reparser.go:590-607).
+                        if let (Some(expression), Some(arguments)) = (
+                            expression,
+                            super::javascript::hosted_augments_type_arguments(cx, input)?,
+                        ) {
+                            let arguments = self.visit_type_node_array(
+                                cx,
+                                input.source(),
+                                Some(arguments),
+                                SyntaxKind::Unknown,
+                            )?;
+                            return cx
+                                .factory()?
+                                .update_expression_with_type_arguments(input, expression, arguments)
+                                .map(VisitResult::Node);
                         }
                         self.visit_each_child(cx, input).map(VisitResult::Node)
                     }
@@ -659,8 +684,65 @@ impl DeclarationTransformer<'_> {
                     .add_flags(EmitFlags::SINGLE_LINE);
             }
         }
-        let result = self.visit_each_child(cx, input).map(VisitResult::Node);
+        let result = match self.visit_jsdoc_type(cx, input) {
+            Ok(Some(converted)) => Ok(VisitResult::Node(converted)),
+            Ok(None) => self.visit_each_child(cx, input).map(VisitResult::Node),
+            Err(error) => Err(error),
+        };
         self.finish_subtree(cx, input, frame, result)
+    }
+
+    /// tsgo's declaration transform writes JSDoc types as TypeScript
+    /// (transform.go:2584-2638): `*` is `any`, `?T` and `T?` are `T | null`,
+    /// `!T` is `T`, `T=` is `T | undefined` and `...T` is `T[]`.
+    fn visit_jsdoc_type(
+        &mut self,
+        cx: &mut TransformationContext,
+        input: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let source = input.source();
+        let (inner, kind) = match &cx.arena().node(input)?.data {
+            NodeData::JSDocTypeExpression(data) => (data.r#type, SyntaxKind::JSDocTypeExpression),
+            NodeData::JSDocAllType(_) => (None, SyntaxKind::JSDocAllType),
+            NodeData::JSDocNullableType(data) => (data.r#type, SyntaxKind::JSDocNullableType),
+            NodeData::JSDocNonNullableType(data) => (data.r#type, SyntaxKind::JSDocNonNullableType),
+            NodeData::JSDocOptionalType(data) => (data.r#type, SyntaxKind::JSDocOptionalType),
+            NodeData::JSDocVariadicType(data) => (data.r#type, SyntaxKind::JSDocVariadicType),
+            _ => return Ok(None),
+        };
+        if kind == SyntaxKind::JSDocAllType {
+            return cx
+                .factory()?
+                .create_keyword_type_node(source, SyntaxKind::AnyKeyword)
+                .map(Some);
+        }
+        let inner = match inner {
+            Some(inner) => {
+                match self.visit_declaration_subtree(cx, TransformNode::new(source, inner))? {
+                    VisitResult::Node(node) => node,
+                    _ => return Err(Self::contract("JSDoc type visitor removed its type")),
+                }
+            }
+            None => return Ok(None),
+        };
+        let mut factory = cx.factory()?;
+        let converted = match kind {
+            SyntaxKind::JSDocNullableType => {
+                let null = factory.create_null(source)?;
+                let null = factory.create_literal_type_node(source, null)?;
+                let types = factory.create_node_array(source, vec![inner, null])?;
+                factory.create_union_type_node(source, types)?
+            }
+            SyntaxKind::JSDocOptionalType => {
+                let undefined =
+                    factory.create_keyword_type_node(source, SyntaxKind::UndefinedKeyword)?;
+                let types = factory.create_node_array(source, vec![inner, undefined])?;
+                factory.create_union_type_node(source, types)?
+            }
+            SyntaxKind::JSDocVariadicType => factory.create_array_type_node(source, inner)?,
+            _ => inner,
+        };
+        Ok(Some(converted))
     }
 
     /// tsc-port: cleanup @6.0.3 (visitDeclarationSubtree)

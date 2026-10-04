@@ -539,6 +539,69 @@ impl CheckerState<'_> {
             .intersects(NodeFlags::SYNTHESIZED)
     }
 
+    /// tsgo-port: GetReferencedMemberValueDeclaration @7.1
+    /// (binder/referenceresolver.go:251-262): the node's resolved symbol,
+    /// else its own merged symbol, through its export symbol.
+    pub(crate) fn emit_get_referenced_member_value_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        let symbol = self
+            .links
+            .read_node(node, |links| links.resolved_symbol.resolved())
+            .or_else(|| self.get_symbol_of_declaration_opt(node));
+        let Some(symbol) = symbol else {
+            return Ok(None);
+        };
+        let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+        Ok(self.binder.symbol(symbol).value_declaration)
+    }
+
+    /// tsgo-port: IsThisPropertyAssignmentDeclarationRedundant @7.1
+    /// (checker/emitresolver.go:1292-1323): an `extends` base type already
+    /// has the member, as an accessor, method or function, or as a property
+    /// with the same readonly-ness, optionality and type.
+    pub(crate) fn emit_is_this_property_assignment_declaration_redundant(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<bool> {
+        let symbol = self.get_symbol_of_declaration(node)?;
+        if symbol == self.unknown_symbol {
+            return Ok(false);
+        }
+        let Some(parent) = self.binder.symbol(symbol).parent else {
+            return Ok(false);
+        };
+        let parent_type = self.get_declared_type_of_symbol(parent)?;
+        let name = self.binder.symbol(symbol).escaped_name;
+        for base in self.get_base_types(parent_type)? {
+            let Some(base_property) = self.get_property_of_type_full(base, name)? else {
+                continue;
+            };
+            let base_flags = self.binder.symbol(base_property).flags;
+            if base_flags
+                .intersects(SymbolFlags::ACCESSOR | SymbolFlags::METHOD | SymbolFlags::FUNCTION)
+            {
+                return Ok(true);
+            }
+            if self.is_readonly_symbol(base_property)? == self.is_readonly_symbol(symbol)?
+                && self
+                    .binder
+                    .symbol(symbol)
+                    .flags
+                    .contains(SymbolFlags::OPTIONAL)
+                    == base_flags.contains(SymbolFlags::OPTIONAL)
+            {
+                let symbol_type = self.get_type_of_symbol(symbol)?;
+                let base_type = self.get_type_of_symbol(base_property)?;
+                if self.is_type_identical_to(symbol_type, base_type)? {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     /// tsc-port: isDeclarationVisible @6.0.3
     /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
     /// tsc-span: _tsc.js:55589-55674
@@ -561,13 +624,58 @@ impl CheckerState<'_> {
             .unwrap_or(visible))
     }
 
+    /// Whether tsgo's parser puts the type alias of a `@typedef` or
+    /// `@callback` tag in the statements of the source file: the statement
+    /// list of a block keeps the aliases of the tags inside it, and every
+    /// other list passes them out (parser.go:614-643).
+    fn jsdoc_alias_is_top_level(&self, tag: NodeId) -> bool {
+        let Some(host) = self
+            .parent_of(tag)
+            .and_then(|comment| self.parent_of(comment))
+        else {
+            return false;
+        };
+        let mut current = self.parent_of(host);
+        while let Some(node) = current {
+            match self.kind_of(node) {
+                SyntaxKind::SourceFile => return true,
+                SyntaxKind::Block | SyntaxKind::ModuleBlock => return false,
+                _ => current = self.parent_of(node),
+            }
+        }
+        false
+    }
+
+    /// The `@typedef` or `@callback` tag whose dotted name a JSDoc namespace
+    /// is part of.
+    fn jsdoc_namespace_tag(&self, module: NodeId) -> Option<NodeId> {
+        let mut current = self.parent_of(module);
+        while let Some(node) = current {
+            match self.kind_of(node) {
+                SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag => return Some(node),
+                SyntaxKind::ModuleDeclaration => current = self.parent_of(node),
+                _ => return None,
+            }
+        }
+        None
+    }
+
     fn emit_determine_declaration_is_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
         match self.kind_of(declaration) {
-            SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag => Ok(self
-                .parent_of(declaration)
-                .and_then(|parent| self.parent_of(parent))
-                .and_then(|parent| self.parent_of(parent))
-                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile)),
+            // tsgo's reparsed type alias of a top-level tag is exported in a
+            // module (IsImplicitlyExportedJSDocDeclaration) and global in a
+            // script; one inside a block belongs to its function
+            // (emitresolver.go:139-170).
+            SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocTypedefTag => {
+                Ok(self.jsdoc_alias_is_top_level(declaration))
+            }
+            // The namespaces of a dotted name wrap that alias; the nested ones
+            // are exported (reparser.go:733-758).
+            SyntaxKind::ModuleDeclaration if self.jsdoc_namespace_tag(declaration).is_some() => {
+                Ok(self
+                    .jsdoc_namespace_tag(declaration)
+                    .is_some_and(|tag| self.jsdoc_alias_is_top_level(tag)))
+            }
             SyntaxKind::BindingElement => {
                 let parent = self
                     .parent_of(declaration)
@@ -671,6 +779,27 @@ impl CheckerState<'_> {
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::ExportAssignment => Ok(false),
+            // tsgo: an `export {X}` without a module specifier is a visible
+            // re-export of the binding (emitresolver.go:220-227).
+            SyntaxKind::ExportSpecifier => {
+                let declaration_node = self
+                    .parent_of(declaration)
+                    .and_then(|exports| self.parent_of(exports));
+                match declaration_node {
+                    Some(export)
+                        if matches!(
+                            self.data_of(export),
+                            NodeData::ExportDeclaration(data) if data.module_specifier.is_none()
+                        ) =>
+                    {
+                        match self.parent_of(export) {
+                            Some(parent) => self.emit_is_declaration_visible(parent),
+                            None => Ok(false),
+                        }
+                    }
+                    _ => Ok(false),
+                }
+            }
             _ => Ok(false),
         }
     }
@@ -755,8 +884,20 @@ impl CheckerState<'_> {
         let source = self.binder.source_of_node(declaration);
         if let Some(import_syntax) = self.declaration_emit_any_import_syntax(declaration) {
             if !node_util::has_syntactic_modifier(source, import_syntax, ModifierFlags::EXPORT) {
+                // tsgo's reparser makes an `@import` tag an import declaration
+                // among the statements of the source file when the tag is at
+                // the top level (reparser.go:124-137, parser.go:614-643).
+                let parent_visible = if self.kind_of(import_syntax) == SyntaxKind::JSDocImportTag {
+                    Some(self.jsdoc_alias_is_top_level(import_syntax))
+                } else {
+                    None
+                };
                 if let Some(parent) = self.parent_of(import_syntax) {
-                    if self.emit_is_declaration_visible(parent)? {
+                    let parent_visible = match parent_visible {
+                        Some(visible) => visible,
+                        None => self.emit_is_declaration_visible(parent)?,
+                    };
+                    if parent_visible {
                         self.add_visible_alias(
                             declaration,
                             import_syntax,

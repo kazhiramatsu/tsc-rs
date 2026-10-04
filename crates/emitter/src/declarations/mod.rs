@@ -4,6 +4,7 @@ mod bundle;
 mod diagnostics;
 mod ensure;
 mod isolated;
+mod javascript;
 mod orchestration;
 mod paths;
 pub(crate) mod root;
