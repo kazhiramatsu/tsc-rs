@@ -1633,7 +1633,7 @@ compiler/declarationEmitExpressionInExtends6	full	js
 compiler/declarationEmitExpressionInExtends7	full	js
 compiler/declarationEmitExpressionWithNonlocalPrivateUniqueSymbol	full	js
 compiler/declarationEmitFBoundedTypeParams	full	js
-compiler/declarationEmitFirstTypeArgumentGenericFunctionType	full	none
+compiler/declarationEmitFirstTypeArgumentGenericFunctionType	full	js
 compiler/declarationEmitForDefaultExportClassExtendingExpression01	full	js
 compiler/declarationEmitForGlobalishSpecifierSymlink	full	js
 compiler/declarationEmitForGlobalishSpecifierSymlink2	full	js
@@ -1738,7 +1738,7 @@ compiler/declarationEmitPrivatePromiseLikeInterface	full	js
 compiler/declarationEmitPrivateReadonlyLiterals	full	js
 compiler/declarationEmitPrivateSymbolCausesVarDeclarationEmit2	full	js
 compiler/declarationEmitPrivateSymbolCausesVarDeclarationToBeEmitted	full	js
-compiler/declarationEmitPromise	full	none
+compiler/declarationEmitPromise	full	js
 compiler/declarationEmitPropertyNumericStringKey	full	js
 compiler/declarationEmitProtectedMembers(target=es2015)	full	js
 compiler/declarationEmitQualifiedAliasTypeArgument	full	js
@@ -1752,7 +1752,7 @@ compiler/declarationEmitReexportedSymlinkReference2	full	js
 compiler/declarationEmitReexportedSymlinkReference3	full	js
 compiler/declarationEmitRelativeModuleError	full	js
 compiler/declarationEmitResolvePackageJsonExportsFalse	full	js
-compiler/declarationEmitResolveTypesIfNotReusable	full	none
+compiler/declarationEmitResolveTypesIfNotReusable	full	js
 compiler/declarationEmitRetainedAnnotationRetainsImportInOutput	full	js
 compiler/declarationEmitRetainsJsdocyComments	full	js
 compiler/declarationEmitReusesLambdaParameterNodes	full	js
@@ -3339,7 +3339,7 @@ compiler/importShadowsGlobalName	full	js
 compiler/importShouldNotBeElidedInDeclarationEmit	full	js
 compiler/importTypeAssertionDeprecation	full	js
 compiler/importTypeAssertionDeprecationIgnored	full	js
-compiler/importTypeGenericArrowTypeParenthesized	full	none
+compiler/importTypeGenericArrowTypeParenthesized	full	js
 compiler/importTypeResolutionJSDocEOF	full	js
 compiler/importTypeTypeofClassStaticLookup	full	js
 compiler/importTypeWithUnparenthesizedGenericFunctionParsed	full	js
@@ -9446,7 +9446,7 @@ conformance/inferThisType	full	js
 conformance/inferTypes1	full	js
 conformance/inferTypes2	full	js
 conformance/inferTypesInvalidExtendsDeclaration	full	js
-conformance/inferTypesWithExtends1	full	none
+conformance/inferTypesWithExtends1	full	js
 conformance/inferTypesWithExtends2	full	js
 conformance/inferTypesWithExtendsDependingOnTypeVariables	full	js
 conformance/inferingFromAny	full	js
@@ -11869,7 +11869,7 @@ conformance/quotedConstructors	full	js
 conformance/reExportAliasMakesInstantiated	full	js
 conformance/reExportDefaultExport(target=es2015)	full	js
 conformance/reExportJsFromTs	full	js
-conformance/readonlyArraysAndTuples	full	none
+conformance/readonlyArraysAndTuples	full	js
 conformance/readonlyArraysAndTuples2	full	js
 conformance/readonlyConstructorAssignment	full	js
 conformance/readonlyInAmbientClass	full	js
@@ -11981,7 +11981,7 @@ conformance/spreadExcessProperty	full	js
 conformance/spreadMethods	full	js
 conformance/spreadNonObject1	full	js
 conformance/spreadNonPrimitive	full	js
-conformance/spreadObjectOrFalsy	full	none
+conformance/spreadObjectOrFalsy	full	js
 conformance/spreadOverwritesProperty	full	js
 conformance/spreadOverwritesPropertyStrict	full	js
 conformance/spreadTypeVariable	full	js

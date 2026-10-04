@@ -1653,3 +1653,32 @@ optionの扱いが原因の3 class：
   152.3／151.8 MB）、zod full 39.451／39.431 G（895.4／893.8 MB）。退行なし。
 - 残り：emitの不一致74構成。`composite`と`incremental`（buildinfo、8構成）、TypeScriptのd.tsの差（computed key、
   型の括弧、型parameterの名前の付け直し、unionの順）、JavaScriptの出力の差など。
+
+## P3-5ae 型の括弧をtsgoのprinterと同じく付ける（2026-10-04）
+
+P3-5adの後、TypeScriptのd.tsの不一致のうち、型の括弧が原因の7構成。tsgoのfactoryは型を括弧で包まず、printerが
+位置ごとのprecedenceより低い型を括弧で包む（`emitTypeNode`、printer.go:2271-2302、`ast.GetTypeNodePrecedence`）。
+tsc-rsは6.0どおりfactoryが型を作るたびに括弧を付けていた。
+- **factory**：6.0の型のparenthesizer（`createParenthesizerRules`の型の半分）を、型の作成と更新のすべてから外した。
+- **printer**：tsgoの位置ごとのprecedenceで括弧を付ける。
+  - unionとintersectionの構成要素はTypeOperator：parseした`A & B | C`も`(A & B) | C`になる。
+  - type operatorの被演算子はTypeOperator（`readonly`はPostfix）。
+  - 配列・indexed access・optionalの被演算子はPostfix。ただしparseした後置型の`typeof`は書いたまま（`typeof C[K]`、
+    printer.go:1999-2012）。tsgoの更新・複製したnodeは元のflagを引き継ぐ（`updateNode`、ast.go:103-112）ので、
+    parse treeに元を持つnodeをparseしたものとして扱う。
+  - conditional型のcheckはUnion、`extends`節はtsgoの`inExtends`の状態で書く：そこではconditional型を括弧で包み、
+    関数型が返す制約付きの`infer`も包む。`infer`の制約も`extends`節として書く。
+  - 型引数は最低のprecedence：generic関数型の型引数は括弧なし（`X<<T>() => T>`。6.0は`X<(<T>() => T)>`）。
+- **nodeの再利用**：書いた括弧付きの型を残す。tsgoの`tryVisitSimpleTypeNode`は式の括弧だけを飛ばす
+  （`ast.SkipParentheses`、nodecopy.go:452-466）。6.0は型の括弧も飛ばした（`keyof (A['a'])`→`keyof A['a']`）。
+- unit test：CLI（tsgoの出力にpin）で上の各形。factoryのtestは、構成要素を括弧なしのまま保つことに書き直した。
+- conformance（release build、`f1ecdeba1`、`--workers 2`、523 s）：
+  - 15,228構成、lane A 13,467（変化なし）。errorsは変化なし（`intersectionConstructorReductionCrash`は今回は
+    memory上限に達せずfullだったが、負荷に依るので今までどおりratchetに入れない）。
+  - emit full 13,363→13,371、emit mismatch 74→67。上がった7構成：`declarationEmitFirstTypeArgumentGenericFunctionType`、
+    `declarationEmitPromise`、`importTypeGenericArrowTypeParenthesized`、`declarationEmitResolveTypesIfNotReusable`、
+    `inferTypesWithExtends1`、`spreadObjectOrFalsy`、`readonlyArraysAndTuples`。
+  - 下がった構成も、tierが同じまま出力が変わった構成も無い。
+- ratchet：0 regressions、7行raise（emit none→js）。
+- local：formatとworkspace全体のclippy。binder・emitter・checker・compiler・conformanceのtest（38 targets、2,716件）。
+  試行（filter `declarationEmit`・`onditional`・`types/`・`uple`）で下がった構成は無かった。
