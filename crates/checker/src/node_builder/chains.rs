@@ -31,8 +31,7 @@ use super::specifier::{
 };
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, create_identifier, create_node, create_node_array,
-    create_output_identifier, factory_error, set_no_ascii_escaping, type_to_type_node_helper,
-    BuildResult,
+    create_output_identifier, factory_error, set_no_ascii_escaping, BuildResult,
 };
 use super::NodeBuilderContext;
 use tsc_binder::NameKey;
@@ -45,7 +44,6 @@ const IN_INITIAL_ENTITY_NAME: u32 = 16_777_216;
 const ALLOW_NODE_MODULES_RELATIVE_PATHS: u32 = 67_108_864;
 const FORBID_INDEXED_ACCESS_SYMBOL_REFERENCES: u32 = 16;
 const DO_NOT_INCLUDE_SYMBOL_CHAIN: u32 = 4;
-const ALLOW_UNIQUE_ES_SYMBOL_TYPE: u32 = 1_048_576;
 
 fn has_flag(context: &NodeBuilderContext<'_>, flag: u32) -> bool {
     context.flags.0 & flag != 0
@@ -2726,35 +2724,6 @@ pub(crate) const fn get_enclosing_declaration_ignoring_fake_scope(
     // fakeScopeForSignatureDeclaration exists solely on synthesized service
     // nodes, so the parse-only representation makes the loop an identity.
     enclosing_declaration
-}
-
-/// tsc-port: serializeInferredTypeForDeclaration @6.0.3
-/// tsc-hash: e3ed2326a64d3e4ec629c0017c1b0d48314418fb49326203f4cbdea1d9ed9f69
-/// tsc-span: _tsc.js:53480-53486
-pub(crate) fn serialize_inferred_type_for_declaration(
-    checker: &mut CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    symbol: SymbolId,
-    context: &mut NodeBuilderContext<'_>,
-    r#type: TypeId,
-) -> BuildResult<Option<TransformNode>> {
-    let ty = checker.tables.type_of(r#type);
-    if ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-        && ty.symbol == Some(symbol)
-        && (context.enclosing_declaration.is_none()
-            || checker
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .any(|&declaration| {
-                    Some(checker.binder.source_of_node(declaration).root) == context.enclosing_file
-                }))
-    {
-        context.flags.0 |= ALLOW_UNIQUE_ES_SYMBOL_TYPE;
-    }
-    type_to_type_node_helper(checker, arena, target, r#type, context)
 }
 
 /// tsc-port: getTypeFromTypeNode2 @6.0.3

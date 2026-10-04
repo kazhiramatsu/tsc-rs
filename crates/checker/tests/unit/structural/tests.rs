@@ -688,9 +688,12 @@ fn unconstrained_source_type_parameter_gets_the_constraint_hint() {
     );
     assert_eq!(optional_property.len(), 1);
     assert_eq!(optional_property[0].message.code, 2208);
+    // tsgo prints the suggested constraint without an enclosing declaration
+    // (relater.go:4777), so the written annotation is not reused and the
+    // optional property shows its `undefined` (tsgo's output).
     assert_eq!(
         optional_property[0].message.text,
-        "This type parameter might need an `extends { a?: string; }` constraint."
+        "This type parameter might need an `extends { a?: string | undefined; }` constraint."
     );
 
     let target_parameter = crate::state::test_support::with_program_state(
@@ -2190,7 +2193,7 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
             ),
             (
                 2322,
-                "Type '() => number | string' is not assignable to type '() => number'.".to_owned(),
+                "Type '() => string | number' is not assignable to type '() => number'.".to_owned(),
             ),
             (
                 2322,
@@ -2201,8 +2204,8 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
                 "Type 'string' is not assignable to type 'number'.".to_owned(),
             ),
         ]],
-        "the outer signature keeps a single return assertion's syntax while the nested \
-         relation keeps the canonical semantic union"
+        "without an enclosing declaration tsgo does not reuse the return assertion \
+         (nodebuilderimpl.go:2114), so both levels print the checker's union"
     );
 
     assert_eq!(

@@ -10333,10 +10333,15 @@ impl<'a> CheckerState<'a> {
                 )? {
                     return Ok(text);
                 }
-            } else if let Some(text) =
-                self.syntactic_single_return_type_text(declaration, fully_qualified)?
-            {
-                return Ok(text);
+            } else if self.display_enclosing.is_some() {
+                // tsgo reuses the written return only under an enclosing
+                // declaration (nodebuilderimpl.go:2114), which diagnostics
+                // set just for a non-context-sensitive expression's type.
+                if let Some(text) =
+                    self.syntactic_single_return_type_text(declaration, fully_qualified)?
+                {
+                    return Ok(text);
+                }
             }
         }
         if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
@@ -10886,21 +10891,6 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<JsString> {
         let enclosing = self.display_enclosing_for(ty);
         let saved = std::mem::replace(&mut self.display_enclosing, enclosing);
-        let result = self.type_to_string(ty);
-        self.display_enclosing = saved;
-        result
-    }
-
-    /// tsrs-native: explicit-enclosing adapter for tsc's
-    /// `typeToString(type, enclosingDeclaration)` calls. The parked
-    /// nodeBuilder context is restored on both success and
-    /// CheckAbort unwind.
-    pub(crate) fn type_to_string_at(
-        &mut self,
-        ty: TypeId,
-        enclosing: NodeId,
-    ) -> CheckResult<JsString> {
-        let saved = self.display_enclosing.replace(enclosing);
         let result = self.type_to_string(ty);
         self.display_enclosing = saved;
         result

@@ -2354,7 +2354,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.associate_missing_type_parameter_constraint_related(source, target)
     }
 
-    /// reportErrorResults 65296-65305: after the relation head is
+    /// reportErrorResults (relater.go:4773-4780): after the relation head is
     /// materialized, suggest a constraint only when substituting a
     /// clone of the unconstrained source parameter into the target
     /// produces a non-circular base constraint.
@@ -2391,7 +2391,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(());
         }
 
-        let target_text = self.st.type_to_string_at(target, declaration)?;
+        // tsgo prints the target without an enclosing declaration
+        // (relater.go:4777), so a written annotation is not reused.
+        let target_text = self.st.type_to_string(target)?;
         let related = self.st.related_info_for_node_js(
             declaration,
             &diagnostics::This_type_parameter_might_need_an_extends_0_constraint,

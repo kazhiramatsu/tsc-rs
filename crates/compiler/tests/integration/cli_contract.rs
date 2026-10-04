@@ -2419,6 +2419,177 @@ fn isolated_declarations_diagnostics_follow_tsgo() {
 }
 
 #[test]
+fn class_extends_expressions_follow_tsgo() {
+    // An extends clause with an expression gets a `_base` constant typed from
+    // the expression's widened type (nodebuilderimpl.go:1811-1815), and under
+    // isolatedDeclarations the transform reports the clause before it asks
+    // for that type (declarations/transform.go:2013). The expected bytes and
+    // diagnostics are tsgo's for the same projects.
+    let source_a = concat!(
+        "declare function mixin<T extends new (...args: any[]) => {}>(base: T): T & (new (...args: any[]) => { mixed: true });\n",
+        "class Base { x = 1; }\n",
+        "export class A extends mixin(Base) {}\n",
+        "export const B = class extends mixin(Base) {};\n",
+        "export class C extends (Base) {}\n",
+    );
+    let source_b = concat!(
+        "declare function mixin<T extends new (...args: any[]) => {}>(base: T): T & (new (...args: any[]) => { mixed: true });\n",
+        "class Base { x = 1; }\n",
+        "export default class extends mixin(Base) {}\n",
+    );
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), source_a).expect("write a.ts");
+    fs::write(tree.path("b.ts"), source_b).expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","declaration":true,"outDir":"out","types":[],"strict":true},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "declare class Base {\n",
+            "    x: number;\n",
+            "}\n",
+            "declare const A_base: typeof Base & (new (...args: any[]) => {\n",
+            "    mixed: true;\n",
+            "});\n",
+            "export declare class A extends A_base {\n",
+            "}\n",
+            "export declare const B: {\n",
+            "    new (): {\n",
+            "        mixed: true;\n",
+            "        x: number;\n",
+            "    };\n",
+            "};\n",
+            "declare const C_base: typeof Base;\n",
+            "export declare class C extends C_base {\n",
+            "}\n",
+            "export {};\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.d.ts")).expect("read b.d.ts"),
+        concat!(
+            "declare class Base {\n",
+            "    x: number;\n",
+            "}\n",
+            "declare const default_base: typeof Base & (new (...args: any[]) => {\n",
+            "    mixed: true;\n",
+            "});\n",
+            "export default class extends default_base {\n",
+            "}\n",
+            "export {};\n",
+        )
+    );
+
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), source_a).expect("write a.ts");
+    fs::write(tree.path("b.ts"), source_b).expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","declaration":true,"isolatedDeclarations":true,"outDir":"out","types":[],"strict":true},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(3,24): error TS9021: Extends clause can't contain an expression with --isolatedDeclarations.\n",
+            "a.ts(4,18): error TS9022: Inference from class expressions is not supported with --isolatedDeclarations.\n",
+            "a.ts(5,24): error TS9021: Extends clause can't contain an expression with --isolatedDeclarations.\n",
+            "b.ts(3,30): error TS9021: Extends clause can't contain an expression with --isolatedDeclarations.\n",
+        )
+    );
+}
+
+#[test]
+fn computed_names_in_reused_types_follow_tsgo() {
+    // tsgo marks an error for a computed property name whose entity name is
+    // not accessible and serializes the type instead (nodecopy.go:751-759);
+    // strada's rewriting from the evaluator also tracked the name and
+    // reported it as private. The expected bytes are tsgo's for the same
+    // project, which reports nothing.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export function make2() {\n",
+            "  const enum E { A = \"a\" }\n",
+            "  return (x: { [E.A]: string }) => x;\n",
+            "}\n",
+            "export function make3() {\n",
+            "  const s = \"lit\";\n",
+            "  return (x: { [s]: number }) => x;\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","declaration":true,"outDir":"out","types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "export declare function make2(): (x: {\n",
+            "    a: string;\n",
+            "}) => {\n",
+            "    a: string;\n",
+            "};\n",
+            "export declare function make3(): (x: {\n",
+            "    lit: number;\n",
+            "}) => {\n",
+            "    lit: number;\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn diagnostic_type_display_reuses_returns_only_under_an_enclosing_declaration() {
+    // tsgo reuses a signature's written return only when the node builder
+    // has an enclosing declaration (nodebuilderimpl.go:2114). Diagnostics
+    // give one only to a non-context-sensitive expression's type
+    // (getTypeNamesForErrorDisplay, relater.go:1270-1288), so a function
+    // declaration's assertion prints as the checker's union. The expected
+    // diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "function declared(x: number) { return x as number | string; }\n",
+            "const n1: number = declared;\n",
+            "const expression = function () { return 1 as number | string; };\n",
+            "const n2: number = expression;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","noEmit":true,"types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(2,7): error TS2322: Type '(x: number) => string | number' is not assignable to type 'number'.\n",
+            "a.ts(4,7): error TS2322: Type '() => number | string' is not assignable to type 'number'.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

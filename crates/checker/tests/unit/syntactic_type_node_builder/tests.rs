@@ -9,9 +9,9 @@ use tsc_emitter::{
     SourceFileId,
 };
 
-use crate::evaluate::{evaluator_result, EvaluatorResult};
 use crate::node_builder::{with_context, SyntacticScopeCleanup, SyntacticTrackedEntityName};
 use crate::state::test_support::with_program_state;
+use tsc_types::CompilerOptions;
 
 use super::*;
 
@@ -34,13 +34,8 @@ impl EmitSymbolTracker for TestTracker {
 struct TestResolver {
     events: Rc<RefCell<Vec<String>>>,
     node_kinds: HashMap<TransformNode, SyntaxKind>,
-    can_reuse_annotation: bool,
     reuse_denied_kinds: HashSet<SyntaxKind>,
     track_error_kinds: HashSet<SyntaxKind>,
-    accessors: Option<SyntacticAccessorDeclarations>,
-    declaration_result: Option<SyntaxKind>,
-    expression_result: Option<SyntaxKind>,
-    return_result: Option<SyntaxKind>,
     existing_result: Option<SyntaxKind>,
 }
 
@@ -49,13 +44,8 @@ impl TestResolver {
         Self {
             events,
             node_kinds: HashMap::new(),
-            can_reuse_annotation: true,
             reuse_denied_kinds: HashSet::new(),
             track_error_kinds: HashSet::new(),
-            accessors: None,
-            declaration_result: Some(SyntaxKind::StringKeyword),
-            expression_result: Some(SyntaxKind::NumberKeyword),
-            return_result: Some(SyntaxKind::VoidKeyword),
             existing_result: Some(SyntaxKind::AnyKeyword),
         }
     }
@@ -166,14 +156,6 @@ impl EmitTrackerAccess for TestResolver {
 }
 
 impl SyntacticBuilderResolver for TestResolver {
-    fn evaluate_entity_name_expression(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _expression: TransformNode,
-    ) -> Result<EvaluatorResult, EmitResolverError> {
-        Ok(evaluator_result(None, false, false, false))
-    }
-
     fn has_late_bindable_name(
         &mut self,
         _arena: &mut tsc_emitter::TransformArena,
@@ -199,141 +181,18 @@ impl SyntacticBuilderResolver for TestResolver {
         Ok(SyntacticRecoveryBoundary::new(context))
     }
 
-    fn is_definitely_reference_to_global_symbol_object(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _node: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        Ok(false)
-    }
-
-    fn get_all_accessor_declarations(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        node: TransformNode,
-    ) -> Result<SyntacticAccessorDeclarations, EmitResolverError> {
-        Ok(self.accessors.unwrap_or(SyntacticAccessorDeclarations {
-            first_accessor: node,
-            second_accessor: None,
-            get_accessor: (self.kind_for_test(node) == Some(SyntaxKind::GetAccessor))
-                .then_some(node),
-            set_accessor: (self.kind_for_test(node) == Some(SyntaxKind::SetAccessor))
-                .then_some(node),
-        }))
-    }
-
-    fn requires_adding_implicit_undefined(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _declaration: TransformNode,
-        _symbol: Option<SyntacticSymbol>,
-        _enclosing_declaration: Option<NodeId>,
-    ) -> Result<bool, EmitResolverError> {
-        Ok(false)
-    }
-
-    fn is_optional_parameter(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _parameter: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        Ok(false)
-    }
-
-    fn is_undefined_identifier_expression(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _node: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        Ok(false)
-    }
-
     fn serialize_existing_type_node(
         &mut self,
         arena: &mut TransformArena,
         target: TransformSourceId,
         _context: &mut NodeBuilderContext<'_>,
         type_node: TransformNode,
-        _add_undefined: bool,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
         let kind = Self::kind(arena, type_node)?;
         self.events
             .borrow_mut()
             .push(format!("semantic-existing:{kind:?}"));
         Self::keyword(arena, target, self.existing_result)
-    }
-
-    fn serialize_return_type_for_signature(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        _context: &mut NodeBuilderContext<'_>,
-        _signature_declaration: TransformNode,
-        _symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        self.events.borrow_mut().push("infer-return".to_owned());
-        Self::keyword(arena, target, self.return_result)
-    }
-
-    fn serialize_type_of_expression(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        _context: &mut NodeBuilderContext<'_>,
-        _expression: TransformNode,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        self.events.borrow_mut().push("infer-expression".to_owned());
-        Self::keyword(arena, target, self.expression_result)
-    }
-
-    fn serialize_type_of_declaration(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        _context: &mut NodeBuilderContext<'_>,
-        _declaration: TransformNode,
-        _symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        self.events
-            .borrow_mut()
-            .push("infer-declaration".to_owned());
-        Self::keyword(arena, target, self.declaration_result)
-    }
-
-    fn serialize_name_of_parameter(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        _context: &mut NodeBuilderContext<'_>,
-        parameter: TransformNode,
-    ) -> Result<TransformNode, EmitResolverError> {
-        let name = match &arena
-            .node(parameter)
-            .map_err(|error| EmitResolverError::Factory {
-                method: EmitResolverMethod::CreateTypeOfDeclaration,
-                error: Box::new(error),
-            })?
-            .data
-        {
-            NodeData::Parameter(data) => data.name,
-            _ => None,
-        };
-        if let Some(name) = name.and_then(|name| arena.node_ref(parameter.source(), name)) {
-            return Ok(name);
-        }
-        arena
-            .factory()
-            .create_node(
-                target,
-                NodeData::Identifier(IdentifierData {
-                    escaped_text: tsc_types::EscapedName::from_identifier_escaped_text("arg"),
-                }),
-                TransformFlags::NONE,
-            )
-            .map_err(|error| EmitResolverError::Factory {
-                method: EmitResolverMethod::CreateTypeOfDeclaration,
-                error: Box::new(error),
-            })
     }
 
     fn serialize_type_name(
@@ -423,16 +282,6 @@ impl SyntacticBuilderResolver for TestResolver {
         })
     }
 
-    fn track_computed_name(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _context: &mut NodeBuilderContext<'_>,
-        _access_expression: TransformNode,
-    ) -> Result<(), EmitResolverError> {
-        self.events.borrow_mut().push("track-computed".to_owned());
-        Ok(())
-    }
-
     fn get_module_specifier_override(
         &mut self,
         _arena: &mut tsc_emitter::TransformArena,
@@ -452,18 +301,6 @@ impl SyntacticBuilderResolver for TestResolver {
         Ok(!self
             .reuse_denied_kinds
             .contains(&self.kind_for_test(type_node).unwrap_or(SyntaxKind::Unknown)))
-    }
-
-    fn can_reuse_type_node_annotation(
-        &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _context: &mut NodeBuilderContext<'_>,
-        _node: TransformNode,
-        _existing: TransformNode,
-        _symbol: Option<SyntacticSymbol>,
-        _requires_adding_undefined: Option<bool>,
-    ) -> Result<bool, EmitResolverError> {
-        Ok(self.can_reuse_annotation)
     }
 }
 
@@ -536,26 +373,6 @@ fn find_transform_node(
     arena.node_ref(target, node).expect("mounted syntax node")
 }
 
-fn find_identifier(
-    checker: &crate::state::CheckerState<'_>,
-    arena: &TransformArena,
-    target: TransformSourceId,
-    text: &str,
-) -> TransformNode {
-    let source = checker.binder.source(0);
-    let node = source
-        .arena
-        .node_ids()
-        .find(|&node| {
-            matches!(
-                &source.arena.node(node).data,
-                NodeData::Identifier(data) if data.text() == text
-            )
-        })
-        .expect("requested identifier");
-    arena.node_ref(target, node).expect("mounted identifier")
-}
-
 #[test]
 fn syntactic_annotation_reuse_round_trips_parse_provenance_and_length() {
     let events = Rc::new(RefCell::new(Vec::new()));
@@ -586,7 +403,7 @@ fn syntactic_annotation_reuse_round_trips_parse_provenance_and_length() {
                     error: Box::new(error),
                 })?;
             let expected_length = record.end - record.pos;
-            let builder = SyntacticTypeNodeBuilder::new(&options);
+            let builder = SyntacticTypeNodeBuilder;
             let result = builder
                 .try_reuse_existing_type_node(resolver, arena, target, context, annotation)?
                 .expect("annotation reused");
@@ -598,38 +415,6 @@ fn syntactic_annotation_reuse_round_trips_parse_provenance_and_length() {
             })?;
             assert_eq!(round_trip, original);
             assert_eq!(context.approximate_length, expected_length);
-            Ok(())
-        },
-    );
-}
-
-#[test]
-fn syntactic_expression_fallback_reports_before_resolver() {
-    let events = Rc::new(RefCell::new(Vec::new()));
-    let mut resolver = TestResolver::new(Rc::clone(&events));
-    let mut tracker = TestTracker {
-        events: Rc::clone(&events),
-    };
-    let options = CompilerOptions::default();
-    with_case(
-        "/main.ts",
-        "const value = unknownValue;\n",
-        &options,
-        &mut resolver,
-        &mut tracker,
-        |checker, arena, target, context, resolver| {
-            let expression = find_identifier(checker, arena, target, "unknownValue");
-            let builder = SyntacticTypeNodeBuilder::new(&options);
-            let result = builder
-                .serialize_type_of_expression(resolver, arena, target, context, expression)?
-                .expect("semantic expression fallback");
-            assert_eq!(
-                arena.node(result).expect("result node").kind,
-                SyntaxKind::NumberKeyword
-            );
-            let log = events.borrow();
-            assert!(log[0].starts_with("report:"));
-            assert_eq!(log[1], "infer-expression");
             Ok(())
         },
     );
@@ -653,7 +438,7 @@ fn syntactic_recovery_scope_contains_error_and_consults_semantic_serializer() {
         |checker, arena, target, context, resolver| {
             let annotation =
                 find_transform_node(checker, arena, target, SyntaxKind::TypeReference, 0);
-            let builder = SyntacticTypeNodeBuilder::new(&options);
+            let builder = SyntacticTypeNodeBuilder;
             assert!(builder
                 .try_reuse_existing_type_node(resolver, arena, target, context, annotation)?
                 .is_some());
@@ -669,47 +454,40 @@ fn syntactic_recovery_scope_contains_error_and_consults_semantic_serializer() {
 }
 
 #[test]
-fn syntactic_no_inference_fallback_reports_then_skips_resolver() {
+fn syntactic_computed_name_error_marks_the_boundary_without_rewriting() {
+    // tsgo marks an error for a computed property name whose entity name
+    // introduces one and visits its children (nodecopy.go:751-759); strada's
+    // rewriting from the evaluator and the checker is gone, so the enclosing
+    // type literal falls back to its type.
     let events = Rc::new(RefCell::new(Vec::new()));
     let mut resolver = TestResolver::new(Rc::clone(&events));
+    resolver.track_error_kinds.insert(SyntaxKind::Identifier);
     let mut tracker = TestTracker {
         events: Rc::clone(&events),
     };
     let options = CompilerOptions::default();
     with_case(
         "/main.ts",
-        "const value = unknownValue; const tuple = [unknownElement] as const;\n",
+        "declare const key: unique symbol;\nlet value: { [key]: string };\n",
         &options,
         &mut resolver,
         &mut tracker,
         |checker, arena, target, context, resolver| {
-            let expression = find_identifier(checker, arena, target, "unknownValue");
-            context.no_inference_fallback = Some(true);
-            let builder = SyntacticTypeNodeBuilder::new(&options);
+            let literal = find_transform_node(checker, arena, target, SyntaxKind::TypeLiteral, 0);
+            let builder = SyntacticTypeNodeBuilder;
             let result = builder
-                .serialize_type_of_expression(resolver, arena, target, context, expression)?
-                .expect("gated Any result");
+                .try_reuse_existing_type_node(resolver, arena, target, context, literal)?
+                .expect("semantic fallback");
             assert_eq!(
                 arena.node(result).expect("result node").kind,
                 SyntaxKind::AnyKeyword
             );
-            let log = events.borrow();
-            assert_eq!(log.len(), 1);
-            assert!(log[0].starts_with("report:"));
-            drop(log);
-
-            events.borrow_mut().clear();
-            context.no_inference_fallback = Some(false);
-            let assertion =
-                find_transform_node(checker, arena, target, SyntaxKind::AsExpression, 0);
-            assert!(builder
-                .serialize_type_of_expression(resolver, arena, target, context, assertion,)?
-                .is_some());
-            assert_eq!(context.no_inference_fallback, Some(false));
-            assert!(events
-                .borrow()
-                .iter()
-                .any(|event| event == "infer-expression"));
+            assert_eq!(
+                *events.borrow(),
+                ["track:Identifier", "semantic-existing:TypeLiteral"]
+            );
+            assert!(!context.recovery_boundary_had_error);
+            assert_eq!(context.recovery_boundary_depth, 0);
             Ok(())
         },
     );
@@ -732,7 +510,7 @@ fn syntactic_simple_visit_covers_keyof_typeof_and_indexed_access() {
         |checker, arena, target, context, resolver| {
             let annotation =
                 find_transform_node(checker, arena, target, SyntaxKind::TypeOperator, 0);
-            let builder = SyntacticTypeNodeBuilder::new(&options);
+            let builder = SyntacticTypeNodeBuilder;
             let result = builder
                 .try_reuse_existing_type_node(resolver, arena, target, context, annotation)?
                 .expect("simple type path reused");
@@ -780,7 +558,7 @@ fn syntactic_jsdoc_type_literal_keeps_written_property_types() {
         |checker, arena, target, context, resolver| {
             let jsdoc =
                 find_transform_node(checker, arena, target, SyntaxKind::JSDocTypeLiteral, 0);
-            let builder = SyntacticTypeNodeBuilder::new(&options);
+            let builder = SyntacticTypeNodeBuilder;
             let result = builder
                 .try_reuse_existing_type_node(resolver, arena, target, context, jsdoc)?
                 .expect("JSDoc type literal reused");

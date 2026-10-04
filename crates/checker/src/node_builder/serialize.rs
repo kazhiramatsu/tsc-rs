@@ -6,9 +6,8 @@ use tsc_emitter::{
     EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
     SourceFileId, TransformArena, TransformNode, TransformNodeArray, TransformSourceId,
 };
-use tsc_syntax::nodes::UnionTypeData;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
+use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId};
 
 use crate::pseudochecker::{could_already_refer_to_undefined_type, PseudoChecker, PseudoType};
 use crate::state::{CheckAbort, CheckerState, IndexInfo, SignatureId};
@@ -19,24 +18,22 @@ use super::pseudo::{
 };
 use super::signatures::{enter_signature_scope, exit_new_scope};
 
-use super::signatures::{
-    elide_initializer_and_set_emit_flags, parameter_scope_symbols, track_computed_name,
-};
+use super::signatures::{elide_initializer_and_set_emit_flags, parameter_scope_symbols};
 use super::type_nodes::{
-    checker_abort_error, clone_parameter_name_to_source, create_identifier, create_node,
-    create_node_array, create_token, factory_error, project_parse_node, set_no_ascii_escaping,
-    type_to_type_node_helper, BuildResult,
+    checker_abort_error, clone_parameter_name_to_source, create_identifier, create_token,
+    factory_error, project_parse_node, set_no_ascii_escaping, type_to_type_node_helper,
+    BuildResult,
 };
 use super::{
     add_symbol_type_to_context, chains_symbol_to_entity_name_node, chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_enclosing_declaration_ignoring_fake_scope, get_module_specifier_override,
     get_type_from_type_node2, index_info_to_index_signature_declaration_helper, restore_flags,
-    restore_symbol_type_to_context, save_restore_flags, serialize_inferred_type_for_declaration,
-    set_text_range2, symbol_to_node, type_predicate_to_type_predicate_node_helper, with_context,
-    with_context_in_synthetic_module_scope, NodeBuilderContext, SyntacticAccessorDeclarations,
-    SyntacticBuilderResolver, SyntacticRecoveryBoundary, SyntacticScopeCleanup, SyntacticSymbol,
-    SyntacticTrackedEntityName, SyntacticTypeNodeBuilder, SyntheticModuleScope,
+    restore_symbol_type_to_context, save_restore_flags, set_text_range2, symbol_to_node,
+    type_predicate_to_type_predicate_node_helper, with_context,
+    with_context_in_synthetic_module_scope, NodeBuilderContext, SyntacticBuilderResolver,
+    SyntacticRecoveryBoundary, SyntacticScopeCleanup, SyntacticTrackedEntityName,
+    SyntacticTypeNodeBuilder, SyntheticModuleScope,
 };
 
 const METHOD: EmitResolverMethod = EmitResolverMethod::CreateTypeOfDeclaration;
@@ -811,34 +808,6 @@ pub(super) fn serialize_type_for_declaration_in_context(
     }
 }
 
-/// tsc-port: typeNodeIsEquivalentToType @6.0.3
-/// tsc-hash: 4d74998c72ff7900940c68b5e83d4ed47975b2fe6a352c61e7956862c7043927
-/// tsc-span: _tsc.js:53509-53523
-fn type_node_is_equivalent_to_type(
-    checker: &mut CheckerState<'_>,
-    annotated_declaration: Option<NodeId>,
-    r#type: TypeId,
-    type_from_type_node: TypeId,
-) -> Result<bool, CheckAbort> {
-    if type_from_type_node == r#type {
-        return Ok(true);
-    }
-    let Some(annotated_declaration) = annotated_declaration else {
-        return Ok(false);
-    };
-    let question_equivalent = match checker.kind_of(annotated_declaration) {
-        SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration => {
-            checker.has_question_token(annotated_declaration)
-        }
-        SyntaxKind::Parameter => checker.is_optional_declaration(annotated_declaration),
-        _ => false,
-    };
-    if !question_equivalent {
-        return Ok(false);
-    }
-    Ok(checker.get_type_with_facts(r#type, TypeFacts::NE_UNDEFINED)? == type_from_type_node)
-}
-
 /// tsc-port: serializeInferredReturnTypeForSignature @6.0.3
 /// tsc-hash: 390f2fcd36f4dba76b558db8246c41346b6c2ee61a9aef3ae2193329be77c292
 /// tsc-span: _tsc.js:53547-53554
@@ -1118,7 +1087,9 @@ pub(crate) fn serialize_type_for_declaration_seam(
     into_target(arena, target, Some(result))
 }
 
-/// tsrs-native: checker-side routing seam behind the syntactic resolver member.
+/// tsgo `serializeReturnTypeForSignature(signature, true)` for the node
+/// builder's signatures (nodebuilderimpl.go:1900), moved into the target
+/// source.
 pub(crate) fn serialize_return_type_for_signature_seam(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -1186,7 +1157,7 @@ pub(crate) fn syntactic_try_reuse_existing_type_node(
     let Some(type_node) = project_parse_node(checker, arena, type_node)? else {
         return Ok(None);
     };
-    let builder = SyntacticTypeNodeBuilder::new(checker.options);
+    let builder = SyntacticTypeNodeBuilder;
     let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
     {
         let result = builder.try_reuse_existing_type_node(
@@ -1213,7 +1184,7 @@ pub(crate) fn syntactic_try_reuse_existing_node(
     let Some(node) = project_parse_node(checker, arena, node)? else {
         return Ok(None);
     };
-    let builder = SyntacticTypeNodeBuilder::new(checker.options);
+    let builder = SyntacticTypeNodeBuilder;
     let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
     {
         let result =
@@ -1238,7 +1209,9 @@ pub(super) fn report_inference_fallback(
         .report_inference_fallback(&mut reported_diagnostic, false, &mut resolver, node)
 }
 
-/// tsrs-native: checker-side routing seam behind the syntactic resolver member.
+/// The written name of a parameter declaration for the node builder's
+/// parameters (tsgo parameterToParameterDeclarationName,
+/// nodebuilderimpl.go:1763).
 pub(crate) fn syntactic_serialize_name_of_parameter_seam(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -1385,9 +1358,8 @@ pub(crate) fn serialize_return_type_for_signature(
     .map(Option::flatten)
 }
 
-/// tsc-port: serializeTypeForExpression @6.0.3 (createNodeBuilder API)
-/// tsc-hash: a16196e77a3c9ff3cfad115c05536b0fec9c8bebc5fd8969124d9d31221ae6dd
-/// tsc-span: _tsc.js:50993-51003
+/// tsgo-port: NodeBuilder.SerializeTypeForExpression @7.1
+/// (nodebuilder.go:139-143): the expression's type in a new context.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn serialize_type_for_expression(
     checker: &mut CheckerState<'_>,
@@ -1410,28 +1382,61 @@ pub(crate) fn serialize_type_for_expression(
         None,
         None,
         |checker, arena, target, context| {
-            let Some(expression) = project_parse_node(checker, arena, expression)? else {
-                return Ok(None);
-            };
-            let builder = SyntacticTypeNodeBuilder::new(checker.options);
-            let mut resolver = ProductionSyntacticBuilderResolver::new(
-                checker,
-                EmitResolverMethod::CreateTypeOfExpression,
+            let result = serialize_type_for_expression_in_context(
+                checker, arena, target, context, expression,
             );
-            {
-                let result = builder.serialize_type_of_expression(
-                    &mut resolver,
-                    arena,
-                    target,
-                    context,
-                    expression,
-                )?;
-                into_target(arena, target, result)
-            }
+            into_target(arena, target, result?)
         },
         None,
     )
     .map(Option::flatten)
+}
+
+/// tsgo-port: NodeBuilderImpl.serializeTypeForExpression @7.1
+/// (nodebuilderimpl.go:1811-1815): the widened regular type of the
+/// expression, instantiated by the context's mapper (tsgo's shim, without
+/// node reuse).
+fn serialize_type_for_expression_in_context(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    context: &mut NodeBuilderContext<'_>,
+    expression: NodeId,
+) -> BuildResult<Option<TransformNode>> {
+    let regular = get_regular_type_of_expression(checker, context, expression)?;
+    let widened = checker
+        .get_widened_type(regular)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    let instantiated = checker
+        .instantiate_type(widened, context.mapper)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    type_to_type_node_helper(checker, arena, target, instantiated, context)
+}
+
+/// tsgo-port: Checker.getRegularTypeOfExpression @7.1 (checker.go:32603-32608):
+/// the regular type of the expression, or of its parent when it is the right
+/// side of a qualified name or property access.
+pub(super) fn get_regular_type_of_expression(
+    checker: &mut CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    mut expression: NodeId,
+) -> BuildResult<TypeId> {
+    if let Some(parent) = checker.parent_of(expression) {
+        let is_right_side = matches!(
+            checker.data_of(parent),
+            NodeData::QualifiedName(data) if data.right == Some(expression)
+        ) || matches!(
+            checker.data_of(parent),
+            NodeData::PropertyAccessExpression(data) if data.name == Some(expression)
+        );
+        if is_right_side {
+            expression = parent;
+        }
+    }
+    let r#type = checker
+        .get_type_of_expression(expression)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    Ok(checker.regular_type_of_literal_type(r#type))
 }
 
 /// tsc-port: indexInfoToIndexSignatureDeclaration @6.0.3 (createNodeBuilder API)
@@ -1509,22 +1514,6 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
             method: self.method,
             node: resolver_node(self.checker, node),
             reason: "syntacticBuilderResolver received an invalid checker token",
-        }
-    }
-
-    fn parse_symbol(
-        &mut self,
-        node: NodeId,
-        supplied: Option<SyntacticSymbol>,
-        context: &NodeBuilderContext<'_>,
-    ) -> BuildResult<SymbolId> {
-        match supplied {
-            Some(symbol) if self.checker.binder.try_symbol(symbol.id).is_some() => Ok(symbol.id),
-            Some(_) => Err(self.invalid_token_error(Some(node))),
-            None => self
-                .checker
-                .get_symbol_of_declaration(node)
-                .map_err(|abort| checker_abort_error(self.checker, context, abort)),
         }
     }
 
@@ -1856,21 +1845,6 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
     }
 }
 
-fn some_type_is_undefined(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
-    if let TypeData::Union { types, .. } = &checker.tables.type_of(r#type).data {
-        return types.iter().any(|&member| {
-            checker
-                .tables
-                .flags_of(member)
-                .intersects(TypeFlags::UNDEFINED)
-        });
-    }
-    checker
-        .tables
-        .flags_of(r#type)
-        .intersects(TypeFlags::UNDEFINED)
-}
-
 fn contains_non_missing_undefined(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
     let candidate = match &checker.tables.type_of(r#type).data {
         TypeData::Union { types, .. } => types.first().copied().unwrap_or(r#type),
@@ -1881,19 +1855,6 @@ fn contains_non_missing_undefined(checker: &CheckerState<'_>, r#type: TypeId) ->
             .tables
             .flags_of(candidate)
             .intersects(TypeFlags::UNDEFINED)
-}
-
-fn is_value_signature_declaration(checker: &CheckerState<'_>, node: NodeId) -> bool {
-    matches!(
-        checker.kind_of(node),
-        SyntaxKind::FunctionExpression
-            | SyntaxKind::ArrowFunction
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::GetAccessor
-            | SyntaxKind::SetAccessor
-            | SyntaxKind::FunctionDeclaration
-            | SyntaxKind::Constructor
-    )
 }
 
 fn is_declaration_name(checker: &CheckerState<'_>, node: NodeId) -> bool {
@@ -2374,17 +2335,6 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
 /// tsc-hash: 4435e40ac4ba06bf9e97dd48b84835ddcec09e878d5b6163f041aa5ea0398894
 /// tsc-span: _tsc.js:50778-50956
 impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
-    fn evaluate_entity_name_expression(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        expression: TransformNode,
-    ) -> Result<crate::evaluate::EvaluatorResult, EmitResolverError> {
-        let expression = self.parse_node(arena, expression)?;
-        self.checker.evaluate(expression, None).map_err(|abort| {
-            callback_abort_error(self.checker, self.method, Some(expression), abort)
-        })
-    }
-
     fn has_late_bindable_name(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
@@ -2440,162 +2390,8 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         Ok(SyntacticRecoveryBoundary::new(context))
     }
 
-    fn is_definitely_reference_to_global_symbol_object(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        node: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        let node = self.parse_node(arena, node)?;
-        self.checker
-            .emit_is_definitely_reference_to_global_symbol_object(node)
-            .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
-    }
-
-    /// tsc-port: getAllAccessorDeclarationsForDeclaration @6.0.3
-    /// tsc-hash: 794fe073022a3aebb21778d82647171a1213ce230d4575e61de2a3f44b2741c7
-    /// tsc-span: _tsc.js:88367-88381
-    fn get_all_accessor_declarations(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        accessor: TransformNode,
-    ) -> Result<SyntacticAccessorDeclarations, EmitResolverError> {
-        let accessor_node = self.parse_node(arena, accessor)?;
-        let symbol = self
-            .checker
-            .get_symbol_of_declaration(accessor_node)
-            .map_err(|abort| {
-                callback_abort_error(self.checker, self.method, Some(accessor_node), abort)
-            })?;
-        let other_kind = if self.checker.kind_of(accessor_node) == SyntaxKind::SetAccessor {
-            SyntaxKind::GetAccessor
-        } else {
-            SyntaxKind::SetAccessor
-        };
-        let other_node = self
-            .checker
-            .binder
-            .symbol(symbol)
-            .declarations
-            .iter()
-            .copied()
-            .find(|&declaration| self.checker.kind_of(declaration) == other_kind);
-        let other = other_node
-            .map(|other| self.project_parse_node(arena, other))
-            .transpose()?
-            .flatten();
-        let other_precedes = other_node.is_some_and(|other| {
-            self.checker
-                .binder
-                .source_of_node(other)
-                .arena
-                .node(other)
-                .pos
-                < self
-                    .checker
-                    .binder
-                    .source_of_node(accessor_node)
-                    .arena
-                    .node(accessor_node)
-                    .pos
-        });
-        let (first_accessor, second_accessor) = if other_precedes {
-            (other.unwrap_or(accessor), Some(accessor))
-        } else {
-            (accessor, other)
-        };
-        let (get_accessor, set_accessor) =
-            if self.checker.kind_of(accessor_node) == SyntaxKind::GetAccessor {
-                (Some(accessor), other)
-            } else {
-                (other, Some(accessor))
-            };
-        Ok(SyntacticAccessorDeclarations {
-            first_accessor,
-            second_accessor,
-            get_accessor,
-            set_accessor,
-        })
-    }
-
-    fn requires_adding_implicit_undefined(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        declaration: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-        enclosing_declaration: Option<NodeId>,
-    ) -> Result<bool, EmitResolverError> {
-        let declaration = self.parse_node(arena, declaration)?;
-        match self.checker.kind_of(declaration) {
-            SyntaxKind::PropertyDeclaration
-            | SyntaxKind::PropertySignature
-            | SyntaxKind::JSDocPropertyTag => {
-                let context_node = enclosing_declaration.unwrap_or(declaration);
-                let symbol = match symbol {
-                    Some(symbol) => symbol.id,
-                    None => self
-                        .checker
-                        .get_symbol_of_declaration(declaration)
-                        .map_err(|abort| {
-                            callback_abort_error(
-                                self.checker,
-                                self.method,
-                                Some(context_node),
-                                abort,
-                            )
-                        })?,
-                };
-                let r#type = self.checker.get_type_of_symbol(symbol).map_err(|abort| {
-                    callback_abort_error(self.checker, self.method, Some(context_node), abort)
-                })?;
-                let flags = self.checker.symbol_flags(symbol);
-                Ok(flags.intersects(SymbolFlags::PROPERTY)
-                    && flags.intersects(SymbolFlags::OPTIONAL)
-                    && self.checker.is_optional_declaration(declaration)
-                    && self
-                        .checker
-                        .links
-                        .symbol_cold()
-                        .mapped_type
-                        .get(symbol)
-                        .is_some()
-                    && contains_non_missing_undefined(self.checker, r#type))
-            }
-            SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag => self
-                .checker
-                .emit_requires_adding_implicit_undefined(declaration, enclosing_declaration)
-                .map_err(|abort| {
-                    callback_abort_error(self.checker, self.method, Some(declaration), abort)
-                }),
-            _ => Ok(false),
-        }
-    }
-
-    fn is_optional_parameter(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        parameter: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        let parameter = self.parse_node(arena, parameter)?;
-        self.checker
-            .emit_is_optional_parameter(parameter)
-            .map_err(|abort| {
-                callback_abort_error(self.checker, self.method, Some(parameter), abort)
-            })
-    }
-
-    fn is_undefined_identifier_expression(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        node: TransformNode,
-    ) -> Result<bool, EmitResolverError> {
-        let node = self.parse_node(arena, node)?;
-        self.checker
-            .get_resolved_symbol(node)
-            .map(|symbol| symbol == Some(self.checker.undefined_symbol))
-            .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
-    }
-
-    /// tsc-port: serializeExistingTypeNode @6.0.3
+    /// tsc-port: serializeExistingTypeNode @6.0.3, without the addUndefined
+    /// arm (the visitor passes false)
     /// tsc-hash: 433daa463f78335a63960c6658ccab7a037a667922af31e6eb4320cadafe30ff
     /// tsc-span: _tsc.js:53712-53721
     fn serialize_existing_type_node(
@@ -2604,206 +2400,16 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         target: TransformSourceId,
         context: &mut NodeBuilderContext<'_>,
         type_node: TransformNode,
-        add_undefined: bool,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let type_node_parse = arena
+        let type_node = arena
             .require_parse_tree_resolver_node(type_node)
             .map_err(factory_error)?
             .node();
-        let Some(r#type) = get_type_from_type_node2(self.checker, context, type_node_parse, false)?
+        let Some(r#type) = get_type_from_type_node2(self.checker, context, type_node, false)?
         else {
             return Ok(None);
         };
-        if add_undefined
-            && !some_type_is_undefined(self.checker, r#type)
-            && self.can_reuse_type_node_parse(context, type_node_parse)?
-        {
-            let builder = SyntacticTypeNodeBuilder::new(self.checker.options);
-            if let Some(clone) = {
-                let result = builder
-                    .try_reuse_existing_type_node(self, arena, target, context, type_node)?;
-                into_target(arena, target, result)
-            }? {
-                let undefined = create_token(arena, target, SyntaxKind::UndefinedKeyword)?;
-                let types = create_node_array(arena, target, vec![clone, undefined])?;
-                return create_node(
-                    arena,
-                    target,
-                    NodeData::UnionType(UnionTypeData { types: Some(types) }),
-                )
-                .map(Some);
-            }
-        }
         type_to_type_node_helper(self.checker, arena, target, r#type, context)
-    }
-
-    fn serialize_return_type_for_signature(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        signature_declaration: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let declaration = arena
-            .require_parse_tree_resolver_node(signature_declaration)
-            .map_err(factory_error)?
-            .node();
-        let signature = self
-            .checker
-            .get_signature_from_declaration(declaration)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        let symbol = self.parse_symbol(declaration, symbol, context)?;
-        let return_type = match context.enclosing_symbol_types.get(&symbol).copied() {
-            Some(r#type) => r#type,
-            None => {
-                let return_type = self
-                    .checker
-                    .get_return_type_of_signature(signature)
-                    .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                self.checker
-                    .instantiate_type(return_type, context.mapper)
-                    .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-            }
-        };
-        serialize_inferred_return_type_for_signature(
-            self.checker,
-            arena,
-            target,
-            context,
-            signature,
-            return_type,
-        )
-    }
-
-    fn serialize_type_of_expression(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        expression: TransformNode,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let mut expression = arena
-            .require_parse_tree_resolver_node(expression)
-            .map_err(factory_error)?
-            .node();
-        if let Some(parent) = self.checker.parent_of(expression) {
-            let is_right_side = matches!(
-                self.checker.data_of(parent),
-                NodeData::QualifiedName(data) if data.right == Some(expression)
-            ) || matches!(
-                self.checker.data_of(parent),
-                NodeData::PropertyAccessExpression(data) if data.name == Some(expression)
-            );
-            if is_right_side {
-                expression = parent;
-            }
-        }
-        let expression_type = self
-            .checker
-            .get_type_of_expression(expression)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        let regular = self.checker.regular_type_of_literal_type(expression_type);
-        let widened = self
-            .checker
-            .get_widened_type(regular)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        let instantiated = self
-            .checker
-            .instantiate_type(widened, context.mapper)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        type_to_type_node_helper(self.checker, arena, target, instantiated, context)
-    }
-
-    fn serialize_type_of_declaration(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        declaration: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let declaration = arena
-            .require_parse_tree_resolver_node(declaration)
-            .map_err(factory_error)?
-            .node();
-        let symbol = self.parse_symbol(declaration, symbol, context)?;
-        let mut r#type = match context.enclosing_symbol_types.get(&symbol).copied() {
-            Some(r#type) => r#type,
-            None => {
-                let flags = self.checker.symbol_flags(symbol);
-                if flags.intersects(SymbolFlags::GET_ACCESSOR | SymbolFlags::SET_ACCESSOR)
-                    && self.checker.kind_of(declaration) == SyntaxKind::SetAccessor
-                {
-                    let write = self
-                        .checker
-                        .get_write_type_of_symbol(symbol)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                    self.checker
-                        .instantiate_type(write, context.mapper)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                } else if !flags.intersects(SymbolFlags::TYPE_LITERAL | SymbolFlags::SIGNATURE) {
-                    let symbol_type = self
-                        .checker
-                        .get_type_of_symbol(symbol)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                    let widened = self
-                        .checker
-                        .get_widened_literal_type(symbol_type)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                    self.checker
-                        .instantiate_type(widened, context.mapper)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                } else {
-                    self.checker.tables.intrinsics.error
-                }
-            }
-        };
-        if r#type == self.checker.tables.intrinsics.error {
-            if let Some(recovered) =
-                recover_suppressed_import_call_return_type(self.checker, declaration)
-            {
-                r#type = self
-                    .checker
-                    .instantiate_type(recovered, context.mapper)
-                    .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-            }
-        }
-        if matches!(
-            self.checker.kind_of(declaration),
-            SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag
-        ) && self
-            .checker
-            .emit_requires_adding_implicit_undefined(declaration, context.enclosing_declaration)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-        {
-            r#type = self
-                .checker
-                .get_optional_type(r#type, false)
-                .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        }
-        serialize_inferred_type_for_declaration(
-            self.checker,
-            arena,
-            target,
-            symbol,
-            context,
-            r#type,
-        )
-    }
-
-    fn serialize_name_of_parameter(
-        &mut self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        parameter: TransformNode,
-    ) -> Result<TransformNode, EmitResolverError> {
-        let parameter = arena
-            .require_parse_tree_resolver_node(parameter)
-            .map_err(factory_error)?
-            .node();
-        serialize_parameter_name_from_parse(self.checker, arena, target, context, parameter)
     }
 
     /// tsc-port: serializeTypeName @6.0.3
@@ -3080,16 +2686,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         })
     }
 
-    fn track_computed_name(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        context: &mut NodeBuilderContext<'_>,
-        access_expression: TransformNode,
-    ) -> Result<(), EmitResolverError> {
-        let access_expression = self.parse_node(arena, access_expression)?;
-        track_computed_name(self.checker, access_expression, context)
-    }
-
     fn get_module_specifier_override(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
@@ -3108,93 +2704,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
     ) -> Result<bool, EmitResolverError> {
         let type_node = self.parse_node(arena, type_node)?;
         self.can_reuse_type_node_parse(context, type_node)
-    }
-
-    /// tsc-port: syntacticBuilderResolver.canReuseTypeNodeAnnotation @6.0.3
-    /// tsc-hash: edfd54626c63d3d1645a16cfcad8561dab1388e09a7278579ada789709becc6d
-    /// tsc-span: _tsc.js:50932-50955
-    fn can_reuse_type_node_annotation(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        context: &mut NodeBuilderContext<'_>,
-        node: TransformNode,
-        existing: TransformNode,
-        symbol: Option<SyntacticSymbol>,
-        requires_adding_undefined: Option<bool>,
-    ) -> Result<bool, EmitResolverError> {
-        // Reuse the annotation-reuse decision core directly. This callback must
-        // never route through the text-slice renderer used by declaration emit.
-        if context.enclosing_declaration.is_none() {
-            return Ok(false);
-        }
-        let node = self.parse_node(arena, node)?;
-        let existing = self.parse_node(arena, existing)?;
-        let symbol = self.parse_symbol(node, symbol, context)?;
-        let r#type = match context.enclosing_symbol_types.get(&symbol).copied() {
-            Some(r#type) => r#type,
-            None => {
-                let flags = self.checker.symbol_flags(symbol);
-                if flags.intersects(SymbolFlags::GET_ACCESSOR | SymbolFlags::SET_ACCESSOR) {
-                    if self.checker.kind_of(node) == SyntaxKind::SetAccessor {
-                        self.checker
-                            .get_write_type_of_symbol(symbol)
-                            .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                    } else {
-                        self.checker
-                            .get_type_of_accessors(symbol)
-                            .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                    }
-                } else if is_value_signature_declaration(self.checker, node) {
-                    let signature = self
-                        .checker
-                        .get_signature_from_declaration(node)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                    self.checker
-                        .get_return_type_of_signature(signature)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                } else {
-                    self.checker
-                        .get_type_of_symbol(symbol)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                }
-            }
-        };
-        let mut annotation_type = self
-            .checker
-            .get_type_from_type_node(existing)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        if self.checker.tables.is_error_type(annotation_type) {
-            return Ok(true);
-        }
-        // addOptionality(annotationType, !isParameter(node)) @6.0.3
-        // (_tsc.js:56029-56031): `strictNullChecks && isOptional ?
-        // getOptionalType(type, isProperty) : type` — the strictNullChecks
-        // gate lives INSIDE addOptionality, so a mapped-type optional
-        // property that requires undefined under `strictNullChecks: false`
-        // compares its annotation as-is (getOptionalType asserts
-        // strictNullChecks; h2-7b-m-2 fence amendment #4).
-        if requires_adding_undefined == Some(true) && self.checker.tables.strict_null_checks {
-            annotation_type = self
-                .checker
-                .get_optional_type(
-                    annotation_type,
-                    self.checker.kind_of(node) != SyntaxKind::Parameter,
-                )
-                .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        }
-        Ok(type_node_is_equivalent_to_type(
-            self.checker,
-            Some(node),
-            r#type,
-            annotation_type,
-        )
-        .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-            && existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
-                self.checker,
-                existing,
-                r#type,
-                context,
-            )?)
     }
 }
 
