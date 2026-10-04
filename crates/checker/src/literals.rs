@@ -126,10 +126,12 @@ impl<'a> CheckerState<'a> {
         if self.is_mutable_array_or_tuple(ty)? {
             return Ok(true);
         }
+        // tsgo also excludes `never` (checker.go:23982-23986), so a contextual
+        // type of `never` does not make an `as const` tuple mutable.
         if self
             .tables
             .flags_of(ty)
-            .intersects(TypeFlags::ANY | TypeFlags::NULLABLE)
+            .intersects(TypeFlags::ANY | TypeFlags::NULLABLE | TypeFlags::NEVER)
         {
             return Ok(false);
         }
