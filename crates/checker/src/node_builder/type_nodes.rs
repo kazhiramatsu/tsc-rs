@@ -2826,7 +2826,9 @@ fn create_anonymous_type_node(
                 None,
             );
         }
-        let should_write_function =
+        // tsgo writes a top-level function expression's type as the
+        // `typeof` of its variable (nodebuilderimpl.go:2852-2888).
+        let (should_write_function, function_symbol) =
             should_write_type_of_function_symbol(checker, arena, target, r#type, symbol, context)?;
         let has_base_type_variable = if symbol_flags.intersects(SymbolFlags::CLASS) {
             let class_type = checker
@@ -2880,11 +2882,16 @@ fn create_anonymous_type_node(
             && !write_class_expression_as_literal;
         let named_value = symbol_flags.intersects(
             SymbolFlags::REGULAR_ENUM | SymbolFlags::CONST_ENUM | SymbolFlags::VALUE_MODULE,
-        ) || should_write_function;
-        if !force_expansion && (named_class || named_value) {
+        );
+        if !force_expansion && (named_class || named_value || should_write_function) {
             if should_expand_type(checker, r#type, context, false) {
                 context.depth += 1;
             } else {
+                let symbol = if named_class || named_value {
+                    symbol
+                } else {
+                    function_symbol
+                };
                 return chains_symbol_to_type_node(
                     checker,
                     arena,
@@ -2947,9 +2954,11 @@ fn create_anonymous_type_node(
     create_type_node_from_object_type(checker, arena, target, r#type, context)
 }
 
-/// tsc-port: shouldWriteTypeOfFunctionSymbol @6.0.3
-/// tsc-hash: c613afc58096a6ced8cbbaf0463b9eb7009d996d87842cfac380b4d1753d085a
-/// tsc-span: _tsc.js:51799-51809
+/// tsgo-port: shouldWriteTypeOfFunctionSymbol @7.1
+/// (nodebuilderimpl.go:2852-2888): whether an anonymous function type is
+/// written as `typeof`, and the symbol it names. A static method needs an
+/// identifier name; a function expression or arrow function that initializes
+/// a top-level variable is named by the variable.
 fn should_write_type_of_function_symbol(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -2957,30 +2966,85 @@ fn should_write_type_of_function_symbol(
     r#type: TypeId,
     symbol: SymbolId,
     context: &mut NodeBuilderContext<'_>,
-) -> BuildResult<bool> {
-    let (flags, parent, declarations) = {
+) -> BuildResult<(bool, SymbolId)> {
+    let (flags, parent, declarations, value_declaration) = {
         let data = checker.binder.symbol(symbol);
-        (data.flags, data.parent, data.declarations.clone())
+        (
+            data.flags,
+            data.parent,
+            data.declarations.clone(),
+            data.value_declaration,
+        )
     };
     let is_static_method = flags.intersects(SymbolFlags::METHOD)
+        && checker
+            .binder
+            .symbol(symbol)
+            .escaped_name
+            .unescape()
+            .as_str()
+            .is_some_and(tsc_syntax::is_identifier_text)
         && declarations.iter().copied().any(|declaration| {
             checker.is_static_element(declaration)
                 && !checker
                     .has_late_bindable_index_signature(declaration)
                     .unwrap_or(true)
         });
-    let is_non_local_function = flags.intersects(SymbolFlags::FUNCTION)
-        && (parent.is_some()
-            || declarations.iter().copied().any(|declaration| {
-                checker.parent_of(declaration).is_some_and(|parent| {
+    let mut is_non_local_function = false;
+    let mut is_function_expression = false;
+    if flags.intersects(SymbolFlags::FUNCTION) {
+        if parent.is_some() {
+            is_non_local_function = true;
+        } else {
+            for &declaration in &declarations {
+                let declaration_parent = checker.parent_of(declaration);
+                if declaration_parent.is_some_and(|parent| {
                     matches!(
                         checker.kind_of(parent),
                         SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
                     )
-                })
-            }));
+                }) {
+                    is_non_local_function = true;
+                    break;
+                }
+                let statement_container = declaration_parent
+                    .filter(|&parent| checker.kind_of(parent) == SyntaxKind::VariableDeclaration)
+                    .and_then(|variable| checker.parent_of(variable))
+                    .filter(|&list| checker.kind_of(list) == SyntaxKind::VariableDeclarationList)
+                    .and_then(|list| checker.parent_of(list))
+                    .filter(|&statement| {
+                        checker.kind_of(statement) == SyntaxKind::VariableStatement
+                    })
+                    .and_then(|statement| checker.parent_of(statement));
+                if matches!(
+                    checker.kind_of(declaration),
+                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+                ) && statement_container.is_some_and(|container| {
+                    matches!(
+                        checker.kind_of(container),
+                        SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
+                    )
+                }) {
+                    is_non_local_function = true;
+                    is_function_expression = true;
+                    break;
+                }
+            }
+        }
+    }
     if !(is_static_method || is_non_local_function) {
-        return Ok(false);
+        return Ok((false, symbol));
+    }
+    let mut symbol = symbol;
+    if is_function_expression {
+        if let Some(variable) = value_declaration
+            .and_then(|declaration| checker.parent_of(declaration))
+            .filter(|&variable| Some(variable) != context.enclosing_declaration)
+        {
+            if let Some(variable_symbol) = checker.node_symbol(variable) {
+                symbol = checker.get_merged_symbol(variable_symbol);
+            }
+        }
     }
     let requested = has_flag(context, USE_TYPE_OF_FUNCTION)
         || context
@@ -2988,10 +3052,13 @@ fn should_write_type_of_function_symbol(
             .as_ref()
             .is_some_and(|visited| visited.contains(&r#type));
     if !requested {
-        return Ok(false);
+        return Ok((false, symbol));
     }
-    Ok(!has_flag(context, USE_STRUCTURAL_FALLBACK)
-        || is_value_symbol_accessible(checker, arena, target, symbol, context)?)
+    Ok((
+        !has_flag(context, USE_STRUCTURAL_FALLBACK)
+            || is_value_symbol_accessible(checker, arena, target, symbol, context)?,
+        symbol,
+    ))
 }
 
 #[derive(Clone, Copy)]

@@ -1663,11 +1663,10 @@ fn collect_binding_name_events(
     {
         collect_function_body_declaration_name_events(arena, source, node, events)?;
     }
-    // tsc-port: emitModuleBlock @6.0.3
+    // tsgo emitModuleBlock (printer.go:3856-3866) generates the block's
+    // declaration names first, in the enclosing scope: unlike tsc 6.0, it
+    // pushes no name-generation scope, so temps continue across namespaces.
     if !scope_root && record.kind == SyntaxKind::ModuleBlock {
-        events.push(BindingNameEvent::EnterScope(
-            GeneratedBindingOwner::FunctionBody,
-        ));
         collect_function_body_declaration_name_events(arena, source, node, events)?;
         let syntax = arena.source(source)?.syntax();
         let mut children = Vec::new();
@@ -1684,7 +1683,6 @@ fn collect_binding_name_events(
                 events,
             )?;
         }
-        events.push(BindingNameEvent::ExitScope);
         return Ok(());
     }
     if let Some(binding) = arena

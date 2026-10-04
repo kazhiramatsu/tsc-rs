@@ -1294,9 +1294,9 @@ impl Printer {
 
     /// `pushNameGenerationScope(node)` for the kinds tsc scopes
     /// (`emitSignatureAndBody`, `emitClassDeclarationOrExpression`,
-    /// `emitClassStaticBlockDeclaration`, `emitModuleBlock`,
-    /// `emitObjectLiteralExpression`, `emitTypeLiteral`,
-    /// `emitInterfaceDeclaration`; `emitSourceFileWorker` pushes in
+    /// `emitClassStaticBlockDeclaration`, `emitObjectLiteralExpression`,
+    /// `emitTypeLiteral`, `emitInterfaceDeclaration`; tsgo's
+    /// `emitModuleBlock` pushes none; `emitSourceFileWorker` pushes in
     /// `write_transformed_source_file`). A `ReuseTempVariableScope` node
     /// keeps the enclosing `tempFlags` / `reservedNames`
     /// (_tsc.js:120480-120491). Returns whether a scope was pushed.
@@ -1318,7 +1318,6 @@ impl Printer {
                 | SyntaxKind::ClassStaticBlockDeclaration
                 | SyntaxKind::ClassDeclaration
                 | SyntaxKind::ClassExpression
-                | SyntaxKind::ModuleBlock
                 | SyntaxKind::ObjectLiteralExpression
                 | SyntaxKind::TypeLiteral
                 | SyntaxKind::InterfaceDeclaration
