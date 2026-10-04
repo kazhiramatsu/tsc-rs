@@ -402,7 +402,6 @@ fn load_native_program_files(
     // here so an emitting compiler-suite plan observes the upstream baseline
     // bytes while the production CLI continues to use its own host default.
     compiler_options.new_line.get_or_insert(0);
-    compiler_options.no_error_truncation = Some(true);
     let catalog = LibraryCatalog::typescript_7_1(library_directory);
     let loaded = if compiler_options.no_emit == Some(true) {
         load_program(
@@ -677,6 +676,10 @@ fn project_compiler_options(
     // true only when the config did not supply a value. Fixture settings are
     // applied below and retain the final override.
     compiler_options.skip_default_lib_check.get_or_insert(true);
+    // tsgo's harness sets noErrorTruncation over the config's value and
+    // before the fixture's settings (harnessutil.go:104-108), so
+    // `@noErrorTruncation: false` turns it off.
+    compiler_options.no_error_truncation = Some(true);
     apply_compiler_settings(
         &mut compiler_options,
         &mut program_options,

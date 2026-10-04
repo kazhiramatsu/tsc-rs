@@ -3051,6 +3051,33 @@ fn distributed_type_parameters_follow_tsgo() {
 }
 
 #[test]
+fn long_type_strings_are_cut_like_tsgo() {
+    // tsgo's typeToStringEx cuts a type string of 320 bytes or more to 317
+    // bytes and `...` (checker/printer.go:103-115). The expected diagnostics
+    // are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function make(): (alphaParameterName: string, betaParameterName: number, gammaParameterName: boolean, deltaParameterName: string, epsilonParameterName: number, zetaParameterName: boolean, etaParameterName: string, thetaParameterName: number, iotaParameterName: boolean, kappaParameterName: string, lambdaParameterName: number, muParameterName: boolean, nuParameterName: string, xiParameterName: number, omicronParameterName: boolean, piParameterName: string) => void;\n",
+            "const value: number = make();\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        "a.ts(2,7): error TS2322: Type '(alphaParameterName: string, betaParameterName: number, gammaParameterName: boolean, deltaParameterName: string, epsilonParameterName: number, zetaParameterName: boolean, etaParameterName: string, thetaParameterName: number, iotaParameterName: boolean, kappaParameterName: string, lambdaParameterName: number, muParam...' is not assignable to type 'number'.\n"
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
