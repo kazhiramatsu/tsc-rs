@@ -5223,9 +5223,17 @@ impl<'a> CheckerState<'a> {
             let prop = self.get_property_of_type_ex(ty, name, skip)?;
             if let Some(prop) = prop {
                 let modifiers = self.get_declaration_modifier_flags_from_symbol(prop);
-                let write_modifiers =
-                    self.get_declaration_modifier_flags_from_symbol_write(prop, true);
                 let prop_symbol_flags = self.symbol_flags(prop);
+                // Without a set accessor or synthetic write flags, the write
+                // accessibility is the read accessibility.
+                let write_modifiers = if prop_symbol_flags.intersects(SymbolFlags::SET_ACCESSOR)
+                    || prop_symbol_flags.intersects(SymbolFlags::TRANSIENT)
+                        && self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC)
+                {
+                    self.get_declaration_modifier_flags_from_symbol_write(prop, true)
+                } else {
+                    modifiers
+                };
                 if prop_symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
                     let base = optional_flag.unwrap_or(if is_union {
                         SymbolFlags::from_bits(0)
@@ -5824,8 +5832,13 @@ impl<'a> CheckerState<'a> {
         // tsgo reads a synthetic property's check flags before any value
         // declaration it carries (getDeclarationModifierFlagsFromSymbolEx,
         // checker/utilities.go:761-776): the declaration of one constituent
-        // does not decide the property's accessibility.
-        let check_flags = self.get_check_flags(symbol);
+        // does not decide the property's accessibility. Synthetic properties
+        // are transient symbols, so a binder symbol needs no links read.
+        let check_flags = if self.symbol_flags(symbol).intersects(SymbolFlags::TRANSIENT) {
+            self.get_check_flags(symbol)
+        } else {
+            CheckFlags::from_bits(0)
+        };
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
             // 17445-17447: accessModifier | staticModifier — the
             // STATIC OR-in is load-bearing for synthesized protected
