@@ -260,6 +260,7 @@ compiler/arrowFunctionWithObjectLiteralBody4	full	js
 compiler/arrowFunctionWithObjectLiteralBody5	full	js
 compiler/arrowFunctionWithObjectLiteralBody6	full	js
 compiler/arrowFunctionsMissingTokens	full	js
+compiler/asConstReadonlyTupleInferenceThroughNestedGenericCall	full	js
 compiler/asiAbstract	full	js
 compiler/asiAmbientFunctionDeclaration	full	js
 compiler/asiArith	full	js
@@ -3239,6 +3240,7 @@ compiler/implicitAnyInCatch	full	js
 compiler/implicitAnyNewExprLackConstructorSignature	full	js
 compiler/implicitAnyWidenToAny	full	js
 compiler/implicitConstParameters	full	js
+compiler/implicitEmptyObjectType	full	js
 compiler/implicitIndexSignatures	full	js
 compiler/impliedNodeFormatEmit1(module=commonjs)	full	js
 compiler/impliedNodeFormatEmit1(module=esnext)	full	js
@@ -5976,6 +5978,7 @@ compiler/stripInternal1	full	js
 compiler/stripMembersOptionality(exactoptionalpropertytypes=false)	full	js
 compiler/stripMembersOptionality(exactoptionalpropertytypes=true)	full	js
 compiler/stripMembersOptionality2(exactoptionalpropertytypes=false)	full	js
+compiler/stripMembersOptionality2(exactoptionalpropertytypes=true)	full	js
 compiler/structural1	full	js
 compiler/structuralTypeInDeclareFileForModule	full	js
 compiler/styleOptions	full	js
@@ -6076,6 +6079,7 @@ compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesDeepNonrelativeName	
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesNonrelativeName	full	js
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkOptionalGeneratesNonrelativeName	full	js
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkPeerGeneratesNonrelativeName	full	js
+compiler/syntheticProtectedProperties	full	js
 compiler/taggedPrimitiveNarrowing	full	js
 compiler/taggedTemplateNestedInvalidEscape	full	js
 compiler/taggedTemplateStringWithSymbolExpression01	full	js
@@ -6117,6 +6121,7 @@ compiler/templateExpressionNoInlininingOfConstantBindingWithInitializer	full	js
 compiler/templateLiteralConstantEvaluation	full	js
 compiler/templateLiteralEscapeSequence	full	js
 compiler/templateLiteralInferenceLoneSurrogate	full	js
+compiler/templateLiteralInferenceSupplementarySplit	full	js
 compiler/templateLiteralIntersection	full	js
 compiler/templateLiteralIntersection2	full	js
 compiler/templateLiteralIntersection3	full	js

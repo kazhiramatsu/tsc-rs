@@ -17,8 +17,8 @@ use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
     CheckFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
-    MappedTypeModifiers, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags,
-    TypeId, TypeSystemPropertyName, UnionReduction,
+    MappedTypeModifiers, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
+    TypeSystemPropertyName, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -1551,7 +1551,10 @@ impl<'a> CheckerState<'a> {
             && modifiers.intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL)
             && is_optional
         {
-            self.get_type_with_facts(property_type, TypeFacts::NE_UNDEFINED)
+            // tsgo removes only the missing type under
+            // exactOptionalPropertyTypes, keeping a written `undefined`
+            // (instantiateMappedTypeTemplate, checker.go:23073-23074).
+            self.remove_missing_or_undefined_type(property_type)
         } else {
             Ok(property_type)
         }

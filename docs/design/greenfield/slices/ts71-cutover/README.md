@@ -2429,3 +2429,46 @@ P3-5avの後の4件（前の2件はREADMEのNext.jsの出力の差から）：
     hono `bench-full` 1.00024、Next.js `bench-full` 0.99961。3回の差はnoiseで、劣化無し。
 - hosted：PR #674（head `e3c293e19`）、run 37238181312 — `plan` 29s、`rust` 9m33s、`conformance (TypeScript 7.1)` 20m47s、
   `gates` 11s。
+
+## P3-5ax tupleの`-?`、template literalの推論、`as const`、`{}`のunion、synthetic propertyのaccessibility（2026-10-05）
+
+P3-5awの後、checkerの5件：
+- **tupleの`-?`**：tsgoの`instantiateMappedTypeTemplate`は、`-?`で必須にするoptionalなtuple要素から、
+  exactOptionalPropertyTypesではmissing型だけを除く（checker.go:23073-23074、`removeMissingOrUndefinedType`）。
+  tsc-rsはtsc 6.0の、書かれた`undefined`も除く形だった。`stripMembersOptionality2(exactoptionalpropertytypes=true)`。
+- **template literalの推論**：tsgoは、隣り合うplaceholderの間でcode pointを1つずつ取る（checker/relater.go:
+  2462-2486）。surrogate pairは分けない。`templateLiteralInferenceSupplementarySplit`。
+- **`as const`**：tsgoの`isMutableArrayLikeType`は`never`を除く（checker.go:23982-23986）。文脈の型が`never`でも
+  `as const`のtupleはreadonlyのまま。`asConstReadonlyTupleInferenceThroughNestedGenericCall`。
+- **`{}`のunion**：tsgoの`removeSubtypes`は、`emptyObjectType`と`unknownEmptyObjectType`を、symbolを持つ空の匿名型
+  （書かれた`{}`）のために消さない（checker.go:26472-26474）。`unknown`の`v || {}`は非literalの`{}`になる。
+  `implicitEmptyObjectType`。
+- **synthetic propertyのaccessibility**：tsgoはunionとintersectionの各constituentの読みとset accessorのaccessibilityを
+  別に数え（`CheckFlagsContainsWrite*`、checker.go:21851-21866）、unionはprivateやprotectedの読みのpropertyを作らず、
+  書きは最も制限されたconstituentに合わせる（21901-21918）。synthetic propertyはvalue declarationより先にcheck flagsを
+  読み、最も緩いaccessを取る（checker/utilities.go:761-776）。宣言したclassの無いprivateは含む型を名前に出す
+  （checker.go:12035-12046）。`syntheticProtectedProperties`。
+- unit test：CLI（tsgoの出力にpin）で3件（tupleとtemplate literal、`as const`と`{}`、accessibility）。P3-5awのbuildでは
+  5つのprobeともtsgoと違っていた。
+- conformance（release build、`b3cc300ec`、`--workers 2`、516 s）：
+  - 15,228構成、lane A 13,467（変化なし）。errors full 13,403→13,407：上の5構成から
+    `intersectionConstructorReductionCrash`（今回はmemoryの上限で終わらなかった。負荷で結果の変わる構成で、ratchetの外）を
+    引いたもの。emit full 13,401→13,400（同じ構成）。下がった構成は無い。
+  - その後のperfの2 commit（`c1836f54a`、`762c9fe36`）は結果を変えない読みの省略で、filter `rotected`・`rivate`・
+    `ccessib`・`ixin`・`ntersection`・`nion`（868構成）で下がった構成は無かった。
+  - `--checkers 4`の並列対照は、localの負荷の方針（full runはsliceごとに1回）により実行していない（途中で始めたものは
+    止めた。途中のfull runも1回余分に流した）。
+- ratchet：0 regressions、5行追加（errors）。
+- local：formatと、checker・types・compilerのclippy。checker・types・compilerのtest（11 targets、2,082件）。workspace全体の
+  testとclippyはhostedの`rust` job。
+- perf（README corpora、nice 20、main（P3-5awのbuild `205c4654b`）対tsgo 7.1.0-dev、branchは`b3cc300ec`）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 131→133、zod 526→530、Playwright 362→361、TypeScript
+    `src/compiler` 359→342、Next.js 799→758、Effect 536→562（min 520→499）、VS Code 3,511→3,470。tsc-rs÷tsgo 0.59–0.99。
+    読み込んだ文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 147→150、zod 628→630、Playwright 477→481、TypeScript `src/compiler` 570→501、
+    Next.js 1,055→1,039、Effect 755→753。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B（`--noEmit`）：Effect 526→516、zod 519→518、VS Code 3,384→3,379、Next.js 766→766。
+  - 1 checkerの命令数branch÷main（`--noEmit`）：zod 1.00625、Effect 1.00274、Next.js 1.00831、Playwright 1.00670。
+    原因はsynthetic propertyのaccessibility（`9c5fe9c96`）で、それを除いたbuildはzod 1.0000。tsgoと同じくsynthetic
+    propertyのcheck flagsをvalue declarationより先に読むためのlinksの読みで、transient symbolに限る2つのcommitの後は
+    zod 1.0024、Next.js 1.0025。残りはtsgoの順序のための読みで、wall-clockの差はnoiseの範囲。

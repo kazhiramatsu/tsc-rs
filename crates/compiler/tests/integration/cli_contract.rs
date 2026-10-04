@@ -4774,6 +4774,143 @@ fn config_and_paths_follow_tsgo() {
 }
 
 #[test]
+fn optional_tuple_elements_and_template_inference_follow_tsgo() {
+    // Under exactOptionalPropertyTypes, tsgo's instantiateMappedTypeTemplate
+    // removes only the missing type when `-?` makes an optional tuple element
+    // required (checker.go:23073-23074), and template literal inference
+    // consumes one code point between adjacent placeholders
+    // (checker/relater.go:2462-2486). The expected diagnostics are tsgo's.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "type WithArray1 = Required<[(string | undefined)?]>;\n",
+            "export const tup1: WithArray1 = [undefined];\n",
+            "type ToStringOrUnd<T> = { [P in keyof T]-?: string | undefined };\n",
+            "type WithArray2 = ToStringOrUnd<[1, 2?]>;\n",
+            "export const tup2: WithArray2 = [\"1\", undefined];\n",
+            "export const tup3: Required<[number?]> = [undefined];\n",
+        ),
+        r#","strict":true,"exactOptionalPropertyTypes":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        "a.ts(6,43): error TS2322: Type 'undefined' is not assignable to type 'number'.\n"
+    );
+
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "type Head<S extends string> = S extends `${infer H}${infer _R}` ? H : never;\n",
+            "type Rest<S extends string> = S extends `${infer _H}${infer R}` ? R : never;\n",
+            "export const h: \"\\u{1F600}\" = \"x\" as unknown as Head<\"\\u{1F600}abc\">;\n",
+            "export const r: \"abc\" = \"x\" as unknown as Rest<\"\\u{1F600}abc\">;\n",
+            "export const lone: \"\\uD83D\" = \"x\" as unknown as Head<\"\\uD83Dabc\">;\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(0));
+    assert_eq!(stdout, "");
+}
+
+#[test]
+fn const_tuples_and_empty_objects_follow_tsgo() {
+    // tsgo's isMutableArrayLikeType excludes `never` (checker.go:23982-23986),
+    // so an `as const` tuple stays readonly through a nested generic call;
+    // removeSubtypes keeps `unknown`'s `{}` against a written `{}`
+    // (checker.go:26472-26474). The expected diagnostics are tsgo's.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "declare function id<T>(x: T): T;\n",
+            "declare const a: { a: number };\n",
+            "declare const b: { b: number };\n",
+            "declare const neverValue: never;\n",
+            "export const z = id<typeof neverValue>([a, b] as const);\n",
+            "interface Box<T> { readonly value: T; }\n",
+            "type Content<R> = R extends Box<infer U> ? U : never;\n",
+            "type BoxLike<R> = Box<Content<R>>;\n",
+            "declare function box<T>(value: T): Box<T>;\n",
+            "declare function f<R extends BoxLike<R>>(v: R): R;\n",
+            "const r1 = f(box([a, b] as const));\n",
+            "export const check1: Box<[{ a: number }, { b: number }]> = r1;\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(5,40): error TS2345: Argument of type 'readonly [{ a: number; }, { b: number; }]' is not assignable to parameter of type 'never'.\n",
+            "a.ts(12,14): error TS2322: Type 'Box<readonly [{ a: number; }, { b: number; }]>' is not assignable to type 'Box<[{ a: number; }, { b: number; }]>'.\n",
+            "  The type 'readonly [{ a: number; }, { b: number; }]' is 'readonly' and cannot be assigned to the mutable type '[{ a: number; }, { b: number; }]'.\n",
+        )
+    );
+
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "declare const v: unknown;\n",
+            "const acceptsRecord = (record: Record<string, string>) => {};\n",
+            "acceptsRecord(v || {});\n",
+            "export const e = {};\n",
+            "acceptsRecord(v || e);\n",
+            "acceptsRecord({});\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(3,15): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Record<string, string>'.\n",
+            "  Index signature for type 'string' is missing in type '{}'.\n",
+            "a.ts(5,15): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Record<string, string>'.\n",
+            "  Index signature for type 'string' is missing in type '{}'.\n",
+        )
+    );
+}
+
+#[test]
+fn synthetic_accessor_accessibility_follows_tsgo() {
+    // tsgo tracks the set-accessor accessibility of union and intersection
+    // properties separately (checker.go:21851-21918): a union restricts a
+    // write to its most restricted constituent, while an intersection takes
+    // the most permissive access. The expected diagnostics are tsgo's.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "declare class C1 { get foo(): number; set foo(value: number); }\n",
+            "declare class C2 { get foo(): number; protected set foo(value: number); }\n",
+            "declare class C3 { protected get foo(): number; protected set foo(value: number); }\n",
+            "declare class P2 { get foo(): number; private set foo(value: number); }\n",
+            "declare const cu12: C1 | C2;\n",
+            "cu12.foo;\n",
+            "cu12.foo = 123;\n",
+            "declare const cu13: C1 | C3;\n",
+            "cu13.foo;\n",
+            "declare const pu12: C1 | P2;\n",
+            "pu12.foo = 1;\n",
+            "declare const ci13: C1 & C3;\n",
+            "ci13.foo = 1;\n",
+            "declare const ci23: C2 & C3;\n",
+            "ci23.foo = 1;\n",
+        ),
+        "",
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(7,6): error TS2445: Property 'foo' is protected and only accessible within class 'C1 | C2' and its subclasses.\n",
+            "a.ts(9,6): error TS2339: Property 'foo' does not exist on type 'C1 | C3'.\n",
+            "a.ts(11,6): error TS2341: Property 'foo' is private and only accessible within class 'C1 | P2'.\n",
+            "a.ts(15,6): error TS2445: Property 'foo' is protected and only accessible within class 'C2 & C3' and its subclasses.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
