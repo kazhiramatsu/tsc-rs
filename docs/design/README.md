@@ -83,6 +83,10 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   the replacement gates (conformance-ts71 with emit, Rust checks), the PR
   order and the CLAUDE.md policy text. It continues the
   [conformance-ts71 packet](greenfield/slices/conformance-ts71/README.md).
+- [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
+  the 2026-10-04 design for building declaration and return types from
+  tsgo's pseudochecker, written only when equivalent to the checker's type,
+  in slices PC1-PC4.
 - [greenfield/slices/ts71-js-declarations/README.md](greenfield/slices/ts71-js-declarations/README.md):
   the 2026-10-04 design for producing JavaScript `.d.ts` output the tsgo way,
   through the shared declaration transform instead of tsc 6.0's symbol
