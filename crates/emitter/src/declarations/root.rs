@@ -113,7 +113,7 @@ pub(crate) fn transform_root(
     transformer.state = Some(TransformState::for_source(source, root_node));
     transformer
         .tracker
-        .reset_for_file(Some(program_source), source, is_javascript);
+        .reset_for_file(Some(program_source), source);
     transformer.state_mut()?.references = RawFileReferences::collect(context.arena(), source)?;
 
     let declaration_path = transformer
@@ -125,22 +125,27 @@ pub(crate) fn transform_root(
 
     let original_statements = source_statements(context.arena(), root_node)?;
     // tsgo builds JavaScript declarations with the same transform as
-    // TypeScript (ts71-js-declarations). ES modules (J1) and scripts (J2)
-    // take that route; CommonJS files keep tsc 6.0's symbol serialization
-    // until their slice.
-    let serialize_javascript = is_javascript && {
+    // TypeScript (ts71-js-declarations); a CommonJS file's exports come from
+    // its assignments (J3).
+    let is_common_js = is_javascript && {
         let resolver_node = transformer.required_resolver_node(context, root_node)?;
         transformer
             .resolver
             .is_common_js_module(resolver_node)
             .map_err(TransformError::from)?
     };
-    let combined = if serialize_javascript {
-        transform_declarations_for_js(transformer, context, source, root_node)?
-    } else {
-        // tsgo collects the expando assignments of the whole file before it
-        // visits the statements (transform.go:351).
-        transformer.collect_expandos(context, root_node)?;
+    transformer.state_mut()?.common_js.is_common_js = is_common_js;
+    if is_common_js {
+        let resolver_node = transformer.required_resolver_node(context, root_node)?;
+        transformer
+            .resolver
+            .precalculate_declaration_emit_visibility(resolver_node)?;
+    }
+    let combined = {
+        // tsgo collects the file's `module.exports =` assignments, then its
+        // expando and `exports.name =` assignments, before it visits the
+        // statements (transform.go:350-351).
+        transformer.collect_assignment_declarations(context, root_node)?;
         let mut statements = Vec::new();
         for statement in original_statements {
             // tsgo's parser puts the declarations it reparses from JSDoc
@@ -158,8 +163,20 @@ pub(crate) fn transform_root(
             context,
             statements,
         )?;
+        // tsgo appendCjsExports (transform.go:327-339): the CommonJS export
+        // assignment, then the CommonJS exports, then the statements.
+        let statements = {
+            let common_js = &mut transformer.state_mut()?.common_js;
+            let mut combined = std::mem::take(&mut common_js.export_assignment);
+            combined.append(&mut common_js.export_members);
+            combined.extend(statements);
+            combined
+        };
+        if is_javascript && (is_external_module || is_common_js) {
+            transformer.report_multiple_module_exports(context, root_node)?;
+        }
         let state = transformer.state()?;
-        if is_external_module
+        if (is_external_module || is_common_js)
             && (!state.result_has_external_module_indicator
                 || state.needs_scope_fix_marker && !state.result_has_scope_marker)
         {
@@ -171,22 +188,16 @@ pub(crate) fn transform_root(
         }
     };
 
-    // tsc-port: transformRoot gives only the transformed TypeScript list the
-    // parsed statement-array range. JavaScript declarations are a fresh
-    // synthesized list, so detached source comments do not belong to it
-    // (_tsc.js:114530-114535).
-    let original_statement_range = if serialize_javascript {
-        None
-    } else {
-        source_statement_array(context.arena(), root_node)?
-            .map(|array| {
-                context
-                    .arena()
-                    .node_array(array)
-                    .map(|array| (array.pos, array.end))
-            })
-            .transpose()?
-    };
+    // tsgo gives the transformed list the parsed statement list's range
+    // (transform.go:354).
+    let original_statement_range = source_statement_array(context.arena(), root_node)?
+        .map(|array| {
+            context
+                .arena()
+                .node_array(array)
+                .map(|array| (array.pos, array.end))
+        })
+        .transpose()?;
     let referenced_files = referenced_files(
         transformer,
         context.arena(),

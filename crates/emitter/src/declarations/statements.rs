@@ -33,9 +33,16 @@ pub(crate) fn visit_declaration_statement(
     context: &mut TransformationContext,
     input: TransformNode,
 ) -> Result<VisitResult, TransformError> {
-    if !is_preserved_declaration_statement(context, input)?
-        || transformer.should_strip_internal(context, Some(input))?
-    {
+    if !is_preserved_declaration_statement(context, input)? {
+        // tsgo elides the executable statements and visits any other one,
+        // such as `export as namespace`, as a declaration subtree
+        // (transform.go:226-274).
+        if is_elided_declaration_statement(context, input)? {
+            return Ok(VisitResult::None);
+        }
+        return transformer.visit_declaration_subtree(context, input);
+    }
+    if transformer.should_strip_internal(context, Some(input))? {
         return Ok(VisitResult::None);
     }
 
@@ -76,12 +83,6 @@ pub(crate) fn visit_declaration_statement(
         }
         SyntaxKind::ExportAssignment => {
             let data = export_assignment_data(context, input)?;
-            transformer.state_mut()?.result_has_scope_marker = true;
-            if is_source_file_parent(context, input)? {
-                transformer
-                    .state_mut()?
-                    .result_has_external_module_indicator = true;
-            }
             let expression = required_node(
                 context,
                 input.source(),
@@ -89,64 +90,13 @@ pub(crate) fn visit_declaration_statement(
                 SyntaxKind::ExportAssignment,
                 "expression",
             )?;
-            if context.arena().node(expression)?.kind == SyntaxKind::Identifier {
-                return Ok(VisitResult::Node(input));
-            }
-
-            let original_modifiers = data
-                .modifiers
-                .and_then(|array| context.arena().node_array_ref(input.source(), array));
-            let new_id = context.factory()?.create_unique_name(
-                input.source(),
-                "_default",
-                crate::GeneratedIdentifierFlags::OPTIMISTIC,
-            )?;
-            let saved_diagnostic = transformer.tracker.replace_diagnostic_context(
-                context.arena(),
-                super::diagnostics::DiagnosticContext::DefaultExport(input),
-            )?;
-            let saved_error_fallback = transformer
-                .tracker
-                .error_fallback_node
-                .replace(super::tracker::TrackerAnchor::Transform(input));
-            let type_node = transformer.ensure_type(context, input, false);
-            transformer.tracker.error_fallback_node = saved_error_fallback;
-            transformer
-                .tracker
-                .restore_diagnostic_context(saved_diagnostic);
-            let type_node = type_node?;
-            let statement = {
-                let mut factory = context.factory()?;
-                let declaration = factory.create_variable_declaration(
-                    input.source(),
-                    new_id,
-                    None,
-                    type_node,
-                    None,
-                )?;
-                let declarations = factory.create_node_array(input.source(), vec![declaration])?;
-                let declaration_list = factory.create_variable_declaration_list(
-                    input.source(),
-                    declarations,
-                    NodeFlags::CONST,
-                )?;
-                let modifiers = if transformer.state()?.needs_declare {
-                    factory.create_modifiers_from_modifier_flags(
-                        input.source(),
-                        ModifierFlags::AMBIENT,
-                    )?
-                } else {
-                    None
-                };
-                factory.create_variable_statement(input.source(), modifiers, declaration_list)?
-            };
-            let statement = super::subtree::preserve_js_doc(context, statement, input)?;
-            context.arena_mut()?.remove_all_comments(input);
-            let assignment =
-                context
-                    .factory()?
-                    .update_export_assignment(input, original_modifiers, new_id)?;
-            Ok(VisitResult::Nodes(vec![statement, assignment]))
+            transformer.transform_export_assignment(
+                context,
+                input,
+                input,
+                expression,
+                data.is_export_equals == Some(true),
+            )
         }
         _ => {
             let result = transform_top_level_declaration(transformer, context, input)?;
@@ -480,7 +430,6 @@ pub(crate) fn transform_top_level_declaration(
                 let name = data
                     .name
                     .and_then(|node| context.arena().node_ref(input.source(), node));
-                let original_members = array_or_empty(context, input.source(), data.members)?;
                 let modifiers = transformer.ensure_modifiers(context, input)?;
                 let modifiers = Some(array_or_empty(
                     context,
@@ -497,78 +446,7 @@ pub(crate) fn transform_top_level_declaration(
                 } else {
                     Vec::new()
                 };
-                let constructor_properties = parameter_properties(
-                    transformer,
-                    context,
-                    first_constructor_with_body(context, input)?,
-                )?;
-                let mut has_private_identifier = false;
-                for member in source_array(
-                    context,
-                    original_members.source(),
-                    Some(original_members.array()),
-                )? {
-                    if let Some(name) = member_name(context, member)? {
-                        if context.arena().node(name)?.kind == SyntaxKind::PrivateIdentifier {
-                            has_private_identifier = true;
-                            break;
-                        }
-                    }
-                }
-                let private_identifier = if has_private_identifier {
-                    let mut factory = context.factory()?;
-                    let name = factory.create_private_identifier(input.source(), "#private")?;
-                    Some(factory.create_property_declaration(
-                        input.source(),
-                        None,
-                        name,
-                        None,
-                        None,
-                        None,
-                    )?)
-                } else {
-                    None
-                };
-                let mut member_nodes = Vec::new();
-                if let Some(private_identifier) = private_identifier {
-                    member_nodes.push(private_identifier);
-                }
-                let class_resolver_node = transformer.required_resolver_node(context, input)?;
-                let enclosing_resolver = transformer
-                    .state()?
-                    .enclosing_declaration
-                    .and_then(|node| transformer.required_resolver_node(context, node).ok())
-                    .unwrap_or(class_resolver_node);
-                let late_indexes_result = transformer.resolver.create_late_bound_index_signatures(
-                    context.arena_mut()?,
-                    input.source(),
-                    class_resolver_node,
-                    enclosing_resolver,
-                    EmitNodeBuilderFlags::DECLARATION_EMIT,
-                    EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
-                    &mut transformer.tracker,
-                );
-                let effects = transformer.tracker.take_pending_effects();
-                materialize_effects(context, transformer.host, effects)?;
-                let late_indexes = late_indexes_result?.unwrap_or_default();
-                member_nodes.extend(late_indexes);
-                member_nodes.extend(constructor_properties);
-                member_nodes.extend(this_properties);
-                for member in source_array(
-                    context,
-                    original_members.source(),
-                    Some(original_members.array()),
-                )? {
-                    match transformer.visit_declaration_subtree(context, member)? {
-                        VisitResult::None => {}
-                        VisitResult::Node(member) => member_nodes.push(member),
-                        VisitResult::Nodes(nodes) => member_nodes.extend(nodes),
-                    }
-                }
-                let members = {
-                    let mut factory = context.factory()?;
-                    factory.update_node_array(original_members, member_nodes)?
-                };
+                let members = build_class_members(transformer, context, input, this_properties)?;
                 let heritage = array_handle(context, input.source(), data.heritage_clauses);
                 let hosted_implements = super::javascript::hosted_implements(context, input)?;
                 if let Some((base_type, base_expression)) =
@@ -967,13 +845,42 @@ pub(crate) fn transform_variable_statement(
     if !any_visible {
         return Ok(VisitResult::None);
     }
-    let mut declarations = Vec::new();
+    // tsgo transformVariableStatement (transform.go:2227-2251): in a CommonJS
+    // file, the declarations initialized by `require` become imports written
+    // before the statement.
+    let mut extra_imports = Vec::new();
+    let mut normal_declarations = Vec::with_capacity(source_declarations.len());
+    let common_js = transformer.state()?.common_js.is_common_js;
     for declaration in source_declarations {
+        if common_js
+            && super::commonjs::is_variable_declaration_initialized_to_require(
+                context,
+                declaration,
+            )?
+        {
+            match transformer.visit_declaration_subtree(context, declaration)? {
+                VisitResult::None => {}
+                VisitResult::Node(import) => extra_imports.push(import),
+                VisitResult::Nodes(imports) => extra_imports.extend(imports),
+            }
+        } else {
+            normal_declarations.push(declaration);
+        }
+    }
+    let mut declarations = Vec::new();
+    for declaration in normal_declarations {
         match transformer.visit_declaration_subtree(context, declaration)? {
             VisitResult::None => {}
             VisitResult::Node(declaration) => declarations.push(declaration),
             VisitResult::Nodes(result) => declarations.extend(result),
         }
+    }
+    if declarations.is_empty() {
+        return Ok(if extra_imports.is_empty() {
+            VisitResult::None
+        } else {
+            VisitResult::Nodes(extra_imports)
+        });
     }
     let modifiers = transformer.ensure_modifiers(context, input)?;
     let modifiers = Some(array_or_empty(
@@ -1022,7 +929,12 @@ pub(crate) fn transform_variable_statement(
         context
             .factory()?
             .update_variable_statement(input, modifiers, declaration_list)?;
-    Ok(VisitResult::Node(statement))
+    if extra_imports.is_empty() {
+        Ok(VisitResult::Node(statement))
+    } else {
+        extra_imports.push(statement);
+        Ok(VisitResult::Nodes(extra_imports))
+    }
 }
 
 fn first_constructor_with_body(
@@ -2050,6 +1962,35 @@ pub(crate) fn is_preserved_declaration_statement(
     ))
 }
 
+fn is_elided_declaration_statement(
+    context: &TransformationContext,
+    node: TransformNode,
+) -> Result<bool, TransformError> {
+    Ok(matches!(
+        context.arena().node(node)?.kind,
+        SyntaxKind::BreakStatement
+            | SyntaxKind::ContinueStatement
+            | SyntaxKind::DebuggerStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::EmptyStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::IfStatement
+            | SyntaxKind::LabeledStatement
+            | SyntaxKind::ReturnStatement
+            | SyntaxKind::SwitchStatement
+            | SyntaxKind::ThrowStatement
+            | SyntaxKind::TryStatement
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::WithStatement
+            | SyntaxKind::NotEmittedStatement
+            | SyntaxKind::Block
+            | SyntaxKind::MissingDeclaration
+            | SyntaxKind::ExpressionStatement
+    ))
+}
+
 fn is_late_visibility_painted_statement(
     context: &TransformationContext,
     node: TransformNode,
@@ -2135,6 +2076,15 @@ pub(crate) fn modifier_flags(
     context: &TransformationContext,
     node: TransformNode,
 ) -> Result<ModifierFlags, TransformError> {
+    let array = modifiers_of(context, node)?;
+    modifier_flags_from_array(context, array)
+}
+
+/// The modifiers of a declaration statement or parameter.
+pub(crate) fn modifiers_of(
+    context: &TransformationContext,
+    node: TransformNode,
+) -> Result<Option<TransformNodeArray>, TransformError> {
     let array = match &context.arena().node(node)?.data {
         NodeData::FunctionDeclaration(data) => data.modifiers,
         NodeData::ClassDeclaration(data) => data.modifiers,
@@ -2151,7 +2101,7 @@ pub(crate) fn modifier_flags(
         _ => None,
     }
     .and_then(|array| context.arena().node_array_ref(node.source(), array));
-    modifier_flags_from_array(context, array)
+    Ok(array)
 }
 
 fn modifier_flags_from_array(
@@ -2425,12 +2375,96 @@ fn module_block_data(
     }
 }
 
-fn class_data(
+/// tsgo buildClassMembers (transform.go:1930-1988): a `#private` member for
+/// a class with private names, the late-bound index signatures, the
+/// properties of the first constructor's parameters, the extra members and
+/// the visited members.
+pub(crate) fn build_class_members(
+    transformer: &mut DeclarationTransformer<'_>,
+    context: &mut TransformationContext,
+    input: TransformNode,
+    extra_members: Vec<TransformNode>,
+) -> Result<TransformNodeArray, TransformError> {
+    let data = class_data(context, input)?;
+    let original_members = array_or_empty(context, input.source(), data.members)?;
+    let constructor_properties = parameter_properties(
+        transformer,
+        context,
+        first_constructor_with_body(context, input)?,
+    )?;
+    let mut has_private_identifier = false;
+    for member in source_array(
+        context,
+        original_members.source(),
+        Some(original_members.array()),
+    )? {
+        if let Some(name) = member_name(context, member)? {
+            if context.arena().node(name)?.kind == SyntaxKind::PrivateIdentifier {
+                has_private_identifier = true;
+                break;
+            }
+        }
+    }
+    let private_identifier = if has_private_identifier {
+        let mut factory = context.factory()?;
+        let name = factory.create_private_identifier(input.source(), "#private")?;
+        Some(factory.create_property_declaration(input.source(), None, name, None, None, None)?)
+    } else {
+        None
+    };
+    let mut member_nodes = Vec::new();
+    if let Some(private_identifier) = private_identifier {
+        member_nodes.push(private_identifier);
+    }
+    let class_resolver_node = transformer.required_resolver_node(context, input)?;
+    let enclosing_resolver = transformer
+        .state()?
+        .enclosing_declaration
+        .and_then(|node| transformer.required_resolver_node(context, node).ok())
+        .unwrap_or(class_resolver_node);
+    let late_indexes_result = transformer.resolver.create_late_bound_index_signatures(
+        context.arena_mut()?,
+        input.source(),
+        class_resolver_node,
+        enclosing_resolver,
+        EmitNodeBuilderFlags::DECLARATION_EMIT,
+        EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+        &mut transformer.tracker,
+    );
+    let effects = transformer.tracker.take_pending_effects();
+    materialize_effects(context, transformer.host, effects)?;
+    let late_indexes = late_indexes_result?.unwrap_or_default();
+    member_nodes.extend(late_indexes);
+    member_nodes.extend(constructor_properties);
+    member_nodes.extend(extra_members);
+    for member in source_array(
+        context,
+        original_members.source(),
+        Some(original_members.array()),
+    )? {
+        match transformer.visit_declaration_subtree(context, member)? {
+            VisitResult::None => {}
+            VisitResult::Node(member) => member_nodes.push(member),
+            VisitResult::Nodes(nodes) => member_nodes.extend(nodes),
+        }
+    }
+    let mut factory = context.factory()?;
+    factory.update_node_array(original_members, member_nodes)
+}
+
+pub(crate) fn class_data(
     context: &TransformationContext,
     node: TransformNode,
 ) -> Result<ClassDeclarationData, TransformError> {
     match &context.arena().node(node)?.data {
         NodeData::ClassDeclaration(data) => Ok(data.clone()),
+        NodeData::ClassExpression(data) => Ok(ClassDeclarationData {
+            name: data.name,
+            type_parameters: data.type_parameters,
+            heritage_clauses: data.heritage_clauses,
+            members: data.members,
+            modifiers: data.modifiers,
+        }),
         _ => Err(TransformError::FactoryKindMismatch {
             expected: SyntaxKind::ClassDeclaration,
             actual: context.arena().node(node)?.kind,

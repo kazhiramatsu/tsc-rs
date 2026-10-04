@@ -39,6 +39,7 @@ pub(crate) use signatures::{
     type_predicate_to_type_predicate_node_helper, SignatureDeclarationOptions,
 };
 pub(crate) use statements::{symbol_table_to_declaration_statements, symbol_to_declarations};
+pub(crate) use tracker::tracker_symbol;
 use type_nodes::{
     add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
     create_node_array, create_output_identifier, create_token, factory_error, project_parse_node,

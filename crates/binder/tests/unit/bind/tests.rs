@@ -1084,6 +1084,42 @@ fn dotted_jsdoc_typedef_binds_namespace_then_leaf_alias() {
 }
 
 #[test]
+fn dotted_jsdoc_typedef_on_a_returning_function_merges_with_the_file_variable() {
+    // tsgo reparses a typedef into a statement of its host's container
+    // (reparser.go:74-125). The host's JSDoc is bound after a `return` has
+    // made the flow unreachable, which must not declare the namespace in the
+    // function as well; the namespace merges with the file's `Types`.
+    let source = parse_named(
+        "a.js",
+        "const Types = {};\n\
+             /** @typedef {number} Types.Count */\n\
+             function host() { return 1; }\n",
+        true,
+    );
+    let binder = bind(&source);
+    let host = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+    assert!(binder
+        .locals
+        .get(&host)
+        .is_none_or(|locals| !locals.contains_key("Types")));
+    let types = binder.symbols.symbol(binder.locals[&source.root]["Types"]);
+    assert!(types.flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE));
+    assert!(types.flags.intersects(SymbolFlags::NAMESPACE_MODULE));
+    assert_eq!(
+        types
+            .declarations
+            .iter()
+            .map(|&declaration| kind_of(&source, declaration))
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::VariableDeclaration,
+            SyntaxKind::ModuleDeclaration
+        ]
+    );
+    assert!(types.exports().contains_key("Count"));
+}
+
+#[test]
 fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
     let source = parse_named(
         "a.js",

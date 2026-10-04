@@ -2174,7 +2174,19 @@ impl<'a> BinderWorker<'a> {
                 let flags = self.flags_of(node);
                 self.set_flags_of(node, flags | NodeFlags::UNREACHABLE);
             }
-            self.bind_each_child(node);
+            // A type alias tag binds its name and type only when the delayed
+            // pass declares it in its host's container: tsgo reparses it into
+            // a statement of that container (reparser.go:74-125), so a
+            // typedef after a `return` does not declare its namespace in the
+            // function.
+            if matches!(
+                kind_of(self.source, node),
+                SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+            ) {
+                self.bind_jsdoc_type_alias(node);
+            } else {
+                self.bind_each_child(node);
+            }
             self.bind_jsdoc(node);
             self.in_assignment_pattern = save_in_assignment_pattern;
             return;

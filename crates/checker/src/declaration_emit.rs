@@ -563,6 +563,55 @@ impl CheckerState<'_> {
         Ok(self.binder.symbol(symbol).value_declaration)
     }
 
+    /// tsgo GetReferencedValueDeclaration for an identifier `name` at
+    /// `location`: the value it resolves to, through its export symbol.
+    pub(crate) fn emit_get_referenced_value_declaration_of_name(
+        &mut self,
+        location: NodeId,
+        name: &str,
+    ) -> CheckResult<Option<NodeId>> {
+        let Some(symbol) = self.resolve_name(
+            Some(location),
+            name,
+            SymbolFlags::EXPORT_VALUE | SymbolFlags::VALUE | SymbolFlags::ALIAS,
+            /*name_not_found_message*/ None,
+            /*is_use*/ true,
+            /*exclude_globals*/ false,
+        )?
+        else {
+            return Ok(None);
+        };
+        let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+        Ok(self.binder.symbol(symbol).value_declaration)
+    }
+
+    /// tsgo isCommonJSAliasExport (transform.go:1564-1571).
+    pub(crate) fn emit_is_common_js_alias_export(&self, node: NodeId) -> bool {
+        let NodeData::BinaryExpression(data) = self.data_of(node) else {
+            return false;
+        };
+        data.right
+            .is_some_and(|right| self.kind_of(right) == SyntaxKind::Identifier)
+            && self
+                .node_symbol(node)
+                .is_some_and(|symbol| self.binder.symbol(symbol).declarations.len() == 1)
+    }
+
+    /// The declarations of a source file's `export=` symbol (tsgo
+    /// transformSourceFile, transform.go:357-363).
+    pub(crate) fn emit_get_export_equals_declarations(&self, file: NodeId) -> Vec<NodeId> {
+        let Some(file_symbol) = self.node_symbol(file) else {
+            return Vec::new();
+        };
+        let file_symbol = self.get_merged_symbol(file_symbol);
+        self.binder
+            .symbol(file_symbol)
+            .exports()
+            .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
+            .map(|&symbol| self.binder.symbol(symbol).declarations.to_vec())
+            .unwrap_or_default()
+    }
+
     /// tsgo transformExpandoAssignment's test (transform.go:2728-2731): the
     /// declaration's own symbol has the Assignment flag.
     pub(crate) fn emit_is_assignment_declaration(&self, node: NodeId) -> bool {
@@ -1641,6 +1690,70 @@ impl CheckerState<'_> {
             .contains_key(tsc_binder::escape_leading_underscores(name))
     }
 
+    /// tsgo isCommonJSModuleExports (emitresolver.go:249-258): a top-level
+    /// `module.exports = …` or `exports.x = …` of a CommonJS file.
+    fn is_common_js_module_exports(&self, node: NodeId) -> bool {
+        if self.kind_of(node) != SyntaxKind::BinaryExpression {
+            return false;
+        }
+        let Some(statement) = self
+            .parent_of(node)
+            .filter(|&parent| self.kind_of(parent) == SyntaxKind::ExpressionStatement)
+        else {
+            return false;
+        };
+        let Some(file) = self
+            .parent_of(statement)
+            .filter(|&parent| self.kind_of(parent) == SyntaxKind::SourceFile)
+        else {
+            return false;
+        };
+        self.binder.is_common_js_module_of_node(file)
+            && matches!(
+                tsc_binder::get_assignment_declaration_kind(self.binder.source_of_node(node), node),
+                tsc_binder::AssignmentDeclarationKind::ModuleExports
+                    | tsc_binder::AssignmentDeclarationKind::ExportsProperty
+            )
+    }
+
+    /// tsgo PrecalculateDeclarationEmitVisibility (emitresolver.go:236-274):
+    /// the declarations a CommonJS file's top-level `module.exports = x` or
+    /// `exports.y = x` names are visible. (The checker marks those of export
+    /// assignments and export specifiers when it checks them.)
+    pub(crate) fn emit_precalculate_declaration_emit_visibility(
+        &mut self,
+        file: NodeId,
+    ) -> CheckResult<()> {
+        if !self.binder.is_common_js_module_of_node(file) {
+            return Ok(());
+        }
+        let NodeData::SourceFile(data) = self.data_of(file) else {
+            return Ok(());
+        };
+        let statements = self.nodes_of(data.statements);
+        for statement in statements {
+            let NodeData::ExpressionStatement(data) = self.data_of(statement) else {
+                continue;
+            };
+            let Some(expression) = data.expression else {
+                continue;
+            };
+            if !self.is_common_js_module_exports(expression) {
+                continue;
+            }
+            let right = match self.data_of(expression) {
+                NodeData::BinaryExpression(data) => data.right,
+                _ => None,
+            };
+            if let Some(right) =
+                right.filter(|&right| self.kind_of(right) == SyntaxKind::Identifier)
+            {
+                self.collect_linked_aliases(right, /*set_visibility*/ true)?;
+            }
+        }
+        Ok(())
+    }
+
     /// tsc-port: collectLinkedAliases @6.0.3
     /// tsc-hash: 8fe011e257a2763196e5bd485d330cf0df070bbdf96d1d78fd9edf54c0f391c5
     /// tsc-span: _tsc.js:55675-55727
@@ -1654,9 +1767,13 @@ impl CheckerState<'_> {
         set_visibility: bool,
     ) -> CheckResult<Option<Vec<NodeId>>> {
         let parent = self.parent_of(node);
+        // tsgo markLinkedAliases (emitresolver.go:276-306) also resolves the
+        // identifier of a CommonJS `module.exports = x` or `exports.y = x`.
         let export_symbol = if self.kind_of(node) != SyntaxKind::StringLiteral
-            && parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExportAssignment)
-        {
+            && parent.is_some_and(|parent| {
+                self.kind_of(parent) == SyntaxKind::ExportAssignment
+                    || self.is_common_js_module_exports(parent)
+            }) {
             let name = match self.identifier_text_of(node) {
                 Some(name) => name.to_owned(),
                 None => self.text_of_node(node)?,
@@ -1838,6 +1955,7 @@ fn has_inferred_type(kind: SyntaxKind) -> bool {
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression
             | SyntaxKind::BinaryExpression
+            | SyntaxKind::CallExpression
             | SyntaxKind::VariableDeclaration
             | SyntaxKind::ExportAssignment
             | SyntaxKind::PropertyAssignment
@@ -2027,7 +2145,7 @@ impl<'a> CheckerState<'a> {
         literal_type: tsc_types::TypeId,
         enclosing_declaration: NodeId,
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
         use tsc_types::{LiteralValue, TypeData, TypeFlags};
         let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
         let flags = self.tables.flags_of(literal_type);
@@ -2073,7 +2191,7 @@ impl<'a> CheckerState<'a> {
             )?
             .flatten();
             if let Some(node) = node {
-                return Ok(node);
+                return Ok(Some(node));
             }
             // encounteredError inside the enum arm falls through to the
             // literal-value arms exactly as upstream's falsy `enumResult`.
@@ -2091,25 +2209,18 @@ impl<'a> CheckerState<'a> {
             return arena
                 .factory()
                 .create_token(target, kind, tsc_emitter::TransformFlags::NONE)
+                .map(Some)
                 .map_err(|error| node_builder_factory_error(method, error));
         }
+        // tsgo CreateLiteralConstValue (emitresolver.go:988-1030) answers no
+        // value for a type that is not a literal.
         let value = match &self.tables.type_of(literal_type).data {
             TypeData::Literal { value } => value.clone(),
-            _ => {
-                return Err(tsc_emitter::EmitResolverError::CheckerAborted {
-                    method,
-                    node: EmitResolverNode::from_raw_source(
-                        u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
-                            .unwrap_or(0),
-                        enclosing_declaration,
-                    ),
-                    reason: "literal-const type is not a literal",
-                })
-            }
+            _ => return Ok(None),
         };
         let mut factory = arena.factory();
         let map_factory = |error| node_builder_factory_error(method, error);
-        match value {
+        let node = match value {
             LiteralValue::BigInt(pseudo) => factory
                 .create_big_int_literal(target, format!("{}n", pseudo.to_base10_string()))
                 .map_err(map_factory),
@@ -2127,7 +2238,8 @@ impl<'a> CheckerState<'a> {
             LiteralValue::Number(number) => factory
                 .create_numeric_literal(target, tsc_types::js_number_to_string(number))
                 .map_err(map_factory),
-        }
+        };
+        node.map(Some)
     }
 
     /// tsc-port: createLiteralConstValue @6.0.3
@@ -2139,7 +2251,7 @@ impl<'a> CheckerState<'a> {
         target: tsc_emitter::TransformSourceId,
         node: NodeId,
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
         let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
         let symbol = self
             .get_symbol_of_declaration(node)

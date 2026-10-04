@@ -91,6 +91,10 @@ impl EmitNodeBuilderFlags {
     pub const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
+
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
 }
 
 /// InternalNodeBuilderFlags word.
@@ -467,6 +471,11 @@ pub enum EmitResolverMethod {
     GetReferencedMemberValueDeclaration,
     IsThisPropertyAssignmentDeclarationRedundant,
     IsAssignmentDeclaration,
+    GetReferencedValueDeclarationOfName,
+    IsCommonJsAliasExport,
+    GetTrackerSymbolOfNode,
+    GetExportEqualsDeclarations,
+    PrecalculateDeclarationEmitVisibility,
     GetElementAccessExpressionName,
     IsNameResolvable,
     CreateTypeOfExpandoMember,
@@ -553,6 +562,11 @@ impl EmitResolverMethod {
                 "isThisPropertyAssignmentDeclarationRedundant"
             }
             Self::IsAssignmentDeclaration => "isAssignmentDeclaration",
+            Self::GetReferencedValueDeclarationOfName => "getReferencedValueDeclarationOfName",
+            Self::IsCommonJsAliasExport => "isCommonJSAliasExport",
+            Self::GetTrackerSymbolOfNode => "getTrackerSymbolOfNode",
+            Self::GetExportEqualsDeclarations => "getExportEqualsDeclarations",
+            Self::PrecalculateDeclarationEmitVisibility => "precalculateDeclarationEmitVisibility",
             Self::GetElementAccessExpressionName => "getElementAccessExpressionName",
             Self::IsNameResolvable => "isNameResolvable",
             Self::CreateTypeOfExpandoMember => "createTypeOfExpandoMember",
@@ -924,6 +938,63 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedMemberValueDeclaration,
+            node,
+        ))
+    }
+
+    /// The value declaration `name` refers to at `location`, as tsgo's
+    /// reference resolver answers for an identifier there
+    /// (GetReferencedValueDeclaration, binder/referenceresolver.go).
+    fn get_referenced_value_declaration_of_name(
+        &self,
+        location: EmitResolverNode,
+        name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        let _ = name;
+        Err(unavailable(
+            EmitResolverMethod::GetReferencedValueDeclarationOfName,
+            location,
+        ))
+    }
+
+    /// tsgo isCommonJSAliasExport (transform.go:1564-1571): `exports.x = y`
+    /// with an identifier `y`, whose symbol has that single declaration.
+    fn is_common_js_alias_export(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Err(unavailable(EmitResolverMethod::IsCommonJsAliasExport, node))
+    }
+
+    /// The tracker token of a node's own symbol, which `trackSymbol` receives
+    /// when the node builder names it.
+    fn get_tracker_symbol_of_node(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitTrackerSymbol>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetTrackerSymbolOfNode,
+            node,
+        ))
+    }
+
+    /// tsgo PrecalculateDeclarationEmitVisibility (emitresolver.go:236-274):
+    /// mark the declarations a file's exports name as visible before its
+    /// declarations are written.
+    fn precalculate_declaration_emit_visibility(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<(), EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::PrecalculateDeclarationEmitVisibility,
+            node,
+        ))
+    }
+
+    /// The declarations of a source file's `export=` symbol.
+    fn get_export_equals_declarations(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetExportEqualsDeclarations,
             node,
         ))
     }
@@ -1476,7 +1547,7 @@ pub trait EmitResolver {
         target: TransformSourceId,
         node: EmitResolverNode,
         tracker: &mut dyn EmitSymbolTracker,
-    ) -> Result<TransformNode, EmitResolverError> {
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
         let _ = (arena, target, tracker);
         Err(unavailable(
             EmitResolverMethod::CreateLiteralConstValue,

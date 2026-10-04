@@ -509,6 +509,14 @@ impl DeclarationTransformer<'_> {
                         )?))
                     }
                     SyntaxKind::VariableDeclaration => {
+                        // tsgo transformVariableDeclaration (transform.go:841-844).
+                        if self.state()?.common_js.is_common_js
+                            && super::commonjs::is_variable_declaration_initialized_to_require(
+                                cx, input,
+                            )?
+                        {
+                            return self.transform_cjs_require_variable_declaration(cx, input);
+                        }
                         let name = declaration_name(cx, input)?
                             .ok_or_else(|| Self::contract("variable declaration has no name"))?;
                         if matches!(

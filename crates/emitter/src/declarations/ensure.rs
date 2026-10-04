@@ -200,7 +200,6 @@ impl DeclarationTransformer<'_> {
         let unwrapped = unwrap_parenthesized(cx, initial)?;
         if !is_primitive_literal_value(cx, unwrapped)?
             && self.options.isolated_declarations == Some(true)
-            && !current_source_is_js(cx, node.source())?
         {
             self.tracker
                 .report_isolated_inference(super::tracker::TrackerAnchor::Transform(node));
@@ -215,8 +214,23 @@ impl DeclarationTransformer<'_> {
         );
         let effects = self.tracker.take_pending_effects();
         materialize_effects(cx, self.host, effects)?;
-        let transformed = result.map_err(TransformError::from)?;
+        let transformed = result
+            .map_err(TransformError::from)?
+            .ok_or_else(|| Self::contract("a literal const declaration has no literal value"))?;
         Ok(Some(transformed))
+    }
+
+    /// tsgo's declarationEmitNodeBuilderFlags, without
+    /// WriteClassExpressionAsTypeLiteral while the members of a class
+    /// expression written as a class declaration are serialized
+    /// (transform.go:1655-1658, 1680-1682).
+    pub(crate) fn declaration_emit_flags(&self) -> Result<EmitNodeBuilderFlags, TransformError> {
+        let flags = EmitNodeBuilderFlags::DECLARATION_EMIT;
+        Ok(if self.state()?.in_class_expression_declaration {
+            flags.difference(EmitNodeBuilderFlags::WRITE_CLASS_EXPRESSION_AS_TYPE_LITERAL)
+        } else {
+            flags
+        })
     }
 
     /// tsc-port: ensureType @6.0.3
@@ -299,13 +313,14 @@ impl DeclarationTransformer<'_> {
             let declaration = self.required_resolver_node(cx, node)?;
             let enclosing = self.current_enclosing_resolver_node(cx)?;
             let target = self.state()?.current_source_file;
+            let flags = self.declaration_emit_flags()?;
             let out = if has_inferred_type(self.kind(cx, node)?) {
                 self.resolver.create_type_of_declaration(
                     cx.arena_mut()?,
                     target,
                     declaration,
                     enclosing,
-                    EmitNodeBuilderFlags::DECLARATION_EMIT,
+                    flags,
                     EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
                     &mut self.tracker,
                 )
@@ -315,7 +330,7 @@ impl DeclarationTransformer<'_> {
                     target,
                     declaration,
                     enclosing,
-                    EmitNodeBuilderFlags::DECLARATION_EMIT,
+                    flags,
                     EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
                     &mut self.tracker,
                 )
@@ -989,7 +1004,7 @@ pub(crate) const fn is_modifier_kind(kind: SyntaxKind) -> bool {
     )
 }
 
-fn unwrap_parenthesized(
+pub(crate) fn unwrap_parenthesized(
     cx: &TransformationContext,
     mut node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
@@ -1005,7 +1020,7 @@ fn unwrap_parenthesized(
     Ok(node)
 }
 
-fn is_primitive_literal_value(
+pub(crate) fn is_primitive_literal_value(
     cx: &TransformationContext,
     node: TransformNode,
 ) -> Result<bool, TransformError> {
@@ -1050,6 +1065,7 @@ const fn has_inferred_type(kind: SyntaxKind) -> bool {
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression
             | SyntaxKind::BinaryExpression
+            | SyntaxKind::CallExpression
             | SyntaxKind::VariableDeclaration
             | SyntaxKind::ExportAssignment
             | SyntaxKind::PropertyAssignment

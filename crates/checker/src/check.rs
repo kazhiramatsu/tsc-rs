@@ -8031,6 +8031,24 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                 }
+                // tsgo someSymbolTableInScope (symbolaccessibility.go:788-799):
+                // a class expression's own name is in scope inside it.
+                SyntaxKind::ClassExpression => {
+                    let name = match self.data_of(loc) {
+                        NodeData::ClassExpression(data) => data.name,
+                        _ => None,
+                    };
+                    if let (Some(name), Some(symbol)) = (name, self.binder.node_symbol(loc)) {
+                        let text = self.identifier_text_of(name).unwrap_or_default();
+                        let mut table = tsc_binder::SymbolTable::default();
+                        table.insert(tsc_binder::escape_leading_underscores(text), symbol);
+                        tables.push((
+                            ScopeTableKey::Locals(loc),
+                            crate::program::ScopeTable::Owned(table),
+                            /*is_local_name_lookup*/ true,
+                        ));
+                    }
+                }
                 _ => {}
             }
             location = self.parent_of(loc);

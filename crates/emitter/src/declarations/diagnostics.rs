@@ -251,6 +251,7 @@ pub(crate) const fn can_produce_diagnostics(kind: SyntaxKind) -> bool {
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression
             | SyntaxKind::BinaryExpression
+            | SyntaxKind::CallExpression
             | SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag
     )
@@ -358,6 +359,26 @@ fn template_for_node(
         | SyntaxKind::BinaryExpression => {
             let message = property_message(source, node);
             named_template(source, node, message, anchors)
+        }
+        // tsgo: a JavaScript `Object.defineProperty(exports, name, …)` call
+        // reports at its name argument (diagnostics.go:200-215).
+        SyntaxKind::CallExpression => {
+            let name = match &source.arena.node(node).data {
+                NodeData::CallExpression(data) => data
+                    .arguments
+                    .and_then(|arguments| source.arena.node_array(arguments).nodes.get(1).copied()),
+                _ => None,
+            }
+            .unwrap_or(node);
+            DiagnosticTemplate {
+                message: external(
+                    &d::Exported_variable_0_has_or_is_using_name_1_from_external_module_2_but_cannot_be_named,
+                    &d::Exported_variable_0_has_or_is_using_name_1_from_private_module_2,
+                    &d::Exported_variable_0_has_or_is_using_private_name_1,
+                ),
+                error_node: anchors.anchor(name),
+                type_name: Some(anchors.anchor(name)),
+            }
         }
         SyntaxKind::Parameter if parameter_is_private_property(source, node) => named_template(
             source,

@@ -6,7 +6,7 @@ use tsc_emitter::{
     EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
     SourceFileId, TransformArena, TransformNode, TransformNodeArray, TransformSourceId,
 };
-use tsc_syntax::nodes::{ImportTypeData, UnionTypeData};
+use tsc_syntax::nodes::UnionTypeData;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
@@ -211,6 +211,7 @@ fn has_inferred_type(checker: &CheckerState<'_>, node: NodeId) -> bool {
             | SyntaxKind::PropertyAccessExpression
             | SyntaxKind::ElementAccessExpression
             | SyntaxKind::BinaryExpression
+            | SyntaxKind::CallExpression
             | SyntaxKind::VariableDeclaration
             | SyntaxKind::ExportAssignment
             | SyntaxKind::PropertyAssignment
@@ -1473,12 +1474,19 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
         } else {
             symbol
         };
-        let result = self
+        let mut result = self
             .checker
             .emit_is_symbol_accessible(access_symbol, enclosing, meaning, should_compute_aliases)
             .map_err(|abort| {
                 callback_abort_error(self.checker, self.method, Some(enclosing), abort)
             })?;
+        // tsgo's signature fake scope is a synthesized block, which is not in
+        // a JavaScript file, so a name that cannot be named from it carries no
+        // error node and the diagnostic context places the error
+        // (nodebuilderscopes.go:142-147, symbolaccessibility.go:861).
+        if enclosing_is_synthetic {
+            result.error_node = None;
+        }
         if result.error_symbol_name.is_some() {
             self.build_accessibility_error_name(
                 arena,
@@ -1665,18 +1673,6 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
             })
             .unwrap_or_default()
     }
-}
-
-fn literal_import_type(data: &ImportTypeData, checker: &CheckerState<'_>) -> bool {
-    data.argument.is_some_and(|argument| {
-        matches!(
-            checker.data_of(argument),
-            NodeData::LiteralType(literal)
-                if literal
-                    .literal
-                    .is_some_and(|literal| checker.kind_of(literal) == SyntaxKind::StringLiteral)
-        )
-    })
 }
 
 fn some_type_is_undefined(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
@@ -2115,29 +2111,10 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
         let Some(r#type) = get_type_from_type_node2(self.checker, context, existing, true)? else {
             return Ok(false);
         };
-        if let NodeData::ImportType(data) = self.checker.data_of(existing).clone() {
-            if self.checker.is_in_js_file(existing) && literal_import_type(&data, self.checker) {
-                self.checker
-                    .get_type_from_type_node(existing)
-                    .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                let Some(symbol) = self.checker.links.node(existing).resolved_symbol.resolved()
-                else {
-                    return Ok(true);
-                };
-                if !data.is_type_of
-                    && !self
-                        .checker
-                        .symbol_flags(symbol)
-                        .intersects(SymbolFlags::TYPE)
-                {
-                    return Ok(false);
-                }
-                let parameters = self
-                    .checker
-                    .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
-                return Ok(self.checker.nodes_of(data.type_arguments).len()
-                    >= self.checker.get_min_type_argument_count(Some(&parameters)));
-            }
+        // tsgo reuses a JavaScript import type whose type resolves, with no
+        // check of the symbol it names (nodecopy.go:614-646).
+        if self.checker.kind_of(existing) == SyntaxKind::ImportType {
+            return Ok(true);
         }
         if self.checker.kind_of(existing) == SyntaxKind::TypeReference {
             if self.checker.is_const_type_reference_node(existing) {

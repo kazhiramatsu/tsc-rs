@@ -282,7 +282,8 @@ fn dm_literal_const_value() {
             let declaration = first_variable_declaration(checker, statement);
             let node = checker
                 .emit_create_literal_const_value(arena, target, declaration, &mut tracker)
-                .expect("literal serializes");
+                .expect("literal serializes")
+                .expect("a literal type has a literal value");
             assert_eq!(
                 node_kind(arena, target, node),
                 expected,

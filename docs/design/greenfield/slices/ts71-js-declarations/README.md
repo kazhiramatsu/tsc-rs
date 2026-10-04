@@ -1,6 +1,6 @@
 # JavaScriptのd.tsをtsgoの方式で作る
 
-状態：**実装中**（J1・J1b・J2・J2b 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
+状態：**実装中**（J1・J1b・J2・J2b・J3 2026-10-04）。ユーザー決定（2026-10-04）：「再設計して進める」。前段：
 [TypeScript 7.1への切替](../ts71-cutover/README.md)のP3-5ab。
 
 ## 背景
@@ -316,3 +316,95 @@ emitterは`tsc-binder`に依存するようになった。
 - hosted：PR #649（head `c5d477be1`、merge `f41096a64`）、run 37172738011 — `plan` 38s、`rust` 9m56s、`conformance (TypeScript 7.1)` 15m25s、`gates` 12s。
 - perf（README corpora、`--noEmit`、3 rounds、nice 20、main `a84cda839`（J2のcode `4c54b986f`と同じcodeのrelease build）と本branch（`864167c05`）のrelease build対tsgo 7.1.0-dev、median wall ms main→本branch）：hono 128→139、zod 518→514、Playwright 364→367、TypeScript `src/compiler` 350→328、Next.js 780→763、Effect 536→518、VS Code 3,447→3,353。tsc-rs÷tsgoは0.60〜0.97、peak memory（MB main→本branch）：313→330、1,283→1,296、791→810、287→288、1,317→1,319、1,047→1,045、5,435→5,434。診断の出力と読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（JS・d.ts・source map、3 rounds）：hono 148→145、zod 616→617、Playwright 485→477、TypeScript `src/compiler` 567→494、Next.js 1,038→989、Effect 794→802（tsgo比0.54〜0.78）。差の大きいものをA/Bで確かめた：5 roundsはhonoの`--noEmit` 133／120 ms（peak RSS 317／321 MB）、Playwrightの`--noEmit` 348／349 ms（804／815 MB）、zodのfull 580／589 ms（1,510／1,507 MB）、Effectのfull 760／785 ms、Effectのfull 10 roundsは759／758 ms。単一checker（`TSRS_CHECKERS=1`、5回のmedian）の命令数とpeak memory footprintは、hono 4.297／4.295 G・147.3／147.1 MB、Playwright 22.291／22.305 G・544.8／543.3 MB、Effectのfull 54.496／54.751 G（+0.47%）・980.7／974.9 MB。Effectの命令数の増分は、7.1の囲む宣言（変数宣言から始まる名前の検索）が約0.17 G、expandoの事前走査が約0.03〜0.08 Gで、壁時計には現れない。fullの出力（`df112c16f`で再確認）：診断は6 corpusともmainと同一、zod・Playwright・TypeScript `src/compiler`は出力も同一。hono・Next.js・Effectの18 fileの.d.tsが変わり、17 fileはtsgoと同一、残る1 file（Effectの`internal/core.d.ts`）もtsgoに近づいた（残りはtemplate literal型の引用符で、J2bと無関係）。この比較でdeclaration mapの退行を見つけ、`df112c16f`で直した。退行なし。
 - 残る差の記録：`export default name;`のdeclaration mapで、tsc-rsは文の先頭も対応付ける（tsgoは名前だけ。tsgoは`transformExportAssignment`で新しいnodeを作る、transform.go:1227-1297）。mainと同じで、J3で`transformExportAssignment`を移植するときに合わせる。
+
+## J3 export assignmentとCommonJSをtsgoの方式で書く（2026-10-04）
+
+- **export assignment**：tsgoの`transformExportAssignment`（transform.go:1227-1297）は、exportする式を種類で書き分ける。
+  TypeScriptとJavaScriptの両方に移植した（`crates/emitter/src/declarations/export_assignment.rs`）。
+  - 識別子：新しいexport assignmentを作り、文のJSDocを保つ。declaration mapは名前だけを対応付けるので、J2bの
+    残り（`export default name;`で文の先頭も対応付ける）が直った。
+  - class式はclass宣言、関数式とarrow関数は関数宣言にし、exportの後ろに書く。名前は式自身の名前、無ければ
+    `_default`（JavaScriptの`export =`は`_exports`）。class式はclass宣言と`buildClassMembers`を共有し、
+    `WriteClassExpressionAsTypeLiteral`を外して直列化する。
+  - primitiveのliteralは`const`の初期化子、それ以外の式は型を付けた`const`にする。`CreateLiteralConstValue`は
+    tsgoと同じく、literal型でなければ値を返さない。
+- **CommonJS**：tsgoはCommonJSを再解析せず、declaration transformが代入と`require`を宣言に変える。これを移植し
+  （`crates/emitter/src/declarations/commonjs.rs`）、`root.rs`はCommonJSのfileもsymbol直列化に送らなくなった。
+  6.0の経路を使うのは、`outFile`で束ねるJavaScriptだけになった（J4で退役）。
+  - **集める順序**：文を訪れる前に`module.exports =`を集め（`visitCJSExportAssignments`、transform.go:2680-2698）、
+    次にexpandoと一緒に`exports.name =`・`module.exports.name =`・`Object.defineProperty(exports, …)`を集める
+    （`visitNestedExpression`）。
+  - **`exports.name =`**（`transformCommonJSExport`、transform.go:1343-1534）：
+    - top-levelで、右辺の識別子がalias export（`IsCommonJsAliasExport`）なら`export { helper }`にし、宣言を可視にする。
+    - class式はexportするclassにする。名前を持つclassで、exportの名前と違うか、memberの型がclass自身を指すときは、
+      classを専用のnamespace（`_ns`）に置いてexportの名前でexportする（trackerがclassのsymbolを見張る、
+      tracker.go:193-199）。
+    - `default`は`const _default`と`export default _default`。
+    - それ以外の値は、名前が他の宣言に解決されなければ型を付けた`export var`、そうでなければ生成した`const`と
+      `export { _exported as name }`（文字列の名前、または他の宣言が持つ名前）。
+    - 同じ名前は一度だけ書く（`witnessedCjsExports`）。
+  - **`module.exports =`**：export assignmentの移植を使い、識別子でない値には`_exports`の名前を付ける。
+    その後に足したmemberは、その名前のnamespace（`declare namespace _exports`）に入れる
+    （`wrapInCJSExportNamespace`）。`module.exports = Thing`の後のmemberは、`export = Thing`と並ぶexportする
+    宣言にする。
+  - **順序**（`appendCjsExports`）：export assignmentとmemberを文より前に書く。
+  - **`require`**（`transformCjsRequireVariableDeclaration`、transform.go:875-906）：`const x = require("m")`は
+    `import x = require("m")`、分割代入の`require`はnamed importにする。型が使わなければ書かない。
+  - **診断**：`module.exports =`が複数あれば、tsgoと同じくそれぞれにTS6424を出す（transform.go:356-363）。
+  - resolverの照会を足した：`GetReferencedValueDeclarationOfName`、`IsCommonJsAliasExport`、
+    `GetTrackerSymbolOfNode`、`GetExportEqualsDeclarations`、`PrecalculateDeclarationEmitVisibility`
+    （CommonJSの`module.exports = x`と`exports.y = x`が`x`を可視にする、emitresolver.go:236-306）。
+- 移植で見つかった7.1の差も合わせた：
+  - **class式の名前**：class式の中では、その名前がsymbolの可視性の検索範囲に入る（`someSymbolTableInScope`、
+    symbolaccessibility.go:788-799）。
+  - **呼び出し式**：推論した型を持つ（`HasInferredType`）。declarationの診断はexportする変数の文言で、
+    第2引数の位置に出す（diagnostics.go:200-215）。
+  - **その他の文**：残しも落としもしない文（`export as namespace`など）はdeclarationの部分木として訪れる
+    （transform.go:226-274）。d.tsに`export as namespace`が残る。
+  - **JavaScriptのisolatedDeclarations**：推論のfallbackをJavaScriptのfileでも報告する（tracker.go:87-100）。
+  - **JavaScriptのimport型**：型が解決できればimport型を再利用する（nodecopy.go:614-646）。JSDocの値だけの
+    import型を作り直すtsc 6.0の規則はやめた。
+  - **signatureの中で名前を付けられない型**：tsgoはsignatureの合成したscope（JavaScriptのfileに属さない）から
+    調べるので、結果は自分のnodeを持たず、診断は宣言の診断contextの位置に出る（nodebuilderscopes.go:142-147、
+    symbolaccessibility.go:861）。`Object.defineProperty(exports, "api", …)`では`"api"`の位置で、fileの最初の
+    tokenではない。1回目のfull runの`cjsObjectDefinePropertyPrivateModuleDeclarationEmit`で見つけた。
+  - **`return`の後のtypedefの名前空間**：関数のJSDocを`return`の後（到達しないflow）で束縛するとき、binderは
+    `@typedef`のnamespaceを関数の中にも宣言していた（tsc 6.0の挙動）。tsgoはtypedefをfileの文に再解析するので、
+    namespaceは同名の変数とmergeし、その変数が可視になる。binderは型aliasのtagを、到達するflowと同じく扱う。
+- unit test：
+  - CLI（tsgoの出力にpin）：export assignment（literal、単項のliteral、arrow関数と名前付きの関数式、parameter
+    propertyを持つclass、`as const`）。CommonJS（`exports.name =`の各形、`require`の宣言、`module.exports =`の
+    classとその後のmember、object literalとmember、関数、`return`の後のtypedefのnamespaceと`@callback`の
+    `import()`型）。TypeScript（TS1315）とJavaScriptの`export as namespace`。`Object.defineProperty`のexportで
+    名前を付けられない型のTS4023がproperty名の位置に出る（修正前は失敗する）。
+  - binder：`return`する関数に付いたdotted typedefがfileの変数とmergeする（修正前は失敗する）。
+- conformance：
+  - 15,228構成、lane A 13,467（変化なし）、450 s。
+  - errors full 13,325→13,329、mismatch 87→83。上がった4構成は`isolatedDeclarationsAllowJs`、
+    `multipleModuleExportsAssignments`、`jsDeclarationsTypeReassignmentFromDeclaration2`、
+    `cjsObjectDefinePropertyPrivateModuleDeclarationEmit`。ほかの描いたbaselineのdigestはすべて同じ。
+  - emit full 13,220→13,293、emit mismatch 217→144。上がった73構成は、JavaScriptのd.ts 68構成（主にCommonJS）と、
+    `export default`の式を書くTypeScriptのd.ts 5構成（`dynamicImportsDeclaration`、`jsdocCommentDefaultExport`、
+    `declarationEmitExportAliasVisibiilityMarking`、`nodeNextCjsNamespaceImportDefault2`）。下がった構成は無い。
+  - declaration mapは`declarationMaps`が一致した（`export default name;`の対応）。
+  - emitのdigestが変わったのは`jsDeclarationsJson`と`jsDeclarationsPackageJson`で、どちらもd.tsはtsgoと同一に
+    なった。残る差は、runnerが作らないd.tsの再検査（DtsFileErrors）だけである。
+  - 1回目のfull run（`cc721b96c`、448 s）は、`cjsObjectDefinePropertyPrivateModuleDeclarationEmit`のTS4023の位置
+    （fileの最初のtoken）を除いて同じだった。これを`fcac38d69`で直した。
+- ratchet：0 regressions。75行：emit none→jsの71行（errors fullが70行、categoryが1行）と、errorsが上がった4構成の
+  新しい行。`intersectionConstructorReductionCrash`は今回もharness errorで、ratchetに入れない。
+- local：
+  - formatとworkspace全体のclippy。binder・emitter・checker・compiler・conformanceのtest（38 targets、
+    2,717 passed、`fcac38d69`）。
+  - 2 workerのfull run（450 s、`fcac38d69`のrelease build）。
+  - 試行（devのrunner、JavaScriptか宣言のoptionを持つ2,271 case・2,794構成、J2bのfull runのreportと比較）：
+    errors +3、emit +73、下がった構成は無い。
+- 残り：
+  - `outFile`で束ねるJavaScript（J4）。
+  - JavaScriptのd.tsの差：prototypeのmemberの`typeof import("./source").Vec`（tsgoは`typeof Vec`、
+    `jsDeclarationsFunctionLikeClasses2`）、関数の`@template`と`@type`（`jsdocTypeParameterTagConflict`、
+    `typeTagOnFunctionReferencesGeneric`）、object literalのaccessor（`declarationEmitObjectLiteralAccessorsJs1`、
+    TypeScriptも）、isolatedDeclarationsでの`this`のpropertyの推論、`jsDeclarationsInterfaces`のJavaScriptのemit。
+  - declaration mapで、推論したobject literal型のmember（`a: number`）をtsgoは元のpropertyに対応付けるが、
+    tsc-rsは対応付けない（mainと同じ）。
+  - checkerの差（J1bの記録のとおり）。

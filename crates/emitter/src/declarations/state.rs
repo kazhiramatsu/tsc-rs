@@ -32,6 +32,10 @@ pub(crate) struct TransformState {
     pub(crate) current_source_file: TransformSourceId,
     pub(crate) references: RawFileReferences,
     pub(crate) expandos: super::expando::ExpandoState,
+    /// tsgo inClassExpressionDeclaration (transform.go:99): the members of a
+    /// class expression written as a class declaration are being serialized.
+    pub(crate) in_class_expression_declaration: bool,
+    pub(crate) common_js: super::commonjs::CommonJsState,
 }
 
 impl TransformState {
@@ -50,6 +54,8 @@ impl TransformState {
             current_source_file: source,
             references: RawFileReferences::default(),
             expandos: super::expando::ExpandoState::default(),
+            in_class_expression_declaration: false,
+            common_js: super::commonjs::CommonJsState::default(),
         }
     }
 }
