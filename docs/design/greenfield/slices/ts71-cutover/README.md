@@ -2264,3 +2264,48 @@ P3-5arの後、emitの2件：
     劣化無し。
 - hosted：PR #670（head `81661e22d`）、run 37227406231 — `plan` 22s、`rust` 8m0s、`conformance (TypeScript 7.1)` 20m8s、
   `gates` 11s。
+
+## P3-5at JSファイルと置き場所の誤ったimport/export（2026-10-05）
+
+P3-5asの後、import elisionの範囲とmodule変換の5件：
+- **JSファイル**：tsgoのimport elisionは、verbatimModuleSyntaxでないTypeScript fileだけで走る（`importElisionEnabled`、
+  compiler/emitter.go:115）。JSファイルとverbatimModuleSyntaxではtype eraserだけが通り、書かれた`import {}`と
+  `export {}`を残し（typeeraser.go:325-329、362-367）、TypeScriptを含まない文には触れない（typeeraser.go:44-46）。
+  type-onlyのimportとexport、`export =`はTypeScriptとして数える（ast.go:1868-1922）。tsc-rsはtsc 6.0の、JSファイルでも
+  空のimportとexportや値でないexportを消す形で、消した後に`export {};`を末尾に足していた。
+  `bundlerSyntaxRestrictions`（2構成）、`thisInObjectJs`、`plainJSGrammarErrors`（`async export`の修飾子）、
+  `jsDeclarationsInterfaces(target=es2015)`（interfaceのexportがCommonJSの`exports.G = void 0`に残る）。
+- **置き場所の誤ったimportとexport**：import elisionはsource fileとnamespace本体の文しか見ない
+  （importelision.go:117-125）。文法エラーでblockに置かれた`export =`やaliasは束縛を残し、aliasは`var I = M`になる。
+  namespaceの中のblockにあるaliasはruntime syntaxの変換が消す（runtimesyntax.go:123-125）。
+  `moduleElementsInWrongContext`、`moduleElementsInWrongContext2`。
+- **module変換**：tsgoのCommonJS変換はtop-levelのimportとexportだけを変換し（commonjsmodule.go:60-128）、ES module変換は
+  全てのnodeを見て、入れ子の`import x = require()`と`export =`もtop-levelと同じに変換する（esmodule.go:35-53）。
+  tsc-rsのCommonJS変換はblockの中のimportをtop-levelのものとして変換しようとして内部エラーになり、ES module変換は
+  入れ子のものを残していた。ES module変換は、parse treeに入れ子のものがある時だけ全体を辿る。
+- **消した埋め込みの文**：tsgoの`EmitContext.VisitEmbeddedStatement`は、変換が消した埋め込みの文（`if`の本体など）の
+  位置とcommentを持つ空の文を置く（printer/emitcontext.go:998-1010）。tsc-rsは本体の無い`if`を作ってprintで失敗して
+  いた。`typeOnlyExportAsIfBody`（`if (true) export type {};`）。
+- **集められないmodule要求**：tsgoはsource fileとambient moduleの文にあるimportだけを集める
+  （parser/references.go:11-90）。blockの中のimportの解決はnilで、TS2307になる。tsc-rsは解決表に行が無いとして内部
+  エラーで止まっていた。checkerが表に無い要求を引いた時に限り、置き場所の誤ったimportとexportの要求を未処理の要求
+  として集める（loaderの計画は全体を辿らない）。
+- unit test：CLI（tsgoの出力にpin）で3件（JSファイルの空のimportとexport、置き場所の誤った要素の束縛と解決、module
+  変換と消した埋め込みの文）。mainの10月3日のbuildでは、3件ともtsgoと違うか内部エラーだった。
+- conformance（release build、`7cbe47bcd`、`--workers 2`、516 s）：
+  - 15,228構成、lane A 13,467（変化なし）。errors full 13,401→13,400は`intersectionConstructorReductionCrash`（今回は
+    memoryの上限で終わらなかった。負荷で結果の変わる構成で、ratchetの外）。
+  - emit full 13,383→13,390：上の8構成から`intersectionConstructorReductionCrash`を引いたもの。emit mismatch 55→47。
+  - 下がった構成は無い。
+- ratchet：0 regressions、8行raise（emit）。
+- local：formatとworkspace全体のclippy。compiler・program・emitterのtest（`e0a28c728`で37 targets、1,446件）、埋め込みの
+  文の修正の後にcompilerとemitterのtest（29 targets、864件）。
+- perf（README corpora、nice 20、main（P3-5asのbuild `ca9a186d5`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 134→140、zod 539→551、Playwright 370→387、TypeScript
+    `src/compiler` 358→338、Next.js 799→831、Effect 533→547、VS Code 3,569→3,511。tsc-rs÷tsgo 0.63–0.97。読み込んだ
+    文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 140→147、zod 624→627、Playwright 488→485、TypeScript `src/compiler` 567→514、
+    Next.js 1,016→1,042、Effect 791→762。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B：Effect `--noEmit` 518→495、Playwright `--noEmit` 363→361、hono `bench-full` 147→142、Next.js
+    `bench-full` 997→985。1 checkerの命令数branch÷main：zod `--noEmit` 1.00019、Playwright `--noEmit` 0.99946、hono
+    `bench-full` 0.99970、Next.js `bench-full` 0.99982。3回の差はnoiseで、劣化無し。
