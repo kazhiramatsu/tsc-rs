@@ -457,7 +457,7 @@ impl<'context> TargetVisitor<'context> {
             })
             .transpose()?;
         if self.pass == TargetPass::Es2020 && operator == Some(SyntaxKind::QuestionQuestionToken) {
-            return self.transform_nullish_coalescing_expression(original, data);
+            return self.transform_nullish_coalescing_expression(data);
         }
         if self.pass == TargetPass::Es2016 {
             return match operator {
@@ -687,7 +687,6 @@ impl<'context> TargetVisitor<'context> {
 
     fn transform_nullish_coalescing_expression(
         &mut self,
-        original: TransformNode,
         data: tsc_syntax::nodes::BinaryExpressionData,
     ) -> Result<NodeId, TransformError> {
         let visited_left = self.visit_required(
@@ -711,8 +710,11 @@ impl<'context> TargetVisitor<'context> {
             SyntaxKind::BinaryExpression,
             "right of nullish coalescing expression",
         )?;
+        // tsgo's nullish-coalescing transformer gives the conditional neither
+        // a position nor an original (nullishcoalescing.go:34-40), so the
+        // printer keeps it on the line of what precedes it.
         let result = self.create_conditional(condition, when_true, when_false)?;
-        Ok(self.set_original_and_range(result, original)?.node())
+        Ok(result.node())
     }
 
     fn visit_delete_expression(
@@ -2666,18 +2668,6 @@ impl<'context> TargetVisitor<'context> {
             .arena()
             .metadata(statement)
             .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::CUSTOM_PROLOGUE))
-    }
-
-    fn set_original_and_range(
-        &mut self,
-        node: TransformNode,
-        original: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.set_text_range(node, original)?;
-        self.context
-            .arena_mut()?
-            .set_original_node(node, Some(original))?;
-        Ok(node)
     }
 
     const fn node(&self, id: NodeId) -> TransformNode {

@@ -558,6 +558,10 @@ pub struct ModuleResolver<'a> {
     active_package_maps: Vec<JsString>,
     input_requests: Vec<InputResolutionRequest>,
     config_file_path: Option<ProgramPath>,
+    /// tsgo's candidateEndingIsFromConfig (module/resolver.go:83-88): a
+    /// `paths` substitution's own extension came from the configuration, so
+    /// the resolution does not count as one using a TS extension.
+    candidate_ending_is_from_config: bool,
 }
 
 impl<'a> ModuleResolver<'a> {
@@ -661,6 +665,7 @@ impl<'a> ModuleResolver<'a> {
             active_package_maps: Vec::new(),
             input_requests: Vec::new(),
             config_file_path: config_file_path.cloned(),
+            candidate_ending_is_from_config: false,
         })
     }
 
@@ -697,6 +702,7 @@ impl<'a> ModuleResolver<'a> {
             active_package_maps: Vec::new(),
             input_requests: Vec::new(),
             config_file_path: None,
+            candidate_ending_is_from_config: false,
         })
     }
 
@@ -1102,6 +1108,7 @@ impl<'a> ModuleResolver<'a> {
                 // extension-family loader. The raw text is intentional: a
                 // wildcard capture which happens to end in `.ts` does not
                 // enable this shortcut.
+                let candidate_ending_is_from_config = extension.is_some();
                 if let Some(extension) = extension {
                     if let Some(resolved_path) = self.try_file(&candidate)? {
                         let external = path_contains_node_modules(resolved_path.as_js());
@@ -1130,6 +1137,8 @@ impl<'a> ModuleResolver<'a> {
                     continue;
                 }
 
+                let saved = self.candidate_ending_is_from_config;
+                self.candidate_ending_is_from_config |= candidate_ending_is_from_config;
                 let outcome = self.probe_optional_candidate(
                     &candidate,
                     probe_pass,
@@ -1137,7 +1146,9 @@ impl<'a> ModuleResolver<'a> {
                     loader,
                     external_relative,
                     follow_realpath,
-                )?;
+                );
+                self.candidate_ending_is_from_config = saved;
+                let outcome = outcome?;
                 if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                     return Ok(outcome);
                 }
@@ -1357,7 +1368,8 @@ impl<'a> ModuleResolver<'a> {
         let context = LegacyResolutionContext {
             is_external_library_import: false,
             attach_package_id: false,
-            resolved_using_ts_extension: is_typescript_family_specifier(candidate),
+            resolved_using_ts_extension: !self.candidate_ending_is_from_config
+                && is_typescript_family_specifier(candidate),
             follow_realpath: false,
         };
         if !candidate.ends_with("/") {
@@ -1662,7 +1674,8 @@ impl<'a> ModuleResolver<'a> {
             LegacyResolutionContext {
                 is_external_library_import: false,
                 attach_package_id: false,
-                resolved_using_ts_extension: is_typescript_family_specifier(candidate),
+                resolved_using_ts_extension: !self.candidate_ending_is_from_config
+                    && is_typescript_family_specifier(candidate),
                 follow_realpath: false,
             },
         )?;

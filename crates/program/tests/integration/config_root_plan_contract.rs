@@ -1203,12 +1203,14 @@ fn circular_extends_reports_a_partial_plan_diagnostic() {
         ),
     )
     .expect("cycle conversion walks the complete root expression after TS18000");
+    // A root array holding an object is recovered without TS5092
+    // (tsoptions/tsconfigparsing.go:319-335).
     assert_eq!(
         plan.errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [5092, 1327, 1327, 18000, 1327, 1327, 1327, 1327]
+        [1327, 1327, 18000, 1327, 1327, 1327, 1327]
     );
 
     let invalid_cycle = MemoryConfigHost::default()
@@ -1420,7 +1422,10 @@ fn no_input_diagnostic_uses_javascript_json_number_rendering() {
 }
 
 #[test]
-fn non_object_root_reports_ts5092_and_recovers_the_first_object() {
+fn non_object_root_recovers_the_first_object_and_reports_ts5092_without_one() {
+    // tsgo's convertConfigFileToObject (tsoptions/tsconfigparsing.go:
+    // 319-335) converts the first object of a root array without reporting
+    // the root value; a root without an object is TS5092.
     let host = MemoryConfigHost::default();
     let plan = parse_config_root_plan(
         &host,
@@ -1431,14 +1436,7 @@ fn non_object_root_reports_ts5092_and_recovers_the_first_object() {
     )
     .expect("array root returns a recoverable partial plan");
 
-    assert_eq!(plan.errors()[0].code(), 5092);
-    assert_eq!(
-        plan.errors()[0]
-            .message_text()
-            .as_str()
-            .expect("scalar diagnostic observation"),
-        "The root value of a 'tsconfig.json' file must be an object."
-    );
+    assert!(plan.errors().is_empty());
     assert_eq!(plan.file_names(), ["/project/a.ts"]);
     assert_eq!(
         plan.options().get("strict").unwrap().value,
@@ -1453,15 +1451,29 @@ fn non_object_root_reports_ts5092_and_recovers_the_first_object() {
         ),
     )
     .expect("root-array recovery does not convert later object elements");
+    assert!(ignored_tail.errors().is_empty());
+    assert_eq!(ignored_tail.file_names(), ["/project/x.ts"]);
+
+    let scalar_root = parse_config_root_plan(
+        &MemoryConfigHost::default(),
+        request("/project/tsconfig.json", r#"[1, "x"]"#),
+    )
+    .expect("a root without an object is a recoverable partial plan");
     assert_eq!(
-        ignored_tail
+        scalar_root
             .errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [5092]
+        [5092, 18003]
     );
-    assert_eq!(ignored_tail.file_names(), ["/project/x.ts"]);
+    assert_eq!(
+        scalar_root.errors()[0]
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
+        "The root value of a 'tsconfig.json' file must be an object."
+    );
 }
 
 #[test]

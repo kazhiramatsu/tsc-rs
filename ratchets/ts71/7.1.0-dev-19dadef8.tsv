@@ -5205,6 +5205,7 @@ compiler/pathMappingBasedModuleResolution6_node	full	js
 compiler/pathMappingWithoutBaseUrl1	full	js
 compiler/pathMappingWithoutBaseUrl2	full	js
 compiler/pathsAliasTrailingSlashConflictWithAtTypes	full	js
+compiler/pathsEntryReferencesDtsViaTsExtensionNoCrash	full	js
 compiler/pathsValidation5	full	js
 compiler/patternAmbientModuleAugmentationMergedSymbol	full	js
 compiler/performanceComparisonOfStructurallyIdenticalInterfacesWithGenericSignatures	full	js
@@ -6219,6 +6220,7 @@ compiler/tryCatchFinallyControlFlow	full	js
 compiler/tryStatementInternalComments	full	js
 compiler/tsCheckPreservedAfterReference	full	js
 compiler/tsconfigExtendsPackageJsonExportsWildcard	full	js
+compiler/tsconfigMalformedNonObject	full	js
 compiler/tsconfigMapOptionsAreCaseInsensitive	full	js
 compiler/tsconfigRootdirInclude	full	js
 compiler/tsconfigSimpleTest	full	js

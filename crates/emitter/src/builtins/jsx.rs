@@ -1414,7 +1414,13 @@ impl<'context> JsxVisitor<'context> {
             })
             .count();
         let mut insertions = Vec::new();
-        for group in self.implicit_imports.clone().into_iter().rev() {
+        for mut group in self.implicit_imports.clone().into_iter().rev() {
+            // getSortedSpecifiers orders a runtime import's specifiers by
+            // imported name, then local name (jsx.go:183-195).
+            group.imports.sort_by(|left, right| {
+                (left.exported_name.as_str(), left.local_name.as_str())
+                    .cmp(&(right.exported_name.as_str(), right.local_name.as_str()))
+            });
             if self.is_external_module {
                 insertions.push(self.create_implicit_import_statement(&group)?);
             } else if self.is_external_or_common_js_module {
