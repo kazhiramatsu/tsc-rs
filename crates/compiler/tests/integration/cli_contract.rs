@@ -4262,6 +4262,172 @@ fn misplaced_module_elements_follow_the_module_transform_like_tsgo() {
     }
 }
 
+/// Compiles `a.ts` with `noEmitHelpers` and returns the emitted `a.js`.
+fn emit_one_file(text: &str, target: &str) -> String {
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), text).expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        format!(
+            r#"{{"compilerOptions":{{"types":[],"target":"{target}","module":"esnext","noEmitHelpers":true,"outDir":"out"}},"files":["a.ts"]}}"#
+        ),
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    fs::read_to_string(tree.path("out/a.js")).expect("read a.js")
+}
+
+#[test]
+fn async_arrows_in_static_initializers_have_no_lexical_this_like_tsgo() {
+    // tsgo's async arrow is no lexical `this` (ast.go:2064-2072), and the
+    // class fields transform marks a relocated static initializer and a static
+    // block's IIFE EFNoLexicalThis (classfields.go:1417, 2714-2718), so the
+    // async transform passes `void 0` (async.go:127-130) and only an explicit
+    // `this` needs the class alias. The expected bytes are tsgo's.
+    let js = emit_one_file(
+        concat!(
+            "export class C {\n",
+            "    static a = async () => 1;\n",
+            "    static b = async () => this.a;\n",
+            "    static {\n",
+            "        const f = async () => this.b;\n",
+            "    }\n",
+            "}\n",
+            "namespace N {\n",
+            "    export class D {\n",
+            "        static x = async () => 1;\n",
+            "    }\n",
+            "}\n",
+        ),
+        "es2015",
+    );
+    assert_eq!(
+        js,
+        concat!(
+            "var _a;\n",
+            "export class C {\n",
+            "}\n",
+            "_a = C;\n",
+            "C.a = () => __awaiter(void 0, void 0, void 0, function* () { return 1; });\n",
+            "C.b = () => __awaiter(void 0, void 0, void 0, function* () { return _a.a; });\n",
+            "(() => {\n",
+            "    const f = () => __awaiter(void 0, void 0, void 0, function* () { return _a.b; });\n",
+            "})();\n",
+            "var N;\n",
+            "(function (N) {\n",
+            "    class D {\n",
+            "    }\n",
+            "    D.x = () => __awaiter(void 0, void 0, void 0, function* () { return 1; });\n",
+            "    N.D = D;\n",
+            "})(N || (N = {}));\n",
+        )
+    );
+}
+
+#[test]
+fn async_parameters_capture_super_like_tsgo() {
+    // tsgo's transformAsyncFunctionBody opens the `_super` capture before it
+    // visits the parameters that move into the generator (async.go:713-731),
+    // so a `super` use in a parameter initializer is captured; element access
+    // alone in an async generator needs no `_super` object (forawait.go:
+    // 827-831). The expected bytes are tsgo's.
+    let js = emit_one_file(
+        concat!(
+            "class B { m() { return 1; } }\n",
+            "export class C extends B {\n",
+            "    async k(b = super.m()) { return b; }\n",
+            "    p() {\n",
+            "        const g = async (a: number, b = super.m()) => a + b;\n",
+            "        return g(1);\n",
+            "    }\n",
+            "}\n",
+        ),
+        "es2015",
+    );
+    assert_eq!(
+        js,
+        concat!(
+            "class B {\n",
+            "    m() { return 1; }\n",
+            "}\n",
+            "export class C extends B {\n",
+            "    k() {\n",
+            "        const _super = Object.create(null, {\n",
+            "            m: { get: () => super.m }\n",
+            "        });\n",
+            "        return __awaiter(this, arguments, void 0, function* (b = _super.m.call(this)) { return b; });\n",
+            "    }\n",
+            "    p() {\n",
+            "        const _super = Object.create(null, {\n",
+            "            m: { get: () => super.m }\n",
+            "        });\n",
+            "        const g = (a_1, ...args_1) => __awaiter(this, [a_1, ...args_1], void 0, function* (a, b = _super.m.call(this)) { return a + b; });\n",
+            "        return g(1);\n",
+            "    }\n",
+            "}\n",
+        )
+    );
+    let js = emit_one_file(
+        concat!(
+            "class B { x() { return 1; } }\n",
+            "export class C extends B {\n",
+            "    async * g() {\n",
+            "        super[\"x\"]();\n",
+            "        yield 1;\n",
+            "    }\n",
+            "}\n",
+        ),
+        "es2017",
+    );
+    assert_eq!(
+        js,
+        concat!(
+            "class B {\n",
+            "    x() { return 1; }\n",
+            "}\n",
+            "export class C extends B {\n",
+            "    g() {\n",
+            "        const _superIndex = name => super[name];\n",
+            "        return __asyncGenerator(this, arguments, function* g_1() {\n",
+            "            _superIndex(\"x\").call(this);\n",
+            "            yield yield __await(1);\n",
+            "        });\n",
+            "    }\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn decorated_classes_extending_null_call_no_super_like_tsgo() {
+    // tsgo's ES decorator transform synthesizes a constructor without
+    // `super(...arguments)` for a class extending `null` (esdecorator.go:737).
+    // The expected bytes are tsgo's.
+    let js = emit_one_file(
+        concat!(
+            "declare function dec(target: any, context: any): any;\n",
+            "export class C extends null {\n",
+            "    @dec x: number = 1;\n",
+            "}\n",
+        ),
+        "es2022",
+    );
+    assert!(
+        js.ends_with(concat!(
+            "        x = __runInitializers(this, _x_initializers, 1);\n",
+            "        constructor() {\n",
+            "            __runInitializers(this, _x_extraInitializers);\n",
+            "        }\n",
+            "    };\n",
+            "})();\n",
+            "export { C };\n",
+        )),
+        "{js}"
+    );
+}
+
 #[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors

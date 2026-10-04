@@ -43,6 +43,9 @@ impl EmitFlags {
     pub const NO_HOISTING: Self = Self(4194304);
     pub const ITERATOR: Self = Self(8388608);
     pub const NO_ASCII_ESCAPING: Self = Self(16777216);
+    /// tsgo's EFNoLexicalThis (printer/emitflags.go:30): a relocated static
+    /// initializer, whose `this` the class fields transform has replaced.
+    pub const NO_LEXICAL_THIS: Self = Self(33554432);
 
     pub const fn from_bits(bits: u32) -> Self {
         Self(bits)

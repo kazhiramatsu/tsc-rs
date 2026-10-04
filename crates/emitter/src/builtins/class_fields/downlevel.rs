@@ -6871,6 +6871,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     statement
                 }
             };
+            // tsgo marks a relocated static initializer and a static block's
+            // IIFE (classfields.go:1417, 2714-2718): their `this` is already
+            // the class, so the async transform passes `void 0`.
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .add_flags(EmitFlags::NO_LEXICAL_THIS);
             if let Some((original, is_field)) = recorded_original {
                 self.record_static_emit_environment(
                     statement,

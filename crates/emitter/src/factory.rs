@@ -3506,7 +3506,8 @@ impl<'arena> NodeFactory<'arena> {
             flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
         }
         if is_async {
-            flags |= TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_LEXICAL_THIS;
+            // tsgo's async arrow is no lexical `this` (ast.go:2064-2072).
+            flags |= TransformFlags::CONTAINS_ES_2017;
         }
         self.create_node(
             source,

@@ -19345,18 +19345,17 @@ fn local_contextual_target_flags(
             data.asterisk_token,
             data.modifiers,
         )?),
-        // createArrowFunction 22709-22710: an async arrow captures the lexical
-        // `this` for `__awaiter(this, …)` (`ContainsES2017 | ContainsLexicalThis`),
-        // so class-fields counts it as a static-initializer `this` reference
-        // (EF7-ASYNC-ARROW-LEXICAL-THIS).
-        NodeData::ArrowFunction(data) => {
-            let facets = function_like_facet_flags(arena, source, None, data.modifiers)?;
-            Ok(if facets.contains(TransformFlags::CONTAINS_ES_2017) {
-                facets | TransformFlags::CONTAINS_LEXICAL_THIS
-            } else {
-                facets
-            })
-        }
+        // tsgo's async arrow carries only its await facts (ast.go:2064-2072):
+        // unlike tsc 6.0's createArrowFunction it is no lexical `this`, so a
+        // static initializer holding one needs no class alias; the async
+        // transform passes `void 0` where a relocated initializer has no
+        // `this` (EmitFlags::NO_LEXICAL_THIS).
+        NodeData::ArrowFunction(data) => Ok(function_like_facet_flags(
+            arena,
+            source,
+            None,
+            data.modifiers,
+        )?),
         _ => Ok(TransformFlags::NONE),
     }
 }

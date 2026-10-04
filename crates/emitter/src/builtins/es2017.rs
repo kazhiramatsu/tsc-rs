@@ -267,6 +267,24 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     }
 
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
+        // A relocated static initializer has no lexical `this`
+        // (async.go:127-130): an async arrow in it passes `void 0`.
+        if self.has_lexical_this
+            && self
+                .context
+                .arena()
+                .metadata(self.node(id))
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_LEXICAL_THIS))
+        {
+            self.has_lexical_this = false;
+            let result = self.visit_with_lexical_this(id);
+            self.has_lexical_this = true;
+            return result;
+        }
+        self.visit_with_lexical_this(id)
+    }
+
+    fn visit_with_lexical_this(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
         if let Some(mapped) = self.nodes.get(&id) {
             return Ok(*mapped);
         }
@@ -482,6 +500,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
     fn plan_async_super_capture(
         &mut self,
         function: TransformNode,
+        parameters: Option<NodeArrayId>,
         body: Option<NodeId>,
     ) -> Result<AsyncSuperCapture, TransformError> {
         // `emitSuperHelpers` (_tsc.js:101243, 101378): below ES2015 the
@@ -510,9 +529,15 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         }
         let mut properties = Vec::new();
         let mut has_element_access = false;
-        if let Some(body) = body {
+        let parameters = parameters
+            .and_then(|parameters| self.context.arena().node_array_ref(self.source, parameters))
+            .map(|parameters| self.context.arena().node_array(parameters))
+            .transpose()?
+            .map(|parameters| parameters.nodes.to_vec())
+            .unwrap_or_default();
+        for parameter in parameters.into_iter().chain(body) {
             self.collect_super_uses(
-                self.node(body),
+                self.node(parameter),
                 true,
                 &mut properties,
                 &mut has_element_access,
@@ -1486,7 +1511,11 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                         | SyntaxKind::SetAccessor
                         | SyntaxKind::Constructor
                 ) {
-                Some(self.plan_async_super_capture(original, body)?)
+                // transformAsyncFunctionBody opens the capture before it
+                // visits the parameters that move into the generator
+                // (async.go:713-731): their `super` uses are captured too.
+                let parameters = if is_async { parameters } else { None };
+                Some(self.plan_async_super_capture(original, parameters, body)?)
             } else {
                 None
             };

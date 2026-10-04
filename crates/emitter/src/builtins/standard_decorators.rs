@@ -2167,8 +2167,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 transformed_members[index] =
                     self.inject_constructor_statement(transformed_members[index], statement)?;
             } else {
-                transformed_members
-                    .push(self.create_constructor(vec![statement], class_super.is_some())?);
+                // A class extending `null` has no base constructor to call
+                // (esdecorator.go:737).
+                let derived = match &class_super {
+                    Some((_, initializer)) => {
+                        let expression = self.skip_outer_expressions(*initializer)?;
+                        self.context.arena().node(expression)?.kind != SyntaxKind::NullKeyword
+                    }
+                    None => false,
+                };
+                transformed_members.push(self.create_constructor(vec![statement], derived)?);
             }
         }
 

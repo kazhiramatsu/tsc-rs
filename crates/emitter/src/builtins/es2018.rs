@@ -2955,6 +2955,12 @@ impl<'context> Es2018Visitor<'context> {
                 capture.has_assignment,
             )?);
         }
+        // tsgo creates the `_super` object only when a super property was
+        // captured (forawait.go:827-831); element access alone uses
+        // `_superIndex`.
+        if capture.properties.is_empty() {
+            return Ok(statements);
+        }
         let binding = capture
             .binding
             .ok_or(TransformError::RequiredChildRemoved {
