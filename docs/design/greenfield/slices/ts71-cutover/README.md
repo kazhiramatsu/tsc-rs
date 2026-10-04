@@ -2016,3 +2016,12 @@ P3-5alの後、CLIのconfigの扱いの3件：
 - 残り：tsgoはtsconfigの`watchOptions`を変換しない（tsoptions/tsconfigparsing.goに無い）ので、その値の誤りを報告
   しない。tsc-rsはTS6046を出す（emitの経路で以前からの違い）。tsconfigの変換をtsgoの`tsoptions`に合わせるslice
   （P3-5alの残り）で扱う。
+- hosted：PR #664（head `11aba33eb`）、run 37217585427 — `plan` 29s、`rust` 9m53s、`conformance (TypeScript 7.1)` 20m31s、
+  `gates` 11s。
+- perf（README corpora、nice 20、main（P3-5alのbuild `90f930b6a`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 136→137、zod 523→509、Playwright 363→364、TypeScript `src/compiler`
+    368→323、Next.js 798→774、Effect 525→481、VS Code 3,412→3,398。tsc-rs÷tsgo 0.59–0.94。読み込んだ文書数と診断は
+    7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 145→146、zod 642→633、Playwright 491→479、TypeScript `src/compiler` 549→493、
+    Next.js 1,070→1,025、Effect 758→762。tsc-rs÷tsgo 0.61–0.79。6 corporaとも出力fileと診断は同一。変えたのはconfigの
+    読み込みだけで、差はnoiseの範囲。劣化無し。
