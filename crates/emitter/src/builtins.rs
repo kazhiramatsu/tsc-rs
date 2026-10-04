@@ -10778,6 +10778,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if !self.is_module_reference_candidate(original)? {
             return Ok(original);
         }
+        // tsgo leaves the declaration name of an enum or namespace alone
+        // (commonjsmodule.go:2064-2068, moduletransforms/utilities.go:12-20),
+        // so a namespace merged with an exported declaration keeps its local
+        // name in `Foo || (Foo = {})`.
+        if self.is_declaration_name_of_enum_or_namespace(original)? {
+            return Ok(original);
+        }
         if !self.is_local_name(original) {
             let parsed = self.context.arena().get_original_node(original);
             if self.context.arena().node(parsed)?.pos != u32::MAX {
@@ -10816,6 +10823,26 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .arena()
             .metadata(node)
             .is_some_and(|metadata| metadata.flags().contains(EmitFlags::LOCAL_NAME))
+    }
+
+    fn is_declaration_name_of_enum_or_namespace(
+        &self,
+        node: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let arena = self.context.arena();
+        let original = arena.get_original_node(node);
+        let Some(parent) = arena
+            .node(original)?
+            .parent
+            .and_then(|parent| arena.node_ref(original.source(), parent))
+        else {
+            return Ok(false);
+        };
+        Ok(match &arena.node(parent)?.data {
+            NodeData::EnumDeclaration(data) => data.name == Some(original.node()),
+            NodeData::ModuleDeclaration(data) => data.name == Some(original.node()),
+            _ => false,
+        })
     }
 
     /// Whether a substitution can rewrite this identifier at all: a reference

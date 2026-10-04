@@ -4528,6 +4528,77 @@ fn nullish_and_optional_chain_temps_are_declared_apart_like_tsgo() {
 }
 
 #[test]
+fn namespace_and_enum_names_stay_local_in_commonjs_like_tsgo() {
+    // tsgo's CommonJS transform leaves the declaration name of an enum or
+    // namespace alone (commonjsmodule.go:2064-2068), so a declaration merged
+    // with an exported interface keeps `Foo || (Foo = {})`, while an exported
+    // one still assigns `exports.N = N = {}`. The expected diagnostics and
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export default function Foo() {\n",
+            "}\n",
+            "namespace Foo {\n",
+            "    export var x = 1;\n",
+            "}\n",
+            "export interface Foo {\n",
+            "}\n",
+            "export namespace N {\n",
+            "    export const y = 2;\n",
+            "}\n",
+            "export enum E { A }\n",
+            "enum F { B }\n",
+            "export interface F {}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","strict":false,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(1,25): error TS2652: Merged declaration 'Foo' cannot include a default export declaration. Consider adding a separate 'export default Foo' declaration instead.\n",
+            "a.ts(3,11): error TS2652: Merged declaration 'Foo' cannot include a default export declaration. Consider adding a separate 'export default Foo' declaration instead.\n",
+            "a.ts(12,6): error TS2567: Enum declarations can only merge with namespace or other enum declarations.\n",
+            "a.ts(13,18): error TS2567: Enum declarations can only merge with namespace or other enum declarations.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.E = exports.N = void 0;\n",
+            "exports.default = Foo;\n",
+            "function Foo() {\n",
+            "}\n",
+            "(function (Foo) {\n",
+            "    Foo.x = 1;\n",
+            "})(Foo || (Foo = {}));\n",
+            "var N;\n",
+            "(function (N) {\n",
+            "    N.y = 2;\n",
+            "})(N || (exports.N = N = {}));\n",
+            "var E;\n",
+            "(function (E) {\n",
+            "    E[E[\"A\"] = 0] = \"A\";\n",
+            "})(E || (exports.E = E = {}));\n",
+            "var F;\n",
+            "(function (F) {\n",
+            "    F[F[\"B\"] = 0] = \"B\";\n",
+            "})(F || (F = {}));\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
