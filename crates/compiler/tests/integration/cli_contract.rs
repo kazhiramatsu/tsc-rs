@@ -4007,6 +4007,234 @@ fn bigint_metadata_is_guarded_below_es2020_like_tsgo() {
 }
 
 #[test]
+fn javascript_files_keep_empty_imports_and_exports_like_tsgo() {
+    // tsgo runs import elision only for TypeScript files without
+    // verbatimModuleSyntax (compiler/emitter.go:115), and its type eraser
+    // keeps a written `import {}` and `export {}` (typeeraser.go:325-329,
+    // 362-367). The expected bytes are tsgo's for the same projects.
+    for (module, main, c) in [
+        (
+            "esnext",
+            "import {} from \"./a\";\nexport {};\nexport const y = 1;\n",
+            "export {};\n",
+        ),
+        (
+            "commonjs",
+            concat!(
+                "\"use strict\";\n",
+                "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "exports.y = void 0;\n",
+                "const a_1 = require(\"./a\");\n",
+                "exports.y = 1;\n",
+            ),
+            concat!(
+                "\"use strict\";\n",
+                "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            ),
+        ),
+    ] {
+        let tree = TempTree::new();
+        fs::write(tree.path("a.ts"), "export const a = \"a\";\n").expect("write a.ts");
+        fs::write(
+            tree.path("main.js"),
+            "import {} from \"./a\";\nexport {};\nexport const y = 1;\n",
+        )
+        .expect("write main.js");
+        fs::write(tree.path("c.ts"), "import {} from \"./a\";\nexport {};\n").expect("write c.ts");
+        fs::write(
+            tree.path("tsconfig.json"),
+            format!(
+                r#"{{"compilerOptions":{{"types":[],"allowJs":true,"target":"es2020","module":"{module}","outDir":"out"}},"files":["a.ts","main.js","c.ts"]}}"#
+            ),
+        )
+        .expect("write config");
+        let output = run(&tree, &["--pretty", "false"]);
+        assert_eq!(output.status.code(), Some(0), "{module}");
+        assert!(output.stdout.is_empty(), "{module}");
+        assert_eq!(
+            fs::read_to_string(tree.path("out/main.js")).expect("read main.js"),
+            main,
+            "{module}"
+        );
+        assert_eq!(
+            fs::read_to_string(tree.path("out/c.js")).expect("read c.js"),
+            c,
+            "{module}"
+        );
+    }
+}
+
+#[test]
+fn misplaced_module_elements_keep_their_bindings_like_tsgo() {
+    // tsgo's import elision visits only the statements of a source file and
+    // of namespace bodies (importelision.go:117-125): an import or export
+    // that a grammar error placed in a block keeps its bindings, and the
+    // runtime syntax transformer drops an alias in a block inside a
+    // namespace (runtimesyntax.go:123-125). tsgo never collects the module
+    // request of such an import (parser/references.go:11-90), so its lookup
+    // finds no resolution. The expected diagnostics and bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "namespace M { }\n",
+            "{\n",
+            "    export = M;\n",
+            "    import I = M;\n",
+            "    import { b } from \"./b\";\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(tree.path("b.ts"), "export const b = 1;\n").expect("write b.ts");
+    fs::write(
+        tree.path("c.ts"),
+        concat!(
+            "namespace A { export const x = 1; }\n",
+            "namespace N {\n",
+            "    {\n",
+            "        import I = A;\n",
+            "        I.x;\n",
+            "    }\n",
+            "}\n",
+        ),
+    )
+    .expect("write c.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","outDir":"out"},"files":["a.ts","b.ts","c.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(3,5): error TS1231: An export assignment must be at the top level of a file or module declaration.\n",
+            "a.ts(4,5): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+            "a.ts(5,5): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+            "a.ts(5,23): error TS2307: Cannot find module './b' or its corresponding type declarations.\n",
+            "c.ts(4,9): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "{\n",
+            "    export = M;\n",
+            "    var I = M;\n",
+            "    import { b } from \"./b\";\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/c.js")).expect("read c.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var A;\n",
+            "(function (A) {\n",
+            "    A.x = 1;\n",
+            "})(A || (A = {}));\n",
+            "var N;\n",
+            "(function (N) {\n",
+            "    {\n",
+            "        I.x;\n",
+            "    }\n",
+            "})(N || (N = {}));\n",
+        )
+    );
+}
+
+#[test]
+fn misplaced_module_elements_follow_the_module_transform_like_tsgo() {
+    // tsgo's CommonJS transformer converts only top-level imports and
+    // exports (commonjsmodule.go:60-128), while its ES module transformer
+    // visits every node and drops an import-equals declaration or `export =`
+    // wherever it is (esmodule.go:35-53, 117-123, 167-174); an embedded
+    // statement left without one prints `;`. The expected diagnostics and
+    // bytes are tsgo's for the same projects.
+    let cases = [
+        (
+            "commonjs",
+            concat!(
+                "export {};\n",
+                "function f() {\n",
+                "    import x = require(\"./b\");\n",
+                "    export * from \"./b\";\n",
+                "}\n",
+                "switch (1) {\n",
+                "    case 1:\n",
+                "        import { b } from \"./b\";\n",
+                "}\n",
+            ),
+            concat!(
+                "a.ts(3,5): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+                "a.ts(4,5): error TS1233: An export declaration can only be used at the top level of a namespace or module.\n",
+                "a.ts(8,9): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+                "a.ts(8,27): error TS2307: Cannot find module './b' or its corresponding type declarations.\n",
+            ),
+            concat!(
+                "\"use strict\";\n",
+                "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "function f() {\n",
+                "    import x = require(\"./b\");\n",
+                "    export * from \"./b\";\n",
+                "}\n",
+                "switch (1) {\n",
+                "    case 1:\n",
+                "        import { b } from \"./b\";\n",
+                "}\n",
+            ),
+        ),
+        (
+            "esnext",
+            concat!(
+                "export {};\n",
+                "declare const c: boolean;\n",
+                "if (c) import x = require(\"./b\");\n",
+                "while (c) export = 1;\n",
+                "{\n",
+                "    import z = require(\"./b\");\n",
+                "}\n",
+            ),
+            concat!(
+                "a.ts(3,8): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+                "a.ts(3,27): error TS2307: Cannot find module './b' or its corresponding type declarations.\n",
+                "a.ts(4,11): error TS1231: An export assignment must be at the top level of a file or module declaration.\n",
+                "a.ts(6,5): error TS1232: An import declaration can only be used at the top level of a namespace or module.\n",
+                "a.ts(6,24): error TS2307: Cannot find module './b' or its corresponding type declarations.\n",
+            ),
+            "if (c)\n    ;\nwhile (c)\n    ;\n{\n}\nexport {};\n",
+        ),
+    ];
+    for (module, text, diagnostics, js) in cases {
+        let tree = TempTree::new();
+        fs::write(tree.path("a.ts"), text).expect("write a.ts");
+        fs::write(tree.path("b.ts"), "export const b = 1;\n").expect("write b.ts");
+        fs::write(
+            tree.path("tsconfig.json"),
+            format!(
+                r#"{{"compilerOptions":{{"types":[],"target":"es2020","module":"{module}","outDir":"out"}},"files":["a.ts","b.ts"]}}"#
+            ),
+        )
+        .expect("write config");
+        let output = run(&tree, &["--pretty", "false"]);
+        assert_eq!(output.status.code(), Some(2), "{module}");
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("utf-8 stdout"),
+            diagnostics,
+            "{module}"
+        );
+        assert_eq!(
+            fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+            js,
+            "{module}"
+        );
+    }
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

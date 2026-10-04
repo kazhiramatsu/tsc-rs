@@ -1355,6 +1355,11 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
                 _ => output.push(statement),
             }
         }
+        if self.has_nested_module_elements()? {
+            for statement in &mut output {
+                *statement = update_children_lazily(self, *statement)?;
+            }
+        }
         if self.create_require_name.is_some() {
             let helpers = self.create_require_helpers()?;
             let offset = output
@@ -1844,6 +1849,57 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         }
     }
 
+    /// tsgo's ES module transformer visits every node of an external module
+    /// (esmodule.go:35-53), so an import-equals declaration or `export =`
+    /// that a grammar error placed below the top level is transformed like a
+    /// top-level one. A file without one keeps the top-level pass.
+    fn has_nested_module_elements(&self) -> Result<bool, TransformError> {
+        let syntax = self.context.arena().source(self.source)?.syntax();
+        let arena = &syntax.arena;
+        let nested = |node: &tsc_syntax::nodes::Node| {
+            node.parent
+                .is_some_and(|parent| arena.node(parent).kind != SyntaxKind::SourceFile)
+        };
+        Ok(arena.nodes().iter().any(|node| match &node.data {
+            NodeData::ImportEqualsDeclaration(data) => {
+                data.module_reference.is_some_and(|reference| {
+                    arena.node(reference).kind == SyntaxKind::ExternalModuleReference
+                }) && nested(node)
+            }
+            NodeData::ExportAssignment(data) => data.is_export_equals == Some(true) && nested(node),
+            _ => false,
+        }))
+    }
+
+    /// The statements a nested import-equals declaration or `export =`
+    /// becomes, or `None` for any other node.
+    fn transform_nested_module_element(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<Option<Vec<TransformNode>>, TransformError> {
+        match self.context.arena().node(node)?.data.clone() {
+            NodeData::ImportEqualsDeclaration(data)
+                if data
+                    .module_reference
+                    .and_then(|reference| self.context.arena().node_ref(self.source, reference))
+                    .and_then(|reference| self.context.arena().node(reference).ok())
+                    .is_some_and(|reference| {
+                        reference.kind == SyntaxKind::ExternalModuleReference
+                    }) =>
+            {
+                Ok(Some(self.transform_import_equals(node, data)?))
+            }
+            NodeData::ExportAssignment(data) if data.is_export_equals == Some(true) => {
+                Ok(Some(if self.module_kind == MODULE_PRESERVE {
+                    vec![self.transform_preserve_export_equals(node, data)?]
+                } else {
+                    Vec::new()
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
     fn fresh_name(&mut self, base: &str) -> String {
         if self.used_names.insert(base.to_owned()) {
             return base.to_owned();
@@ -1868,6 +1924,77 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             .arena_mut()?
             .set_original_node(node, Some(original))?;
         Ok(node)
+    }
+}
+
+impl NodeDataChildVisitor for EcmaScriptModuleEqualsVisitor<'_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.context
+            .arena()
+            .node(TransformNode::new(self.source, id))
+            .expect("ES module child belongs to its transform source")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        let node = TransformNode::new(self.source, id);
+        let Some(mut statements) = self.transform_nested_module_element(node)? else {
+            return Ok(Some(update_children_lazily(self, node)?.node()));
+        };
+        // VisitEmbeddedStatement (ast/visitor.go:74-84): a removed statement
+        // leaves no statement, and several lift to a block.
+        let statement = match statements.len() {
+            0 => self.context.factory()?.create_node(
+                self.source,
+                NodeData::EmptyStatement(tsc_syntax::nodes::EmptyStatementData {}),
+                TransformFlags::NONE,
+            )?,
+            1 => statements.remove(0),
+            _ => {
+                let statements = self
+                    .context
+                    .factory()?
+                    .create_node_array(self.source, statements)?;
+                let block = self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::Block(tsc_syntax::nodes::BlockData {
+                        statements: Some(statements.array()),
+                    }),
+                    TransformFlags::NONE,
+                )?;
+                self.context.factory()?.set_multi_line(block, true)?
+            }
+        };
+        Ok(Some(statement.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        let original = TransformNodeArray::new(self.source, id);
+        let updated = update_node_array_lazily(self, original, |visitor, element| {
+            let node = TransformNode::new(visitor.source, element);
+            Ok(match visitor.transform_nested_module_element(node)? {
+                None => ArrayElementVisit::One(update_children_lazily(visitor, node)?),
+                Some(statements) if statements.is_empty() => ArrayElementVisit::Removed,
+                Some(statements) => ArrayElementVisit::Many(statements),
+            })
+        })?;
+        Ok(Some(updated.array()))
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl LazyChildVisitor for EcmaScriptModuleEqualsVisitor<'_> {
+    fn transformation_context(&self) -> &TransformationContext {
+        self.context
+    }
+
+    fn transformation_context_mut(&mut self) -> &mut TransformationContext {
+        self.context
     }
 }
 
@@ -6032,6 +6159,26 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         self.create_expression_statement(call)
     }
 
+    /// tsgo's visitTopLevelNested (commonjsmodule.go:86-128) transforms the
+    /// statements of a top-level block, loop or switch without the
+    /// top-level import and export arms: an import or export that a grammar
+    /// error placed there is only visited.
+    fn visit_top_level_nested_statement(
+        &mut self,
+        statement: TransformNode,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        if matches!(
+            self.context.arena().node(statement)?.kind,
+            SyntaxKind::ImportDeclaration
+                | SyntaxKind::ImportEqualsDeclaration
+                | SyntaxKind::ExportDeclaration
+                | SyntaxKind::ExportAssignment
+        ) {
+            return Ok(vec![self.visit(statement.node())?]);
+        }
+        self.visit_top_level_statement(statement)
+    }
+
     fn visit_top_level_statement(
         &mut self,
         statement: TransformNode,
@@ -7157,7 +7304,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let input = node_array_nodes(self.context.arena(), self.source, data.statements)?;
         let mut output = Vec::new();
         for statement in input {
-            output.extend(self.visit_top_level_statement(statement)?);
+            output.extend(self.visit_top_level_nested_statement(statement)?);
         }
         data.statements = Some(
             if let Some(array) = data
@@ -7208,7 +7355,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if let NodeData::Block(data) = self.context.arena().node(statement)?.data.clone() {
             return self.transform_block(statement, data);
         }
-        let mut statements = self.visit_top_level_statement(statement)?;
+        let mut statements = self.visit_top_level_nested_statement(statement)?;
         if statements.len() == 1 {
             return Ok(statements.remove(0));
         }
@@ -7356,7 +7503,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let input = node_array_nodes(self.context.arena(), self.source, statements)?;
         let mut output = Vec::new();
         for statement in input {
-            output.extend(self.visit_top_level_statement(statement)?);
+            output.extend(self.visit_top_level_nested_statement(statement)?);
         }
         if let Some(array) =
             statements.and_then(|id| self.context.arena().node_array_ref(self.source, id))
@@ -12760,9 +12907,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     self.visit_export_declaration(original, data)?
                 }
                 NodeData::ExportAssignment(mut data) => {
-                    // visitExportAssignment: `compilerOptions.verbatimModuleSyntax ||
-                    // resolver.isValueAliasDeclaration(node)` (EF7-VERBATIM-EXPORT-ASSIGNMENT).
-                    if self.verbatim_module_syntax
+                    // tsgo's import elision drops an export assignment that is
+                    // not a value alias (importelision.go:86-91).
+                    if !self.import_elision_applies(original)?
                         || self
                             .resolver
                             .is_value_alias_declaration(self.resolver_node(original)?)?
@@ -12810,7 +12957,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     | SyntaxKind::ImportEqualsDeclaration
                     | SyntaxKind::ExportAssignment
                     | SyntaxKind::ExportDeclaration => {
-                        if let Some(statement) = self.visit_typescript(statement)? {
+                        // Import elision visits every import and export; in
+                        // a JavaScript file or under verbatimModuleSyntax
+                        // only the type eraser runs, behind its TypeScript
+                        // gate (typeeraser.go:44-46).
+                        let force = self.import_elision_enabled(self.node(statement))?;
+                        if let Some(statement) =
+                            self.visit_with_typescript_gate(statement, force)?
+                        {
                             output.push(self.node(statement));
                         }
                     }
@@ -15739,13 +15893,76 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
     }
 
+    /// tsgo runs its import elision transformer only for TypeScript files
+    /// without verbatimModuleSyntax (`importElisionEnabled`,
+    /// compiler/emitter.go:115); JavaScript files only see the type eraser.
+    fn import_elision_enabled(&self, node: TransformNode) -> Result<bool, TransformError> {
+        Ok(!self.verbatim_module_syntax
+            && !NodeFlags::from_bits(self.context.arena().node(node)?.flags)
+                .intersects(NodeFlags::JAVA_SCRIPT_FILE))
+    }
+
+    /// Import elision visits only the statements of a source file and of
+    /// namespace bodies (importelision.go:117-125), so an import or export
+    /// that a grammar error placed in a block keeps its bindings.
+    fn import_elision_applies(&self, node: TransformNode) -> Result<bool, TransformError> {
+        if !self.import_elision_enabled(node)? {
+            return Ok(false);
+        }
+        let arena = self.context.arena();
+        let mut current = node;
+        loop {
+            let Some(parent) = arena
+                .node(current)?
+                .parent
+                .and_then(|parent| arena.node_ref(self.source, parent))
+            else {
+                return Ok(true);
+            };
+            match arena.node(parent)?.kind {
+                SyntaxKind::SourceFile => return Ok(true),
+                SyntaxKind::ImportDeclaration
+                | SyntaxKind::ImportClause
+                | SyntaxKind::NamedImports
+                | SyntaxKind::NamespaceImport
+                | SyntaxKind::ImportEqualsDeclaration
+                | SyntaxKind::ExportDeclaration
+                | SyntaxKind::NamedExports
+                | SyntaxKind::ExportAssignment
+                | SyntaxKind::ModuleBlock
+                | SyntaxKind::ModuleDeclaration => current = parent,
+                _ => return Ok(false),
+            }
+        }
+    }
+
+    /// Whether the nearest scope of `node` among tsgo's runtime syntax
+    /// scopes (source file, block, module block, case block) is a block
+    /// (runtimesyntax.go:55-62).
+    fn scope_is_block(&self, node: TransformNode) -> Result<bool, TransformError> {
+        let arena = self.context.arena();
+        let mut current = node;
+        while let Some(parent) = arena
+            .node(current)?
+            .parent
+            .and_then(|parent| arena.node_ref(self.source, parent))
+        {
+            match arena.node(parent)?.kind {
+                SyntaxKind::Block => return Ok(true),
+                SyntaxKind::SourceFile | SyntaxKind::ModuleBlock | SyntaxKind::CaseBlock => {
+                    return Ok(false);
+                }
+                _ => current = parent,
+            }
+        }
+        Ok(false)
+    }
+
     /// tsc-port: shouldEmitAliasDeclaration @6.0.3
     /// tsc-hash: 768f0d459b8a033e5fbad0737593ac3b03d7f123c30ea33737cb92ce2d6604d1
     /// tsc-span: _tsc.js:95846-95848
     fn should_emit_alias_declaration(&self, node: TransformNode) -> Result<bool, TransformError> {
-        Ok(self.verbatim_module_syntax
-            || NodeFlags::from_bits(self.context.arena().node(node)?.flags)
-                .intersects(NodeFlags::JAVA_SCRIPT_FILE)
+        Ok(!self.import_elision_applies(node)?
             || self
                 .resolver
                 .is_referenced_alias_declaration(self.resolver_node(node)?)?)
@@ -15826,6 +16043,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             )?));
         }
 
+        // The runtime syntax transformer drops an internal alias whose scope
+        // is a block inside a namespace (runtimesyntax.go:123-125).
+        if !self.namespace_stack.is_empty() && self.scope_is_block(original)? {
+            return Ok(None);
+        }
         let source_is_external = self
             .context
             .arena()
@@ -16001,6 +16223,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     .node_array(original_array)?
                     .nodes
                     .to_vec();
+                // tsgo's type eraser keeps a written `{}` as a side-effect
+                // import (typeeraser.go:325-329); only import elision drops it.
+                if ids.is_empty() {
+                    return Ok((!self.import_elision_applies(node)?).then_some(id));
+                }
                 let mut retained = Vec::new();
                 for specifier in ids {
                     let specifier_node = self.node(specifier);
@@ -16083,6 +16310,13 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .node_array(original_array)?
             .nodes
             .to_vec();
+        let elision = self.import_elision_applies(original)?;
+        // tsgo's type eraser keeps a written `export {}`
+        // (typeeraser.go:362-367); only import elision drops it.
+        let written_empty = ids.is_empty();
+        if written_empty && elision {
+            return Ok(None);
+        }
         let mut retained = Vec::new();
         for specifier in ids {
             let specifier_node = self.node(specifier);
@@ -16090,10 +16324,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 NodeData::ExportSpecifier(data) => data.is_type_only,
                 _ => false,
             };
-            // `visitExportSpecifier`: `!isTypeOnly && (verbatimModuleSyntax ||
-            // isValueAliasDeclaration)` (_tsc.js:95599).
+            // The type eraser drops type-only specifiers; import elision
+            // keeps value aliases (typeeraser.go:376-382,
+            // importelision.go:111-116).
             if !is_type_only
-                && (self.verbatim_module_syntax
+                && (!elision
                     || self
                         .resolver
                         .is_value_alias_declaration(self.resolver_node(specifier_node)?)?)
@@ -16103,7 +16338,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
         // `visitNamedExports(node, allowEmpty = verbatimModuleSyntax)`
         // (_tsc.js:95573, 95589).
-        if retained.is_empty() && !self.verbatim_module_syntax {
+        if retained.is_empty() && !written_empty && !self.verbatim_module_syntax {
             return Ok(None);
         }
         named.elements = Some(
@@ -18733,6 +18968,24 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         NodeData::PartiallyEmittedExpression(_) => {
             flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
         }
+        // tsgo marks type-only import and export syntax and `export =` as
+        // TypeScript (ast.go:1882-1922), so its type eraser visits them in
+        // a JavaScript file and under verbatimModuleSyntax.
+        NodeData::ImportClause(data) if data.is_type_only => {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        NodeData::ImportSpecifier(data) if data.is_type_only => {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        NodeData::ExportDeclaration(data) if data.is_type_only => {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        NodeData::ExportSpecifier(data) if data.is_type_only => {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        NodeData::ExportAssignment(data) if data.is_export_equals == Some(true) => {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
         _ => {}
     }
     flags
@@ -18923,7 +19176,9 @@ fn local_contextual_target_flags(
             },
         ),
         NodeData::ImportEqualsDeclaration(data) => {
-            let Some(module_reference) = data.module_reference else {
+            // tsgo: a type-only import is TypeScript (ast.go:1868-1876).
+            let Some(module_reference) = data.module_reference.filter(|_| !data.is_type_only)
+            else {
                 return Ok(TransformFlags::CONTAINS_TYPE_SCRIPT);
             };
             let module_reference = arena.node_ref(source, module_reference).ok_or_else(|| {

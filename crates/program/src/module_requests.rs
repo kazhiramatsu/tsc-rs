@@ -226,7 +226,7 @@ pub fn plan_static_module_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<Vec<ResolutionKey>, ResolutionError> {
-    Ok(plan_module_requests_worker(source, options, false)?
+    Ok(plan_module_requests_worker(source, options, false, false)?
         .0
         .into_module_requests())
 }
@@ -259,7 +259,7 @@ pub fn plan_source_requests(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<SourceRequestPlan, ResolutionError> {
-    Ok(plan_module_requests_worker(source, options, true)?.0)
+    Ok(plan_module_requests_worker(source, options, true, true)?.0)
 }
 
 /// [`plan_source_requests`] that also retains the parse the plan was computed
@@ -271,7 +271,9 @@ pub fn plan_source_requests_retaining_syntax(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
-    let (plan, parsed) = plan_module_requests_worker(source, options, true)?;
+    // The loader never asks for a request outside `SourceFile.imports`, so
+    // it skips the whole-file walk for misplaced imports and exports.
+    let (plan, parsed) = plan_module_requests_worker(source, options, true, false)?;
     Ok((plan, PreparsedSyntax::new(parsed)))
 }
 
@@ -344,6 +346,7 @@ fn plan_module_requests_worker(
     source: &PreparedSourceFile,
     options: &CompilerOptions,
     expanded: bool,
+    nested_requests: bool,
 ) -> Result<(SourceRequestPlan, PreparsedSourceFile), ResolutionError> {
     let module_kind = options.emit_module_kind();
     if (!expanded && !(100..=199).contains(&module_kind))
@@ -682,6 +685,21 @@ fn plan_module_requests_worker(
             false
         });
         stack[first_child..].reverse();
+    }
+
+    // tsgo's collectExternalModuleReferences reads only source-file and
+    // ambient-module statements (parser/references.go:11-90). An import or
+    // export that a grammar error placed in a block is still checked; its
+    // lookup finds no resolution and reports the module as not found.
+    if nested_requests {
+        collect_nested_module_requests(
+            &parsed,
+            source,
+            expanded,
+            static_mode,
+            import_syntax_affects_resolution,
+            &mut unpreprocessed_module_requests,
+        )?;
     }
 
     static_occurrences.sort_by_key(|occurrence| occurrence.pos);
@@ -1140,6 +1158,51 @@ fn collect_static_module_reference_statements(
             _ => {}
         }
     }
+    Ok(())
+}
+
+/// Every import and export declaration's request, wherever it is. The plan
+/// drops the keys `SourceFile.imports` owns; the rest are checker-visible,
+/// host-unpreprocessed requests.
+fn collect_nested_module_requests(
+    parsed: &SourceFile,
+    source: &PreparedSourceFile,
+    expanded: bool,
+    static_mode: ResolutionMode,
+    import_syntax_affects_resolution: bool,
+    requests: &mut BTreeSet<ResolutionKey>,
+) -> Result<(), ResolutionError> {
+    let mut occurrences = Vec::new();
+    let mut augmentations = Vec::new();
+    let mut stack = vec![parsed.root];
+    while let Some(node_id) = stack.pop() {
+        let node = parsed.arena.node(node_id);
+        if matches!(
+            node.kind,
+            SyntaxKind::ImportDeclaration
+                | SyntaxKind::ExportDeclaration
+                | SyntaxKind::ImportEqualsDeclaration
+        ) {
+            collect_static_module_reference_statements(
+                parsed,
+                &[node_id],
+                source,
+                expanded,
+                static_mode,
+                import_syntax_affects_resolution,
+                /*in_ambient_module*/ false,
+                &mut occurrences,
+                &mut augmentations,
+                requests,
+            )?;
+            continue;
+        }
+        for_each_child(&parsed.arena, node, |child| {
+            stack.push(child);
+            false
+        });
+    }
+    requests.extend(occurrences.into_iter().map(|occurrence| occurrence.key));
     Ok(())
 }
 
