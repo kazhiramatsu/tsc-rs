@@ -29,7 +29,6 @@ pub(crate) type RecoveryTrackedSymbol = (
     Option<NodeId>,
     bool,
     EmitSymbolMeaning,
-    bool,
 );
 
 /// The explicit emit-channel NodeBuilder state. This is deliberately separate
@@ -60,9 +59,6 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) tracked_symbols: Option<Vec<TrackedSymbol>>,
     pub(crate) bundled: bool,
     pub(crate) truncating: bool,
-    pub(crate) used_symbol_names: Option<HashSet<String>>,
-    pub(crate) remapped_symbol_names: Option<HashMap<SymbolId, String>>,
-    pub(crate) remapped_symbol_references: Option<HashMap<SymbolId, SymbolId>>,
     pub(crate) reverse_mapped_stack: Option<Vec<SymbolId>>,
     pub(crate) must_create_type_parameter_symbol_list: bool,
     pub(crate) type_parameter_symbol_list: Option<HashSet<SymbolId>>,
@@ -164,9 +160,6 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         tracked_symbols: None,
         bundled,
         truncating: false,
-        used_symbol_names: None,
-        remapped_symbol_names: None,
-        remapped_symbol_references: None,
         reverse_mapped_stack: None,
         must_create_type_parameter_symbol_list: true,
         type_parameter_symbol_list: None,
@@ -305,13 +298,6 @@ pub(crate) fn restore_flags(context: &mut NodeBuilderContext<'_>, restore: Flags
     context.flags = restore.flags;
     context.internal_flags = restore.internal_flags;
     context.depth = restore.depth;
-}
-
-/// tsc-port: checkTruncationLengthIfExpanding @6.0.3
-/// tsc-hash: ced966cab3bb64499f41644ddcddfde8d7afa004462557a5b0f3b7eb5f6d6be0
-/// tsc-span: _tsc.js:51281-51283
-pub(crate) fn check_truncation_length_if_expanding(context: &mut NodeBuilderContext<'_>) -> bool {
-    context.max_expansion_depth >= 0 && check_truncation_length(context)
 }
 
 /// tsc-port: checkTruncationLength @6.0.3

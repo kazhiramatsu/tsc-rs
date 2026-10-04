@@ -1,12 +1,10 @@
 use tsc_diagnostics::{gen as d, Diagnostic, DiagnosticMessage, MessageChain};
-use tsc_program::SourceFileId;
 use tsc_syntax::{Node, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::ModifierFlags;
 
 use crate::{
-    CommentRange, EmitHost, EmitResolverNode, EmitSymbolAccessibility,
-    EmitSymbolAccessibilityResult, SourceRange, TransformArena, TransformError, TransformNode,
-    TransformSourceId,
+    CommentRange, EmitSymbolAccessibility, EmitSymbolAccessibilityResult, SourceRange,
+    TransformArena, TransformError, TransformNode, TransformSourceId,
 };
 
 use super::tracker::{DiagnosticArgument, DiagnosticSpec, TrackerAnchor};
@@ -17,7 +15,6 @@ pub(crate) enum DiagnosticContext {
     None,
     ForNode(TransformNode),
     ForNodeName(TransformNode),
-    JsFile(TransformSourceId),
     DefaultExport(TransformNode),
 }
 
@@ -78,9 +75,6 @@ pub(crate) enum DiagnosticContextPlan {
     None,
     NoDiagnostic,
     Template(DiagnosticTemplate),
-    JsFile {
-        fallback: TrackerAnchor,
-    },
     /// A context with no message, such as a parameter of an arrow function
     /// tsgo writes as an expando host: tsgo chooses the message only when it
     /// reports a diagnostic, and fails then.
@@ -111,9 +105,6 @@ impl DiagnosticContext {
             Self::ForNodeName(node) => Ok(DiagnosticContextPlan::Template(
                 create_get_symbol_accessibility_diagnostic_for_node_name(arena, node)?,
             )),
-            Self::JsFile(source) => Ok(DiagnosticContextPlan::JsFile {
-                fallback: TrackerAnchor::Transform(arena.root(source)?),
-            }),
             Self::DefaultExport(node) => Ok(DiagnosticContextPlan::Template(DiagnosticTemplate {
                 message: MessageChoice::Fixed(
                     &d::Default_export_of_the_module_has_or_is_using_private_name_0,
@@ -130,7 +121,6 @@ impl DiagnosticContextPlan {
     /// diagnostic from a callback result.
     pub(crate) fn resolve(
         &self,
-        host: &dyn EmitHost,
         result: &EmitSymbolAccessibilityResult,
     ) -> Result<Option<DiagnosticSpec>, TransformError> {
         let template = match self {
@@ -142,33 +132,6 @@ impl DiagnosticContextPlan {
             Self::NoDiagnostic => return Ok(None),
             Self::Unavailable(detail) => return Err(DeclarationTransformer::contract(detail)),
             Self::Template(template) => template.clone(),
-            Self::JsFile { fallback } => {
-                if let Some(error) = result.error_node {
-                    if let Some(source) = host.source_file(error.source()) {
-                        if let Some(syntax) = source.syntax() {
-                            let kind = syntax.arena.node(error.node()).kind;
-                            if kind == SyntaxKind::Constructor {
-                                return Ok(None);
-                            }
-                            if can_produce_diagnostics(kind) {
-                                template_for_node(
-                                    syntax,
-                                    error.node(),
-                                    AnchorFactory::Resolver(error.source()),
-                                )?
-                            } else {
-                                js_file_template(result, TrackerAnchor::resolver(error))
-                            }
-                        } else {
-                            js_file_template(result, TrackerAnchor::resolver(error))
-                        }
-                    } else {
-                        js_file_template(result, TrackerAnchor::resolver(error))
-                    }
-                } else {
-                    js_file_template(result, fallback.clone())
-                }
-            }
         };
 
         let anchor = result
@@ -194,33 +157,12 @@ impl DiagnosticContextPlan {
     }
 }
 
-fn js_file_template(
-    result: &EmitSymbolAccessibilityResult,
-    error_node: TrackerAnchor,
-) -> DiagnosticTemplate {
-    DiagnosticTemplate {
-        message: MessageChoice::Fixed(if result.error_module_name.is_some() {
-            &d::Declaration_emit_for_this_file_requires_using_private_name_0_from_module_1_An_explicit_type_annotation_may_unblock_declaration_emit
-        } else {
-            &d::Declaration_emit_for_this_file_requires_using_private_name_0_An_explicit_type_annotation_may_unblock_declaration_emit
-        }),
-        error_node,
-        type_name: None,
-    }
-}
-
 #[derive(Clone, Copy)]
-enum AnchorFactory {
-    Transform(TransformSourceId),
-    Resolver(SourceFileId),
-}
+struct AnchorFactory(TransformSourceId);
 
 impl AnchorFactory {
     fn anchor(self, node: NodeId) -> TrackerAnchor {
-        match self {
-            Self::Transform(source) => TrackerAnchor::Transform(TransformNode::new(source, node)),
-            Self::Resolver(source) => TrackerAnchor::resolver(EmitResolverNode::new(source, node)),
-        }
+        TrackerAnchor::Transform(TransformNode::new(self.0, node))
     }
 }
 
@@ -289,7 +231,7 @@ fn create_get_symbol_accessibility_diagnostic_for_node_name(
             source,
             node.node(),
             message,
-            AnchorFactory::Transform(node.source()),
+            AnchorFactory(node.source()),
         ));
     }
     if matches!(
@@ -318,7 +260,7 @@ fn create_get_symbol_accessibility_diagnostic_for_node_name(
             source,
             node.node(),
             message,
-            AnchorFactory::Transform(node.source()),
+            AnchorFactory(node.source()),
         ));
     }
     create_get_symbol_accessibility_diagnostic_for_node(arena, node)
@@ -332,7 +274,7 @@ fn create_get_symbol_accessibility_diagnostic_for_node(
     node: TransformNode,
 ) -> Result<DiagnosticTemplate, TransformError> {
     let source = arena.source(node.source())?.syntax();
-    template_for_node(source, node.node(), AnchorFactory::Transform(node.source()))
+    template_for_node(source, node.node(), AnchorFactory(node.source()))
 }
 
 fn template_for_node(

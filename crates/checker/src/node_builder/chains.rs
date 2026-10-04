@@ -4,11 +4,10 @@ use rustc_hash::FxHashSet as HashSet;
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
     EmitFunctionProperty, EmitImportIncludeReason, EmitInternalNodeBuilderFlags,
-    EmitModuleSpecifierHost, EmitNodeBuilderFlags, EmitResolutionMode, EmitResolverError,
-    EmitResolverMethod, EmitResolverNode, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
-    EmitSymbolMeaning, EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription,
-    EmitTrackerSymbol, EmitTrackerSymbolDescription, SourceFileId, SourceRange, TransformArena,
-    TransformNode, TransformSourceId,
+    EmitModuleSpecifierHost, EmitResolutionMode, EmitResolverError, EmitResolverMethod,
+    EmitResolverNode, EmitSymbolAccessibilityResult, EmitSymbolMeaning, EmitTrackerAccess,
+    EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol, EmitTrackerSymbolDescription,
+    SourceFileId, SourceRange, TransformArena, TransformNode, TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ComputedPropertyNameData, ElementAccessExpressionData, ImportAttributeData,
@@ -47,7 +46,6 @@ const ALLOW_NODE_MODULES_RELATIVE_PATHS: u32 = 67_108_864;
 const FORBID_INDEXED_ACCESS_SYMBOL_REFERENCES: u32 = 16;
 const DO_NOT_INCLUDE_SYMBOL_CHAIN: u32 = 4;
 const ALLOW_UNIQUE_ES_SYMBOL_TYPE: u32 = 1_048_576;
-const IGNORE_ERRORS: EmitNodeBuilderFlags = EmitNodeBuilderFlags(70_221_824);
 
 fn has_flag(context: &NodeBuilderContext<'_>, flag: u32) -> bool {
     context.flags.0 & flag != 0
@@ -146,9 +144,6 @@ fn tracker_error(
 
 struct CheckerTrackerAccess<'state, 'program> {
     checker: &'state mut CheckerState<'program>,
-    arena: Option<&'state mut TransformArena>,
-    target: Option<TransformSourceId>,
-    statement_tracking: bool,
 }
 
 impl CheckerTrackerAccess<'_, '_> {
@@ -171,65 +166,6 @@ impl CheckerTrackerAccess<'_, '_> {
             node: enclosing_resolver_node(self.checker, node),
             reason: "tracker callback carried an invalid h2-7a-m-3 token",
         }
-    }
-
-    fn build_accessibility_error_name(
-        &mut self,
-        symbol: SymbolId,
-        enclosing: NodeId,
-        enclosing_is_synthetic: bool,
-        meaning: EmitSymbolMeaning,
-    ) -> Result<(), EmitResolverError> {
-        let unavailable = self.unavailable(Some(enclosing));
-        let Some(arena) = self.arena.as_deref_mut() else {
-            return Ok(());
-        };
-        let target = project_parse_node(self.checker, arena, enclosing)?
-            .map(TransformNode::source)
-            .or(self.target)
-            .ok_or(unavailable)?;
-        super::context::with_context(
-            self.checker,
-            arena,
-            target,
-            (!enclosing_is_synthetic).then_some(enclosing),
-            Some(IGNORE_ERRORS),
-            None,
-            None,
-            None,
-            None,
-            |checker, arena, target, context| {
-                symbol_to_node(checker, arena, target, context, symbol, meaning)
-            },
-            None,
-        )?;
-        Ok(())
-    }
-
-    fn accessibility_error_module_symbol(
-        &mut self,
-        symbol: SymbolId,
-        error_module_name: tsc_types::JsStr<'_>,
-    ) -> BuildResult<Option<SymbolId>> {
-        let mut parent = self.checker.binder.symbol(symbol).parent;
-        while let Some(candidate) = parent {
-            if self.checker.symbol_display_name(candidate).as_js() == error_module_name {
-                return Ok(Some(candidate));
-            }
-            parent = self.checker.binder.symbol(candidate).parent;
-        }
-        for declaration in self.checker.binder.symbol(symbol).declarations.clone() {
-            if let Some(candidate) = self
-                .checker
-                .get_external_module_container(declaration)
-                .map_err(|abort| tracker_error(self.checker, Some(declaration), abort))?
-            {
-                if self.checker.symbol_display_name(candidate).as_js() == error_module_name {
-                    return Ok(Some(candidate));
-                }
-            }
-        }
-        Ok(None)
     }
 }
 
@@ -277,56 +213,23 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
             .ok_or_else(|| self.unavailable(enclosing))?;
         let enclosing = enclosing.ok_or_else(|| self.unavailable(None))?;
         // declarations.ts records the transform trackSymbol callback and
-        // then returns immediately for a type parameter.  The scoped
-        // symbol-table tracker is different: it still asks accessibility so
-        // `isDeclarationVisible` can paint referenced generic declarations.
-        if !self.statement_tracking
-            && self
-                .checker
-                .symbol_flags(symbol)
-                .intersects(SymbolFlags::TYPE_PARAMETER)
+        // then returns immediately for a type parameter.
+        if self
+            .checker
+            .symbol_flags(symbol)
+            .intersects(SymbolFlags::TYPE_PARAMETER)
         {
             return Ok(self.checker.accessible_result());
         }
-        let result = self
+        let mut result = self
             .checker
             .emit_is_symbol_accessible(symbol, enclosing, meaning, should_compute_aliases)
             .map_err(|abort| tracker_error(self.checker, Some(enclosing), abort))?;
-        // The statement wrapper performs the name-building call before it
-        // forwards an inaccessible symbol to the declaration-transform
-        // tracker. Avoid formatting the same error a second time when that
-        // tracker rechecks with alias painting enabled.
-        if self.statement_tracking && !should_compute_aliases {
-            if result.error_symbol_name.is_some() {
-                self.build_accessibility_error_name(
-                    symbol,
-                    enclosing,
-                    enclosing_is_synthetic,
-                    meaning,
-                )?;
-            }
-            if let Some(error_module_name) = result
-                .error_module_name
-                .as_ref()
-                .map(tsc_types::JsString::as_js)
-            {
-                if let Some(module_symbol) =
-                    self.accessibility_error_module_symbol(symbol, error_module_name)?
-                {
-                    let module_meaning =
-                        if result.accessibility == EmitSymbolAccessibility::NotAccessible {
-                            EmitSymbolMeaning::NAMESPACE
-                        } else {
-                            EmitSymbolMeaning(0)
-                        };
-                    self.build_accessibility_error_name(
-                        module_symbol,
-                        enclosing,
-                        enclosing_is_synthetic,
-                        module_meaning,
-                    )?;
-                }
-            }
+        // tsgo's signature fake scope is a synthesized block, which is not in
+        // a JavaScript file, so a name that cannot be named from it carries no
+        // error node (nodebuilderscopes.go:142-147, symbolaccessibility.go:861).
+        if enclosing_is_synthetic {
+            result.error_node = None;
         }
         Ok(result)
     }
@@ -709,27 +612,23 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
 
 fn lookup_symbol_chain(
     checker: &mut CheckerState<'_>,
-    arena: Option<&mut TransformArena>,
-    target: Option<TransformSourceId>,
     context: &mut NodeBuilderContext<'_>,
     symbol: SymbolId,
     meaning: EmitSymbolMeaning,
     yield_module_symbol: bool,
 ) -> BuildResult<Vec<SymbolId>> {
-    track_symbol_in_context(checker, arena, target, context, symbol, meaning)?;
+    track_symbol_in_context(checker, context, symbol, meaning)?;
     lookup_symbol_chain_worker(checker, context, symbol, meaning, yield_module_symbol)
 }
 
 pub(super) fn track_symbol_in_context(
     checker: &mut CheckerState<'_>,
-    arena: Option<&mut TransformArena>,
-    target: Option<TransformSourceId>,
     context: &mut NodeBuilderContext<'_>,
     symbol: SymbolId,
     meaning: EmitSymbolMeaning,
 ) -> BuildResult<()> {
     let enclosing = context.enclosing_declaration;
-    track_symbol_in_context_at(checker, arena, target, context, symbol, enclosing, meaning)
+    track_symbol_in_context_at(checker, context, symbol, enclosing, meaning)
 }
 
 /// `context.tracker.trackSymbol(symbol, enclosingDeclaration, meaning)` with
@@ -738,8 +637,6 @@ pub(super) fn track_symbol_in_context(
 /// node was first built, under the enclosing declaration recorded then.
 pub(super) fn track_symbol_in_context_at(
     checker: &mut CheckerState<'_>,
-    arena: Option<&mut TransformArena>,
-    target: Option<TransformSourceId>,
     context: &mut NodeBuilderContext<'_>,
     symbol: SymbolId,
     enclosing_declaration_override: Option<NodeId>,
@@ -753,15 +650,8 @@ pub(super) fn track_symbol_in_context_at(
         return Ok(());
     }
     let symbol_flags = checker.symbol_flags(symbol);
-    let statement_tracking = context.tracker.is_statement_tracking();
-    let symbol_is_remapped = super::is_statement_symbol_remapped(checker, context, symbol);
     {
-        let mut access = CheckerTrackerAccess {
-            checker,
-            arena,
-            target,
-            statement_tracking,
-        };
+        let mut access = CheckerTrackerAccess { checker };
         let NodeBuilderContext {
             tracker,
             reported_diagnostic,
@@ -782,7 +672,6 @@ pub(super) fn track_symbol_in_context_at(
             enclosing_declaration_override,
             *enclosing_declaration_is_synthetic,
             meaning,
-            symbol_is_remapped,
         )?;
     }
     Ok(())
@@ -1865,7 +1754,7 @@ fn create_access_from_symbol_chain(
     } else {
         lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?
     };
-    let symbol = super::remapped_statement_symbol_reference(context, chain[index]);
+    let symbol = chain[index];
     let parent = index.checked_sub(1).map(|index| chain[index]);
     let mut symbol_name = if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
@@ -2052,8 +1941,6 @@ pub(crate) fn chains_symbol_to_type_node(
 ) -> BuildResult<TransformNode> {
     let chain = lookup_symbol_chain(
         checker,
-        Some(arena),
-        Some(target),
         context,
         symbol,
         meaning,
@@ -2390,15 +2277,7 @@ pub(super) fn symbol_to_name(
     meaning: EmitSymbolMeaning,
     expects_identifier: bool,
 ) -> BuildResult<TransformNode> {
-    let chain = lookup_symbol_chain(
-        checker,
-        Some(arena),
-        Some(target),
-        context,
-        symbol,
-        meaning,
-        false,
-    )?;
+    let chain = lookup_symbol_chain(checker, context, symbol, meaning, false)?;
     if expects_identifier
         && chain.len() != 1
         && !context.encountered_error
@@ -2422,7 +2301,7 @@ fn create_entity_name_from_symbol_chain(
 ) -> BuildResult<TransformNode> {
     let _type_parameter_nodes =
         lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?;
-    let symbol = super::remapped_statement_symbol_reference(context, chain[index]);
+    let symbol = chain[index];
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }
@@ -2471,15 +2350,7 @@ pub(crate) fn chains_symbol_to_expression(
     symbol: SymbolId,
     meaning: EmitSymbolMeaning,
 ) -> BuildResult<TransformNode> {
-    let chain = lookup_symbol_chain(
-        checker,
-        Some(arena),
-        Some(target),
-        context,
-        symbol,
-        meaning,
-        false,
-    )?;
+    let chain = lookup_symbol_chain(checker, context, symbol, meaning, false)?;
     create_expression_from_symbol_chain(checker, arena, target, &chain, chain.len() - 1, context)
 }
 
@@ -2496,7 +2367,7 @@ fn create_expression_from_symbol_chain(
 ) -> BuildResult<TransformNode> {
     let _type_parameter_nodes =
         lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?;
-    let symbol = super::remapped_statement_symbol_reference(context, chain[index]);
+    let symbol = chain[index];
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }
@@ -2790,53 +2661,6 @@ fn get_property_name_node_for_symbol_from_name_type(
         .map(Some);
     }
     Ok(None)
-}
-
-#[derive(Clone)]
-pub(crate) struct ClonedNodeBuilderContextRestore {
-    must_create_type_parameter_symbol_list: bool,
-    must_create_type_parameters_names_lookups: bool,
-    type_parameter_names: Option<HashMap<TypeId, TransformNode>>,
-    type_parameter_names_by_text: Option<rustc_hash::FxHashSet<String>>,
-    type_parameter_names_by_text_next_name_count: Option<HashMap<String, u32>>,
-    type_parameter_symbol_list: Option<rustc_hash::FxHashSet<SymbolId>>,
-}
-
-/// tsc-port: cloneNodeBuilderContext @6.0.3
-/// tsc-hash: 18ef4bc35335d2ff447f64ee1bffe8b29c89101b0b41a25825482c6ed2c1c24d
-/// tsc-span: _tsc.js:53444-53461
-pub(crate) fn clone_node_builder_context(
-    context: &mut NodeBuilderContext<'_>,
-) -> ClonedNodeBuilderContextRestore {
-    let restore = ClonedNodeBuilderContextRestore {
-        must_create_type_parameter_symbol_list: context.must_create_type_parameter_symbol_list,
-        must_create_type_parameters_names_lookups: context
-            .must_create_type_parameters_names_lookups,
-        type_parameter_names: context.type_parameter_names.clone(),
-        type_parameter_names_by_text: context.type_parameter_names_by_text.clone(),
-        type_parameter_names_by_text_next_name_count: context
-            .type_parameter_names_by_text_next_name_count
-            .clone(),
-        type_parameter_symbol_list: context.type_parameter_symbol_list.clone(),
-    };
-    context.must_create_type_parameter_symbol_list = true;
-    context.must_create_type_parameters_names_lookups = true;
-    restore
-}
-
-/// tsrs-native: cloned-context restore (Rust borrow shape of upstream context mutation).
-pub(crate) fn restore_cloned_node_builder_context(
-    context: &mut NodeBuilderContext<'_>,
-    restore: ClonedNodeBuilderContextRestore,
-) {
-    context.type_parameter_names = restore.type_parameter_names;
-    context.type_parameter_names_by_text = restore.type_parameter_names_by_text;
-    context.type_parameter_names_by_text_next_name_count =
-        restore.type_parameter_names_by_text_next_name_count;
-    context.type_parameter_symbol_list = restore.type_parameter_symbol_list;
-    context.must_create_type_parameter_symbol_list = restore.must_create_type_parameter_symbol_list;
-    context.must_create_type_parameters_names_lookups =
-        restore.must_create_type_parameters_names_lookups;
 }
 
 fn is_descendant_of(checker: &CheckerState<'_>, node: NodeId, ancestor: NodeId) -> bool {
@@ -3184,10 +3008,9 @@ pub(crate) fn get_module_specifier_override(
                 .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
             if accessible.accessibility == tsc_emitter::EmitSymbolAccessibility::Accessible {
-                parent_symbol =
-                    lookup_symbol_chain(checker, None, None, context, symbol, meaning, true)?
-                        .first()
-                        .copied();
+                parent_symbol = lookup_symbol_chain(checker, context, symbol, meaning, true)?
+                    .first()
+                    .copied();
             }
         }
     }

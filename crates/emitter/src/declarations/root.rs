@@ -8,9 +8,7 @@ use crate::{
     TransformError, TransformNode, TransformRoot, TransformSourceId, TransformationContext,
 };
 
-use super::diagnostics::DiagnosticContext;
 use super::state::{RawFileReferences, TransformState, VisitResult};
-use super::tracker::materialize_effects;
 use super::DeclarationTransformer;
 
 impl RawFileReferences {
@@ -123,58 +121,14 @@ pub(crate) fn transform_root(
     let declaration_path = normalize_slashes(declaration_path);
     let output_directory = crate::source_map::paths::directory_path(&declaration_path);
 
-    let original_statements = source_statements(context.arena(), root_node)?;
-    // tsgo builds JavaScript declarations with the same transform as
-    // TypeScript (ts71-js-declarations); a CommonJS file's exports come from
-    // its assignments (J3).
-    let is_common_js = is_javascript && {
-        let resolver_node = transformer.required_resolver_node(context, root_node)?;
-        transformer
-            .resolver
-            .is_common_js_module(resolver_node)
-            .map_err(TransformError::from)?
-    };
-    transformer.state_mut()?.common_js.is_common_js = is_common_js;
-    if is_common_js {
-        let resolver_node = transformer.required_resolver_node(context, root_node)?;
-        transformer
-            .resolver
-            .precalculate_declaration_emit_visibility(resolver_node)?;
-    }
+    let (statements, is_common_js) = transform_source_statements(
+        transformer,
+        context,
+        root_node,
+        is_javascript,
+        is_external_module,
+    )?;
     let combined = {
-        // tsgo collects the file's `module.exports =` assignments, then its
-        // expando and `exports.name =` assignments, before it visits the
-        // statements (transform.go:350-351).
-        transformer.collect_assignment_declarations(context, root_node)?;
-        let mut statements = Vec::new();
-        for statement in original_statements {
-            // tsgo's parser puts the declarations it reparses from JSDoc
-            // before the statement (parser.go:614-643).
-            statements.extend(transformer.reparsed_statements_before(context, statement)?);
-            match super::statements::visit_declaration_statement(transformer, context, statement)? {
-                VisitResult::None => {}
-                VisitResult::Node(statement) => statements.push(statement),
-                VisitResult::Nodes(result) => statements.extend(result),
-            }
-        }
-        statements.extend(transformer.reparsed_statements_at_end(context, root_node)?);
-        let statements = super::statements::transform_and_replace_late_painted_statements(
-            transformer,
-            context,
-            statements,
-        )?;
-        // tsgo appendCjsExports (transform.go:327-339): the CommonJS export
-        // assignment, then the CommonJS exports, then the statements.
-        let statements = {
-            let common_js = &mut transformer.state_mut()?.common_js;
-            let mut combined = std::mem::take(&mut common_js.export_assignment);
-            combined.append(&mut common_js.export_members);
-            combined.extend(statements);
-            combined
-        };
-        if is_javascript && (is_external_module || is_common_js) {
-            transformer.report_multiple_module_exports(context, root_node)?;
-        }
         let state = transformer.state()?;
         if (is_external_module || is_common_js)
             && (!state.result_has_external_module_indicator
@@ -228,35 +182,66 @@ pub(crate) fn transform_root(
     Ok(TransformRoot::SourceFile(source))
 }
 
-/// tsc-port: transformDeclarationsForJS @6.0.3
-/// tsc-hash: fe83d798e4e7ba53668936902ed8d8c0c15191b6138123cc72989e365c67168d
-/// tsc-span: _tsc.js:114431-114440
-pub(crate) fn transform_declarations_for_js(
+/// The declaration statements of one source file before its scope-fix
+/// marker, and whether the file is a CommonJS module: tsgo
+/// transformSourceFile (transform.go:341-363). tsgo builds JavaScript
+/// declarations with the same transform as TypeScript; a CommonJS file's
+/// exports come from its assignments.
+pub(super) fn transform_source_statements(
     transformer: &mut DeclarationTransformer<'_>,
     context: &mut TransformationContext,
-    target: TransformSourceId,
-    source: TransformNode,
-) -> Result<Vec<TransformNode>, TransformError> {
-    let resolver_node = transformer.required_resolver_node(context, source)?;
-    let saved = transformer
-        .tracker
-        .replace_diagnostic_context(context.arena(), DiagnosticContext::JsFile(target))?;
-    let result = transformer
-        .resolver
-        .get_declaration_statements_for_source_file(
-            context.arena_mut()?,
-            target,
-            resolver_node,
-            crate::EmitNodeBuilderFlags::DECLARATION_EMIT,
-            crate::EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
-            &mut transformer.tracker,
-        )
-        .map_err(TransformError::from);
-    let effects = transformer.tracker.take_pending_effects();
-    let materialized = materialize_effects(context, transformer.host, effects);
-    transformer.tracker.restore_diagnostic_context(saved);
-    materialized?;
-    Ok(result?.unwrap_or_default())
+    root_node: TransformNode,
+    is_javascript: bool,
+    is_external_module: bool,
+) -> Result<(Vec<TransformNode>, bool), TransformError> {
+    let is_common_js = is_javascript && {
+        let resolver_node = transformer.required_resolver_node(context, root_node)?;
+        transformer
+            .resolver
+            .is_common_js_module(resolver_node)
+            .map_err(TransformError::from)?
+    };
+    transformer.state_mut()?.common_js.is_common_js = is_common_js;
+    if is_common_js {
+        let resolver_node = transformer.required_resolver_node(context, root_node)?;
+        transformer
+            .resolver
+            .precalculate_declaration_emit_visibility(resolver_node)?;
+    }
+    // tsgo collects the file's `module.exports =` assignments, then its
+    // expando and `exports.name =` assignments, before it visits the
+    // statements (transform.go:350-351).
+    transformer.collect_assignment_declarations(context, root_node)?;
+    let mut statements = Vec::new();
+    for statement in source_statements(context.arena(), root_node)? {
+        // tsgo's parser puts the declarations it reparses from JSDoc
+        // before the statement (parser.go:614-643).
+        statements.extend(transformer.reparsed_statements_before(context, statement)?);
+        match super::statements::visit_declaration_statement(transformer, context, statement)? {
+            VisitResult::None => {}
+            VisitResult::Node(statement) => statements.push(statement),
+            VisitResult::Nodes(result) => statements.extend(result),
+        }
+    }
+    statements.extend(transformer.reparsed_statements_at_end(context, root_node)?);
+    let statements = super::statements::transform_and_replace_late_painted_statements(
+        transformer,
+        context,
+        statements,
+    )?;
+    // tsgo appendCjsExports (transform.go:327-339): the CommonJS export
+    // assignment, then the CommonJS exports, then the statements.
+    let statements = {
+        let common_js = &mut transformer.state_mut()?.common_js;
+        let mut combined = std::mem::take(&mut common_js.export_assignment);
+        combined.append(&mut common_js.export_members);
+        combined.extend(statements);
+        combined
+    };
+    if is_javascript && (is_external_module || is_common_js) {
+        transformer.report_multiple_module_exports(context, root_node)?;
+    }
+    Ok((statements, is_common_js))
 }
 
 /// tsc-port: getReferencedFiles @6.0.3

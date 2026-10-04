@@ -3,48 +3,38 @@ mod context;
 mod serialize;
 mod signatures;
 pub(crate) mod specifier;
-mod statements;
 mod tracker;
 mod type_nodes;
 
 pub(crate) use crate::syntactic_type_node_builder::SyntacticTypeNodeBuilder;
-pub(crate) use chains::specifier_for_module_symbol;
 pub(crate) use chains::{
     chains_get_property_name_node_for_symbol, chains_symbol_to_entity_name_node,
-    chains_symbol_to_expression, chains_symbol_to_type_node, clone_node_builder_context,
+    chains_symbol_to_expression, chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
-    get_module_specifier_override, get_type_from_type_node2, restore_cloned_node_builder_context,
+    get_module_specifier_override, get_type_from_type_node2,
     serialize_inferred_type_for_declaration, set_text_range2, symbol_to_node,
     type_parameter_to_name,
 };
 pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
-    check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
-    restore_no_inference_fallback, restore_symbol_type_to_context, save_no_inference_fallback,
-    save_restore_flags, should_expand_type, with_context, with_context_in_synthetic_module_scope,
-    NodeBuilderContext, RecoveryTrackedSymbol, SyntheticModuleScope, TrackedSymbol,
+    no_inference_fallback_is_set, restore_flags, restore_no_inference_fallback,
+    restore_symbol_type_to_context, save_no_inference_fallback, save_restore_flags,
+    should_expand_type, with_context, with_context_in_synthetic_module_scope, NodeBuilderContext,
+    RecoveryTrackedSymbol, SyntheticModuleScope, TrackedSymbol,
 };
 pub(crate) use serialize::{
     index_info_to_index_signature_declaration, serialize_return_type_for_signature,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration,
     serialize_type_for_declaration_seam, serialize_type_for_expression,
     serialize_type_for_symbolless_declaration, syntactic_serialize_name_of_parameter_seam,
-    syntactic_track_existing_entity_name, syntactic_try_reuse_existing_type_node,
-    try_js_type_node_to_type_node, type_to_type_node,
+    syntactic_try_reuse_existing_type_node, try_js_type_node_to_type_node, type_to_type_node,
 };
 pub(crate) use signatures::{
     enter_new_scope, index_info_to_index_signature_declaration_helper,
-    signature_to_signature_declaration_helper, type_parameter_to_declaration,
-    type_predicate_to_type_predicate_node_helper, SignatureDeclarationOptions,
+    type_predicate_to_type_predicate_node_helper,
 };
-pub(crate) use statements::{symbol_table_to_declaration_statements, symbol_to_declarations};
 pub(crate) use tracker::tracker_symbol;
-use type_nodes::{
-    add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
-    create_node_array, create_output_identifier, create_token, factory_error, project_parse_node,
-    BuildResult,
-};
 pub(crate) use type_nodes::{create_factory_node, update_factory_node};
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
 
@@ -211,49 +201,6 @@ pub(crate) struct SyntacticAccessorDeclarations {
 pub(crate) struct SyntacticTrackedEntityName {
     pub(crate) node: tsc_emitter::TransformNode,
     pub(crate) introduces_error: bool,
-}
-
-/// TypeScript's local/export projections share one symbol-id space for the
-/// statement serializer. Rust retains both binder symbols, so test remapping
-/// through their export projection before invoking the scoped tracker.
-/// tsrs-native: statement-serializer remap probe (Rust borrow shape).
-pub(crate) fn is_statement_symbol_remapped(
-    checker: &crate::state::CheckerState<'_>,
-    context: &NodeBuilderContext<'_>,
-    symbol: tsc_binder::SymbolId,
-) -> bool {
-    if context
-        .remapped_symbol_references
-        .as_ref()
-        .is_some_and(|references| references.contains_key(&symbol))
-    {
-        return true;
-    }
-    let normalized = checker.get_export_symbol_of_value_symbol_if_exported(symbol);
-    context.remapped_symbol_names.as_ref().is_some_and(|names| {
-        names.keys().copied().any(|candidate| {
-            candidate == symbol
-                || checker.get_export_symbol_of_value_symbol_if_exported(candidate) == normalized
-        })
-    })
-}
-
-/// `getNameOfSymbolAsWritten` consults the statement serializer's scoped
-/// public-symbol remap before choosing any written symbol name.
-///
-/// tsc-port: getNameOfSymbolAsWritten @6.0.3 (remappedSymbolReferences head)
-/// tsc-hash: 5c8f959b94d9df212e44a1d0f379ef0da9b1a4768d3c10fe42e3e4bba77289f7
-/// tsc-span: _tsc.js:55541-55545
-pub(crate) fn remapped_statement_symbol_reference(
-    context: &NodeBuilderContext<'_>,
-    symbol: tsc_binder::SymbolId,
-) -> tsc_binder::SymbolId {
-    context
-        .remapped_symbol_references
-        .as_ref()
-        .and_then(|references| references.get(&symbol))
-        .copied()
-        .unwrap_or(symbol)
 }
 
 /// Owned cleanup returned by the checker-side `enterNewScope` callback.
@@ -537,9 +484,7 @@ impl SyntacticRecoveryBoundary {
         context.recovery_boundary_had_error = self.previous_had_error;
         context.recovery_boundary_depth = self.previous_depth;
         if succeeded {
-            for (symbol, symbol_flags, enclosing, synthetic, meaning, symbol_is_remapped) in
-                buffered
-            {
+            for (symbol, symbol_flags, enclosing, synthetic, meaning) in buffered {
                 context.tracker.track_symbol(
                     &mut context.reported_diagnostic,
                     &mut context.tracked_symbols,
@@ -550,7 +495,6 @@ impl SyntacticRecoveryBoundary {
                     enclosing,
                     synthetic,
                     meaning,
-                    symbol_is_remapped,
                 )?;
             }
         }

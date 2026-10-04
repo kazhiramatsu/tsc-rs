@@ -514,9 +514,7 @@ pub enum EmitResolverMethod {
     CreateTypeOfExpression,
     TryJsTypeNodeToTypeNode,
     CreateLiteralConstValue,
-    GetDeclarationStatementsForSourceFile,
     CreateLateBoundIndexSignatures,
-    SymbolToDeclarations,
 }
 
 /// Selects the checker view used by `getReferencedExportContainer`.
@@ -611,9 +609,7 @@ impl EmitResolverMethod {
             Self::CreateTypeOfExpression => "createTypeOfExpression",
             Self::TryJsTypeNodeToTypeNode => "tryJSTypeNodeToTypeNode",
             Self::CreateLiteralConstValue => "createLiteralConstValue",
-            Self::GetDeclarationStatementsForSourceFile => "getDeclarationStatementsForSourceFile",
             Self::CreateLateBoundIndexSignatures => "createLateBoundIndexSignatures",
-            Self::SymbolToDeclarations => "symbolToDeclarations",
         }
     }
 }
@@ -1555,26 +1551,6 @@ pub trait EmitResolver {
         ))
     }
 
-    /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3
-    /// tsc-hash: 517de08538d0b91488cd2e54201e7dc44b404b08fe126ba36a1b63ce84ec70dc
-    /// tsc-span: _tsc.js:88612-88621
-    #[allow(clippy::too_many_arguments)]
-    fn get_declaration_statements_for_source_file(
-        &self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        node: EmitResolverNode,
-        flags: EmitNodeBuilderFlags,
-        internal_flags: EmitInternalNodeBuilderFlags,
-        tracker: &mut dyn EmitSymbolTracker,
-    ) -> Result<Option<Vec<TransformNode>>, EmitResolverError> {
-        let _ = (arena, target, flags, internal_flags, tracker);
-        Err(unavailable(
-            EmitResolverMethod::GetDeclarationStatementsForSourceFile,
-            node,
-        ))
-    }
-
     /// tsc-port: createLateBoundIndexSignatures @6.0.3
     /// tsc-hash: 57a5aa62b412607a3d4c1fc9811e8e9ec66f85ef4aa82dab2cc6afe36885e6c9
     /// tsc-span: _tsc.js:88624-88691
@@ -1601,42 +1577,6 @@ pub trait EmitResolver {
             EmitResolverMethod::CreateLateBoundIndexSignatures,
             container,
         ))
-    }
-
-    /// Serialize a symbol's declarations (the NodeBuilder API surface
-    /// member; zero transformer call sites — consumers arrive with the
-    /// API1/H2.8 eras).
-    /// tsc-port: symbolToDeclarations @6.0.3
-    /// tsc-hash: 19c143701a83249c07ce89bb797f58b8ab835466cdc2b47918310f6487ac3caf
-    /// tsc-span: _tsc.js:88692-88694
-    /// (member :51136-51164)
-    #[allow(clippy::too_many_arguments)]
-    fn symbol_to_declarations(
-        &self,
-        arena: &mut TransformArena,
-        target: TransformSourceId,
-        symbol: EmitResolverSymbol,
-        meaning: EmitSymbolMeaning,
-        flags: EmitNodeBuilderFlags,
-        maximum_length: Option<u32>,
-        verbosity_level: Option<i32>,
-        out: Option<&mut EmitSymbolExpansionOut>,
-    ) -> Result<Vec<TransformNode>, EmitResolverError> {
-        // Upstream passes NO tracker: withContext installs the basic
-        // SymbolTrackerImpl over an absent inner tracker (:51136-51149).
-        let _ = (
-            arena,
-            target,
-            meaning,
-            flags,
-            maximum_length,
-            verbosity_level,
-            out,
-        );
-        Err(EmitResolverError::UnavailableForSymbol {
-            method: EmitResolverMethod::SymbolToDeclarations,
-            symbol,
-        })
     }
 }
 

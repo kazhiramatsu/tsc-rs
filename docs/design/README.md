@@ -86,7 +86,7 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
 - [greenfield/slices/ts71-js-declarations/README.md](greenfield/slices/ts71-js-declarations/README.md):
   the 2026-10-04 design for producing JavaScript `.d.ts` output the tsgo way,
   through the shared declaration transform instead of tsc 6.0's symbol
-  serialization, in slices J1-J4.
+  serialization, in slices J1-J4 (completed 2026-10-04).
 - [greenfield/](greenfield/README.md): the execution companion to the
   five M/core documents above, plus the entry route for active post-H1 work.
   Its M0-M9 step guides are completed or paused history; its post-H1 route

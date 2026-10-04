@@ -1188,28 +1188,6 @@ impl EmitResolver for CheckerSession<'_> {
         state.emit_create_literal_const_value(arena, target, node.node(), tracker)
     }
 
-    fn get_declaration_statements_for_source_file(
-        &self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        node: EmitResolverNode,
-        flags: tsc_emitter::EmitNodeBuilderFlags,
-        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
-        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, EmitResolverError> {
-        let method = EmitResolverMethod::GetDeclarationStatementsForSourceFile;
-        let mut state = self.state.lock().expect("checker session state");
-        validate_resolver_node(&state, method, node)?;
-        state.emit_get_declaration_statements_for_source_file(
-            arena,
-            target,
-            node.node(),
-            flags,
-            internal_flags,
-            tracker,
-        )
-    }
-
     fn create_late_bound_index_signatures(
         &self,
         arena: &mut tsc_emitter::TransformArena,
@@ -1232,37 +1210,6 @@ impl EmitResolver for CheckerSession<'_> {
             flags,
             internal_flags,
             tracker,
-        )
-    }
-
-    fn symbol_to_declarations(
-        &self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        symbol: EmitResolverSymbol,
-        meaning: EmitSymbolMeaning,
-        flags: tsc_emitter::EmitNodeBuilderFlags,
-        maximum_length: Option<u32>,
-        verbosity_level: Option<i32>,
-        out: Option<&mut tsc_emitter::EmitSymbolExpansionOut>,
-    ) -> Result<Vec<tsc_emitter::TransformNode>, EmitResolverError> {
-        let mut state = self.state.lock().expect("checker session state");
-        let resolved = validate_resolver_symbol(
-            &state,
-            self.session_token,
-            EmitResolverMethod::SymbolToDeclarations,
-            symbol,
-        )?;
-        crate::node_builder::symbol_to_declarations(
-            &mut state,
-            arena,
-            target,
-            resolved,
-            meaning,
-            flags,
-            maximum_length,
-            verbosity_level,
-            out,
         )
     }
 }

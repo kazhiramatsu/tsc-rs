@@ -1,8 +1,7 @@
 use tsc_binder::SymbolId;
 use tsc_emitter::{
-    EmitModuleSpecifierHost, EmitResolverError, EmitSymbolAccessibility, EmitSymbolMeaning,
-    EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription,
-    EmitTrackerSymbol,
+    EmitModuleSpecifierHost, EmitResolverError, EmitSymbolMeaning, EmitSymbolTracker,
+    EmitTrackerAccess, EmitTrackerNode, EmitTrackerSymbol,
 };
 use tsc_syntax::NodeId;
 use tsc_types::SymbolFlags;
@@ -20,11 +19,6 @@ pub(crate) struct NodeBuilderTracker<'tracker> {
     pub(crate) inner: Option<&'tracker mut dyn EmitSymbolTracker>,
     pub(crate) disable_track_symbol: bool,
     pub(crate) can_track_symbol: bool,
-    /// `symbolTableToDeclarationStatements` replaces the caller's tracker
-    /// with a wrapper that consumes accessible symbols as private declaration
-    /// dependencies and forwards only inaccessible symbols. The serializer
-    /// drains this queue while its private-context stack is live.
-    statement_symbols: Option<Vec<(SymbolId, EmitSymbolMeaning)>>,
     /// Open `createRecoveryBoundary` frames: while a syntactic reuse walk is
     /// inside a boundary, the six error reports upstream wraps with
     /// `markError` are deferred here (replayed by `finalizeBoundary`,
@@ -156,42 +150,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
             inner,
             disable_track_symbol: false,
             can_track_symbol,
-            statement_symbols: None,
         }
-    }
-
-    /// tsrs-native: statement-tracker window entry (upstream fake-scope tracking).
-    pub(crate) fn begin_statement_tracking(
-        &mut self,
-    ) -> (bool, Option<Vec<(SymbolId, EmitSymbolMeaning)>>) {
-        let old_can_track_symbol = self.can_track_symbol;
-        self.can_track_symbol = true;
-        (
-            old_can_track_symbol,
-            self.statement_symbols.replace(Vec::new()),
-        )
-    }
-
-    /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
-    pub(crate) fn take_statement_symbols(&mut self) -> Vec<(SymbolId, EmitSymbolMeaning)> {
-        self.statement_symbols
-            .as_mut()
-            .map(std::mem::take)
-            .unwrap_or_default()
-    }
-
-    /// tsrs-native: statement-tracker window probe.
-    pub(crate) fn is_statement_tracking(&self) -> bool {
-        self.statement_symbols.is_some()
-    }
-
-    /// tsrs-native: statement-tracker window exit.
-    pub(crate) fn end_statement_tracking(
-        &mut self,
-        restore: (bool, Option<Vec<(SymbolId, EmitSymbolMeaning)>>),
-    ) {
-        self.can_track_symbol = restore.0;
-        self.statement_symbols = restore.1;
     }
 
     /// A `None` result selects the checker-backed basic host.
@@ -219,7 +178,6 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         enclosing_declaration: Option<NodeId>,
         enclosing_declaration_is_synthetic: bool,
         meaning: EmitSymbolMeaning,
-        symbol_is_remapped: bool,
     ) -> Result<bool, EmitResolverError> {
         if self.disable_track_symbol {
             return Ok(false);
@@ -231,34 +189,8 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
                 enclosing_declaration,
                 enclosing_declaration_is_synthetic,
                 meaning,
-                symbol_is_remapped,
             ));
             return Ok(false);
-        }
-        if let Some(statement_symbols) = self.statement_symbols.as_mut() {
-            if symbol_is_remapped {
-                return Ok(false);
-            }
-            let accessibility = access.is_symbol_accessible(
-                tracker_symbol(symbol),
-                enclosing_declaration
-                    .map(|node| tracker_enclosing_node(node, enclosing_declaration_is_synthetic)),
-                meaning,
-                false,
-            )?;
-            if accessibility.accessibility == EmitSymbolAccessibility::Accessible {
-                if !symbol_flags.intersects(SymbolFlags::PROPERTY) {
-                    statement_symbols.push((symbol, meaning));
-                }
-                if !symbol_flags.intersects(SymbolFlags::TYPE_PARAMETER) {
-                    tracked_symbols.get_or_insert_with(Vec::new).push((
-                        symbol,
-                        enclosing_declaration,
-                        meaning,
-                    ));
-                }
-                return Ok(false);
-            }
         }
         if !self.can_track_symbol {
             return Ok(false);
@@ -389,21 +321,6 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         }
     }
 
-    /// tsc-port: SymbolTrackerImpl.reportNonlocalAugmentation @6.0.3
-    /// tsc-hash: ff2f1f906bf5e0e8fde4d2a5bc2a77fd88ae85fb680311faec75c79d6c740d1a
-    /// tsc-span: _tsc.js:91036-91042
-    pub(crate) fn report_nonlocal_augmentation(
-        &mut self,
-        reported_diagnostic: &mut bool,
-        primary_declaration: Option<EmitTrackerNodeDescription>,
-        augmenting_declarations: Vec<EmitTrackerNodeDescription>,
-    ) {
-        if let Some(inner) = self.inner.as_deref_mut() {
-            Self::on_diagnostic_reported(reported_diagnostic);
-            inner.report_nonlocal_augmentation(primary_declaration, augmenting_declarations);
-        }
-    }
-
     /// tsc-port: SymbolTrackerImpl.reportNonSerializableProperty @6.0.3
     /// tsc-hash: 227a16e3134442aaeeefc90843ff7448eb455298647ae1e455df5cf9754eaab0
     /// tsc-span: _tsc.js:91043-91049
@@ -450,24 +367,6 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
             inner.report_inference_fallback(access, tracker_node(node))?;
         }
         Ok(())
-    }
-
-    /// tsc-port: SymbolTrackerImpl.pushErrorFallbackNode @6.0.3
-    /// tsc-hash: db55706784167d0fabdb0d4f8e58a8f1790a83aa703005a9c7f6cdbcdc5d760a
-    /// tsc-span: _tsc.js:91060-91063
-    pub(crate) fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNodeDescription>) {
-        if let Some(inner) = self.inner.as_deref_mut() {
-            inner.push_error_fallback_node(node);
-        }
-    }
-
-    /// tsc-port: SymbolTrackerImpl.popErrorFallbackNode @6.0.3
-    /// tsc-hash: 322f6a54fab329e4057a1a3d87d8854e558ae7c9d22922ddae1aec23579c1f54
-    /// tsc-span: _tsc.js:91064-91067
-    pub(crate) fn pop_error_fallback_node(&mut self) {
-        if let Some(inner) = self.inner.as_deref_mut() {
-            inner.pop_error_fallback_node();
-        }
     }
 }
 

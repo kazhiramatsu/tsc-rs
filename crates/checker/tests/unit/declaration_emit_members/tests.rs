@@ -321,29 +321,3 @@ fn dm_late_bound_index_signatures() {
         },
     );
 }
-
-#[test]
-fn dm_declaration_statements_for_source_file() {
-    // Pre-lane-F this asserted the typed pending error; the statements
-    // cluster now serializes the module's export table.
-    with_member_state("export const x = 1;", |checker, arena, target| {
-        let root = checker.binder.source(0).root;
-        let mut tracker = NoopTracker;
-        let statements = checker
-            .emit_get_declaration_statements_for_source_file(
-                arena,
-                target,
-                root,
-                EmitNodeBuilderFlags::DECLARATION_EMIT,
-                EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
-                &mut tracker,
-            )
-            .expect("statements serialize")
-            .expect("module exports produce statements");
-        assert!(!statements.is_empty());
-        assert_eq!(
-            node_kind(arena, target, statements[0]),
-            SyntaxKind::VariableStatement
-        );
-    });
-}

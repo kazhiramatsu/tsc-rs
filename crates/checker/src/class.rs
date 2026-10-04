@@ -1181,29 +1181,6 @@ impl<'a> CheckerState<'a> {
         types
     }
 
-    /// tsc-port: getImplementsTypes @6.0.3
-    /// tsc-hash: 5c4e8fadb855ac7137714a0347323f8f47f2b9ac5bd2ebe7e5837ae3e0c52dfa
-    /// tsc-span: _tsc.js:57190-57209
-    pub(crate) fn get_implements_types(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
-        let Some(symbol) = self.tables.type_of(ty).symbol else {
-            return Ok(Vec::new());
-        };
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        let mut types = Vec::new();
-        for declaration in declarations {
-            let Some(nodes) = self.get_effective_implements_type_nodes(declaration) else {
-                continue;
-            };
-            for node in nodes {
-                let implemented = self.get_type_from_type_node(node)?;
-                if !self.tables.is_error_type(implemented) {
-                    types.push(implemented);
-                }
-            }
-        }
-        Ok(types)
-    }
-
     /// tsrs-native: tsc reads `type.thisType` off the InterfaceType
     /// object directly — this accessor unpacks the GenericType data
     /// twin (None for this-less interface Object data).
