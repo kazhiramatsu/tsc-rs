@@ -2232,3 +2232,33 @@ P3-5aqの後の2件：
     branch÷main：zod 1.00042、Effect 1.00008。3回のEffectの差はnoiseで、劣化無し。
 - hosted：PR #669（head `88c4db3a8`）、run 37225784962 — `plan` 27s、`rust` 10m3s、`conformance (TypeScript 7.1)` 20m27s、
   `gates` 12s。
+
+## P3-5as カンマの優先順位とBigIntのmetadata（2026-10-05）
+
+P3-5arの後、emitの2件：
+- **カンマの優先順位**：tsgoのprinterは計算プロパティ名とJSXの式を`OperatorPrecedenceDisallowComma`で出す
+  （`emitComputedPropertyName`、`emitJsxExpression`、printer/printer.go:1221、4369）。書かれたカンマ式も括弧で
+  囲まれる（`[(0, 1)]`、`{(class1, class2)}`）。tsc-rsはtsc 6.0の、factoryが置き換えた式だけを囲む形だった。
+  `parserComputedPropertyName35`、`jsxParsingError1`。
+- **BigIntのmetadata**：tsgoの`serializeBigIntConstructor`は、ES2020未満で`typeof BigInt === "function" ? BigInt :
+  Object`を出す（transformers/tstransforms/typeserializer.go:388-399）。`emitDecoratorMetadataBigIntFallback`。
+- unit test：CLI（tsgoの出力にpin）で2件（計算プロパティ名とJSXのカンマ、BigIntのmetadata）。
+- conformance（release build、`ca9a186d5`、`--workers 2`、535 s）：
+  - 15,228構成、lane A 13,467（変化なし）。errors full 13,400→13,401は`intersectionConstructorReductionCrash`
+    （今回は最後まで通った。負荷で結果の変わる構成で、ratchetの外）。
+  - emit full 13,379→13,383：上の3構成と`intersectionConstructorReductionCrash`。emit mismatch 58→55。
+    `plainJSGrammarErrors`は計算プロパティ名の行がtsgoと同じになり、残る差は以前からの278行目（`async export`）。
+  - 下がった構成は無い。
+- ratchet：0 regressions、3行raise（emit）。
+- local：formatとworkspace全体のclippy。emitter・compiler・harness・conformanceのtest（35 targets、901件）、CLIのtest 2件を
+  加えた後のcompilerの`contracts` 213件。filter `omputed`・`jsx`・`tsx`・`etadata`・`ecorator`・`igint`で下がった構成は
+  無かった。
+- perf（README corpora、nice 20、main（P3-5arのbuild `8ee2087a3`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 135→128、zod 523→506、Playwright 368→361、TypeScript
+    `src/compiler` 328→324、Next.js 775→765、Effect 488→516、VS Code 3,425→3,343。tsc-rs÷tsgo 0.58–0.94。読み込んだ
+    文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 148→146、zod 627→648、Playwright 494→490、TypeScript `src/compiler` 548→513、
+    Next.js 1,058→1,026、Effect 763→762。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B：Effect `--noEmit` 507→526（min 477→466）、zod `bench-full` 642→646、Next.js `bench-full` 1,032→1,029。
+    1 checkerの命令数branch÷main：zod 1.00020、Effect 0.99986。変更はemitterだけで`--noEmit`には効かず、差はnoise。
+    劣化無し。
