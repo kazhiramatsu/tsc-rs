@@ -4429,6 +4429,49 @@ fn decorated_classes_extending_null_call_no_super_like_tsgo() {
 }
 
 #[test]
+fn lowered_optional_chains_take_one_access_paren_like_tsgo() {
+    // tsgo's parenthesizeLeftSideOfAccess leaves a left-hand-side
+    // expression such as an instantiation expression bare
+    // (ast/utilities.go:396-408), so the lowered chain under `.d` gets one
+    // pair of parentheses. The expected diagnostics and bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare namespace A {\n",
+            "    export class b<T> {\n",
+            "        static d: number;\n",
+            "        constructor(x: T);\n",
+            "    }\n",
+            "}\n",
+            "type c = unknown;\n",
+            "declare const a: typeof A | undefined;\n",
+            "export const x = a?.b<c>.d;\n",
+            "export const y = (a?.b)!.d;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2019","module":"esnext","outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        "a.ts(9,22): error TS1477: An instantiation expression cannot be followed by a property access.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "export const x = (a === null || a === void 0 ? void 0 : a.b).d;\n",
+            "export const y = (a === null || a === void 0 ? void 0 : a.b).d;\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

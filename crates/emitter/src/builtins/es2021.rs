@@ -1972,6 +1972,9 @@ impl<'context> TargetVisitor<'context> {
         )
     }
 
+    /// tsgo parenthesizeLeftSideOfAccess for a non-optional access
+    /// (ast/parenthesizerrules.go): a left-hand-side expression stays bare,
+    /// except an argument-less `new` and an optional chain.
     fn requires_left_side_parentheses(
         &self,
         mut expression: TransformNode,
@@ -1988,28 +1991,46 @@ impl<'context> TargetVisitor<'context> {
                     })?;
                 continue;
             }
-            return Ok(!matches!(
+            // isLeftHandSideExpressionKind (ast/utilities.go:396-408).
+            let left_hand_side = matches!(
                 record.kind,
-                SyntaxKind::ArrayLiteralExpression
+                SyntaxKind::PropertyAccessExpression
+                    | SyntaxKind::ElementAccessExpression
+                    | SyntaxKind::NewExpression
+                    | SyntaxKind::CallExpression
+                    | SyntaxKind::JsxElement
+                    | SyntaxKind::JsxSelfClosingElement
+                    | SyntaxKind::JsxFragment
+                    | SyntaxKind::TaggedTemplateExpression
+                    | SyntaxKind::ArrayLiteralExpression
+                    | SyntaxKind::ParenthesizedExpression
                     | SyntaxKind::ObjectLiteralExpression
                     | SyntaxKind::ClassExpression
                     | SyntaxKind::FunctionExpression
                     | SyntaxKind::Identifier
-                    | SyntaxKind::StringLiteral
+                    | SyntaxKind::PrivateIdentifier
+                    | SyntaxKind::RegularExpressionLiteral
                     | SyntaxKind::NumericLiteral
                     | SyntaxKind::BigIntLiteral
-                    | SyntaxKind::RegularExpressionLiteral
+                    | SyntaxKind::StringLiteral
                     | SyntaxKind::NoSubstitutionTemplateLiteral
+                    | SyntaxKind::TemplateExpression
+                    | SyntaxKind::FalseKeyword
+                    | SyntaxKind::NullKeyword
                     | SyntaxKind::ThisKeyword
+                    | SyntaxKind::TrueKeyword
                     | SyntaxKind::SuperKeyword
-                    | SyntaxKind::ParenthesizedExpression
-                    | SyntaxKind::PropertyAccessExpression
-                    | SyntaxKind::ElementAccessExpression
-                    | SyntaxKind::CallExpression
-                    | SyntaxKind::NewExpression
-                    | SyntaxKind::TaggedTemplateExpression
+                    | SyntaxKind::NonNullExpression
+                    | SyntaxKind::ExpressionWithTypeArguments
                     | SyntaxKind::MetaProperty
-            ));
+                    | SyntaxKind::ImportKeyword
+                    | SyntaxKind::MissingDeclaration
+            );
+            let argumentless_new =
+                matches!(&record.data, NodeData::NewExpression(data) if data.arguments.is_none());
+            return Ok(!left_hand_side
+                || argumentless_new
+                || self.is_optional_chain(expression)?);
         }
     }
 
