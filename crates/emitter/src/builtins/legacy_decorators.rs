@@ -2283,7 +2283,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             SyntaxKind::StringKeyword => self.create_identifier("String"),
             SyntaxKind::NumberKeyword => self.create_identifier("Number"),
             SyntaxKind::BooleanKeyword => self.create_identifier("Boolean"),
-            SyntaxKind::BigIntKeyword => self.create_identifier("BigInt"),
+            SyntaxKind::BigIntKeyword => self.serialize_big_int_constructor(),
             SyntaxKind::SymbolKeyword => self.create_identifier("Symbol"),
             SyntaxKind::ObjectKeyword | SyntaxKind::AnyKeyword | SyntaxKind::UnknownKeyword => {
                 self.create_identifier("Object")
@@ -2383,7 +2383,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 self.create_identifier("String")
             }
             NodeData::NumericLiteral(_) => self.create_identifier("Number"),
-            NodeData::BigIntLiteral(_) => self.create_identifier("BigInt"),
+            NodeData::BigIntLiteral(_) => self.serialize_big_int_constructor(),
             NodeData::Token => match self.context.arena().node(literal)?.kind {
                 SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
                     self.create_identifier("Boolean")
@@ -2397,7 +2397,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 };
                 match self.context.arena().node(self.node(operand))?.kind {
                     SyntaxKind::NumericLiteral => self.create_identifier("Number"),
-                    SyntaxKind::BigIntLiteral => self.create_identifier("BigInt"),
+                    SyntaxKind::BigIntLiteral => self.serialize_big_int_constructor(),
                     _ => self.create_identifier("Object"),
                 }
             }
@@ -2627,7 +2627,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             }
             EmitTypeReferenceSerializationKind::VoidNullableOrNeverType => self.create_void_zero(),
             EmitTypeReferenceSerializationKind::NumberLikeType => self.create_identifier("Number"),
-            EmitTypeReferenceSerializationKind::BigIntLikeType => self.create_identifier("BigInt"),
+            EmitTypeReferenceSerializationKind::BigIntLikeType => {
+                self.serialize_big_int_constructor()
+            }
             EmitTypeReferenceSerializationKind::StringLikeType => self.create_identifier("String"),
             EmitTypeReferenceSerializationKind::BooleanType => self.create_identifier("Boolean"),
             EmitTypeReferenceSerializationKind::ArrayLikeType => self.create_identifier("Array"),
@@ -2656,6 +2658,23 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             current = parent;
         }
         Ok(false)
+    }
+
+    /// tsgo serializeBigIntConstructor (transformers/tstransforms/
+    /// typeserializer.go:388-399): below ES2020 the constructor is guarded,
+    /// `typeof BigInt === "function" ? BigInt : Object`.
+    fn serialize_big_int_constructor(&mut self) -> Result<TransformNode, TransformError> {
+        if self.target >= ScriptTarget::ES2020 {
+            return self.create_identifier("BigInt");
+        }
+        let big_int = self.create_identifier("BigInt")?;
+        let type_of = self.create_typeof(big_int)?;
+        let function = self.create_string_literal("function")?;
+        let condition =
+            self.create_binary(type_of, SyntaxKind::EqualsEqualsEqualsToken, function)?;
+        let when_true = self.create_identifier("BigInt")?;
+        let when_false = self.create_identifier("Object")?;
+        self.create_conditional(condition, when_true, when_false)
     }
 
     fn serialize_unknown_entity_name_type(
