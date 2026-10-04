@@ -298,6 +298,11 @@ struct TargetVisitor<'context> {
     nodes: NodeMemo<Option<NodeId>>,
     arrays: ArrayMemo<Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
+    /// The hoisted declarations of nullish-coalescing temps. tsgo lowers
+    /// `??` and optional chains in separate transformers (estransforms/
+    /// definitions.go:16), so each scope declares the two sets in separate
+    /// `var` statements.
+    nullish_declarations: std::collections::BTreeSet<TransformNode>,
 }
 
 impl<'context> TargetVisitor<'context> {
@@ -334,6 +339,7 @@ impl<'context> TargetVisitor<'context> {
             target,
             nodes,
             arrays,
+            nullish_declarations: std::collections::BTreeSet::new(),
         })
     }
 
@@ -692,7 +698,7 @@ impl<'context> TargetVisitor<'context> {
         let (left, repeated_left) = if self.is_simple_copiable_expression(visited_left)? {
             (visited_left, visited_left)
         } else {
-            let temporary = self.allocate_hoisted_temp()?;
+            let temporary = self.allocate_hoisted_nullish_temp()?;
             let assignment_target = self.create_generated_identifier(&temporary)?;
             let repeated_left = self.create_generated_identifier(&temporary)?;
             let assignment = self.create_assignment(assignment_target, visited_left)?;
@@ -1846,22 +1852,37 @@ impl<'context> TargetVisitor<'context> {
         }
 
         if !lexical_environment.variable_declarations().is_empty() {
-            let mut declarations =
-                Vec::with_capacity(lexical_environment.variable_declarations().len());
-            for name in lexical_environment.variable_declarations() {
-                let declaration = self.create_variable_declaration(*name, None)?;
+            // The optional-chain transformer merges its `var` statement
+            // before the one the nullish-coalescing transformer added
+            // (EmitContext.MergeEnvironment puts the newer hoisted variables
+            // first).
+            let (nullish, others): (Vec<TransformNode>, Vec<TransformNode>) = lexical_environment
+                .variable_declarations()
+                .iter()
+                .copied()
+                .partition(|name| self.nullish_declarations.contains(name));
+            let mut hoisted = Vec::with_capacity(2);
+            for names in [others, nullish] {
+                if names.is_empty() {
+                    continue;
+                }
+                let mut declarations = Vec::with_capacity(names.len());
+                for name in names {
+                    let declaration = self.create_variable_declaration(name, None)?;
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(declaration)
+                        .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+                    declarations.push(declaration);
+                }
+                let statement = self.create_variable_statement(declarations)?;
                 self.context
                     .arena_mut()?
-                    .metadata_mut(declaration)
-                    .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
-                declarations.push(declaration);
+                    .metadata_mut(statement)
+                    .add_flags(EmitFlags::CUSTOM_PROLOGUE);
+                hoisted.push(statement);
             }
-            let statement = self.create_variable_statement(declarations)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .add_flags(EmitFlags::CUSTOM_PROLOGUE);
-            statements.insert(function_end, statement);
+            statements.splice(function_end..function_end, hoisted);
         }
 
         if !lexical_environment.function_declarations().is_empty() {
@@ -1887,6 +1908,15 @@ impl<'context> TargetVisitor<'context> {
         let binding =
             TargetBinding::allocate(self.context, self.generated_bindings.allocate_temp())?;
         let declaration = self.create_generated_identifier(&binding)?;
+        self.context.hoist_variable_declaration(declaration)?;
+        Ok(binding)
+    }
+
+    fn allocate_hoisted_nullish_temp(&mut self) -> Result<TargetBinding, TransformError> {
+        let binding =
+            TargetBinding::allocate(self.context, self.generated_bindings.allocate_temp())?;
+        let declaration = self.create_generated_identifier(&binding)?;
+        self.nullish_declarations.insert(declaration);
         self.context.hoist_variable_declaration(declaration)?;
         Ok(binding)
     }

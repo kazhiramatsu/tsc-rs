@@ -4472,6 +4472,62 @@ fn lowered_optional_chains_take_one_access_paren_like_tsgo() {
 }
 
 #[test]
+fn nullish_and_optional_chain_temps_are_declared_apart_like_tsgo() {
+    // tsgo lowers `??` and optional chains in separate transformers
+    // (estransforms/definitions.go:16), and EmitContext.MergeEnvironment puts
+    // the later transformer's hoisted `var` statement first, so each scope
+    // declares the optional-chain temps and then the nullish ones; the
+    // printer names them in that order. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const a: { b?: () => number } | undefined;\n",
+            "declare const x: number | undefined;\n",
+            "declare function g(): number | undefined;\n",
+            "export const p = g() ?? 1;\n",
+            "export const q = a?.b?.();\n",
+            "export function f() {\n",
+            "    const r = g() ?? (a?.b?.() ?? 2);\n",
+            "    const s = a?.b?.() ?? x;\n",
+            "    let t = x;\n",
+            "    t ??= g();\n",
+            "    return [r, s, t];\n",
+            "}\n",
+            "export const u = (a?.b ?? g)?.();\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2019","module":"esnext","outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "var _a, _b;\n",
+            "var _c, _d;\n",
+            "export const p = (_c = g()) !== null && _c !== void 0 ? _c : 1;\n",
+            "export const q = (_a = a === null || a === void 0 ? void 0 : a.b) === null || _a === void 0 ? void 0 : _a.call(a);\n",
+            "export function f() {\n",
+            "    var _a, _b;\n",
+            "    var _c, _d, _e;\n",
+            "    const r = (_c = g()) !== null && _c !== void 0 ? _c : ((_d = (_a = a === null || a === void 0 ? void 0 : a.b) === null || _a === void 0 ? void 0 : _a.call(a)) !== null && _d !== void 0 ? _d : 2);\n",
+            "    const s = (_e = (_b = a === null || a === void 0 ? void 0 : a.b) === null || _b === void 0 ? void 0 : _b.call(a)) !== null && _e !== void 0 ? _e : x;\n",
+            "    let t = x;\n",
+            "    t !== null && t !== void 0 ? t : (t = g());\n",
+            "    return [r, s, t];\n",
+            "}\n",
+            "export const u = (_b = ((_d = a === null || a === void 0 ? void 0 : a.b) !== null && _d !== void 0 ? _d : g)) === null || _b === void 0 ? void 0 : _b();\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
