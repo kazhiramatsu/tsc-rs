@@ -1953,3 +1953,25 @@ P3-5ajの後、VS Codeの`--noEmit`でtsgoと違う3行は、長い型の文字�
   - honoは10回のA/B：`--noEmit` 126→126、`bench-full` 146→147。1 checkerの命令数branch÷main 1.00052。3回のmedianの差はnoise。
   - `tsconfig.bench-full.json` 3回：hono 151→155、zod 689→684、Playwright 542→530、TypeScript `src/compiler` 574→528、
     Next.js 1,108→1,102、Effect 834→838。tsc-rs÷tsgo 0.61–0.79。6 corporaとも出力fileと診断は同一。劣化無し。
+
+## P3-5al JSONの値の検証とJSONを型検査しないこと（2026-10-05）
+
+P3-5akの後、`require`で読むJSONの3件：
+- **JSONの値の検証**：tsgoのJSON parserは、JSON source fileの値を解析の終わりに検証する（parser/parser.go:218-279）：
+  文字列とproperty名は二重引用符（TS1327）、要素はproperty assignment（TS1136）、値はliteral、負の数、object、
+  array（TS1328）。tsc 6.0にはこの検証が無く、tsconfigの変換だけが同じ診断を出していた。Programの
+  JSON source file（`resolveJsonModule`）に入れた。tsconfigは今までどおり変換の診断を使う：tsgoの`tsoptions`の
+  変換は6.0と違い（TS1327を変換では出さない、TS5024はtriviaを含む位置で型名が`enum`、構文診断のある拡張設定は
+  処理しない）、別のsliceにする。
+- **JSONを型検査しない**：tsgoの`canIncludeBindAndCheckDiagnostics`が検査するのはTypeScript、plain JS、
+  checked JSだけ（compiler/program.go:856-873）。tsc-rsはJSON fileも検査し、計算名や省略形のpropertyで
+  TS2304／TS18004を出していた。
+- unit test：CLI（tsgoの出力にpin）で単一引用符のkeyと値、計算名、`undefined`の値。
+- conformance（release build、`8f6353a9b`、`--workers 2`、547 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,368→13,371：`requireOfJsonFileWithComputedPropertyName`、`requireOfJsonFileWithErrors`、
+    `requireOfJsonFileWithoutResolveJsonModule`。mismatch 68→65。
+  - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。
+- ratchet：0 regressions、3行raise。
+- local：formatとworkspace全体のclippy。syntax・binder・program・harness・emitter・checker・compiler・conformanceの
+  test（60 targets、3,580件）。filter `son`・`equire`で下がった構成は無かった。

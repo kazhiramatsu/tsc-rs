@@ -5542,9 +5542,11 @@ compiler/requireOfJsonFileNonRelativeWithoutExtension	full	js
 compiler/requireOfJsonFileNonRelativeWithoutExtensionResolvesToTs	full	js
 compiler/requireOfJsonFileTypes	full	js
 compiler/requireOfJsonFileWithAlwaysStrictWithoutErrors	full	js
+compiler/requireOfJsonFileWithComputedPropertyName	full	js
 compiler/requireOfJsonFileWithDeclaration	full	js
 compiler/requireOfJsonFileWithEmptyObject	full	js
 compiler/requireOfJsonFileWithEmptyObjectWithErrors	full	js
+compiler/requireOfJsonFileWithErrors	full	js
 compiler/requireOfJsonFileWithModuleEmitUndefined	full	js
 compiler/requireOfJsonFileWithModuleNodeResolutionEmitEs2015	full	js
 compiler/requireOfJsonFileWithModuleNodeResolutionEmitEsNext	full	js
@@ -5557,6 +5559,7 @@ compiler/requireOfJsonFileWithoutEsModuleInterop	full	js
 compiler/requireOfJsonFileWithoutExtension	full	js
 compiler/requireOfJsonFileWithoutExtensionResolvesToTs	full	js
 compiler/requireOfJsonFileWithoutOutDir	full	js
+compiler/requireOfJsonFileWithoutResolveJsonModule	full	js
 compiler/requireTypesOnly	full	js
 compiler/requiredInitializedParameter1	full	js
 compiler/requiredInitializedParameter2	full	js
