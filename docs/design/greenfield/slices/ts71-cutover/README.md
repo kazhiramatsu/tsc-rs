@@ -1944,3 +1944,12 @@ P3-5ajの後、VS Codeの`--noEmit`でtsgoと違う3行は、長い型の文字�
   CLIのtestのclippy指摘を直した後にcompilerの`contracts` 186件を再実行）。`@noErrorTruncation`を持つ6 caseを
   1件ずつ（`excessivelyDeepConditionalTypes`は監督無しで20分を越えたので止めた）と、filter `runcation`・`nion`・
   `iteral`で、下がった構成は無かった。
+- hosted：PR #662（head `d2e55b7c8`）、run 37213652900 — `plan` 21s、`rust` 9m27s、`conformance (TypeScript 7.1)` 20m31s、
+  `gates` 13s。
+- perf（README corpora、nice 20、main（P3-5ajのbuild `ec3bc970c`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 128→144、zod 563→549、Playwright 402→384、TypeScript `src/compiler`
+    362→351、Next.js 879→809、Effect 571→542、VS Code 3,853→3,694。tsc-rs÷tsgo 0.60–0.96。読み込んだ文書数は7 corpora、
+    診断は6 corporaで同一。VS Codeはtsgoと同一になった。
+  - honoは10回のA/B：`--noEmit` 126→126、`bench-full` 146→147。1 checkerの命令数branch÷main 1.00052。3回のmedianの差はnoise。
+  - `tsconfig.bench-full.json` 3回：hono 151→155、zod 689→684、Playwright 542→530、TypeScript `src/compiler` 574→528、
+    Next.js 1,108→1,102、Effect 834→838。tsc-rs÷tsgo 0.61–0.79。6 corporaとも出力fileと診断は同一。劣化無し。
