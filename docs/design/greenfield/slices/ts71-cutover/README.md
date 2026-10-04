@@ -2118,3 +2118,17 @@ P3-5anで残した4件：
   CLIの出力は6つの例でtsgoと同一で、修正前のbuildでは4つが違っていた。
 - 残り：`finallyLogicalOrAssignmentSwitchReturn`（tsgoの`isReachableFlowNodeWorker`はReduceLabelを辿る間は共有nodeの
   cacheを使わない、checker/flow.go:2528-2537）、`awaitedTypeNoLib`（harnessでだけ出る`Awaited`のTS2318）。
+- hosted：PR #666（head `158990b35`）、run 37221135508 — `plan` 31s、`rust` 9m52s、`conformance (TypeScript 7.1)` 21m38s、
+  `gates` 14s。
+- perf（README corpora、nice 20、main（P3-5anのbuild `908ccd489`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 134→144、zod 558→545、Playwright 366→370、TypeScript `src/compiler`
+    371→335、Next.js 816→778、Effect 550→550、VS Code 3,600→3,507。tsc-rs÷tsgo 0.57–0.96。
+  - 出力：honoとNext.jsで診断が増えた。honoは`src/helper/css/index.ts`のTS7031が2件で、出力がtsgoと同一になった
+    （終了状態も2）。Next.jsは`src/shared/lib/router/adapters.tsx`のTS7031が2件で、tsgoと同じ行。Next.jsのtsgoとの
+    残りの差は以前からのTS2321（typeboxの3行）。他の5 corporaは同一。READMEの計測の節はtsc 6.0.3との比較で、
+    honoが誤り無しという記述はその時点のもの。
+  - 10回のA/B：hono `--noEmit` 131→129、Effect `--noEmit` 524→528、zod `bench-full` 639→634。1 checkerの命令数
+    branch÷main：hono 0.99917、Effect 0.99950。3回のmedianのhonoの差はnoise。
+  - `tsconfig.bench-full.json` 3回：hono 151→149、zod 661→675、Playwright 500→501、TypeScript `src/compiler` 555→515、
+    Next.js 1,097→1,066、Effect 797→800。tsc-rs÷tsgo 0.58–0.79。出力fileは6 corporaで同一、診断はhonoとNext.jsで
+    上と同じだけ増えた。劣化無し。
