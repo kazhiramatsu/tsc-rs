@@ -482,6 +482,17 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                     }
+                    // tsgo keeps the global empty object types against an
+                    // empty anonymous type with a symbol, such as a written
+                    // `{}` (checker.go:26472-26474), so `v || {}` with an
+                    // `unknown` v stays the non-literal `{}`.
+                    if (source == self.empty_object_type
+                        || source == self.unknown_empty_object_type)
+                        && self.tables.type_of(target).symbol.is_some()
+                        && self.is_empty_anonymous_object_type(target)?
+                    {
+                        continue;
+                    }
                     let source_is_class = self
                         .tables
                         .object_flags_of(self.get_target_type(source))
