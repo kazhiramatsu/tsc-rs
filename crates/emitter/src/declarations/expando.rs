@@ -648,15 +648,23 @@ impl DeclarationTransformer<'_> {
         };
         let source = host.source();
         let mut factory = cx.factory()?;
-        let name = factory.clone_node(name)?;
+        // tsgo's Clone keeps the original's text range, so the namespace's
+        // name maps to the host's name in a declaration map.
+        let name = clone_keeping_range(&mut factory, name)?;
         let modifiers = match modifiers {
             Some(list) => {
-                let originals = factory.arena().node_array(list)?.nodes.to_vec();
+                let (originals, pos, end) = {
+                    let array = factory.arena().node_array(list)?;
+                    (array.nodes.to_vec(), array.pos, array.end)
+                };
                 let mut cloned = Vec::with_capacity(originals.len());
                 for modifier in originals {
-                    cloned.push(factory.clone_node(TransformNode::new(list.source(), modifier))?);
+                    let modifier = TransformNode::new(list.source(), modifier);
+                    cloned.push(clone_keeping_range(&mut factory, modifier)?);
                 }
-                Some(factory.create_node_array(source, cloned)?)
+                let cloned = factory.create_node_array(source, cloned)?;
+                factory.set_node_array_text_range(cloned, pos, end)?;
+                Some(cloned)
             }
             None => None,
         };
@@ -674,6 +682,15 @@ impl DeclarationTransformer<'_> {
         nodes.push(namespace);
         Ok(VisitResult::Nodes(nodes))
     }
+}
+
+/// tsgo Node.Clone: a copy with the original's text range (ast.go:103-120).
+fn clone_keeping_range(
+    factory: &mut crate::NodeFactory<'_>,
+    original: TransformNode,
+) -> Result<TransformNode, TransformError> {
+    let clone = factory.clone_node(original)?;
+    factory.set_text_range(clone, original)
 }
 
 /// `export { specifier };`

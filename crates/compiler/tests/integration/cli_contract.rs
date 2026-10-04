@@ -1725,6 +1725,56 @@ fn javascript_expandos_follow_tsgo() {
 }
 
 #[test]
+fn typescript_expando_declaration_map_follows_tsgo() {
+    // tsgo clones the host's name for an expando namespace with its text
+    // range, so the declaration map maps the namespace's name to the host's
+    // name. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("expando.ts"),
+        concat!(
+            "export function parse(text: string) {\n",
+            "    return text.length;\n",
+            "}\n",
+            "parse.strict = true;\n",
+            "\n",
+            "function helper() {}\n",
+            "helper.version = 1;\n",
+            "export const useHelper: typeof helper = helper;\n",
+        ),
+    )
+    .expect("write expando.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","strict":true,"declaration":true,"declarationMap":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["expando.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/expando.d.ts")).expect("read expando.d.ts"),
+        concat!(
+            "export declare function parse(text: string): number;\n",
+            "export declare namespace parse {\n",
+            "    var strict: boolean;\n",
+            "}\n",
+            "declare function helper(): void;\n",
+            "declare namespace helper {\n",
+            "    var version: number;\n",
+            "}\n",
+            "export declare const useHelper: typeof helper;\n",
+            "export {};\n",
+            "//# sourceMappingURL=expando.d.ts.map",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/expando.d.ts.map")).expect("read expando.d.ts.map"),
+        r#"{"version":3,"file":"expando.d.ts","sourceRoot":"","sources":["../expando.ts"],"names":[],"mappings":"AAAA,wBAAgB,KAAK,CAAC,IAAI,EAAE,MAAM,UAEjC;yBAFe,KAAK;;;AAKrB,iBAAS,MAAM,SAAK;kBAAX,MAAM;;;AAEf,eAAO,MAAM,SAAS,EAAE,OAAO,MAAe,CAAC"}"#
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already
