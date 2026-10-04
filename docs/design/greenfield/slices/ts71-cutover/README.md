@@ -2384,3 +2384,5 @@ P3-5auの後、emitの3件：
   - 10回のA/B：Playwright `bench-full` 481→478、zod `bench-full` 623→628、hono `bench-full` 147→145、Next.js
     `bench-full` 1,007→1,034（min 971→958）。1 checkerの命令数branch÷main：zod `--noEmit` 1.00017、Playwright
     `bench-full` 1.00000、hono `bench-full` 1.00077、Next.js `bench-full` 0.99938。差はnoiseの範囲で、劣化無し。
+- hosted：PR #673（head `b479dbb51`）、run 37236018822 — `plan` 31s、`rust` 9m54s、`conformance (TypeScript 7.1)` 20m21s、
+  `gates` 11s。
