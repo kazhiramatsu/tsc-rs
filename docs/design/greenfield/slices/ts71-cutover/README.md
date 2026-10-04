@@ -1804,3 +1804,17 @@ P3-5agの後、errorsの不一致のうち、診断のファイル名の扱い�
   conformanceのtest（62 targets、3,624件。空referenceのtestを直した後にprogramの`contracts` 503件を再実行）。試行：config／ドライブ付きのunitを持つ165 caseと、
   `@useCaseSensitiveFileNames: false`／`@currentDirectory`の55 case、path referenceかTS6053等を持つ345 caseを
   1件ずつ実行し、下がった構成は無かった。
+- hosted：PR #659（head `729d0e4ae`、merge `03e009c0c`）、run 37204611385 — `plan` 27s、`rust` 9m42s、
+  `conformance (TypeScript 7.1)` 18m3s、`gates` 13s。
+- perf（README corpora、nice 20、main（P3-5agのbuild `965d874de`）と本branch（`d808eafd4`）のrelease build対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 160→148、zod 551→563、Playwright 407→398、
+    TypeScript `src/compiler` 367→346、Next.js 879→900、Effect 579→583、VS Code 3,807→3,683。tsc-rs÷tsgo 0.58–0.92。
+    読み込んだ文書数は7 corpora、診断は6 corporaでmainと同一。Effectは同じ診断をtsgoの順（`src/SchemaAST.ts`が
+    `src/schema/…`より先。大文字小文字を区別するファイル名の順）で出す。
+  - zodとNext.jsは10回のA/B：zod 527→526、Next.js 767→778（min 735→718）、zodの`bench-full` 632→629。
+    1 checkerの命令数（5回のmedian）branch÷main 0.99945（zod）、0.99889（Next.js）。3回のmedianの差はnoise。
+  - `tsconfig.bench-full.json` 3回：hono 167→152、zod 643→658、Playwright 522→505、TypeScript `src/compiler`
+    549→527、Next.js 1,087→1,046、Effect 862→801。tsc-rs÷tsgo 0.55–0.80。出力fileは6 corporaとも同一、診断は5 corporaで
+    同一、Effectは上と同じ順の違いだけ。劣化無し。
+  - 比較の途中で、Effect（`--noEmit`）でtsgoが出す`src/http/HttpClient.ts(412,5)`のTS2322（`With<E1 | Exclude<E, …>>`が
+    `With<E1 | ExcludeTag<E, …>>`に代入できない）をtsc-rsが出していないことに気づいた（mainでも同じ。別のslice）。
