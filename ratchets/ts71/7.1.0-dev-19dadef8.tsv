@@ -2102,6 +2102,7 @@ compiler/duplicateErrorNameNotFound	full	js
 compiler/duplicateFunctionImplementationInJsFile	full	js
 compiler/duplicateIdentifierBindingElementInParameterDeclaration1(target=es2015)	full	js
 compiler/duplicateIdentifierBindingElementInParameterDeclaration2(target=es2015)	full	js
+compiler/duplicateIdentifierChecks	full	js
 compiler/duplicateIdentifierComputedName	full	js
 compiler/duplicateIdentifierDifferentModifiers	full	js
 compiler/duplicateIdentifierDifferentSpelling	full	js
@@ -7879,7 +7880,7 @@ conformance/commaOperatorWithSecondOperandStringType	full	js
 conformance/commaOperatorWithoutOperand	full	js
 conformance/commaOperatorsMultipleOperators	full	js
 conformance/commentEmittingInPreserveJsx1	full	js
-conformance/commonJSAliasedExport	category	js
+conformance/commonJSAliasedExport	full	js
 conformance/commonJSImportAsPrimaryExpression	full	js
 conformance/commonJSImportClassTypeReference	full	js
 conformance/commonJSImportExportedClassExpression	full	js

@@ -806,6 +806,18 @@ impl<'a> BinderWorker<'a> {
                                     && existing_flags.intersects(SymbolFlags::VARIABLE))
                         } {
                             self.report_duplicate(existing, node, includes, is_default_export);
+                            // tsgo declareSymbolEx (binder/binder.go:279-285):
+                            // an accessor that conflicts with a non-accessor or
+                            // an accessor of the other kind marks the symbol as
+                            // a full accessor, so every later declaration of the
+                            // name conflicts as well.
+                            let existing_accessors =
+                                self.symbols.symbol(existing).flags & SymbolFlags::ACCESSOR;
+                            if !existing_accessors.is_empty()
+                                && existing_accessors != (includes & SymbolFlags::ACCESSOR)
+                            {
+                                self.symbols.symbol_mut(existing).flags |= SymbolFlags::ACCESSOR;
+                            }
                             // The FRESH symbol is detached — the table
                             // keeps the original, so later duplicates
                             // keep conflicting against it.
