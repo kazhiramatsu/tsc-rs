@@ -3950,6 +3950,63 @@ fn conflicting_accessors_mark_every_later_declaration_like_tsgo() {
 }
 
 #[test]
+fn comma_sequences_are_parenthesized_like_tsgo() {
+    // tsgo emitComputedPropertyName and emitJsxExpression emit their
+    // expression at OperatorPrecedenceDisallowComma (printer/printer.go:1221,
+    // 4369), so a comma sequence written there is parenthesized. The
+    // expected output is tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.tsx"),
+        "declare const class1: string, class2: string;\nconst x = { [0, 1]: {} };\nconst elem = <div className={class1, class2}/>;\nexport {};\n",
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"strict":true,"target":"es2015","jsx":"preserve","outDir":"out"},"files":["a.tsx"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.jsx")).expect("read a.jsx"),
+        "const x = { [(0, 1)]: {} };\nconst elem = <div className={(class1, class2)}/>;\nexport {};\n"
+    );
+}
+
+#[test]
+fn bigint_metadata_is_guarded_below_es2020_like_tsgo() {
+    // tsgo serializeBigIntConstructor (transformers/tstransforms/
+    // typeserializer.go:388-399) guards the BigInt constructor below ES2020.
+    // The expected output is tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        "declare const dec: any;\nexport class C {\n    @dec\n    x!: bigint;\n}\n",
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"strict":true,"target":"es2015","experimentalDecorators":true,"emitDecoratorMetadata":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    let js = fs::read_to_string(tree.path("out/a.js")).expect("read a.js");
+    assert!(
+        js.ends_with(concat!(
+            "export class C {\n",
+            "}\n",
+            "__decorate([\n",
+            "    dec,\n",
+            "    __metadata(\"design:type\", typeof BigInt === \"function\" ? BigInt : Object)\n",
+            "], C.prototype, \"x\", void 0);\n",
+        )),
+        "{js}"
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

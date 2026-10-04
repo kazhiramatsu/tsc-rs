@@ -3904,13 +3904,15 @@ impl Printer {
                     )?;
                 }
                 if let Some(expression) = expression {
+                    // tsgo emitJsxExpression emits the expression at
+                    // OperatorPrecedenceDisallowComma (printer/printer.go:4369).
                     self.emit_optional_ordinary_child(
                         transformation,
                         node,
                         Some(expression.node()),
                         EmitHint::Expression,
                         data.dot_dot_dot_token.is_none().then_some(open),
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
                         writer,
                     )?;
                 }
@@ -15904,11 +15906,14 @@ impl Printer {
                 | ExpressionGrammarContext::AssignmentRightSide
                 | ExpressionGrammarContext::ExportDefault
                 | ExpressionGrammarContext::DisallowedComma
+                // tsgo emitComputedPropertyName emits its expression at
+                // OperatorPrecedenceDisallowComma (printer/printer.go:1221),
+                // so a comma sequence from the source is parenthesized too.
+                | ExpressionGrammarContext::ComputedPropertyName
         ) || was_substituted
             && matches!(
                 grammar,
-                ExpressionGrammarContext::ComputedPropertyName
-                    | ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution
+                ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution
             )
         {
             self.context_parentheses(transformation, substituted, grammar)?

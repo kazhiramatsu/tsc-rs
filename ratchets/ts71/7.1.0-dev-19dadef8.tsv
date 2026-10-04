@@ -2182,7 +2182,7 @@ compiler/emitClassExpressionInDeclarationFile	full	none
 compiler/emitClassExpressionInDeclarationFile2	full	js
 compiler/emitClassMergedWithConstNamespaceNotElided	full	js
 compiler/emitCommentsOnlyFile	full	js
-compiler/emitDecoratorMetadataBigIntFallback(target=es2015)	full	none
+compiler/emitDecoratorMetadataBigIntFallback(target=es2015)	full	js
 compiler/emitDecoratorMetadataBigIntFallback(target=es2020)	full	js
 compiler/emitDecoratorMetadataParamDecoratorNoModifiers	full	js
 compiler/emitDecoratorMetadata_isolatedModules(module=commonjs)	full	js
@@ -9924,7 +9924,7 @@ conformance/jsxJsxsCjsTransformSubstitutesNames(jsx=react-jsx)	full	js
 conformance/jsxJsxsCjsTransformSubstitutesNames(jsx=react-jsxdev)	full	js
 conformance/jsxJsxsCjsTransformSubstitutesNamesFragment(jsx=react-jsx)	full	js
 conformance/jsxJsxsCjsTransformSubstitutesNamesFragment(jsx=react-jsxdev)	full	js
-conformance/jsxParsingError1	full	none
+conformance/jsxParsingError1	full	js
 conformance/jsxParsingError2	full	js
 conformance/jsxParsingError3	full	js
 conformance/jsxParsingError4(strict=false)	full	js
@@ -11047,7 +11047,7 @@ conformance/parserComputedPropertyName31	full	js
 conformance/parserComputedPropertyName32	full	js
 conformance/parserComputedPropertyName33	full	js
 conformance/parserComputedPropertyName34	full	js
-conformance/parserComputedPropertyName35	full	none
+conformance/parserComputedPropertyName35	full	js
 conformance/parserComputedPropertyName36	full	js
 conformance/parserComputedPropertyName37	full	js
 conformance/parserComputedPropertyName38	full	js
