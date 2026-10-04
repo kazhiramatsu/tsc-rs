@@ -8647,7 +8647,15 @@ impl<'a> CheckerState<'a> {
                 add_match!(s, p);
                 pos += delim.len();
             } else if pos < get_source_units(seg).len() {
-                let p = pos + 1;
+                // tsgo consumes one code point, like the string iterator,
+                // so a surrogate pair stays whole (checker/relater.go:
+                // 2462-2486); a lone surrogate is one code point.
+                let units = get_source_units(seg);
+                let pair = (0xD800..=0xDBFF).contains(&units[pos])
+                    && units
+                        .get(pos + 1)
+                        .is_some_and(|unit| (0xDC00..=0xDFFF).contains(unit));
+                let p = pos + if pair { 2 } else { 1 };
                 add_match!(seg, p);
             } else if seg < last_source_index {
                 add_match!(seg + 1, 0);
