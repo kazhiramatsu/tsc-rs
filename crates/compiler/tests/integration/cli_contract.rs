@@ -4639,6 +4639,141 @@ fn import_equals_require_specifiers_are_rewritten_like_tsgo() {
 }
 
 #[test]
+fn lowered_nullish_conditionals_keep_their_line_like_tsgo() {
+    // tsgo's nullish-coalescing transformer gives the conditional neither a
+    // position nor an original (nullishcoalescing.go:34-40), so it prints on
+    // the line of the assignment. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const a: number | undefined;\n",
+            "declare const o: { p?: number };\n",
+            "export let x: number;\n",
+            "x =\n",
+            "    a ?? 1;\n",
+            "o.p =\n",
+            "    a ?? 2;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2019","module":"esnext","outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "export let x;\n",
+            "x = a !== null && a !== void 0 ? a : 1;\n",
+            "o.p = a !== null && a !== void 0 ? a : 2;\n",
+        )
+    );
+}
+
+#[test]
+fn jsx_runtime_imports_sort_their_specifiers_like_tsgo() {
+    // tsgo's getSortedSpecifiers orders a runtime import's specifiers by
+    // imported name (jsx.go:183-195). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/react")).expect("create react");
+    fs::write(tree.path("node_modules/react/index.d.ts"), "export {};\n").expect("write index");
+    fs::write(
+        tree.path("node_modules/react/jsx-runtime.d.ts"),
+        concat!(
+            "export namespace JSX { interface IntrinsicElements { [k: string]: any } interface Element {} }\n",
+            "export function jsx(...a: any[]): any;\n",
+            "export function jsxs(...a: any[]): any;\n",
+            "export const Fragment: any;\n",
+        ),
+    )
+    .expect("write jsx-runtime");
+    fs::write(
+        tree.path("node_modules/react/package.json"),
+        r#"{"name":"react","version":"1.0.0","types":"index.d.ts"}"#,
+    )
+    .expect("write package.json");
+    fs::write(
+        tree.path("a.tsx"),
+        concat!(
+            "export const a = <div>{1}</div>;\n",
+            "export const b = <><span /></>;\n",
+            "export const c = <p>{1}{2}</p>;\n",
+        ),
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2020","module":"esnext","moduleResolution":"bundler","jsx":"react-jsx","outDir":"out"},"files":["a.tsx"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "import { Fragment as _Fragment, jsx as _jsx, jsxs as _jsxs } from \"react/jsx-runtime\";\n",
+            "export const a = _jsx(\"div\", { children: 1 });\n",
+            "export const b = _jsx(_Fragment, { children: _jsx(\"span\", {}) });\n",
+            "export const c = _jsxs(\"p\", { children: [1, 2] });\n",
+        )
+    );
+}
+
+#[test]
+fn config_and_paths_follow_tsgo() {
+    // tsgo converts the first object of a root array without TS5092
+    // (tsoptions/tsconfigparsing.go:319-335) and locates no option syntax in
+    // it; a `paths` substitution's own `.ts` extension comes from the
+    // configuration, so resolving it to a declaration file is no TS5097
+    // (candidateEndingIsFromConfig, module/resolver.go:1265-1283). The
+    // expected diagnostics are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"[{"compilerOptions": {"types": ["nonexistent"]}, "files": ["index.ts"]}]"#,
+    )
+    .expect("write config");
+    fs::write(tree.path("index.ts"), "export const x = 1;\n").expect("write index.ts");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "error TS2688: Cannot find type definition file for 'nonexistent'.\n",
+            "  The file is in the program because:\n",
+            "    Entry point of type library 'nonexistent' specified in compilerOptions\n",
+        )
+    );
+
+    let tree = TempTree::new();
+    fs::create_dir(tree.path("some-path")).expect("create some-path");
+    fs::write(
+        tree.path("some-path/index.d.ts"),
+        "export declare const blah: 1;\n",
+    )
+    .expect("write index.d.ts");
+    fs::write(
+        tree.path("named-import.ts"),
+        "import { blah } from \"some-path\";\n\nexport const value = blah;\n",
+    )
+    .expect("write named-import.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"module":"preserve","moduleResolution":"bundler","noEmit":true,"paths":{"some-path":["./some-path/index.ts"]}},"files":["./named-import.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
