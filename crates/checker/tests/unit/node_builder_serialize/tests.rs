@@ -173,20 +173,20 @@ fn declaration_arms_reuse_annotations_consult_accessors_and_fallback_to_semantic
                         target,
                         context,
                         Some(annotated),
-                        annotated_type,
+                        Some(annotated_type),
                         Some(annotated_symbol),
-                    )?
-                    .expect("annotated type node");
+                        true,
+                    )?;
                     let accessor_node = serialize_type_for_declaration_in_context(
                         checker,
                         arena,
                         target,
                         context,
                         Some(getter),
-                        getter_type,
+                        Some(getter_type),
                         Some(getter_symbol),
-                    )?
-                    .expect("accessor type node");
+                        true,
+                    )?;
                     events.borrow_mut().clear();
                     let inferred_node = serialize_type_for_declaration_in_context(
                         checker,
@@ -194,10 +194,10 @@ fn declaration_arms_reuse_annotations_consult_accessors_and_fallback_to_semantic
                         target,
                         context,
                         Some(inferred),
-                        inferred_type,
+                        Some(inferred_type),
                         Some(inferred_symbol),
-                    )?
-                    .expect("inferred type node");
+                        true,
+                    )?;
                     Ok((annotated_node, inferred_node, accessor_node))
                 },
                 None,
@@ -215,22 +215,6 @@ fn declaration_arms_reuse_annotations_consult_accessors_and_fallback_to_semantic
             assert_eq!(events.borrow().first().copied(), Some("fallback"));
         },
     );
-}
-
-#[test]
-fn inferred_declaration_gate_declines_synthesized_and_widening_nodes() {
-    assert!(should_use_syntactic_inferred_declaration(
-        true, false, false
-    ));
-    assert!(!should_use_syntactic_inferred_declaration(
-        true, true, false
-    ));
-    assert!(!should_use_syntactic_inferred_declaration(
-        true, false, true
-    ));
-    assert!(!should_use_syntactic_inferred_declaration(
-        false, false, false
-    ));
 }
 
 #[test]
@@ -271,14 +255,14 @@ fn initialized_parameter_before_required_parameter_adds_undefined_union() {
                         target,
                         context,
                         Some(parameter),
-                        parameter_type,
+                        Some(parameter_type),
                         Some(symbol),
+                        true,
                     )
                 },
                 None,
             )
             .expect("serialization succeeds")
-            .flatten()
             .expect("type node");
             let NodeData::UnionType(data) = &arena.node(built).expect("union").data else {
                 panic!("undefined composition must be a union")
@@ -322,7 +306,7 @@ fn suppress_any_return_type_skips_node_and_restores_the_flag() {
                 None,
                 |checker, arena, target, context| {
                     let node = serialize_return_type_for_signature_in_context(
-                        checker, arena, target, context, signature,
+                        checker, arena, target, context, signature, true,
                     )?;
                     Ok((
                         node,

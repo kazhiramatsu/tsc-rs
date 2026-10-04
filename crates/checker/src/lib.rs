@@ -127,6 +127,7 @@ pub mod operators;
 pub(crate) mod order_guard;
 mod plain_js_errors;
 pub mod program;
+mod pseudochecker;
 pub mod relate;
 #[doc(hidden)]
 pub mod relpin;

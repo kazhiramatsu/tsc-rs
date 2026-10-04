@@ -212,6 +212,14 @@ pub trait EmitTrackerAccess {
     /// using the checker's existing syntax predicates.
     fn is_entity_in_type_node(&mut self, node: EmitTrackerNode) -> Result<bool, EmitResolverError>;
 
+    /// tsgo SymbolTrackerImpl.isChildOfBoundExpando (declarations/tracker.go:59-83):
+    /// the node is in an assignment `f.x = …` to an expando function `f`,
+    /// whose property errors the function's report covers.
+    fn is_child_of_bound_expando(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<bool, EmitResolverError>;
+
     /// Project getAllAccessorDeclarations(node.symbol.declarations, node).
     /// This uses the declaration symbol, including distinct duplicate symbols.
     fn accessor_declarations(

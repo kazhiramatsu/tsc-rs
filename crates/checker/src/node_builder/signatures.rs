@@ -379,46 +379,8 @@ pub(crate) fn signature_to_signature_declaration_helper(
     options: Option<SignatureDeclarationOptions>,
 ) -> BuildResult<TransformNode> {
     let signature = checker.signature_of(signature_id).clone();
-    let expanded_parameters = get_expanded_parameters(checker, signature_id, context)?;
-    let scope = enter_new_scope(
-        context,
-        signature.declaration,
-        Some(&expanded_parameters),
-        signature.type_parameters.as_deref(),
-        Some(&signature.parameters),
-        signature.mapper,
-    );
-    prime_type_parameter_names_for_scope(
-        checker,
-        arena,
-        target,
-        context,
-        signature.type_parameters.as_deref().unwrap_or_default(),
-    )?;
-    if context.enclosing_declaration_is_synthetic {
-        let locals = context
-            .synthetic_scope_locals
-            .get_or_insert_with(HashMap::default);
-        for (index, &parameter) in expanded_parameters.iter().enumerate() {
-            let original = signature.parameters.get(index).copied();
-            if original.is_some_and(|original| original != parameter) {
-                locals.insert(
-                    checker.binder.symbol(parameter).escaped_name,
-                    checker.unknown_symbol,
-                );
-                if let Some(original) = original {
-                    locals.insert(
-                        checker.binder.symbol(original).escaped_name,
-                        checker.unknown_symbol,
-                    );
-                }
-            } else {
-                for (name, symbol) in parameter_scope_symbols(checker, parameter) {
-                    locals.insert(name, symbol);
-                }
-            }
-        }
-    }
+    let (expanded_parameters, scope) =
+        enter_signature_scope(checker, arena, target, context, signature_id)?;
     let result = (|| -> BuildResult<TransformNode> {
         add_approximate_length(context, 3);
 
@@ -939,6 +901,55 @@ pub(crate) fn enter_new_scope(
     restore
 }
 
+/// tsgo-port: NodeBuilderImpl.enterSignatureScope @7.1 (nodebuilderscopes.go:53-57):
+/// enter the scope of a signature's expanded parameters and type
+/// parameters. Answers the expanded parameters and the scope to exit.
+pub(super) fn enter_signature_scope(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    context: &mut NodeBuilderContext<'_>,
+    signature_id: SignatureId,
+) -> BuildResult<(Vec<SymbolId>, ScopeRestore)> {
+    let signature = checker.signature_of(signature_id).clone();
+    let expanded_parameters = get_expanded_parameters(checker, signature_id, context)?;
+    let scope = enter_new_scope(
+        context,
+        signature.declaration,
+        Some(&expanded_parameters),
+        signature.type_parameters.as_deref(),
+        Some(&signature.parameters),
+        signature.mapper,
+    );
+    prime_type_parameter_names_for_scope(
+        checker,
+        arena,
+        target,
+        context,
+        signature.type_parameters.as_deref().unwrap_or_default(),
+    )?;
+    if context.enclosing_declaration_is_synthetic {
+        let locals = context
+            .synthetic_scope_locals
+            .get_or_insert_with(HashMap::default);
+        for (index, &parameter) in expanded_parameters.iter().enumerate() {
+            let original = signature.parameters.get(index).copied();
+            if original != Some(parameter) {
+                // An expanded parameter's name cannot be referenced, only
+                // the original's (tsgo nodebuilderscopes.go:166-172).
+                if let Some(original) = original {
+                    locals.insert(checker.binder.symbol(original).escaped_name, original);
+                }
+            } else {
+                for (name, symbol) in parameter_scope_symbols(checker, parameter) {
+                    locals.insert(name, symbol);
+                }
+            }
+        }
+    }
+    Ok((expanded_parameters, scope))
+}
+
 /// tsrs-native: scope-exit completion (upstream onExitNewScope closure).
 /// Complete `enterNewScope`'s eager type-parameter naming. Upstream names
 /// each scoped parameter while installing the fake-scope locals, which also
@@ -1000,9 +1011,7 @@ pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: Scop
     context.synthetic_scope_kind = restore.synthetic_scope_kind;
 }
 
-/// tsc-port: enterNewScope.bindPattern @6.0.3
-/// tsc-hash: 0fadd6af58cd9157113e2eb994c804e682198a819d5a7808cda91cf16614caa9
-/// tsc-span: _tsc.js:52757-52768
+/// tsgo-port: enterNewScope's bindPattern @7.1 (nodebuilderscopes.go:178-191).
 fn collect_binding_pattern_symbols(
     checker: &CheckerState<'_>,
     pattern: NodeId,
@@ -1013,7 +1022,8 @@ fn collect_binding_pattern_symbols(
         NodeData::ObjectBindingPattern(data) => checker.nodes_of(data.elements),
         _ => return,
     };
-    for element in elements {
+    // tsgo binds only a pattern's first element (nodebuilderscopes.go:178-191).
+    if let Some(&element) = elements.first() {
         if checker.kind_of(element) == SyntaxKind::BindingElement {
             collect_binding_element_symbols(checker, element, locals);
         }

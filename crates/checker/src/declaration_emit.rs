@@ -209,6 +209,56 @@ impl CheckerState<'_> {
             || signatures.len() == 1 && self.signature_of(signatures[0]).declaration != Some(node))
     }
 
+    /// tsgo-port: EmitResolver.requiresAddingImplicitUndefined @7.1 (emitresolver.go:585-603):
+    /// a property takes `| undefined` only as the optional property of a
+    /// reverse mapped type whose type has a non-missing `undefined`; a
+    /// parameter as requiresAddingImplicitUndefinedWorker.
+    pub(crate) fn emit_requires_adding_implicit_undefined_to_declaration(
+        &mut self,
+        declaration: NodeId,
+        symbol: Option<SymbolId>,
+        enclosing_declaration: Option<NodeId>,
+    ) -> CheckResult<bool> {
+        match self.kind_of(declaration) {
+            SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::JSDocPropertyTag => {
+                let symbol = match symbol {
+                    Some(symbol) => symbol,
+                    None => self.get_symbol_of_declaration(declaration)?,
+                };
+                let r#type = self.get_type_of_symbol(symbol)?;
+                let flags = self.symbol_flags(symbol);
+                if !(flags.intersects(SymbolFlags::PROPERTY)
+                    && flags.intersects(SymbolFlags::OPTIONAL)
+                    && self.is_optional_declaration(declaration)
+                    && self
+                        .get_check_flags(symbol)
+                        .intersects(CheckFlags::REVERSE_MAPPED)
+                    && self.links.symbol_cold().mapped_type.get(symbol).is_some())
+                {
+                    return Ok(false);
+                }
+                // containsNonMissingUndefinedType (checker/utilities.go:1647-1655).
+                let candidate = match &self.tables.type_of(r#type).data {
+                    tsc_types::TypeData::Union { types, .. } => {
+                        types.first().copied().unwrap_or(r#type)
+                    }
+                    _ => r#type,
+                };
+                Ok(candidate != self.tables.intrinsics.missing
+                    && self
+                        .tables
+                        .flags_of(candidate)
+                        .intersects(tsc_types::TypeFlags::UNDEFINED))
+            }
+            SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag => {
+                self.emit_requires_adding_implicit_undefined(declaration, enclosing_declaration)
+            }
+            _ => Ok(false),
+        }
+    }
+
     /// tsc-port: requiresAddingImplicitUndefined @6.0.3
     /// tsc-hash: 520f7a6ffc45898f262773b00042189eaf39127a40ed129daa103f6ce663e2d7
     /// tsc-span: _tsc.js:88075-88077

@@ -4744,7 +4744,7 @@ fn preserve_comments_on(
 /// tsc-port: setCommentRange2 @6.0.3
 /// tsc-hash: 73d8d78104ed1ab5c2753b4f79c5644f542f81a0241b6842f3d9695959e120a6
 /// tsc-span: _tsc.js:52398-52403
-fn set_comment_range_2(
+pub(super) fn set_comment_range_2(
     checker: &CheckerState<'_>,
     arena: &mut TransformArena,
     node: TransformNode,

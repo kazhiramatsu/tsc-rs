@@ -2221,6 +2221,204 @@ fn common_js_exported_destructuring_follows_tsgo() {
 }
 
 #[test]
+fn declaration_types_follow_tsgo_pseudo_types() {
+    // tsgo checks a declaration's pseudo type (pseudochecker/lookup.go)
+    // against the checker's type and builds the type node from it when they
+    // agree (pseudotypenodebuilder.go): literals keep their written spelling,
+    // a property name is respelled only where its text calls for it, and an
+    // object literal's accessor pair typed on both sides stays a pair. The
+    // expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export const literals = {\n",
+            "    single: '1',\n",
+            "    template: `1`,\n",
+            "    emoji: \"⚠️\",\n",
+            "    negative: -1,\n",
+            "    big: 10n,\n",
+            "    'quoted-name': true,\n",
+            "    'ident': null,\n",
+            "    3: 'three',\n",
+            "    ['computed']: [1, 'a'],\n",
+            "} as const;\n",
+            "export let tpl = `abc` as const;\n",
+            "export const widened = { a: 1, b: 'x', c: [1, 2] };\n",
+            "export const methods = {\n",
+            "    m(x: number) { return x * 2; },\n",
+            "    get both(): number { return 1; },\n",
+            "    set both(value: number) {},\n",
+            "    get lone(): string { return ''; },\n",
+            "} as const;\n",
+            "export const arrow = (a = 1, b: string, c?: number) => b;\n",
+            "export const generic = function <T>(x: T): T { return x; };\n",
+            "export const unique = Symbol();\n",
+            "export class C {\n",
+            "    p = 1;\n",
+            "    readonly q = 'x';\n",
+            "    r? = 2;\n",
+            "    s = [1, 2] as const;\n",
+            "    method(a = 1, b: string) { return a; }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","declaration":true,"emitDeclarationOnly":true,"outDir":"out","types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "export declare const literals: {\n",
+            "    readonly single: '1';\n",
+            "    readonly template: `1`;\n",
+            "    readonly emoji: \"⚠️\";\n",
+            "    readonly negative: -1;\n",
+            "    readonly big: 10n;\n",
+            "    readonly 'quoted-name': true;\n",
+            "    readonly ident: null;\n",
+            "    readonly 3: 'three';\n",
+            "    readonly computed: readonly [1, 'a'];\n",
+            "};\n",
+            "export declare let tpl: `abc`;\n",
+            "export declare const widened: {\n",
+            "    a: number;\n",
+            "    b: string;\n",
+            "    c: number[];\n",
+            "};\n",
+            "export declare const methods: {\n",
+            "    readonly m: (x: number) => number;\n",
+            "    get both(): number;\n",
+            "    set both(value: number);\n",
+            "    readonly lone: string;\n",
+            "};\n",
+            "export declare const arrow: (a: number | undefined, b: string, c?: number) => string;\n",
+            "export declare const generic: <T>(x: T) => T;\n",
+            "export declare const unique: unique symbol;\n",
+            "export declare class C {\n",
+            "    p: number;\n",
+            "    readonly q = \"x\";\n",
+            "    r?: number | undefined;\n",
+            "    s: readonly [1, 2];\n",
+            "    method(a: number | undefined, b: string): number;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_declaration_types_follow_tsgo_pseudo_types() {
+    // A JavaScript declaration's pseudo type reads the types tsgo's reparser
+    // hosts from its JSDoc: a `@type {const}` cast is a const context, and
+    // an accessor pair typed on both sides stays a pair. The expected bytes
+    // are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.js"),
+        concat!(
+            "export const config = /** @type {const} */ ({ mode: 'strict', levels: [1, 2] });\n",
+            "export const greet = (name = 'world') => name;\n",
+            "/** @param {number} x */\n",
+            "export function double(x) { return x * 2; }\n",
+            "export const accessors = {\n",
+            "    /** @returns {number} */\n",
+            "    get value() { return 1; },\n",
+            "    /** @param {number} v */\n",
+            "    set value(v) {},\n",
+            "};\n",
+            "export const plain = { a: 'x', b: [true] };\n",
+        ),
+    )
+    .expect("write a.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","allowJs":true,"declaration":true,"emitDeclarationOnly":true,"outDir":"out","types":[],"strict":true},"files":["a.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read a.d.ts"),
+        concat!(
+            "export declare const config: {\n",
+            "    readonly mode: 'strict';\n",
+            "    readonly levels: readonly [1, 2];\n",
+            "};\n",
+            "export declare const greet: (name?: string) => string;\n",
+            "/** @param {number} x */\n",
+            "export declare function double(x: number): number;\n",
+            "export declare const accessors: {\n",
+            "    /** @returns {number} */\n",
+            "    get value(): number;\n",
+            "    /** @param {number} v */\n",
+            "    set value(v: number);\n",
+            "};\n",
+            "export declare const plain: {\n",
+            "    a: string;\n",
+            "    b: boolean[];\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn isolated_declarations_diagnostics_follow_tsgo() {
+    // Under isolatedDeclarations the node builder reports where a pseudo type
+    // falls back (pseudotypenodebuilder.go), and the tracker words the error
+    // (declarations/tracker.go:86-100, diagnostics.go:701-735): an entity
+    // name is a private name, and an assignment to an expando function's
+    // property gets only the function's error. The expected diagnostics are
+    // tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function make(): number;\n",
+            "export const fromCall = make();\n",
+            "export const array = [1, 2];\n",
+            "const base = { a: 1 };\n",
+            "export const spread = { ...base, b: 2 };\n",
+            "export const shorthand = { base };\n",
+            "export const isPositive = (x: number) => x > 0;\n",
+            "export function identity(a = 1, b: string) { return a; }\n",
+            "export const literal = { a: 'x', n: [1, 2] } as const;\n",
+            "export function expando() {}\n",
+            "expando.value = () => 1;\n",
+            "expando.count = 10;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"esnext","declaration":true,"isolatedDeclarations":true,"outDir":"out","types":[],"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(2,14): error TS9010: Variable must have an explicit type annotation with --isolatedDeclarations.\n",
+            "a.ts(3,22): error TS9017: Only const arrays can be inferred with --isolatedDeclarations.\n",
+            "a.ts(5,25): error TS9015: Objects that contain spread assignments can't be inferred with --isolatedDeclarations.\n",
+            "a.ts(6,28): error TS9016: Objects that contain shorthand properties can't be inferred with --isolatedDeclarations.\n",
+            "a.ts(7,42): error TS9013: Expression type can't be inferred with --isolatedDeclarations.\n",
+            "a.ts(8,53): error TS9039: Type containing private name 'a' can't be used with --isolatedDeclarations.\n",
+            "a.ts(10,17): error TS9007: Function must have an explicit return type annotation with --isolatedDeclarations.\n",
+            "a.ts(11,1): error TS9023: Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.\n",
+            "a.ts(12,1): error TS9023: Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`
