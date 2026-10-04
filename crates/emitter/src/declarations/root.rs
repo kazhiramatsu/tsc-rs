@@ -142,8 +142,8 @@ pub(crate) fn transform_root(
             .precalculate_declaration_emit_visibility(resolver_node)?;
     }
     let combined = {
-        // tsgo collects the CommonJS export assignments and the expando and
-        // CommonJS export assignments of the whole file before it visits the
+        // tsgo collects the file's `module.exports =` assignments, then its
+        // expando and `exports.name =` assignments, before it visits the
         // statements (transform.go:350-351).
         transformer.collect_assignment_declarations(context, root_node)?;
         let mut statements = Vec::new();

@@ -1474,12 +1474,19 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
         } else {
             symbol
         };
-        let result = self
+        let mut result = self
             .checker
             .emit_is_symbol_accessible(access_symbol, enclosing, meaning, should_compute_aliases)
             .map_err(|abort| {
                 callback_abort_error(self.checker, self.method, Some(enclosing), abort)
             })?;
+        // tsgo's signature fake scope is a synthesized block, which is not in
+        // a JavaScript file, so a name that cannot be named from it carries no
+        // error node and the diagnostic context places the error
+        // (nodebuilderscopes.go:142-147, symbolaccessibility.go:861).
+        if enclosing_is_synthetic {
+            result.error_node = None;
+        }
         if result.error_symbol_name.is_some() {
             self.build_accessibility_error_name(
                 arena,

@@ -2082,6 +2082,51 @@ fn namespace_export_declarations_follow_tsgo() {
 }
 
 #[test]
+fn common_js_define_property_diagnostic_follows_tsgo() {
+    // A name that cannot be named while tsgo serializes a signature's
+    // parameters is resolved from the signature's synthesized scope, which is
+    // not in a JavaScript file, so the error goes where the declaration's
+    // diagnostic context puts it: the property name of
+    // `Object.defineProperty` (diagnostics.go:200-215). The expected
+    // diagnostic is tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/@types/pkg")).expect("create package");
+    fs::write(
+        tree.path("node_modules/@types/pkg/index.d.ts"),
+        concat!(
+            "interface Private {}\n",
+            "declare const obj: { fn(x: Private): void };\n",
+            "export = obj;\n",
+        ),
+    )
+    .expect("write index.d.ts");
+    fs::write(
+        tree.path("index.cjs"),
+        concat!(
+            "Object.defineProperty(exports, \"api\", { value: require(\"pkg\") });\n",
+            "exports.helper = function (/** @type {number} */ n) { return n; };\n",
+        ),
+    )
+    .expect("write index.cjs");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"outDir":"out","target":"es2022","module":"commonjs"},"files":["index.cjs"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(1));
+    let root = compiler_current_directory(&tree);
+    let root = root.to_string_lossy().replace('\\', "/");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            "index.cjs(1,32): error TS4023: Exported variable '\"api\"' has or is using name 'Private' from external module \"{root}/node_modules/@types/pkg/index\" but cannot be named.\n"
+        )
+    );
+    assert!(!tree.path("out/index.d.cts").exists());
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already
