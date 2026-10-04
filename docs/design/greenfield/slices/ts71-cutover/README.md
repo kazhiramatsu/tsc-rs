@@ -1869,3 +1869,32 @@ P3-5ahの後、errorsのCategory／Text／不一致のうち、診断文の組�
   - `tsconfig.bench-full.json` 3回：hono 147→152、zod 635→616、Playwright 488→503、TypeScript `src/compiler`
     576→498、Next.js 1,059→1,023、Effect 775→762。tsc-rs÷tsgo 0.53–0.79。6 corporaとも出力fileと診断はmainと同一。
     劣化無し。
+
+## P3-5aj distributed type parameter（2026-10-04）
+
+README corporaの比較で、Effect（`--noEmit`）でtsgoが出す`src/http/HttpClient.ts(412,5)`のTS2322をtsc-rsが出して
+いなかった。縮めると`declare function g<K>(k: K): K extends string[] ? K[number] : K;`の結果を、同じ形の別の
+conditional typeを返す関数から返すだけでtsgoはTS2719を出す。原因はTS 7の新しい規則（TypeScript issue 63708）：
+- **distributed type parameter**：型parameterに分配するconditional typeの中（check typeがその型parameterへの単純な
+  参照で、最も近いstatementより内側）にある参照は、その型parameterの「distributed」な形になる。同じsymbolを持ち、
+  constraintが元の型parameterである別の型parameter（tsgoのgetDistributedTypeParameter、checker.go:23440-23470）。
+  元の型parameterはdistributedな形に代入できない。
+- `TypeData::TypeParameter`に`is_distributed`を加え、checkerは型parameterごとにdistributedな形を1つ作る（tsgoでは型の
+  fieldなので、speculationで捨てない）。
+- mapperは元の型parameterで写す（getMappedType、prepend/appendTypeMapping、mapper.go:40-88）。
+  getActualTypeVariableは元に戻し、変わったindexed accessを作り直す（checker.go:32054-32067）。inferenceは元で照合し
+  元から推論する（inference.go:554-560、1519-1522）。mapped typeのmodifierは元のconstraintを読む
+  （checker.go:28606-28609）。
+- relaterは元にだけ代入できるsourceをTS5113で説明する（relater.go:4802-4804）。型の表示は元を書く
+  （nodebuilderimpl.go:3313）。
+- unit test：CLI（tsgoの出力にpin）で縮めた例と`Show<A, B>`のTS2344。conditional typeの単純化のtestを書き直した
+  （tsgoは真の枝のdistributedな`T`をそのまま返す、checker.go:28477-28479）。
+- conformance（release build、`b0f71e345`、`--workers 2`、534 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,365→13,366：`distributedTypeParameters`。mismatch 69→68。
+  - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。
+- ratchet：0 regressions、1行raise。
+- Effectの`--noEmit`の出力はtsgoと同一になった（3件、18行）。
+- local：formatとworkspace全体のclippy。types・diagnostics・syntax・binder・program・harness・emitter・checker・
+  compiler・conformanceのtest（65 targets、3,669件成功・1件失敗。conditional typeの単純化のtestを直した後にcheckerの
+  lib 1,796件を再実行）。試行（filter `onditional`・`nfer`・`apped`・`eneric`）で下がった構成は無かった。

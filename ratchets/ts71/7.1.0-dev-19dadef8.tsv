@@ -2017,6 +2017,7 @@ compiler/discriminatedUnionJsxElement	full	js
 compiler/discriminatedUnionWithIndexSignature	full	js
 compiler/discriminatingUnionWithUnionPropertyAgainstUndefinedWithoutStrictNullChecks	full	js
 compiler/dissallowSymbolAsWeakType	full	js
+compiler/distributedTypeParameters	full	js
 compiler/distributiveConditionalBaseConstraint	full	js
 compiler/distributiveConditionalTypeConstraints	full	js
 compiler/distributiveConditionalTypeNeverIntersection1	full	js
