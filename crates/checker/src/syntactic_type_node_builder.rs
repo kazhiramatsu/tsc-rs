@@ -2459,7 +2459,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     ) -> Result<SyntacticResult, EmitResolverError> {
         let return_type = self.create_return_from_signature(node, None, true)?;
         let (type_parameters, parameters) = self.function_type_parameters_and_parameters(node)?;
-        let type_parameters = self.reuse_type_parameters(node.source(), type_parameters)?;
+        let type_parameters = match type_parameters {
+            Some(_) => self.reuse_type_parameters(node.source(), type_parameters)?,
+            None => self.reuse_hosted_type_parameters(node)?,
+        };
         let mut ensured_parameters = Vec::new();
         for parameter in self.nodes(node.source(), parameters)? {
             ensured_parameters.push(self.ensure_parameter(parameter)?);
@@ -2774,18 +2777,84 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let Some(type_parameters) = self.array(source, type_parameters) else {
             return Ok(None);
         };
-        let mut updated = Vec::new();
         let type_parameter_ids = self
             .arena
             .node_array(type_parameters)
             .map_err(|error| self.factory_error(error))?
             .nodes
             .to_vec();
-        let type_parameter_nodes: Vec<_> = type_parameter_ids
+        let entries: Vec<_> = type_parameter_ids
             .into_iter()
             .filter_map(|node| self.arena.node_ref(source, node))
+            .map(|node| (node, None))
             .collect();
-        for type_parameter in type_parameter_nodes {
+        self.reuse_type_parameter_entries(source, entries)
+    }
+
+    /// The type parameters tsgo's reparser gives a JavaScript function or
+    /// method from its `@template` tags (reparser.go:440-457,
+    /// gatherTypeParameters 297-344): a tag's constraint belongs to its first
+    /// type parameter.
+    fn reuse_hosted_type_parameters(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<Option<NodeArrayId>, EmitResolverError> {
+        let source = node.source();
+        let entries = {
+            let syntax = self
+                .arena
+                .source(source)
+                .map_err(|error| self.factory_error(error))?
+                .syntax();
+            if !tsc_types::NodeFlags::from_bits(syntax.arena.node(syntax.root).flags)
+                .intersects(tsc_types::NodeFlags::JAVA_SCRIPT_FILE)
+                || !self.arena.is_parsed_node(node).unwrap_or(false)
+            {
+                return Ok(None);
+            }
+            let Some(hosted) = tsc_binder::jsdoc_hosted(syntax).type_parameters_of(node.node())
+            else {
+                return Ok(None);
+            };
+            let mut entries = Vec::new();
+            for &tag in &hosted.tags {
+                let NodeData::JSDocTemplateTag(data) = &syntax.arena.node(tag).data else {
+                    continue;
+                };
+                let constraint = data.constraint.and_then(|expression| {
+                    match &syntax.arena.node(expression).data {
+                        NodeData::JSDocTypeExpression(expression) => expression.r#type,
+                        _ => None,
+                    }
+                });
+                let parameters = data
+                    .type_parameters
+                    .map(|list| syntax.arena.node_array(list).nodes.to_vec())
+                    .unwrap_or_default();
+                for (index, parameter) in parameters.into_iter().enumerate() {
+                    entries.push((
+                        TransformNode::new(source, parameter),
+                        constraint
+                            .filter(|_| index == 0)
+                            .map(|constraint| TransformNode::new(source, constraint)),
+                    ));
+                }
+            }
+            entries
+        };
+        if entries.is_empty() {
+            return Ok(None);
+        }
+        self.reuse_type_parameter_entries(source, entries)
+    }
+
+    fn reuse_type_parameter_entries(
+        &mut self,
+        source: TransformSourceId,
+        entries: Vec<(TransformNode, Option<TransformNode>)>,
+    ) -> Result<Option<NodeArrayId>, EmitResolverError> {
+        let mut updated = Vec::new();
+        for (type_parameter, constraint_override) in entries {
             let NodeData::TypeParameter(mut data) = self.node(type_parameter)?.data.clone() else {
                 continue;
             };
@@ -2815,7 +2884,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             }
             data.constraint = self
                 .serialize_existing_type_node_with_fallback(
-                    self.child(source, data.constraint),
+                    constraint_override.or_else(|| self.child(source, data.constraint)),
                     false,
                     None,
                 )?
@@ -2846,7 +2915,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(None);
         };
         let return_type = self.create_return_from_signature(method, None, true)?;
-        let type_parameters = self.reuse_type_parameters(method.source(), data.type_parameters)?;
+        let type_parameters = match data.type_parameters {
+            Some(_) => self.reuse_type_parameters(method.source(), data.type_parameters)?,
+            None => self.reuse_hosted_type_parameters(method)?,
+        };
         let mut parameters = Vec::new();
         for parameter in self.nodes(method.source(), data.parameters)? {
             parameters.push(self.ensure_parameter(parameter)?);
