@@ -6048,6 +6048,9 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
     ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        // tsgo writes a distributed type parameter as its original
+        // (nodebuilderimpl.go:3313).
+        let ty = self.get_non_distributed_type_parameter(ty);
         // typeToTypeNodeWorker 51331-51333: typeToString's default
         // builder flags do not include NoTypeReduction, so every
         // recursive display frame reduces before selecting a node

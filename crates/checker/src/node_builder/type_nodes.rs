@@ -1451,6 +1451,9 @@ fn type_to_type_node_helper_optional(
     r#type: Option<TypeId>,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Option<TransformNode>> {
+    // tsgo writes a distributed type parameter as its original, before the
+    // type stack sees it (nodebuilderimpl.go:3313-3321).
+    let r#type = r#type.map(|ty| checker.get_non_distributed_type_parameter(ty));
     let restore = save_restore_flags(context);
     if let Some(r#type) = r#type {
         context.type_stack.push(Some(r#type));

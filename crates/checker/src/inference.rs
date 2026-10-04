@@ -2529,6 +2529,9 @@ impl InferTypesWalker<'_, '_> {
             .flags_of(ty)
             .intersects(TypeFlags::TYPE_VARIABLE)
         {
+            // tsgo matches a distributed type parameter by its original
+            // (inference.go:1519-1522).
+            let ty = self.st.get_non_distributed_type_parameter(ty);
             for &id in &self.inferences {
                 if self.st.inference_info(id).type_parameter == ty {
                     return Some(id);
@@ -2685,12 +2688,22 @@ impl InferTypesWalker<'_, '_> {
             else {
                 unreachable!("Conditional source flag implies data");
             };
-            self.infer_from_types(source_data.check_type, target_data.check_type)?;
-            self.infer_from_types(source_data.extends_type, target_data.extends_type)?;
+            // tsgo infers from the originals of distributed type parameters
+            // (inference.go:554-560).
+            let source_check = self
+                .st
+                .get_non_distributed_type_parameter(source_data.check_type);
+            self.infer_from_types(source_check, target_data.check_type)?;
+            let source_extends = self
+                .st
+                .get_non_distributed_type_parameter(source_data.extends_type);
+            self.infer_from_types(source_extends, target_data.extends_type)?;
             let source_true = self.st.get_true_type_from_conditional_type(source)?;
+            let source_true = self.st.get_non_distributed_type_parameter(source_true);
             let target_true = self.st.get_true_type_from_conditional_type(target)?;
             self.infer_from_types(source_true, target_true)?;
             let source_false = self.st.get_false_type_from_conditional_type(source)?;
+            let source_false = self.st.get_non_distributed_type_parameter(source_false);
             let target_false = self.st.get_false_type_from_conditional_type(target)?;
             self.infer_from_types(source_false, target_false)
         } else {

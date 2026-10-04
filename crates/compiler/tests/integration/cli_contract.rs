@@ -3010,6 +3010,47 @@ fn imported_helpers_are_checked_per_file_like_tsgo() {
 }
 
 #[test]
+fn distributed_type_parameters_follow_tsgo() {
+    // Inside a conditional type that distributes over `K`, a reference to `K`
+    // is K's distributed form, whose constraint is `K` (tsgo
+    // getDistributedTypeParameter, checker.go:23440-23470); instantiation
+    // maps the original, so another conditional's branches do not relate,
+    // and the relater explains a source assignable only to the original
+    // (relater.go:4802-4804). The expected diagnostics are tsgo's for the
+    // same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function g<K>(k: K): K extends string[] ? K[number] : K;\n",
+            "export function f<K>(tag: K): K extends string[] ? K[number] : K { return g<K>(tag); }\n",
+            "type Show<A, B extends A> = [A, B];\n",
+            "type Pair<A, B extends A> = A extends unknown ? Show<A, B> : never;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"target":"esnext","strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(2,68): error TS2719: Type 'K extends string[] ? K[number] : K' is not assignable to type 'K extends string[] ? K[number] : K'. Two different types with this name exist, but they are unrelated.\n",
+            "  Type 'K | K[number]' is not assignable to type 'K extends string[] ? K[number] : K'.\n",
+            "    Type 'K' is not assignable to type 'K extends string[] ? K[number] : K'.\n",
+            "      Type 'K' is not assignable to type 'K'. Two different types with this name exist, but they are unrelated.\n",
+            "        'K' is only assignable to the non-distributed 'K', but 'K' has been distributed here.\n",
+            "a.ts(4,57): error TS2344: Type 'B' does not satisfy the constraint 'A'.\n",
+            "  'B' is only assignable to the non-distributed 'A', but 'A' has been distributed here.\n",
+        )
+    );
+}
+
+#[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors
     // and constructors, every modifier of a constructor it visits, and `in`/`out`

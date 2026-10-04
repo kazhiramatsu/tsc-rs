@@ -297,6 +297,7 @@ fn mapped_conditional_and_this_type_arms_emit_semantic_shapes() {
                 TypeFlags::TYPE_PARAMETER,
                 TypeData::TypeParameter {
                     is_this_type: true,
+                    is_distributed: false,
                     constraint: None,
                 },
             );

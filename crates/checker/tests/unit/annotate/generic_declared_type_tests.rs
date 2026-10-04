@@ -34,6 +34,7 @@ fn generic_interface_declared_type_is_a_generic_type_target() {
                 TypeData::TypeParameter {
                     is_this_type: true,
                     constraint: Some(constraint),
+                    ..
                 } if constraint == declared
             ));
             // The instantiations map is seeded with the target:

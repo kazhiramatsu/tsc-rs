@@ -307,10 +307,37 @@ impl<'a> CheckerState<'a> {
         self.create_type_mapper(sources, None)
     }
 
+    /// tsgo getNonDistributedTypeParameter (checker.go:23465-23470): the
+    /// original of a distributed type parameter, else the type itself.
+    pub(crate) fn get_non_distributed_type_parameter(&self, ty: TypeId) -> TypeId {
+        // No distributed type parameter exists until a conditional type
+        // creates one; skip the type read until then.
+        if self.distributed_type_parameters.is_empty() {
+            return ty;
+        }
+        match self.tables.type_of(ty).data {
+            TypeData::TypeParameter {
+                is_distributed: true,
+                constraint: Some(original),
+                ..
+            } => original,
+            _ => ty,
+        }
+    }
+
+    /// tsgo getMappedType (mapper.go:40-42): a distributed type parameter
+    /// is mapped by its original. The mapper's own recursion
+    /// (`map_type_with_mapper`) maps what it is given, as tsgo's
+    /// `TypeMapper.Map` does.
+    pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
+        let ty = self.get_non_distributed_type_parameter(ty);
+        self.map_type_with_mapper(ty, mapper)
+    }
+
     /// tsc-port: getMappedType @6.0.3
     /// tsc-hash: 1de145bdc6a4fc936f2d547c707305081eede73870da72023bc151fa83e65252
     /// tsc-span: _tsc.js:63327-63358
-    pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
+    fn map_type_with_mapper(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         self.profile_ops[crate::line_profile::OP_MAPPED] += 1;
         match *self.mapper(mapper) {
             TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
@@ -393,16 +420,16 @@ impl<'a> CheckerState<'a> {
                 }
             }
             TypeMapper::Composite { mapper1, mapper2 } => {
-                let t1 = self.get_mapped_type(ty, mapper1)?;
+                let t1 = self.map_type_with_mapper(ty, mapper1)?;
                 if t1 != ty {
                     self.instantiate_type(t1, Some(mapper2))
                 } else {
-                    self.get_mapped_type(t1, mapper2)
+                    self.map_type_with_mapper(t1, mapper2)
                 }
             }
             TypeMapper::Merged { mapper1, mapper2 } => {
-                let t1 = self.get_mapped_type(ty, mapper1)?;
-                self.get_mapped_type(t1, mapper2)
+                let t1 = self.map_type_with_mapper(ty, mapper1)?;
+                self.map_type_with_mapper(t1, mapper2)
             }
         }
     }
@@ -440,6 +467,8 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         mapper: Option<MapperId>,
     ) -> MapperId {
+        // tsgo maps the original of a distributed source (mapper.go:76-81).
+        let source = self.get_non_distributed_type_parameter(source);
         match mapper {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => {
@@ -458,6 +487,8 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
     ) -> MapperId {
+        // tsgo maps the original of a distributed source (mapper.go:83-88).
+        let source = self.get_non_distributed_type_parameter(source);
         match mapper {
             None => self.make_unary_type_mapper(source, target),
             Some(mapper) => {
@@ -507,6 +538,7 @@ impl<'a> CheckerState<'a> {
             TypeFlags::TYPE_PARAMETER,
             TypeData::TypeParameter {
                 is_this_type: false,
+                is_distributed: false,
                 constraint: None,
             },
         );
@@ -528,6 +560,7 @@ impl<'a> CheckerState<'a> {
             TypeFlags::TYPE_PARAMETER,
             TypeData::TypeParameter {
                 is_this_type: false,
+                is_distributed: false,
                 constraint: None,
             },
         );

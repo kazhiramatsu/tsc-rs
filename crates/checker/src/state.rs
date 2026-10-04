@@ -1021,6 +1021,10 @@ pub struct CheckerState<'a> {
     /// tsgo's per-file `requestedExternalEmitHelpers` (sourceFileLinks),
     /// keyed by the source file's root node.
     pub(crate) requested_external_emit_helpers: rustc_hash::FxHashMap<NodeId, u32>,
+    /// tsgo's `TypeParameter.distributedType` (checker.go:23455-23462):
+    /// the distributed form of each type parameter, created once. It is a
+    /// field of the type in tsgo, so speculation never discards it.
+    pub(crate) distributed_type_parameters: rustc_hash::FxHashMap<TypeId, TypeId>,
     /// Per-source getJsxNamespaceContainerForImplicitImport cache.
     /// `Some(None)` records an attempted miss so repeated JSX nodes do
     /// not duplicate the runtime-module diagnostic.
@@ -1606,6 +1610,7 @@ impl<'a> CheckerState<'a> {
             host_package_json_names: Default::default(),
             external_helpers_modules: rustc_hash::FxHashMap::default(),
             requested_external_emit_helpers: rustc_hash::FxHashMap::default(),
+            distributed_type_parameters: rustc_hash::FxHashMap::default(),
             jsx_implicit_import_containers: rustc_hash::FxHashMap::default(),
             jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),

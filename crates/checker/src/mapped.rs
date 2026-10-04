@@ -183,7 +183,9 @@ impl<'a> CheckerState<'a> {
                 .flags_of(constraint)
                 .intersects(TypeFlags::TYPE_PARAMETER)
             {
-                self.get_constraint_of_type_parameter(constraint)?
+                // tsgo reads the original's constraint (checker.go:28606-28609).
+                let original = self.get_non_distributed_type_parameter(constraint);
+                self.get_constraint_of_type_parameter(original)?
             } else {
                 Some(constraint)
             };
