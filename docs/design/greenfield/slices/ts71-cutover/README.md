@@ -1733,3 +1733,29 @@ P3-5aeの後、TypeScriptのd.tsの不一致から、原因が独立した4つ�
   読み込んだdocument数は7 corpusともmainと同一。`tsconfig.bench-full.json`（3 rounds）：hono 158→153、zod 670→665、
   Playwright 527→531、TypeScript `src/compiler` 572→528、Next.js 1,148→1,100、Effect 837→834（tsgo比0.61〜0.78）、
   出力と診断は6 corpusともmainと同一。退行なし。
+
+## P3-5ag 診断の型表示：外側の型parameterの組、対になっていないsurrogate、再利用したliteralの引用符（2026-10-04）
+
+P3-5afの後、errorsのCategory／Textの不一致のうち、診断文の型表示（`check.rs`の文字列の表示）が原因の3つ：
+- **外側の型parameterの組**：generic関数の中のclass式の型は、外側の型parameterの組ごとに親の名前で修飾される。
+  tsgoの`appendReferenceToType`は組の型引数を落とし、修飾子と最後の参照の型引数だけを残す
+  （nodebuilderimpl.go:272-323、「nested type args are silently elided」）。tsc-rsは6.0どおり
+  `mixin<typeof BaseClass>.(Anonymous class)`と書いていた。tsgoと同じく`mixin.(Anonymous class)`にした。組の型引数は
+  今までどおり一度描く（tsgoの`mapToTypeNodes`の長さの見積もりと切り詰めのため）。
+- **対になっていないsurrogate**：文字列literal型の表示で、tsgoの`escapeStringWorker`と同じく`\uDC00`にする
+  （printer/utilities.go:84-86）。tsc-rsは単位をそのまま持ち、出力で`�`になっていた。
+- **再利用したliteralの引用符**：enclosingがあるときに再利用した型の文字列literalは、書いた引用符のまま、ASCIIの
+  escape無しで書く（tsgoの再利用は引用符のflagごと複製する、nodecopy.go:810-821）。6.0の複製は常に二重引用符だった。
+- unit test：CLI（tsgoの出力にpin）で3つ。6.0の表示に固定していたunit testを書き直した：UTF-16のliteral表示の
+  fixture（`tsgo_overrides`の3 caseの`display`と診断文）、mixinの静的側、外側の型引数、JavaScriptの入れ子のclass。
+- conformance（release build、`965d874de`、`--workers 2`、542 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,340→13,346（+6）：`mixinAccessors3`、`mixinPrivateAndProtected`、
+    `typeArgumentInferenceWithClassExpression2`、`loneSurrogateStringLiteralTypes`、
+    `overloadOnConstNoAnyImplementation2`／`NoStringImplementation2`。text 9→7、category 19→15。
+  - emitは変化なし。下がった構成は無い。不一致のまま描いた文が変わったのは
+    `templateLiteralInferenceSupplementarySplit`で、tsgoに無い余分な診断の型が`"\uD83D"`と書かれるようになった
+    （余分な診断は、tsgoが型literalの推論をcode point単位で行うのにtsc-rsがcode unit単位で行う差。残り）。
+- ratchet：0 regressions、6行raise。`intersectionConstructorReductionCrash`は今回も通ったがratchetに入れない。
+- local：formatとworkspace全体のclippy。syntax・binder・emitter・checker・compiler・conformanceのtest（49 targets、
+  2,965件）。試行（filter `verload`・`ixin`・`iteral`・`urrogate`・`lassExpression`）で下がった構成は無かった。

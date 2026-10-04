@@ -4233,7 +4233,7 @@ compiler/localRequireFunction	full	js
 compiler/localTypeParameterInferencePriority	full	js
 compiler/localVariablesReturnedFromCatchBlocks	full	js
 compiler/logicalNotExpression1	full	js
-compiler/loneSurrogateStringLiteralTypes	category	js
+compiler/loneSurrogateStringLiteralTypes	full	js
 compiler/longObjectInstantiationChain1	full	js
 compiler/longObjectInstantiationChain2	full	js
 compiler/longObjectInstantiationChain3	full	js
@@ -4366,7 +4366,7 @@ compiler/mixedStaticAndInstanceClassMembers	full	js
 compiler/mixedTypeEnumComparison	full	js
 compiler/mixinIntersectionIsValidbaseType	full	js
 compiler/mixinOverMappedTypeNoCrash	full	js
-compiler/mixinPrivateAndProtected	text	js
+compiler/mixinPrivateAndProtected	full	js
 compiler/mixingApparentTypeOverrides	full	js
 compiler/mixingFunctionAndAmbientModule1	full	js
 compiler/mixingStaticAndInstanceOverloads	full	js
@@ -5060,10 +5060,10 @@ compiler/overloadOnConstInheritance2	full	js
 compiler/overloadOnConstInheritance3	full	js
 compiler/overloadOnConstInheritance4	full	js
 compiler/overloadOnConstNoAnyImplementation	full	js
-compiler/overloadOnConstNoAnyImplementation2	category	js
+compiler/overloadOnConstNoAnyImplementation2	full	js
 compiler/overloadOnConstNoNonSpecializedSignature	full	js
 compiler/overloadOnConstNoStringImplementation	full	js
-compiler/overloadOnConstNoStringImplementation2	category	js
+compiler/overloadOnConstNoStringImplementation2	full	js
 compiler/overloadOnConstantsInvalidOverload1	full	js
 compiler/overloadOnGenericArity	full	js
 compiler/overloadOnGenericClassAndNonGenericClass	full	js
@@ -10075,7 +10075,7 @@ conformance/mixinAbstractClassesReturnTypeInference	full	js
 conformance/mixinAccessModifiers	full	js
 conformance/mixinAccessors1	full	js
 conformance/mixinAccessors2	full	js
-conformance/mixinAccessors3	category	js
+conformance/mixinAccessors3	full	js
 conformance/mixinAccessors4	full	js
 conformance/mixinAccessors5	full	js
 conformance/mixinClassesAnnotated	full	js
@@ -12729,7 +12729,7 @@ conformance/typeArgumentInferenceConstructSignatures	full	js
 conformance/typeArgumentInferenceErrors	full	js
 conformance/typeArgumentInferenceTransitiveConstraints	full	js
 conformance/typeArgumentInferenceWithClassExpression1	full	js
-conformance/typeArgumentInferenceWithClassExpression2	text	js
+conformance/typeArgumentInferenceWithClassExpression2	full	js
 conformance/typeArgumentInferenceWithClassExpression3	full	js
 conformance/typeArgumentInferenceWithConstraints	full	js
 conformance/typeArgumentInferenceWithObjectLiteral	full	js

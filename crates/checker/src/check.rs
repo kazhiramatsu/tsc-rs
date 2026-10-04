@@ -6825,25 +6825,19 @@ impl<'a> CheckerState<'a> {
                     .copied()
                     .ne(type_parameters[group_start..argument_start].iter().copied())
                 {
-                    let rendered = self
-                        .map_to_type_string_nodes(
-                            argument_group,
-                            fully_qualified,
-                            /*is_bare_list*/ false,
-                        )?
-                        .into_iter()
-                        .map(|(text, _)| text)
-                        .collect::<Vec<_>>();
+                    // tsgo maps the group's arguments, but appendReferenceToType
+                    // keeps only the qualifiers of each group and the last
+                    // reference's own arguments (nodebuilderimpl.go:272-323:
+                    // "nested type args are silently elided").
+                    self.map_to_type_string_nodes(
+                        argument_group,
+                        fully_qualified,
+                        /*is_bare_list*/ false,
+                    )?;
                     let parent_name = self.type_reference_symbol_name(parent, fully_qualified)?;
-                    let reference = crate::concat_js(&[
-                        &(parent_name),
-                        &"<",
-                        &(crate::join_js_texts(&rendered, ", ")),
-                        &">",
-                    ]);
                     outer_reference = Some(match outer_reference {
-                        Some(root) => crate::concat_js(&[&(root), &".", &(reference)]),
-                        None => reference,
+                        Some(root) => crate::concat_js(&[&(root), &".", &(parent_name)]),
+                        None => parent_name,
                     });
                 }
             }
@@ -12945,8 +12939,8 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// LiteralTypeNode literal faces: synthesized clones print cooked
-    /// numeric text and double-quoted strings (oracle-probed Q01/Q02).
+    /// LiteralTypeNode literal faces: cooked numeric text, and strings in
+    /// their written quotes without ASCII escaping (tsgo's reuse).
     fn literal_type_node_text(&mut self, literal: NodeId) -> CheckResult<JsString> {
         match self.kind_of(literal) {
             SyntaxKind::TrueKeyword => return Ok("true".into()),
@@ -12956,7 +12950,23 @@ impl<'a> CheckerState<'a> {
         }
         match self.data_of(literal).clone() {
             NodeData::StringLiteral(data) => {
-                string_literal_name(&data.text, false).map(JsString::from)
+                // tsgo's reuse clones a string literal with its quote and
+                // prints it without ASCII escaping (nodecopy.go:810-821).
+                let source = self.binder.source_of_node(literal);
+                let end = source.arena.node(literal).end as usize;
+                let quote = if end > 0 && source.text().as_bytes().get(end - 1) == Some(&b'\'') {
+                    '\''
+                } else {
+                    '"'
+                };
+                Ok(crate::concat_js(&[
+                    &quote.to_string(),
+                    &string_literal_display_text_with_quote(
+                        &tsc_types::TemplateText::from_js(data.text.as_js()),
+                        quote,
+                    ),
+                    &quote.to_string(),
+                ]))
             }
             NodeData::NumericLiteral(data) => Ok(data.text.clone().into()),
             // getLiteralText's BigIntLiteral arm emits the cloned
@@ -14112,6 +14122,16 @@ fn encode_utf16_escape_sequence(unit: u16) -> String {
 /// lookahead, then the UPPERCASE 4-hex fallback. Non-ASCII passes
 /// through raw — the StringLiteral face sets NoAsciiEscaping.
 pub(crate) fn string_literal_type_display_text(text: &tsc_types::TemplateText) -> JsString {
+    string_literal_display_text_with_quote(text, '"')
+}
+
+/// The escaped text of a string literal printed without ASCII escaping
+/// inside `quote` (tsgo's escapeString with EFNoAsciiEscaping).
+pub(crate) fn string_literal_display_text_with_quote(
+    text: &tsc_types::TemplateText,
+    quote: char,
+) -> JsString {
+    let quote_unit = quote as u16;
     let units = text.units();
     let mut out = JsString::new();
     let mut index = 0usize;
@@ -14119,7 +14139,10 @@ pub(crate) fn string_literal_type_display_text(text: &tsc_types::TemplateText) -
         let unit = units[index];
         match unit {
             0x005C => out.push_str("\\\\"),
-            0x0022 => out.push_str("\\\""),
+            unit if unit == quote_unit => {
+                out.push_code_unit(0x005C);
+                out.push_code_unit(unit);
+            }
             0 => {
                 if units
                     .get(index + 1)
@@ -14140,6 +14163,18 @@ pub(crate) fn string_literal_type_display_text(text: &tsc_types::TemplateText) -
             0x2029 => out.push_str("\\u2029"),
             0x0085 => out.push_str("\\u0085"),
             0x0001..=0x001F => out.push_str(&encode_utf16_escape_sequence(unit)),
+            0xD800..=0xDBFF
+                if units
+                    .get(index + 1)
+                    .is_some_and(|next| (0xDC00..=0xDFFF).contains(next)) =>
+            {
+                out.push_code_unit(unit);
+                out.push_code_unit(units[index + 1]);
+                index += 1;
+            }
+            // tsgo's escapeStringWorker escapes an unpaired surrogate even
+            // without ASCII escaping (printer/utilities.go:84-86).
+            0xD800..=0xDFFF => out.push_str(&encode_utf16_escape_sequence(unit)),
             _ => out.push_code_unit(unit),
         }
         index += 1;
