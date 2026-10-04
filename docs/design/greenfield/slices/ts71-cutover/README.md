@@ -2311,3 +2311,39 @@ P3-5asの後、import elisionの範囲とmodule変換の5件：
     `bench-full` 0.99970、Next.js `bench-full` 0.99982。3回の差はnoiseで、劣化無し。
 - hosted：PR #671（head `fa1781cc6`）、run 37231610173 — `plan` 26s、`rust` 6m39s、`conformance (TypeScript 7.1)` 21m0s、
   `gates` 15s。
+
+## P3-5au async変換、`extends null`、アクセスの括弧（2026-10-05）
+
+P3-5atの後、ES変換の5件：
+- **static初期化子のasync arrow**：tsgoのasync arrowはawaitのfactだけを持ち、lexicalな`this`を含まない
+  （ast.go:2064-2072）。class fieldsの変換は、移したstatic初期化子とstatic blockのIIFEに`EFNoLexicalThis`を付け
+  （classfields.go:1417、2714-2718）、async変換はその中で`__awaiter`の`this`に`void 0`を渡す（async.go:127-130）。
+  tsc-rsはtsc 6.0の、async arrowを`this`の参照として数える形で、使われないclass alias（`_a = Test`）を作り、namespaceの
+  中では`__awaiter(_a, …)`を出していた。`asyncArrowInClassES5(target=es2015)`、`asyncArrowStaticFieldThis`。
+- **引数の`super`**：tsgoの`transformAsyncFunctionBody`は、generatorへ移す引数を訪れる前に`_super`の捕捉を開く
+  （async.go:713-731）。tsc-rsは本体の`super`だけを数え、`async k(b = super.m())`で内部エラーになっていた。
+  `asyncSuperDefaultParameters`。
+- **async generatorの`_super`**：tsgoは捕捉したpropertyがある時だけ`_super`のobjectを作る（forawait.go:827-831）。
+  tsc-rsはtsc 6.0の、要素アクセスだけでも空の`_super`を作る形だった。`asyncMethodWithSuper_es6`。
+- **`extends null`**：tsgoのES decoratorの変換は、`null`を継承するclassに合成するconstructorで`super(...arguments)`を
+  呼ばない（esdecorator.go:737）。`esDecoratorExtendsNull`。
+- **アクセスの括弧**：tsgoの`parenthesizeLeftSideOfAccess`は、引数の無い`new`とoptional chain以外の左辺式を括弧で
+  囲まない（ast/utilities.go:396-408）。tsc-rsのES2020の変換は左辺式の一部（instantiation expressionなど）を数えず、
+  `((a === null || …)).d`と二重に囲んでいた。`optionalChainWithInstantiationExpression1`（2構成）。
+- unit test：CLI（tsgoの出力にpin）で4件（static初期化子のasync arrow、引数とasync generatorの`super`、
+  `extends null`、アクセスの括弧）。P3-5atのbuildでは4件ともtsgoと違うか内部エラーだった。
+- conformance（release build、`dc9ff072c`、`--workers 2`、509 s）：
+  - 15,228構成、lane A 13,467（変化なし）、errors full 13,400（変化なし）。
+  - emit full 13,390→13,396：上の6構成。emit mismatch 47→41。下がった構成は無い。
+- ratchet：0 regressions、6行raise（emit）。
+- local：formatとworkspace全体のclippy。compilerとemitterのtest（29 targets、868件）。filter `Chain`（83構成）で下がった
+  構成は無かった。
+- perf（README corpora、nice 20、main（P3-5atのbuild `7cbe47bcd`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 131→124、zod 514→511、Playwright 368→365、TypeScript
+    `src/compiler` 344→327、Next.js 796→760、Effect 519→512、VS Code 3,423→3,390。tsc-rs÷tsgo 0.61–0.93。読み込んだ
+    文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 143→149、zod 624→633、Playwright 483→474、TypeScript `src/compiler` 528→491、
+    Next.js 1,032→1,012、Effect 764→754。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B：zod `bench-full` 628→609、Playwright `--noEmit` 362→360、hono `bench-full` 144→141、Next.js
+    `bench-full` 1,002→993。1 checkerの命令数branch÷main：zod `--noEmit` 0.99945、Playwright `--noEmit` 1.00021、hono
+    `bench-full` 0.99932、Next.js `bench-full` 0.99913。3回の差はnoiseで、劣化無し。
