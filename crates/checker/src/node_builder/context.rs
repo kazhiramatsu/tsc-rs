@@ -89,7 +89,6 @@ pub(crate) struct NodeBuilderContext<'tracker> {
 
     // createSyntacticTypeNodeBuilder's dynamic state. These are emit-context
     // fields, not aliases of the display slice's recovery fields.
-    pub(crate) no_inference_fallback: Option<bool>,
     pub(crate) recovery_boundary_had_error: bool,
     pub(crate) recovery_boundary_depth: u32,
     pub(crate) recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
@@ -176,7 +175,6 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         depth: 0,
         type_stack: Vec::new(),
         out: EmitSymbolExpansionOut::default(),
-        no_inference_fallback: None,
         recovery_boundary_had_error: false,
         recovery_boundary_depth: 0,
         recovery_tracked_symbols: None,
@@ -388,30 +386,4 @@ fn is_lib_type(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
                     checker.binder.file_facts(file).is_default_library()
                 })
         })
-}
-
-/// tsc-port: inferTypeOfDeclaration @6.0.3 (noInferenceFallback gate)
-/// tsc-hash: 5f3dbaf8de892a7b132823367ffa11bb05b745c8fd45205b7d928d883ba2764b
-/// tsc-span: _tsc.js:133947-133949
-pub(crate) fn no_inference_fallback_is_set(context: &NodeBuilderContext<'_>) -> bool {
-    context.no_inference_fallback == Some(true)
-}
-
-/// tsc-port: typeFromArrayLiteral @6.0.3 (save/set noInferenceFallback)
-/// tsc-hash: 74c7b5f888b75bb5850ba85980e34ba500823c151f573ec9168b245198a18c4d
-/// tsc-span: _tsc.js:134126-134127
-pub(crate) fn save_no_inference_fallback(context: &mut NodeBuilderContext<'_>) -> Option<bool> {
-    let old_no_inference_fallback = context.no_inference_fallback;
-    context.no_inference_fallback = Some(true);
-    old_no_inference_fallback
-}
-
-/// tsc-port: typeFromArrayLiteral @6.0.3 (restore noInferenceFallback)
-/// tsc-hash: 1e92fe09799fc66ddc68b706b0ef37ff4a4ac71f8d195217a8593043c9c6b4f0
-/// tsc-span: _tsc.js:134143-134143
-pub(crate) fn restore_no_inference_fallback(
-    context: &mut NodeBuilderContext<'_>,
-    old_no_inference_fallback: Option<bool>,
-) {
-    context.no_inference_fallback = old_no_inference_fallback;
 }

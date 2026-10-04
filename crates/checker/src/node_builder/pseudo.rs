@@ -24,8 +24,9 @@ use crate::pseudochecker::{
 use crate::state::{CheckerState, SignatureId};
 
 use super::serialize::{
-    report_inference_fallback, serialize_return_type_for_signature_in_context,
-    serialize_type_for_declaration_in_context, syntactic_try_reuse_existing_node,
+    get_regular_type_of_expression, report_inference_fallback,
+    serialize_return_type_for_signature_in_context, serialize_type_for_declaration_in_context,
+    syntactic_try_reuse_existing_node,
 };
 use super::signatures::{
     enter_signature_scope, exit_new_scope, parameter_to_parameter_declaration_name,
@@ -1478,7 +1479,8 @@ pub(super) fn pseudo_type_to_type(
                     .get_return_type_of_signature(signature)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?
             } else {
-                let regular = regular_type_of_expression(checker, context, inferred.expression)?;
+                let regular =
+                    get_regular_type_of_expression(checker, context, inferred.expression)?;
                 checker
                     .get_widened_type(regular)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?
@@ -1539,26 +1541,13 @@ pub(super) fn pseudo_type_to_type(
         PseudoType::StringLiteral(source)
         | PseudoType::NumericLiteral(source)
         | PseudoType::BigIntLiteral(source) => {
-            regular_type_of_expression(checker, context, *source)?
+            get_regular_type_of_expression(checker, context, *source)?
         }
         PseudoType::ObjectLiteral(_)
         | PseudoType::SingleCallSignature(_)
         | PseudoType::Tuple(_) => return Ok(None),
     };
     Ok(Some(r#type))
-}
-
-/// tsgo getRegularTypeOfExpression: the regular type of the expression's
-/// type.
-fn regular_type_of_expression(
-    checker: &mut CheckerState<'_>,
-    context: &NodeBuilderContext<'_>,
-    expression: NodeId,
-) -> BuildResult<TypeId> {
-    let r#type = checker
-        .get_type_of_expression(expression)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    Ok(checker.regular_type_of_literal_type(r#type))
 }
 
 /// tsgo-port: NodeBuilderImpl.reuseTypeNode @7.1 (nodecopy.go:56-76): reuse a

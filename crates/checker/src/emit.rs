@@ -1175,6 +1175,24 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn report_inference_fallback(
+        &self,
+        node: EmitResolverNode,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<(), EmitResolverError> {
+        let method = EmitResolverMethod::ReportInferenceFallback;
+        let mut state = self.state.lock().expect("checker session state");
+        validate_resolver_node(&state, method, node)?;
+        let mut access = crate::node_builder::StandaloneTrackerAccess {
+            checker: &mut state,
+            method,
+        };
+        tracker.report_inference_fallback(
+            &mut access,
+            tsc_emitter::EmitTrackerNode(u64::from(node.node().index())),
+        )
+    }
+
     fn create_literal_const_value(
         &self,
         arena: &mut tsc_emitter::TransformArena,

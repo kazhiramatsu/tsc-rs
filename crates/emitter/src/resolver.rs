@@ -523,6 +523,7 @@ pub enum EmitResolverMethod {
     TryJsTypeNodeToTypeNode,
     CreateLiteralConstValue,
     CreateLateBoundIndexSignatures,
+    ReportInferenceFallback,
 }
 
 /// Selects the checker view used by `getReferencedExportContainer`.
@@ -618,6 +619,7 @@ impl EmitResolverMethod {
             Self::TryJsTypeNodeToTypeNode => "tryJSTypeNodeToTypeNode",
             Self::CreateLiteralConstValue => "createLiteralConstValue",
             Self::CreateLateBoundIndexSignatures => "createLateBoundIndexSignatures",
+            Self::ReportInferenceFallback => "reportInferenceFallback",
         }
     }
 }
@@ -1536,6 +1538,22 @@ pub trait EmitResolver {
         Err(unavailable(
             EmitResolverMethod::CreateTypeOfExpression,
             expression,
+        ))
+    }
+
+    /// tsgo's declaration transform reporting an inference fallback through
+    /// its tracker outside a node builder call (transform.go:2013, the
+    /// expression of a class's `extends` clause): the tracker callback with
+    /// the checker's tracker access.
+    fn report_inference_fallback(
+        &self,
+        node: EmitResolverNode,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<(), EmitResolverError> {
+        let _ = tracker;
+        Err(unavailable(
+            EmitResolverMethod::ReportInferenceFallback,
+            node,
         ))
     }
 

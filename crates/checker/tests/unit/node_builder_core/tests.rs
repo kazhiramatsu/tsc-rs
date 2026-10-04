@@ -390,7 +390,6 @@ fn node_builder_context_construction_uses_upstream_defaults_and_bundled_gate() {
                 assert_eq!(context.depth, 0);
                 assert!(context.type_stack.is_empty());
                 assert_eq!(context.out, EmitSymbolExpansionOut::default());
-                assert!(context.no_inference_fallback.is_none());
                 assert!(!context.recovery_boundary_had_error);
                 assert_eq!(context.recovery_boundary_depth, 0);
                 assert!(context.tracker.inner.is_none());
@@ -753,16 +752,6 @@ fn node_builder_save_restore_and_expansion_helpers_restore_all_owned_state() {
             EmitInternalNodeBuilderFlags::WRITE_COMPUTED_PROPS
         );
         assert_eq!(context.depth, 7);
-
-        context.no_inference_fallback = Some(false);
-        context.recovery_boundary_had_error = true;
-        context.recovery_boundary_depth = 3;
-        let old_no_inference = save_no_inference_fallback(context);
-        assert!(no_inference_fallback_is_set(context));
-        restore_no_inference_fallback(context, old_no_inference);
-        assert_eq!(context.no_inference_fallback, Some(false));
-        assert!(context.recovery_boundary_had_error);
-        assert_eq!(context.recovery_boundary_depth, 3);
 
         context.max_truncation_length = 5;
         context.approximate_length = 5;

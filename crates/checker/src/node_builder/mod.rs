@@ -13,15 +13,13 @@ pub(crate) use chains::{
     chains_symbol_to_expression, chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_enclosing_declaration_ignoring_fake_scope, get_module_specifier_override,
-    get_type_from_type_node2, serialize_inferred_type_for_declaration, set_text_range2,
-    symbol_to_node, type_parameter_to_name,
+    get_type_from_type_node2, set_text_range2, symbol_to_node, type_parameter_to_name,
 };
 pub(crate) use context::{
-    add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
-    no_inference_fallback_is_set, restore_flags, restore_no_inference_fallback,
-    restore_symbol_type_to_context, save_no_inference_fallback, save_restore_flags,
-    should_expand_type, with_context, with_context_in_synthetic_module_scope, NodeBuilderContext,
-    RecoveryTrackedSymbol, SyntheticModuleScope, TrackedSymbol,
+    add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length, restore_flags,
+    restore_symbol_type_to_context, save_restore_flags, should_expand_type, with_context,
+    with_context_in_synthetic_module_scope, NodeBuilderContext, RecoveryTrackedSymbol,
+    SyntheticModuleScope, TrackedSymbol,
 };
 pub(crate) use serialize::{
     index_info_to_index_signature_declaration, serialize_return_type_for_signature,
@@ -225,26 +223,6 @@ fn tracker_accessor_declarations(
         }
     }
     Some(result)
-}
-
-/// The declaration facts read directly from upstream's optional `symbol`
-/// argument by the syntactic variable-declaration arm. Keeping them beside
-/// the opaque checker identity avoids widening the dormant seam with symbol-
-/// table queries that are not members of `syntacticBuilderResolver`.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct SyntacticSymbol {
-    pub(crate) id: tsc_binder::SymbolId,
-    pub(crate) declaration_count: usize,
-    pub(crate) variable_declaration_count: usize,
-}
-
-/// Rust spelling of `getAllAccessorDeclarationsForDeclaration`'s record.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct SyntacticAccessorDeclarations {
-    pub(crate) first_accessor: tsc_emitter::TransformNode,
-    pub(crate) second_accessor: Option<tsc_emitter::TransformNode>,
-    pub(crate) get_accessor: Option<tsc_emitter::TransformNode>,
-    pub(crate) set_accessor: Option<tsc_emitter::TransformNode>,
 }
 
 /// Rust spelling of `trackExistingEntityName`'s two-field result.
@@ -560,12 +538,6 @@ impl SyntacticRecoveryBoundary {
 /// tsc-hash: 4435e40ac4ba06bf9e97dd48b84835ddcec09e878d5b6163f041aa5ea0398894
 /// tsc-span: _tsc.js:50778-50956
 pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
-    fn evaluate_entity_name_expression(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        expression: tsc_emitter::TransformNode,
-    ) -> Result<crate::evaluate::EvaluatorResult, tsc_emitter::EmitResolverError>;
-
     fn has_late_bindable_name(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
@@ -585,80 +557,13 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         context: &mut NodeBuilderContext<'_>,
     ) -> Result<SyntacticRecoveryBoundary, tsc_emitter::EmitResolverError>;
 
-    fn is_definitely_reference_to_global_symbol_object(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        node: tsc_emitter::TransformNode,
-    ) -> Result<bool, tsc_emitter::EmitResolverError>;
-
-    fn get_all_accessor_declarations(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        node: tsc_emitter::TransformNode,
-    ) -> Result<SyntacticAccessorDeclarations, tsc_emitter::EmitResolverError>;
-
-    fn requires_adding_implicit_undefined(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        declaration: tsc_emitter::TransformNode,
-        symbol: Option<SyntacticSymbol>,
-        enclosing_declaration: Option<tsc_syntax::NodeId>,
-    ) -> Result<bool, tsc_emitter::EmitResolverError>;
-
-    fn is_optional_parameter(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        parameter: tsc_emitter::TransformNode,
-    ) -> Result<bool, tsc_emitter::EmitResolverError>;
-
-    fn is_undefined_identifier_expression(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        node: tsc_emitter::TransformNode,
-    ) -> Result<bool, tsc_emitter::EmitResolverError>;
-
     fn serialize_existing_type_node(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
         target: tsc_emitter::TransformSourceId,
         context: &mut NodeBuilderContext<'_>,
         type_node: tsc_emitter::TransformNode,
-        add_undefined: bool,
     ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
-
-    fn serialize_return_type_for_signature(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        signature_declaration: tsc_emitter::TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
-
-    fn serialize_type_of_expression(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        expression: tsc_emitter::TransformNode,
-    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
-
-    fn serialize_type_of_declaration(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        declaration: tsc_emitter::TransformNode,
-        symbol: Option<SyntacticSymbol>,
-    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError>;
-
-    fn serialize_name_of_parameter(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        target: tsc_emitter::TransformSourceId,
-        context: &mut NodeBuilderContext<'_>,
-        parameter: tsc_emitter::TransformNode,
-    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError>;
 
     fn serialize_type_name(
         &mut self,
@@ -694,13 +599,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         node: tsc_emitter::TransformNode,
     ) -> Result<SyntacticTrackedEntityName, tsc_emitter::EmitResolverError>;
 
-    fn track_computed_name(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        context: &mut NodeBuilderContext<'_>,
-        access_expression: tsc_emitter::TransformNode,
-    ) -> Result<(), tsc_emitter::EmitResolverError>;
-
     fn get_module_specifier_override(
         &mut self,
         arena: &mut tsc_emitter::TransformArena,
@@ -714,16 +612,6 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         type_node: tsc_emitter::TransformNode,
-    ) -> Result<bool, tsc_emitter::EmitResolverError>;
-
-    fn can_reuse_type_node_annotation(
-        &mut self,
-        arena: &mut tsc_emitter::TransformArena,
-        context: &mut NodeBuilderContext<'_>,
-        node: tsc_emitter::TransformNode,
-        existing: tsc_emitter::TransformNode,
-        symbol: Option<SyntacticSymbol>,
-        requires_adding_undefined: Option<bool>,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 }
 

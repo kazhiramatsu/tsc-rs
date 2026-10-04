@@ -455,6 +455,16 @@ pub(crate) fn transform_top_level_declaration(
                     if !transformer.is_entity_name_expression(context, base_expression)?
                         && context.arena().node(base_expression)?.kind != SyntaxKind::NullKeyword
                     {
+                        // An isolated declarations error on the extends clause
+                        // (transform.go:2013).
+                        let expression_resolver =
+                            transformer.required_resolver_node(context, base_expression)?;
+                        transformer.resolver.report_inference_fallback(
+                            expression_resolver,
+                            &mut transformer.tracker,
+                        )?;
+                        let effects = transformer.tracker.take_pending_effects();
+                        materialize_effects(context, transformer.host, effects)?;
                         let base_name = match name
                             .and_then(|name| context.arena().node(name).ok())
                             .map(|record| &record.data)
