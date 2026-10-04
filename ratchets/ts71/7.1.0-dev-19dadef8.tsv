@@ -357,8 +357,8 @@ compiler/assignmentToObject	full	js
 compiler/assignmentToObjectAndFunction	full	js
 compiler/assignmentToParenthesizedExpression1	full	js
 compiler/assignmentToReferenceTypes	full	js
-compiler/asyncArrowInClassES5(target=es2015)	full	none
-compiler/asyncArrowStaticFieldThis	full	none
+compiler/asyncArrowInClassES5(target=es2015)	full	js
+compiler/asyncArrowStaticFieldThis	full	js
 compiler/asyncAwaitWithCapturedBlockScopeVar(target=es2015)	full	js
 compiler/asyncDestructuringArgumentsProperty	full	js
 compiler/asyncFunctionContextuallyTypedReturns	full	js
@@ -375,7 +375,7 @@ compiler/asyncIIFE	full	js
 compiler/asyncImportNestedYield	full	js
 compiler/asyncIteratorExtraParameters	full	js
 compiler/asyncJsxArgumentsAttributeName	full	js
-compiler/asyncSuperDefaultParameters	full	none
+compiler/asyncSuperDefaultParameters	full	js
 compiler/asyncYieldStarContextualType	full	js
 compiler/augmentArray	full	js
 compiler/augmentExportEquals1	full	js
@@ -2493,7 +2493,7 @@ compiler/es6ModuleModuleDeclaration	full	js
 compiler/es6ModuleVariableStatement	full	js
 compiler/es6ModuleWithModuleGenTargetCommonjs	full	js
 compiler/es6UseOfTopLevelRequire	full	js
-compiler/esDecoratorExtendsNull	full	none
+compiler/esDecoratorExtendsNull	full	js
 compiler/esDecoratorsClassFieldsCrash	full	js
 compiler/esDecoratorsPropertyAccessSameNameAsClass	full	js
 compiler/esModuleInterop	full	js
@@ -5020,7 +5020,7 @@ compiler/operationsAvailableOnPromisedType(target=es2015)	full	js
 compiler/operatorAddNullUndefined	full	js
 compiler/optionalAccessorsInInterface1	full	js
 compiler/optionalArgsWithDefaultValues	full	js
-compiler/optionalChainWithInstantiationExpression1(target=es2019)	full	none
+compiler/optionalChainWithInstantiationExpression1(target=es2019)	full	js
 compiler/optionalChainWithInstantiationExpression1(target=es2020)	full	js
 compiler/optionalChainWithInstantiationExpression2(target=es2019)	full	js
 compiler/optionalChainWithInstantiationExpression2(target=es2020)	full	js
@@ -7351,7 +7351,7 @@ conformance/asyncInterface_es6	full	js
 conformance/asyncMethodWithSuperConflict_es6	full	js
 conformance/asyncMethodWithSuper_es2017	full	js
 conformance/asyncMethodWithSuper_es5(target=es2015)	full	js
-conformance/asyncMethodWithSuper_es6	full	none
+conformance/asyncMethodWithSuper_es6	full	js
 conformance/asyncModule_es5(target=es2015)	full	js
 conformance/asyncModule_es6	full	js
 conformance/asyncMultiFile_es5(target=es2015)	full	js
