@@ -201,7 +201,14 @@ fn the_js_baseline_lists_sources_then_javascript_then_declarations() {
         }],
         maps: Vec::new(),
     };
-    let rendered = render_js("tests/cases/compiler/main.ts", &sources, &emission, false).unwrap();
+    let rendered = render_js(
+        "tests/cases/compiler/main.ts",
+        &sources,
+        &emission,
+        false,
+        "",
+    )
+    .unwrap();
     assert_eq!(
         rendered,
         "//// [tests/cases/compiler/main.ts] ////\r\n\r\n\
@@ -216,12 +223,102 @@ fn the_js_baseline_lists_sources_then_javascript_then_declarations() {
         "tests/cases/compiler/main.ts",
         &sources,
         &Emission::default(),
-        false
+        false,
+        ""
     )
     .is_none());
     // `@fullEmitPaths` keeps the output path without the harness prefix.
-    let full = render_js("tests/cases/compiler/main.ts", &sources, &emission, true).unwrap();
+    let full = render_js(
+        "tests/cases/compiler/main.ts",
+        &sources,
+        &emission,
+        true,
+        "",
+    )
+    .unwrap();
     assert!(full.contains("//// [other.js]\r\n"), "{full}");
+}
+
+#[test]
+fn the_js_baseline_appends_the_declaration_errors_and_the_no_check_emit() {
+    // DoJSEmitBaseline (js_emit_baseline.go:87-131): the `[DtsFileErrors]`
+    // section, then the files only the noCheck emit wrote; a baseline with
+    // only those still exists (noEmitOnError.js in the 7.1 references).
+    use super::emit_baseline::{
+        dts_file_errors_section, no_check_sections, render_js, Emission, EmittedFile,
+    };
+    assert_eq!(
+        dts_file_errors_section("a.d.ts(1,1): error TS1: x.\r\n"),
+        "\r\n\r\n//// [DtsFileErrors]\r\n\r\n\r\na.d.ts(1,1): error TS1: x.\r\n"
+    );
+    let no_check = Emission {
+        js: vec![EmittedFile {
+            path: "/.src/noEmitOnError.js".to_owned(),
+            content: "\"use strict\";\r\nvar x = \"\";\r\n".to_owned(),
+        }],
+        dts: vec![EmittedFile {
+            path: "/.src/noEmitOnError.d.ts".to_owned(),
+            content: "declare var x: number;\r\n".to_owned(),
+        }],
+        maps: Vec::new(),
+    };
+    let sections = no_check_sections(&Emission::default(), &no_check, false);
+    let sources = [errors_baseline::InputFile {
+        name: "/.src/noEmitOnError.ts",
+        content: "var x: number = \"\";",
+    }];
+    assert_eq!(
+        render_js(
+            "tests/cases/compiler/noEmitOnError.ts",
+            &sources,
+            &Emission::default(),
+            false,
+            &sections,
+        )
+        .unwrap(),
+        "//// [tests/cases/compiler/noEmitOnError.ts] ////\r\n\r\n\
+         //// [noEmitOnError.ts]\r\nvar x: number = \"\";\r\n\r\n\r\n\r\n\
+         !!!! File noEmitOnError.d.ts missing from original emit, but present in noCheck emit\r\n\
+         //// [noEmitOnError.d.ts]\r\ndeclare var x: number;\r\n\r\n\r\n\
+         !!!! File noEmitOnError.js missing from original emit, but present in noCheck emit\r\n\
+         //// [noEmitOnError.js]\r\n\"use strict\";\r\nvar x = \"\";\r\n"
+    );
+    // The same files in both emits add nothing.
+    assert!(no_check_sections(&no_check, &no_check, false).is_empty());
+}
+
+#[test]
+fn declaration_names_follow_tsgo_outputpaths() {
+    // outputpaths.ChangeToDeclarationExtension and tspath.IsDeclarationFileName.
+    assert_eq!(
+        change_to_declaration_extension("/.src/out/a.ts"),
+        "/.src/out/a.d.ts"
+    );
+    assert_eq!(
+        change_to_declaration_extension("/.src/a.tsx"),
+        "/.src/a.d.ts"
+    );
+    assert_eq!(
+        change_to_declaration_extension("/.src/a.mts"),
+        "/.src/a.d.mts"
+    );
+    assert_eq!(
+        change_to_declaration_extension("/.src/a.cjs"),
+        "/.src/a.d.cts"
+    );
+    assert_eq!(
+        change_to_declaration_extension("/.src/a.js"),
+        "/.src/a.d.ts"
+    );
+    assert_eq!(
+        change_to_declaration_extension("/.src/a.json"),
+        "/.src/a.d.json.ts"
+    );
+    assert!(is_declaration_file_name("/.src/a.d.ts"));
+    assert!(is_declaration_file_name("/.src/a.d.mts"));
+    assert!(is_declaration_file_name("/.src/a.d.css.ts"));
+    assert!(!is_declaration_file_name("/.src/a.ts"));
+    assert!(!is_declaration_file_name("/.src/d.ts"));
 }
 
 #[test]

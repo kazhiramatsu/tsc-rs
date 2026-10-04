@@ -4789,6 +4789,7 @@ fn config_module_resolution_options<'j0>(
         lib_replacement: config_option_bool(options, "libReplacement"),
         jsx: config_option_i32(options, "jsx"),
         no_emit_for_js_files: None, // internal Program API option, not a tsconfig setting
+        suppress_output_path_check: None, // internal harness option, not a tsconfig setting
         allow_non_ts_extensions: None, // internal transpile API option, not a tsconfig setting
         no_emit: config_option_bool(options, "noEmit"),
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),

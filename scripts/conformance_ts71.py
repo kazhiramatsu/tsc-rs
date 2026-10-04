@@ -14,7 +14,10 @@ case, `begin <json>` before a lane-A configuration runs and `result <json>`
 for every configuration. When a worker aborts, spends longer than `--timeout`
 on one step or grows past `--max-rss-mib`, the supervisor records the
 configuration it was running (or, outside one, its case) as a harness error
-and restarts the worker after it. The merged report is written to
+and restarts the worker after it. A worker's resident size grows over the
+cases it ran, so a configuration that crosses `--max-rss-mib` is first run
+again in a fresh worker and recorded only when it crosses the limit there
+too. The merged report is written to
 target/conformance-ts71/<profile>/report.json, and each shard's stderr to
 shard-<n>.stderr beside it.
 
@@ -85,6 +88,10 @@ class Shard:
         self.stop = stop
         self.results = []
         self.failures = []
+        # Configurations (case key, stem) a memory kill already ran again,
+        # and a line for each such run.
+        self.retried = set()
+        self.retries = []
         self.error = None
 
     def run(self):
@@ -150,6 +157,15 @@ class Shard:
             raise RuntimeError(f"the worker stopped before its first case ({reason})")
         position = [entry[0] for entry in self.remaining].index(key)
         begin = state["begin"]
+        retry = (key, begin["stem"] if begin else "")
+        if killed and killed.startswith("memory limit") and retry not in self.retried:
+            # The worker's resident size includes what the cases before this
+            # one left behind: run it again first in a fresh worker.
+            self.retried.add(retry)
+            self.retries.append(f"{retry[1] or key}: {killed}")
+            leave_out = self.remaining[position][1] + reported.get(key, [])
+            self.remaining = [(key, leave_out)] + self.remaining[position + 1:]
+            return
         if begin is None:
             configuration, stem = "", ""
             reason += " outside a lane-A configuration"
@@ -308,6 +324,8 @@ def main():
     report = {"profile": args.profile, "summary": summary, "results": results}
     (out_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"{len(keys)} cases in {time.monotonic() - started:.0f} s: {json.dumps(summary)}")
+    for retry in sorted(retry for shard in shards for retry in shard.retries):
+        print(f"  ran again in a fresh worker: {retry}")
     for failure in sorted(failure for shard in shards for failure in shard.failures):
         print(f"  restarted after {failure}")
     print(f"report: {out_dir / 'report.json'}")

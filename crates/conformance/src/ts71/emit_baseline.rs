@@ -4,11 +4,11 @@
 //! tsc-rs's emitted files, so a configuration's output can be compared with
 //! its `.js` and `.js.map` references byte for byte.
 //!
-//! Two sections of the `.js` reference are not reproduced: `[DtsFileErrors]`,
-//! the diagnostics of compiling the emitted declaration files again, and the
-//! `!!!! File … noCheck emit` comparison. A configuration whose reference
-//! carries one compares as an emit mismatch. The JSON parse-error rendering
-//! for emitted `.json` files is not reproduced either.
+//! The `[DtsFileErrors]` section (the diagnostics of compiling the emitted
+//! declaration files again) and the `!!!! File … noCheck emit` comparison
+//! are appended by the caller from [`dts_file_errors_section`] and
+//! [`no_check_sections`]. The JSON parse-error rendering for emitted `.json`
+//! files is not reproduced.
 
 use super::errors_baseline::{remove_test_path_prefixes, InputFile};
 use tsc_compiler::{EmitArtifact, EmitArtifactKind};
@@ -56,13 +56,15 @@ impl Emission {
 }
 
 /// The `.js` baseline: the header, the sources (`otherFiles` then
-/// `toBeCompiled`), the JavaScript files and the declaration files. `None`
-/// when nothing was emitted (the runner then writes no file).
+/// `toBeCompiled`), the JavaScript files, the declaration files and then
+/// `sections` (the declaration-recompile errors and the noCheck comparison).
+/// `None` when all of them are empty (the runner then writes no file).
 pub(super) fn render_js(
     header: &str,
     sources: &[InputFile<'_>],
     emission: &Emission,
     full_emit_paths: bool,
+    sections: &str,
 ) -> Option<String> {
     let mut ts_code = format!("//// [{header}] ////{NEW_LINE}{NEW_LINE}");
     for (index, source) in sources.iter().enumerate() {
@@ -89,10 +91,61 @@ pub(super) fn render_js(
             js_code.push_str(&file_output(file, full_emit_paths));
         }
     }
+    js_code.push_str(sections);
     if js_code.is_empty() {
         return None;
     }
     Some(format!("{ts_code}{NEW_LINE}{NEW_LINE}{js_code}"))
+}
+
+/// The `[DtsFileErrors]` section over the declaration compile's error
+/// baseline (`DoJSEmitBaseline`, js_emit_baseline.go:87-97).
+pub(super) fn dts_file_errors_section(errors: &str) -> String {
+    format!("{NEW_LINE}{NEW_LINE}//// [DtsFileErrors]{NEW_LINE}{NEW_LINE}{NEW_LINE}{errors}")
+}
+
+/// The comparison of the noCheck emit with the original one, declaration
+/// files first (`compareResultFileSets`, js_emit_baseline.go:99-131): a file
+/// only the noCheck emit wrote is listed with its text. A file both wrote
+/// with different texts gets tsgo's header, but not its line diff, which no
+/// reference baseline shows.
+pub(super) fn no_check_sections(
+    original: &Emission,
+    no_check: &Emission,
+    full_emit_paths: bool,
+) -> String {
+    let mut text = String::new();
+    for (no_check_files, original_files) in
+        [(&no_check.dts, &original.dts), (&no_check.js, &original.js)]
+    {
+        for file in no_check_files {
+            let name = remove_test_path_prefixes(&file.path);
+            match original_files
+                .iter()
+                .find(|candidate| candidate.path == file.path)
+            {
+                None => {
+                    text.push_str(&format!(
+                        "{NEW_LINE}{NEW_LINE}!!!! File {name} missing from original emit, but present in noCheck emit{NEW_LINE}"
+                    ));
+                    text.push_str(&file_output(file, full_emit_paths));
+                }
+                Some(original) if original.content != file.content => {
+                    text.push_str(&format!(
+                        "{NEW_LINE}{NEW_LINE}!!!! File {name} differs from original emit in noCheck emit{NEW_LINE}"
+                    ));
+                    let shown = if full_emit_paths {
+                        name.clone()
+                    } else {
+                        base_name(&file.path).to_owned()
+                    };
+                    text.push_str(&format!("//// [{shown}]{NEW_LINE}"));
+                }
+                Some(_) => {}
+            }
+        }
+    }
+    text
 }
 
 /// The map options `DoSourcemapBaseline` reads.

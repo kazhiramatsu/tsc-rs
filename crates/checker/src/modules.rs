@@ -8983,9 +8983,7 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    /// tsc-port: checkModuleExportName @6.0.3
-    /// tsc-hash: 71ca29f090ef36bd1e84610275aceb2096279520a8a204c38683ef4a157c9e5d
-    /// tsc-span: _tsc.js:86019-86028
+    /// tsgo-port: Checker.checkModuleExportName @7.1 (checker.go:5517-5528)
     fn check_module_export_name(
         &mut self,
         name: Option<NodeId>,
@@ -8999,7 +8997,10 @@ impl<'a> CheckerState<'a> {
         }
         if !allow_string_literal {
             self.grammar_error_on_node_js(name, &diagnostics::Identifier_expected, &[]);
-        } else if matches!(self.options.emit_module_kind(), 5 | 6) {
+        } else if matches!(self.options.emit_module_kind(), 5 | 6)
+            // tsgo reports nothing in a declaration file (checker.go:5523).
+            && !self.binder.source_of_node(name).is_declaration_file
+        {
             self.grammar_error_on_node_js(
                 name,
                 &diagnostics::String_literal_import_and_export_names_are_not_supported_when_the_module_flag_is_set_to_es2015_or_es2020,

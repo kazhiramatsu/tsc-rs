@@ -173,9 +173,11 @@ fn compiler_plan_projects_ordered_custom_conditions() {
 }
 
 #[test]
-fn suppress_output_path_check_is_baseline_metadata() {
+fn suppress_output_path_check_is_a_compiler_option() {
+    // tsgo's harness parses `@suppressOutputPathCheck` as a compiler option
+    // (harnessutil.go:317-333), which turns off the Program's output-path
+    // verification (compiler/program.go:1340).
     let mut compiler_options = CompilerOptions::default();
-    let original_compiler_options = compiler_options.clone();
     let mut program_options = ProgramOptions::default();
     let original_program_options = program_options.clone();
     apply_compiler_setting(
@@ -185,9 +187,9 @@ fn suppress_output_path_check_is_baseline_metadata() {
         "suppressOutputPathCheck",
         "true",
     )
-    .expect("baseline metadata is accepted");
+    .expect("the option is accepted");
 
-    assert_eq!(compiler_options, original_compiler_options);
+    assert_eq!(compiler_options.suppress_output_path_check, Some(true));
     assert_eq!(program_options, original_program_options);
 }
 
