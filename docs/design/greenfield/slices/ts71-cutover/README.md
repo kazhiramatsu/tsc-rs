@@ -2203,3 +2203,30 @@ P3-5apの後の4件：
     branch÷main：zod 0.99969、Effect 1.00055。3回の差はnoiseで、劣化無し。
 - hosted：PR #668（head `baf19f2e4`）、run 37224328513 — `plan` 33s、`rust` 10m23s、`conformance (TypeScript 7.1)` 21m10s、
   `gates` 14s。
+
+## P3-5ar `require`のmodule名とaccessorの重複（2026-10-05）
+
+P3-5aqの後の2件：
+- **`require`のmodule名**：tsgoの`getExternalModuleMember`は`require`の宣言の引数をmodule指定子として読み
+  （`getExternalModuleRequireArgument`）、TS2305は書かれたとおりの名前（`"./mod"`）を出す。tsc-rsは`require`の宣言で
+  指定子を見つけられず、module symbolの名前（CLIでは絶対path）を出していた。`commonJSAliasedExport`。
+- **accessorの重複**：tsgoの`declareSymbolEx`は、accessorが別種の宣言と衝突した時、symbolを両方のaccessorとして印を
+  付けるので、後に続く別種のaccessorも重複になる（binder/binder.go:279-285）。`get x`・`x()`・`set x`の3つ目にも
+  TS2300が出る。`duplicateIdentifierChecks`。
+- unit test：CLI（tsgoの出力にpin）で2件。修正前のbuildでは2件ともtsgoと違っていた。
+- conformance（release build、`8ee2087a3`、`--workers 2`、511 s）：
+  - 15,228構成、lane A 13,467（変化なし）。
+  - errors full 13,398→13,400：上の2件（`commonJSAliasedExport`はcategory→full）。mismatch 40→39、category 4→3。
+  - emitは変化なし。下がった構成も、不一致のまま描いた文が変わった構成も無い。`intersectionConstructorReductionCrash`は
+    今回もmemory制限でharness error（ratchetの外）。
+- ratchet：0 regressions、2行raise。
+- local：formatとworkspace全体のclippy。binder・checker・compiler・harness・conformanceのtest（17 targets、2,141件）。
+  filter `uplicate`・`ccessor`で下がった構成は無かった（`uplicate`のharness error 2件は以前からの`deduplicatePackages`）。
+- perf（README corpora、nice 20、main（P3-5aqのbuild `f881a216e`）対tsgo 7.1.0-dev）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 140→138、zod 520→524、Playwright 367→358、TypeScript
+    `src/compiler` 353→335、Next.js 799→795、Effect 511→535、VS Code 3,473→3,437。tsc-rs÷tsgo 0.59–0.95。読み込んだ
+    文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 147→144、zod 633→628、Playwright 506→488、TypeScript `src/compiler` 582→527、
+    Next.js 1,041→1,026、Effect 738→766。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B：Effect `--noEmit` 524→516、Effect `bench-full` 740→753、zod `--noEmit` 522→518。1 checkerの命令数
+    branch÷main：zod 1.00042、Effect 1.00008。3回のEffectの差はnoiseで、劣化無し。
