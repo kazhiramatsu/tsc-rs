@@ -1640,5 +1640,16 @@ optionの扱いが原因の3 class：
 - ratchet：0 regressions、37行raise（emit none→js）。
 - local：formatとworkspace全体のclippy。harness・conformance・compiler・emitter・programのtest（43 targets、1,447件、
   `282caf330`）とCLIのtest。
+- hosted：PR #655（head `ff6b3154a`、merge `c6b070f84`）、run 37195721743 — `plan` 27s、`rust` 10m10s、
+  `conformance (TypeScript 7.1)` 20m36s、`gates` 12s。
+- perf（README corpora、nice 20、main（PC4のcode `31b313976`）と本branch（`d5ed710d5`）のrelease build対tsgo 7.1.0-dev、
+  median wall ms main→本branch。compilerの変更はemitの計画とcheckerの条件が1つずつ）：`--noEmit`（3 rounds）hono
+  129→136、zod 526→523、Playwright 364→358、TypeScript `src/compiler` 339→330、Next.js 797→752、Effect 572→498、
+  VS Code 3,448→3,524（min 3,410→3,388）。tsc-rs÷tsgoは0.60〜0.96、診断の出力と読み込んだdocument数は7 corpusとも
+  mainと同一。`tsconfig.bench-full.json`（3 rounds）：hono 141→149、zod 614→641、Playwright 491→484、TypeScript
+  `src/compiler` 536→516、Next.js 1,027→1,023、Effect 761→768（tsgo比0.59〜0.81）、出力と診断は6 corpusともmainと
+  同一。A/B（5 rounds）：zod full 597／596、hono full 139／142、honoの`--noEmit` 126／120、Effect full 739／746 ms。
+  単一checker（`TSRS_CHECKERS=1`、5回のmedian）の命令数：hono full 6.319／6.315 G（peak memory footprint
+  152.3／151.8 MB）、zod full 39.451／39.431 G（895.4／893.8 MB）。退行なし。
 - 残り：emitの不一致74構成。`composite`と`incremental`（buildinfo、8構成）、TypeScriptのd.tsの差（computed key、
   型の括弧、型parameterの名前の付け直し、unionの順）、JavaScriptの出力の差など。
