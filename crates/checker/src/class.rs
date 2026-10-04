@@ -1982,35 +1982,19 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: checkBaseTypeAccessibility @6.0.3
-    /// tsc-hash: 2ebb3395a2644f70d2a0c79e466680ef29c26cb0c1b4e7da8980121328357972
-    /// tsc-span: _tsc.js:85269-85280
+    /// tsgo: checkBaseTypeAccessibility (checker.go:4538-4544). Every construct
+    /// signature of the base counts (getConstructorAccessibilityError), and
+    /// the message names the class that declares the private constructor.
     ///
     /// getFullyQualifiedName reduces to the unescaped symbol name for
     /// parentless symbols; qualified flavors escape (display band).
     fn check_base_type_accessibility(&mut self, ty: TypeId, node: NodeId) -> CheckResult<()> {
         let signatures =
             self.get_signatures_of_type(ty, crate::structural::SignatureKind::Construct)?;
-        let Some(&first) = signatures.first() else {
-            return Ok(());
-        };
-        let Some(declaration) = self.signature_of(first).declaration else {
-            return Ok(());
-        };
-        if !tsc_binder::node_util::has_syntactic_modifier(
-            self.binder.source_of_node(declaration),
-            declaration,
-            ModifierFlags::PRIVATE,
-        ) {
-            return Ok(());
-        }
-        let Some(type_symbol) = self.tables.type_of(ty).symbol else {
-            return Ok(());
-        };
-        let type_class_declaration = self.get_class_like_declaration_of_symbol(type_symbol);
-        let within = self.is_node_within_class(node, type_class_declaration);
-        if !within {
-            let name = self.fully_qualified_name(type_symbol)?;
+        if let Some((_, class_symbol)) =
+            self.get_constructor_accessibility_error(node, &signatures, ModifierFlags::PRIVATE)?
+        {
+            let name = self.fully_qualified_name(class_symbol)?;
             self.error_at_js(
                 Some(node),
                 &diagnostics::Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,

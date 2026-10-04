@@ -3224,6 +3224,324 @@ fn config_file_names_are_absolute_and_print_relative_like_tsgo() {
     }
 }
 
+/// Run `tsc-rs --pretty false` over a one-file noEmit project and return its
+/// exit status and stdout.
+fn check_one_file(file_name: &str, text: &str, options: &str) -> (Option<i32>, String) {
+    let tree = TempTree::new();
+    fs::write(tree.path(file_name), text).expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        format!(
+            r#"{{"compilerOptions":{{"noEmit":true,"types":[]{options}}},"files":["{file_name}"]}}"#
+        ),
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert!(output.stderr.is_empty());
+    (
+        output.status.code(),
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+    )
+}
+
+#[test]
+fn assertions_stop_a_binary_expression_like_tsgo() {
+    // tsgo parseBinaryExpressionRest (parser.go:4686-4703): in
+    // `a ## b as T $$ c` the expression ends after the assertion when `$$`
+    // would bind before `##` once the assertion is erased (TypeScript issue
+    // 63527); equal precedence and lower-precedence operators continue. The
+    // expected diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "export const x01 = 1 + 1 as number * 2;\n",
+            "export const x02 = 1 >> 1 as any as number + 2;\n",
+            "export const x03 = 2 * 3 as number * 2;\n",
+            "export const x04 = 1 + 1 as number === 2;\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(1,36): error TS1005: ',' expected.\n",
+            "a.ts(2,44): error TS1005: ',' expected.\n",
+        )
+    );
+}
+
+#[test]
+fn jsx_attribute_values_skip_whitespace_like_tsgo() {
+    // tsgo ScanJsxAttributeValue (scanner.go:1330-1347) skips whitespace and
+    // line breaks after `=`, so a quoted value separated from `=` may span
+    // lines. The expected diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.tsx",
+        "const a = <div className= \"foo\n\n bar\" />;\nconst b = <div className=\n\"foo\n bar\" />;\nconst c = <div id= {1} />;\n",
+        r#","jsx":"preserve""#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.tsx(1,11): error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.\n",
+            "a.tsx(4,11): error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.\n",
+            "a.tsx(7,11): error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.\n",
+        )
+    );
+}
+
+#[test]
+fn every_construct_signature_decides_constructor_access_like_tsgo() {
+    // tsgo getConstructorAccessibilityError (checker.go:8834-8862) visits
+    // every construct signature, so an intersection of class types reports
+    // the class whose constructor is private or protected wherever it
+    // stands. The expected diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "class A1 {\n",
+            "  private constructor(arg: string) {}\n",
+            "}\n",
+            "class B1 {\n",
+            "  constructor(arg: number) {}\n",
+            "}\n",
+            "declare const Cls1: typeof A1 & typeof B1;\n",
+            "new Cls1(42);\n",
+            "class Derived1 extends Cls1 {}\n",
+            "\n",
+            "class A2 {\n",
+            "  constructor(arg: string) {}\n",
+            "}\n",
+            "class B2 {\n",
+            "  protected constructor(arg: number) {}\n",
+            "}\n",
+            "declare const Cls2: typeof A2 & typeof B2;\n",
+            "new Cls2(42);\n",
+            "class Derived2 extends Cls2 {}\n",
+            "export {};\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(8,1): error TS2673: Constructor of class 'A1' is private and only accessible within the class declaration.\n",
+            "a.ts(9,24): error TS2675: Cannot extend a class 'A1'. Class constructor is marked as private.\n",
+            "a.ts(18,1): error TS2674: Constructor of class 'B2' is protected and only accessible within the class declaration.\n",
+        )
+    );
+}
+
+#[test]
+fn import_type_attributes_are_checked_like_tsgo() {
+    // tsgo checkImportType (checker.go:3372-3381): import type attribute
+    // values must be string literals (TS2858), and the attributes' type is
+    // checked against the global ImportAttributes type (checkImportAttributes).
+    // The expected diagnostics are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "declare module \"dependency\" {\n",
+            "    export interface Type {}\n",
+            "}\n",
+            "type T1 = typeof import(\"dependency\", {\n",
+            "    with: {\n",
+            "        a: (() => \"value\")(),\n",
+            "    },\n",
+            "});\n",
+            "type T2 = import(\"dependency\", {\n",
+            "    with: {\n",
+            "        \"resolution-mode\": 0,\n",
+            "    },\n",
+            "}).Type;\n",
+        ),
+        r#","strict":true,"module":"esnext","target":"esnext""#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(6,12): error TS2858: Import attribute values must be string literal expressions.\n",
+            "a.ts(10,11): error TS2322: Type '{ \"resolution-mode\": 0; }' is not assignable to type 'ImportAttributes'.\n",
+            "  Property 'resolution-mode' is incompatible with index signature.\n",
+            "    Type 'number' is not assignable to type 'string'.\n",
+            "a.ts(11,28): error TS2858: Import attribute values must be string literal expressions.\n",
+        )
+    );
+}
+
+#[test]
+fn private_identifiers_in_destructuring_are_grammar_errors_like_tsgo() {
+    // tsgo checkVariableLikeDeclaration and
+    // checkObjectLiteralDestructuringPropertyAssignment (checker.go:5979,
+    // 12805) report TS18064 at the private name of a binding element and of
+    // a destructuring assignment. The expected diagnostics are tsgo's for
+    // the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "class A {\n",
+            "    #foo = 1;\n",
+            "    bar() {\n",
+            "        const { #foo: foo } = this;\n",
+            "        let bar;\n",
+            "        ({ #foo: bar } = this);\n",
+            "    }\n",
+            "}\n",
+        ),
+        r#","target":"es2022""#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(4,17): error TS18064: Private identifiers cannot be used in destructuring patterns.\n",
+            "a.ts(6,12): error TS18064: Private identifiers cannot be used in destructuring patterns.\n",
+        )
+    );
+}
+
+#[test]
+fn exported_namespace_classes_take_no_await_context_like_tsgo() {
+    // tsgo parseClassDeclarationOrExpression (parser.go:1753-1759) gives an
+    // exported class the await context of a module's top level only among
+    // the source elements; a namespace body is a block, so `await` in a
+    // computed member name there reports TS1308. The expected diagnostics
+    // are tsgo's for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "declare const x: string;\n",
+            "namespace N {\n",
+            "    export class B {\n",
+            "        [await x]() {}\n",
+            "    }\n",
+            "    export class B2 {\n",
+            "        [x.length]() {}\n",
+            "        m() { const y: number = \"s\"; }\n",
+            "    }\n",
+            "}\n",
+            "export {};\n",
+        ),
+        r#","target":"esnext","module":"esnext""#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(4,10): error TS1308: 'await' expressions are only allowed within async functions and at the top levels of modules.\n",
+            "a.ts(8,21): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+        )
+    );
+}
+
+#[test]
+fn nullish_coalescing_semantics_follow_both_operands_like_tsgo() {
+    // tsgo getSyntacticNullishnessSemantics (checker.go:13185-13194): a `??`
+    // or `??=` operand is nullish only through its left operand's nullish
+    // path, so `b ?? null` or `x ??= null` on the left of `??` is not always
+    // nullish, while `null ?? null` is. The expected diagnostics are tsgo's
+    // for the same project.
+    let (status, stdout) = check_one_file(
+        "a.ts",
+        concat!(
+            "declare let a: unknown, b: unknown;\n",
+            "const p = (a ? b ?? null : null) ?? 0;\n",
+            "declare let x: string | null | undefined;\n",
+            "const q = (x ??= null) ?? 0;\n",
+            "const r = (null ?? null) ?? 0;\n",
+            "const s = (x ?? null) ?? 0;\n",
+            "export {};\n",
+        ),
+        r#","strict":true"#,
+    );
+    assert_eq!(status, Some(2));
+    assert_eq!(
+        stdout,
+        concat!(
+            "a.ts(5,12): error TS2871: This expression is always nullish.\n",
+            "a.ts(5,12): error TS2871: This expression is always nullish.\n",
+        )
+    );
+}
+
+#[test]
+fn binary_files_are_reported_like_tsgo() {
+    // tsgo Scan (scanner.go:931-936): a U+FFFD character outside a token
+    // reports TS1490 at the start of the file and ends the scan; the pretty
+    // writer prints no code snippet for it (diagnosticwriter.go:241). The
+    // expected diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        b"const a = 1;\nG@\x04\xef\xbf\xbd\x04\x04;\n",
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[]},"files":["a.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        concat!(
+            "a.ts(1,1): error TS1490: File appears to be binary.\n",
+            "a.ts(2,1): error TS1434: Unexpected keyword or identifier.\n",
+            "a.ts(2,3): error TS1127: Invalid character.\n",
+            "a.ts(2,4): error TS1128: Declaration or statement expected.\n",
+        )
+    );
+    let pretty = run(&tree, &["--pretty", "true"]);
+    assert_eq!(pretty.status.code(), Some(2));
+    let stdout = strip_ansi_sgr(&String::from_utf8(pretty.stdout).expect("utf-8 stdout"));
+    assert!(
+        stdout.starts_with(
+            "a.ts:1:1 - error TS1490: File appears to be binary.\na.ts:2:1 - error TS1434: Unexpected keyword or identifier.\n\n"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn commonjs_require_destructuring_is_not_esm_syntax_like_tsgo() {
+    // tsgo checkAliasSymbol (checker.go:7011): under `--module preserve` a
+    // `require` bound to a variable or a destructuring element of a
+    // CommonJS file is not ESM syntax; an import declaration is (TS1293).
+    // The expected diagnostics are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("dep.cjs"),
+        "module.exports.readFile = function () {};\n",
+    )
+    .expect("write dep.cjs");
+    fs::write(
+        tree.path("main.cjs"),
+        "const { readFile } = require(\"./dep.cjs\");\nconst dep = require(\"./dep.cjs\");\nreadFile;\ndep;\n",
+    )
+    .expect("write main.cjs");
+    fs::write(
+        tree.path("esm.cjs"),
+        "import { readFile as fromEsm } from \"./dep.cjs\";\nfromEsm;\n",
+    )
+    .expect("write esm.cjs");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"noEmit":true,"types":[],"target":"esnext","module":"preserve","moduleResolution":"bundler","verbatimModuleSyntax":true,"allowJs":true,"checkJs":true},"files":["dep.cjs","main.cjs","esm.cjs"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("utf-8 stdout"),
+        "esm.cjs(1,10): error TS1293: ECMAScript module syntax is not allowed in a CommonJS module when 'module' is set to 'preserve'.\n"
+    );
+}
+
 #[test]
 fn error_recovery_syntax_is_erased_like_tsgo() {
     // tsgo's type eraser drops type parameters and return types from accessors

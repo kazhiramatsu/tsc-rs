@@ -31,6 +31,7 @@ compiler/ParameterList5	full	js
 compiler/ParameterList6	full	js
 compiler/ParameterList7	full	js
 compiler/ParameterList8	full	js
+compiler/TransportStream	full	js
 compiler/abstractClassInLocalScope	full	js
 compiler/abstractClassInLocalScopeIsAbstract	full	js
 compiler/abstractClassUnionInstantiation	full	js
@@ -421,6 +422,7 @@ compiler/avoidNarrowingUsingConstVariableFromBindingElementWithLiteralInitialize
 compiler/awaitCallExpressionInSyncFunction	full	js
 compiler/awaitExpressionInnerCommentEmit	full	js
 compiler/awaitInClassInAsyncFunction	full	js
+compiler/awaitInNamespaceExportedClassComputedProperty	full	js
 compiler/awaitInNonAsyncFunction	full	js
 compiler/awaitLiteralValues	full	js
 compiler/awaitObjectLiteral	full	js
@@ -1417,6 +1419,7 @@ compiler/copyrightWithNewLine1	full	js
 compiler/copyrightWithoutNewLine1	full	js
 compiler/correctOrderOfPromiseMethod	full	js
 compiler/correlatedUnions	full	js
+compiler/corrupted	full	js
 compiler/couldNotSelectGenericOverload	full	js
 compiler/covariance1	full	js
 compiler/crashDeclareGlobalTypeofExport	full	js
@@ -1990,6 +1993,7 @@ compiler/didYouMeanElaborationsForExpressionsWhichCouldBeCalled	full	js
 compiler/didYouMeanStringLiteral	full	js
 compiler/didYouMeanSuggestionErrors	full	js
 compiler/differentTypesWithSameName	full	js
+compiler/disallowUnerasableAssertion	full	js
 compiler/disallowedBlockScopedInPresenceOfParseErrors1	full	js
 compiler/discriminableUnionWithIntersectedMembers	full	js
 compiler/discriminantElementAccessCheck	full	js
@@ -2712,6 +2716,7 @@ compiler/extendGlobalThis2	full	js
 compiler/extendNonClassSymbol1	full	js
 compiler/extendNonClassSymbol2	full	js
 compiler/extendPrivateConstructorClass	full	js
+compiler/extendPrivateConstructorClass2	full	js
 compiler/extendedInterfaceGenericType	full	js
 compiler/extendedInterfacesWithDuplicateTypeParameters	full	js
 compiler/extendedUnicodeEscapeSequenceIdentifiers	full	js
@@ -4101,6 +4106,7 @@ compiler/jsxLibraryManagedAttributesUnexpectedType	full	js
 compiler/jsxLibraryManagedAttributesUnusedGeneric	full	js
 compiler/jsxLocalNamespaceIndexSignatureNoCrash	full	js
 compiler/jsxMultilineAttributeStringValues	full	js
+compiler/jsxMultilineAttributeStringValues2	full	js
 compiler/jsxMultilineAttributeValuesReact	full	js
 compiler/jsxNamespaceElementChildrenAttributeIgnoredWhenReactJsx(jsx=react-jsx)	full	js
 compiler/jsxNamespaceElementChildrenAttributeIgnoredWhenReactJsx(jsx=react-jsxdev)	full	js
@@ -4495,6 +4501,7 @@ compiler/modulePreserve3	full	js
 compiler/modulePreserve4	full	js
 compiler/modulePreserve5	full	js
 compiler/modulePreserveImportHelpers	full	js
+compiler/modulePreserveRequireDestructuring	full	js
 compiler/modulePreserveTopLevelAwait1(target=es2016)	full	js
 compiler/modulePreserveTopLevelAwait1(target=esnext)	full	js
 compiler/modulePrologueCommonjs	full	js
@@ -4907,6 +4914,7 @@ compiler/nounusedTypeParameterConstraint	full	js
 compiler/null	full	js
 compiler/nullKeyword	full	js
 compiler/nullableFunctionError	full	js
+compiler/nullishCoalescingAlwaysNullFalsePositive	full	js
 compiler/numberAsInLHS	full	js
 compiler/numberAssignableToEnumInsideUnion	full	js
 compiler/numberLiteralsWithLeadingZeros	full	js
@@ -5096,6 +5104,7 @@ compiler/overloadsWithProvisionalErrors	full	js
 compiler/overloadsWithinClasses	full	js
 compiler/overrideBaseIntersectionMethod	full	js
 compiler/overridingPrivateStaticMembers	full	js
+compiler/overshifts	full	js
 compiler/packageDeduplicationDuplicateGlobals	full	js
 compiler/packageJsonImportsWildcardNoCrash	full	js
 compiler/packageJsonImportsWildcardTsExtensionError	full	js
@@ -5192,6 +5201,7 @@ compiler/pickOfLargeObjectUnionWorks	full	js
 compiler/pinnedComments1	full	js
 compiler/potentiallyUnassignedVariableInCatch	full	js
 compiler/potentiallyUncalledDecorators	full	js
+compiler/predicateSemantics	full	js
 compiler/prefixIncrementAsOperandOfPlusExpression	full	js
 compiler/prefixedNumberLiteralAssignToNumberLiteralType	full	js
 compiler/preserveConstEnums	full	js
@@ -9305,6 +9315,7 @@ conformance/importAttributes1(module=es2015)	full	js
 conformance/importAttributes1(module=esnext)	full	js
 conformance/importAttributes10	full	js
 conformance/importAttributes11	full	js
+conformance/importAttributes12	full	js
 conformance/importAttributes2(module=commonjs)	full	js
 conformance/importAttributes2(module=es2015)	full	js
 conformance/importAttributes2(module=esnext)	full	js
@@ -11816,6 +11827,7 @@ conformance/privateNamesIncompatibleModifiers	full	js
 conformance/privateNamesIncompatibleModifiersJs	full	js
 conformance/privateNamesInterfaceExtendingClass	full	js
 conformance/privateNamesNoDelete	full	js
+conformance/privateNamesNotAllowedAsDestructuringPatterns	full	js
 conformance/privateNamesNotAllowedAsParameters	full	js
 conformance/privateNamesNotAllowedInVariableDeclarations	full	js
 conformance/privateNamesUnique-1	full	js

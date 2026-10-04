@@ -491,6 +491,9 @@ impl<'text> Scanner<'text> {
                 }
                 '#' => return self.scan_private_identifier(),
                 '\u{fffd}' => {
+                    // tsgo Scan (scanner.go:931-936) reports TS1490 at the
+                    // start of the file and stops scanning there.
+                    self.error_at(0, 0, &gen::File_appears_to_be_binary);
                     self.pos = self.end;
                     self.token = SyntaxKind::NonTextFileMarkerTrivia;
                     return self.token;
@@ -1797,8 +1800,18 @@ impl<'text> Scanner<'text> {
         self.finish_identifier_token()
     }
 
+    /// tsgo ScanJsxAttributeValue (scanner.go:1330-1347): whitespace and line
+    /// breaks between `=` and the value are skipped, so the token starts at
+    /// the opening quote and a quoted value may span lines.
     pub(crate) fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
         self.full_start_pos = self.pos;
+        while let Some(ch) = self.current_char() {
+            if !is_whitespace_like(ch) {
+                break;
+            }
+            self.advance_char();
+        }
+        self.token_start = self.pos;
         match self.current_char() {
             Some('"' | '\'') => self.scan_jsx_attribute_string(),
             _ => self.scan(),

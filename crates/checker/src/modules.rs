@@ -8870,32 +8870,39 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             if let Some(attributes) = attributes {
-                let (token, elements) = match self.data_of(attributes) {
-                    NodeData::ImportAttributes(data) => (data.token, data.elements),
-                    _ => (SyntaxKind::WithKeyword, None),
-                };
-                let message = if token == SyntaxKind::WithKeyword {
-                    &diagnostics::Import_attribute_values_must_be_string_literal_expressions
-                } else {
-                    &diagnostics::Import_assertion_values_must_be_string_literal_expressions
-                };
-                let mut has_error = false;
-                for attribute in self.nodes_of(elements) {
-                    let value = match self.data_of(attribute) {
-                        NodeData::ImportAttribute(data) => data.value,
-                        _ => None,
-                    };
-                    if let Some(value) = value {
-                        if self.kind_of(value) != SyntaxKind::StringLiteral {
-                            has_error = true;
-                            self.error_at_js(Some(value), message, &[]);
-                        }
-                    }
-                }
-                return Ok(!has_error);
+                return Ok(!self.check_grammar_import_attribute_values(attributes));
             }
         }
         Ok(true)
+    }
+
+    /// tsgo: checkGrammarImportAttributeValues (grammarchecks.go:2123-2134).
+    /// Every attribute value must be a string literal (TS2858, for `with`
+    /// and `assert` alike); the rows are ordinary errors, reported in a
+    /// file with parse errors as well. Returns whether any value failed.
+    pub(crate) fn check_grammar_import_attribute_values(&mut self, attributes: NodeId) -> bool {
+        let elements = match self.data_of(attributes) {
+            NodeData::ImportAttributes(data) => data.elements,
+            _ => None,
+        };
+        let mut has_error = false;
+        for attribute in self.nodes_of(elements) {
+            let value = match self.data_of(attribute) {
+                NodeData::ImportAttribute(data) => data.value,
+                _ => None,
+            };
+            if let Some(value) = value {
+                if self.kind_of(value) != SyntaxKind::StringLiteral {
+                    has_error = true;
+                    self.error_at_js(
+                        Some(value),
+                        &diagnostics::Import_attribute_values_must_be_string_literal_expressions,
+                        &[],
+                    );
+                }
+            }
+        }
+        has_error
     }
 
     /// tsc-port: getExternalModuleName @6.0.3
@@ -9367,8 +9374,11 @@ impl<'a> CheckerState<'a> {
                 let message = self.get_verbatim_module_syntax_error_message(node);
                 self.error_at_js(Some(node), message, &[]);
             } else if self.options.emit_module_kind() == 200
+                // tsgo (checker.go:7011): a `require` bound to a variable or
+                // to a destructuring element is CommonJS syntax.
                 && self.kind_of(node) != SyntaxKind::ImportEqualsDeclaration
                 && self.kind_of(node) != SyntaxKind::VariableDeclaration
+                && self.kind_of(node) != SyntaxKind::BindingElement
                 && self.emit_module_format_of_file(node) == 1
             {
                 self.error_at_js(
@@ -9514,6 +9524,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ImportDeclaration(data) => data.attributes,
             NodeData::ExportDeclaration(data) => data.attributes,
             NodeData::JSDocImportTag(data) => data.attributes,
+            NodeData::ImportType(data) => data.attributes,
             _ => None,
         };
         let Some(node) = attributes else {
