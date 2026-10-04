@@ -2821,7 +2821,10 @@ fn common_js_flattens_destructuring_assignments_to_all_exported_names() {
 }
 
 #[test]
-fn common_js_flattens_exported_destructuring_variable_declarations() {
+fn common_js_writes_exported_destructuring_variable_declarations_as_assignments() {
+    // tsgo keeps an exported binding pattern as a destructuring assignment to
+    // `exports.name` (transformInitializedVariable, commonjsmodule.go:1110-1128);
+    // the expected output is tsgo's for the same source.
     let source_text = concat!(
         "export let { toString } = 1;\n",
         "{\n",
@@ -2868,7 +2871,7 @@ fn common_js_flattens_exported_destructuring_variable_declarations() {
             "\"use strict\";\n",
             "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
             "exports.toString = void 0;\n",
-            "exports.toString = 1..toString;\n",
+            "({ toString: exports.toString } = 1);\n",
             "{\n",
             "    let { toFixed } = 1;\n",
             "}\n",
