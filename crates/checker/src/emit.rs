@@ -1114,7 +1114,7 @@ impl EmitResolver for CheckerSession<'_> {
         target: tsc_emitter::TransformSourceId,
         node: EmitResolverNode,
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<tsc_emitter::TransformNode, EmitResolverError> {
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
         let method = EmitResolverMethod::CreateLiteralConstValue;
         let mut state = self.state.lock().expect("checker session state");
         validate_resolver_node(&state, method, node)?;

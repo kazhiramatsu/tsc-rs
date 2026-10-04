@@ -91,6 +91,10 @@ impl EmitNodeBuilderFlags {
     pub const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
+
+    pub const fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
 }
 
 /// InternalNodeBuilderFlags word.
@@ -1476,7 +1480,7 @@ pub trait EmitResolver {
         target: TransformSourceId,
         node: EmitResolverNode,
         tracker: &mut dyn EmitSymbolTracker,
-    ) -> Result<TransformNode, EmitResolverError> {
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
         let _ = (arena, target, tracker);
         Err(unavailable(
             EmitResolverMethod::CreateLiteralConstValue,

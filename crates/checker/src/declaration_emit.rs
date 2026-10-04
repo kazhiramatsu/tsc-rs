@@ -2027,7 +2027,7 @@ impl<'a> CheckerState<'a> {
         literal_type: tsc_types::TypeId,
         enclosing_declaration: NodeId,
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
         use tsc_types::{LiteralValue, TypeData, TypeFlags};
         let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
         let flags = self.tables.flags_of(literal_type);
@@ -2073,7 +2073,7 @@ impl<'a> CheckerState<'a> {
             )?
             .flatten();
             if let Some(node) = node {
-                return Ok(node);
+                return Ok(Some(node));
             }
             // encounteredError inside the enum arm falls through to the
             // literal-value arms exactly as upstream's falsy `enumResult`.
@@ -2091,25 +2091,18 @@ impl<'a> CheckerState<'a> {
             return arena
                 .factory()
                 .create_token(target, kind, tsc_emitter::TransformFlags::NONE)
+                .map(Some)
                 .map_err(|error| node_builder_factory_error(method, error));
         }
+        // tsgo CreateLiteralConstValue (emitresolver.go:988-1030) answers no
+        // value for a type that is not a literal.
         let value = match &self.tables.type_of(literal_type).data {
             TypeData::Literal { value } => value.clone(),
-            _ => {
-                return Err(tsc_emitter::EmitResolverError::CheckerAborted {
-                    method,
-                    node: EmitResolverNode::from_raw_source(
-                        u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
-                            .unwrap_or(0),
-                        enclosing_declaration,
-                    ),
-                    reason: "literal-const type is not a literal",
-                })
-            }
+            _ => return Ok(None),
         };
         let mut factory = arena.factory();
         let map_factory = |error| node_builder_factory_error(method, error);
-        match value {
+        let node = match value {
             LiteralValue::BigInt(pseudo) => factory
                 .create_big_int_literal(target, format!("{}n", pseudo.to_base10_string()))
                 .map_err(map_factory),
@@ -2127,7 +2120,8 @@ impl<'a> CheckerState<'a> {
             LiteralValue::Number(number) => factory
                 .create_numeric_literal(target, tsc_types::js_number_to_string(number))
                 .map_err(map_factory),
-        }
+        };
+        node.map(Some)
     }
 
     /// tsc-port: createLiteralConstValue @6.0.3
@@ -2139,7 +2133,7 @@ impl<'a> CheckerState<'a> {
         target: tsc_emitter::TransformSourceId,
         node: NodeId,
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
-    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
         let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
         let symbol = self
             .get_symbol_of_declaration(node)

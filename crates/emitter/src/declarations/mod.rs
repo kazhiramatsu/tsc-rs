@@ -4,6 +4,7 @@ mod bundle;
 mod diagnostics;
 mod ensure;
 mod expando;
+mod export_assignment;
 mod isolated;
 mod javascript;
 mod orchestration;

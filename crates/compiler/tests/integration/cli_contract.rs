@@ -1775,6 +1775,111 @@ fn typescript_expando_declaration_map_follows_tsgo() {
 }
 
 #[test]
+fn export_assignments_follow_tsgo() {
+    // tsgo writes an exported expression by its kind (transformExportAssignment,
+    // transform.go:1227-1297): a primitive literal initializes a `const`, an
+    // arrow function or function expression becomes a function declaration and a
+    // class expression a class declaration, both under the expression's own name
+    // or `_default` and written after the export, and any other expression types
+    // a `const`. The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("literal.ts"),
+        concat!("/** The answer. */\n", "export default 42;\n",),
+    )
+    .expect("write literal.ts");
+    fs::write(tree.path("unary.ts"), concat!("export default +1;\n",)).expect("write unary.ts");
+    fs::write(
+        tree.path("arrow.ts"),
+        concat!("export default (a: number, b: string) => ({ a, b });\n",),
+    )
+    .expect("write arrow.ts");
+    fs::write(
+        tree.path("named.ts"),
+        concat!(
+            "const format = 1;\n",
+            "export default (function format(value: string) { return value; });\n",
+        ),
+    )
+    .expect("write named.ts");
+    fs::write(
+        tree.path("point.ts"),
+        concat!(
+            "/** A point. */\n",
+            "export = class Point {\n",
+            "    x = 1;\n",
+            "    constructor(public y: number) {}\n",
+            "};\n",
+        ),
+    )
+    .expect("write point.ts");
+    fs::write(
+        tree.path("constant.ts"),
+        concat!("export default \"x\" as const;\n",),
+    )
+    .expect("write constant.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","module":"commonjs","strict":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["literal.ts","unary.ts","arrow.ts","named.ts","point.ts","constant.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/literal.d.ts")).expect("read literal.d.ts"),
+        concat!(
+            "/** The answer. */\n",
+            "declare const _default = 42;\n",
+            "export default _default;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/unary.d.ts")).expect("read unary.d.ts"),
+        concat!(
+            "declare const _default = 1;\n",
+            "export default _default;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/arrow.d.ts")).expect("read arrow.d.ts"),
+        concat!(
+            "export default _default;\n",
+            "declare function _default(a: number, b: string): {\n",
+            "    a: number;\n",
+            "    b: string;\n",
+            "};\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/named.d.ts")).expect("read named.d.ts"),
+        concat!(
+            "export default format_1;\n",
+            "declare function format_1(value: string): string;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/point.d.ts")).expect("read point.d.ts"),
+        concat!(
+            "export = Point;\n",
+            "/** A point. */\n",
+            "declare class Point {\n",
+            "    y: number;\n",
+            "    x: number;\n",
+            "    constructor(y: number);\n",
+            "}\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/constant.d.ts")).expect("read constant.d.ts"),
+        concat!(
+            "declare const _default: \"x\";\n",
+            "export default _default;\n",
+        )
+    );
+}
+
+#[test]
 fn declarations_and_namespace_merges_follow_tsgo() {
     // tsgo keeps a binding pattern without initializers whole in a `.d.ts`,
     // typed as the whole declaration; a variable, function or class already

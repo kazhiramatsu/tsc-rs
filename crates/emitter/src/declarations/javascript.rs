@@ -14,8 +14,8 @@ use tsc_syntax::{JSDocComment, NodeArrayId, NodeData, NodeId, SourceFile, Syntax
 use tsc_types::ModifierFlags;
 
 use crate::{
-    EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, TransformError, TransformNode,
-    TransformNodeArray, TransformSourceId, TransformationContext,
+    EmitInternalNodeBuilderFlags, TransformError, TransformNode, TransformNodeArray,
+    TransformSourceId, TransformationContext,
 };
 
 use super::diagnostics::DiagnosticContext;
@@ -532,12 +532,13 @@ impl DeclarationTransformer<'_> {
         let resolver_node = self.required_resolver_node(cx, type_node)?;
         let enclosing = self.current_enclosing_resolver_node(cx)?;
         let target = self.state()?.current_source_file;
+        let flags = self.declaration_emit_flags()?;
         let result = self.resolver.try_js_type_node_to_type_node(
             cx.arena_mut()?,
             target,
             resolver_node,
             enclosing,
-            EmitNodeBuilderFlags::DECLARATION_EMIT,
+            flags,
             EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
             &mut self.tracker,
         );
@@ -1370,11 +1371,12 @@ fn is_static(source: &SourceFile, member: NodeId) -> bool {
 /// counting the `implements` clause tsgo's reparser adds from `@implements`
 /// tags (transform.go:2114, isClassExtendingNull 2153-2168).
 fn has_base_types(source: &SourceFile, class: NodeId) -> bool {
-    let NodeData::ClassDeclaration(data) = &source.arena.node(class).data else {
-        return false;
+    let heritage_clauses = match &source.arena.node(class).data {
+        NodeData::ClassDeclaration(data) => data.heritage_clauses,
+        NodeData::ClassExpression(data) => data.heritage_clauses,
+        _ => return false,
     };
-    let clauses = data
-        .heritage_clauses
+    let clauses = heritage_clauses
         .map(|clauses| source.arena.node_array(clauses).nodes.to_vec())
         .unwrap_or_default();
     if clauses.is_empty()
@@ -1408,13 +1410,14 @@ fn has_base_types(source: &SourceFile, class: NodeId) -> bool {
 }
 
 fn class_members(source: &SourceFile, class: NodeId) -> Vec<NodeId> {
-    match &source.arena.node(class).data {
-        NodeData::ClassDeclaration(data) => data
-            .members
-            .map(|members| source.arena.node_array(members).nodes.to_vec())
-            .unwrap_or_default(),
-        _ => Vec::new(),
-    }
+    let members = match &source.arena.node(class).data {
+        NodeData::ClassDeclaration(data) => data.members,
+        NodeData::ClassExpression(data) => data.members,
+        _ => None,
+    };
+    members
+        .map(|members| source.arena.node_array(members).nodes.to_vec())
+        .unwrap_or_default()
 }
 
 fn children(source: &SourceFile, node: NodeId) -> Vec<NodeId> {
