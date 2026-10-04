@@ -9110,8 +9110,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 else {
                     return Ok(false);
                 };
-                return Ok(!exports.is_empty()
-                    && !(exports.len() == 1 && exports[0].as_js() == identifier.text()));
+                return Ok(!(exports.is_empty()
+                    || exports.len() == 1 && exports[0].as_js() == identifier.text()));
             }
             _ => return Ok(false),
         };
@@ -12335,10 +12335,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         // not the `in` operator: as modifiers of anything but a type
         // parameter they are a grammar error (typeeraser.go:99-106).
         let variance_modifier = matches!(kind, SyntaxKind::InKeyword | SyntaxKind::OutKeyword)
-            && !parent
+            && parent
                 .and_then(|parent| self.context.arena().node_ref(self.source, parent))
                 .and_then(|parent| self.context.arena().node(parent).ok())
-                .is_some_and(|parent| parent.kind == SyntaxKind::BinaryExpression);
+                .is_none_or(|parent| parent.kind != SyntaxKind::BinaryExpression);
         if !force
             && !namespace_modifier
             && !self
