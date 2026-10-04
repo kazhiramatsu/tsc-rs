@@ -269,6 +269,8 @@ emitterは`tsc-binder`に依存するようになった。
     memberに`export`を付ける。
   - 集めたときにhostが見えなければ代入を保留し、後で型の参照がhostを可視にしたときに書く。
   - default export：`declare function D(): void; export default D; declare namespace D { … }`。
+  - namespaceの名前と修飾子は、hostのものを範囲ごと複製する（tsgoの`Clone`、ast.go:103-120）。declaration mapで
+    namespaceの名前がhostの名前に対応する。README corporaの比較で、mainより後退していたのを見つけて直した。
   - resolverの照会を足した：`IsAssignmentDeclaration`、`GetElementAccessExpressionName`、`IsNameResolvable`、
     `CreateTypeOfExpandoMember`（memberだけをlocalに持つnamespaceの中で型を直列化する）。
     `IsLastBodilessOverloadOfSymbol`は`ShouldEmitFunctionProperties`に改め、tsgoの判定にした。
@@ -289,11 +291,11 @@ emitterは`tsc-binder`に依存するようになった。
     文言の無い親でも、tsgoと同じく診断を出すときまで失敗しない。
 - unit test：
   - CLI（tsgoの出力にpin）：TypeScriptのexpando（識別子の値、keywordと解決できる名前、保留して後で可視になる
-    host、exportされていない関数のexport、default export、識別子でない名前だけの変数）と、JavaScriptのexpando
-    （変数・class・generatorのhost、`@type`の付いた代入、script）。
+    host、exportされていない関数のexport、default export、識別子でない名前だけの変数）、そのdeclaration map、
+    JavaScriptのexpando（変数・class・generatorのhost、`@type`の付いた代入、script）。
   - checker：本体の無い宣言だけの関数はnamespaceを書かない。照会の名前の変更と新しい照会。
 - conformance：
-  - 15,228構成、lane A 13,467（変化なし）、438 s。
+  - 15,228構成、lane A 13,467（変化なし）、439 s。
   - errorsは変化なし（描いたbaselineのdigestもすべて同じ）。
   - emit full 13,188→13,220、emit mismatch 249→217。上がった32構成のうち24構成はexpando（TypeScript 13、
     JavaScript 11）、8構成はTypeScriptで、関数式の`typeof`・static methodの名前・囲む宣言の変更で合った
@@ -303,9 +305,10 @@ emitterは`tsc-binder`に依存するようになった。
 - ratchet：0 regressions、32行raise（emit none→js）。`intersectionConstructorReductionCrash`は今回もharness
   errorで、ratchetに入れない。
 - local：
-  - formatとworkspace全体のclippy。emitter・checker・compiler・conformanceのtest（35 targets、2,634 passed、
-    `864167c05`）。
-  - 2 workerのfull run（438 s、`864167c05`のrelease build）。
+  - formatとworkspace全体のclippy。emitter・checker・compiler・conformanceのtest（35 targets、2,635 passed、
+    `df112c16f`）。
+  - 2 workerのfull run（439 s、`df112c16f`のrelease build）。declaration mapを直す前の`864167c05`でも1回流し
+    （438 s）、結果はstatus・tier・digestまで同じだった。
   - 試行（devのrunner、`@declaration`を持つ1,493 case・1,951構成）：変数宣言を囲む宣言にした段階で、
     tsc-rsだけが初期化子の`import("./0", { with: … })`の属性をimport型に付け、6構成が下がった。tsgoの
     解決modeの扱いを移して直した。
