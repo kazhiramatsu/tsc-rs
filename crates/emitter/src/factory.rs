@@ -246,6 +246,11 @@ impl TransformSource {
         node.index() >= self.parsed_node_base && node.index() < self.parsed_node_end
     }
 
+    /// The id index of the first parsed node of the emit copy.
+    pub(crate) const fn parsed_node_base(&self) -> u32 {
+        self.parsed_node_base
+    }
+
     /// The number of parsed nodes the emit copy started from.
     pub fn parsed_node_count(&self) -> usize {
         (self.parsed_node_end - self.parsed_node_base) as usize
