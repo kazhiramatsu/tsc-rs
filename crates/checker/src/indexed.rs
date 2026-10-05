@@ -677,38 +677,21 @@ impl<'a> CheckerState<'a> {
         Ok(object_half | index_half)
     }
 
-    /// tsc-port: getSimplifiedType @6.0.3
-    /// tsc-hash: ac9c7ff358d22383776d3bf0d841ff1a331b67e77b87198ef19ad9398418adc5
-    /// tsc-span: _tsc.js:62455-62457
-    ///
+    /// tsgo-port: Checker.getSimplifiedType @7.1 (checker/checker.go:
+    /// 28367-28375): an index type is not simplified. tsc 6.0 turned
+    /// `keyof` of a generic mapped type with an `as` clause into its name
+    /// type here; tsgo reaches that type through the index type's base
+    /// constraint instead (compute_base_constraint), so the index type
+    /// itself stays in relations and in messages.
     pub(crate) fn get_simplified_type(&mut self, ty: TypeId, writing: bool) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             self.get_simplified_indexed_access_type(ty, writing)
         } else if flags.intersects(TypeFlags::CONDITIONAL) {
             self.get_simplified_conditional_type(ty, writing)
-        } else if flags.intersects(TypeFlags::INDEX) {
-            self.get_simplified_index_type(ty)
         } else {
             Ok(ty)
         }
-    }
-
-    /// tsc-port: getSimplifiedIndexType @6.0.3
-    /// tsc-hash: b26e70997196efd7e1f1d3d114b5ff87f5ea045e5856d5925477022d8f4c120c
-    /// tsc-span: _tsc.js:62527-62532
-    ///
-    fn get_simplified_index_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        let TypeData::Index { ty: inner, .. } = self.tables.type_of(ty).data else {
-            unreachable!("index flag implies index data");
-        };
-        if self.is_generic_mapped_type_state(inner)?
-            && self.get_name_type_from_mapped_type(inner)?.is_some()
-            && !self.is_mapped_type_with_keyof_constraint_declaration(inner)
-        {
-            return self.get_index_type_for_mapped_type(inner, IndexFlags::NONE);
-        }
-        Ok(ty)
     }
 
     /// tsc-port: distributeIndexOverObjectType @6.0.3

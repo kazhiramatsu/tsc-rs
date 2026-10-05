@@ -4076,7 +4076,18 @@ impl<'a> CheckerState<'a> {
             .get_index_infos_of_type(object_type)?
             .iter()
             .any(|info| info.key_type == number);
-        let key_of_object = self.get_index_type(object_type, tsc_types::IndexFlags::NONE)?;
+        // tsgo (checker.go:8399-8405): the keys of a generic mapped type that
+        // remaps its keys are taken undeferred, `get${K}` for
+        // `{ [P in K as `get${P}`]: … }`. tsc 6.0 compared with the
+        // deferred `keyof` and reached the same keys by simplifying it.
+        let key_of_object = if self.is_generic_mapped_type_state(object_type)?
+            && self.get_mapped_type_name_type_kind(object_type)?
+                == crate::mapped::MappedTypeNameTypeKind::Remapping
+        {
+            self.get_index_type_for_mapped_type(object_type, tsc_types::IndexFlags::NONE)?
+        } else {
+            self.get_index_type(object_type, tsc_types::IndexFlags::NONE)?
+        };
         let constituents = self.union_members_or_self(index_type);
         let mut every_assignable = true;
         for t in constituents {
