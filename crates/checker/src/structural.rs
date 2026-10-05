@@ -4952,12 +4952,13 @@ impl<'a> CheckerState<'a> {
         targets.contains(&target)
     }
 
-    /// tsc-port: getReducedType @6.0.3
-    /// tsc-hash: abdfab6ced2592e580352b92374d1ca078ca38b3ca65ba80961e5f8c83ee32f7
-    /// tsc-span: _tsc.js:59287-59297
+    /// tsgo-port: Checker.getReducedType @7.1 (checker/checker.go:22177-22200)
     ///
     /// The IsNeverIntersection pair is a monotone objectFlags cache —
     /// tsc mutates the interned type in place and so does the arena.
+    /// tsgo marks the intersection computed before it looks at the
+    /// properties, so a query that comes back to the intersection while
+    /// they resolve sees it unreduced; tsc 6.0 wrote both flags afterwards.
     pub fn get_reduced_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION)
@@ -4985,20 +4986,15 @@ impl<'a> CheckerState<'a> {
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED)
             {
-                let properties = self.get_properties_of_union_or_intersection_type(ty)?;
-                let mut is_never = false;
-                for prop in properties {
-                    if self.is_never_reduced_property(prop)? {
-                        is_never = true;
-                        break;
-                    }
+                self.add_object_flags(ty, ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED);
+                let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
+                    unreachable!("intersection flag implies intersection data");
+                };
+                if !self.is_mapping_of_same_object_type(&types)?
+                    && self.some_property_reduces_to_never(ty, &types)?
+                {
+                    self.add_object_flags(ty, ObjectFlags::IS_NEVER_INTERSECTION);
                 }
-                let mut bits = ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED.bits();
-                if is_never {
-                    bits |= ObjectFlags::IS_NEVER_INTERSECTION.bits();
-                }
-                let object_flags = self.tables.object_flags_of(ty).bits() | bits;
-                self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(object_flags);
             }
             return Ok(
                 if self
@@ -5013,6 +5009,92 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(ty)
+    }
+
+    fn add_object_flags(&mut self, ty: TypeId, flags: ObjectFlags) {
+        let object_flags = self.tables.object_flags_of(ty).bits() | flags.bits();
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(object_flags);
+    }
+
+    /// tsgo-port: Checker.isMappingOfSameObjectType @7.1
+    /// (checker/checker.go:22202-22214)
+    ///
+    /// Mapped types over one object type have no property that reduces
+    /// their intersection to never, so tsgo does not resolve their members
+    /// to find out.
+    fn is_mapping_of_same_object_type(&mut self, types: &[TypeId]) -> CheckResult<bool> {
+        let Some((&first, rest)) = types.split_first() else {
+            return Ok(false);
+        };
+        if !self
+            .tables
+            .object_flags_of(first)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return Ok(false);
+        }
+        let first_type = self.get_modifiers_type_from_mapped_type(first)?;
+        if !self
+            .tables
+            .flags_of(first_type)
+            .intersects(TypeFlags::OBJECT)
+        {
+            return Ok(false);
+        }
+        for &ty in rest {
+            if !self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::MAPPED)
+                || self.get_modifiers_type_from_mapped_type(ty)? != first_type
+            {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// tsgo-port: Checker.somePropertyReducesToNever @7.1
+    /// (checker/checker.go:22216-22233)
+    ///
+    /// Only a property that more than one constituent declares can reduce
+    /// the intersection, and only those get their combined property. tsgo
+    /// walks the names in its map's order; this walks them in the order
+    /// the constituents list them.
+    fn some_property_reduces_to_never(
+        &mut self,
+        ty: TypeId,
+        types: &[TypeId],
+    ) -> CheckResult<bool> {
+        let mut names: Vec<(EscapedName, u32)> = Vec::new();
+        let mut indices: rustc_hash::FxHashMap<EscapedName, usize> =
+            rustc_hash::FxHashMap::default();
+        for &constituent in types {
+            for prop in self.get_properties_of_type_full(constituent)? {
+                let name = self.binder.symbol(prop).escaped_name;
+                match indices.entry(name) {
+                    std::collections::hash_map::Entry::Occupied(entry) => {
+                        names[*entry.get()].1 += 1;
+                    }
+                    std::collections::hash_map::Entry::Vacant(entry) => {
+                        entry.insert(names.len());
+                        names.push((name, 1));
+                    }
+                }
+            }
+        }
+        for (name, count) in names {
+            if count > 1 {
+                if let Some(prop) = self.get_property_of_union_or_intersection_type(
+                    ty, name, /*skip_object_function_property_augment*/ true,
+                )? {
+                    if self.is_never_reduced_property(prop)? {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        Ok(false)
     }
 
     /// tsc-port: getReducedUnionType @6.0.3
@@ -5193,7 +5275,17 @@ impl<'a> CheckerState<'a> {
         let mut single_prop: Option<SymbolId> = None;
         let mut prop_set: Vec<SymbolId> = Vec::new();
         let mut index_types: Vec<TypeId> = Vec::new();
-        let mut optional_flag: Option<SymbolFlags> = None;
+        // tsgo (checker.go:21796-21801) starts an intersection's property
+        // as optional and narrows that only by the class members among the
+        // constituents' properties, so a property no constituent declares as
+        // a property, method or accessor (two modules' exports of one name)
+        // stays optional. tsc 6.0 left the flag unset until the first class
+        // member.
+        let mut optional_flag = if is_union {
+            SymbolFlags::from_bits(0)
+        } else {
+            SymbolFlags::OPTIONAL
+        };
         let mut check_flags = if is_union {
             0
         } else {
@@ -5235,18 +5327,14 @@ impl<'a> CheckerState<'a> {
                     modifiers
                 };
                 if prop_symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
-                    let base = optional_flag.unwrap_or(if is_union {
-                        SymbolFlags::from_bits(0)
-                    } else {
-                        SymbolFlags::OPTIONAL
-                    });
-                    optional_flag = Some(if is_union {
+                    optional_flag = if is_union {
                         SymbolFlags::from_bits(
-                            base.bits() | (prop_symbol_flags & SymbolFlags::OPTIONAL).bits(),
+                            optional_flag.bits()
+                                | (prop_symbol_flags & SymbolFlags::OPTIONAL).bits(),
                         )
                     } else {
-                        SymbolFlags::from_bits(base.bits() & prop_symbol_flags.bits())
-                    });
+                        SymbolFlags::from_bits(optional_flag.bits() & prop_symbol_flags.bits())
+                    };
                 }
                 match single_prop {
                     None => {
@@ -5472,7 +5560,15 @@ impl<'a> CheckerState<'a> {
                 }
                 _ => {}
             }
-            declarations.extend(self.binder.symbol(prop).declarations.iter().copied());
+            // tsgo (checker.go:21959-21961) keeps each declaration once.
+            // tsc 6.0 appended every constituent's list, which doubles per
+            // level when the constituents are such properties themselves
+            // (intersectionConstructorReductionCrash: 3 GB of them).
+            for &declaration in self.binder.symbol(prop).declarations.iter() {
+                if !declarations.contains(&declaration) {
+                    declarations.push(declaration);
+                }
+            }
             let ty = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(ty);
@@ -5502,9 +5598,7 @@ impl<'a> CheckerState<'a> {
             prop_types.push(ty);
         }
         prop_types.extend(index_types);
-        let flags = SymbolFlags::from_bits(
-            prop_flags.bits() | optional_flag.map(|f| f.bits()).unwrap_or(0),
-        );
+        let flags = SymbolFlags::from_bits(prop_flags.bits() | optional_flag.bits());
         let result = self
             .binder
             .create_symbol(flags, EscapedName::from_escaped_value(name.to_owned()));
