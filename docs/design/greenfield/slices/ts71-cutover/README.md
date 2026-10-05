@@ -2918,3 +2918,5 @@ P3-5bcの「次」のうち宣言の名前に関わるものと、conformanceの
     `typeTagOnFunctionReferencesGeneric`）。
   - 匿名のmapped typeのunionの順序（`comparisonAnonymousMappedTypes`、`comparisonReverseMappedTypes`）、構文errorの
     回復でのコメントの二重出力（`objectTypesWithOptionalProperties2`）。
+- hosted：PR #681（head `e6301e6b1`）、run 37282361616 — `plan` 28s、`rust` 9m55s、`conformance (TypeScript 7.1)` 13m45s、
+  `gates` 14s。
