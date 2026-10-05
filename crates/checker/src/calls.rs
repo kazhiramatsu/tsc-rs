@@ -6515,16 +6515,14 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // 77749-77766: the module-band worker (M4 5.8d un-silences
-        // the 5.7b stub). dontResolveAlias=TRUE skips the interop-
-        // cloning arm inside resolveESModuleSymbol; the wrap happens
-        // here instead. getTypeWithSyntheticDefaultOnly is mode
-        // machinery (None at the modeled defaults).
+        // tsgo checkImportCallExpression (checker.go:8477-8487): the module's
+        // `export=` is left unresolved and the interop wrap happens here.
+        // getTypeWithSyntheticDefaultOnly is mode machinery (None at the
+        // modeled defaults).
         let module_symbol = self.resolve_external_module_name(node, specifier, false)?;
         if let Some(module_symbol) = module_symbol {
-            let es_module_symbol = self.resolve_es_module_symbol(
+            let es_module_symbol = self.resolve_external_module_symbol(
                 Some(module_symbol),
-                specifier,
                 /*dont_resolve_alias*/ true,
             )?;
             if let Some(es_module_symbol) = es_module_symbol {

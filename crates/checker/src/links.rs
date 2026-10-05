@@ -564,11 +564,10 @@ pub struct SymbolLinksCold {
     /// sentinel-on-entry unknownSymbol collapse both rewrite it; M4
     /// 5.8d, the resolvedSignature protocol twin).
     pub alias_target: SparseLinks<SymbolId, LinkSlot<SymbolId>>,
-    /// tsc links.typeOnlyDeclaration (markSymbolOfAliasDeclarationIf
-    /// TypeOnly 49182): TRI-STATE — None = unset, Some(None) = the
-    /// explicit `false` (computed, not type-only), Some(Some(node)) =
-    /// the type-only declaration.
-    pub type_only_declaration: SparseLinks<SymbolId, Option<Option<NodeId>>>,
+    /// tsgo AliasSymbolLinks.typeOnlyDeclaration (checker/types.go:213): the
+    /// first alias declaration of the resolution chain that makes the symbol
+    /// usable only in type positions; written once.
+    pub type_only_declaration: SparseLinks<SymbolId, Option<NodeId>>,
     /// tsc links.deferralParent / deferralConstituents /
     /// deferralWriteConstituents. Union/intersection properties with more
     /// than two constituent properties retain their recipe and combine it
@@ -626,9 +625,6 @@ pub struct SymbolLinksCold {
     /// 84876) — the once-latch on multi-declaration class/interface
     /// symbols.
     pub type_parameters_checked: SparseLinks<SymbolId, bool>,
-    /// tsc links.typeOnlyExportStarName (49189): the export-star name
-    /// when it differs from the source symbol's own name.
-    pub type_only_export_star_name: SparseLinks<SymbolId, Option<EscapedName>>,
     /// tsc links.typeOnlyExportStarMap (getExportsOfModule 49841):
     /// written WITH the module-flavor resolved_exports; names whose
     /// only path in is a type-only `export type *` declaration.
@@ -681,7 +677,6 @@ impl SymbolLinksCold {
             left_spread,
             right_spread,
             type_parameters_checked,
-            type_only_export_star_name,
             type_only_export_star_map,
             exports_checked,
             cjs_export_merged,
@@ -721,7 +716,6 @@ impl SymbolLinksCold {
             left_spread.memory_usage(),
             right_spread.memory_usage(),
             type_parameters_checked.memory_usage(),
-            type_only_export_star_name.memory_usage(),
             type_only_export_star_map.memory_usage(),
             exports_checked.memory_usage(),
             cjs_export_merged.memory_usage(),
@@ -1145,7 +1139,7 @@ struct SpeculativeConditionalCacheSnapshot {
 }
 
 type SpeculativeSymbolVarianceWrite = (u32, SymbolId, LinkSlot<Box<[tsc_types::VarianceFlags]>>);
-type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<Option<NodeId>>, Option<EscapedName>);
+type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<NodeId>);
 
 /// Whether a speculative symbol-type write is merely a candidate-local
 /// cache publication or semantic state selected by overload resolution.
@@ -1850,18 +1844,13 @@ impl LinksTables {
         if self
             .speculative_type_only_alias_writes
             .iter()
-            .any(|(depth, symbol, _, _)| *depth == speculation_depth && *symbol == id)
+            .any(|(depth, symbol, _)| *depth == speculation_depth && *symbol == id)
         {
             return;
         }
         let declaration = *self.symbol_cold.type_only_declaration.get(id);
-        let export_star_name = *self.symbol_cold.type_only_export_star_name.get(id);
-        self.speculative_type_only_alias_writes.push((
-            speculation_depth,
-            id,
-            declaration,
-            export_star_name,
-        ));
+        self.speculative_type_only_alias_writes
+            .push((speculation_depth, id, declaration));
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -2577,16 +2566,13 @@ impl LinksTables {
     /// sentinel/final state.
     pub fn restore_speculative_type_only_aliases(&mut self, mark: usize) {
         while self.speculative_type_only_alias_writes.len() > mark {
-            let (_, symbol, declaration, export_star_name) = self
+            let (_, symbol, declaration) = self
                 .speculative_type_only_alias_writes
                 .pop()
                 .expect("length checked");
             self.symbol_cold
                 .type_only_declaration
                 .set(symbol, declaration);
-            self.symbol_cold
-                .type_only_export_star_name
-                .set(symbol, export_star_name);
         }
     }
 
@@ -4208,34 +4194,18 @@ impl LinksTables {
         Self::write_slot(self.symbol_cold.alias_target.slot(id), value);
     }
 
-    /// tsrs-native: links accessor — links.typeOnlyDeclaration writes
-    /// (49182-49201): tsc assigns
-    /// PLAINLY — the type-only-declaration arm re-stamps the same
-    /// node, getTypeOnlyAliasDeclaration pre-writes `false` then marks
-    /// with overwriteEmpty; the caller enforces the first-write-wins/
-    /// overwriteEmpty policy, this setter is the raw store.
+    /// tsrs-native: links accessor — AliasSymbolLinks.typeOnlyDeclaration.
+    /// The callers (markSymbolOfAliasDeclarationIfTypeOnly and
+    /// resolveIndirectionAlias) write only an unset slot; this setter is the
+    /// raw store.
     pub fn set_symbol_type_only_declaration(
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: Option<NodeId>,
+        value: NodeId,
     ) {
         self.journal_type_only_alias(speculation_depth, id);
         self.symbol_cold.type_only_declaration.set(id, Some(value));
-    }
-
-    /// tsrs-native: links accessor — links.typeOnlyExportStarName
-    /// (49189).
-    pub fn set_symbol_type_only_export_star_name(
-        &mut self,
-        speculation_depth: u32,
-        id: SymbolId,
-        value: EscapedName,
-    ) {
-        self.journal_type_only_alias(speculation_depth, id);
-        self.symbol_cold
-            .type_only_export_star_name
-            .set(id, Some(value));
     }
 
     /// tsrs-native: links accessor — the MODULE flavor of

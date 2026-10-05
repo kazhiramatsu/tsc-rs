@@ -551,7 +551,7 @@ impl<'a> CheckerState<'a> {
         }
         let symbol = symbol.expect("non-local alias is present");
         if self
-            .get_type_only_alias_declaration_ex(symbol, Some(SymbolFlags::VALUE))?
+            .get_type_only_alias_declaration_ex(symbol, SymbolFlags::VALUE)?
             .is_some()
         {
             return Ok(None);
@@ -710,7 +710,7 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(symbol) = value_symbol {
             is_type_only |= self
-                .get_type_only_alias_declaration_ex(symbol, Some(SymbolFlags::VALUE))?
+                .get_type_only_alias_declaration_ex(symbol, SymbolFlags::VALUE)?
                 .is_some();
         }
 
@@ -725,12 +725,12 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        if value_symbol.is_none() {
-            if let Some(symbol) = type_symbol {
-                is_type_only |= self
-                    .get_type_only_alias_declaration_ex(symbol, Some(SymbolFlags::TYPE))?
-                    .is_some();
-            }
+        // tsgo (emitresolver.go:1198-1199) asks the type symbol in every case
+        // (tsc 6.0 only when the name had no value symbol).
+        if let Some(symbol) = type_symbol {
+            is_type_only |= self
+                .get_type_only_alias_declaration_ex(symbol, SymbolFlags::TYPE)?
+                .is_some();
         }
 
         if let (Some(value), Some(type_)) = (resolved_value_symbol, resolved_type_symbol) {
@@ -1621,6 +1621,13 @@ impl<'a> CheckerState<'a> {
 
     /// tsgo-port: resolveAlias @7.1 (checker.go:16585-16611).
     ///
+    /// The alias resolves to the first symbol of its chain that has another
+    /// meaning: `getTargetOfAliasDeclaration` gives the immediate target, and
+    /// a target that is itself a pure alias is resolved through
+    /// `resolveIndirectionAlias`, which carries its type-only declaration
+    /// back to this alias. tsc 6.0 resolved inside each target function and
+    /// marked the alias from the immediate and the final target.
+    ///
     /// TypeScript 7.1 resolves the alias target as a type-resolution
     /// property (`AliasTarget`) instead of tsc 6.0's resolvingSymbol
     /// sentinel: a cycle re-entry returns unknownSymbol without writing
@@ -1660,12 +1667,28 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(unknown);
         };
-        let target = match self.get_target_of_alias_declaration(node, false) {
+        let target = match self.get_target_of_alias_declaration(node) {
             Ok(target) => target,
             Err(abort) => {
                 self.pop_type_resolution();
                 return Err(abort);
             }
+        };
+        // When the target is a pure alias, it is resolved transitively and
+        // its type-only declaration is propagated to this alias.
+        let target = match target {
+            Some(target)
+                if self.is_non_local_alias(Some(target), Self::default_alias_excludes()) =>
+            {
+                match self.resolve_indirection_alias(symbol, target) {
+                    Ok(target) => Some(target),
+                    Err(abort) => {
+                        self.pop_type_resolution();
+                        return Err(abort);
+                    }
+                }
+            }
+            target => target,
         };
         let mut resolved = target.unwrap_or(self.unknown_symbol);
         if !self.pop_type_resolution() {
@@ -1683,6 +1706,37 @@ impl<'a> CheckerState<'a> {
             LinkSlot::Resolved(resolved),
         );
         Ok(resolved)
+    }
+
+    /// tsgo-port: resolveIndirectionAlias @7.1 (checker.go:16612-16620).
+    ///
+    /// Resolves the pure alias `target` that `source` names and copies its
+    /// type-only declaration to `source` when `source` has none: an alias is
+    /// type-only through the first type-only alias of its chain.
+    fn resolve_indirection_alias(
+        &mut self,
+        source: SymbolId,
+        target: SymbolId,
+    ) -> CheckResult<SymbolId> {
+        let resolved = self.resolve_alias(target)?;
+        let result = self.get_merged_symbol(resolved);
+        let target_declaration = *self.links.symbol_cold().type_only_declaration.get(target);
+        if let Some(declaration) = target_declaration {
+            if self
+                .links
+                .symbol_cold()
+                .type_only_declaration
+                .get(source)
+                .is_none()
+            {
+                self.links.set_symbol_type_only_declaration(
+                    self.speculation_depth,
+                    source,
+                    declaration,
+                );
+            }
+        }
+        Ok(result)
     }
 
     /// tsgo-port: tryResolveAlias @7.1 (checker.go:16622-16628).
@@ -1709,67 +1763,38 @@ impl<'a> CheckerState<'a> {
         Ok(Some(self.resolve_alias(symbol)?))
     }
 
-    /// tsc-port: getTargetOfAliasDeclaration @6.0.3
-    /// tsc-hash: 162af5ad124b130bc6f80f131212585721d1d34d502fc735b9eaea94780b01d0
-    /// tsc-span: _tsc.js:49071-49108
+    /// tsgo-port: getTargetOfAliasDeclaration @7.1 (checker.go:16055-16086).
     ///
-    /// TS core kinds plus CommonJS/object-literal assignments and
-    /// checked-JS bare/accessed require aliases.
+    /// The immediate target of an alias declaration: no arm resolves a target
+    /// that is itself an alias (`resolveAlias` does, through
+    /// `resolveIndirectionAlias`). tsc 6.0 passed `dontRecursivelyResolve`
+    /// down and each arm resolved its own target.
     pub(crate) fn get_target_of_alias_declaration(
         &mut self,
         node: NodeId,
-        dont_recursively_resolve: bool,
     ) -> CheckResult<Option<SymbolId>> {
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
-                self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)
+                self.get_target_of_import_equals_declaration(node)
             }
-            SyntaxKind::ImportClause => {
-                self.get_target_of_import_clause(node, dont_recursively_resolve)
-            }
-            SyntaxKind::NamespaceImport => {
-                self.get_target_of_namespace_import(node, dont_recursively_resolve)
-            }
-            SyntaxKind::NamespaceExport => {
-                self.get_target_of_namespace_export(node, dont_recursively_resolve)
-            }
+            SyntaxKind::ImportClause => self.get_target_of_import_clause(node),
+            SyntaxKind::NamespaceImport => self.get_target_of_namespace_import(node),
+            SyntaxKind::NamespaceExport => self.get_target_of_namespace_export(node),
             SyntaxKind::ImportSpecifier | SyntaxKind::BindingElement => {
-                self.get_target_of_import_specifier(node, dont_recursively_resolve)
+                self.get_target_of_import_specifier(node)
             }
             SyntaxKind::ExportSpecifier => self.get_target_of_export_specifier(
                 node,
                 SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
-                dont_recursively_resolve,
+                /*dont_resolve_alias*/ true,
             ),
-            SyntaxKind::ExportAssignment => {
-                self.get_target_of_export_assignment(node, dont_recursively_resolve)
-            }
-            SyntaxKind::BinaryExpression => {
-                self.get_target_of_export_assignment(node, dont_recursively_resolve)
-            }
+            SyntaxKind::ExportAssignment => self.get_target_of_export_assignment(node),
+            SyntaxKind::BinaryExpression => self.get_target_of_binary_expression(node),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                let Some(parent) = self.parent_of(node) else {
-                    return Ok(None);
-                };
-                let expression = match self.data_of(parent) {
-                    NodeData::BinaryExpression(data)
-                        if data.left == Some(node)
-                            && data.operator_token.is_some_and(|operator| {
-                                self.kind_of(operator) == SyntaxKind::EqualsToken
-                            }) =>
-                    {
-                        data.right
-                    }
-                    _ => None,
-                };
-                match expression {
-                    Some(expression) => self
-                        .get_target_of_alias_like_expression(expression, dont_recursively_resolve),
-                    None => Ok(None),
-                }
+                self.get_target_of_access_expression(node)
             }
             SyntaxKind::NamespaceExportDeclaration => {
-                self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve)
+                self.get_target_of_namespace_export_declaration(node)
             }
             SyntaxKind::ShorthandPropertyAssignment => {
                 let name = match self.data_of(node) {
@@ -1782,7 +1807,7 @@ impl<'a> CheckerState<'a> {
                         SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
                         /*ignore_errors*/ true,
                         None,
-                        dont_recursively_resolve,
+                        /*dont_resolve_alias*/ true,
                     ),
                     None => Ok(None),
                 }
@@ -1793,98 +1818,75 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match initializer {
-                    Some(initializer) => self
-                        .get_target_of_alias_like_expression(initializer, dont_recursively_resolve),
+                    Some(initializer) => self.get_target_of_alias_like_expression(initializer),
                     None => Ok(None),
                 }
             }
-            // tsc's default is Debug.fail because callers normally provide a
-            // declaration selected by getDeclarationOfAliasSymbol.  A
-            // recovery declaration of another kind simply has no alias
-            // target; callers retain their ordinary unresolved/value
-            // fallback.
+            // tsgo panics here because callers provide a declaration selected
+            // by getDeclarationOfAliasSymbol.  A recovery declaration of
+            // another kind simply has no alias target; callers retain their
+            // ordinary unresolved/value fallback.
             _ => Ok(None),
         }
     }
 
-    /// tsc-port: getTargetOfImportEqualsDeclaration @6.0.3
-    /// tsc-hash: 0ef78eb1ab67c6129a32b5f56cb806263aec483a5ffbd38ecf3096c5a8b0b81a
-    /// tsc-span: _tsc.js:48504-48534
+    /// tsgo-port: getTargetOfAccessExpression @7.1 (checker.go:15262-15270).
+    fn get_target_of_access_expression(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(None);
+        };
+        let expression = match self.data_of(parent) {
+            NodeData::BinaryExpression(data)
+                if data.left == Some(node)
+                    && data.operator_token.is_some_and(|operator| {
+                        self.kind_of(operator) == SyntaxKind::EqualsToken
+                    }) =>
+            {
+                data.right
+            }
+            _ => None,
+        };
+        match expression {
+            Some(expression) => self.get_target_of_alias_like_expression(expression),
+            None => Ok(None),
+        }
+    }
+
+    /// tsgo-port: getTargetOfImportEqualsDeclaration @7.1 (checker.go:14667-14688).
     ///
+    /// `node` is an import-equals declaration or a JavaScript variable
+    /// declaration initialized to `require("…")`.
     fn get_target_of_import_equals_declaration(
         &mut self,
         node: NodeId,
-        dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        if self.kind_of(node) == SyntaxKind::VariableDeclaration {
-            let initializer = match self.data_of(node) {
-                NodeData::VariableDeclaration(data) => data.initializer,
-                _ => None,
-            };
-            if let Some(initializer) = initializer {
-                if let NodeData::PropertyAccessExpression(data) = self.data_of(initializer) {
-                    let mut root = data.expression;
-                    while let Some(candidate) = root {
-                        let expression = match self.data_of(candidate) {
-                            NodeData::PropertyAccessExpression(data) => data.expression,
-                            NodeData::ElementAccessExpression(data) => data.expression,
-                            _ => None,
-                        };
-                        let Some(expression) = expression else {
-                            break;
-                        };
-                        root = Some(expression);
-                    }
-                    if let (Some(root), Some(name)) = (root, data.name) {
-                        if self.is_require_call(root, true)
-                            && self.kind_of(name) == SyntaxKind::Identifier
-                        {
-                            let argument = match self.data_of(root) {
-                                NodeData::CallExpression(data) => {
-                                    self.nodes_of(data.arguments).first().copied()
-                                }
-                                _ => None,
-                            };
-                            if let Some(argument) = argument {
-                                let module_type =
-                                    self.resolve_external_module_type_by_literal(argument)?;
-                                let property_name = self.text_of_node(name)?;
-                                let property =
-                                    self.get_property_of_type_full(module_type, &property_name)?;
-                                // getTargetOfImportEqualsDeclaration 48508 calls
-                                // resolveSymbol with no dontResolveAlias argument.
-                                // Even getImmediateAliasedSymbol therefore skips a
-                                // deprecated re-export alias on this CommonJS
-                                // property-access path and returns its final target.
-                                return self.resolve_symbol_ex(property, false);
-                            }
-                        }
-                    }
-                }
-            }
-        }
         let module_reference = match self.data_of(node) {
             NodeData::ImportEqualsDeclaration(data) => data.module_reference,
             _ => None,
         };
-        let expression = if self.kind_of(node) == SyntaxKind::VariableDeclaration {
-            self.external_module_require_argument(node)
-        } else if module_reference.is_some_and(|module_reference| {
+        let is_variable_declaration = self.kind_of(node) == SyntaxKind::VariableDeclaration;
+        let external_module_reference = module_reference.filter(|&module_reference| {
             self.kind_of(module_reference) == SyntaxKind::ExternalModuleReference
-        }) {
-            module_reference.and_then(|module_reference| match self.data_of(module_reference) {
-                NodeData::ExternalModuleReference(data) => data.expression,
-                _ => None,
-            })
-        } else {
-            None
-        };
-        if let Some(expression) = expression {
+        });
+        if is_variable_declaration || external_module_reference.is_some() {
+            let expression = if is_variable_declaration {
+                self.external_module_require_argument(node)
+            } else {
+                external_module_reference.and_then(|module_reference| {
+                    match self.data_of(module_reference) {
+                        NodeData::ExternalModuleReference(data) => data.expression,
+                        _ => None,
+                    }
+                })
+            };
+            let Some(expression) = expression else {
+                return Ok(None);
+            };
             let immediate = self.resolve_external_module_name(node, expression, false)?;
-            let resolved = self.resolve_external_module_symbol(immediate, false)?;
-            // 48516-48521: under node20..nodenext, `import x =
-            // require(esm)` targets the module's `"module.exports"`
-            // named export when one exists.
+            let resolved =
+                self.resolve_external_module_symbol(immediate, /*dont_resolve_alias*/ true)?;
+            // Under node20..nodenext, `import x = require(esm)` targets the
+            // module's `"module.exports"` named export when one exists.
             if let Some(resolved_symbol) = resolved {
                 let module_kind = self.options.emit_module_kind();
                 if (102..=199).contains(&module_kind) {
@@ -1892,31 +1894,22 @@ impl<'a> CheckerState<'a> {
                         resolved_symbol,
                         "module.exports",
                         node,
-                        dont_resolve_alias,
+                        /*dont_resolve_alias*/ true,
                     )?;
                     if module_exports.is_some() {
                         return Ok(module_exports);
                     }
                 }
             }
-            self.mark_symbol_of_alias_declaration_if_type_only(
-                Some(node),
-                immediate,
-                resolved,
-                /*overwrite_empty*/ false,
-                None,
-                None,
-            )?;
+            self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
             return Ok(resolved);
         }
         let Some(module_reference) = module_reference else {
             return Ok(None);
         };
-        let resolved = self.get_symbol_of_part_of_right_hand_side_of_import_equals(
-            module_reference,
-            dont_resolve_alias,
-        )?;
-        self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(node, resolved)?;
+        let resolved =
+            self.get_symbol_of_part_of_right_hand_side_of_import_equals(module_reference)?;
+        self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(node)?;
         Ok(resolved)
     }
 
@@ -1976,80 +1969,101 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|initializer| self.is_require_call(initializer, true))
     }
 
-    /// tsc-port: checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol @6.0.3
-    /// tsc-hash: e1b0ad5d2be45668be05d26fbea30e9092a36523a0d41ce295beedef29b28517
-    /// tsc-span: _tsc.js:48535-48551
+    /// tsgo-port: checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol
+    /// @7.1 (checker.go:14722-14747).
+    ///
+    /// Walks the entity name of `import x = a.b.c` from the whole name to its
+    /// leftmost identifier and reports the first part that names a type-only
+    /// alias. tsc 6.0 asked whether the import alias itself had been marked
+    /// from its target, and reported nothing for `import type x = …`.
     fn check_and_report_error_for_resolving_import_alias_to_type_only_symbol(
         &mut self,
         node: NodeId,
-        resolved: Option<SymbolId>,
     ) -> CheckResult<()> {
-        let marked = self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            /*immediate_target*/ None,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
-        let is_type_only = match self.data_of(node) {
-            NodeData::ImportEqualsDeclaration(data) => data.is_type_only,
-            _ => false,
-        };
-        if !marked || is_type_only {
-            return Ok(());
-        }
-        let symbol = self.get_symbol_of_declaration(node)?;
-        let Some(type_only_declaration) = self.get_type_only_alias_declaration(symbol)? else {
-            return Ok(());
-        };
-        let is_export = matches!(
-            self.kind_of(type_only_declaration),
-            SyntaxKind::ExportSpecifier | SyntaxKind::ExportDeclaration
-        );
-        let message = if is_export {
-            &diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type
-        } else {
-            &diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type
-        };
-        let related_message = if is_export {
-            &diagnostics::_0_was_exported_here
-        } else {
-            &diagnostics::_0_was_imported_here
-        };
-        let name = if self.kind_of(type_only_declaration) == SyntaxKind::ExportDeclaration {
-            JsString::from("*")
-        } else {
-            let decl_name = match self.data_of(type_only_declaration) {
-                NodeData::ImportSpecifier(data) => data.name,
-                NodeData::ExportSpecifier(data) => data.name,
-                NodeData::ImportClause(data) => data.name,
-                NodeData::NamespaceImport(data) => data.name,
-                NodeData::NamespaceExport(data) => data.name,
-                NodeData::ImportEqualsDeclaration(data) => data.name,
-                _ => None,
-            };
-            match decl_name {
-                Some(decl_name) => self.module_export_name_text_unescaped(decl_name),
-                None => JsString::new(),
-            }
-        };
         let module_reference = match self.data_of(node) {
             NodeData::ImportEqualsDeclaration(data) => data.module_reference,
             _ => None,
         };
-        let related = self.related_info_for_node_js(
-            type_only_declaration,
-            related_message,
-            &[(&name).into()],
-        );
-        self.error_at_with_related_js(module_reference.or(Some(node)), message, &[], vec![related]);
+        let Some(module_reference) = module_reference else {
+            return Ok(());
+        };
+        let mut name = module_reference;
+        loop {
+            if let Some(type_only_declaration) =
+                self.get_type_only_declaration_of_entity_name(name)?
+            {
+                let is_export = matches!(
+                    self.kind_of(type_only_declaration),
+                    SyntaxKind::ExportSpecifier | SyntaxKind::ExportDeclaration
+                );
+                let message = if is_export {
+                    &diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_exported_using_export_type
+                } else {
+                    &diagnostics::An_import_alias_cannot_reference_a_declaration_that_was_imported_using_import_type
+                };
+                let related_message = if is_export {
+                    &diagnostics::_0_was_exported_here
+                } else {
+                    &diagnostics::_0_was_imported_here
+                };
+                let declaration_name =
+                    if self.kind_of(type_only_declaration) == SyntaxKind::ExportDeclaration {
+                        JsString::from("*")
+                    } else {
+                        let decl_name = match self.data_of(type_only_declaration) {
+                            NodeData::ImportSpecifier(data) => data.name,
+                            NodeData::ExportSpecifier(data) => data.name,
+                            NodeData::ImportClause(data) => data.name,
+                            NodeData::NamespaceImport(data) => data.name,
+                            NodeData::NamespaceExport(data) => data.name,
+                            NodeData::ImportEqualsDeclaration(data) => data.name,
+                            _ => None,
+                        };
+                        match decl_name {
+                            Some(decl_name) => self.module_export_name_text_unescaped(decl_name),
+                            None => JsString::new(),
+                        }
+                    };
+                let related = self.related_info_for_node_js(
+                    type_only_declaration,
+                    related_message,
+                    &[(&declaration_name).into()],
+                );
+                self.error_at_with_related_js(Some(module_reference), message, &[], vec![related]);
+                break;
+            }
+            let left = match self.data_of(name) {
+                NodeData::QualifiedName(data) => data.left,
+                _ => None,
+            };
+            let Some(left) = left else {
+                break;
+            };
+            name = left;
+        }
         Ok(())
     }
 
-    /// tsc-port: resolveExportByName @6.0.3
-    /// tsc-hash: 44fb57abfeda2ba65f7348458183aabe71673fd3ca7beeb3d1d71284d703d68d
-    /// tsc-span: _tsc.js:48552-48569
+    /// tsgo-port: getTypeOnlyDeclarationOfEntityName @7.1
+    /// (checker.go:14749-14754).
+    fn get_type_only_declaration_of_entity_name(
+        &mut self,
+        name: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        let symbol = self.resolve_entity_name_ex(
+            name,
+            SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
+            /*ignore_errors*/ true,
+            None,
+            /*dont_resolve_alias*/ true,
+        )?;
+        match symbol {
+            Some(symbol) => self.get_type_only_alias_declaration(symbol),
+            None => Ok(None),
+        }
+    }
+
+    /// tsgo-port: resolveExportByName @7.1 (checker.go:14852-14863).
     fn resolve_export_by_name(
         &mut self,
         module_symbol: SymbolId,
@@ -2079,14 +2093,7 @@ impl<'a> CheckerState<'a> {
                 .copied(),
         };
         let resolved = self.resolve_symbol_ex(export_symbol, dont_resolve_alias)?;
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            source_node,
-            export_symbol,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
+        self.mark_symbol_of_alias_declaration_if_type_only(source_node, None)?;
         Ok(resolved)
     }
 
@@ -2255,14 +2262,8 @@ impl<'a> CheckerState<'a> {
         Ok(file_name.ends_with(".json") || file_name.ends_with(".d.json.ts"))
     }
 
-    /// tsc-port: getTargetOfImportClause @6.0.3
-    /// tsc-hash: fe2fcc5056477219de5bbcfc1f88965196930b948dab81858963d126d509ff5e
-    /// tsc-span: _tsc.js:48652-48657
-    fn get_target_of_import_clause(
-        &mut self,
-        node: NodeId,
-        dont_resolve_alias: bool,
-    ) -> CheckResult<Option<SymbolId>> {
+    /// tsgo-port: getTargetOfImportClause @7.1 (checker.go:14756-14762).
+    fn get_target_of_import_clause(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         let module_specifier = self
             .parent_of(node)
             .and_then(|parent| match self.data_of(parent) {
@@ -2275,16 +2276,16 @@ impl<'a> CheckerState<'a> {
         };
         let module_symbol = self.resolve_external_module_name(node, module_specifier, false)?;
         match module_symbol {
-            Some(module_symbol) => {
-                self.get_target_of_module_default(module_symbol, node, dont_resolve_alias)
-            }
+            Some(module_symbol) => self.get_target_of_module_default(
+                module_symbol,
+                node,
+                /*dont_resolve_alias*/ true,
+            ),
             None => Ok(None),
         }
     }
 
-    /// tsc-port: getTargetofModuleDefault @6.0.3
-    /// tsc-hash: 236973afe1c81ad598a9c40070f30503b3aaa463813b9fbae8fce69c6b4e0f4a
-    /// tsc-span: _tsc.js:48658-48729
+    /// tsgo-port: getTargetOfModuleDefault @7.1 (checker.go:14764-14826).
     fn get_target_of_module_default(
         &mut self,
         module_symbol: SymbolId,
@@ -2310,14 +2311,7 @@ impl<'a> CheckerState<'a> {
                     )? {
                         // tsgo: esModuleInterop is always on, so the transpiled
                         // default import works (no TS1259).
-                        self.mark_symbol_of_alias_declaration_if_type_only(
-                            Some(node),
-                            Some(module_exports),
-                            /*final_target*/ None,
-                            /*overwrite_empty*/ false,
-                            None,
-                            None,
-                        )?;
+                        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
                         return Ok(Some(module_exports));
                     }
                 }
@@ -2362,24 +2356,10 @@ impl<'a> CheckerState<'a> {
                 Some(resolved) => Some(resolved),
                 None => self.resolve_symbol_ex(Some(module_symbol), dont_resolve_alias)?,
             };
-            self.mark_symbol_of_alias_declaration_if_type_only(
-                Some(node),
-                Some(module_symbol),
-                resolved,
-                /*overwrite_empty*/ false,
-                None,
-                None,
-            )?;
+            self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
             return Ok(resolved);
         }
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            export_default_symbol,
-            /*final_target*/ None,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
         Ok(export_default_symbol)
     }
 
@@ -2514,39 +2494,19 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: getTargetOfNamespaceImport @6.0.3
-    /// tsc-hash: f36cfa1a95a81d070ccc9ccdb48f44d67974e2ebdb9a8e78e389a7232bdd78ef
-    /// tsc-span: _tsc.js:48771-48789
-    fn get_target_of_namespace_import(
-        &mut self,
-        node: NodeId,
-        dont_resolve_alias: bool,
-    ) -> CheckResult<Option<SymbolId>> {
+    /// tsgo-port: getTargetOfNamespaceImport @7.1 (checker.go:14865-14871).
+    fn get_target_of_namespace_import(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         let Some(module_specifier) = self.get_module_specifier_for_import_or_export(node) else {
             return Ok(None);
         };
         let immediate = self.resolve_external_module_name(node, module_specifier, false)?;
-        let resolved =
-            self.resolve_es_module_symbol(immediate, module_specifier, dont_resolve_alias)?;
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            immediate,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
+        let resolved = self.resolve_es_module_symbol(immediate, node, module_specifier)?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
         Ok(resolved)
     }
 
-    /// tsc-port: getTargetOfNamespaceExport @6.0.3
-    /// tsc-hash: 616c397fc557af9c11586f04ed99fce4be8a328c8b1754c768b2e842dc8cb6fa
-    /// tsc-span: _tsc.js:48790-48808
-    fn get_target_of_namespace_export(
-        &mut self,
-        node: NodeId,
-        dont_resolve_alias: bool,
-    ) -> CheckResult<Option<SymbolId>> {
+    /// tsgo-port: getTargetOfNamespaceExport @7.1 (checker.go:14873-14882).
+    fn get_target_of_namespace_export(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         let module_specifier = self
             .parent_of(node)
             .and_then(|parent| match self.data_of(parent) {
@@ -2554,33 +2514,18 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             });
         let Some(module_specifier) = module_specifier else {
-            self.mark_symbol_of_alias_declaration_if_type_only(
-                Some(node),
-                None,
-                None,
-                /*overwrite_empty*/ false,
-                None,
-                None,
-            )?;
             return Ok(None);
         };
         let immediate = self.resolve_external_module_name(node, module_specifier, false)?;
-        let resolved =
-            self.resolve_es_module_symbol(immediate, module_specifier, dont_resolve_alias)?;
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            immediate,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
+        let resolved = self.resolve_es_module_symbol(immediate, node, module_specifier)?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
         Ok(resolved)
     }
 
-    /// tsc-port: combineValueAndTypeSymbols @6.0.3
-    /// tsc-hash: 3219c9f04214a9d0a4d88bf094ada69308a9effe349efa4bada0c118bf10ed22
-    /// tsc-span: _tsc.js:48809-48824
+    /// tsgo-port: combineValueAndTypeSymbols @7.1 (checker.go:15001-15029).
+    ///
+    /// A type side that already has a value meaning is the result (tsc 6.0
+    /// had no such arm: its caller did not combine a symbol with itself).
     fn combine_value_and_type_symbols(
         &mut self,
         value_symbol: SymbolId,
@@ -2588,6 +2533,14 @@ impl<'a> CheckerState<'a> {
     ) -> SymbolId {
         if value_symbol == self.unknown_symbol && type_symbol == self.unknown_symbol {
             return self.unknown_symbol;
+        }
+        if self
+            .binder
+            .symbol(type_symbol)
+            .flags
+            .intersects(SymbolFlags::VALUE)
+        {
+            return type_symbol;
         }
         let value = self.binder.symbol(value_symbol);
         if value
@@ -2618,9 +2571,10 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-    /// tsc-port: getExportOfModule @6.0.3
-    /// tsc-hash: 950617f5bdc9aeda1fea2768cf70eb55ea0d2209306b7c3b9d510fd63f7cc57f
-    /// tsc-span: _tsc.js:48825-48842
+    /// tsgo-port: getExportOfModule @7.1 (checker.go:15031-15040).
+    ///
+    /// A name that reaches the module only through `export type *` marks the
+    /// alias with that export declaration.
     fn get_export_of_module(
         &mut self,
         symbol: SymbolId,
@@ -2651,11 +2605,7 @@ impl<'a> CheckerState<'a> {
             .copied();
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(specifier),
-            export_symbol,
-            resolved,
-            /*overwrite_empty*/ false,
             export_star_declaration,
-            Some(name.as_js()),
         )?;
         Ok(resolved)
     }
@@ -2732,11 +2682,8 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let name_text = self.module_export_name_text_escaped(name);
-        let target_symbol = self.resolve_es_module_symbol(
-            module_symbol,
-            module_specifier,
-            /*dont_resolve_alias*/ false,
-        )?;
+        let target_symbol =
+            self.resolve_es_module_symbol(module_symbol, specifier, module_specifier)?;
         let Some(target_symbol) = target_symbol else {
             return Ok(None);
         };
@@ -2794,8 +2741,10 @@ impl<'a> CheckerState<'a> {
                 };
             }
         }
+        // tsgo (checker.go:14962-14968) combines whenever both exist, also
+        // when they are one symbol.
         let symbol = match (symbol_from_module, symbol_from_variable) {
-            (Some(from_module), Some(from_variable)) if from_module != from_variable => {
+            (Some(from_module), Some(from_variable)) => {
                 Some(self.combine_value_and_type_symbols(from_variable, from_module))
             }
             (from_module, from_variable) => from_module.or(from_variable),
@@ -3080,16 +3029,10 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: getTargetOfImportSpecifier @6.0.3
-    /// tsc-hash: b70d0ba3fc6fdabec84fe6e33db05f4876baf99eea95b1091ec57298e4508601
-    /// tsc-span: _tsc.js:48959-48983
+    /// tsgo-port: getTargetOfImportSpecifier @7.1 (checker.go:14884-14902).
     ///
-    /// The BindingElement/commonJSPropertyAccess arms are JS-only.
-    fn get_target_of_import_specifier(
-        &mut self,
-        node: NodeId,
-        dont_resolve_alias: bool,
-    ) -> CheckResult<Option<SymbolId>> {
+    /// The BindingElement arm is the JavaScript `const { a } = require("m")`.
+    fn get_target_of_import_specifier(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         let (property_name, name) = match self.data_of(node) {
             NodeData::ImportSpecifier(data) => (data.property_name, data.name),
             NodeData::BindingElement(data) => (data.property_name, data.name),
@@ -3108,7 +3051,7 @@ impl<'a> CheckerState<'a> {
                     return self.get_target_of_module_default(
                         module_symbol,
                         node,
-                        dont_resolve_alias,
+                        /*dont_resolve_alias*/ true,
                     );
                 }
             }
@@ -3126,43 +3069,17 @@ impl<'a> CheckerState<'a> {
         let Some(root) = root else {
             return Ok(None);
         };
-        let common_js_property_access = match self.data_of(root) {
-            NodeData::VariableDeclaration(data) => data.initializer.filter(|&initializer| {
-                self.kind_of(initializer) == SyntaxKind::PropertyAccessExpression
-            }),
-            _ => None,
-        };
-        let resolved = self.get_external_module_member(
-            root,
-            common_js_property_access.unwrap_or(node),
-            dont_resolve_alias,
-        )?;
-        if let (Some(_), Some(resolved)) = (common_js_property_access, resolved) {
-            if self.kind_of(effective) == SyntaxKind::Identifier {
-                let ty = self.get_type_of_symbol(resolved)?;
-                let name = self.text_of_node(effective)?;
-                let property = self.get_property_of_type_full(ty, &name)?;
-                return self.resolve_symbol_ex(property, dont_resolve_alias);
-            }
-        }
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            /*immediate_target*/ None,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
+        let resolved =
+            self.get_external_module_member(root, node, /*dont_resolve_alias*/ true)?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
         Ok(resolved)
     }
 
-    /// tsc-port: getTargetOfNamespaceExportDeclaration @6.0.3
-    /// tsc-hash: 33a498c52c8069fadc5d21828e57801eb7a2adfa655e3aebb5460b95f74c0718
-    /// tsc-span: _tsc.js:48989-49002
+    /// tsgo-port: getTargetOfNamespaceExportDeclaration @7.1
+    /// (checker.go:15253-15260).
     fn get_target_of_namespace_export_declaration(
         &mut self,
         node: NodeId,
-        dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(None);
@@ -3170,22 +3087,15 @@ impl<'a> CheckerState<'a> {
         let Some(parent_symbol) = self.binder.node_symbol(parent) else {
             return Ok(None);
         };
-        let resolved =
-            self.resolve_external_module_symbol(Some(parent_symbol), dont_resolve_alias)?;
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            /*immediate_target*/ None,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
+        let resolved = self.resolve_external_module_symbol(
+            Some(parent_symbol),
+            /*dont_resolve_alias*/ true,
         )?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
         Ok(resolved)
     }
 
-    /// tsc-port: getTargetOfExportSpecifier @6.0.3
-    /// tsc-hash: 7d710915d1c15e2eff24a3f23fffdcac5bd92f5b92d1ce16c411a297346265d6
-    /// tsc-span: _tsc.js:49003-49031
+    /// tsgo-port: getTargetOfExportSpecifier @7.1 (checker.go:15193-15216).
     pub(crate) fn get_target_of_export_specifier(
         &mut self,
         node: NodeId,
@@ -3237,52 +3147,65 @@ impl<'a> CheckerState<'a> {
                 dont_resolve_alias,
             )?
         };
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            /*immediate_target*/ None,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
         Ok(resolved)
     }
 
-    /// tsc-port: getTargetOfExportAssignment @6.0.3
-    /// tsc-hash: 574af7e108e18500ba0aff0d7474a3b5568683bf9767ed66bc17355924140e5f
-    /// tsc-span: _tsc.js:49032-49044
-    fn get_target_of_export_assignment(
-        &mut self,
-        node: NodeId,
-        dont_resolve_alias: bool,
-    ) -> CheckResult<Option<SymbolId>> {
+    /// tsgo-port: getTargetOfExportAssignment @7.1 (checker.go:15218-15230).
+    ///
+    /// An `export =` or `export default` inside a namespace is a grammar
+    /// error that `checkExportAssignment` reports without resolving the
+    /// expression; the alias has no target either, so resolving it (the emit
+    /// resolver does) reports nothing the check would not.
+    fn get_target_of_export_assignment(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
+        if self.is_contained_by_namespace(node) {
+            return Ok(None);
+        }
         let expression = match self.data_of(node) {
             NodeData::ExportAssignment(data) => data.expression,
+            _ => None,
+        };
+        let Some(expression) = expression else {
+            return Ok(None);
+        };
+        let resolved = self.get_target_of_alias_like_expression(expression)?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
+        Ok(resolved)
+    }
+
+    /// tsgo-port: isContainedByNamespace @7.1 (checker.go:5740-5746).
+    fn is_contained_by_namespace(&self, node: NodeId) -> bool {
+        let Some(mut container) = self.parent_of(node) else {
+            return false;
+        };
+        if self.kind_of(container) != SyntaxKind::SourceFile {
+            let Some(parent) = self.parent_of(container) else {
+                return false;
+            };
+            container = parent;
+        }
+        self.kind_of(container) == SyntaxKind::ModuleDeclaration
+            && !node_util::is_ambient_module(self.binder.source_of_node(container), container)
+    }
+
+    /// tsgo-port: getTargetOfBinaryExpression @7.1 (checker.go:15232-15236).
+    fn get_target_of_binary_expression(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
+        let expression = match self.data_of(node) {
             NodeData::BinaryExpression(data) => data.right,
             _ => None,
         };
         let Some(expression) = expression else {
             return Ok(None);
         };
-        let resolved = self.get_target_of_alias_like_expression(expression, dont_resolve_alias)?;
-        self.mark_symbol_of_alias_declaration_if_type_only(
-            Some(node),
-            /*immediate_target*/ None,
-            resolved,
-            /*overwrite_empty*/ false,
-            None,
-            None,
-        )?;
+        let resolved = self.get_target_of_alias_like_expression(expression)?;
+        self.mark_symbol_of_alias_declaration_if_type_only(Some(node), None)?;
         Ok(resolved)
     }
 
-    /// tsc-port: getTargetOfAliasLikeExpression @6.0.3
-    /// tsc-hash: 6935da2d1759d7c4ae48909f28a7de4a2985b58a1a5dd9ba53fbdf98c9b57ebc
-    /// tsc-span: _tsc.js:49045-49064
+    /// tsgo-port: getTargetOfAliasLikeExpression @7.1 (checker.go:15238-15251).
     fn get_target_of_alias_like_expression(
         &mut self,
         expression: NodeId,
-        dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
         if self.kind_of(expression) == SyntaxKind::ClassExpression {
             let ty = self.check_expression_cached(expression, CheckMode::NORMAL)?;
@@ -3296,7 +3219,7 @@ impl<'a> CheckerState<'a> {
             SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
             /*ignore_errors*/ true,
             None,
-            dont_resolve_alias,
+            /*dont_resolve_alias*/ true,
         )?;
         if alias_like.is_some() {
             return Ok(alias_like);
@@ -3307,13 +3230,12 @@ impl<'a> CheckerState<'a> {
             .read_node(expression, |links| links.resolved_symbol.resolved()))
     }
 
-    /// tsc-port: getSymbolOfPartOfRightHandSideOfImportEquals @6.0.3
-    /// tsc-hash: a112e7860808cb430fdf9a64fe7c8ad5cd3e3d7b19bc5e819d2d8670e2aeff35
-    /// tsc-span: _tsc.js:49230-49252
+    /// tsgo-port: getSymbolOfPartOfRightHandSideOfImportEquals @7.1
+    /// (checker.go:14702-14720): the entity name's own symbol, an alias left
+    /// unresolved.
     pub(crate) fn get_symbol_of_part_of_right_hand_side_of_import_equals(
         &mut self,
         entity_name: NodeId,
-        dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
         let mut entity_name = entity_name;
         if self.kind_of(entity_name) == SyntaxKind::Identifier
@@ -3332,7 +3254,7 @@ impl<'a> CheckerState<'a> {
                 SymbolFlags::NAMESPACE,
                 /*ignore_errors*/ false,
                 None,
-                dont_resolve_alias,
+                /*dont_resolve_alias*/ true,
             )
         } else {
             debug_assert_eq!(parent_kind, Some(SyntaxKind::ImportEqualsDeclaration));
@@ -3341,52 +3263,23 @@ impl<'a> CheckerState<'a> {
                 SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
                 /*ignore_errors*/ false,
                 None,
-                dont_resolve_alias,
+                /*dont_resolve_alias*/ true,
             )
         }
     }
 
-    /// tsc-port: getSymbolFlags @6.0.3
-    /// tsc-hash: e3b7a170601483e5984d25a007dca056d30c0eac774e5ff10117b01088ae6eb3
-    /// tsc-span: _tsc.js:49141-49175
+    /// tsgo-port: getSymbolFlagsEx @7.1 (checker.go:16686-16712).
+    ///
+    /// The flags of the symbol and of every target along its alias chain.
+    /// With `exclude_type_only_meanings` the walk stops at the first alias
+    /// that is type-only (tsc 6.0 walked on to the target of the type-only
+    /// declaration).
     pub(crate) fn get_symbol_flags_full(
         &mut self,
         symbol: SymbolId,
         exclude_type_only_meanings: bool,
         exclude_local_meanings: bool,
     ) -> CheckResult<SymbolFlags> {
-        let type_only_declaration = if exclude_type_only_meanings {
-            self.get_type_only_alias_declaration(symbol)?
-        } else {
-            None
-        };
-        let type_only_declaration_is_export_star = type_only_declaration
-            .is_some_and(|declaration| self.kind_of(declaration) == SyntaxKind::ExportDeclaration);
-        let type_only_resolution = match type_only_declaration {
-            Some(declaration) if type_only_declaration_is_export_star => {
-                let specifier = match self.data_of(declaration) {
-                    NodeData::ExportDeclaration(data) => data.module_specifier,
-                    _ => None,
-                };
-                match specifier {
-                    Some(specifier) => {
-                        self.resolve_external_module_name(specifier, specifier, true)?
-                    }
-                    None => None,
-                }
-            }
-            Some(declaration) => match self.binder.node_symbol(declaration) {
-                Some(declaration_symbol) => Some(self.resolve_alias(declaration_symbol)?),
-                None => None,
-            },
-            None => None,
-        };
-        let type_only_export_star_targets = match type_only_resolution {
-            Some(resolution) if type_only_declaration_is_export_star => {
-                Some(self.get_exports_of_module(resolution)?)
-            }
-            _ => None,
-        };
         let mut flags = if exclude_local_meanings {
             SymbolFlags::NONE
         } else {
@@ -3400,29 +3293,14 @@ impl<'a> CheckerState<'a> {
             .flags
             .intersects(SymbolFlags::ALIAS)
         {
+            if exclude_type_only_meanings && self.get_type_only_alias_declaration(symbol)?.is_some()
+            {
+                break;
+            }
             let resolved = self.resolve_alias(symbol)?;
             let target = self.get_export_symbol_of_value_symbol_if_exported(resolved);
-            if (!type_only_declaration_is_export_star && Some(target) == type_only_resolution)
-                || type_only_export_star_targets
-                    .as_ref()
-                    .is_some_and(|targets| {
-                        targets
-                            .get(self.binder.symbol(target).escaped_name)
-                            .copied()
-                            == Some(target)
-                    })
-            {
-                break;
-            }
             if target == self.unknown_symbol {
                 return Ok(SymbolFlags::ALL);
-            }
-            if target == symbol
-                || seen_symbols
-                    .as_ref()
-                    .is_some_and(|seen| seen.contains(&target))
-            {
-                break;
             }
             if self
                 .binder
@@ -3430,6 +3308,13 @@ impl<'a> CheckerState<'a> {
                 .flags
                 .intersects(SymbolFlags::ALIAS)
             {
+                if target == symbol
+                    || seen_symbols
+                        .as_ref()
+                        .is_some_and(|seen| seen.contains(&target))
+                {
+                    break;
+                }
                 match &mut seen_symbols {
                     Some(seen) => {
                         seen.insert(target);
@@ -3451,136 +3336,63 @@ impl<'a> CheckerState<'a> {
         self.get_symbol_flags_full(symbol, false, false)
     }
 
-    /// tsc-port: markSymbolOfAliasDeclarationIfTypeOnly @6.0.3
-    /// tsc-hash: 740c0d7d48311aab54d9da24bb2a8378641670123b8d94249e5087a736a590b5
-    /// tsc-span: _tsc.js:49176-49194
+    /// tsgo-port: markSymbolOfAliasDeclarationIfTypeOnly @7.1
+    /// (checker.go:15325-15341).
+    ///
+    /// Records the type-only declaration of an alias: the alias declaration
+    /// itself when it is written type-only, otherwise the `export type *`
+    /// declaration its name came through. The first record stays. What the
+    /// alias resolves to is not looked at here; `resolveAlias` copies the
+    /// record of a pure alias target (`resolveIndirectionAlias`). tsc 6.0
+    /// marked the alias from its immediate and its final target.
     pub(crate) fn mark_symbol_of_alias_declaration_if_type_only(
         &mut self,
         alias_declaration: Option<NodeId>,
-        immediate_target: Option<SymbolId>,
-        final_target: Option<SymbolId>,
-        overwrite_empty: bool,
         export_star_declaration: Option<NodeId>,
-        export_star_name: Option<JsStr<'_>>,
     ) -> CheckResult<bool> {
         let Some(alias_declaration) = alias_declaration else {
             return Ok(false);
         };
-        if self.kind_of(alias_declaration) == SyntaxKind::PropertyAccessExpression {
+        // ast.IsDeclarationNode: the access expressions a CommonJS member
+        // lookup passes are not declarations.
+        if matches!(
+            self.kind_of(alias_declaration),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+        ) {
             return Ok(false);
         }
         let source_symbol = self.get_symbol_of_declaration(alias_declaration)?;
-        if self.is_type_only_import_or_export_declaration(alias_declaration) {
-            self.links.set_symbol_type_only_declaration(
-                self.speculation_depth,
-                source_symbol,
-                Some(alias_declaration),
-            );
-            return Ok(true);
-        }
-        if let Some(export_star_declaration) = export_star_declaration {
-            self.links.set_symbol_type_only_declaration(
-                self.speculation_depth,
-                source_symbol,
-                Some(export_star_declaration),
-            );
-            if let Some(export_star_name) = export_star_name {
-                if self.binder.symbol(source_symbol).escaped_name.as_js() != export_star_name {
-                    self.links.set_symbol_type_only_export_star_name(
-                        self.speculation_depth,
-                        source_symbol,
-                        EscapedName::from_escaped_value(export_star_name.to_owned()),
-                    );
-                }
-            }
-            return Ok(true);
-        }
-        let marked =
-            self.mark_type_only_worker(source_symbol, immediate_target, overwrite_empty)?;
-        if marked {
-            return Ok(true);
-        }
-        self.mark_type_only_worker(source_symbol, final_target, overwrite_empty)
-    }
-
-    /// tsc-port: markSymbolOfAliasDeclarationIfTypeOnlyWorker @6.0.3
-    /// tsc-hash: 7a4e15ebd6ffa75f0bf3f56a5667824f9a3438b62762d0a6f1d7582ef13a40ea
-    /// tsc-span: _tsc.js:49195-49203
-    fn mark_type_only_worker(
-        &mut self,
-        source_symbol: SymbolId,
-        target: Option<SymbolId>,
-        overwrite_empty: bool,
-    ) -> CheckResult<bool> {
         let existing = *self
             .links
             .symbol_cold()
             .type_only_declaration
             .get(source_symbol);
-        if let Some(target) = target {
-            if existing.is_none() || (overwrite_empty && existing == Some(None)) {
-                let export_symbol = self
-                    .binder
-                    .symbol(target)
-                    .exports()
-                    .get(InternalSymbolName::EXPORT_EQUALS)
-                    .copied()
-                    .unwrap_or(target);
-                let type_only = self
-                    .binder
-                    .symbol(export_symbol)
-                    .declarations
-                    .clone()
-                    .into_iter()
-                    .find(|&declaration| {
-                        self.is_type_only_import_or_export_declaration(declaration)
-                    });
-                let value = match type_only {
-                    Some(declaration) => Some(declaration),
-                    None => self
-                        .links
-                        .symbol_cold()
-                        .type_only_declaration
-                        .get(export_symbol)
-                        .flatten(),
-                };
-                self.links.set_symbol_type_only_declaration(
-                    self.speculation_depth,
-                    source_symbol,
-                    value,
-                );
-            }
+        if existing.is_some() {
+            return Ok(true);
         }
-        Ok(self
-            .links
-            .symbol_cold()
-            .type_only_declaration
-            .get(source_symbol)
-            .flatten()
-            .is_some())
+        let declaration = if self.is_type_only_import_or_export_declaration(alias_declaration) {
+            Some(alias_declaration)
+        } else {
+            export_star_declaration
+        };
+        let Some(declaration) = declaration else {
+            return Ok(false);
+        };
+        self.links.set_symbol_type_only_declaration(
+            self.speculation_depth,
+            source_symbol,
+            declaration,
+        );
+        Ok(true)
     }
 
-    /// tsc-port: getTypeOnlyAliasDeclaration @6.0.3
-    /// tsc-hash: 7362b6f3df10e09dfd3429ebbda90bc5bcaaf37024b029e74c85bbc1f0c64de6
-    /// tsc-span: _tsc.js:49204-49229
+    /// tsgo-port: getTypeOnlyAliasDeclaration @7.1 (checker.go:2173-2180).
     ///
-    /// The include-filtered flavor (export-star resolution through
-    /// getExportsOfModule) rides the same body; pass None for tsc's
-    /// undefined `include`.
+    /// The type-only declaration recorded on the alias itself, after the
+    /// alias is resolved (which copies the record of a pure alias target).
     pub(crate) fn get_type_only_alias_declaration(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult<Option<NodeId>> {
-        self.get_type_only_alias_declaration_ex(symbol, None)
-    }
-
-    /// tsrs-native: the include-carrying body behind
-    /// get_type_only_alias_declaration (tsc's optional `include`
-    /// parameter, 49204-49229 — hash/span live on the wrapper).
-    pub(crate) fn get_type_only_alias_declaration_ex(
-        &mut self,
-        symbol: SymbolId,
-        include: Option<SymbolFlags>,
     ) -> CheckResult<Option<NodeId>> {
         if !self
             .binder
@@ -3590,78 +3402,39 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        if self
-            .links
-            .symbol_cold()
-            .type_only_declaration
-            .get(symbol)
-            .is_none()
-        {
-            self.links
-                .set_symbol_type_only_declaration(self.speculation_depth, symbol, None);
-            let resolved = self.resolve_symbol_ex(Some(symbol), false)?;
-            let immediate = match self.get_declaration_of_alias_symbol(symbol) {
-                Some(_) => self.get_immediate_aliased_symbol(symbol)?,
-                None => None,
-            };
-            let first_declaration = self.binder.symbol(symbol).declarations.first().copied();
-            self.mark_symbol_of_alias_declaration_if_type_only(
-                first_declaration,
-                immediate,
-                resolved,
-                /*overwrite_empty*/ true,
-                None,
-                None,
-            )?;
-        }
-        let type_only_declaration = self
-            .links
-            .symbol_cold()
-            .type_only_declaration
-            .get(symbol)
-            .flatten();
-        let Some(include) = include else {
-            return Ok(type_only_declaration);
-        };
-        let Some(declaration) = type_only_declaration else {
-            return Ok(None);
-        };
-        let resolved = if self.kind_of(declaration) == SyntaxKind::ExportDeclaration {
-            let declaration_symbol = self.binder.node_symbol(declaration);
-            let parent = declaration_symbol
-                .and_then(|declaration_symbol| self.binder.symbol(declaration_symbol).parent);
-            let Some(parent) = parent else {
+        self.resolve_alias(symbol)?;
+        Ok(*self.links.symbol_cold().type_only_declaration.get(symbol))
+    }
+
+    /// tsgo-port: getTypeOnlyAliasDeclarationEx @7.1 (checker.go:2182-2194).
+    ///
+    /// The first type-only declaration along the alias chain that is reached
+    /// before a symbol with `meaning`: an alias merged with a declaration of
+    /// that meaning ends the walk, whatever it resolves to.
+    pub(crate) fn get_type_only_alias_declaration_ex(
+        &mut self,
+        symbol: SymbolId,
+        meaning: SymbolFlags,
+    ) -> CheckResult<Option<NodeId>> {
+        let mut symbol = symbol;
+        loop {
+            let flags = self.binder.symbol(symbol).flags;
+            if !flags.intersects(SymbolFlags::ALIAS) || flags.intersects(meaning) {
                 return Ok(None);
-            };
-            let exports = self.get_exports_of_module(parent)?;
-            let lookup_name = self
-                .links
-                .symbol_cold()
-                .type_only_export_star_name
-                .get(symbol)
-                .unwrap_or_else(|| self.binder.symbol(symbol).escaped_name);
-            let export_symbol = exports.get(lookup_name).copied();
-            self.resolve_symbol_ex(export_symbol, false)?
-        } else {
-            let declaration_symbol = self.binder.node_symbol(declaration);
-            match declaration_symbol {
-                Some(declaration_symbol) => Some(self.resolve_alias(declaration_symbol)?),
-                None => None,
             }
-        };
-        let Some(resolved) = resolved else {
-            return Ok(None);
-        };
-        if self.get_symbol_flags_of(resolved)?.intersects(include) {
-            Ok(Some(declaration))
-        } else {
-            Ok(None)
+            let resolved = self.resolve_alias(symbol)?;
+            let declaration = *self.links.symbol_cold().type_only_declaration.get(symbol);
+            if declaration.is_some() {
+                return Ok(declaration);
+            }
+            if resolved == symbol {
+                return Ok(None);
+            }
+            symbol = resolved;
         }
     }
 
-    /// tsc-port: getImmediateAliasedSymbol @6.0.3
-    /// tsc-hash: 3535835c9331851f2d0022c35d6fdec94e0d67348c32546e188d2e11d8445757
-    /// tsc-span: _tsc.js:50092-50101
+    /// tsgo-port: getImmediateAliasedSymbol @7.1 (checker.go:2196-2207).
     pub(crate) fn get_immediate_aliased_symbol(
         &mut self,
         symbol: SymbolId,
@@ -3681,8 +3454,7 @@ impl<'a> CheckerState<'a> {
             self.links.set_symbol_immediate_target(symbol, None);
             return Ok(None);
         };
-        let target =
-            self.get_target_of_alias_declaration(node, /*dont_recursively_resolve*/ true)?;
+        let target = self.get_target_of_alias_declaration(node)?;
         self.links.set_symbol_immediate_target(symbol, target);
         Ok(target)
     }
@@ -3706,10 +3478,7 @@ impl<'a> CheckerState<'a> {
         let computed = (|state: &mut Self| -> CheckResult<(TypeId, Option<SymbolId>)> {
             let target_symbol = state.resolve_alias(symbol)?;
             let export_symbol = match state.get_declaration_of_alias_symbol(symbol) {
-                Some(declaration) => state.get_target_of_alias_declaration(
-                    declaration,
-                    /*dont_recursively_resolve*/ true,
-                )?,
+                Some(declaration) => state.get_target_of_alias_declaration(declaration)?,
                 // getDeclarationOfAliasSymbol is asserted by tsc.  A
                 // recovery alias without a recognized alias declaration has
                 // no export symbol; the target/value fallback below still
@@ -7727,22 +7496,34 @@ impl<'a> CheckerState<'a> {
         Ok(self.tables.intrinsics.any)
     }
 
-    /// tsc-port: resolveESModuleSymbol @6.0.3
-    /// tsc-hash: f20024ad0bb1ee9307d7ca335709632fd30257dc4e437c62da4ddc46f27b1910
-    /// tsc-span: _tsc.js:49715-49760
+    /// tsgo-port: resolveESModuleSymbol @7.1 (checker.go:15885-15947).
+    ///
+    /// Resolves the external module symbol for the alias declaration `node`,
+    /// possibly creating a wrapper module with a synthetic default. An
+    /// `export=` that is a pure alias is resolved through
+    /// `resolveIndirectionAlias`, which carries its type-only declaration to
+    /// the alias of `node`.
     pub(crate) fn resolve_es_module_symbol(
         &mut self,
         module_symbol: Option<SymbolId>,
+        node: NodeId,
         referencing_location: NodeId,
-        dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let symbol = self.resolve_external_module_symbol(module_symbol, dont_resolve_alias)?;
+        let symbol =
+            self.resolve_external_module_symbol(module_symbol, /*dont_resolve_alias*/ true)?;
+        let symbol = match symbol {
+            Some(symbol)
+                if self.is_non_local_alias(Some(symbol), Self::default_alias_excludes()) =>
+            {
+                let source = self.get_symbol_of_declaration(node)?;
+                let resolved = self.resolve_indirection_alias(source, symbol)?;
+                Some(self.get_merged_symbol(resolved))
+            }
+            symbol => symbol,
+        };
         let Some(symbol) = symbol else {
             return Ok(None);
         };
-        if dont_resolve_alias {
-            return Ok(Some(symbol));
-        }
         // tsgo resolveESModuleSymbol (TypeScript 7.1) has no "turn on
         // esModuleInterop / allowSyntheticDefaultImports" report (TS2497):
         // both options are always on.
@@ -7779,11 +7560,11 @@ impl<'a> CheckerState<'a> {
                         && self.implied_node_format_for_emit_file_index(target_file)
                             == Some(ModuleResolutionMode::EsNext)
                     {
-                        if let Some(module_exports) = self.resolve_export_by_name(
+                        if let Some(module_exports) = self.get_export_of_module(
                             symbol,
                             "module.exports",
-                            Some(namespace_import),
-                            dont_resolve_alias,
+                            namespace_import,
+                            /*dont_resolve_alias*/ true,
                         )? {
                             if self.options.es_module_interop_effective()
                                 && self.has_interop_signatures(ty)?
@@ -10512,7 +10293,7 @@ impl<'a> CheckerState<'a> {
             if let Some(sym) = sym {
                 self.mark_export_assignment_alias_referenced(node)?;
                 let type_only_declaration =
-                    self.get_type_only_alias_declaration_ex(sym, Some(SymbolFlags::VALUE))?;
+                    self.get_type_only_alias_declaration_ex(sym, SymbolFlags::VALUE)?;
                 let symbol_flags = self.get_symbol_flags_of(sym)?;
                 let display = self.module_export_name_text_unescaped(expression);
                 if symbol_flags.intersects(SymbolFlags::VALUE) {
