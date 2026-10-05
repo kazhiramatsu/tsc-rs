@@ -3,8 +3,8 @@ use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind
 use tsc_types::ModifierFlags;
 
 use crate::{
-    EmitFlags, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformationContext,
+    EmitFlags, SourceMapRange, SourceRange, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformationContext,
 };
 
 use super::diagnostics::{
@@ -14,6 +14,29 @@ use super::ensure::is_function_like;
 use super::state::{adopt_result, VisitResult};
 use super::tracker::materialize_effects;
 use super::{statements, DeclarationTransformer};
+
+/// tsgo updates a constructor or method declaration
+/// (`UpdateConstructorDeclaration`, `UpdateMethodDeclaration`,
+/// transformers/declarations/transform.go:1074-1085, 1140-1159), so the
+/// declaration keeps its range and maps to it; tsc created new nodes. The
+/// range is given to source maps only, leaving comments to `preserveJsDoc`.
+fn keep_source_map_range(
+    cx: &mut TransformationContext,
+    created: TransformNode,
+    input: TransformNode,
+) -> Result<(), TransformError> {
+    let range = {
+        let record = cx.arena().node(input)?;
+        let source = cx.arena().source(input.source())?.syntax();
+        SourceRange::from_raw(record.pos, record.end, source.positions())
+    };
+    if let Ok(range @ SourceRange::Original(_)) = range {
+        cx.arena_mut()?
+            .metadata_mut(created)
+            .set_source_map_range(SourceMapRange::new(input.source(), range));
+    }
+    Ok(())
+}
 
 struct SubtreeFrame {
     previous_enclosing: Option<Option<TransformNode>>,
@@ -343,6 +366,7 @@ impl DeclarationTransformer<'_> {
                             parameters,
                             None,
                         )?;
+                        keep_source_map_range(cx, created, input)?;
                         Ok(VisitResult::Node(created))
                     }
                     SyntaxKind::MethodDeclaration => {
@@ -384,6 +408,7 @@ impl DeclarationTransformer<'_> {
                                 r#type,
                                 None,
                             )?;
+                            keep_source_map_range(cx, created, input)?;
                             Ok(VisitResult::Node(created))
                         }
                     }
