@@ -753,6 +753,23 @@ impl<'a> CheckerState<'a> {
         };
         if !self.pop_type_resolution() {
             self.links.set_mapped_contains_error(mapped_type);
+            // tsgo (checker.go:21345-21349) stores the error type before it
+            // writes the message: printing the mapped type asks for this
+            // property's type again. tsc 6.0 stored it afterwards, so the
+            // print resolved the property once more, down to the
+            // instantiation depth limit.
+            computed = self.tables.intrinsics.error;
+            if self
+                .links
+                .read_symbol(symbol, |links| links.type_of_symbol.resolved())
+                .is_none()
+            {
+                self.links.set_symbol_type(
+                    self.speculation_depth,
+                    symbol,
+                    LinkSlot::Resolved(computed),
+                );
+            }
             let property_name = self.symbol_name_as_written(symbol);
             let mapped_text = self.type_to_string(mapped_type)?;
             self.error_at_js(
@@ -760,7 +777,6 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Type_of_property_0_circularly_references_itself_in_mapped_type_1,
                 &[(&property_name).into(), (&mapped_text).into()],
             );
-            computed = self.tables.intrinsics.error;
         }
         if let Some(cached) = self
             .links

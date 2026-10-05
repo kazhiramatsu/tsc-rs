@@ -390,25 +390,19 @@ fn recursively_expanding_union_defers_generic_mapped_indexed_access() {
                     )
                 })
                 .collect();
-            // tsgo (tsc-19dadef8) reports only TS2615 here. tsc-rs reaches
-            // the instantiation depth limit first, whose row now names the
-            // recurring type as tsgo's limit does (TS5114); the extra row is
-            // a known difference recorded in the cutover packet (P3-5w).
+            // tsgo (tsc-19dadef8) reports only TS2615 here: the property's
+            // error type is stored before the message prints the mapped
+            // type (checker.go:21345-21349), so the print does not resolve
+            // the property again down to the instantiation depth limit.
             assert_eq!(
                 diagnostics,
                 [
-                    (
-                        5114,
-                        Some(70),
-                        Some(14),
-                        "Instantiations of type 'N' appear infinitely circular.",
-                    ),
                     (
                         2615,
                         Some(70),
                         Some(14),
                         "Type of property 'M' circularly references itself in mapped type '{ [P in \"M\"]: any; }'.",
-                    ),
+                    )
                 ]
             );
             assert!(

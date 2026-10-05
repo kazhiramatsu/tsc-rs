@@ -1099,10 +1099,14 @@ impl<'a> CheckerState<'a> {
                 {
                     return Ok(false);
                 }
-                // getTypeFromTypeNodeWorker(identifier) (63290-63293)
-                // resolves the name and takes its DECLARED type; a type
-                // parameter type is per-symbol memoized, so `=== tp`
-                // reduces to "resolves to tp's symbol". Resolution is
+                // tsgo (checker.go isTypeParameterPossiblyReferenced):
+                // `getSymbolFromTypeReference(node) == tp.symbol`. The name
+                // is compared by its symbol, not by its declared type: the
+                // check type of a distributive conditional type is the
+                // distributed form of the type parameter, a second type
+                // of the same symbol, and a comparison of types found no
+                // reference to it (isDistributionDependent was false for
+                // every distributive conditional type). Resolution is
                 // quiet (ignore_errors), like getSymbolAtLocation.
                 let resolved = self.resolve_entity_name(
                     node,
@@ -1116,8 +1120,7 @@ impl<'a> CheckerState<'a> {
                             .symbol_flags(candidate)
                             .intersects(SymbolFlags::TYPE_PARAMETER) =>
                     {
-                        let declared = self.get_declared_type_of_type_parameter(candidate);
-                        Ok(declared == tp)
+                        Ok(Some(candidate) == self.tables.type_of(tp).symbol)
                     }
                     _ => Ok(false),
                 }

@@ -15,7 +15,7 @@ use tsc_emitter::{
     StandaloneWriter,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{CheckFlags, CompilerOptions, ModifierFlags, NodeFlags, SymbolFlags};
+use tsc_types::{CheckFlags, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckAbort, CheckResult, CheckerState, OracleCrashKind};
 
@@ -64,13 +64,6 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
         enclosing: Option<NodeId>,
         meaning: SymbolFlags,
     ) -> CheckResult<Vec<SymbolId>>;
-}
-
-/// tsc-port: getEmitDeclarations @6.0.3
-/// tsc-hash: b592b5f4c632a60784ba25e59679201356befc86d16c5a441be6439b53a5150c
-/// tsc-span: _tsc.js:18151-18155
-pub(crate) fn emit_declarations(options: &CompilerOptions) -> bool {
-    options.declaration == Some(true) || options.composite == Some(true)
 }
 
 impl CheckerState<'_> {
@@ -1767,39 +1760,70 @@ impl CheckerState<'_> {
     }
 
     /// tsgo PrecalculateDeclarationEmitVisibility (emitresolver.go:236-274):
-    /// the declarations a CommonJS file's top-level `module.exports = x` or
-    /// `exports.y = x` names are visible. (The checker marks those of export
-    /// assignments and export specifiers when it checks them.)
+    /// the declarations a file's export assignments (`export = x`,
+    /// `export default x`), export specifiers and, in a CommonJS file,
+    /// top-level `module.exports = x` or `exports.y = x` name are visible.
+    /// It runs once for a file, when its declarations are transformed; a
+    /// file that is not transformed, such as a declaration file, marks
+    /// nothing. tsc 6.0 marked them when it checked the export.
+    ///
+    /// tsgo visits every node of the file. The export assignments and
+    /// export specifiers are found here by a scan of the file's node
+    /// records (only nodes in the tree have a parent) and taken in source
+    /// order, which is the order of that visit.
     pub(crate) fn emit_precalculate_declaration_emit_visibility(
         &mut self,
         file: NodeId,
     ) -> CheckResult<()> {
-        if !self.binder.is_common_js_module_of_node(file) {
+        if !self.declaration_emit_aliases_marked.insert(file) {
             return Ok(());
         }
-        let NodeData::SourceFile(data) = self.data_of(file) else {
-            return Ok(());
-        };
-        let statements = self.nodes_of(data.statements);
-        for statement in statements {
-            let NodeData::ExpressionStatement(data) = self.data_of(statement) else {
-                continue;
-            };
-            let Some(expression) = data.expression else {
-                continue;
-            };
-            if !self.is_common_js_module_exports(expression) {
+        let source = self.binder.source_of_node(file);
+        let mut names: Vec<(u32, NodeId)> = Vec::new();
+        for id in source.arena.node_ids() {
+            let node = source.arena.node(id);
+            if node.parent.is_none() {
                 continue;
             }
-            let right = match self.data_of(expression) {
-                NodeData::BinaryExpression(data) => data.right,
+            let name = match &node.data {
+                NodeData::ExportAssignment(data) => data
+                    .expression
+                    .filter(|&expression| self.kind_of(expression) == SyntaxKind::Identifier),
+                NodeData::ExportSpecifier(data) => data.property_name.or(data.name),
                 _ => None,
             };
-            if let Some(right) =
-                right.filter(|&right| self.kind_of(right) == SyntaxKind::Identifier)
-            {
-                self.collect_linked_aliases(right, /*set_visibility*/ true)?;
+            if let Some(name) = name {
+                names.push((node.pos, name));
             }
+        }
+        if self.binder.is_common_js_module_of_node(file) {
+            let NodeData::SourceFile(data) = self.data_of(file) else {
+                return Ok(());
+            };
+            for statement in self.nodes_of(data.statements) {
+                let NodeData::ExpressionStatement(data) = self.data_of(statement) else {
+                    continue;
+                };
+                let Some(expression) = data.expression else {
+                    continue;
+                };
+                if !self.is_common_js_module_exports(expression) {
+                    continue;
+                }
+                let right = match self.data_of(expression) {
+                    NodeData::BinaryExpression(data) => data.right,
+                    _ => None,
+                };
+                if let Some(right) =
+                    right.filter(|&right| self.kind_of(right) == SyntaxKind::Identifier)
+                {
+                    names.push((self.binder.node_record(expression).pos, right));
+                }
+            }
+        }
+        names.sort_by_key(|&(pos, _)| pos);
+        for (_, name) in names {
+            self.collect_linked_aliases(name, /*set_visibility*/ true)?;
         }
         Ok(())
     }

@@ -3060,3 +3060,225 @@ tsc-rsの両方で出力し、最初に分かれる所で特定した：
     `objectTypesWithOptionalProperties2`。
 - hosted：PR #682（head `b6acb7286`）、run 37296279975 — `plan` 31s、`rust` 11m14s、`conformance (TypeScript 7.1)` 20m23s、
   `gates` 12s。
+
+## P3-5bf 7.1のcheckerの規則：再帰の同一性、推論、循環の扱い、JSX、JavaScriptの代入、初期化の順序（2026-10-05）
+
+P3-5beの「次」に挙げた、conformanceでerrorsがFullでない構成を順に調べた。原因は1つずつ別の規則だった。
+調べ方はP3-5beと同じで、instantiationのstackと呼び出しの経路をtsgo（同じcommitのsourceの写しに計測を足して
+buildしたもの）とtsc-rsの両方で出力し、最初に分かれる所を見た：
+- **再帰の同一性**：型nodeから作った型参照は`ObjectFlagsFromTypeNode`を持ち、`getRecursionIdentity`はそれを
+  symbolやtupleのtargetでまとめず、node自身を同一性にする（checker/relater.go:766-870、checker.go:23664、
+  24600-24602、25572-25584）。`Inner[]`→`Mid[]`→`Leaf[]`の3段が「同じ型が深く入れ子になった」と見なされ
+  なくなり、比較が末端の違いまで届く（`deeplyNestedArrayTypes`、`deeplyNestedTupleTypes`のTS2322）。indexed
+  accessの同一性も、左端のobject型そのものではなく、その型の同一性になった。
+- **循環するmapped typeのproperty**：`getTypeOfMappedSymbol`は、循環を見つけたpropertyにerror型を書いてから
+  TS2615を出す（checker/checker.go:21345-21349）。messageに書くmapped typeの表示が同じpropertyの型をもう一度
+  求めるので、tsc 6.0の順序（messageの後で書く）では、表示がinstantiationの深さの制限まで解決をやり直して
+  いた（`recursivelyExpandingUnionNoStackoverflow`の余分なTS5114）。
+- **computed property nameの検査中の印**：`checkComputedPropertyName`は結果をcomputed nameのnodeにcacheし、
+  式を検査している間はそのnodeに循環の印（`circularConstraintType`）を置く（checker/checker.go:27272-27290）。
+  `let {[b]: b} = {}`のように、名前の式が自分の宣言する変数を指すbinding elementで、宣言前の使用を1回だけ報告し、
+  implicit anyを出さない（`blockScopedBindingUsedBeforeDef`）。
+- **要求時に見つからないglobalは全て報告する**：検査の途中でglobalを探して見つからなかったときの診断は、
+  tscでもtsgoでもglobalの診断になる。tsc-rsは一部のgetterの分しかprogramのglobalの診断に公開していなかった。
+  `getGlobalSymbol`が見つからなかった分を全て公開する（`noLib`での`Awaited`：`awaitedTypeNoLib`）。libの無い
+  programでは、`import()`やarrow functionの戻り値のelaborationが探す`Promise`、import attributesが探す
+  `ImportAttributes`の診断も出るようになった（tsgoと同じ。unit testの期待を直した）。
+- **index型の基底制約とremappingするmapped typeのkey**：`as`節を持つgenericなmapped type `M`に対する`keyof M`の
+  基底制約は、そのkeyの制約になる（checker/checker.go:27901-27910、27988-27995）。`getSimplifiedType`にindex型の
+  場合は無い（28367-28375）。`checkIndexedAccessIndexType`は、remappingするmapped typeのkeyを遅延させずに取る
+  （8399-8405）。`mappedTypeConstraints2`の鎖がtsgoと同じになった。
+- **indexed accessの単純化は自分自身を除く**：`getSimplifiedIndexedAccessType`は、単純化の結果がunionで、
+  その中に元の型自身があれば除く（checker/checker.go:28380-28393）。再入した読み出しは元の型をそのまま返すので、
+  自分を含むunionができる。tsc 6.0は残していた。
+- **近い型同士の推論は、深い方から**：`inferFromMatchingTypes`は、「近い型」（同じobject型のinstantiationや同じ
+  aliasのinstantiation）の組を先に集め、targetをgenericなinstantiationの深さの大きい順に並べてから推論する
+  （checker/inference.go:370-409、`compareTypesAndDepth`、`getTypeDepth`）。`T[] | T[][]`への
+  `Value[] | Value[][]`の推論で、`Value[][]`→`T[][]`が先になり、Tは`Value`になる。tsc 6.0はunionの並び順で
+  推論し、Tを`Value[]`にして呼び出しを断っていた（`nestedGenericTypeInference`のTS2345）。
+- **再帰した呼び出しの解決は、推論を制約と照合しない**：tsgoは、overloadを選んでいる最中の呼び出しをstackに
+  積む（`Checker.callResolutionStack`、checker/checker.go:798、9108-9116）。stackにある呼び出しをもう一度解決する
+  とき、候補が1つなら、型引数の推論を制約と照合しない（`InferenceFlagsNoConstraintChecks`、checker.go:9243-9246、
+  inference.go:1381）。制約との照合は、外側の解決がまだ作っている途中の型を読むからである。
+  `class Item extends ClientDocumentMixin(BaseItem)`と`BaseItem extends Document<typeof Item>`では、内側の解決が
+  construct signatureのまだ無い`typeof BaseItem`を制約と比べ、TS2345を出していた
+  （`mixinWithBaseDependingOnSelfNoCrash1`）。zodの形の再帰するgetterのimplicit anyも同じ原因だった
+  （`recursiveTypeInference`、`recursiveTypeInference2`）。
+- **失敗した呼び出しの解決は、入れ子の解決がsignatureをcacheしていても報告する**：`resolveCall`は、選べた
+  overloadを返すか、失敗なら失敗の候補を書いてから診断を出す（checker/checker.go:9117-9133）。同じnodeの
+  入れ子の解決がcacheしたsignatureへの差し替えは、`getResolvedSignature`が`resolveCall`の戻った後で行う
+  （8606-8614）。tsc 6.0は`resolveCall`の中で、診断を出す前に、cacheされたsignatureを返していた。上の規則と
+  組み合わさると、arrow functionの引数の中の呼び出し（外側の呼び出しの推論のためにもう一度解決される）で、
+  入れ子の解決が制約の照合無しで成功し、外側がその結果を採って、制約に合わない引数のerrorが消える。zodの
+  `// @ts-expect-error`付きの`z.templateLiteral([z.object({})])`など23箇所が「使われていないdirective」
+  （TS2578）になった。conformanceにこの形は無く、corporaの診断をtsgoと比べて見つけた（full runの後のcommit）。
+- **conditional typeのpermissive／restrictiveなinstantiationは、要るときだけ作る**：`getConditionalType`は、check
+  型とextends型のpermissive／restrictiveなinstantiationを`&&`と`||`の先で作る（checker/checker.go:24838-24893）。
+  extends型が`unknown`や`any`なら1つも作らない。tsc-rsは4つを先に全部計算していたので、
+  `T extends unknown ? … : never`でcheck型を毎回permissive mapperでinstantiateしていた。制約をたどるたびに
+  check型が1段深くなる`infiniteConstraints2`では、これが深さの制限に届いていた（TS2589）。
+- **iterableでない型の診断は、fileの検査の終わりに出す**：`reportTypeNotIterableError`は
+  `addDeferredDiagnostic`で積まれ、fileの検査の終わりに実行される（checker/checker.go:6463-6467、6511-6522。
+  「TypeToStringは解決中のsymbolを解決しようとして循環を起こし得る」）。tsc 6.0はその場で出していたので、
+  `function* foo() { yield*foo }`では、戻り値型の推論の中で関数を`() => any`と表示し、その解決を失敗させて
+  いた。tsgoは`() => Generator<any, void, unknown>`と書く（`YieldExpression6_es6`）。後回しにする診断
+  （存在しないpropertyと、iterableでない型）は1つのlistにまとめ、積んだ順に実行する
+  （`Checker.deferredDiagnosticCallbacks`）。
+- **contextualな関数の戻り値型は、省略無しで計算する**：`contextuallyCheckFunctionExpressionOrObjectLiteralMethod`
+  は、戻り値型を本体から求める前に`CheckModeSkipContextSensitive`を外す（checker/checker.go:10377-10384。
+  「resolvedReturnTypeはずっとcacheされるので、anyFunctionTypeが混ざってはならない」）。tsc 6.0はmodeをそのまま
+  渡していたので、context-sensitiveな関数を返すgenericなcallbackの戻り値型がwildcardの関数のまま残り、返す
+  関数が合わなくても通っていた（TypeScript issue 61979、`contextualTypingGenericFunction2`のTS2322 6件）。
+- **型がerrorのpropertyは、pseudo typeで表示する**：enclosing declarationのある型の表示では、
+  `serializeTypeForDeclaration`がpropertyの値の宣言のpseudo typeを実際の型と比べ、実際の型がerror型なら等しいと
+  見なす（checker/pseudotypenodebuilder.go:363-366）。object literalに同じ名前を2回書くと、値の宣言は最初の
+  もの、型は最後のものになるので、最後の値が解決できないとき最初の値のpseudo typeが表示される：
+  `{ a: 1, a: missing }`は`{ a: number; }`。pseudocheckerが諦める式（`[1]`など）はcheckerの型（`any`）、型
+  assertionは書かれた型nodeになる。tsc 6.0は全て`any`だった（error recoveryでobject literalになった
+  `reachabilityChecksNoCrash1`）。診断用の型の表示に、この場合だけを足した（下の「次」）。
+- **何も書いていないliteralも、書いていないpropertyで判別する**：`discriminateContextualTypeByJSXAttributes`と
+  `discriminateContextualTypeByObjectMembers`は、nodeにsymbolがあれば、書かれていないoptionalな判別propertyを
+  `undefined`として使う（checker/jsx.go:266-292）。tsc-rsはmemberの表が空でないことを条件にしていたので、属性の
+  無い`<Foo>{(value) => {}}</Foo>`が判別されず、childの関数のparameterがimplicit anyになっていた
+  （`checkJsxChildrenProperty16`のTS7006）。
+- **JSXのbodyのchildrenは、excess propertyの検査を受ける**：elementのbodyから合成する`children` propertyには、
+  親が属性のnodeである偽のproperty signatureが宣言として付く（checker/jsx.go:845-848）。
+  `shouldCheckAsExcessProperty`はその親を見る。tsc-rsはnodeを合成しないので宣言が無く、bodyのchildrenは
+  excess propertyにならなかった：`children`を取らないcomponentへの`<Tag key="1"><div></div></Tag>`が通り、
+  この検査だけが落とすoverloadが選ばれていた（`checkJsxChildrenProperty15`、
+  `tsxStatelessFunctionComponentOverload4`）。偽の宣言の親をsymbolのlinksに記録し、検査がそれを読む。
+- **予約名のmemberはpropertyにならない**：`setStructuredTypeMembers`は、型のpropertyを
+  `getNamedMembers(members)`から取り、予約名（`__`で始まる内部名）を落とす。解決済みの表から作る匿名型で、
+  tsc-rsは表の全てをpropertyにしていた。bigint literalを名前にしたobject literalのmemberはbinderが
+  `__missing`として宣言するので、`{ 3n: "x" }`が`{ __missing: string; }`になり、excess property（TS2353）に
+  なっていた。tscとtsgoでは`{}`で、足りないpropertyのTS2741になる（`bigintPropertyName`）。
+- **`X = X || {}`は普通の式**：tsc 6.0は、JavaScriptの`X = X || {}`（既定値付きのexpandoの初期化）の型を右の
+  operandだけから取り、その代入の検査を省いていた。tsgoにはこの形が無く、`checkBinaryLikeExpression`は両方の
+  operandを検査し（checker/checker.go:12538-12544）、代入は常に比べる。tsc-rsは前半だけが残っていたので、
+  `self['Common'] = self['Common'] || {}`で`{}`を`Common`の型と比べ、expandoのmemberが足りないと報告していた
+  （`jsElementAccessNoContextualTypeCrash`、`typeFromPropertyAssignment9`、`9_1`）。
+- **JavaScriptのproperty代入の根は、普通の名前**：tsc 6.0のbinderは、宣言の無い名前へのproperty代入に入れ物を
+  宣言していた。tsc-rsのcheckerには、その代わりの例外が2つ残っていた：prototypeへの代入の根
+  （`C.prototype = {}`、`C.prototype.m = …`）は未解決でも報告せず、値を持たないnamespaceを根にする代入は
+  TS2708ではなくTS2304にしていた。tsgoのbinderはどちらの入れ物も宣言せず、checkerは普通の名前として解決する：
+  使用のたびにTS2304、namespaceならTS2708（`nestedPrototypeAssignment`、
+  `prototypePropertyAssignmentMergeWithInterfaceMethod`）。
+- **exportの対象が可視になるのは、そのfileの宣言をtransformするとき**：export assignment、export specifier、
+  CommonJSの`module.exports = x`が名指す宣言を可視にする印は、`PrecalculateDeclarationEmitVisibility`が付ける
+  （checker/emitresolver.go:236-306）。これは宣言のtransformerが、transformするfileごとに1回呼ぶ
+  （transformers/declarations/transform.go:304）。tsc 6.0は、checkerがexportを検査したときに、全てのfileで
+  付けていた。declaration fileはtransformされないので、その`export = foo`は`namespace foo`を可視にしない：
+  別のfileのaugmentationが`foo`のmemberに解決する名前はprivate nameになる（TS4060。
+  `exportAssignmentMembersVisibleInAugmentation`）。tsc-rsの印は、そのfileを検査したchecker（shard）にだけ
+  付いていたので、結果がfileの割り当てに依存していた（同じprogramが、libの数で結果を変えた）。fileのexport
+  assignmentとexport specifierは、node recordの走査で見つけ、sourceの順に処理する（tsgoはfileの全nodeを
+  たどる）。他のfileの文が「後から可視にするalias」として返る場合（augmentationの中の名前が、どのexportも
+  可視にしていない宣言に解決したとき）、tsgoはその文をtransformして誰も読まない置き換えを作る。tsc-rsの
+  transformerはこれを契約違反として止めていたので、その文を飛ばすようにした（harness errorだった
+  `declarationEmitComputedPropertyNameSymbolStripInternal`がFullになった）。
+- **初期化の順序：ambient moduleは、global augmentationの後でmergeする**：tsgoの`initializeChecker`は、script
+  fileのlocalsをglobalsにmergeし、次にglobal scopeのaugmentation、global型の取得、その後でscript fileの
+  ambient moduleの宣言（「他のglobalのsymbolや型の解決が要ることがあるので後に回す」）、pattern module、
+  module augmentationの順に進む。
+  - program driverは、moduleの解決の準備をglobalsのmergeの前に済ませる。同じambient moduleの2つの宣言を
+    mergeすると、exportの中のaliasを解決する（`mergeSymbol`の`resolveSymbol`）ので、moduleの読み込みが要る。
+    前は、importが見つからない（TS2307）と報告し、mergeの衝突（TS2451）を報告しなかった。
+  - ambient moduleのsymbolは、localsのmergeから外し、global scopeのaugmentationの後でmergeする。
+  - global型のsymbolは、global scopeのaugmentationの後で引き直す。宣言が1つしかないglobalは、最初の
+    augmentationがmergeしたときに表の中で複製に置き換わるので、その前に引いたsymbolは古い。`lib`がes5だけの
+    とき、augmentした`Array<T>`の宣言型が2つでき、`string[]`にaugmentationが見えなかった（TS2339）。mainでも
+    再現する既存の不具合だった（`globalArrayAugmentationWithAmbientModuleReexportMerge1`）。
+- **deferredな型引数は、外側の解決が上書きする**：`getTypeArguments`は、解決のframeをpopしてから、nodeの
+  型引数を参照のmapperでinstantiateし、結果を`??=`で書く（checker/checker.go:22319-22323）。slotが空かどうかを
+  見るのはinstantiateの前で、代入はその後なので、instantiateの途中で同じ型引数がもう一度解決されると（再帰する
+  aliasは深さの制限までこれを繰り返す）、外側のframeの結果が内側のframeの書いたものを置き換える。tsc-rsは
+  slotが空のときだけ書いていたので、一番内側のframeのerror型が配列の要素型として残り、`Recur<T>[number]`を
+  返す呼び出しの型が`any`になっていた（tsgoでは`(T extends unknown[] ? {} : {…})[number]`）。
+- **型parameterへの参照は、symbolで見つける**：`isTypeParameterPossiblyReferenced`は、型参照のsymbolを型
+  parameterのsymbolと比べる（`getSymbolFromTypeReference(node) == tp.symbol`）。tsc 6.0は参照の型を型parameterと
+  比べていた。distributiveなconditional typeのcheck型は、型parameterの「distributed」な形（同じsymbolの別の型。
+  P3-5aj）なので、型の比較では参照が1つも見つからず、`isDistributionDependent`が全てのdistributiveな
+  conditional typeでfalseになっていた。そのため、そういうconditional typeへの関係が「結果が分配に依存しない」
+  場合の分岐に入り、check型をもう一度instantiateしていた（`recursiveIndexedAccessSimplification`で、TS2322の
+  代わりにTS2589）。
+- **harness：`extends`をたどってskipを決める**：tsgoのtest harnessは、testのtsconfigをcompilerのparserで読み、
+  その結果のoptionでskipを決める（`SkipUnsupportedCompilerOptions`）。`extends`で継承した`baseUrl`もskipの
+  理由になる：`pathMappingInheritedBaseUrl`にbaselineは無い。runnerはtsconfigのunit自身の`compilerOptions`
+  しか見ておらず、referenceの無いcaseを実行していた。相対pathと絶対pathの`extends`（文字列とlist）を、testの
+  unitの中でたどる。
+- unit test：CLI（tsgoの出力にpin）で20件。19件は上の規則ごとで、どれもmainのbuildでは違う出力になる。1件は
+  入れ子の呼び出しの解決（zodの縮約）。harnessの`extends`で1件。既存のunit testは、宣言のtransformのときの印、
+  TS2615だけになった循環、libの無いprogramで公開されるようになったglobalの診断、prototype代入の根に合わせて
+  直した。
+- 結果（corporaの`--noEmit`の診断、tsgo 7.1.0-dev-19dadef8と比べて、`d193abfeb`のbuild）：hono、Playwright、
+  TypeScript `src/compiler`、Next.js、Effect、Vue.js、VS Codeは、既定のchecker数で全て同じbyte。zodは37行対36行で、
+  違いはP3-5beに記録したpartition依存のTS5115の1行。`af839cb7c`のbuildでは、zodに使われていない
+  `@ts-expect-error`（TS2578）が23件多かった（上の「失敗した呼び出しの解決」）。conformanceはその時点で
+  0 regressionsだったので、この後退を見つけたのはcorporaの診断の比較だけだった。
+- conformance（release build、`af839cb7c`、`--workers 2`、468 s）：15,228構成、lane A 13,466、full 13,443（+27）、
+  text 2、category 0、mismatch 4、emit full 13,434（+2）、emitの不一致7、未評価8、harness error 17（−1）、skip
+  1,720（+1）、`.js.map`の不一致1。P3-5beの最後のreportと行ごとに比べて、errorsがFullに上がったのは27構成
+  （上の各項目に挙げたcase。`declarationEmitComputedPropertyNameSymbolStripInternal`はharness errorから全tierが
+  Full、`exportAssignmentMembersVisibleInAugmentation`はemitもFull）。`pathMappingInheritedBaseUrl`は比較から
+  skipに移った。他の構成はtierも、診断とemitのdigestも同じ。
+- full runは`d193abfeb`（入れ子の呼び出しの解決）より前のbyteで取った。`d193abfeb`のbuildでは、10のfilter
+  （`all`、`eneric`、`nfer`、`ontextual`、`sx`、`verload`、`eclaration`、`ecursive`、`xport`、`tslib`：重複を除いて
+  5,553構成）が、full runのreportとoutcome、tier、診断とemitのdigestまで同じことを確かめた。headでの全体の実行は
+  hostedの`conformance (TypeScript 7.1)` job。
+- `--checkers 4`の並列対照（`d193abfeb`、1 checkerの同じfilterと比べる）：`eclaration` 2,426構成、`xport` 1,067
+  構成、`ecursive` 135構成、`nfer` 357構成、`tslib` 7構成が全て同じ。P3-5beまで違っていた2構成
+  （`declarationEmitAugmentationUsesCorrectSourceFile`、`declarationEmitComputedPropertyNameSymbol2`。4 checkerで
+  harness error）は、exportの対象の印をtransformのときに付けるようになって消えた。
+  [conformance-ts71](../conformance-ts71/README.md#並列実行の対照)の表の5件は、1 checkerでも4 checkerでもFullに
+  なった。全caseの対照はlocalの負荷の方針により実行していない。
+- ratchet：0 regressions。23行を足し、4行（`blockScopedBindingUsedBeforeDef`、`reachabilityChecksNoCrash1`、
+  `YieldExpression6_es6`がcategoryから、`mappedTypeConstraints2`がtextから）をfullに上げた（13,422→13,445行）。
+- local：formatと、types・checker・emitter・compiler・conformance・harnessのclippy、test（`d193abfeb`で2,806件）。
+  最初の実行では、置き換えた挙動をpinしていたunit test 7件が失敗し、tsgoの挙動に直した（上の「unit test」）。
+  workspace全体のtestとclippyはhostedの`rust` job。
+- perf（README corporaとVue.js、nice 20、main（P3-5beのbuild、`469ccc709`）対tsgo 7.1.0-dev、branchは
+  `d193abfeb`）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 136→135、zod 528→527、Playwright 375→376、TypeScript
+    `src/compiler` 335→343、Next.js 811→780、Effect 540→551、Vue.js 348→344、VS Code 3,547→3,558。読み込んだ
+    文書数と出力は8 corporaでmainと同じ。peak（MB）：hono 317→299、zod 1,300→1,295、Playwright 799→803、
+    TypeScript `src/compiler` 284→284、Next.js 1,326→1,290、Effect 1,016→1,041、Vue.js 598→595、VS Code
+    5,424→5,430。
+  - `tsconfig.bench-full.json` 3回：hono 159→157、zod 648→634、Playwright 504→497、TypeScript `src/compiler`
+    552→529、Next.js 1,069→1,027、Effect 764→780、Vue.js 419→412。peak：hono 337→329、zod 1,525→1,532、
+    Playwright 872→874、TypeScript `src/compiler` 476→474、Next.js 1,445→1,434、Effect 1,160→1,174、Vue.js
+    625→623。出力は7 corporaとも、全fileがmainと同じbyte。
+  - 10回のA/B：`--noEmit` Effect 529→526、zod 530→526、VS Code 3,454→3,467、Next.js 772→757、Vue.js 351→341。
+    `bench-full` TypeScript `src/compiler` 498→503、Next.js 1,003→998、Playwright 475→476、Effect 752→765、Vue.js
+    404→403。peakは±2%以内。
+  - 1 checkerの命令数branch÷main：`--noEmit` zod 0.996、Effect 0.998、Next.js 0.980、Playwright 0.962、Vue.js
+    0.999、`bench-full` TypeScript `src/compiler` 1.000、Next.js 0.988、Vue.js 1.000。
+  - Effectの`bench-full`は3回と10回のどちらでも2%ほど遅く読めたので、計り直した：1 checkerの命令数は3回ずつで
+    51.20／51.37／51.40 G対51.21／51.32／51.43 G、20回のA/Bはmedian 717 ms対720 ms（最小値はどちらも702 ms）、
+    peakは1,166 MB対1,163 MB。差は計測の誤差だった。Effectの`--noEmit`のpeak（1,016→1,041）も、10回のA/Bでは
+    1,035対1,036。劣化無し。fileごとのexportの走査（node record）は命令数に表れない。
+  - tsgo（同じ計測の3回のmedian、ms／peak MB）：`--noEmit` hono 167／325、zod 907／1,716、Playwright 575／1,012、
+    TypeScript `src/compiler` 358／390、Next.js 1,313／1,612、Effect 803／1,202、Vue.js 503／724、VS Code
+    4,802／6,936。`bench-full` hono 204／382、zod 1,007／1,915、Playwright 719／1,334、TypeScript `src/compiler`
+    645／654、Next.js 1,842／2,044、Effect 1,114／1,782、Vue.js 605／861。
+  - 出力（`bench-full`、tsgoと同じbyteのfile数）：hono、zod、Playwright、TypeScript `src/compiler`、Next.js、Vue.jsは
+    `.js`、`.d.ts`、両方のmapの全file。Effectは宣言494/496（mainも同じ）、他は全て。
+- 次（conformanceでerrorsがFullでない6構成と、その他の残り）：
+  - **type-onlyのalias**（`importEquals3`、`typeOnlyMerge3`）：tsgoは、type-onlyの宣言を、そう書かれたalias
+    自身（とexport star経由）にだけ記録し、`resolveAlias`が純粋なaliasをたどるときに次のaliasの記録を写す
+    （`resolveIndirectionAlias`）。`getTypeOnlyAliasDeclarationEx`は、求める意味を持つsymbolに着くまで1段ずつ
+    解決して記録を見る。tsc-rsはtsc 6.0の形（解決のたびに、直接の対象と最終の対象から印を付ける）のままで、
+    印を付ける場所が17、問い合わせが12ある。次のslice。
+  - **harnessはemitの後の診断をbaselineにする**（`mutuallyRecursiveInference`、`recursiveMappedTypes`、
+    `incorrectRecursiveMappedTypeConstraint`、`typeParameterWithInvalidConstraintType`）：P3-5beに書いた通り、
+    runnerに「emitしてから検査する」経路が要る。後ろの2つはTS2751の関連情報の違いで、同じ原因
+    （emit resolverが先に型を解決する）。
+  - 型がerrorのpropertyのpseudo typeは、property assignmentとshorthandの宣言だけ、単純なpseudo type（literal、
+    書かれた型node）だけを表示する。他の宣言の種類と、合成のpseudo type（関数、object literal、tuple）は
+    宣言自身の型の表示のまま。
+  - 他のfileの文である「後から可視にするalias」は飛ばすだけで、transformしない。tsgoはtransformするので、
+    その中でaccessibilityのerrorが見つかれば他のfileのnodeに報告する。その形のcaseはconformanceに無い。
+  - emitの不一致7（`binderBinaryExpressionStress`、`comparisonAnonymousMappedTypes`、
+    `comparisonReverseMappedTypes`、`privateNameStaticMethod`、`computedPropertyNames52`のtarget=es2015、
+    `typeTagOnFunctionReferencesGeneric`、`objectTypesWithOptionalProperties2`）、harness error 17
+    （`runExternalCode`の15件、`deduplicatePackages`の2件）。
+  - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。

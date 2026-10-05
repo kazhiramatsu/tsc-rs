@@ -111,6 +111,59 @@ fn a_commented_out_tsconfig_entry_after_a_trailing_comma_still_parses() {
 }
 
 #[test]
+fn an_unsupported_option_inherited_through_extends_skips_the_configuration() {
+    // tsgo's harness parses the test's tsconfig with the compiler's parser,
+    // so `SkipUnsupportedCompilerOptions` sees the inherited `baseUrl`
+    // (compiler/pathMappingInheritedBaseUrl has no baseline).
+    let units = [
+        (
+            "/other/tsconfig.base.json",
+            "{ \"compilerOptions\": { \"baseUrl\": \".\" } }",
+        ),
+        (
+            "/project/tsconfig.json",
+            "{ \"extends\": \"../other/tsconfig.base.json\", \"compilerOptions\": { \"module\": \"commonjs\" } }",
+        ),
+    ];
+    let options =
+        EffectiveOptions::from_units(Some("/project/tsconfig.json"), &units, &BTreeMap::new());
+    assert_eq!(
+        options.unsupported(),
+        Some(NativeSkip::Unsupported("baseUrl"))
+    );
+    // The config's own option wins over an inherited one, a list is
+    // followed in order, and `.json` is added to a name without it.
+    let units = [
+        (
+            "/a.json",
+            "{ \"compilerOptions\": { \"module\": \"system\" } }",
+        ),
+        (
+            "/b.json",
+            "{ \"compilerOptions\": { \"module\": \"umd\" } }",
+        ),
+        ("/tsconfig.json", "{ \"extends\": [\"./a\", \"./b.json\"] }"),
+    ];
+    let options = EffectiveOptions::from_units(Some("/tsconfig.json"), &units, &BTreeMap::new());
+    assert_eq!(
+        options.unsupported(),
+        Some(NativeSkip::Unsupported("module=umd"))
+    );
+    let units = [
+        (
+            "/a.json",
+            "{ \"compilerOptions\": { \"module\": \"system\" } }",
+        ),
+        (
+            "/tsconfig.json",
+            "{ \"extends\": \"./a.json\", \"compilerOptions\": { \"module\": \"commonjs\" } }",
+        ),
+    ];
+    let options = EffectiveOptions::from_units(Some("/tsconfig.json"), &units, &BTreeMap::new());
+    assert_eq!(options.unsupported(), None);
+}
+
+#[test]
 fn the_tsconfig_unit_of_the_package_id_case_is_found() {
     let content = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),

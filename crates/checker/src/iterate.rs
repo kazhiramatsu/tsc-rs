@@ -50,6 +50,21 @@ impl IterationErrorTarget<'_> {
             Self::Span(_) => None,
         }
     }
+
+    fn to_deferred(self) -> DeferredIterationErrorTarget {
+        match self {
+            Self::Node(node) => DeferredIterationErrorTarget::Node(node),
+            Self::Span(span) => DeferredIterationErrorTarget::Span(span.clone()),
+        }
+    }
+}
+
+/// The error location of a report that waits for the end of the file check
+/// (tsgo `addDeferredDiagnostic`): an [`IterationErrorTarget`] that owns its
+/// span.
+pub(crate) enum DeferredIterationErrorTarget {
+    Node(NodeId),
+    Span(DiagSpan),
 }
 
 /// tsc IterationTypes triple (the non-poison shape). Copy value
@@ -900,20 +915,30 @@ impl<'a> CheckerState<'a> {
             )?;
             if iteration_types == IterationTypesResult::No {
                 if let Some(error_target) = error_target {
-                    let root_index = self.report_type_not_iterable_error(
-                        error_target,
-                        ty,
-                        use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
-                    )?;
-                    if let Some(container) = &container {
-                        let related: Vec<RelatedInfo> = container
-                            .errors
-                            .iter()
-                            .map(related_info_from_diagnostic)
-                            .collect();
-                        self.diagnostics
-                            .update(root_index, |diagnostic| diagnostic.related.extend(related));
-                    }
+                    // tsgo (checker.go:6511-6522): "We defer the diagnostic
+                    // because TypeToString may attempt to resolve symbols
+                    // that are already being resolved, possibly causing
+                    // circularities." tsc 6.0 reported here, and the type
+                    // of a generator that yields itself printed '() => any'.
+                    let related: Vec<RelatedInfo> = container
+                        .as_ref()
+                        .map(|container| {
+                            container
+                                .errors
+                                .iter()
+                                .map(related_info_from_diagnostic)
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    self.deferred_diagnostics.push(
+                        crate::state::DeferredDiagnostic::TypeNotIterable {
+                            target: error_target.to_deferred(),
+                            ty,
+                            allow_async_iterables: use_
+                                .intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
+                            related,
+                        },
+                    );
                 }
                 return Ok(None);
             }
@@ -954,11 +979,16 @@ impl<'a> CheckerState<'a> {
                 self.get_iteration_types_of_iterable_worker(constituent, use_, None, &mut None)?;
             if iteration_types == IterationTypesResult::No {
                 if let Some(error_target) = error_target {
-                    self.report_type_not_iterable_error(
-                        error_target,
-                        ty,
-                        use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
-                    )?;
+                    // Deferred as well (checker.go:6463-6467).
+                    self.deferred_diagnostics.push(
+                        crate::state::DeferredDiagnostic::TypeNotIterable {
+                            target: error_target.to_deferred(),
+                            ty,
+                            allow_async_iterables: use_
+                                .intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
+                            related: Vec::new(),
+                        },
+                    );
                 }
                 if !no_cache {
                     self.set_cached_iteration_types(ty, cache_key, IterationTypesResult::No);
@@ -1356,6 +1386,35 @@ impl<'a> CheckerState<'a> {
             message,
             &[(&display).into()],
         ))
+    }
+
+    /// Produce one deferred not-iterable report (tsgo
+    /// produceDeferredDiagnostics running the callback of
+    /// checker.go:6514-6522).
+    pub(crate) fn report_deferred_type_not_iterable(
+        &mut self,
+        target: DeferredIterationErrorTarget,
+        ty: TypeId,
+        allow_async_iterables: bool,
+        related: Vec<RelatedInfo>,
+    ) {
+        let error_target = match &target {
+            DeferredIterationErrorTarget::Node(node) => IterationErrorTarget::Node(*node),
+            DeferredIterationErrorTarget::Span(span) => IterationErrorTarget::Span(span),
+        };
+        match self.report_type_not_iterable_error(error_target, ty, allow_async_iterables) {
+            Ok(root_index) => {
+                if !related.is_empty() {
+                    self.diagnostics
+                        .update(root_index, |diagnostic| diagnostic.related.extend(related));
+                }
+            }
+            Err(err) => {
+                if let DeferredIterationErrorTarget::Node(node) = target {
+                    self.mark_oracle_crash_range(node, err);
+                }
+            }
+        }
     }
 
     // ---- iterator side ----

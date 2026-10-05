@@ -915,6 +915,10 @@ impl InferenceFlags {
     pub const ANY_DEFAULT: Self = Self(2);
     /// tsc InferenceFlags.SkippedGenericFunction
     pub const SKIPPED_GENERIC_FUNCTION: Self = Self(4);
+    /// tsgo InferenceFlagsNoConstraintChecks (checker/checker.go:271): an
+    /// inferred type is taken without comparing it with the constraint of
+    /// its type parameter.
+    pub const NO_CONSTRAINT_CHECKS: Self = Self(8);
 
     pub const fn from_bits(bits: i32) -> Self {
         Self(bits)
@@ -1852,6 +1856,11 @@ impl ObjectFlags {
     pub const IDENTICAL_BASE_TYPE_CALCULATED: Self = Self(33554432);
     /// tsc ObjectFlags.IdenticalBaseTypeExists
     pub const IDENTICAL_BASE_TYPE_EXISTS: Self = Self(67108864);
+    /// tsgo ObjectFlagsFromTypeNode (checker/types.go:644): a type
+    /// reference that the resolution of a type node created. Such a
+    /// reference cannot be the source of generative recursion before it is
+    /// instantiated, so its recursion identity is the reference itself.
+    pub const FROM_TYPE_NODE: Self = Self(536870912);
     /// tsc ObjectFlags.IsGenericTypeComputed
     pub const IS_GENERIC_TYPE_COMPUTED: Self = Self(2097152);
     /// tsc ObjectFlags.IsGenericObjectType

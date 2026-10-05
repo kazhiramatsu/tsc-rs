@@ -586,6 +586,57 @@ impl<'a> CheckerState<'a> {
                 && s_ty.alias_symbol == t_ty.alias_symbol)
     }
 
+    /// tsgo `getTypeDepth` (checker/inference.go:420-438): the depth of
+    /// generic instantiation of a type, up to `max_depth`. An aliased type
+    /// with type arguments and a type reference are one deeper than their
+    /// deepest type argument, a union or intersection is as deep as its
+    /// deepest constituent, and every other type has depth zero.
+    pub(crate) fn get_type_depth(&mut self, ty: TypeId, max_depth: usize) -> CheckResult<usize> {
+        if max_depth == 0 {
+            return Ok(0);
+        }
+        let alias_type_arguments = self
+            .tables
+            .type_of(ty)
+            .alias_type_arguments
+            .as_deref()
+            .filter(|arguments| !arguments.is_empty())
+            .map(<[TypeId]>::to_vec);
+        if let Some(arguments) = alias_type_arguments {
+            return Ok(self.get_type_list_depth(&arguments, max_depth - 1)? + 1);
+        }
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            let arguments = self.get_type_arguments(ty)?;
+            if !arguments.is_empty() {
+                return Ok(self.get_type_list_depth(&arguments, max_depth - 1)? + 1);
+            }
+        }
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::UNION_OR_INTERSECTION)
+        {
+            let members = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+                _ => unreachable!("UnionOrIntersection flag implies member data"),
+            };
+            return self.get_type_list_depth(&members, max_depth);
+        }
+        Ok(0)
+    }
+
+    fn get_type_list_depth(&mut self, types: &[TypeId], max_depth: usize) -> CheckResult<usize> {
+        let mut depth = 0;
+        for &ty in types {
+            depth = depth.max(self.get_type_depth(ty, max_depth)?);
+        }
+        Ok(depth)
+    }
+
     /// tsc-port: isTypeParameterAtTopLevel @6.0.3
     /// tsc-hash: 8fc9224bccca52f75df1302daf69a97ddcc67b5b7d4b5f132424c29be7b9a8d6
     /// tsc-span: _tsc.js:68349-68351
@@ -1478,7 +1529,13 @@ impl<'a> CheckerState<'a> {
             let non_fixing_mapper = self.inference_context(context).non_fixing_mapper;
             let instantiated_constraint =
                 self.instantiate_type(constraint, Some(non_fixing_mapper))?;
-            if let Some(t) = inferred_type {
+            // tsgo (checker/inference.go:1381): a recursive resolution of
+            // a call takes the inference without the constraint check.
+            let no_constraint_checks = self
+                .inference_context(context)
+                .flags
+                .intersects(InferenceFlags::NO_CONSTRAINT_CHECKS);
+            if let Some(t) = inferred_type.filter(|_| !no_constraint_checks) {
                 let constraint_with_this =
                     self.get_type_with_this_argument(instantiated_constraint, Some(t), false)?;
                 if !self.compare_inference_types(context, t, constraint_with_this)? {
@@ -1926,11 +1983,13 @@ impl InferTypesWalker<'_, '_> {
                 initial_sources,
                 self.types_of(target),
                 TypeMatcher::OrBaseIdenticalTo,
+                false,
             )?;
             let (sources, targets) = self.infer_from_matching_types(
                 temp_sources,
                 temp_targets,
                 TypeMatcher::CloselyMatchedBy,
+                true,
             )?;
             if targets.is_empty() {
                 return Ok(());
@@ -1985,6 +2044,7 @@ impl InferTypesWalker<'_, '_> {
                     initial_sources,
                     self.types_of(target),
                     TypeMatcher::IdenticalTo,
+                    false,
                 )?;
                 if sources.is_empty() || targets.is_empty() {
                     return Ok(());
@@ -2418,23 +2478,55 @@ impl InferTypesWalker<'_, '_> {
     /// remainders. tsc's undefined-until-appended matched arrays are
     /// empty vecs here — emptiness and undefined coincide because tsc
     /// only creates them via appendIfUnique.
+    ///
+    /// tsgo (checker/inference.go:370-409): with `sort`, the pairs are
+    /// only collected first, and the inferences then run over the matched
+    /// targets in order of decreasing depth of generic instantiation, so
+    /// `string[][]` is related to `T[][]` before `T[]`. tsc 6.0 inferred
+    /// in the order the union lists its members.
     fn infer_from_matching_types(
         &mut self,
         sources: Vec<TypeId>,
         targets: Vec<TypeId>,
         matcher: TypeMatcher,
+        sort: bool,
     ) -> CheckResult<(Vec<TypeId>, Vec<TypeId>)> {
         let mut matched_sources: Vec<TypeId> = Vec::new();
         let mut matched_targets: Vec<TypeId> = Vec::new();
         for &t in &targets {
             for &s in &sources {
                 if self.matches_pair(s, t, matcher)? {
-                    self.infer_from_types(s, t)?;
+                    if !sort {
+                        self.infer_from_types(s, t)?;
+                    }
                     if !matched_sources.contains(&s) {
                         matched_sources.push(s);
                     }
                     if !matched_targets.contains(&t) {
                         matched_targets.push(t);
+                    }
+                }
+            }
+        }
+        if sort {
+            let mut by_depth: Vec<(usize, TypeId)> = Vec::with_capacity(matched_targets.len());
+            for &t in &matched_targets {
+                by_depth.push((self.st.get_type_depth(t, 3)?, t));
+            }
+            {
+                let order = crate::type_order::order_ctx!(self.st);
+                let tables = &self.st.tables;
+                // compareTypesAndDepth: the largest depth sorts first.
+                by_depth.sort_by(|a, b| {
+                    b.0.cmp(&a.0).then_with(|| {
+                        tsc_types::type_order::compare_types(tables, &order, a.1, b.1)
+                    })
+                });
+            }
+            for &(_, t) in &by_depth {
+                for &s in &matched_sources {
+                    if self.matches_pair(s, t, matcher)? {
+                        self.infer_from_types(s, t)?;
                     }
                 }
             }

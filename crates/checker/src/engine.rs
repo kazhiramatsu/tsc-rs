@@ -2823,6 +2823,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .parent
                     == Some(container_declaration)
             }
+            // The `children` property synthesized from a JSX element's body:
+            // its fabricated declaration is a child of the attributes node.
+            (None, Some(container_declaration)) => {
+                *self
+                    .st
+                    .links
+                    .symbol_cold()
+                    .fabricated_declaration_parent
+                    .get(prop)
+                    == Some(container_declaration)
+            }
             _ => false,
         }
     }
@@ -4601,13 +4612,10 @@ impl<'a> CheckerState<'a> {
 
     // ---- recursion depth (checker-key §1.3) ----
 
-    /// tsc-port: isDeeplyNestedType @6.0.3
-    /// tsc-hash: f3ba77d18312de37ff50b6ea012109ca7f22c5431a117fe8a2f634af12290010
-    /// tsc-span: _tsc.js:67465-67490
+    /// tsgo-port: Checker.isDeeplyNestedType @7.1 (checker/relater.go:766-795)
     ///
     /// maxDepth defaults to 3 (greenfield §4.7's "5" was the audited
-    /// erratum). Instantiated mapped types use their modifier target's
-    /// identity when that target carries a declaration symbol.
+    /// erratum).
     pub fn is_deeply_nested_type(
         &mut self,
         ty: TypeId,
@@ -4618,8 +4626,8 @@ impl<'a> CheckerState<'a> {
         if depth < max_depth {
             return Ok(false);
         }
-        let ty = self.get_mapped_target_with_symbol(ty)?;
-        let members = match &self.tables.type_of(ty).data {
+        let target = self.get_recursion_identity_target(ty)?;
+        let members = match &self.tables.type_of(target).data {
             TypeData::Intersection { types } => Some(types.clone()),
             _ => None,
         };
@@ -4631,11 +4639,13 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(false);
         }
-        let identity = self.get_recursion_identity(ty);
+        let identity = self.get_recursion_identity_from_target(target);
         let mut count = 0usize;
         let mut last_type_id = 0u32;
         for &t in stack.iter().take(depth) {
             if self.has_matching_recursion_identity(t, identity)? {
+                // Only an occurrence with a higher type id than the one
+                // before counts: higher ids are newer instantiations.
                 if t.index() >= last_type_id {
                     count += 1;
                     if count >= max_depth {
@@ -4648,11 +4658,56 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    /// tsc-port: getMappedTargetWithSymbol @6.0.3
-    /// tsc-hash: fa660134f5f28dfbaf5c5623b0f0e72b181a1b173030ded784ffc82aa54479b5
-    /// tsc-span: _tsc.js:67491-67497
-    fn get_mapped_target_with_symbol(&mut self, mut ty: TypeId) -> CheckResult<TypeId> {
-        while self
+    /// tsgo-port: hasMatchingRecursionIdentity @7.1
+    /// (checker/relater.go:797-808)
+    fn has_matching_recursion_identity(
+        &mut self,
+        ty: TypeId,
+        identity: RecursionIdentity,
+    ) -> CheckResult<bool> {
+        let target = self.get_recursion_identity_target(ty)?;
+        let members = match &self.tables.type_of(target).data {
+            TypeData::Intersection { types } => Some(types.clone()),
+            _ => None,
+        };
+        if let Some(members) = members {
+            for member in members {
+                if self.has_matching_recursion_identity(member, identity)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        Ok(self.get_recursion_identity_from_target(target) == identity)
+    }
+
+    /// tsgo-port: getRecursionIdentity @7.1 (checker/relater.go:810-812)
+    pub(crate) fn get_recursion_identity(&mut self, ty: TypeId) -> CheckResult<RecursionIdentity> {
+        let target = self.get_recursion_identity_target(ty)?;
+        Ok(self.get_recursion_identity_from_target(target))
+    }
+
+    /// tsgo-port: getRecursionIdentityTarget @7.1 (checker/relater.go:814-832)
+    ///
+    /// The type whose identity stands for `ty`: the object type of an
+    /// indexed access (the `T` of `T[K]`), and the deepest modifiers type
+    /// with a symbol under nested instantiated mapped types, so that mapped
+    /// types applied to written object literals keep distinct identities.
+    /// tsc 6.0 unwrapped mapped types only in isDeeplyNestedType and
+    /// hasMatchingRecursionIdentity, and identified an indexed access by its
+    /// leftmost object type itself.
+    fn get_recursion_identity_target(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        if self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::INDEXED_ACCESS)
+        {
+            let TypeData::IndexedAccess { object_type, .. } = self.tables.type_of(ty).data else {
+                unreachable!("indexed-access flag implies indexed-access data");
+            };
+            return self.get_recursion_identity_target(object_type);
+        }
+        if self
             .tables
             .object_flags_of(ty)
             .contains(ObjectFlags::INSTANTIATED_MAPPED)
@@ -4665,101 +4720,53 @@ impl<'a> CheckerState<'a> {
                         .any(|&member| self.tables.type_of(member).symbol.is_some()),
                     _ => false,
                 };
-            if !has_symbol {
-                break;
+            if has_symbol {
+                return self.get_recursion_identity_target(target);
             }
-            ty = target;
         }
         Ok(ty)
     }
 
-    /// tsc-port: hasMatchingRecursionIdentity @6.0.3
-    /// tsc-hash: b609ca6b38a7271c1f10d10ddfca694e157816b8e465e9d9a3847bc35e0bec9e
-    /// tsc-span: _tsc.js:67498-67506
-    fn has_matching_recursion_identity(
-        &mut self,
-        ty: TypeId,
-        identity: RecursionIdentity,
-    ) -> CheckResult<bool> {
-        let ty = self.get_mapped_target_with_symbol(ty)?;
-        let members = match &self.tables.type_of(ty).data {
-            TypeData::Intersection { types } => Some(types.clone()),
-            _ => None,
-        };
-        if let Some(members) = members {
-            for member in members {
-                if self.has_matching_recursion_identity(member, identity)? {
-                    return Ok(true);
-                }
-            }
-            return Ok(false);
-        }
-        Ok(self.get_recursion_identity(ty) == identity)
-    }
-
-    /// tsc-port: getRecursionIdentity @6.0.3
-    /// tsc-hash: ad1c79d106e2d5dec2b7bd40792f7c0de78641f6dea366f1794fa4fe9d61d29c
-    /// tsc-span: _tsc.js:67507-67532
+    /// tsgo-port: getRecursionIdentityFromTarget @7.1
+    /// (checker/relater.go:834-870)
     ///
     /// tsc's identity is a node/symbol/type object; here it is a
-    /// discriminated key. Type parameters deliberately key on their
-    /// declaration symbol rather than the instantiated TypeId. This
-    /// lets successively instantiated generic signatures converge on
-    /// the same recursive comparison, while preserving tsc's shared
-    /// `undefined` identity for symbol-less synthetic parameters.
-    pub(crate) fn get_recursion_identity(&self, ty: TypeId) -> RecursionIdentity {
+    /// discriminated key. A type reference that the resolution of a type
+    /// node created (`FROM_TYPE_NODE`) is its own identity: such a
+    /// reference cannot be the source of generative recursion before it is
+    /// instantiated, so `Inner[]`, `Mid[]` and `Leaf[]` written in three
+    /// nested type aliases are not three instantiations of `Array`
+    /// (deeplyNestedArrayTypes). A type parameter without a symbol is its
+    /// own identity as well; tsc 6.0 gave all of them `undefined`.
+    fn get_recursion_identity_from_target(&self, ty: TypeId) -> RecursionIdentity {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
-            if self
-                .tables
-                .object_flags_of(ty)
-                .intersects(ObjectFlags::REFERENCE)
-            {
+            let object_flags = self.tables.object_flags_of(ty);
+            if object_flags.intersects(ObjectFlags::REFERENCE) {
                 if let Some(node) = self.links.ty(ty).deferred_node {
                     return RecursionIdentity::Node(node);
                 }
             }
+            let from_type_node = object_flags.intersects(ObjectFlags::FROM_TYPE_NODE);
             if let Some(symbol) = self.tables.type_of(ty).symbol {
-                let is_anonymous_class = self
-                    .tables
-                    .object_flags_of(ty)
-                    .intersects(ObjectFlags::ANONYMOUS)
+                let is_anonymous_class = object_flags.intersects(ObjectFlags::ANONYMOUS)
                     && self
                         .binder
                         .symbol(symbol)
                         .flags
                         .intersects(SymbolFlags::CLASS);
-                if !is_anonymous_class {
+                if !is_anonymous_class && !from_type_node {
                     return RecursionIdentity::Symbol(symbol);
                 }
             }
-            if self.tables.is_tuple_type(ty) {
+            if self.tables.is_tuple_type(ty) && !from_type_node {
                 return RecursionIdentity::Type(self.tables.reference_target(ty));
             }
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            return self
-                .tables
-                .type_of(ty)
-                .symbol
-                .map(RecursionIdentity::Symbol)
-                .unwrap_or(RecursionIdentity::Missing);
-        }
-        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            // 67522-67527: chase the objectType chain.
-            let mut current = ty;
-            while self
-                .tables
-                .flags_of(current)
-                .intersects(TypeFlags::INDEXED_ACCESS)
-            {
-                let TypeData::IndexedAccess { object_type, .. } = self.tables.type_of(current).data
-                else {
-                    unreachable!("indexed-access flag implies indexed-access data");
-                };
-                current = object_type;
+            if let Some(symbol) = self.tables.type_of(ty).symbol {
+                return RecursionIdentity::Symbol(symbol);
             }
-            return RecursionIdentity::Type(current);
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
             let TypeData::Conditional(data) = &self.tables.type_of(ty).data else {
@@ -4856,10 +4863,6 @@ impl<'a> CheckerState<'a> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RecursionIdentity {
-    /// JavaScript `undefined`, returned by tsc for a symbol-less
-    /// synthetic type parameter. All such parameters intentionally
-    /// share this recursion identity.
-    Missing,
     Symbol(tsc_binder::SymbolId),
     Type(TypeId),
     /// Every mapper-carrying instance of one conditional root shares

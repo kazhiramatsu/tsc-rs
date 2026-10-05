@@ -3412,9 +3412,17 @@ fn declaration_import_suggestion_uses_usage_emit_mode() {
             })
         })
         .collect();
+    // createPromiseType asks for the global `Promise` with errors on
+    // (getGlobalPromiseTypeChecked): this program has no library, so the
+    // miss is a global diagnostic beside the import's own.
     assert_eq!(
             pins,
             [
+                (
+                    2318,
+                    0,
+                    "Cannot find global type 'Promise'.".to_owned(),
+                ),
                 (
                     2711,
                     0,

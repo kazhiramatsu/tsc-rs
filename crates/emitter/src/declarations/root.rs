@@ -202,7 +202,10 @@ pub(super) fn transform_source_statements(
             .map_err(TransformError::from)?
     };
     transformer.state_mut()?.common_js.is_common_js = is_common_js;
-    if is_common_js {
+    // tsgo (transformers/declarations/transform.go:304): the declarations
+    // this file's export assignments and export specifiers name become
+    // visible before the file is transformed.
+    {
         let resolver_node = transformer.required_resolver_node(context, root_node)?;
         transformer
             .resolver

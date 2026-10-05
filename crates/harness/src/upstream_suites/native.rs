@@ -863,8 +863,32 @@ impl EffectiveOptions {
         tsconfig: Option<&str>,
         configuration: &BTreeMap<String, String>,
     ) -> Self {
+        match tsconfig {
+            Some(text) => Self::from_units(
+                Some("/tsconfig.json"),
+                &[("/tsconfig.json", text)],
+                configuration,
+            ),
+            None => Self::from_units(None, &[], configuration),
+        }
+    }
+
+    /// The options of the test's tsconfig unit, named `tsconfig` among the
+    /// `units` (name, text), overlaid by the configuration's directives.
+    /// The harness parses that tsconfig with the compiler's own parser, so
+    /// the options a config inherits through `extends` count: a relative or
+    /// rooted `extends` (a string or a list) is followed among the units,
+    /// with `.json` added to a name without it. A package name is not
+    /// followed.
+    pub fn from_units(
+        tsconfig: Option<&str>,
+        units: &[(&str, &str)],
+        configuration: &BTreeMap<String, String>,
+    ) -> Self {
         let mut values = BTreeMap::new();
-        if let Some(options) = tsconfig.and_then(tsconfig_compiler_options) {
+        if let Some(tsconfig) = tsconfig {
+            let mut options = serde_json::Map::new();
+            collect_tsconfig_options(tsconfig, units, &mut Vec::new(), &mut options);
             for (key, value) in options {
                 let value = match value {
                     serde_json::Value::String(text) => OptionValue::Text(text),
@@ -933,15 +957,73 @@ impl EffectiveOptions {
     }
 }
 
-/// The `compilerOptions` object of a tsconfig text: comments and trailing
-/// commas are removed before parsing, as tsconfig parsing tolerates them.
-fn tsconfig_compiler_options(text: &str) -> Option<serde_json::Map<String, serde_json::Value>> {
-    let json = strip_jsonc(text);
-    let value: serde_json::Value = serde_json::from_str(&json).ok()?;
-    match value.get("compilerOptions")? {
-        serde_json::Value::Object(options) => Some(options.clone()),
-        _ => None,
+/// Add the `compilerOptions` of the config unit `name` to `options`: those
+/// of the configs it extends first, in the order listed, then its own.
+/// Comments and trailing commas are removed before parsing, as tsconfig
+/// parsing tolerates them. `seen` stops a circular `extends`.
+fn collect_tsconfig_options(
+    name: &str,
+    units: &[(&str, &str)],
+    seen: &mut Vec<String>,
+    options: &mut serde_json::Map<String, serde_json::Value>,
+) {
+    let path = normalized_unit_path(name);
+    if seen.contains(&path) {
+        return;
     }
+    let Some(&(_, text)) = units
+        .iter()
+        .find(|(unit, _)| normalized_unit_path(unit) == path)
+    else {
+        return;
+    };
+    seen.push(path.clone());
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&strip_jsonc(text)) else {
+        return;
+    };
+    let extended: Vec<&str> = match value.get("extends") {
+        Some(serde_json::Value::String(one)) => vec![one.as_str()],
+        Some(serde_json::Value::Array(list)) => {
+            list.iter().filter_map(serde_json::Value::as_str).collect()
+        }
+        _ => Vec::new(),
+    };
+    let directory = path.rsplit_once('/').map_or("", |(directory, _)| directory);
+    for specifier in extended {
+        let rooted = specifier.starts_with('/');
+        if !rooted && !specifier.starts_with("./") && !specifier.starts_with("../") {
+            continue;
+        }
+        let mut target = if rooted {
+            normalized_unit_path(specifier)
+        } else {
+            normalized_unit_path(&format!("{directory}/{specifier}"))
+        };
+        if !target.ends_with(".json") {
+            target.push_str(".json");
+        }
+        collect_tsconfig_options(&target, units, seen, options);
+    }
+    if let Some(serde_json::Value::Object(own)) = value.get("compilerOptions") {
+        for (key, value) in own {
+            options.insert(key.clone(), value.clone());
+        }
+    }
+}
+
+/// A unit name as a rooted path without `.` and `..` segments.
+fn normalized_unit_path(name: &str) -> String {
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in name.split(['/', '\\']) {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                segments.pop();
+            }
+            other => segments.push(other),
+        }
+    }
+    format!("/{}", segments.join("/"))
 }
 
 fn strip_jsonc(text: &str) -> String {
@@ -1063,10 +1145,14 @@ pub fn expand_case(profile: &NativeProfile, case: &NativeCase) -> HarnessResult<
         .find(|name| !KNOWN_DIRECTIVES.contains(&name.as_str()))
         .cloned();
     let (units, _) = compiler::make_units_from_test(&content, file_name)?;
+    let unit_texts: Vec<(&str, &str)> = units
+        .iter()
+        .filter_map(|unit| Some((unit.name.as_str(), unit.content.as_deref()?)))
+        .collect();
     let tsconfig = units
         .iter()
         .find(|unit| compiler::is_config_file_name(&unit.name))
-        .and_then(|unit| unit.content.clone());
+        .map(|unit| unit.name.as_str());
     let configurations = configurations
         .into_iter()
         .map(|configuration| {
@@ -1074,7 +1160,7 @@ pub fn expand_case(profile: &NativeProfile, case: &NativeCase) -> HarnessResult<
             let skip = if let Some(name) = &unknown {
                 Some(NativeSkip::UnknownDirective(name.clone()))
             } else {
-                EffectiveOptions::from_configuration(tsconfig.as_deref(), &configuration.settings)
+                EffectiveOptions::from_units(tsconfig, &unit_texts, &configuration.settings)
                     .unsupported()
             };
             (configuration, stem, skip)

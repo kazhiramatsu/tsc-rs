@@ -732,7 +732,9 @@ fn mixed_checked_js_keeps_value_misses_but_shields_jsdoc_type_misses() {
                 diagnostic.start.unwrap_or(u32::MAX),
             ))
             .collect::<Vec<_>>(),
-        [("a.js", 2304, 0), ("b.ts", 2304, 17)]
+        // tsgo declares no container for `Ctor.prototype = {}`: its root is
+        // an unresolved name like any other.
+        [("a.js", 2304, 0), ("a.js", 2304, 69), ("b.ts", 2304, 17)]
     );
 }
 

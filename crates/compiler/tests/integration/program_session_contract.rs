@@ -1844,8 +1844,11 @@ fn resolution_mode_overrides_select_distinct_rows_for_the_same_request() {
                  const cOk: \"cjs\" = c;\n\
                  const eOk: \"esm\" = e;\n",
             ),
+            // checkImportAttributes asks for the global `ImportAttributes`
+            // with errors on; this program has no library.
+            ("/globals.d.ts", "interface ImportAttributes {}\n"),
         ],
-        &[2],
+        &[2, 3],
         CompilerOptions {
             module: Some(100),
             module_resolution: Some(3),

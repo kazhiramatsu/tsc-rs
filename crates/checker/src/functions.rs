@@ -290,7 +290,15 @@ impl<'a> CheckerState<'a> {
                 .resolved()
                 .is_none()
         {
-            let return_type = self.get_return_type_from_body(node, check_mode)?;
+            // tsgo (checker.go:10377-10384): "resolvedReturnType is cached
+            // indefinitely, so the return type here has to be computed
+            // without CheckModeSkipContextSensitive; otherwise
+            // anyFunctionType could leak as part of the computed (and
+            // cached) return type." tsc 6.0 passed the mode through.
+            let return_type = self.get_return_type_from_body(
+                node,
+                CheckMode::from_bits(check_mode.bits() & !CheckMode::SKIP_CONTEXT_SENSITIVE.bits()),
+            )?;
             self.seal_signature_return_type(signature, return_type);
         }
         self.check_signature_declaration(node)

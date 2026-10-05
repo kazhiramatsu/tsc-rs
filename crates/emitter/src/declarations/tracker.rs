@@ -173,10 +173,14 @@ impl<'t> DeclarationSymbolTracker<'t> {
                 let mut transformed = Vec::with_capacity(aliases.len());
                 for alias in aliases {
                     if Some(alias.source()) != self.current_program_source {
-                        self.pending_effects.push_back(TrackerEffect::Contract(
-                            "late visibility alias belongs to another source",
-                        ));
-                        return false;
+                        // A statement of another file: a name an augmentation
+                        // resolves to a declaration of the augmented module
+                        // that no export marked visible. tsgo transforms the
+                        // statement and stores a replacement no statement
+                        // list of this file reads (transform.go
+                        // transformAndReplaceLatePaintedStatements); it is
+                        // left out here.
+                        continue;
                     }
                     transformed.push(TransformNode::new(transform_source, alias.node()));
                 }

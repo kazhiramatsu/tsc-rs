@@ -2107,6 +2107,20 @@ impl TypeTables {
     /// tsc-hash: 17f8bfecf79e7fa7858909317b8081cfc45fe59c0e11ba4cae5ba8b38abfeaff
     /// tsc-span: _tsc.js:60169-60180
     pub fn create_type_reference(&mut self, target: TypeId, type_arguments: &[TypeId]) -> TypeId {
+        self.create_type_reference_ex(target, type_arguments, ObjectFlags::NONE)
+    }
+
+    /// tsgo-port: Checker.createTypeReferenceEx @7.1
+    /// (checker/checker.go:25572-25584)
+    ///
+    /// `extra_flags` reach only a reference this call creates: a reference
+    /// that exists already is returned as it is.
+    pub fn create_type_reference_ex(
+        &mut self,
+        target: TypeId,
+        type_arguments: &[TypeId],
+        extra_flags: ObjectFlags,
+    ) -> TypeId {
         let key = (
             target,
             InstantiationKey::plain(self.intern_type_list(type_arguments)),
@@ -2124,6 +2138,7 @@ impl TypeTables {
         );
         let object_flags = ObjectFlags::from_bits(
             ObjectFlags::REFERENCE.bits()
+                | extra_flags.bits()
                 | self
                     .get_propagating_flags_of_types(type_arguments, TypeFlags::from_bits(0))
                     .bits(),
@@ -2194,9 +2209,24 @@ impl TypeTables {
         id
     }
 
-    /// The `type.resolvedTypeArguments ??= ...` writes in getTypeArguments
-    /// (60211/60213): only fills a still-vacant slot, so a value that
-    /// appeared during the recursive resolution wins.
+    /// The `type.resolvedTypeArguments ??= ...` write of getTypeArguments'
+    /// resolved arm (60211): the caller tested the slot before it computed
+    /// `arguments`, and the assignment then replaces whatever a re-entrant
+    /// resolution stored in between.
+    pub fn set_resolved_type_arguments(&mut self, id: TypeId, arguments: Vec<TypeId>) {
+        let TypeData::Reference {
+            resolved_type_arguments,
+            ..
+        } = &mut self.type_mut(id).data
+        else {
+            unreachable!("resolved type arguments live on Reference types");
+        };
+        *resolved_type_arguments = Some(arguments.into_boxed_slice());
+    }
+
+    /// The `??=` write of getTypeArguments' circular arm (60213): nothing
+    /// is evaluated between the test and the store, so only a vacant slot
+    /// is filled.
     pub fn set_resolved_type_arguments_if_vacant(&mut self, id: TypeId, arguments: Vec<TypeId>) {
         let TypeData::Reference {
             resolved_type_arguments,

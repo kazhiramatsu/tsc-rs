@@ -101,6 +101,10 @@ fn stable_type_ordering_makes_inference_independent_of_file_order() {
     let effect = InputFile::new(
         "/effect.ts",
         concat!(
+            // The elaboration of a failing arrow function body asks for the
+            // global `Promise` (createPromiseType); this program has no
+            // library, so it declares one.
+            "interface Promise<T> { readonly promised: T }\n",
             "interface Variance<A, E, R> {\n",
             "  _A: (_: never) => A\n",
             "  _E: (_: never) => E\n",

@@ -758,7 +758,23 @@ impl<'a> CheckerState<'a> {
                             self.diagnostics.push(diagnostic);
                         }
                     }
-                    self.merge_entries_into_globals(&locals, false);
+                    // tsgo initializeChecker (checker.go): "We defer merging
+                    // of global ambient module declarations since they may
+                    // require other global symbols and types to be
+                    // resolved." Merging two declarations of an ambient
+                    // module resolves an alias among their exports, which
+                    // can read a global type that a `declare global`
+                    // augmentation has yet to extend.
+                    let (ambient_modules, others): (Vec<_>, Vec<_>) =
+                        locals.into_iter().partition(|&(name, symbol)| {
+                            self.binder
+                                .symbol(symbol)
+                                .flags
+                                .intersects(SymbolFlags::MODULE)
+                                && name.as_js().starts_with("\"")
+                        });
+                    self.merge_entries_into_globals(&others, false);
+                    self.deferred_ambient_module_symbols.extend(ambient_modules);
                 }
             }
             // file.patternAmbientModules concatenation (88754-88756).
@@ -810,6 +826,15 @@ impl<'a> CheckerState<'a> {
         // merge_module_augmentations (A8).
     }
 
+    /// tsgo initializeChecker: "Now merge global ambient module
+    /// declarations" — the ambient module symbols of the script files,
+    /// after the global-scope augmentations (and, in tsgo, the global
+    /// types). A second call finds nothing left.
+    pub(crate) fn merge_deferred_ambient_modules(&mut self) {
+        let deferred = std::mem::take(&mut self.deferred_ambient_module_symbols);
+        self.merge_entries_into_globals(&deferred, false);
+    }
+
     /// tsc-port: mergeModuleAugmentation @6.0.3
     /// tsc-hash: bc18945a0391c5bd0ccac3f41fd0c981d53173117b3a017c11a9d6eb8d6d9e61
     /// tsc-span: _tsc.js:47830-47881
@@ -858,6 +883,15 @@ impl<'a> CheckerState<'a> {
             let exports = self.binder.symbol(symbol).exports().clone();
             self.merge_into_globals(&exports, false);
         }
+        // tsc and tsgo look the global types up after the global-scope
+        // augmentations ("We won't have the correct global types until
+        // global augmentations are merged"). A global with a single
+        // declaration is replaced in the table by the clone its first
+        // augmentation merges into, so a symbol found earlier is stale:
+        // with `lib: ["es5"]` an augmented `Array<T>` had two declared
+        // types and `string[]` did not see the augmentation.
+        self.run_init_global_type_probes();
+        self.merge_deferred_ambient_modules();
         // tsgo (checker.go:1385): pattern modules merge before the
         // external-module augmentations resolve.
         if let Err(err) = self.merge_pattern_ambient_modules() {

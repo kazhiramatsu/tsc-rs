@@ -473,21 +473,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 47e7f23df7e41ce015ff767e755075856f1d6369debf1ce324188f18bf818d10
     /// tsc-span: _tsc.js:58902-58908
     pub fn get_base_constraint_of_type(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
+        // tsgo (checker.go:27901-27910) resolves an index type's base
+        // constraint like the other instantiable types', so `keyof` of a
+        // generic mapped type with an `as` clause reaches its name type (see
+        // compute_base_constraint). tsc 6.0 answered `string | number |
+        // symbol` for every index type here.
         let flags = self.tables.flags_of(ty);
         if flags.intersects(
             TypeFlags::INSTANTIABLE_NON_PRIMITIVE
                 | TypeFlags::UNION_OR_INTERSECTION
                 | TypeFlags::TEMPLATE_LITERAL
-                | TypeFlags::STRING_MAPPING,
+                | TypeFlags::STRING_MAPPING
+                | TypeFlags::INDEX,
         ) || self.is_generic_tuple_type(ty)
         {
             let constraint = self.get_resolved_base_constraint(ty)?;
             return Ok((constraint != self.no_constraint_type
                 && constraint != self.circular_constraint_type)
                 .then_some(constraint));
-        }
-        if flags.intersects(TypeFlags::INDEX) {
-            return Ok(Some(self.tables.intrinsics.string_number_symbol));
         }
         Ok(None)
     }
@@ -558,7 +561,13 @@ impl<'a> CheckerState<'a> {
             return Ok(self.circular_constraint_type);
         }
         let mut result: Option<TypeId> = None;
-        let identity = self.get_recursion_identity(t);
+        let identity = match self.get_recursion_identity(t) {
+            Ok(identity) => identity,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
         let computed = if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&identity)) {
             stack.push(identity);
             // 58929-58933: the constraint is computed over the
@@ -697,6 +706,22 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         if flags.intersects(TypeFlags::INDEX) {
+            // tsgo (checker.go:27988-27995): the keys of a generic mapped
+            // type with an `as` clause (and no `keyof` constraint) are its
+            // name type over the constraint, `_${K}` for
+            // `{ [P in K as `_${P}`]: P }`, and the base constraint goes on
+            // from there (`_${string}`).
+            let TypeData::Index { ty: target, .. } = self.tables.type_of(t).data else {
+                unreachable!("index flag implies index data");
+            };
+            if self.is_generic_mapped_type_state(target)?
+                && self.get_name_type_from_mapped_type(target)?.is_some()
+                && !self.is_mapped_type_with_keyof_constraint_declaration(target)
+            {
+                let keys =
+                    self.get_index_type_for_mapped_type(target, tsc_types::IndexFlags::NONE)?;
+                return self.get_base_constraint_inner(keys, stack);
+            }
             return Ok(Some(self.tables.intrinsics.string_number_symbol));
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {

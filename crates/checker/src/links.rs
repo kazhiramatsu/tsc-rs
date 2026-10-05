@@ -609,6 +609,13 @@ pub struct SymbolLinksCold {
     /// the invocation-error related-info band (64900/77252): dormant
     /// stores at M4 (related info is not a T0 observable).
     pub originating_import: SparseLinks<SymbolId, Option<NodeId>>,
+    /// The parent of the property signature tsc and tsgo fabricate as the
+    /// value declaration of the `children` property synthesized from a JSX
+    /// element's body (tsgo checker/jsx.go:845-848): the attributes node, or
+    /// the opening fragment. The node itself is not fabricated here; the
+    /// excess property check (`shouldCheckAsExcessProperty`) reads this
+    /// parent.
+    pub fabricated_declaration_parent: SparseLinks<SymbolId, Option<NodeId>>,
     /// tsc links.leftSpread/rightSpread (getSpreadType 63024-63025):
     /// the merged-optional-property provenance pair. Dormant stores
     /// at M4 (read by getSyntheticElementAccess-side tooling later);
@@ -670,6 +677,7 @@ impl SymbolLinksCold {
             unique_es_symbol_type,
             variances,
             originating_import,
+            fabricated_declaration_parent,
             left_spread,
             right_spread,
             type_parameters_checked,
@@ -709,6 +717,7 @@ impl SymbolLinksCold {
             unique_es_symbol_type.memory_usage(),
             variances.memory_usage(),
             originating_import.memory_usage(),
+            fabricated_declaration_parent.memory_usage(),
             left_spread.memory_usage(),
             right_spread.memory_usage(),
             type_parameters_checked.memory_usage(),
@@ -3382,6 +3391,23 @@ impl LinksTables {
         let _ = speculation_depth;
         self.symbol_cold.left_spread.set(id, Some(left));
         self.symbol_cold.right_spread.set(id, Some(right));
+    }
+
+    /// The parent of the fabricated value declaration of a synthesized JSX
+    /// `children` property. The caller initializes a freshly synthesized
+    /// symbol, so the stamp belongs to the transaction.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// symbol-field access; no standalone tsc function.
+    pub fn set_symbol_fabricated_declaration_parent(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        parent: NodeId,
+    ) {
+        let _ = speculation_depth;
+        self.symbol_cold
+            .fabricated_declaration_parent
+            .set(id, Some(parent));
     }
 
     /// `links.syntheticOrigin` (getSpreadSymbol 63052 /
