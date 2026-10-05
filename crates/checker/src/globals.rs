@@ -185,11 +185,18 @@ impl<'a> CheckerState<'a> {
                 // probe and the spelling attempt both target the same
                 // locationless diagnostic — never a per-file sink — so
                 // only the emission is observable.
+                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     None,
                     message,
                     &[tsc_syntax::unescape_leading_underscores(name)],
                 );
+                // Every global the checker fails to find on demand is a
+                // global diagnostic in tsc and tsgo (`Awaited` for the
+                // missing-await probe of a call's argument, the iteration
+                // and decorator types, `Omit`, `Record`, `Extract`): the
+                // row is published here, once, for every demand-time getter.
+                self.publish_visible_global_diagnostics_since(diagnostics_before);
             }
         }
         Ok(found)
