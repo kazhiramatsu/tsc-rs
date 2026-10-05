@@ -296,6 +296,11 @@ shardされる）を走らせ、1 checkerのreportと`conformance_ts71_compare.p
 | `compiler/declarationEmitAugmentationUsesCorrectSourceFile` | T3 | harness error | declaration transformerのcontract "late visibility alias belongs to another source" |
 | `compiler/declarationEmitComputedPropertyNameSymbol2` | T3 | harness error | 同上 |
 
+2026-10-05の追記：この5件は、[ts71-cutover](../ts71-cutover/README.md)のP3-5bfの時点で、1 checkerでも4 checkerでも
+Fullになった。`exportAssignmentMembersVisibleInAugmentation`と宣言emitの2件は、exportの対象を可視にする印を
+checkerの検査のときではなく宣言のtransformのときに付けるようにしたP3-5bfで直った（印が、fileを検査したshardにだけ
+付いていた）。`tslibMissingHelper`と`jsDeclarationsCrossfileMerge`はそれより前のsliceで直っていた。
+
 READMEのcorpus（hono、zod、Playwright、TypeScript `src/compiler`、Next.js、Effect、VS Code）でも、同じbinaryを
 `TSRS_CHECKERS=1`／8／12で走らせた：`--noEmit`の診断は7 corpusすべてで同一、declaration出力はzod・Playwright・Next.jsで
 同一、Effectは496 fileのうち`ai/internal/mcpProtocol/v2026_07_28.d.ts`の1 file（既知の型ID tiebreak、順序のみ）。
