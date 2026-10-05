@@ -861,25 +861,49 @@ fn symbol_chain_with_reexport_containers(
                     specifiers.push(None);
                 }
             }
+            // tsgo's sortByBestName (checker/nodebuilderimpl.go:1153-1170):
+            // two module parents compare by their specifiers; any other pair
+            // by compareSymbols, "for stable ordering" — so a re-exporting
+            // module declared before the real container is tried first, and
+            // an alias the scope shadows is written through the module
+            // (`typeof import("./f")`) rather than through the container
+            // (`typeof M.d`). tsc 6.0 returned 0 for such a pair and kept the
+            // container first.
             let mut order: Vec<usize> = (0..parents.len()).collect();
-            order.sort_by(|&a, &b| match (&specifiers[a], &specifiers[b]) {
-                (Some(specifier_a), Some(specifier_b)) => {
-                    let relative_a = module_specifier_is_relative(specifier_a);
-                    let relative_b = module_specifier_is_relative(specifier_b);
-                    if relative_a == relative_b {
-                        super::specifier::count_path_components(specifier_a.as_js()).cmp(
-                            &super::specifier::count_path_components(specifier_b.as_js()),
-                        )
-                    } else if relative_b {
-                        std::cmp::Ordering::Less
-                    } else {
-                        std::cmp::Ordering::Greater
+            {
+                let symbol_order = crate::type_order::order_ctx!(checker);
+                let by_best_name = |a: usize, b: usize| match (&specifiers[a], &specifiers[b]) {
+                    (Some(specifier_a), Some(specifier_b)) => {
+                        let relative_a = module_specifier_is_relative(specifier_a);
+                        let relative_b = module_specifier_is_relative(specifier_b);
+                        if relative_a == relative_b {
+                            super::specifier::count_path_components(specifier_a.as_js()).cmp(
+                                &super::specifier::count_path_components(specifier_b.as_js()),
+                            )
+                        } else if relative_b {
+                            std::cmp::Ordering::Less
+                        } else {
+                            std::cmp::Ordering::Greater
+                        }
+                    }
+                    _ => tsc_types::TypeOrderContext::compare_symbols(
+                        &symbol_order,
+                        Some(parents[a]),
+                        Some(parents[b]),
+                    ),
+                };
+                // The comparison is not a total order (specifiers for some
+                // pairs, declarations for others), so the result depends on
+                // the algorithm: slices.SortStableFunc's insertion sort, which
+                // covers every list of up to 20 parents.
+                for sorted in 1..order.len() {
+                    let mut at = sorted;
+                    while at > 0 && by_best_name(order[at], order[at - 1]).is_lt() {
+                        order.swap(at, at - 1);
+                        at -= 1;
                     }
                 }
-                // sortByBestName returns 0 unless both parents have a
-                // specifier (53014).
-                _ => std::cmp::Ordering::Equal,
-            });
+            }
             for index in order {
                 let parent = parents[index];
                 let Some(parent_chain) = symbol_chain_with_reexport_containers(
