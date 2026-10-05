@@ -1511,6 +1511,13 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).object_flags = object_flags | ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = symbol;
         let mut properties = properties;
+        // setStructuredTypeMembers takes the properties from
+        // getNamedMembers(members): a member under a reserved name is in
+        // the table but is not a property. An object literal member named
+        // by a bigint literal is bound as `__missing`.
+        properties.retain(|&property| {
+            !crate::annotate::is_reserved_member_name(self.binder.symbol(property).escaped_name)
+        });
         self.order_named_members_if_stable(&mut properties, symbol);
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members,
