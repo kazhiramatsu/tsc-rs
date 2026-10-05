@@ -15918,27 +15918,48 @@ impl Printer {
                                 writer,
                             )?;
                         // A source-ranged grammar parenthesis is a distinct
-                        // parent in tsc's pipeline. Its raw range is independent
-                        // of the child's map overrides and suppression flags.
-                        let paren_record = transformation.arena().node(substituted)?;
-                        let paren_source = transformation
-                            .arena()
-                            .source(substituted.source())?
-                            .syntax();
-                        let paren_map_range = SourceMapRange::new(
-                            substituted.source(),
-                            SourceRange::from_raw(
-                                paren_record.pos,
-                                paren_record.end,
-                                paren_source.positions(),
-                            )?,
-                        );
-                        self.record_map_range_side(
-                            transformation,
-                            MapBoundary::Before,
-                            paren_map_range,
-                            writer,
-                        )?;
+                        // comment owner. tsgo writes the parentheses that
+                        // precedence needs while printing, unmapped
+                        // (`emitExpression`, printer.go:3222-3226); only a
+                        // concise body led by an object literal is a ranged
+                        // parenthesized expression that maps
+                        // (`emitConciseBody`, printer.go:2669-2685).
+                        let paren_map_range = if grammar
+                            == ExpressionGrammarContext::ArrowConciseBody
+                            && transformation
+                                .arena()
+                                .node(self.leftmost_expression(
+                                    transformation,
+                                    substituted,
+                                    false,
+                                )?)?
+                                .kind
+                                == SyntaxKind::ObjectLiteralExpression
+                        {
+                            let paren_record = transformation.arena().node(substituted)?;
+                            let paren_source = transformation
+                                .arena()
+                                .source(substituted.source())?
+                                .syntax();
+                            Some(SourceMapRange::new(
+                                substituted.source(),
+                                SourceRange::from_raw(
+                                    paren_record.pos,
+                                    paren_record.end,
+                                    paren_source.positions(),
+                                )?,
+                            ))
+                        } else {
+                            None
+                        };
+                        if let Some(paren_map_range) = paren_map_range {
+                            self.record_map_range_side(
+                                transformation,
+                                MapBoundary::Before,
+                                paren_map_range,
+                                writer,
+                            )?;
+                        }
                         writer.write_punctuation("(");
                         let inner_owner = self
                             .expression_comment_phase_owner_for_node(transformation, substituted)?;
@@ -15974,12 +15995,14 @@ impl Printer {
                             writer,
                         )?;
                         writer.write_punctuation(")");
-                        self.record_map_range_side(
-                            transformation,
-                            MapBoundary::After,
-                            paren_map_range,
-                            writer,
-                        )?;
+                        if let Some(paren_map_range) = paren_map_range {
+                            self.record_map_range_side(
+                                transformation,
+                                MapBoundary::After,
+                                paren_map_range,
+                                writer,
+                            )?;
+                        }
                         self.emit_deferred_expression_trailing_comments(
                             transformation,
                             deferred_source_comments.as_ref(),

@@ -1685,10 +1685,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .add_flags(EmitFlags::NO_TRAILING_COMMENTS);
         // The comma sequence becomes a helper argument through
         // parenthesizeExpressionForDisallowedComma (_tsc.js:20483-20488):
-        // the parentheses take the sequence's range (the update expression),
-        // so the argument maps its `(` and `)` to the update's ends.
+        // the parentheses take the sequence's range (the update expression)
+        // for comments, but tsgo's printer writes them while printing, so
+        // they map nothing (printer.go:3222-3226).
         let value = self.create_parenthesized(expression)?;
         self.context.factory()?.set_text_range(value, expression)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(value)
+            .add_flags(EmitFlags::NO_SOURCE_MAP);
         expression = self.create_private_set(assignment_receiver, &slot, value)?;
         expression = self.set_original_and_range(expression, original)?;
         if let Some(result_binding) = &result_binding {
@@ -9501,7 +9506,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )
     }
 
-    /// The split default export uses getLocalName(false, true).
+    /// The split default export uses `GetLocalName`, which allows neither
+    /// comments nor source maps (classfields.go:1978-1982, printer/factory.go:
+    /// 496-528); tsc's getLocalName(false, true) mapped the name.
     ///
     /// tsc-port: getName @6.0.3
     /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
@@ -9516,10 +9523,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.context
                 .factory()?
                 .set_text_range(name, declaration_name)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(name)
-                .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::LOCAL_NAME);
+            self.context.arena_mut()?.metadata_mut(name).add_flags(
+                EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP | EmitFlags::LOCAL_NAME,
+            );
             name
         } else {
             self.create_identifier(local_name)?
