@@ -429,11 +429,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9f89c9f08a99020384ee9ddada6d5172dd05aee82d8d3bc8aa6be2499f0bc7e3
     /// tsc-span: _tsc.js:74061-74082
     ///
-    /// The result caches on the EXPRESSION node's resolvedType slot
-    /// (74062). A computed instance property in a class expression inside an
-    /// iteration also records its checker-owned emit placement facts. The
-    /// cache write is guarded like checkExpressionCached: a re-entrant inner
-    /// fill wins the slot.
+    /// tsgo-port: Checker.checkComputedPropertyName @7.1
+    /// (checker/checker.go:27272-27290): the result caches on the computed
+    /// name's own resolvedType slot. A computed instance property in a class
+    /// expression inside an iteration also records its checker-owned emit
+    /// placement facts.
     pub(crate) fn check_computed_property_name(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let expression = match self.data_of(node) {
             NodeData::ComputedPropertyName(data) => data.expression,
@@ -444,10 +444,22 @@ impl<'a> CheckerState<'a> {
         };
         if let Some(cached) = self
             .links
-            .read_node(expression, |links| links.resolved_type.resolved())
+            .read_node(node, |links| links.resolved_type.resolved())
         {
             return Ok(cached);
         }
+        // tsgo (checker.go:27273-27275) keeps the result on the computed
+        // name itself and marks it with circularConstraintType while the
+        // expression is checked, so a name that asks for its own type (the
+        // `[b]` of `let { [b]: b } = {}`) gets that empty object type.
+        // tsc 6.0 kept it on the expression, shared with
+        // checkExpressionCached, and checked the expression again.
+        let in_progress = self.circular_constraint_type;
+        self.links.set_node_resolved_type(
+            self.speculation_depth,
+            node,
+            crate::links::LinkSlot::Resolved(in_progress),
+        );
         // The `[K in T]` member parse-recovery arm: a type-literal/
         // class/interface member whose computed name is an `in`
         // binary expression resolves to errorType silently.
@@ -474,23 +486,28 @@ impl<'a> CheckerState<'a> {
             let error = self.tables.intrinsics.error;
             self.links.set_node_resolved_type(
                 self.speculation_depth,
-                expression,
+                node,
                 crate::links::LinkSlot::Resolved(error),
             );
             return Ok(error);
         }
-        let ty = self.check_expression(expression, CheckMode::NORMAL)?;
-        if self
-            .links
-            .read_node(expression, |links| links.resolved_type.resolved())
-            .is_none()
-        {
-            self.links.set_node_resolved_type(
-                self.speculation_depth,
-                expression,
-                crate::links::LinkSlot::Resolved(ty),
-            );
-        }
+        let ty = match self.check_expression(expression, CheckMode::NORMAL) {
+            Ok(ty) => ty,
+            Err(err) => {
+                // tsc cannot fail here: the mark must not outlive the check.
+                self.links.set_node_resolved_type(
+                    self.speculation_depth,
+                    node,
+                    crate::links::LinkSlot::Vacant,
+                );
+                return Err(err);
+            }
+        };
+        self.links.set_node_resolved_type(
+            self.speculation_depth,
+            node,
+            crate::links::LinkSlot::Resolved(ty),
+        );
         if parent.is_some_and(|parent| {
             self.kind_of(parent) == SyntaxKind::PropertyDeclaration
                 && !self.has_static_modifier(parent)
@@ -538,10 +555,7 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        Ok(self
-            .links
-            .read_node(expression, |links| links.resolved_type.resolved())
-            .unwrap_or(ty))
+        Ok(ty)
     }
 
     /// tsc-port: isSymbolWithNumericName @6.0.3
