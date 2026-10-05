@@ -6235,3 +6235,94 @@ fn async_arrow_concise_body_block_maps_like_tsgo() {
         r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAEA,IAAI,CAAC,GAAS,EAAE,kDACd,OAAA,IAAI,CAAC,QAAQ,CAAC,GAAG,EAAE,CAAC,IAAI,CAAC,CAAA,CAC3B,CAAC,CAD0B,EACzB,CAAC,CAAC,CAAC"}"#
     );
 }
+
+#[test]
+fn declaration_type_parameter_names_end_with_their_scope_like_tsgo() {
+    // enterNewScope gives the names a scope took back when it ends: every
+    // local a reused fake scope gained is removed and every replaced one is
+    // put back (checker/nodebuilderscopes.go:142-152), and a mapped type names
+    // its parameter inside its scope (checker/nodebuilderimpl.go:1582-1593).
+    // tsc 6.0 undid only the first local of each kind and named a mapped
+    // type's parameter before the scope, so a sibling conditional type's
+    // `infer _E` became `_E_1`, the generic return type after a parameter
+    // holding `<O, E, R>(…)` became `<E_1, R_1>`, the second member of a
+    // returned type literal became `<R, O_1, E_1, …>` and a sibling mapped
+    // type's `K` became `K_1`. A parameter that does shadow one in scope is
+    // still renamed. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export interface Box<A, E> { a: A; e: E }\n",
+            "export interface Fail<A, E> { b: A; f: E }\n",
+            "export interface Kind<F, R, O, E, A> { f: F; r: R; o: O; e: E; a: A }\n",
+            "export const builder = <T extends Box<any, any>>(self: T): [\n",
+            "  T extends Box<infer _A, infer _E> ? _A : never,\n",
+            "  T extends Fail<infer _A, infer _E> ? _E : never,\n",
+            "  T extends Box<infer _A, infer _E> ? true : never\n",
+            "] => null as any\n",
+            "declare function dual<A, B>(n: number, f: unknown): A & B\n",
+            "export const repeat = dual<{\n",
+            "  <Output, Input>(builder: ($: <O, E, R>(_: [O, E, R, Input]) => [O, E, R]) => Output): <E, R>(self: [Input, E, R]) => [Output, E, R]\n",
+            "}, {\n",
+            "  <Input, E, R, Output>(self: [Input, E, R], builder: ($: <O, E, R>(_: [O, E, R, Input]) => [O, E, R]) => Output): [Output, E, R]\n",
+            "}>(2, null)\n",
+            "export const let_ = <F>(map: F): {\n",
+            "  <N extends string, A extends object, B>(name: N, f: (a: A) => B): <R, O, E>(self: Kind<F, R, O, E, A>) => Kind<F, R, O, E, B>\n",
+            "  <R, O, E, A extends object, N extends string, B>(self: Kind<F, R, O, E, A>, name: N, f: (a: A) => B): Kind<F, R, O, E, B>\n",
+            "} => null as any\n",
+            "declare function pair<T, U>(x: T, y: U): { a: { [K in keyof T]: T[K] }; b: { [K in keyof U]: [U[K]] } }\n",
+            "export const g = <T, U>(x: T, y: U) => pair(x, y)\n",
+            "export const m = <T>(x: T): { a: { [K in keyof T]: T[K] }; b: { [K in keyof T]: { [K in keyof T]: T[K] } } } => null as any\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2022","module":"esnext","strict":true,"declaration":true,"declarationMap":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.d.ts"),
+        concat!(
+            "export interface Box<A, E> {\n",
+            "    a: A;\n",
+            "    e: E;\n",
+            "}\n",
+            "export interface Fail<A, E> {\n",
+            "    b: A;\n",
+            "    f: E;\n",
+            "}\n",
+            "export interface Kind<F, R, O, E, A> {\n",
+            "    f: F;\n",
+            "    r: R;\n",
+            "    o: O;\n",
+            "    e: E;\n",
+            "    a: A;\n",
+            "}\n",
+            "export declare const builder: <T extends Box<any, any>>(self: T) => [T extends Box<infer _A, infer _E> ? _A : never, T extends Fail<infer _A, infer _E> ? _E : never, T extends Box<infer _A, infer _E> ? true : never];\n",
+            "export declare const repeat: (<Output, Input>(builder: ($: <O, E, R>(_: [O, E, R, Input]) => [O, E, R]) => Output) => <E, R>(self: [Input, E, R]) => [Output, E, R]) & (<Input, E, R, Output>(self: [Input, E, R], builder: ($: <O, E_1, R_1>(_: [O, E_1, R_1, Input]) => [O, E_1, R_1]) => Output) => [Output, E, R]);\n",
+            "export declare const let_: <F>(map: F) => {\n",
+            "    <N extends string, A extends object, B>(name: N, f: (a: A) => B): <R, O, E>(self: Kind<F, R, O, E, A>) => Kind<F, R, O, E, B>;\n",
+            "    <R, O, E, A extends object, N extends string, B>(self: Kind<F, R, O, E, A>, name: N, f: (a: A) => B): Kind<F, R, O, E, B>;\n",
+            "};\n",
+            "export declare const g: <T, U>(x: T, y: U) => {\n",
+            "    a: { [K in keyof T]: T[K]; };\n",
+            "    b: { [K in keyof U]: [U[K]]; };\n",
+            "};\n",
+            "export declare const m: <T>(x: T) => {\n",
+            "    a: { [K in keyof T]: T[K]; };\n",
+            "    b: { [K in keyof T]: { [K_1 in keyof T]: T[K_1]; }; };\n",
+            "};\n",
+            "//# sourceMappingURL=a.d.ts.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.d.ts.map"),
+        r#"{"version":3,"file":"a.d.ts","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"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"}"#
+    );
+}
