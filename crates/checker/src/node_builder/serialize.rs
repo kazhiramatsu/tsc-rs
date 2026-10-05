@@ -2581,6 +2581,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 {
                     context.enclosing_declaration_is_synthetic = true;
                     context.synthetic_type_params_scope_active = true;
+                    context.push_fake_type_params_scope();
                 }
             }
         } else {
@@ -2642,6 +2643,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 if context.enclosing_declaration.is_some() && !type_parameters.is_empty() {
                     context.enclosing_declaration_is_synthetic = true;
                     context.synthetic_type_params_scope_active = true;
+                    context.push_fake_type_params_scope();
                 }
             }
         }

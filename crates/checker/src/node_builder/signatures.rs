@@ -827,6 +827,7 @@ pub(crate) struct ScopeRestore {
     synthetic_type_param_names: Vec<tsc_types::EscapedName>,
     synthetic_type_params_scope_active: bool,
     synthetic_scope_kind: Option<SyntaxKind>,
+    fake_scopes: super::context::FakeScopeChain,
 }
 
 /// tsc-port: enterNewScope @6.0.3
@@ -857,6 +858,7 @@ pub(crate) fn enter_new_scope(
         synthetic_type_param_names: context.synthetic_type_param_names.clone(),
         synthetic_type_params_scope_active: context.synthetic_type_params_scope_active,
         synthetic_scope_kind: context.synthetic_scope_kind,
+        fake_scopes: context.fake_scopes,
     };
     context.must_create_type_parameter_symbol_list = true;
     context.must_create_type_parameters_names_lookups = true;
@@ -872,6 +874,16 @@ pub(crate) fn enter_new_scope(
     if context.enclosing_declaration.is_some() && declaration.is_some() && creates_fake_scope {
         context.enclosing_declaration_is_synthetic = true;
         context.synthetic_scope_kind = Some(SyntaxKind::Block);
+        context.push_fake_params_scope();
+    }
+    if context.enclosing_declaration.is_some()
+        && declaration.is_some()
+        && context
+            .flags
+            .contains(EmitNodeBuilderFlags::GENERATE_NAMES_FOR_SHADOWED_TYPE_PARAMS)
+        && type_parameters.is_some_and(|parameters| !parameters.is_empty())
+    {
+        context.push_fake_type_params_scope();
     }
 
     if let (Some(expanded), Some(original)) = (expanded_parameters, original_parameters) {
@@ -1009,6 +1021,7 @@ pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: Scop
     context.synthetic_type_param_names = restore.synthetic_type_param_names;
     context.synthetic_type_params_scope_active = restore.synthetic_type_params_scope_active;
     context.synthetic_scope_kind = restore.synthetic_scope_kind;
+    context.fake_scopes = restore.fake_scopes;
 }
 
 /// tsgo-port: enterNewScope's bindPattern @7.1 (nodebuilderscopes.go:178-191).

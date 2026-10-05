@@ -5262,6 +5262,19 @@ impl<'arena> NodeFactory<'arena> {
         CrossSourceReuseClone::new(self.arena, original.source, target).clone_node(original.node)
     }
 
+    /// tsgo's `DeepCloneNode` (ast/deepclone.go:6-73): a clone of the whole
+    /// subtree whose nodes and node arrays have no positions. Each clone's
+    /// original is the node it copies, so its emit metadata follows, as
+    /// tsgo's clone hook copies the emit node.
+    pub fn deep_clone_node_without_positions(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.node(original)?;
+        CrossSourceReuseClone::new(self.arena, original.source, original.source)
+            .clone_node(original.node)
+    }
+
     pub fn update_node(
         &mut self,
         original: TransformNode,

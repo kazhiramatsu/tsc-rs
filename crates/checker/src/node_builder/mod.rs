@@ -44,6 +44,7 @@ pub(crate) struct SyntheticModuleScopeRestore {
     pub(crate) synthetic_type_param_names: Vec<tsc_types::EscapedName>,
     pub(crate) synthetic_type_params_scope_active: bool,
     pub(crate) synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
+    pub(crate) fake_scopes: context::FakeScopeChain,
 }
 
 /// tsrs-native: shared install frame for the existing synthetic module-scope overlay.
@@ -62,9 +63,11 @@ pub(crate) fn with_synthetic_module_scope(
             false,
         ),
         synthetic_scope_kind: context.synthetic_scope_kind,
+        fake_scopes: context.fake_scopes,
     };
     context.enclosing_declaration = enclosing_declaration;
     context.enclosing_declaration_is_synthetic = true;
+    context.replace_fake_scopes_with_new_enclosing();
     context.synthetic_scope_kind = Some(tsc_syntax::SyntaxKind::ModuleDeclaration);
     context.synthetic_scope_locals = Some(
         locals
@@ -86,6 +89,7 @@ pub(crate) fn restore_synthetic_module_scope(
     context.synthetic_type_param_names = restore.synthetic_type_param_names;
     context.synthetic_type_params_scope_active = restore.synthetic_type_params_scope_active;
     context.synthetic_scope_kind = restore.synthetic_scope_kind;
+    context.fake_scopes = restore.fake_scopes;
 }
 
 /// tsrs-native: stable checker-node projection prepared before a tracker callback.
@@ -251,6 +255,7 @@ pub(crate) struct SyntacticScopeCleanup {
     synthetic_type_param_names: Vec<tsc_types::EscapedName>,
     synthetic_type_params_scope_active: bool,
     synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
+    fake_scopes: context::FakeScopeChain,
     /// pushFakeScope("params") found a fake scope to reuse: an enclosing
     /// signature's. Its cleanup is the short-circuiting one below.
     reuses_synthetic_scope: bool,
@@ -284,6 +289,7 @@ impl SyntacticScopeCleanup {
             synthetic_type_param_names: context.synthetic_type_param_names.clone(),
             synthetic_type_params_scope_active: context.synthetic_type_params_scope_active,
             synthetic_scope_kind: context.synthetic_scope_kind,
+            fake_scopes: context.fake_scopes,
             reuses_synthetic_scope: context.enclosing_declaration_is_synthetic,
             reuses_type_params_scope: context.synthetic_type_params_scope_active,
             first_new_parameter_local: None,
@@ -414,6 +420,7 @@ impl SyntacticScopeCleanup {
         context.synthetic_type_param_names = type_param_names;
         context.synthetic_type_params_scope_active = self.synthetic_type_params_scope_active;
         context.synthetic_scope_kind = self.synthetic_scope_kind;
+        context.fake_scopes = self.fake_scopes;
     }
 }
 
