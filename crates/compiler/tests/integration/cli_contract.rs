@@ -6422,3 +6422,46 @@ fn declaration_alias_chains_try_the_earlier_declared_parent_like_tsgo() {
         )
     );
 }
+
+#[test]
+fn declaration_cached_type_copy_drops_the_elided_comment_like_tsgo() {
+    // A hit of the serialized type cache hands out DeepCloneNode's copy, and
+    // the clone hook copies an emit node without its synthetic comments
+    // (emitNode.copyFrom, printer/emitcontext.go:562-574): the second use of
+    // the cached literal writes its elided placeholders as plain `any`. tsc
+    // 6.0 merged the comments into the clone. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export var circularReference = class C {\n",
+            "    static getTags(c: C): C { return c }\n",
+            "    tags(c: C): C { return c }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","declaration":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare var circularReference: {\n",
+            "    new (): {\n",
+            "        tags(c: /*elided*/ any): /*elided*/ any;\n",
+            "    };\n",
+            "    getTags(c: {\n",
+            "        tags(c: /*elided*/ any): /*elided*/ any;\n",
+            "    }): {\n",
+            "        tags(c: any): any;\n",
+            "    };\n",
+            "};\n",
+        )
+    );
+}
