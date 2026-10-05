@@ -665,6 +665,10 @@ pub struct CheckerState<'a> {
     /// the source files whose export assignments and export specifiers
     /// have marked their targets visible for declaration emit.
     pub(crate) declaration_emit_aliases_marked: rustc_hash::FxHashSet<NodeId>,
+    /// The ambient module symbols of the script files, kept out of the
+    /// globals merge until the global-scope augmentations are in (tsgo
+    /// initializeChecker's `ambientModuleSymbols`).
+    pub(crate) deferred_ambient_module_symbols: Vec<(tsc_types::EscapedName, SymbolId)>,
     pub(crate) potential_unused_renamed_binding_elements_in_types: Vec<NodeId>,
     /// tsc allPotentiallyUnusedIdentifiers, keyed by the owning source
     /// file's root. A checker visit can force a declaration in another
@@ -1328,7 +1332,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: Rust checker arena/cache construction around the
     /// separately ledgered initializeTypeChecker slices.
     pub fn from_program(binders: Vec<&'a Binder<'a>>, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::new(binders), options)
+        Self::from_program_binder(ProgramBinder::new(binders), options, true)
     }
 
     /// Fresh checker-session construction over an already parsed and bound
@@ -1337,7 +1341,28 @@ impl<'a> CheckerState<'a> {
     /// remain session-local.
     /// tsrs-native: fresh checker session over an immutable ProgramSnapshot.
     pub fn from_snapshot(snapshot: &'a ProgramSnapshot, options: &'a CompilerOptions) -> Self {
-        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options)
+        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, true)
+    }
+
+    /// [`Self::from_snapshot`] without the globals merge: the caller installs
+    /// the module resolution view and then runs
+    /// [`Self::initialize_deferred_program_globals`]. Merging two
+    /// declarations of an ambient module resolves an alias among their
+    /// exports (mergeSymbol's resolveSymbol(target)), and that can need a
+    /// module of the program.
+    /// tsrs-native: two-step construction for the program driver.
+    pub(crate) fn from_snapshot_deferring_globals(
+        snapshot: &'a ProgramSnapshot,
+        options: &'a CompilerOptions,
+    ) -> Self {
+        Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options, false)
+    }
+
+    /// The initializeTypeChecker slice a constructor runs unless it was
+    /// deferred.
+    pub(crate) fn initialize_deferred_program_globals(&mut self) {
+        self.initialize_program_globals();
+        self.run_init_global_type_probes();
     }
 
     /// Run `operation` over the hook-less result that owns the checker-built
@@ -1396,7 +1421,11 @@ impl<'a> CheckerState<'a> {
         target
     }
 
-    fn from_program_binder(mut binder: ProgramBinder<'a>, options: &'a CompilerOptions) -> Self {
+    fn from_program_binder(
+        mut binder: ProgramBinder<'a>,
+        options: &'a CompilerOptions,
+        initialize_globals: bool,
+    ) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
         let stable_type_ordering = options.stable_type_ordering_effective();
@@ -1539,6 +1568,7 @@ impl<'a> CheckerState<'a> {
             potential_reflect_collisions: Vec::new(),
             deferred_diagnostics: Vec::new(),
             declaration_emit_aliases_marked: rustc_hash::FxHashSet::default(),
+            deferred_ambient_module_symbols: Vec::new(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
             potentially_unused_identifiers: rustc_hash::FxHashMap::default(),
             deferred_global_disposable_type: None,
@@ -1827,8 +1857,13 @@ impl<'a> CheckerState<'a> {
 
         // initializeTypeChecker slice (88732-88906): globals merge +
         // symbol-type seeds + amalgamated-duplicate flush.
-        state.initialize_program_globals();
-        state.run_init_global_type_probes();
+        if initialize_globals {
+            state.initialize_deferred_program_globals();
+            // A state built in one step has no later point that is sure to
+            // run; the program driver merges these after the global-scope
+            // augmentations (merge_module_augmentations).
+            state.merge_deferred_ambient_modules();
+        }
         // (has_global_augmentation RETIRED 5.8d: declare-global exports
         // merge in merge_module_augmentations; the resolver failure
         // band and the JSX containment both lifted.)

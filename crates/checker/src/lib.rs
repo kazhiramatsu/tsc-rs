@@ -2616,7 +2616,7 @@ fn init_checker_state<'a>(
     )>,
     host: HostFacts,
 ) -> state::CheckerState<'a> {
-    let mut state = state::CheckerState::from_snapshot(snapshot, options);
+    let mut state = state::CheckerState::from_snapshot_deferring_globals(snapshot, options);
     if let Some((provider, metadata)) = authoritative {
         if let Err(failure) = state.install_authoritative_module_provider(provider, metadata) {
             state.record_authoritative_module_failure(failure);
@@ -2640,6 +2640,10 @@ fn init_checker_state<'a>(
     state.host_package_json_module_types = host.package_json_module_types;
     state.host_package_json_values = host.package_json_values;
     state.host_package_json_names = host.package_json_names;
+    // The globals merge runs once the resolver's host view exists: tsgo's
+    // mergeSymbol resolves an alias it merges into (checker.go mergeSymbol),
+    // which can load a module of the program.
+    state.initialize_deferred_program_globals();
     // initializeTypeChecker's augmentation passes (88769/88874)
     // run here — AFTER the resolver's host view exists (pass 2
     // resolves module names), BEFORE any file checks.
