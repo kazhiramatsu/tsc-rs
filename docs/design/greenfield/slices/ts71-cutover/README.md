@@ -3398,3 +3398,5 @@ P3-5bfの「次」の1つ目。tsgoは、aliasの解決とtype-onlyの記録を�
       記録する違いになる。
   - emitの不一致7、harness error 17（`runExternalCode`の15件、`deduplicatePackages`の2件）。
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
+- hosted：PR #684（head `59b2afb24`）、run 37333860159 — `plan` 30s、`rust` 10m54s、`conformance (TypeScript 7.1)` 19m1s、
+  `gates` 11s。merge commitは`e70475159`。
