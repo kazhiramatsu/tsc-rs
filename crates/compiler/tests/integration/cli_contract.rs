@@ -6326,3 +6326,99 @@ fn declaration_type_parameter_names_end_with_their_scope_like_tsgo() {
         r#"{"version":3,"file":"a.d.ts","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"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"}"#
     );
 }
+
+#[test]
+fn declaration_alias_chains_try_the_earlier_declared_parent_like_tsgo() {
+    // getSymbolChain orders the parents of a chain's root with sortByBestName
+    // (checker/nodebuilderimpl.go:1153-1170): two module parents by their
+    // specifiers, any other pair by compareSymbols. A module that exports the
+    // target and is declared before the alias's container is therefore tried
+    // first: where the scope shadows the alias, the target is written through
+    // the module (`typeof import("./f1")`, `typeof import("./f2").g`) rather
+    // than through the container (`typeof M.d`, `typeof M.e`, as tsc 6.0
+    // did). An alias no imported module exports keeps its container
+    // (`typeof M.k`), and an alias that is not shadowed is used by its name.
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("f1.ts"),
+        concat!("namespace f { export class c { } }\n", "export = f;\n",),
+    )
+    .expect("write f1.ts");
+    fs::write(
+        tree.path("f2.ts"),
+        "export namespace g { export class c { } }\n",
+    )
+    .expect("write f2.ts");
+    fs::write(
+        tree.path("f0.ts"),
+        concat!(
+            "import im = require('./f1');\n",
+            "import * as two from './f2';\n",
+            "namespace Loc { export namespace Deep { export class K { } } }\n",
+            "export namespace M {\n",
+            "    export import d = im;\n",
+            "    export import e = two.g;\n",
+            "    export import k = Loc.Deep;\n",
+            "}\n",
+            "export namespace M.P {\n",
+            "    export var viaD = M.d;\n",
+            "    export var viaE = M.e;\n",
+            "    export var viaK = M.k;\n",
+            "}\n",
+            "export namespace M.R {\n",
+            "    export var d = 1;\n",
+            "    export var e = 2;\n",
+            "    export var k = 3;\n",
+            "    export var two = 4;\n",
+            "    export var Loc = 5;\n",
+            "    export var viaD = M.d;\n",
+            "    export var viaE = M.e;\n",
+            "    export var viaK = M.k;\n",
+            "}\n",
+        ),
+    )
+    .expect("write f0.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","declaration":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["f1.ts","f2.ts","f0.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/f0.d.ts")).expect("read out/f0.d.ts"),
+        concat!(
+            "import im = require('./f1');\n",
+            "import * as two from './f2';\n",
+            "declare namespace Loc {\n",
+            "    namespace Deep {\n",
+            "        class K {\n",
+            "        }\n",
+            "    }\n",
+            "}\n",
+            "export declare namespace M {\n",
+            "    export import d = im;\n",
+            "    export import e = two.g;\n",
+            "    export import k = Loc.Deep;\n",
+            "}\n",
+            "export declare namespace M.P {\n",
+            "    var viaD: typeof d;\n",
+            "    var viaE: typeof e;\n",
+            "    var viaK: typeof k;\n",
+            "}\n",
+            "export declare namespace M.R {\n",
+            "    var d: number;\n",
+            "    var e: number;\n",
+            "    var k: number;\n",
+            "    var two: number;\n",
+            "    var Loc: number;\n",
+            "    var viaD: typeof import(\"./f1\");\n",
+            "    var viaE: typeof import(\"./f2\").g;\n",
+            "    var viaK: typeof M.k;\n",
+            "}\n",
+            "export {};\n",
+        )
+    );
+}
