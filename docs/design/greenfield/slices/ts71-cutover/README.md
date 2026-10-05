@@ -2530,3 +2530,52 @@ P3-5axの後、emitとrunnerの5件：
     Playwrightの3回の差はnoiseで、劣化無し。
 - hosted：PR #676（head `1669f9b03`）、run 37246122418 — `plan` 30s、`rust` 9m49s、`conformance (TypeScript 7.1)` 17m52s、
   `gates` 13s。
+
+## P3-5az source map（2026-10-05）
+
+P3-5ayの後、`.js.map`の基準の不一致34構成（ratchetの外）の原因を、tsgoの`.sourcemap.txt`とmappingの復号で調べた。
+tsc 6.0の`cloneNode`は位置を写さないが、tsgoの`Clone`は写す（ast.go:103-120）ので、tsgoで複製された名前はmapされる。
+- **token**：tsgoの`emitToken`がmapするのは`{`と`}`だけ（`shouldEmitTokenSourceMaps`、printer.go:822-830）。tsc 6.0が
+  `writeToken`でmapしていた`debugger`、case節の同じ行の`:`、`new.target`等のkeywordは、nodeのmapだけになる。
+- **parameter property**：tsgoの代入文、`this.x`、代入は位置を持たず、名前の2つの複製だけが位置を持つ
+  （runtimesyntax.go:784-807）。class fields変換がconstructorを書き直すのは、初期値をconstructorへ移すclassだけで
+  （`transformConstructor`、classfields.go:2365-2377）、それ以外はTypeScript変換の代入文が残る。tsc-rsはparameter
+  propertyだけのclassでも、propertyの範囲を付けた代入を作り直していた。
+- **型を消したparameterと、static propertyのあるclass**：tsgoは名前の後ろとclassの後ろのmapを残す（typeeraser.go:
+  228-249）。tsc 6.0はどちらにも`NoTrailingSourceMap`を付けていた（ES5のIIFE化はtsgoに無いので従来どおり）。
+- **namespace**：`GetExternalModuleOrNamespaceExportName`は内側の名前に宣言名の複製を使い（printer/factory.go:
+  561-586）、`N.M`や`N.C = C`の`M`、`C`がmapされる。参照の置換（`v`→`N.v`）の内側の名前はmapしない
+  （runtimesyntax.go:931-945）。
+- **CommonJS**：exportされたclassとfunctionの名前は`GetDeclarationName`（mapとcomment無し）で、`exports.x = x;`は
+  comment rangeだけの文（commonjsmodule.go:502-588、940-968）。参照の`exports.x`と`import x = require()`の`x`は名前の
+  複製でmapされる（commonjsmodule.go:777-821、2064-2079）。
+- **宣言map**：tsgoはconstructorとmethodの宣言を`Update`で作るので、d.tsでも元の範囲にmapされる
+  （declarations/transform.go:1074-1085、1140-1159）。tsc-rsはtscの、新しいnodeを作る形だった（範囲はsource map
+  だけに渡し、commentは従来どおり）。
+- **runner**：source mapのpreviewリンクは、mapのsourceをProgramの順（依存先が先）で探す（sourcemap_baseline.go:
+  90-100）。`commonSourceDirectory`。
+- unit test：CLI（tsgoの出力にpin）で1件（上の全てを含む5つのmap）。tsc 6.0.3の`new.target`のtoken mapに固定していた
+  内部のinvariant testとそのfixtureは、挙動が変わったので外した。
+- conformance（release build、`588754c50`、`--workers 2`、541 s）：15,228構成、lane A 13,467。`.js.map`の不一致は34→1
+  （残りはAST深さで保留中の`binderBinaryExpressionStress`）。errorsとemitはP3-5ayと同じで、変わったのは負荷で結果の変わる
+  `intersectionConstructorReductionCrash`（今回は終わりFull、ratchetの外）だけ。下がった構成は無い。途中はfilter
+  （`ourceMap`、`ourcemap`、`eclarationMap`、`eclaration`、`xport`、`mport`、`ommonjs`、`lass`、`ecorator`、
+  `amespace`、`arameter`、`odule`）で確かめ、下がった構成は無かった。`--checkers 4`の並列対照はcheckerを変えていない
+  ので実行していない。
+- ratchet：0 regressions。上がった行は無い（`.js.map`はratchetの外）。
+- local：formatと、emitter・compiler・harness・conformanceのclippy。emitter・compiler・harness・conformanceのtest
+  （926件。tsc 6.0.3のinvariant testを外した後、emitterのlib testを再実行して480件）。workspace全体のtestとclippyは
+  hostedの`rust` job。
+- perf（README corpora、nice 20、main（P3-5ayのbuild、`581a9ad12`と同じコード）対tsgo 7.1.0-dev、branchは`588754c50`）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 134→136、zod 525→526、Playwright 373→371、TypeScript
+    `src/compiler` 356→326、Next.js 773→823（min 769→786）、Effect 525→477、VS Code 3,476→3,441。読み込んだ文書数と
+    診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 146→145、zod 628→633、Playwright 480→503、TypeScript `src/compiler` 536→514、
+    Next.js 1,011→1,006、Effect 774→773。6 corporaとも診断は同一で、出力の違いはmap fileだけ。
+  - 10回のA/B：`--noEmit` Effect 519→535（min 500→518）、zod 526→518、VS Code 3,383→3,383、Next.js 775→773。
+    `bench-full` Playwright 466→466、Next.js 990→991。1 checkerの命令数branch÷main（`--noEmit`）：zod 1.00041、
+    Effect 0.99972、Next.js 0.99988、Playwright 0.99997。3回の差はnoiseで、劣化無し。
+  - bench-fullの出力をtsgoと比べた、tsgoと同じbyteのfileの数（main→branch）：js.mapはhono 161→187/187、zod
+    363→470/475、Playwright 555→703/704、TypeScript `src/compiler` 4→51/78（JavaScript自体が59/78）、Next.js
+    1,301→1,451/1,665、Effect 390→496/496。d.ts.mapはhono 162→187/187、zod 453→465/467、Playwright 402→700/703、
+    TypeScript `src/compiler` 75→78/78、Next.js 1,495→1,657/1,665、Effect 427→470/496。JavaScriptと宣言は変わらない。
