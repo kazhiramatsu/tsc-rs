@@ -1190,35 +1190,42 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         self.update_node(node, data).map(Some)
     }
 
-    /// tsc-port: visitNodesWithoutCopyingPositions @6.0.3
-    /// tsc-hash: 6d51e27430eb6333a1eabb23b9d7bb9c65bf4fe34935c8f4b5cade667ecb2747
-    /// tsc-span: _tsc.js:133665-133676
+    /// tsgo-port: the VisitNodes hook of the existing-node visitor @7.1
+    /// (checker/nodecopy.go:878-888): a list of a node from another file is
+    /// copied without its position. `NodeList.HasTrailingComma` compares the
+    /// list's end with its last node's (ast/ast.go:139-145), so such a list
+    /// has no trailing comma either.
     fn visit_nodes_without_copying_positions(
         &mut self,
         source: TransformSourceId,
-        original: TransformNodeArray,
         visited: TransformNodeArray,
     ) -> Result<TransformNodeArray, EmitResolverError> {
-        let record = self
-            .arena
-            .node_array(visited)
-            .map_err(|error| self.factory_error(error))?;
-        if record.pos == u32::MAX && record.end == u32::MAX {
+        let (positioned, has_trailing_comma, nodes) = {
+            let record = self
+                .arena
+                .node_array(visited)
+                .map_err(|error| self.factory_error(error))?;
+            (
+                record.pos != u32::MAX || record.end != u32::MAX,
+                record.has_trailing_comma,
+                record.nodes.to_vec(),
+            )
+        };
+        if !positioned && !has_trailing_comma {
             return Ok(visited);
         }
-        let result = if visited == original {
-            let nodes = self
-                .arena
-                .node_array(original)
-                .map_err(|error| self.factory_error(error))?
-                .nodes
-                .iter()
-                .filter_map(|&node| self.arena.node_ref(source, node))
-                .collect();
-            self.create_visited_node_array(source, original, nodes)?
-        } else {
-            visited
-        };
+        let nodes = nodes
+            .into_iter()
+            .filter_map(|node| self.arena.node_ref(source, node))
+            .collect();
+        let result = self
+            .arena
+            .factory()
+            .create_node_array_with_trailing_comma(source, nodes, false)
+            .map_err(|error| EmitResolverError::Factory {
+                method: self.method,
+                error: Box::new(error),
+            })?;
         self.arena
             .factory()
             .set_node_array_text_range(result, u32::MAX, u32::MAX)
@@ -1758,6 +1765,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             .map_err(|error| self.factory_error(error))?
             .nodes
             .to_vec();
+        let original_first = original_nodes
+            .first()
+            .and_then(|&first| self.arena.node_ref(source, first));
         let mut changed = false;
         let mut nodes = Vec::with_capacity(original_nodes.len());
         for node_id in original_nodes {
@@ -1778,15 +1788,30 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         } else {
             original
         };
+        // The VisitNodes hook (checker/nodecopy.go:878-900): a list of a node
+        // that comes from another file loses its position. A node of another
+        // file is visited as its clone in the target source, so the file is
+        // the one of the element's most original node.
         let enclosing_root = self.context.enclosing_file;
-        let source_root = self
-            .arena
-            .source(source)
-            .map_err(|error| self.factory_error(error))?
-            .syntax()
-            .root;
-        if enclosing_root != Some(source_root) {
-            result = self.visit_nodes_without_copying_positions(source, original, result)?;
+        let origin_root = match original_first {
+            Some(first) => {
+                let origin = self.arena.get_original_node(first);
+                self.arena
+                    .source(origin.source())
+                    .map_err(|error| self.factory_error(error))?
+                    .syntax()
+                    .root
+            }
+            None => {
+                self.arena
+                    .source(source)
+                    .map_err(|error| self.factory_error(error))?
+                    .syntax()
+                    .root
+            }
+        };
+        if enclosing_root != Some(origin_root) {
+            result = self.visit_nodes_without_copying_positions(source, result)?;
         }
         Ok(Some(result))
     }
