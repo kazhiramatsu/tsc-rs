@@ -8318,3 +8318,1450 @@ fn a_missing_jsx_runtime_is_reported_at_the_opening_of_a_first_fragment_like_tsg
         )
     );
 }
+
+#[test]
+fn same_named_aliases_are_ordered_by_their_symbols_like_tsgo() {
+    // compareTypeNames orders two alias symbols of the same name by
+    // compareSymbols before the alias arguments or the structure are looked at
+    // (checker/utilities.go:632-649): `N1.A<number>` precedes `N2.A<string>`
+    // because `N1.A` is declared first. The port compared the type arguments
+    // of the two aliases as if they were one. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type Inner<T> = { v: T };\n",
+            "namespace N1 { export type A<T> = Inner<T>; }\n",
+            "namespace N2 { export type A<T> = Inner<T>; }\n",
+            "declare const a1: N2.A<string> | N1.A<number>;\n",
+            "export const sameNamedAliases = [a1];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "type Inner<T> = {\n",
+            "    v: T;\n",
+            "};\n",
+            "declare namespace N1 {\n",
+            "    type A<T> = Inner<T>;\n",
+            "}\n",
+            "declare namespace N2 {\n",
+            "    type A<T> = Inner<T>;\n",
+            "}\n",
+            "export declare const sameNamedAliases: (N1.A<number> | N2.A<string>)[];\n",
+            "export {};\n",
+        )
+    );
+}
+
+#[test]
+fn instantiation_expression_types_are_ordered_by_declaration_and_expression_like_tsgo() {
+    // Two instantiation expression types are ordered by the first declaration
+    // of their symbol, which is the declaration of the function they
+    // instantiate (checker/checker.go:10893-10895), and then by the expression
+    // node (checker/utilities.go:442-462): `f<string>` precedes `g<string>`
+    // although `g<string>` is written first, and the instantiations of one
+    // function keep the order they are written in. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function f<T>(x: T): T;\n",
+            "declare function g<T>(x: T): T[];\n",
+            "export const byDeclaration = [g<string>, f<string>];\n",
+            "export const byExpression = [f<string>, f<number>, f<boolean>];\n",
+            "export const byExpression2 = [f<boolean>, f<number>, f<string>];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare const byDeclaration: (((x: string) => string) | ((x: string) => string[]))[];\n",
+            "export declare const byExpression: (((x: string) => string) | ((x: number) => number) | ((x: boolean) => boolean))[];\n",
+            "export declare const byExpression2: (((x: boolean) => boolean) | ((x: number) => number) | ((x: string) => string))[];\n",
+        )
+    );
+}
+
+#[test]
+fn tuple_types_are_ordered_by_the_labels_of_every_element_like_tsgo() {
+    // compareTupleTypes compares the label of every element, an unlabeled
+    // element before a labeled one and two labels by their text
+    // (checker/utilities.go:668-700). The port read the labels of the first
+    // tuple only: a first tuple without labels compared equal to a labeled
+    // one, and the order fell through to the type identifiers. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const t1: [a: string] | [string];\n",
+            "declare const t2: [b: string] | [a: string];\n",
+            "declare const t3: [x: string, ...b: number[]] | [x: string, ...a: number[]];\n",
+            "declare const t4: [x?: string, b?: number] | [x?: string, a?: number];\n",
+            "export const tuples1 = [t1];\n",
+            "export const tuples2 = [t2];\n",
+            "export const tuples3 = [t3];\n",
+            "export const tuples4 = [t4];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare const tuples1: ([string] | [a: string])[];\n",
+            "export declare const tuples2: ([a: string] | [b: string])[];\n",
+            "export declare const tuples3: ([x: string, ...a: number[]] | [x: string, ...b: number[]])[];\n",
+            "export declare const tuples4: ([x?: string | undefined, a?: number | undefined] | [x?: string | undefined, b?: number | undefined])[];\n",
+        )
+    );
+}
+
+#[test]
+fn mapped_types_are_ordered_by_their_instantiation_like_tsgo() {
+    // An instantiated mapped type is ordered by the mapper of its
+    // instantiation: for a composite mapper tsgo compares the second mapper,
+    // the one that carries the type arguments, and never the fresh type
+    // parameter of the first (checker/utilities.go:509-520). The members come
+    // out in the order of their type arguments (`string`, `number`,
+    // `boolean`), not in the order the instantiations were made. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function mapped<T>(): { [K in \"value\"]: T };\n",
+            "export const mappedValues = [mapped<number>(), mapped<string>(), mapped<boolean>()];\n",
+            "declare function mapped2<T, U>(): { [K in \"value\"]: [T, U] };\n",
+            "export const mappedValues2 = [mapped2<number, string>(), mapped2<string, number>(), mapped2<boolean, boolean>()];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare const mappedValues: ({\n",
+            "    value: string;\n",
+            "} | {\n",
+            "    value: number;\n",
+            "} | {\n",
+            "    value: boolean;\n",
+            "})[];\n",
+            "export declare const mappedValues2: ({\n",
+            "    value: [string, number];\n",
+            "} | {\n",
+            "    value: [number, string];\n",
+            "} | {\n",
+            "    value: [boolean, boolean];\n",
+            "})[];\n",
+        )
+    );
+}
+
+#[test]
+fn reverse_mapped_types_are_ordered_by_source_mapped_type_and_constraint_like_tsgo() {
+    // Two reverse mapped types are ordered by their source type, then by the
+    // mapped type and then by the constraint type
+    // (checker/utilities.go:497-508). The port fell through to the type
+    // identifiers, so the order followed the order of inference. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function unbox<T>(value: { [K in keyof T]: { value: T[K] } }): T;\n",
+            "declare function identity<T>(value: { [K in keyof T]: T[K] }): T;\n",
+            "declare const strings: { value: { value: string } };\n",
+            "declare const numbers: { value: { value: number } };\n",
+            "export const reverse = [unbox(numbers), unbox(strings), identity(numbers), identity(strings)];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare const reverse: ({\n",
+            "    value: string;\n",
+            "} | {\n",
+            "    value: {\n",
+            "        value: string;\n",
+            "    };\n",
+            "} | {\n",
+            "    value: number;\n",
+            "} | {\n",
+            "    value: {\n",
+            "        value: number;\n",
+            "    };\n",
+            "})[];\n",
+        )
+    );
+}
+
+#[test]
+fn anonymous_instantiations_are_ordered_by_their_type_arguments_like_tsgo() {
+    // Two instantiations of one anonymous type are ordered by their mappers:
+    // a simple mapper by its target and an array mapper by its targets in
+    // order (compareTypeMappers, checker/utilities.go:716-755), so
+    // `{ p: string }` precedes `{ p: number }` whichever is made first. An
+    // object type that also depends on a type parameter of an enclosing
+    // function is ordered the same way once both are known. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function anon<T>(): { p: T };\n",
+            "declare function anon2<T, U>(): { p: T, q: U };\n",
+            "export const anonymous = [anon<number>(), anon<string>(), anon2<number, string>(), anon2<string, number>()];\n",
+            "function outer<A>() {\n",
+            "    function inner<B>() {\n",
+            "        return null! as { a: A, b: B };\n",
+            "    }\n",
+            "    return [inner<number>(), inner<string>()];\n",
+            "}\n",
+            "export const nested = [...outer<string>(), ...outer<number>()];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare const anonymous: ({\n",
+            "    p: string;\n",
+            "} | {\n",
+            "    p: number;\n",
+            "})[];\n",
+            "export declare const nested: ({\n",
+            "    a: string;\n",
+            "    b: string;\n",
+            "} | {\n",
+            "    a: string;\n",
+            "    b: number;\n",
+            "} | {\n",
+            "    a: number;\n",
+            "    b: string;\n",
+            "} | {\n",
+            "    a: number;\n",
+            "    b: number;\n",
+            "})[];\n",
+        )
+    );
+}
+
+#[test]
+fn a_js_function_typed_by_a_generic_type_tag_declares_its_type_parameters_like_tsgo() {
+    // A JavaScript function whose signature comes from a `@type` tag has no
+    // type parameter list of its own. ensureTypeParams asks the resolver for
+    // the type parameters of the signature
+    // (transformers/declarations/transform.go:2376-2384;
+    // CreateTypeParametersOfSignatureDeclaration, checker/emitresolver.go:962),
+    // and typeParametersToTypeParameterDeclarations
+    // (checker/nodebuilderimpl.go:1696) answers for a function symbol with the
+    // type parameters of its value declaration. A method symbol gets none, so
+    // tsgo writes `method(m: T): T;` without declaring `T`; that output is
+    // pinned as it is. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.js"),
+        concat!(
+            "/**\n",
+            " * @typedef {<T>(m : T) => T} IFn\n",
+            " */\n",
+            "\n",
+            "/**@type {IFn}*/\n",
+            "export function inJs(l) {\n",
+            "    return l;\n",
+            "}\n",
+            "\n",
+            "/** @type {<T extends string, U = T[]>(a: T, b: U) => [T, U]} */\n",
+            "export function two(a, b) {\n",
+            "    return [a, b];\n",
+            "}\n",
+            "\n",
+            "/** @type {(a: number) => number} */\n",
+            "export function plain(a) {\n",
+            "    return a;\n",
+            "}\n",
+            "\n",
+            "export class C {\n",
+            "    /** @type {<T>(m: T) => T} */\n",
+            "    method(m) {\n",
+            "        return m;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "/** @type {<T>(m: T) => T} */\n",
+            "export const arrow = (m) => m;\n",
+            "\n",
+            "/** @type {<const T extends readonly unknown[]>(...args: T) => T} */\n",
+            "export function rest(...args) {\n",
+            "    return args;\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.js");
+    fs::write(
+        tree.path("b.js"),
+        concat!(
+            "/** @type {<T>(m: T) => T} */\n",
+            "export default function (m) {\n",
+            "    return m;\n",
+            "}\n",
+        ),
+    )
+    .expect("write b.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","outDir":"out","declaration":true,"strict":true,"allowJs":true,"checkJs":true},"files":["a.js","b.js"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "/**\n",
+            " * @typedef {<T>(m : T) => T} IFn\n",
+            " */\n",
+            "export type IFn = <T>(m: T) => T;\n",
+            "/**@type {IFn}*/\n",
+            "export declare function inJs<T>(l: T): T;\n",
+            "/** @type {<T extends string, U = T[]>(a: T, b: U) => [T, U]} */\n",
+            "export declare function two<T extends string, U = T[]>(a: T, b: U): [T, U];\n",
+            "/** @type {(a: number) => number} */\n",
+            "export declare function plain(a: number): number;\n",
+            "export declare class C {\n",
+            "    /** @type {<T>(m: T) => T} */\n",
+            "    method(m: T): T;\n",
+            "}\n",
+            "/** @type {<T>(m: T) => T} */\n",
+            "export declare const arrow: <T>(m: T) => T;\n",
+            "/** @type {<const T extends readonly unknown[]>(...args: T) => T} */\n",
+            "export declare function rest<const T extends readonly unknown[]>(...args: T): T;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.d.ts")).expect("read out/b.d.ts"),
+        concat!(
+            "/** @type {<T>(m: T) => T} */\n",
+            "export default function <T>(m: T): T;\n",
+        )
+    );
+}
+
+#[test]
+fn a_comment_after_a_property_without_a_value_is_written_once_like_tsgo() {
+    // `x()?: 1 // error` parses as a method without a body and a property `1`
+    // whose value is missing. emitPropertyAssignment asks for the trailing
+    // comments at the start of the value (printer/printer.go:4554-4558), and
+    // emitTrailingComments leaves a position where the enclosing container
+    // ends to that container (5604-5611). The comment is written once, after
+    // the empty value; the port wrote it before the value as well. The
+    // expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!("var b = {\n", "    x()?: 1 // error\n", "}\n",),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(2,8): error TS1005: '{' expected.\n",
+            "a.ts(2,9): error TS1136: Property assignment expected.\n",
+            "a.ts(3,1): error TS1005: ':' expected.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var b = {\n",
+            "    x() { }, 1:  // error\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn a_private_static_call_clones_the_class_alias_for_each_use_like_tsgo() {
+    // The class fields transform substitutes the class alias for the class
+    // name when it visits the identifier, with a clone for every use
+    // (classFieldsTransformer.visitIdentifier,
+    // estransforms/classfields.go:462-473), and
+    // createPrivateIdentifierAccessHelper gives the receiver the comment range
+    // (-1, end) (1027-1028). The `this` argument of `.call` is therefore a
+    // separate node that keeps the range of `A1`, and the comment after a call
+    // without arguments is written before and after it. The expected bytes
+    // are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "class A1 {\n",
+            "    static #method(param: string): string {\n",
+            "        return \"\";\n",
+            "    }\n",
+            "    constructor() {\n",
+            "        A1.#method(\"\")\n",
+            "        A1.#method(1) // Error\n",
+            "        A1.#method()  // Error\n",
+            "\n",
+            "    }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(7,20): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.\n",
+            "a.ts(8,12): error TS2554: Expected 1 arguments, but got 0.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {\n",
+            "    if (kind === \"a\" && !f) throw new TypeError(\"Private accessor was defined without a getter\");\n",
+            "    if (typeof state === \"function\" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError(\"Cannot read private member from an object whose class did not declare it\");\n",
+            "    return kind === \"m\" ? f : kind === \"a\" ? f.call(receiver) : f ? f.value : state.get(receiver);\n",
+            "};\n",
+            "var _a, _A1_method;\n",
+            "class A1 {\n",
+            "    constructor() {\n",
+            "        __classPrivateFieldGet(_a, _a, \"m\", _A1_method).call(_a, \"\");\n",
+            "        __classPrivateFieldGet(_a, _a, \"m\", _A1_method).call(_a, 1); // Error\n",
+            "        __classPrivateFieldGet(_a, _a, \"m\", _A1_method).call(// Error\n",
+            "        _a); // Error\n",
+            "    }\n",
+            "}\n",
+            "_a = A1, _A1_method = function _A1_method(param) {\n",
+            "    return \"\";\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn class_expression_temps_in_a_loop_are_block_scoped_like_tsgo() {
+    // requiresBlockScopedVar is `inIterationStatement` and a class expression
+    // container (classFieldsTransformer, estransforms/classfields.go:195-201):
+    // the temps of the computed names of a class expression in a loop body
+    // are declared with `let` in the body. The temp of the class itself is
+    // block-scoped only when the class has an instance property with a
+    // computed name (classExpressionNeedsBlockScopedTemp), and a class
+    // declaration hoists its temps with `var`. tsc 6.0 asked the checker for
+    // a block-scoped binding captured in the loop. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "const array: any[] = [];\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    array.push(class C { [i] = () => C; static [i] = 100; });\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    class D { [i] = 1; static [i] = 2; }\n",
+            "    array.push(D);\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    array.push(class E { static [i] = 100; });\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var _a, _b, _c;\n",
+            "const array = [];\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    let _d, _e, _f;\n",
+            "    array.push((_f = class C {\n",
+            "            constructor() {\n",
+            "                this[_d] = () => _f;\n",
+            "            }\n",
+            "        },\n",
+            "        _d = i,\n",
+            "        _e = i,\n",
+            "        _f[_e] = 100,\n",
+            "        _f));\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    class D {\n",
+            "        constructor() {\n",
+            "            this[_a] = 1;\n",
+            "        }\n",
+            "    }\n",
+            "    _a = i, _b = i;\n",
+            "    D[_b] = 2;\n",
+            "    array.push(D);\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    let _g;\n",
+            "    array.push((_c = class E {\n",
+            "        },\n",
+            "        _g = i,\n",
+            "        _c[_g] = 100,\n",
+            "        _c));\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn class_expression_temps_in_a_loop_are_block_scoped_at_es2022_like_tsgo() {
+    // The same rule in the transform that keeps class fields native: with
+    // `useDefineForClassFields: false` at ES2022 the property assignments move
+    // into the constructor and the computed names need temps, declared with
+    // `let` in the loop body for a class expression
+    // (estransforms/classfields.go:195-201). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "const array: any[] = [];\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    array.push(class C { [i] = () => C; static [i] = 100; });\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    class D { [i] = 1; static [i] = 2; }\n",
+            "    array.push(D);\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    array.push(class E { static [i] = 100; });\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2022"],"target":"es2022","module":"esnext","outDir":"out","useDefineForClassFields":false,"noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var _a, _b;\n",
+            "const array = [];\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    let _c, _d;\n",
+            "    array.push(class C {\n",
+            "        constructor() {\n",
+            "            this[_c] = () => C;\n",
+            "        }\n",
+            "        static { _c = i, _d = i; }\n",
+            "        static { this[_d] = 100; }\n",
+            "    });\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    class D {\n",
+            "        constructor() {\n",
+            "            this[_a] = 1;\n",
+            "        }\n",
+            "        static { _a = i, _b = i; }\n",
+            "        static { this[_b] = 2; }\n",
+            "    }\n",
+            "    array.push(D);\n",
+            "}\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    let _e;\n",
+            "    array.push(class E {\n",
+            "        static { _e = i; }\n",
+            "        static { this[_e] = 100; }\n",
+            "    });\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn functions_in_a_loop_reset_the_iteration_state_of_class_fields_like_tsgo() {
+    // `inIterationStatement` is cleared for a function expression or
+    // declaration and for a method of an object literal, and kept for an arrow
+    // function and for the members of a class
+    // (classFieldsTransformer.visit, estransforms/classfields.go:329-336;
+    // visitClassElement, 416-437). A class expression returned by an arrow
+    // function or by a class method inside a loop declares its temps with
+    // `let` in that function; one inside a function expression uses `var`.
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "const array: any[] = [];\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    array.push(() => class E { [i] = 1; static [i] = 2; });\n",
+            "    array.push(function () { return class F { [i] = 1; static [i] = 2; }; });\n",
+            "    array.push({ m() { return class O { [i] = 1; static [i] = 2; }; } });\n",
+            "    array.push(class G { m() { return class H { [i] = 1; static [i] = 2; }; } });\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "const array = [];\n",
+            "for (let i = 0; i < 10; ++i) {\n",
+            "    array.push(() => { let _a, _b, _c; return _c = class E {\n",
+            "            constructor() {\n",
+            "                this[_a] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _a = i,\n",
+            "        _b = i,\n",
+            "        _c[_b] = 2,\n",
+            "        _c; });\n",
+            "    array.push(function () { var _a, _b, _c; return _c = class F {\n",
+            "            constructor() {\n",
+            "                this[_a] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _a = i,\n",
+            "        _b = i,\n",
+            "        _c[_b] = 2,\n",
+            "        _c; });\n",
+            "    array.push({ m() { var _a, _b, _c; return _c = class O {\n",
+            "                constructor() {\n",
+            "                    this[_a] = 1;\n",
+            "                }\n",
+            "            },\n",
+            "            _a = i,\n",
+            "            _b = i,\n",
+            "            _c[_b] = 2,\n",
+            "            _c; } });\n",
+            "    array.push(class G {\n",
+            "        m() { let _a, _b, _c; return _c = class H {\n",
+            "                constructor() {\n",
+            "                    this[_a] = 1;\n",
+            "                }\n",
+            "            },\n",
+            "            _a = i,\n",
+            "            _b = i,\n",
+            "            _c[_b] = 2,\n",
+            "            _c; }\n",
+            "    });\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn iteration_statement_headers_count_as_the_loop_for_class_fields_like_tsgo() {
+    // Every child of a `for`-`in`, `for`-`of`, `while` or `do` statement is
+    // visited with `inIterationStatement` set, and of a `for` statement only
+    // the body (estransforms/classfields.go:329-330, visitForStatement
+    // 1243-1253). The `let` of a temp requested in a header joins the
+    // enclosing function or source file. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare let k: any;\n",
+            "function f() {\n",
+            "    for (let i = (class I { [k] = 1; }, 0); i < (class J { [k] = 1; }, 10); i += (class K { [k] = 1; }, 1)) {\n",
+            "    }\n",
+            "    while (class L { [k] = 1; }) { break; }\n",
+            "    do { } while (class M { [k] = 1; });\n",
+            "    for (const x in class N { [k] = 1; }) { }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "function f() {\n",
+            "    var _a, _b, _c, _d, _e, _f;\n",
+            "    let _g, _h, _j, _k, _l, _m;\n",
+            "    for (let i = (_b = class I {\n",
+            "            constructor() {\n",
+            "                this[_a] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _a = k,\n",
+            "        _b, 0); i < (_d = class J {\n",
+            "            constructor() {\n",
+            "                this[_c] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _c = k,\n",
+            "        _d, 10); i += (_f = class K {\n",
+            "            constructor() {\n",
+            "                this[_e] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _e = k,\n",
+            "        _f, 1)) {\n",
+            "    }\n",
+            "    while (_h = class L {\n",
+            "            constructor() {\n",
+            "                this[_g] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _g = k,\n",
+            "        _h) {\n",
+            "        break;\n",
+            "    }\n",
+            "    do { } while (_k = class M {\n",
+            "            constructor() {\n",
+            "                this[_j] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _j = k,\n",
+            "        _k);\n",
+            "    for (const x in _m = class N {\n",
+            "            constructor() {\n",
+            "                this[_l] = 1;\n",
+            "            }\n",
+            "        },\n",
+            "        _l = k,\n",
+            "        _m) { }\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn temps_of_computed_member_names_are_declared_in_member_order_like_tsgo() {
+    // The temp that caches the computed name of an auto-accessor is created
+    // when the class element visitor reaches the accessor (transformAutoAccessor,
+    // estransforms/classfields.go:839-857), after the temps of the members
+    // before it, and it is not reserved in nested scopes. The temps of a
+    // method's computed name belong to the scope around the class. The port
+    // allocated the accessor temp before every other member. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "class C1 {\n",
+            "    [class A1 { static x = 1; } as any]() { }\n",
+            "    get [class A2 { static x = 1; } as any]() { return 1; }\n",
+            "    static [class A4 { static x = 1; } as any]() { }\n",
+            "    [class A5 { static x = 1; } as any] = 1;\n",
+            "    static [class A6 { static x = 1; } as any] = 1;\n",
+            "    accessor [class A7 { static x = 1; } as any] = 1;\n",
+            "    m() { return function () { var x = class A8 { static x = 1; }; return x; }; }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {\n",
+            "    if (kind === \"a\" && !f) throw new TypeError(\"Private accessor was defined without a getter\");\n",
+            "    if (typeof state === \"function\" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError(\"Cannot read private member from an object whose class did not declare it\");\n",
+            "    return kind === \"m\" ? f : kind === \"a\" ? f.call(receiver) : f ? f.value : state.get(receiver);\n",
+            "};\n",
+            "var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {\n",
+            "    if (kind === \"m\") throw new TypeError(\"Private method is not writable\");\n",
+            "    if (kind === \"a\" && !f) throw new TypeError(\"Private accessor was defined without a setter\");\n",
+            "    if (typeof state === \"function\" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError(\"Cannot write private member to an object whose class did not declare it\");\n",
+            "    return (kind === \"a\" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;\n",
+            "};\n",
+            "var _C1__a_accessor_storage, _a, _b, _c, _d, _e, _f, _g, _h, _j;\n",
+            "class C1 {\n",
+            "    constructor() {\n",
+            "        this[_e] = 1;\n",
+            "        _C1__a_accessor_storage.set(this, 1);\n",
+            "    }\n",
+            "    [(_C1__a_accessor_storage = new WeakMap(), _a = class A1 {\n",
+            "        },\n",
+            "        _a.x = 1,\n",
+            "        _a)]() { }\n",
+            "    get [(_b = class A2 {\n",
+            "        },\n",
+            "        _b.x = 1,\n",
+            "        _b)]() { return 1; }\n",
+            "    static [(_c = class A4 {\n",
+            "        },\n",
+            "        _c.x = 1,\n",
+            "        _c)]() { }\n",
+            "    get [(_e = (_d = class A5 {\n",
+            "        },\n",
+            "        _d.x = 1,\n",
+            "        _d), _g = (_f = class A6 {\n",
+            "        },\n",
+            "        _f.x = 1,\n",
+            "        _f), _h = (_j = class A7 {\n",
+            "        },\n",
+            "        _j.x = 1,\n",
+            "        _j))]() { return __classPrivateFieldGet(this, _C1__a_accessor_storage, \"f\"); }\n",
+            "    set [_h](value) { __classPrivateFieldSet(this, _C1__a_accessor_storage, value, \"f\"); }\n",
+            "    m() { return function () { var _h; var x = (_h = class A8 {\n",
+            "        },\n",
+            "        _h.x = 1,\n",
+            "        _h); return x; }; }\n",
+            "}\n",
+            "C1[_g] = 1;\n",
+        )
+    );
+}
+
+#[test]
+fn a_lowered_private_method_declares_the_temps_of_its_body_like_tsgo() {
+    // The function a private method becomes has a variable environment of its
+    // own for its body; its parameters are visited after the body and outside
+    // that environment, so the temp of a parameter initializer is declared
+    // around the class (visitMethodOrAccessorDeclaration,
+    // estransforms/classfields.go:695-702). The port declared the temps of
+    // the body around the class. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare let k: any;\n",
+            "class C {\n",
+            "    #m(a = class P1 { static x = 1; }) { return class X1 { static x = 1; }; }\n",
+            "    get #g() { return class X2 { static x = 1; }; }\n",
+            "    set #s(v: any) { k = class X3 { static x = 1; }; }\n",
+            "    static #sm() { return class X4 { static x = 1; }; }\n",
+            "    use() { this.#m(); this.#g; this.#s = 1; C.#sm(); }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {\n",
+            "    if (kind === \"a\" && !f) throw new TypeError(\"Private accessor was defined without a getter\");\n",
+            "    if (typeof state === \"function\" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError(\"Cannot read private member from an object whose class did not declare it\");\n",
+            "    return kind === \"m\" ? f : kind === \"a\" ? f.call(receiver) : f ? f.value : state.get(receiver);\n",
+            "};\n",
+            "var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {\n",
+            "    if (kind === \"m\") throw new TypeError(\"Private method is not writable\");\n",
+            "    if (kind === \"a\" && !f) throw new TypeError(\"Private accessor was defined without a setter\");\n",
+            "    if (typeof state === \"function\" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError(\"Cannot write private member to an object whose class did not declare it\");\n",
+            "    return (kind === \"a\" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;\n",
+            "};\n",
+            "var _C_instances, _a, _C_m, _C_g_get, _C_s_set, _C_sm, _b;\n",
+            "class C {\n",
+            "    constructor() {\n",
+            "        _C_instances.add(this);\n",
+            "    }\n",
+            "    use() { __classPrivateFieldGet(this, _C_instances, \"m\", _C_m).call(this); __classPrivateFieldGet(this, _C_instances, \"a\", _C_g_get); __classPrivateFieldSet(this, _C_instances, 1, \"a\", _C_s_set); __classPrivateFieldGet(_a, _a, \"m\", _C_sm).call(_a); }\n",
+            "}\n",
+            "_a = C, _C_instances = new WeakSet(), _C_m = function _C_m(a = (_b = class P1 {\n",
+            "    },\n",
+            "    _b.x = 1,\n",
+            "    _b)) { var _c; return _c = class X1 {\n",
+            "    },\n",
+            "    _c.x = 1,\n",
+            "    _c; }, _C_g_get = function _C_g_get() { var _c; return _c = class X2 {\n",
+            "    },\n",
+            "    _c.x = 1,\n",
+            "    _c; }, _C_s_set = function _C_s_set(v) { var _c; k = (_c = class X3 {\n",
+            "    },\n",
+            "    _c.x = 1,\n",
+            "    _c); }, _C_sm = function _C_sm() { var _c; return _c = class X4 {\n",
+            "    },\n",
+            "    _c.x = 1,\n",
+            "    _c; };\n",
+        )
+    );
+}
+
+#[test]
+fn a_constructor_that_receives_initializers_keeps_its_parameters_like_tsgo() {
+    // transformConstructor visits the parameters of a constructor that
+    // receives the initializers of its class with the plain visitor, before
+    // the variable environment of the body starts
+    // (estransforms/classfields.go:2382-2387): a parameter initializer stays in
+    // the parameter list and its temps are declared around the class. The
+    // initializers and the statements of the body share one environment
+    // (transformConstructorBody, 2520-2600), so their temps share one `var`
+    // statement, the initializers' first. tsc 6.0 moved the parameter
+    // initializer into the body and wrote two statements. The expected bytes
+    // are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare let k: any;\n",
+            "class P {\n",
+            "    p = class Q3 { static x = 1; };\n",
+            "    constructor(a = class Q6 { static x = 1; }) { k = class Q7 { static x = 1; }; }\n",
+            "}\n",
+            "class R {\n",
+            "    constructor(a = class Q8 { static x = 1; }) { k = class Q9 { static x = 1; }; }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var _a;\n",
+            "class P {\n",
+            "    constructor(a = (_a = class Q6 {\n",
+            "        },\n",
+            "        _a.x = 1,\n",
+            "        _a)) {\n",
+            "        var _b, _c;\n",
+            "        this.p = (_b = class Q3 {\n",
+            "            },\n",
+            "            _b.x = 1,\n",
+            "            _b);\n",
+            "        k = (_c = class Q7 {\n",
+            "            },\n",
+            "            _c.x = 1,\n",
+            "            _c);\n",
+            "    }\n",
+            "}\n",
+            "class R {\n",
+            "    constructor(a) { var _b, _c; if (a === void 0) { a = (_b = class Q8 {\n",
+            "        },\n",
+            "        _b.x = 1,\n",
+            "        _b); } k = (_c = class Q9 {\n",
+            "        },\n",
+            "        _c.x = 1,\n",
+            "        _c); }\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn a_retained_static_block_declares_its_temps_around_the_class_like_tsgo() {
+    // A class static block that stays in the output is visited child by
+    // child without a variable environment of its own
+    // (visitClassStaticBlockDeclaration, estransforms/classfields.go:2181-2184):
+    // a temp requested inside is declared around the class. The constructor
+    // that receives the property assignments keeps its parameter initializer,
+    // as in the lowering to ES2015. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare let k: any, j: any;\n",
+            "class P {\n",
+            "    static { k = class Q { [k] = 1; static [j] = 2; }; }\n",
+            "    p = class Q3 { [k] = 1; static [j] = 2; };\n",
+            "    constructor(a = class Q6 { [k] = 1; static [j] = 2; }) { k = class Q7 { [k] = 1; static [j] = 2; }; }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2022"],"target":"es2022","module":"esnext","outDir":"out","useDefineForClassFields":false,"noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var _a, _b, _c, _d;\n",
+            "class P {\n",
+            "    static { k = class Q {\n",
+            "        constructor() {\n",
+            "            this[_a] = 1;\n",
+            "        }\n",
+            "        static { _a = k, _b = j; }\n",
+            "        static { this[_b] = 2; }\n",
+            "    }; }\n",
+            "    constructor(a = class Q6 {\n",
+            "        constructor() {\n",
+            "            this[_c] = 1;\n",
+            "        }\n",
+            "        static { _c = k, _d = j; }\n",
+            "        static { this[_d] = 2; }\n",
+            "    }) {\n",
+            "        var _e, _f, _g, _h;\n",
+            "        this.p = class Q3 {\n",
+            "            constructor() {\n",
+            "                this[_e] = 1;\n",
+            "            }\n",
+            "            static { _e = k, _f = j; }\n",
+            "            static { this[_f] = 2; }\n",
+            "        };\n",
+            "        k = class Q7 {\n",
+            "            constructor() {\n",
+            "                this[_g] = 1;\n",
+            "            }\n",
+            "            static { _g = k, _h = j; }\n",
+            "            static { this[_h] = 2; }\n",
+            "        };\n",
+            "    }\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn a_lowered_class_expression_is_not_parenthesized_by_a_statement_like_tsgo() {
+    // A class expression with static members becomes a comma sequence. The
+    // printer writes the expression of `if`, `while`, `switch`, `case` and
+    // `throw` with the lowest precedence (printer/printer.go emitIfStatement
+    // 3465, emitWhileStatement 3509, emitSwitchStatement 3628-3638,
+    // emitThrowStatement 3656, emitCaseClause 4471), so the sequence is not
+    // parenthesized. tsc 6.0 parenthesized the expression of `switch` and
+    // `case` in the factory, and the class fields transform of the port
+    // parenthesized the others. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "function f() {\n",
+            "    if (class A { static x = 1; }) { }\n",
+            "    while (class B { static x = 1; }) { break; }\n",
+            "    switch (class C { static x = 1; }) { case class D { static x = 1; }: break; }\n",
+            "    throw class H { static x = 1; };\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "function f() {\n",
+            "    var _a, _b, _c, _d, _e;\n",
+            "    if (_a = class A {\n",
+            "        },\n",
+            "        _a.x = 1,\n",
+            "        _a) { }\n",
+            "    while (_b = class B {\n",
+            "        },\n",
+            "        _b.x = 1,\n",
+            "        _b) {\n",
+            "        break;\n",
+            "    }\n",
+            "    switch (_c = class C {\n",
+            "        },\n",
+            "        _c.x = 1,\n",
+            "        _c) {\n",
+            "        case _d = class D {\n",
+            "            },\n",
+            "            _d.x = 1,\n",
+            "            _d: break;\n",
+            "    }\n",
+            "    throw _e = class H {\n",
+            "        },\n",
+            "        _e.x = 1,\n",
+            "        _e;\n",
+            "}\n",
+        )
+    );
+}
+
+#[test]
+fn an_async_generator_method_names_its_generator_after_its_name_node_like_tsgo() {
+    // transformAsyncGeneratorFunctionBody names the inner generator
+    // `getGeneratedNameForNode(node.name)` whatever the name is
+    // (estransforms/forawait.go:803-806): an identifier gives `name_1`, a
+    // computed, string or numeric name a temp. The port named the generator
+    // only for an identifier. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare let k: any;\n",
+            "class C {\n",
+            "    async *[Symbol.asyncIterator]() { yield 1; }\n",
+            "    async *[\"lit\"]() { yield 1; }\n",
+            "    async *[k]() { yield 1; }\n",
+            "    async *named() { yield 1; }\n",
+            "    async *1() { yield 1; }\n",
+            "}\n",
+            "const o = {\n",
+            "    async *[Symbol.asyncIterator]() { yield 1; },\n",
+            "    async *2() { yield 1; },\n",
+            "};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2017","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var __await = (this && this.__await) || function (v) { return this instanceof __await ? (this.v = v, this) : new __await(v); }\n",
+            "var __asyncGenerator = (this && this.__asyncGenerator) || function (thisArg, _arguments, generator) {\n",
+            "    if (!Symbol.asyncIterator) throw new TypeError(\"Symbol.asyncIterator is not defined.\");\n",
+            "    var g = generator.apply(thisArg, _arguments || []), i, q = [];\n",
+            "    return i = Object.create((typeof AsyncIterator === \"function\" ? AsyncIterator : Object).prototype), verb(\"next\"), verb(\"throw\"), verb(\"return\", awaitReturn), i[Symbol.asyncIterator] = function () { return this; }, i;\n",
+            "    function awaitReturn(f) { return function (v) { return Promise.resolve(v).then(f, reject); }; }\n",
+            "    function verb(n, f) { if (g[n]) { i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; if (f) i[n] = f(i[n]); } }\n",
+            "    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }\n",
+            "    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }\n",
+            "    function fulfill(value) { resume(\"next\", value); }\n",
+            "    function reject(value) { resume(\"throw\", value); }\n",
+            "    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }\n",
+            "};\n",
+            "class C {\n",
+            "    [Symbol.asyncIterator]() { return __asyncGenerator(this, arguments, function* _a() { yield yield __await(1); }); }\n",
+            "    [\"lit\"]() { return __asyncGenerator(this, arguments, function* _a() { yield yield __await(1); }); }\n",
+            "    [k]() { return __asyncGenerator(this, arguments, function* _a() { yield yield __await(1); }); }\n",
+            "    named() { return __asyncGenerator(this, arguments, function* named_1() { yield yield __await(1); }); }\n",
+            "    1() { return __asyncGenerator(this, arguments, function* _a() { yield yield __await(1); }); }\n",
+            "}\n",
+            "const o = {\n",
+            "    [Symbol.asyncIterator]() { return __asyncGenerator(this, arguments, function* _a() { yield yield __await(1); }); },\n",
+            "    2() { return __asyncGenerator(this, arguments, function* _a() { yield yield __await(1); }); },\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn an_async_generator_keeps_a_rest_parameter_on_the_outer_function_like_tsgo() {
+    // isSimpleParameterList ignores the rest token
+    // (estransforms/async.go:952-960): `...rest` stays on the outer function
+    // and the generator closes over it. The port treated a rest parameter as
+    // not simple and moved the parameters to the generator. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "class C {\n",
+            "    async *m(...rest: any[]) { yield rest; }\n",
+            "    async *n(a: any, ...rest: any[]) { yield [a, rest]; }\n",
+            "}\n",
+            "async function* f(...rest: any[]) { yield rest; }\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2017","module":"esnext","outDir":"out","noCheck":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var __await = (this && this.__await) || function (v) { return this instanceof __await ? (this.v = v, this) : new __await(v); }\n",
+            "var __asyncGenerator = (this && this.__asyncGenerator) || function (thisArg, _arguments, generator) {\n",
+            "    if (!Symbol.asyncIterator) throw new TypeError(\"Symbol.asyncIterator is not defined.\");\n",
+            "    var g = generator.apply(thisArg, _arguments || []), i, q = [];\n",
+            "    return i = Object.create((typeof AsyncIterator === \"function\" ? AsyncIterator : Object).prototype), verb(\"next\"), verb(\"throw\"), verb(\"return\", awaitReturn), i[Symbol.asyncIterator] = function () { return this; }, i;\n",
+            "    function awaitReturn(f) { return function (v) { return Promise.resolve(v).then(f, reject); }; }\n",
+            "    function verb(n, f) { if (g[n]) { i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; if (f) i[n] = f(i[n]); } }\n",
+            "    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }\n",
+            "    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }\n",
+            "    function fulfill(value) { resume(\"next\", value); }\n",
+            "    function reject(value) { resume(\"throw\", value); }\n",
+            "    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }\n",
+            "};\n",
+            "class C {\n",
+            "    m(...rest) { return __asyncGenerator(this, arguments, function* m_1() { yield yield __await(rest); }); }\n",
+            "    n(a, ...rest) { return __asyncGenerator(this, arguments, function* n_1() { yield yield __await([a, rest]); }); }\n",
+            "}\n",
+            "function f(...rest) { return __asyncGenerator(this, arguments, function* f_1() { yield yield __await(rest); }); }\n",
+        )
+    );
+}
+
+#[test]
+fn two_copies_of_a_package_are_one_file_by_default_like_tsgo() {
+    // Two installed copies of one package at one version are loaded once: the
+    // second resolves to the file of the first (compiler/filesparser.go:361-368)
+    // and its own text is never read. `b` therefore has the type the first
+    // copy declares and `a(b)` checks, although the second copy declares a
+    // different type. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/a")).expect("create node_modules/a");
+    fs::write(
+        tree.path("node_modules/a/index.d.ts"),
+        concat!(
+            "import value from \"x\";\n",
+            "export function a(x: typeof value): void;\n",
+        ),
+    )
+    .expect("write node_modules/a/index.d.ts");
+    fs::create_dir_all(tree.path("node_modules/a/node_modules/x"))
+        .expect("create node_modules/a/node_modules/x");
+    fs::write(
+        tree.path("node_modules/a/node_modules/x/index.d.ts"),
+        concat!(
+            "declare const value: { kind: \"a\" };\n",
+            "export default value;\n",
+        ),
+    )
+    .expect("write node_modules/a/node_modules/x/index.d.ts");
+    fs::write(
+        tree.path("node_modules/a/node_modules/x/package.json"),
+        "{ \"name\": \"x\", \"version\": \"1.2.3\" }\n",
+    )
+    .expect("write node_modules/a/node_modules/x/package.json");
+    fs::create_dir_all(tree.path("node_modules/b")).expect("create node_modules/b");
+    fs::write(
+        tree.path("node_modules/b/index.d.ts"),
+        concat!(
+            "import value from \"x\";\n",
+            "export const b: typeof value;\n",
+        ),
+    )
+    .expect("write node_modules/b/index.d.ts");
+    fs::create_dir_all(tree.path("node_modules/b/node_modules/x"))
+        .expect("create node_modules/b/node_modules/x");
+    fs::write(
+        tree.path("node_modules/b/node_modules/x/index.d.ts"),
+        concat!(
+            "declare const value: { kind: \"b\" };\n",
+            "export default value;\n",
+        ),
+    )
+    .expect("write node_modules/b/node_modules/x/index.d.ts");
+    fs::write(
+        tree.path("node_modules/b/node_modules/x/package.json"),
+        "{ \"name\": \"x\", \"version\": \"1.2.3\" }\n",
+    )
+    .expect("write node_modules/b/node_modules/x/package.json");
+    fs::create_dir_all(tree.path("src")).expect("create src");
+    fs::write(
+        tree.path("src/a.ts"),
+        concat!(
+            "import { a } from \"a\";\n",
+            "import { b } from \"b\";\n",
+            "a(b);\n",
+        ),
+    )
+    .expect("write src/a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"moduleResolution":"bundler","strict":true},"files":["src/a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn deduplicate_packages_false_keeps_each_copy_of_a_package_like_tsgo() {
+    // `deduplicatePackages: false`, an option TypeScript 7 adds, turns the
+    // package redirect off (compiler/filesparser.go:361-368): each copy is its
+    // own file, `b` has the type its own copy declares, and `a(b)` is an
+    // error. The port rejected the option as unknown. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/a")).expect("create node_modules/a");
+    fs::write(
+        tree.path("node_modules/a/index.d.ts"),
+        concat!(
+            "import value from \"x\";\n",
+            "export function a(x: typeof value): void;\n",
+        ),
+    )
+    .expect("write node_modules/a/index.d.ts");
+    fs::create_dir_all(tree.path("node_modules/a/node_modules/x"))
+        .expect("create node_modules/a/node_modules/x");
+    fs::write(
+        tree.path("node_modules/a/node_modules/x/index.d.ts"),
+        concat!(
+            "declare const value: { kind: \"a\" };\n",
+            "export default value;\n",
+        ),
+    )
+    .expect("write node_modules/a/node_modules/x/index.d.ts");
+    fs::write(
+        tree.path("node_modules/a/node_modules/x/package.json"),
+        "{ \"name\": \"x\", \"version\": \"1.2.3\" }\n",
+    )
+    .expect("write node_modules/a/node_modules/x/package.json");
+    fs::create_dir_all(tree.path("node_modules/b")).expect("create node_modules/b");
+    fs::write(
+        tree.path("node_modules/b/index.d.ts"),
+        concat!(
+            "import value from \"x\";\n",
+            "export const b: typeof value;\n",
+        ),
+    )
+    .expect("write node_modules/b/index.d.ts");
+    fs::create_dir_all(tree.path("node_modules/b/node_modules/x"))
+        .expect("create node_modules/b/node_modules/x");
+    fs::write(
+        tree.path("node_modules/b/node_modules/x/index.d.ts"),
+        concat!(
+            "declare const value: { kind: \"b\" };\n",
+            "export default value;\n",
+        ),
+    )
+    .expect("write node_modules/b/node_modules/x/index.d.ts");
+    fs::write(
+        tree.path("node_modules/b/node_modules/x/package.json"),
+        "{ \"name\": \"x\", \"version\": \"1.2.3\" }\n",
+    )
+    .expect("write node_modules/b/node_modules/x/package.json");
+    fs::create_dir_all(tree.path("src")).expect("create src");
+    fs::write(
+        tree.path("src/a.ts"),
+        concat!(
+            "import { a } from \"a\";\n",
+            "import { b } from \"b\";\n",
+            "a(b);\n",
+        ),
+    )
+    .expect("write src/a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"moduleResolution":"bundler","strict":true,"deduplicatePackages":false},"files":["src/a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "src/a.ts(3,3): error TS2345: Argument of type '{ kind: \"b\"; }' is not assignable to parameter of type '{ kind: \"a\"; }'.\n",
+            "  Types of property 'kind' are incompatible.\n",
+            "    Type '\"b\"' is not assignable to type '\"a\"'.\n",
+        )
+    );
+}
