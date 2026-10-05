@@ -5755,6 +5755,7 @@ fn es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order() {
             "transformES2015",
             "transformGenerators",
             "transformSystemModule",
+            "inlineConstEnums",
         ],
     );
 }
@@ -6135,6 +6136,8 @@ fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_bou
         let parsed = parse_source_file("/project/empty.ts", "", Default::default(), None);
         let mut arena = TransformArena::new();
         let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(17)));
+        // The const enum inliner follows the module transformer.
+        transformers.retain(|transformer| transformer.name() != "inlineConstEnums");
         let result = transform_nodes(
             arena,
             vec![TransformRoot::SourceFile(source)],
