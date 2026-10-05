@@ -6597,3 +6597,382 @@ fn jsx_children_start_on_their_own_marks_like_tsgo() {
         r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.tsx"],"names":[],"mappings":";;;AAAA,yCAAiC;AACjC,2CAAmC;AAExB,QAAA,KAAK,GAAQ,gBAAI,CAAC;AAC7B,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI,EAAE,gBAAI,CAAO,CAAC;AAC3C,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI;IAAC,oBAAC,GAAG,OAAG,CAAM,CAAC;AAC7C,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAE,oBAAC,GAAG,OAAG,EAAC,gBAAI,CAAO,CAAC;AAC5C,MAAM,QAAQ,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG;IAAA,KAAK,EAAE;IAAA,KAAK,CAAO,CAAC;AACjD,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAG,GAAG;IAAE,GAAG,CAAO,CAAC"}"#
     );
 }
+
+#[test]
+fn object_type_members_follow_their_base_types_like_tsgo() {
+    // resolveObjectTypeMembers publishes a type's members only after its base
+    // types are resolved (checker/checker.go:19446-19493), so a base type
+    // argument that needs the members of the type being resolved instantiates
+    // it again until the instantiation depth ends it with TS5115; tsc 6.0
+    // published the own members first and reported nothing. The type
+    // arguments of a reference are checked against their constraints in place
+    // (checker/checker.go:3046-3062), so the error is at the interface whose
+    // heritage is being checked, not at the reference tsc 6.0 revisited as a
+    // lazy diagnostic. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type Diff<T, U> = T extends U ? never : T;\n",
+            "type Node = Tag | Selector | Root | Pseudo;\n",
+            "interface Base<Value extends string | undefined = string> {\n",
+            "    type: string;\n",
+            "    value: Value;\n",
+            "}\n",
+            "interface Container<Value extends string | undefined = string, Child extends Node = Node> extends Base<Value> {\n",
+            "    nodes: Array<Child>;\n",
+            "}\n",
+            "interface Root extends Container<undefined, Selector> { type: \"root\" }\n",
+            "interface _Selector<S> extends Container<string, Diff<Node, S>> { type: \"selector\" }\n",
+            "type Selector = _Selector<Selector>;\n",
+            "interface Pseudo extends Container<string, Selector> { type: \"pseudo\" }\n",
+            "interface Tag extends Base { type: \"tag\" }\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","strict":true,"noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        "a.ts(10,11): error TS5115: Instantiations of the following types appear infinitely circular: 'Container', 'Diff'.\n"
+    );
+}
+
+#[test]
+fn intersections_of_mappings_of_one_object_stay_unreduced_like_tsgo() {
+    // getReducedType does not look for a property that reduces an
+    // intersection to never when every constituent is a mapped type over the
+    // same object type (isMappingOfSameObjectType, checker/checker.go:
+    // 22188-22214), so `M1<O> & M2<O>` keeps its `kind: "a" & "b"` while
+    // `M1<O> & M2<P>` is never. tsc 6.0 reduced both. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type O = { kind: \"a\"; x: number };\n",
+            "type P = { kind: \"a\"; x: number };\n",
+            "type M1<T> = { [K in keyof T]: T[K] };\n",
+            "type M2<T> = { [K in keyof T]: K extends \"kind\" ? \"b\" : T[K] };\n",
+            "declare let same: M1<O> & M2<O>;\n",
+            "declare let other: M1<O> & M2<P>;\n",
+            "declare let plain: O & { kind: \"b\" };\n",
+            "const n1: never = same;\n",
+            "const n2: never = other;\n",
+            "const n3: never = plain;\n",
+            "export const k1 = same.kind;\n",
+            "export const k2 = other.kind;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","strict":true,"noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(8,7): error TS2322: Type 'M1<O> & M2<O>' is not assignable to type 'never'.\n",
+            "a.ts(12,25): error TS2339: Property 'kind' does not exist on type 'never'.\n",
+            "  The intersection 'M1<O> & M2<P>' was reduced to 'never' because property 'kind' has conflicting types in some constituents.\n",
+        )
+    );
+}
+
+#[test]
+fn nested_comparisons_end_in_maybe_at_a_hundred_levels_like_tsgo() {
+    // recursiveTypeRelatedTo answers Maybe once a hundred comparisons are
+    // nested (checker/relater.go:3135-3140); tsc 6.0 failed the whole
+    // comparison there with TS2321, which tsgo never reports. The constraint
+    // check of `TUnionResult`'s type argument (typebox's `UnionToTuple`)
+    // nests that deep and passes. The expected result is tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export type UnionToIntersect<U> = (U extends unknown ? (arg: U) => 0 : never) extends (arg: infer I) => 0 ? I : never;\n",
+            "export type UnionLast<U> = UnionToIntersect<U extends unknown ? (x: U) => 0 : never> extends (x: infer L) => 0 ? L : never;\n",
+            "export type UnionToTuple<U, L = UnionLast<U>> = [U] extends [never] ? [] : [...UnionToTuple<Exclude<U, L>>, L];\n",
+            "export type Assert<T, E> = T extends E ? T : never;\n",
+            "interface TSchema { x: string }\n",
+            "interface TLiteral<T> extends TSchema { const: T }\n",
+            "export type TUnionResult<T extends TSchema[]> = T extends [] ? never : T extends [infer S] ? S : T;\n",
+            "export type R<T extends string> = TUnionResult<Assert<UnionToTuple<{ [K in T]: TLiteral<K>; }[T]>, TSchema[]>>;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","strict":true,"noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn circular_variances_are_measured_from_the_smallest_symbol_like_tsgo() {
+    // getVariancesWorker keeps the generic types being measured on a stack and
+    // restarts from the one with the smallest symbol when a measurement asks
+    // for a type already on it (checker/relater.go:1334-1434). tsc 6.0 measured
+    // the rest of a cycle from inside whichever type was compared first: here
+    // the subtype reduction of `resolveDynamicModel`'s return type entered at
+    // `ObjectDirective`, `DirectiveBinding` was measured without its `dir`
+    // property, and the call was accepted. The expected bytes are tsgo's
+    // (the reduction is from Vue's `vModel.ts`).
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type Data = Record<string, unknown>\n",
+            "interface VNode<A = any, B = any> { props: Record<string, any> | null; type: string | object; a?: A; b?: B }\n",
+            "type DirectiveModifiers<K extends string = string> = Partial<Record<K, boolean>>\n",
+            "\n",
+            "export interface DirectiveBinding<Value = any, Modifiers extends string = string, Arg = any> {\n",
+            "  instance: Record<string, any> | null\n",
+            "  value: Value\n",
+            "  oldValue: Value | null\n",
+            "  arg?: Arg\n",
+            "  modifiers: DirectiveModifiers<Modifiers>\n",
+            "  dir: ObjectDirective<any, Value, Modifiers, Arg>\n",
+            "}\n",
+            "\n",
+            "export type DirectiveHook<HostElement = any, Prev = VNode<any, HostElement> | null, Value = any, Modifiers extends string = string, Arg = any> = (\n",
+            "  el: HostElement,\n",
+            "  binding: DirectiveBinding<Value, Modifiers, Arg>,\n",
+            "  vnode: VNode<any, HostElement>,\n",
+            "  prevVNode: Prev,\n",
+            ") => void\n",
+            "\n",
+            "export type SSRDirectiveHook<Value = any, Modifiers extends string = string, Arg = any> = (\n",
+            "  binding: DirectiveBinding<Value, Modifiers, Arg>,\n",
+            "  vnode: VNode,\n",
+            ") => Data | undefined\n",
+            "\n",
+            "export interface ObjectDirective<HostElement = any, Value = any, Modifiers extends string = string, Arg = any> {\n",
+            "  __mod?: Modifiers\n",
+            "  created?: DirectiveHook<HostElement, null, Value, Modifiers, Arg>\n",
+            "  beforeUpdate?: DirectiveHook<HostElement, VNode<any, HostElement>, Value, Modifiers, Arg>\n",
+            "  getSSRProps?: SSRDirectiveHook<Value, Modifiers, Arg>\n",
+            "  deep?: boolean\n",
+            "}\n",
+            "\n",
+            "type ModelDirective<T, Modifiers extends string = string> = ObjectDirective<T & { k: string }, any, Modifiers>\n",
+            "\n",
+            "interface In { i: string }\n",
+            "interface Sel { s: string }\n",
+            "interface Ta { t: string }\n",
+            "\n",
+            "export const vModelText: ModelDirective<In | Ta, 'trim' | 'number' | 'lazy'> = {}\n",
+            "export const vModelCheckbox: ModelDirective<In> = {}\n",
+            "export const vModelRadio: ModelDirective<In> = {}\n",
+            "export const vModelSelect: ModelDirective<Sel, 'number'> = {}\n",
+            "\n",
+            "export const vModelDynamic: ObjectDirective<In | Sel | Ta> = {}\n",
+            "\n",
+            "function resolveDynamicModel(tagName: string, type: string | undefined) {\n",
+            "  switch (tagName) {\n",
+            "    case 'SELECT':\n",
+            "      return vModelSelect\n",
+            "    case 'TEXTAREA':\n",
+            "      return vModelText\n",
+            "    default:\n",
+            "      switch (type) {\n",
+            "        case 'checkbox':\n",
+            "          return vModelCheckbox\n",
+            "        case 'radio':\n",
+            "          return vModelRadio\n",
+            "        default:\n",
+            "          return vModelText\n",
+            "      }\n",
+            "  }\n",
+            "}\n",
+            "\n",
+            "export function initVModelForSSR(): void {\n",
+            "  vModelDynamic.getSSRProps = (binding, vnode) => {\n",
+            "    if (typeof vnode.type !== 'string') {\n",
+            "      return\n",
+            "    }\n",
+            "    const modelToUse = resolveDynamicModel(vnode.type.toUpperCase(), vnode.props && vnode.props.type)\n",
+            "    if (modelToUse.getSSRProps) {\n",
+            "      return modelToUse.getSSRProps(binding, vnode)\n",
+            "    }\n",
+            "  }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","strict":true,"noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(72,37): error TS2345: Argument of type 'DirectiveBinding<any, string, any>' is not assignable to parameter of type 'DirectiveBinding<any, \"number\", any>'.\n",
+            "  Types of property 'dir' are incompatible.\n",
+            "    Type 'ObjectDirective<any, any, string, any>' is not assignable to type 'ObjectDirective<any, any, \"number\", any>'.\n",
+            "      Type 'string' is not assignable to type '\"number\"'.\n",
+        )
+    );
+}
+
+#[test]
+fn alias_type_arguments_are_instantiated_like_tsgo() {
+    // instantiateType also instantiates a type whose alias type arguments could
+    // contain type variables (checker/checker.go:22494-22500), so a union or
+    // intersection alias that never refers to its parameter still gets the
+    // arguments of each reference: `Un<number>`, and `number` for `Brand<U>`
+    // (the intersection is rebuilt without its `& {}`). tsc 6.0 returned the
+    // declared type, `Un<T>` and `Brand<T>`. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type Brand<T> = number & {};\n",
+            "declare function f<U>(x: U): Brand<U>;\n",
+            "export const r = f(\"a\");\n",
+            "export function g<V>(x: V) { return f(x); }\n",
+            "const s: string = r;\n",
+            "type Box<T> = { v: number };\n",
+            "declare function h<U>(x: U): Box<U>;\n",
+            "export const b = h(1);\n",
+            "const t: string = b;\n",
+            "type Un<T> = string | number;\n",
+            "declare function u<U>(x: U): Un<U>;\n",
+            "export const c = u(1);\n",
+            "const w: boolean = c;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","strict":true,"declaration":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(5,7): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+            "a.ts(9,7): error TS2322: Type 'Box<number>' is not assignable to type 'string'.\n",
+            "a.ts(13,7): error TS2322: Type 'Un<number>' is not assignable to type 'boolean'.\n",
+            "  Type 'string' is not assignable to type 'boolean'.\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare const r: number;\n",
+            "export declare function g<V>(x: V): number;\n",
+            "type Box<T> = {\n",
+            "    v: number;\n",
+            "};\n",
+            "export declare const b: Box<number>;\n",
+            "type Un<T> = string | number;\n",
+            "export declare const c: Un<number>;\n",
+            "export {};\n",
+        )
+    );
+}
+
+#[test]
+fn intersection_properties_of_namespace_exports_are_optional_like_tsgo() {
+    // createUnionOrIntersectionProperty starts an intersection's property as
+    // optional and narrows that only by the properties, methods and accessors
+    // among the constituents' properties (checker/checker.go:21796-21818), so
+    // a name two namespaces export stays optional in their intersection;
+    // interface members do not. tsc 6.0 left the flag unset. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "namespace A {\n",
+            "    export const x = 1;\n",
+            "    export const p = 1;\n",
+            "}\n",
+            "namespace B {\n",
+            "    export const x = 1;\n",
+            "    export const q = 1;\n",
+            "}\n",
+            "declare const both: typeof A & typeof B;\n",
+            "const all: { x: number; p: number; q: number } = both;\n",
+            "interface C { x: number; p: number }\n",
+            "interface D { x: number; q: number }\n",
+            "declare const members: C & D;\n",
+            "const same: { x: number; p: number; q: number } = members;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","strict":true,"noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(10,7): error TS2322: Type 'typeof A & typeof B' is not assignable to type '{ x: number; p: number; q: number; }'.\n",
+            "  Property 'x' is optional in type 'typeof A & typeof B' but required in type '{ x: number; p: number; q: number; }'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_comparison_a_hundred_levels_deep_reports_its_own_failure_like_tsgo() {
+    // The same `UnionToTuple` as a function's return value: the comparison
+    // nests until recursiveTypeRelatedTo answers Maybe at a hundred levels
+    // (checker/relater.go:3135-3140) and then fails on the union member that
+    // is not assignable, with the chain of every level. tsc 6.0 printed
+    // TS2321 for the outermost pair instead. tsgo prints 199 lines; the
+    // first and the last are checked.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export type UnionToIntersect<U> = (U extends unknown ? (arg: U) => 0 : never) extends (arg: infer I) => 0 ? I : never;\n",
+            "export type UnionLast<U> = UnionToIntersect<U extends unknown ? (x: U) => 0 : never> extends (x: infer L) => 0 ? L : never;\n",
+            "export type UnionToTuple<U, L = UnionLast<U>> = [U] extends [never] ? [] : [...UnionToTuple<Exclude<U, L>>, L];\n",
+            "interface TSchema { x: string }\n",
+            "interface TLiteral<T> extends TSchema { const: T }\n",
+            "function h<T extends string>(a: UnionToTuple<{ [K in T]: TLiteral<K>; }[T]>): TSchema[] { return a; }\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","strict":true,"noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 diagnostics");
+    let lines = stdout.lines().collect::<Vec<_>>();
+    assert_eq!(lines.len(), 199, "{stdout}");
+    assert_eq!(
+        lines[0],
+        "a.ts(6,91): error TS2322: Type '[] | [...UnionToTuple<Exclude<{ [K in T]: TLiteral<K>; }[T], UnionLast<{ [K in T]: TLiteral<K>; }[T]>>, UnionLast<Exclude<{ [K in T]: TLiteral<K>; }[T], UnionLast<...>>>>, UnionLast<...>]' is not assignable to type 'TSchema[]'."
+    );
+    assert_eq!(
+        lines[198].trim_start(),
+        "Type 'unknown' is not assignable to type 'TSchema'."
+    );
+    assert_eq!(lines[198].len() - lines[198].trim_start().len(), 396);
+    assert!(!stdout.contains("TS2321"), "{stdout}");
+}
