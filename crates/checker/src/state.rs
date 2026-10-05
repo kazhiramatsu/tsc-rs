@@ -282,6 +282,25 @@ pub(crate) struct InProgressMappedType {
     pub ty: TypeId,
 }
 
+/// One deferred report (tsgo `addDeferredDiagnostic`).
+pub(crate) enum DeferredDiagnostic {
+    /// `reportNonexistentProperty` of an access to a missing property
+    /// (checker.go:11547-11550).
+    NonexistentProperty {
+        prop_node: NodeId,
+        containing_type: TypeId,
+        is_unchecked_js: bool,
+    },
+    /// `reportTypeNotIterableError` of a type without iteration types
+    /// (checker.go:6464-6466, 6514-6522), with the rows that become its
+    /// related information.
+    TypeNotIterable {
+        target: crate::iterate::DeferredIterationErrorTarget,
+        ty: TypeId,
+        allow_async_iterables: bool,
+        related: Vec<tsc_diagnostics::RelatedInfo>,
+    },
+}
 pub struct CheckerState<'a> {
     pub binder: ProgramBinder<'a>,
     pub options: &'a CompilerOptions,
@@ -637,11 +656,11 @@ pub struct CheckerState<'a> {
     pub(crate) potential_new_target_collisions: Vec<NodeId>,
     pub(crate) potential_weak_map_set_collisions: Vec<NodeId>,
     pub(crate) potential_reflect_collisions: Vec<NodeId>,
-    /// tsgo addDeferredDiagnostic (TypeScript 7.1) for a missing property:
-    /// (property name node, containing type, unchecked-JS suggestion), reported
-    /// at the end of the file check, because printing the containing type can
-    /// otherwise resolve a type that is still being resolved.
-    pub(crate) deferred_nonexistent_properties: Vec<(NodeId, TypeId, bool)>,
+    /// tsgo `deferredDiagnosticCallbacks` (checker/checker.go:904,
+    /// 14209-14218): the reports whose type names are printed at the end of
+    /// the file check, in the order they were queued, because printing the
+    /// type earlier can resolve a type that is still being resolved.
+    pub(crate) deferred_diagnostics: Vec<DeferredDiagnostic>,
     pub(crate) potential_unused_renamed_binding_elements_in_types: Vec<NodeId>,
     /// tsc allPotentiallyUnusedIdentifiers, keyed by the owning source
     /// file's root. A checker visit can force a declaration in another
@@ -1514,7 +1533,7 @@ impl<'a> CheckerState<'a> {
             potential_new_target_collisions: Vec::new(),
             potential_weak_map_set_collisions: Vec::new(),
             potential_reflect_collisions: Vec::new(),
-            deferred_nonexistent_properties: Vec::new(),
+            deferred_diagnostics: Vec::new(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
             potentially_unused_identifiers: rustc_hash::FxHashMap::default(),
             deferred_global_disposable_type: None,

@@ -2310,11 +2310,13 @@ impl<'a> CheckerState<'a> {
                     // tsgo defers this report ("reporting this error can cause
                     // us to materialize the containing type completely (to print
                     // it), leading to erroneous circularity errors").
-                    self.deferred_nonexistent_properties.push((
-                        right,
-                        report_target,
-                        is_unchecked_js,
-                    ));
+                    self.deferred_diagnostics.push(
+                        crate::state::DeferredDiagnostic::NonexistentProperty {
+                            prop_node: right,
+                            containing_type: report_target,
+                            is_unchecked_js,
+                        },
+                    );
                 }
                 return Ok(self.tables.intrinsics.error);
             };
