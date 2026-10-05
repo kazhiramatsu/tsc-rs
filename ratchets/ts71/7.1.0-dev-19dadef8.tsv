@@ -1653,7 +1653,7 @@ compiler/declarationEmitGenericTypeParamerSerialization2	full	js
 compiler/declarationEmitGenericTypeParamerSerialization3	full	js
 compiler/declarationEmitGlobalThisPreserved	full	js
 compiler/declarationEmitHasTypesRefOnNamespaceUse	full	js
-compiler/declarationEmitHigherOrderRetainedGenerics	full	none
+compiler/declarationEmitHigherOrderRetainedGenerics	full	js
 compiler/declarationEmitImportInExportAssignmentModule	full	js
 compiler/declarationEmitImportSpecifierWithTsExtensionRelativeImport	full	js
 compiler/declarationEmitIndexTypeArray	full	js
@@ -1690,7 +1690,7 @@ compiler/declarationEmitLateVisibleExpandoFunction	full	js
 compiler/declarationEmitLocalClassDeclarationMixin	full	js
 compiler/declarationEmitLocalClassHasRequiredDeclare	full	js
 compiler/declarationEmitMappedPrivateTypeTypeParameter	full	js
-compiler/declarationEmitMappedTypeDistributivityPreservesConstraints	full	none
+compiler/declarationEmitMappedTypeDistributivityPreservesConstraints	full	js
 compiler/declarationEmitMappedTypePreservesTypeParameterConstraint	full	js
 compiler/declarationEmitMappedTypePropertyFromNumericStringKey	full	js
 compiler/declarationEmitMappedTypeTemplateTypeofSymbol	full	js
@@ -1700,7 +1700,7 @@ compiler/declarationEmitMethodShadowsClassTypeParameter	full	js
 compiler/declarationEmitMixinPrivateProtected	full	js
 compiler/declarationEmitModuleWithScopeMarker(target=es2015)	full	js
 compiler/declarationEmitMultipleComputedNamesSameDomain	full	js
-compiler/declarationEmitNameConflicts	full	none
+compiler/declarationEmitNameConflicts	full	js
 compiler/declarationEmitNameConflicts2	full	js
 compiler/declarationEmitNameConflicts3	full	js
 compiler/declarationEmitNameConflictsWithAlias	full	js
@@ -2180,7 +2180,7 @@ compiler/emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES6	f
 compiler/emitBOM	full	js
 compiler/emitCapturingThisInTupleDestructuring1	full	js
 compiler/emitCapturingThisInTupleDestructuring2	full	js
-compiler/emitClassExpressionInDeclarationFile	full	none
+compiler/emitClassExpressionInDeclarationFile	full	js
 compiler/emitClassExpressionInDeclarationFile2	full	js
 compiler/emitClassMergedWithConstNamespaceNotElided	full	js
 compiler/emitCommentsOnlyFile	full	js
@@ -2394,7 +2394,7 @@ compiler/es5ExportDefaultFunctionDeclaration3(target=es2015)	full	js
 compiler/es5ExportDefaultFunctionDeclaration4(target=es2015)	full	js
 compiler/es5ExportDefaultIdentifier(target=es2015)	full	js
 compiler/es5ExportEquals(target=es2015)	full	js
-compiler/es5ExportEqualsDts(target=es2015)	full	none
+compiler/es5ExportEqualsDts(target=es2015)	full	js
 compiler/es5ModuleInternalNamedImports(target=es2015)	full	js
 compiler/es5ModuleWithModuleGenCommonjs(target=es2015)	full	js
 compiler/es5ModuleWithoutModuleGenTarget(target=es2015)	full	js
@@ -4832,7 +4832,7 @@ compiler/noImplicitReturnsWithProtectedBlocks2	full	js
 compiler/noImplicitReturnsWithProtectedBlocks3	full	js
 compiler/noImplicitReturnsWithoutReturnExpression	full	js
 compiler/noImplicitSymbolToString	full	js
-compiler/noImplicitThisBigThis	full	none
+compiler/noImplicitThisBigThis	full	js
 compiler/noImplicitThisFunctions	full	js
 compiler/noInferCommonPropertyCheck1	full	js
 compiler/noInferUnionExcessPropertyCheck1	full	js
@@ -9524,7 +9524,7 @@ conformance/initializersWidened	full	js
 conformance/inlineJsxAndJsxFragPragma	full	js
 conformance/inlineJsxAndJsxFragPragmaOverridesCompilerOptions	full	js
 conformance/inlineJsxFactoryDeclarations	full	js
-conformance/inlineJsxFactoryDeclarationsLocalTypes	full	none
+conformance/inlineJsxFactoryDeclarationsLocalTypes	full	js
 conformance/inlineJsxFactoryLocalTypeGlobalFallback	full	js
 conformance/inlineJsxFactoryOverridesCompilerOption	full	js
 conformance/inlineJsxFactoryWithFragmentIsError	full	js
@@ -9752,7 +9752,7 @@ conformance/jsDeclarationsFunctionJSDoc(target=es2015)	full	js
 conformance/jsDeclarationsFunctionKeywordProp(target=es2015)	full	js
 conformance/jsDeclarationsFunctionKeywordPropExhaustive(target=es2015)	full	js
 conformance/jsDeclarationsFunctionLikeClasses(target=es2015)	full	js
-conformance/jsDeclarationsFunctionLikeClasses2(target=es2015)	full	none
+conformance/jsDeclarationsFunctionLikeClasses2(target=es2015)	full	js
 conformance/jsDeclarationsFunctionPrototypeStatic(target=es2015)	full	js
 conformance/jsDeclarationsFunctionWithDefaultAssignedMember	full	js
 conformance/jsDeclarationsFunctions	full	js
