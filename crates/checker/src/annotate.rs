@@ -5529,7 +5529,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasBaseType @6.0.3
     /// tsc-hash: 4be36907403570c20f53afc9305703585ad832eac42b2d7bba4f94d43f95c211
     /// tsc-span: _tsc.js:56996-57007
+    ///
+    /// tsc and tsgo walk every path to a base; a chain of mixins whose
+    /// interfaces extend all the classes before them has exponentially many
+    /// (intersectionConstructorReductionCrash: 28 s here, 9.5 s in tsgo).
+    /// A type that did not lead to `check_base` once does not on a later
+    /// visit of the same walk, so each type is walked once.
     pub(crate) fn has_base_type(&mut self, ty: TypeId, check_base: TypeId) -> CheckResult<bool> {
+        let mut visited = rustc_hash::FxHashSet::default();
+        self.has_base_type_worker(ty, check_base, &mut visited)
+    }
+
+    fn has_base_type_worker(
+        &mut self,
+        ty: TypeId,
+        check_base: TypeId,
+        visited: &mut rustc_hash::FxHashSet<TypeId>,
+    ) -> CheckResult<bool> {
         if self
             .tables
             .object_flags_of(ty)
@@ -5539,19 +5555,25 @@ impl<'a> CheckerState<'a> {
             if target == check_base {
                 return Ok(true);
             }
+            if !visited.insert(target) {
+                return Ok(false);
+            }
             for base in self.get_base_types(target)? {
-                if self.has_base_type(base, check_base)? {
+                if self.has_base_type_worker(base, check_base, visited)? {
                     return Ok(true);
                 }
             }
             return Ok(false);
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
+            if !visited.insert(ty) {
+                return Ok(false);
+            }
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
                 unreachable!("intersection flag implies intersection data");
             };
             for t in types.iter() {
-                if self.has_base_type(*t, check_base)? {
+                if self.has_base_type_worker(*t, check_base, visited)? {
                     return Ok(true);
                 }
             }
