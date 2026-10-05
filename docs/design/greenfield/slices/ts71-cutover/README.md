@@ -2579,3 +2579,5 @@ tsc 6.0の`cloneNode`は位置を写さないが、tsgoの`Clone`は写す（ast
     363→470/475、Playwright 555→703/704、TypeScript `src/compiler` 4→51/78（JavaScript自体が59/78）、Next.js
     1,301→1,451/1,665、Effect 390→496/496。d.ts.mapはhono 162→187/187、zod 453→465/467、Playwright 402→700/703、
     TypeScript `src/compiler` 75→78/78、Next.js 1,495→1,657/1,665、Effect 427→470/496。JavaScriptと宣言は変わらない。
+- hosted：PR #677（head `902111f18`）、run 37251690295 — `plan` 27s、`rust` 9m54s、`conformance (TypeScript 7.1)` 20m56s、
+  `gates` 11s。
