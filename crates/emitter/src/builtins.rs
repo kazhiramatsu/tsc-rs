@@ -7125,7 +7125,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .expect("direct export-object storage owns a publication plan");
                 let name = publication_name.expect("a direct export-object plan owns a name");
                 let target = self.create_export_access_from_name(name)?;
-                let value = self.create_identifier(&plan.local_name)?;
+                // The value is the name's clone, which keeps its range
+                // (`v.Name().Clone()`, commonjsmodule.go:1067-1077).
+                let value = match local_name {
+                    Some(local_name) => {
+                        let value = self.context.factory()?.clone_node(local_name)?;
+                        self.context.factory()?.set_text_range(value, local_name)?;
+                        value
+                    }
+                    None => self.create_identifier(&plan.local_name)?,
+                };
                 let assignment = self.create_assignment(target, value)?;
                 exported_expressions.push(assignment);
                 remove_comments_on_expressions = true;

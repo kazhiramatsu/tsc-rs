@@ -8069,17 +8069,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// tsc-hash: 4e366a50034f7622b6496c16b631befe9559c33e38b453b94cdb0f7e2e1dc675
     /// tsc-span: _tsc.js:96567-96578
     ///
-    /// The receiver is cloned first (`cloneNode`: a synthesized node with no
-    /// text range that keeps the receiver's emit metadata and `original`);
-    /// an inlineable clone is read directly, any other receiver is stored
-    /// in a hoisted temp whose initializer holds the clone. Neither the temp
-    /// nor the clone maps to the source receiver: the visited receiver node
-    /// itself is never placed in the transformed expression.
+    /// The receiver is cloned first; tsgo's `Clone` keeps the receiver's
+    /// range (classfields.go:1269-1281), so the clone maps to the source
+    /// receiver. An inlineable clone is read directly, any other receiver is
+    /// stored in a hoisted temp whose initializer holds the clone. The
+    /// visited receiver node itself is never placed in the transformed
+    /// expression.
     fn stabilize_inline_receiver(
         &mut self,
         receiver: TransformNode,
     ) -> Result<StabilizedReceiver, TransformError> {
         let clone = self.context.factory()?.clone_node(receiver)?;
+        self.context.factory()?.set_text_range(clone, receiver)?;
         if self.is_simple_inlineable_expression(receiver)? {
             return Ok(StabilizedReceiver {
                 read: clone,
