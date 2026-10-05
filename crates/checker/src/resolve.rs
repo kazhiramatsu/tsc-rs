@@ -1365,13 +1365,11 @@ impl<'a> CheckerState<'a> {
         // symbol exists (for example `import v = V` where V is a
         // value), in JavaScript too: tsgo (TypeScript 7.1) reports a
         // variable used as a namespace (TS2503) like TypeScript.
-        // The remaining JavaScript-only unresolved-name exemptions are
-        // value constructs: prototype assignment roots and implicit
-        // `require`. JSDoc aliases are ordinary binder symbols.
-        if error_location
-            .is_some_and(|location| self.is_js_prototype_assignment_declaration_root(location))
-            || name == "require"
-                && error_location.is_some_and(|location| self.is_in_js_file(location))
+        // The remaining JavaScript-only unresolved-name exemption is the
+        // implicit `require`. JSDoc aliases are ordinary binder symbols,
+        // and the root of a prototype assignment (`C.prototype.m = …`) is
+        // an ordinary name in tsgo: tsc 6.0's binder declared it.
+        if name == "require" && error_location.is_some_and(|location| self.is_in_js_file(location))
         {
             return;
         }
@@ -1563,9 +1561,6 @@ impl<'a> CheckerState<'a> {
         } else {
             return Ok(false);
         };
-        if self.is_js_property_assignment_declaration_root(error_location) {
-            return Ok(false);
-        }
         let symbol = self.resolve_name(
             Some(error_location),
             name,
@@ -1607,26 +1602,6 @@ impl<'a> CheckerState<'a> {
         self.parent_of(current).is_some_and(|parent| {
             matches!(self.data_of(parent), NodeData::ExportAssignment(data) if data.expression == Some(current))
         })
-    }
-
-    /// A checked-JS property assignment can supply the root's value
-    /// face even when the assignment-declaration binder has not
-    /// materialized that face yet.
-    fn is_js_property_assignment_declaration_root(&self, location: NodeId) -> bool {
-        if !self.is_in_js_file(location) || self.kind_of(location) != SyntaxKind::Identifier {
-            return false;
-        }
-        let mut current = location;
-        while let Some(parent) = self.parent_of(current) {
-            let NodeData::PropertyAccessExpression(data) = self.data_of(parent) else {
-                break;
-            };
-            if data.expression != Some(current) {
-                break;
-            }
-            current = parent;
-        }
-        current != location && self.get_assignment_target(current).is_some()
     }
 
     /// tsc-port: checkAndReportErrorForUsingTypeAsValue @6.0.3
@@ -1777,32 +1752,6 @@ impl<'a> CheckerState<'a> {
             &[display],
         );
         Ok(true)
-    }
-
-    /// A JS `C.prototype... =` assignment can synthesize the root
-    /// value declaration even when the binder has not materialized it.
-    fn is_js_prototype_assignment_declaration_root(&self, location: NodeId) -> bool {
-        if !self.is_in_js_file(location) || self.kind_of(location) != SyntaxKind::Identifier {
-            return false;
-        }
-        let mut current = location;
-        let mut saw_prototype = false;
-        while let Some(parent) = self.parent_of(current) {
-            let NodeData::PropertyAccessExpression(data) = self.data_of(parent) else {
-                break;
-            };
-            if data.expression != Some(current) {
-                break;
-            }
-            if data
-                .name
-                .is_some_and(|name| self.identifier_text_of(name) == Some("prototype"))
-            {
-                saw_prototype = true;
-            }
-            current = parent;
-        }
-        saw_prototype && self.get_assignment_target(current).is_some()
     }
 
     /// createError: node-anchored when a location exists, compiler-
