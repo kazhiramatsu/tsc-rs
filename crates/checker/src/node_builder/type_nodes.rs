@@ -3087,20 +3087,25 @@ fn visit_and_transform_type(
             .unwrap_or(0);
         (symbol, old)
     });
-    // links.serializedTypes (51823-51841): the enclosing declaration's
-    // cache of already-built nodes, off while expanding (maxExpansionDepth
-    // >= 0). A hit replays the tracked symbols, the truncation state, and
-    // the added length, then clones the node into this arena.
+    // links.serializedTypes (checker/nodebuilderimpl.go:3229-3246): this
+    // request's cache of already-built nodes for the enclosing declaration,
+    // off while expanding (maxExpansionDepth >= 0). A hit replays the
+    // tracked symbols, the truncation state, and the added length, then
+    // hands out a position-free copy of the node.
     let cache_key = (context.max_expansion_depth < 0)
         .then_some(context.enclosing_declaration)
         .flatten()
-        .map(|enclosing| (enclosing, r#type, context.flags.0, context.internal_flags.0));
+        .map(|enclosing| {
+            (
+                enclosing,
+                context.fake_scopes.top(),
+                r#type,
+                context.flags.0,
+                context.internal_flags.0,
+            )
+        });
     if let Some(key) = cache_key {
-        if let Some(cached) = checker
-            .links
-            .serialized_type_node(&key, arena.id())
-            .cloned()
-        {
+        if let Some(cached) = context.serialized_types.get(&key).cloned() {
             if let Some(tracked) = cached.tracked_symbols {
                 for (symbol, enclosing, meaning) in tracked {
                     super::chains::track_symbol_in_context_at(
@@ -3112,7 +3117,7 @@ fn visit_and_transform_type(
                 context.truncating = true;
             }
             context.approximate_length += cached.added_length;
-            return deep_clone_or_reuse_node(arena, cached.node).map(Some);
+            return deep_clone_cached_node(arena, cached.node).map(Some);
         }
     }
     if depth.is_some_and(|(_, old)| old > 10) {
@@ -3145,20 +3150,17 @@ fn visit_and_transform_type(
             create_type_node_from_object_type(checker, arena, target, r#type, context).map(Some)
         }
     };
-    // 51846-51853: cache the built node with its side effects unless the
-    // build reported a diagnostic or encountered an error.
+    // nodebuilderimpl.go:3262-3273: cache the built node with its side
+    // effects unless the build reported a diagnostic or encountered an error.
     if let (Some(key), Ok(Some(node))) = (cache_key, &result) {
         if !context.reported_diagnostic && !context.encountered_error {
-            checker.links.set_serialized_type_node(
-                key,
-                crate::links::SerializedTypeNodeEntry {
-                    arena_id: arena.id(),
-                    node: *node,
-                    truncating: context.truncating,
-                    added_length: context.approximate_length - start_length,
-                    tracked_symbols: context.tracked_symbols.clone(),
-                },
-            );
+            let entry = super::context::SerializedTypeNodeEntry {
+                node: *node,
+                truncating: context.truncating,
+                added_length: context.approximate_length - start_length,
+                tracked_symbols: context.tracked_symbols.clone(),
+            };
+            context.serialized_types.insert(key, entry);
         }
     }
     context
@@ -3177,23 +3179,18 @@ fn visit_and_transform_type(
     result
 }
 
-/// tsc-port: deepCloneOrReuseNode @6.0.3
-/// tsc-hash: b6ecd18580cc61281a9d25bc83c371362dec6a1184ddeab9382e2046710fbb89
-/// tsc-span: _tsc.js:51870-51882
-fn deep_clone_or_reuse_node(
+/// A cached type node is handed out as `DeepCloneNode(cachedResult.node)`
+/// (checker/nodebuilderimpl.go:3232-3245): a copy of the whole subtree with
+/// no positions, so a second use of the same type in one declaration maps
+/// nothing and takes no layout from the source. tsc 6.0's
+/// `deepCloneOrReuseNode` kept the ranges.
+fn deep_clone_cached_node(
     arena: &mut TransformArena,
     node: TransformNode,
 ) -> BuildResult<TransformNode> {
-    if arena.is_parsed_node(node).map_err(factory_error)? {
-        return Ok(node);
-    }
-    let clone = arena
-        .factory()
-        .clone_node_keeping_quote(node)
-        .map_err(factory_error)?;
     arena
         .factory()
-        .set_text_range(clone, node)
+        .deep_clone_node_without_positions(node)
         .map_err(factory_error)
 }
 

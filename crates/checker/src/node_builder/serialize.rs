@@ -2032,6 +2032,24 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                     _ => None,
                 })
                 .flatten();
+            // The fake scope's locals answer a lookup only for a matching
+            // meaning (`getSymbol`: `symbol.flags & meaning`, or an alias
+            // whose target has it): a parameter `Model` or a type parameter
+            // `Rpc` does not hide the namespace in `Model.Any` or `Rpc.Any`.
+            let fake_scope_symbol = match fake_scope_symbol {
+                Some(local) => {
+                    let local_flags = self.checker.symbol_flags(local);
+                    let matches = local_flags.intersects(flags)
+                        || local_flags.intersects(SymbolFlags::ALIAS)
+                            && self
+                                .checker
+                                .get_symbol_flags_of(local)
+                                .map_err(|abort| checker_abort_error(self.checker, context, abort))?
+                                .intersects(flags);
+                    matches.then_some(local)
+                }
+                None => None,
+            };
             // Parameter locals in a synthesized signature scope are not in
             // scope for their own JSDoc type annotations. The parse-site
             // resolver can conservatively return that parameter in Rust;
@@ -2240,6 +2258,77 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
         set_text_range2(self.checker, arena, context, cloned, Some(node))
     }
 
+    /// tsgo-port: tryVisitTypeReference's gates @7.1 (nodecopy.go:416-435).
+    ///
+    /// A type reference is rebuilt from its type instead of reused when it
+    /// is a `const` reference, names a type parameter the context's mapper
+    /// replaces, or is a JavaScript reference whose written form does not
+    /// say its type (`canReuseExistingJSTypeNode`). Unlike strada's
+    /// canReuseTypeNode, a reference whose type the mapper changes is still
+    /// reused: the visitor replaces only the type parameters inside it.
+    fn can_reuse_type_reference_parse(
+        &mut self,
+        context: &mut NodeBuilderContext<'_>,
+        existing: NodeId,
+    ) -> BuildResult<bool> {
+        if self.checker.is_const_type_reference_node(existing) {
+            return Ok(false);
+        }
+        let declared_type = self
+            .checker
+            .get_type_from_type_node(existing)
+            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
+        // getTypeFromTypeReference writes resolvedSymbol and resolvedType as
+        // one NodeLinks transaction upstream. Rust can reach this point
+        // with only the latter cached by an earlier checker path; recover
+        // the same decision from that resolved type rather than rejecting
+        // an otherwise reusable annotation.
+        let symbol = self.checker.links.node(existing).resolved_symbol.resolved();
+        let type_is_type_parameter = self
+            .checker
+            .tables
+            .type_of(declared_type)
+            .flags
+            .intersects(TypeFlags::TYPE_PARAMETER);
+        if symbol.is_some_and(|symbol| {
+            self.checker
+                .symbol_flags(symbol)
+                .intersects(SymbolFlags::TYPE_PARAMETER)
+        }) || type_is_type_parameter
+        {
+            let declared = symbol.map_or(declared_type, |symbol| {
+                self.checker.get_declared_type_of_type_parameter(symbol)
+            });
+            if let Some(mapper) = context.mapper {
+                let mapped = self
+                    .checker
+                    .get_mapped_type(declared, mapper)
+                    .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
+                if mapped != declared {
+                    return Ok(false);
+                }
+            }
+        }
+        let Some(r#type) = get_type_from_type_node2(self.checker, context, existing, false)? else {
+            return Ok(false);
+        };
+        if self.checker.is_jsdoc_type_reference(existing)
+            && self
+                .checker
+                .get_intended_type_from_jsdoc_type_reference(existing)
+                .map_err(|abort| checker_abort_error(self.checker, context, abort))?
+                .is_some()
+        {
+            return Ok(false);
+        }
+        existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
+            self.checker,
+            existing,
+            r#type,
+            context,
+        )
+    }
+
     /// tsc-port: canReuseTypeNode @6.0.3
     /// tsc-hash: af141a7d202b5ffec61fda03caf2df8dbc2cd77d7eea3dc4e40383975bf30673
     /// tsc-span: _tsc.js:53675-53711
@@ -2248,71 +2337,16 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
         context: &mut NodeBuilderContext<'_>,
         existing: NodeId,
     ) -> BuildResult<bool> {
-        let Some(r#type) = get_type_from_type_node2(self.checker, context, existing, true)? else {
+        if self.checker.kind_of(existing) == SyntaxKind::TypeReference {
+            return self.can_reuse_type_reference_parse(context, existing);
+        }
+        if get_type_from_type_node2(self.checker, context, existing, true)?.is_none() {
             return Ok(false);
-        };
+        }
         // tsgo reuses a JavaScript import type whose type resolves, with no
         // check of the symbol it names (nodecopy.go:614-646).
         if self.checker.kind_of(existing) == SyntaxKind::ImportType {
             return Ok(true);
-        }
-        if self.checker.kind_of(existing) == SyntaxKind::TypeReference {
-            if self.checker.is_const_type_reference_node(existing) {
-                return Ok(false);
-            }
-            self.checker
-                .get_type_from_type_node(existing)
-                .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-            // getTypeFromTypeReference writes resolvedSymbol and resolvedType as
-            // one NodeLinks transaction upstream. Rust can reach this point
-            // with only the latter cached by an earlier checker path; recover
-            // the same decision from that resolved type rather than rejecting
-            // an otherwise reusable annotation.
-            let symbol = self.checker.links.node(existing).resolved_symbol.resolved();
-            let type_is_type_parameter = self
-                .checker
-                .tables
-                .type_of(r#type)
-                .flags
-                .intersects(TypeFlags::TYPE_PARAMETER);
-            if symbol.is_some_and(|symbol| {
-                self.checker
-                    .symbol_flags(symbol)
-                    .intersects(SymbolFlags::TYPE_PARAMETER)
-            }) || type_is_type_parameter
-            {
-                let declared = symbol.map_or(r#type, |symbol| {
-                    self.checker.get_declared_type_of_type_parameter(symbol)
-                });
-                if let Some(mapper) = context.mapper {
-                    return self
-                        .checker
-                        .get_mapped_type(declared, mapper)
-                        .map(|mapped| mapped == declared)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort));
-                }
-                return Ok(true);
-            }
-            if self.checker.is_jsdoc_type_reference(existing) {
-                let symbol = symbol
-                    .or(self.checker.tables.type_of(r#type).alias_symbol)
-                    .or(self.checker.tables.type_of(r#type).symbol);
-                return Ok(existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count(
-                    self.checker,
-                    existing,
-                    r#type,
-                    context,
-                )? && self
-                    .checker
-                        .get_intended_type_from_jsdoc_type_reference(existing)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                        .is_none()
-                    && symbol.is_some_and(|symbol| {
-                        self.checker
-                            .symbol_flags(symbol)
-                            .intersects(SymbolFlags::TYPE)
-                    }));
-            }
         }
         if let NodeData::TypeOperator(data) = self.checker.data_of(existing) {
             if data.operator == SyntaxKind::UniqueKeyword
@@ -2581,6 +2615,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 {
                     context.enclosing_declaration_is_synthetic = true;
                     context.synthetic_type_params_scope_active = true;
+                    context.push_fake_type_params_scope();
                 }
             }
         } else {
@@ -2642,6 +2677,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 if context.enclosing_declaration.is_some() && !type_parameters.is_empty() {
                     context.enclosing_declaration_is_synthetic = true;
                     context.synthetic_type_params_scope_active = true;
+                    context.push_fake_type_params_scope();
                 }
             }
         }

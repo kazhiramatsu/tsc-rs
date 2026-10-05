@@ -1722,24 +1722,9 @@ fn exported_name_for_chain_link(
     symbol: SymbolId,
     context: &NodeBuilderContext<'_>,
 ) -> BuildResult<Option<JsString>> {
-    let exports = checker
-        .get_exports_of_symbol(parent)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    for (name, &exported) in exports.iter() {
-        let same_reference = checker
-            .get_symbol_if_same_reference(exported, symbol)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?
-            .is_some();
-        if same_reference
-            && !name.starts_with("__@")
-            && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
-        {
-            return Ok(Some(
-                tsc_binder::unescape_leading_underscores(name).to_owned(),
-            ));
-        }
-    }
-    Ok(None)
+    checker
+        .exported_name_of_chain_link(parent, symbol)
+        .map_err(|abort| checker_abort_error(checker, context, abort))
 }
 
 /// tsc-port: createAccessFromSymbolChain @6.0.3
@@ -2793,6 +2778,12 @@ pub(crate) fn get_type_from_type_node2(
     Ok((!no_mapped_types || mapped == r#type).then_some(mapped))
 }
 
+/// `b.ctx.enclosingFile == ast.GetSourceFileOfNode(b.e.MostOriginal(node))`
+/// (setTextRange, checker/nodebuilderimpl.go:1434-1460) for a most-original
+/// `node`. `GetSourceFileOfNode` walks parents, so only a node of a parse
+/// tree has a file: a node the builder made (a type parameter's shared name,
+/// a symbol's identifier) has none and never matches, which is why
+/// `setTextRange` copies such a node before giving it a range.
 fn source_matches_enclosing_file(
     checker: &CheckerState<'_>,
     arena: &TransformArena,
@@ -2802,6 +2793,9 @@ fn source_matches_enclosing_file(
     let Some(enclosing_file) = context.enclosing_file else {
         return Ok(false);
     };
+    if !arena.is_parsed_node(node).map_err(factory_error)? {
+        return Ok(false);
+    }
     let enclosing_index = checker.binder.file_index_of_node(enclosing_file);
     let enclosing_source = program_source_id(checker, enclosing_index);
     let source = arena.source(node.source()).map_err(factory_error)?;

@@ -1836,7 +1836,7 @@ compiler/declarationsForFileShadowingGlobalNoError	full	js
 compiler/declarationsForIndirectTypeAliasReference	full	js
 compiler/declarationsForInferredTypeFromOtherFile	full	js
 compiler/declarationsIndirectGeneratedAliasReference	full	js
-compiler/declarationsWithRecursiveInternalTypesProduceUniqueTypeParams	full	none
+compiler/declarationsWithRecursiveInternalTypesProduceUniqueTypeParams	full	js
 compiler/declareAlreadySeen	full	js
 compiler/declareClassInterfaceImplementation	full	js
 compiler/declareDottedExtend	full	js
@@ -1903,7 +1903,7 @@ compiler/defaultArgsInOverloads	full	js
 compiler/defaultBestCommonTypesHaveDecls	full	js
 compiler/defaultDeclarationEmitDefaultImport	full	js
 compiler/defaultDeclarationEmitNamedCorrectly	full	js
-compiler/defaultDeclarationEmitShadowedNamedCorrectly	full	none
+compiler/defaultDeclarationEmitShadowedNamedCorrectly	full	js
 compiler/defaultIndexProps1	full	js
 compiler/defaultIndexProps2	full	js
 compiler/defaultIsNotVisibleInLocalScope	full	js

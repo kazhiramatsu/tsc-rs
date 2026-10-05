@@ -92,6 +92,84 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) recovery_boundary_had_error: bool,
     pub(crate) recovery_boundary_depth: u32,
     pub(crate) recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
+
+    /// `NodeBuilderLinks.serializedTypes` (visitAndTransformType,
+    /// checker/nodebuilderimpl.go:3229-3273): the already-built type nodes of
+    /// this request. tsgo makes a node builder, and so these links, for each
+    /// emit resolver request (checker/emitresolver.go:958-1277), so the cache
+    /// never outlives one; tsc 6.0 kept it on the checker's node links.
+    pub(crate) serialized_types: HashMap<SerializedTypeNodeKey, SerializedTypeNodeEntry>,
+    /// The fake scope Blocks above the enclosing declaration.
+    pub(crate) fake_scopes: FakeScopeChain,
+    /// The number of fake scope Blocks this request has created.
+    pub(crate) fake_scope_counter: u32,
+}
+
+/// The fake scope Blocks tsgo's `enterNewScope` puts above the enclosing
+/// declaration (`pushFakeScope`, checker/nodebuilderscopes.go:92-160): one
+/// "params" and one "typeParams" Block at most, each created by the first
+/// scope that needs it and reused by the scopes nested in it. tsc-rs keeps
+/// their locals in an overlay; this records their identities, because the
+/// Block that is the current enclosing declaration owns the serialized type
+/// cache (`b.links.Get(b.ctx.enclosingDeclaration).serializedTypes`).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct FakeScopeChain {
+    params: Option<u32>,
+    type_params: Option<u32>,
+    /// The Block that is the current enclosing declaration; 0 for a parse
+    /// declaration.
+    top: u32,
+}
+
+impl FakeScopeChain {
+    pub(crate) const fn top(self) -> u32 {
+        self.top
+    }
+}
+
+impl NodeBuilderContext<'_> {
+    /// `pushFakeScope("params")`: a new Block unless the chain has one.
+    pub(crate) fn push_fake_params_scope(&mut self) {
+        if self.fake_scopes.params.is_none() {
+            self.fake_scope_counter += 1;
+            self.fake_scopes.params = Some(self.fake_scope_counter);
+            self.fake_scopes.top = self.fake_scope_counter;
+        }
+    }
+
+    /// `pushFakeScope("typeParams")`: a new Block unless the chain has one.
+    pub(crate) fn push_fake_type_params_scope(&mut self) {
+        if self.fake_scopes.type_params.is_none() {
+            self.fake_scope_counter += 1;
+            self.fake_scopes.type_params = Some(self.fake_scope_counter);
+            self.fake_scopes.top = self.fake_scope_counter;
+        }
+    }
+
+    /// A synthesized enclosing declaration that is not part of a fake scope
+    /// chain (the module scope overlay): a new identity with no Blocks.
+    pub(crate) fn replace_fake_scopes_with_new_enclosing(&mut self) {
+        self.fake_scope_counter += 1;
+        self.fake_scopes = FakeScopeChain {
+            params: None,
+            type_params: None,
+            top: self.fake_scope_counter,
+        };
+    }
+}
+
+/// The `serializedTypes` key: (enclosing declaration, its fake scope Block,
+/// type, NodeBuilderFlags bits, InternalNodeBuilderFlags bits).
+pub(crate) type SerializedTypeNodeKey = (NodeId, u32, TypeId, u32, u32);
+
+/// A `serializedTypes` entry: the built node plus the side effects a cache
+/// hit replays.
+#[derive(Clone, Debug)]
+pub(crate) struct SerializedTypeNodeEntry {
+    pub(crate) node: TransformNode,
+    pub(crate) truncating: bool,
+    pub(crate) added_length: u32,
+    pub(crate) tracked_symbols: Option<Vec<TrackedSymbol>>,
 }
 
 pub(crate) struct SyntheticModuleScope<'scope> {
@@ -178,6 +256,9 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         recovery_boundary_had_error: false,
         recovery_boundary_depth: 0,
         recovery_tracked_symbols: None,
+        serialized_types: HashMap::default(),
+        fake_scopes: FakeScopeChain::default(),
+        fake_scope_counter: 0,
     };
 
     let resulting_node = callback(checker, arena, target, &mut context)?;

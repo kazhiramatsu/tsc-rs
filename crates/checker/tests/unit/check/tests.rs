@@ -8045,11 +8045,13 @@ fn fully_qualified_alias_reexport_names_the_export_entry() {
 }
 
 #[test]
-fn export_table_order_names_the_qualifier() {
-    // createAccessFromSymbolChain (53210-53217): the FIRST
-    // resolved-export entry that same-references the link names it
-    // — regardless of the symbol's own name or the import path
-    // (oracle-probed both orders).
+fn own_export_name_then_declaration_order_names_the_qualifier() {
+    // tsgo's createAccessFromSymbolChain (checker/nodebuilderimpl.go:
+    // 770-793): the link's own name when the parent exports it under
+    // that name, otherwise the first of the matching exports in
+    // compareSymbols order (declaration position) — regardless of the
+    // import path. tsc 6.0 took the first entry in table order, which
+    // named the first face `M` (tsgo-probed, all four faces).
     let face = |first: &str, second: &str, import_name: &str, expected: &str| {
         let a = format!("namespace N {{ export const x = 1; }}\n{first}\n{second}\n");
         let b = format!("namespace N {{ export const x = \"s\"; }}\n{first}\n{second}\n");
@@ -8069,8 +8071,10 @@ fn export_table_order_names_the_qualifier() {
                 )]
             );
     };
-    face("export { N as M };", "export { N };", "N", "M");
+    face("export { N as M };", "export { N };", "N", "N");
     face("export { N };", "export { N as M };", "M", "N");
+    face("export { N as M };", "export { N as L };", "L", "M");
+    face("export { N as L };", "export { N as M };", "M", "L");
 }
 
 #[test]

@@ -6010,3 +6010,228 @@ fn print_time_parentheses_and_new_callees_follow_tsgo() {
         r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":"AAAA,MAAqB,CAAC;CAErB;AADU,OAAK,GAAG,IAAI,CAAC,EAAE,CAAC"}"#
     );
 }
+
+#[test]
+fn declaration_type_nodes_are_named_reused_and_mapped_like_tsgo() {
+    // The node builder as tsgo runs it for declarations. The expected bytes are
+    // tsgo's.
+    // - A name's path is the shortest of all candidate chains, the first by
+    //   declaration order among equals (checker/symbolaccessibility.go:535-609):
+    //   `Any` from its named import, not `Rpc.Any` from the namespace import
+    //   written first. A link is named by its own export when the parent has it
+    //   (checker/nodebuilderimpl.go:770-793): `.stringify`, not the `default`
+    //   the module declares first.
+    // - A node reused from another file has no position, its tokens included
+    //   (the `?` of `waitUntil?`), and its lists have no trailing comma
+    //   (checker/nodecopy.go:827-900; `{ a, b }`).
+    // - A fake scope's parameter or type parameter hides a name only for its
+    //   own meaning: `<Rpc extends Rpc.Any>` reuses the constraint as written,
+    //   mapped part by part.
+    // - A constraint is reused under the signature's mapper, and only the type
+    //   parameters the mapper replaces are rebuilt (nodebuilderimpl.go:
+    //   1669-1681, nodecopy.go:416-435): `Extract` and `Record` map in `t1`.
+    // - The serialized type cache lasts one resolver request and hands out
+    //   position-free copies (nodebuilderimpl.go:3229-3273, ast/deepclone.go):
+    //   the second `{ match; check? }` of `setup` maps nothing, while `one` and
+    //   `two` both map.
+    // - A type parameter's renamed name (`K_1`) is a shared node that keeps no
+    //   range (setTextRange, nodebuilderimpl.go:1434-1460).
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("other/node_modules/pkg/esm"))
+        .expect("create other/node_modules/pkg/esm");
+    fs::create_dir_all(tree.path("src")).expect("create src");
+    fs::write(
+        tree.path("other/node_modules/pkg/index.d.ts"),
+        concat!(
+            "export function stringify(value: unknown): string\n",
+            "export function configure(options: object): typeof stringify\n",
+            "export const tools: { pick: (s: string, { a, b, }?: { a?: number; b?: number }) => string }\n",
+        ),
+    )
+    .expect("write other/node_modules/pkg/index.d.ts");
+    fs::write(
+        tree.path("other/node_modules/pkg/esm/wrapper.d.ts"),
+        concat!(
+            "import { stringify } from '../index.js'\n",
+            "\n",
+            "export * from '../index.js'\n",
+            "export default stringify\n",
+        ),
+    )
+    .expect("write other/node_modules/pkg/esm/wrapper.d.ts");
+    fs::write(
+        tree.path("other/node_modules/pkg/package.json"),
+        r#"{"name":"pkg","version":"1.0.0","exports":{"require":"./index.js","import":"./esm/wrapper.js"},"typings":"index.d.ts"}"#,
+    )
+    .expect("write other/node_modules/pkg/package.json");
+    fs::write(
+        tree.path("other/amb.d.ts"),
+        concat!(
+            "declare module 'compiled/pkg' {\n",
+            "  import * as m from 'pkg'\n",
+            "  export = m\n",
+            "}\n",
+        ),
+    )
+    .expect("write other/amb.d.ts");
+    fs::write(
+        tree.path("src/handler.ts"),
+        concat!(
+            "export function getHandler() {\n",
+            "  return async (req: number, ctx: { waitUntil?: (prom: Promise<void>) => void; meta?: string }) => {};\n",
+            "}\n",
+        ),
+    )
+    .expect("write src/handler.ts");
+    fs::write(
+        tree.path("src/rpc.ts"),
+        "export interface Any { readonly id: number }\n",
+    )
+    .expect("write src/rpc.ts");
+    fs::write(
+        tree.path("src/user.ts"),
+        concat!(
+            "import { configure, tools } from 'compiled/pkg';\n",
+            "import { getHandler } from \"./handler\";\n",
+            "import * as Rpc from \"./rpc\";\n",
+            "import { Any } from \"./rpc\";\n",
+            "declare function wrap<F>(f: F): F;\n",
+            "export const handler = getHandler();\n",
+            "export const s = configure({});\n",
+            "export const copy = { ...tools };\n",
+            "export const makeRequest = <Rpc extends Rpc.Any>(options: { readonly rpc: Rpc }) => options;\n",
+            "export const named = (o: Rpc.Any) => o;\n",
+            "export const d1 = <D extends string>(field: D) =>\n",
+            "<R, Fn extends (_: Extract<R, Record<D, string>>) => R>(f: Fn) => f;\n",
+            "export const t1 = d1(\"_tag\");\n",
+            "export const build = <T>(item: T): T & { match: Any; check?: boolean } => item as any;\n",
+            "export function setup() {\n",
+            "  return { headers: [build({ a: 1 })], other: [build({ a: 1 })] };\n",
+            "}\n",
+            "export const one = build({ a: 1 });\n",
+            "export const two = build({ a: 1 });\n",
+            "export class Res<K, A> {\n",
+            "  constructor(readonly k?: K, readonly a?: A) {}\n",
+            "  static make = wrap(function <K, A>(lookup: (key: K) => A) { return new Res<K, A>(); });\n",
+            "}\n",
+        ),
+    )
+    .expect("write src/user.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2022","module":"esnext","moduleResolution":"bundler","declaration":true,"declarationMap":true,"emitDeclarationOnly":true,"rootDir":".","outDir":"out"},"files":["other/amb.d.ts","src/handler.ts","src/rpc.ts","src/user.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/src/user.d.ts"),
+        concat!(
+            "import * as Rpc from \"./rpc\";\n",
+            "import { Any } from \"./rpc\";\n",
+            "export declare const handler: (req: number, ctx: {\n",
+            "    waitUntil?: (prom: Promise<void>) => void;\n",
+            "    meta?: string;\n",
+            "}) => Promise<void>;\n",
+            "export declare const s: typeof import(\"compiled/pkg\").stringify;\n",
+            "export declare const copy: {\n",
+            "    pick: (s: string, { a, b }?: {\n",
+            "        a?: number;\n",
+            "        b?: number;\n",
+            "    }) => string;\n",
+            "};\n",
+            "export declare const makeRequest: <Rpc extends Rpc.Any>(options: {\n",
+            "    readonly rpc: Rpc;\n",
+            "}) => {\n",
+            "    readonly rpc: Rpc;\n",
+            "};\n",
+            "export declare const named: (o: Rpc.Any) => Any;\n",
+            "export declare const d1: <D extends string>(field: D) => <R, Fn extends (_: Extract<R, Record<D, string>>) => R>(f: Fn) => Fn;\n",
+            "export declare const t1: <R, Fn extends (_: Extract<R, Record<\"_tag\", string>>) => R>(f: Fn) => Fn;\n",
+            "export declare const build: <T>(item: T) => T & {\n",
+            "    match: Any;\n",
+            "    check?: boolean;\n",
+            "};\n",
+            "export declare function setup(): {\n",
+            "    headers: ({\n",
+            "        a: number;\n",
+            "    } & {\n",
+            "        match: Any;\n",
+            "        check?: boolean;\n",
+            "    })[];\n",
+            "    other: ({\n",
+            "        a: number;\n",
+            "    } & {\n",
+            "        match: Any;\n",
+            "        check?: boolean;\n",
+            "    })[];\n",
+            "};\n",
+            "export declare const one: {\n",
+            "    a: number;\n",
+            "} & {\n",
+            "    match: Any;\n",
+            "    check?: boolean;\n",
+            "};\n",
+            "export declare const two: {\n",
+            "    a: number;\n",
+            "} & {\n",
+            "    match: Any;\n",
+            "    check?: boolean;\n",
+            "};\n",
+            "export declare class Res<K, A> {\n",
+            "    readonly k?: K | undefined;\n",
+            "    readonly a?: A | undefined;\n",
+            "    constructor(k?: K | undefined, a?: A | undefined);\n",
+            "    static make: <K_1, A_1>(lookup: (key: K_1) => A_1) => Res<K_1, A_1>;\n",
+            "}\n",
+            "//# sourceMappingURL=user.d.ts.map",
+        )
+    );
+    assert_eq!(
+        read("out/src/user.d.ts.map"),
+        r#"{"version":3,"file":"user.d.ts","sourceRoot":"","sources":["../../src/user.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,GAAG,MAAM,OAAO,CAAC;AAC7B,OAAO,EAAE,GAAG,EAAE,MAAM,OAAO,CAAC;AAE5B,eAAO,MAAM,OAAO;;;mBAAe,CAAC;AACpC,eAAO,MAAM,CAAC,yCAAgB,CAAC;AAC/B,eAAO,MAAM,IAAI;;;;;CAAe,CAAC;AACjC,eAAO,MAAM,WAAW,GAAI,GAAG,SAAS,GAAG,CAAC,GAAG,WAAW;IAAE,QAAQ,CAAC,GAAG,EAAE,GAAG,CAAA;CAAE;kBAAL,GAAG;CAAc,CAAC;AAC5F,eAAO,MAAM,KAAK,MAAO,GAAG,CAAC,GAAG,QAAM,CAAC;AACvC,eAAO,MAAM,EAAE,GAAI,CAAC,SAAS,MAAM,SAAS,CAAC,MAC5C,CAAC,EAAE,EAAE,SAAS,CAAC,CAAC,EAAE,OAAO,CAAC,CAAC,EAAE,MAAM,CAAC,CAAC,EAAE,MAAM,CAAC,CAAC,KAAK,CAAC,KAAK,EAAE,OAAM,CAAC;AACpE,eAAO,MAAM,EAAE,GADd,CAAC,EAAE,EAAE,SAAS,CAAC,CAAC,EAAE,OAAO,IAAI,MAAM,SAAI,MAAM,CAAC,CAAC,MAAM,cAC1B,CAAC;AAC7B,eAAO,MAAM,KAAK,GAAI,CAAC,QAAQ,CAAC,KAAG,CAAC,GAAG;IAAE,KAAK,EAAE,GAAG,CAAC;IAAC,KAAK,CAAC,EAAE,OAAO,CAAA;CAAiB,CAAC;AACtF,wBAAgB,KAAK;IACV,OAAO;;;eAF8B,GAAG;gBAAU,OAAO;;IAE7B,KAAK;;;;;;EAC3C;AACD,eAAO,MAAM,GAAG;;;WAJgC,GAAG;YAAU,OAAO;CAIlC,CAAC;AACnC,eAAO,MAAM,GAAG;;;WALgC,GAAG;YAAU,OAAO;CAKlC,CAAC;AACnC,qBAAa,GAAG,CAAC,CAAC,EAAE,CAAC;IACP,QAAQ,CAAC,CAAC,CAAC,EAAE,CAAC;IAAE,QAAQ,CAAC,CAAC,CAAC,EAAE,CAAC;IAA1C,YAAqB,CAAC,CAAC,EAAE,CAAC,YAAA,EAAW,CAAC,CAAC,EAAE,CAAC,YAAA,EAAI;IAC9C,MAAM,CAAC,IAAI,qBAAgC,CAAC,GAAG,EAAE,GAAC,KAAK,GAAC,mBAA+B;CACxF"}"#
+    );
+}
+
+#[test]
+fn async_arrow_concise_body_block_maps_like_tsgo() {
+    // The async transform turns a concise arrow body into a block whose return
+    // statement, statement list and block take the body's range
+    // (transformers/estransforms/async.go:876-893), so the generator's `}` maps
+    // to the token after the body. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function poll(f: () => Promise<boolean>, n: number): void;\n",
+            "declare const page: { evaluate(f: () => boolean): Promise<boolean> };\n",
+            "poll(async () =>\n",
+            "  page.evaluate(() => true)\n",
+            ", 1);\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2016","module":"esnext","noEmitHelpers":true,"sourceMap":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "poll(() => __awaiter(void 0, void 0, void 0, function* () { return page.evaluate(() => true); }), 1);\n",
+            "//# sourceMappingURL=a.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.js.map"),
+        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAEA,IAAI,CAAC,GAAS,EAAE,kDACd,OAAA,IAAI,CAAC,QAAQ,CAAC,GAAG,EAAE,CAAC,IAAI,CAAC,CAAA,CAC3B,CAAC,CAD0B,EACzB,CAAC,CAAC,CAAC"}"#
+    );
+}

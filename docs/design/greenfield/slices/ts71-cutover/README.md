@@ -2700,3 +2700,126 @@ P3-5baの後、README corporaの出力をtsgoと比べて残っていた差：
   tsgoでは部分ごとにmapされる。
 - hosted：PR #679（head `4300dde89`）、run 37262470561 — `plan` 36s、`rust` 7m37s、`conformance (TypeScript 7.1)` 20m2s、
   `gates` 12s。
+
+## P3-5bc 宣言の型nodeの再利用とmap、symbolの鎖の選び方（2026-10-05）
+
+P3-5bbの後、README corporaの宣言（`.d.ts`と`.d.ts.map`）をtsgoと比べて残っていた差。tsc 6.0の動作を再現していた
+箇所を、tsgoのnode builderに合わせた：
+- **再利用する型のtoken**：tsgoの既存nodeのvisitorにはtoken用のhookが無く（ast/visitor.go:225-230、
+  checker/nodecopy.go:827-900）、`?`、`...`、`readonly`、`*`のtokenも他の子と同じく複製され、位置は囲みのfileの
+  nodeのときだけ写る。tsc 6.0は元のtokenをそのまま使っていたので、別のfileから再利用したmemberの`?`が、その
+  fileのoffsetをいまのfileのline mapでmapしていた。
+- **直列化した型のcache**：tsgoはemit resolverへの要求ごとにnode builderを作る（checker/emitresolver.go:958-1277）
+  ので、`NodeBuilderLinks.serializedTypes`は1つの要求の中だけで生きる。linksはいまの囲みの宣言のもので、
+  `enterNewScope`の作るfake scopeのBlockごとに別になる（checker/nodebuilderscopes.go:92-160、nodebuilderimpl.go:
+  3229-3273）。hitは`DeepCloneNode(cachedResult.node)`、つまり位置の無い複製を返す（ast/deepclone.go:6-73。listの
+  末尾のcommaは残す）。tsc 6.0はcheckerのnode linksにemitの間ずっとcacheを持ち、範囲ごと複製していたので、2回目
+  以降の型もmapされ、layoutもsourceから取っていた。cacheを要求のcontextに移し、keyにfake scopeのBlockの識別を
+  入れた。
+- **fake scopeの検索は意味が合うときだけ**：`getSymbol`は、tableのsymbolのflagsが求める意味を持つ（またはaliasの
+  先が持つ）ときだけそのsymbolを返す。fake scopeの重ねは名前だけで答えていたので、parameterの`Model`や型
+  parameterの`Rpc`が`Model.Any`や`Rpc.Any`のnamespaceを隠し、参照は再利用されずにsymbolから作り直されていた。
+- **builderが作ったnodeは、範囲を付ける前に複製する**：`setTextRange`は、nodeの最も元のnodeが囲みのfileに属さない
+  限りnodeを複製し、`GetSourceFileOfNode`はparse treeの親をたどってだけfileを見つける
+  （checker/nodebuilderimpl.go:1434-1460）。型parameterの共有される名前のようにbuilderが作ったnodeにはfileが無く、
+  複製されるので、共有されるnodeは範囲を持たない。tsc-rsはtargetのsourceのnodeを全てそのfileのものと扱い、
+  使用箇所の範囲を共有の名前に書いていたので、宣言の側でもその位置にmapされていた。
+- **mapperの下での制約と型参照の再利用**：`typeToTypeNodeHelperWithPossibleReusableTypeNode`は、nodeの型をcontextの
+  mapperの下で比べ、stradaの`canReuseTypeNode`の関門無しに`tryReuseExistingNodeHelper`で再利用する
+  （checker/nodebuilderimpl.go:1669-1681）。`tryVisitTypeReference`が断るのは、constの参照、mapperが置き換える型
+  parameter、textから型の分からないJavaScriptの参照（checker/nodecopy.go:416-435）。mapperで型の変わる参照も
+  再利用され、visitorが中の型parameterだけを置き換える。
+- **symbolの鎖と、鎖の中の名前**：`trySymbolTable`は候補の鎖を全て集め、最も短いもの、同じ長さなら
+  `compareSymbols`で最初のものを取る（checker/symbolaccessibility.go:535-609）。tsc 6.0はtableの順で最初の候補を
+  取っていたので、`import * as ns`が`import { T }`より前にあると型は`ns.T`になっていた。
+  `createAccessFromSymbolChain`は、親がその名前でexportしていれば鎖のsymbol自身の名前を、そうでなければ一致する
+  exportのうち`compareSymbols`で最初のものを使う（checker/nodebuilderimpl.go:770-793）。tsc 6.0はtableの順で最初の
+  ものを取り、`export default f`の後で`f`をre-exportするmoduleの`f`を`default`と呼んでいた。診断に出る名前も
+  同じ規則で変わる（`export { N as M }; export { N };`のnamespaceは`M`ではなく`N`。tsgoで4通りを確かめ、6.0の
+  順序をpinしていたcheckerのunit testを直した）。
+- **別のfileのlistの位置と末尾のcomma**：既存nodeのvisitorの`VisitNodes` hookは、別のfileのnodeのlistを位置無しで
+  写し（checker/nodecopy.go:878-888）、`NodeList.HasTrailingComma`はlistの終わりと最後のnodeの終わりを比べる
+  （ast/ast.go:139-145）ので、そのlistに末尾のcommaは付かない。fileは、要素の最も元のnodeのもの。
+- **async arrowのconcise body**（Vue.jsのe2e testで見つかった）：`transformAsyncFunctionBodyWorker`は、return文、
+  その文のlist、blockにconcise bodyの範囲を与える（transformers/estransforms/async.go:876-893）ので、generatorの
+  `}`は本体の次のtokenにmapされる。
+- unit test：CLI（tsgoの出力にpin）で2件（宣言の名前・再利用・map、async arrowのmap）、位置の無い複製の共有で
+  emitterに1件。checkerのunit test 1件をtsgoの出力に直した。
+- **Vue.jsをperfの確認に加えた**（`vuejs/core` 3.5.43、`4ab865a`、`pnpm install --frozen-lockfile --ignore-scripts`。
+  rootの`isolatedDeclarations`のため、`--noEmit`の構成も`declaration: true`のまま）。README corporaと同じく
+  `tsconfig.bench-noemit.json`と`tsconfig.bench-full.json`で測る。
+- 結果：`bench-full`の出力は、hono、zod、Playwright、TypeScript `src/compiler`、Next.js、Vue.jsの6 corporaで全fileが
+  tsgoとbyte単位で同じになった。tsgoと同じbyteのfileの数（main→branch）：zodの宣言465→467/467とd.ts.map
+  465→467/467、Playwrightの宣言701→703/703とd.ts.map 700→703/703、Next.jsの宣言1,664→1,665/1,665とd.ts.map
+  1,657→1,665/1,665、Vue.jsのjs.map 436→440/440（宣言、d.ts.map、JavaScriptは440/440）、Effectの宣言479→484/496と
+  d.ts.map 470→486/496。hono 187とTypeScript `src/compiler` 78は元から全て同じ。
+- **tsgoの出力は実行ごとに変わる**：Effectの`bench-full`をtsgoで6回emitすると、`ai/McpSchema.d.ts`とそのmap、
+  `ai/internal/mcpProtocol/`の`v2024_11_05`、`v2025_03_26`、`v2025_06_18`、`v2025_11_25`の宣言が回によって違う
+  （unionの並び）。`getInferTypeParameters`がconditional typeの`locals`（Goのmap）をそのまま走査する
+  （checker/checker.go:24259-24267）ので、`infer`の型parameterの順序が実行ごとに変わり、type aliasの中の遅延型参照
+  （`Rpc.AddMiddleware`のtrue側の`Rpc<…>`）のinstantiationを比べるmapperの並び（checker/utilities.go:716-755）が
+  変わる。tsc-rsは宣言の順で、この6 fileはどれも6回のうち3〜4回のtsgoの出力と同じbyteになる。上のEffectの数は
+  1回のtsgoの出力との比較で、回によって宣言479〜484、d.ts.map 485〜486になる。
+- Effectで、6回とも同じtsgoの出力と違うのは宣言12、d.ts.map 10：型parameterの名前（`ExecutionPlan`、`Request`、
+  `Stream`、`HttpApiEndpoint`、`internal/doNotation`、`internal/effect`、`internal/schedule`、`AsyncResult`、
+  `VariantSchema`、`Activity`、`schema/Model`）と、匿名のobject型のunionの順序（`mcpProtocol/v2026_07_28`。型の
+  作成順で決まり、tsc-rsでもcheckerの数で変わる）。
+- conformance（release build、`e068ff1c0`、`--workers 2`、535 s）：15,228構成、lane A 13,467、full 13,411、emit full
+  13,423、emitの不一致17、`.js.map`の不一致1。P3-5bbの最後のreportと比べて変わったのは、emitがFullに上がった
+  `declarationsWithRecursiveInternalTypesProduceUniqueTypeParams`と`defaultDeclarationEmitShadowedNamedCorrectly`、
+  負荷で結果の変わる`intersectionConstructorReductionCrash`（今回は完走、ratchetの外）、tierは同じで出力がtsgoに
+  1行近づいた`declarationEmitNameConflicts`（`typeof M.c.g`。残りは`typeof import("./declarationEmit_nameConflicts_1")`
+  の1行）。途中はfilter（`eclaration`、`sDeclaration`、`ypeParameter`、`onditional`、`apped`、`eneric`、`sdoc`、
+  `nfer`、`mport`、`xport`、`odule`、`amespace`、`lias`）で確かめ、下がった構成は無かった。
+- full runの後の変更は、checkerのunit testとCLIのfixtureのlint（test fileだけ）と、下のperfの修正（`fdebe320e`、
+  emitterの`deep_clone_node_without_positions`）。修正の後は12のfilter（`eclaration`、`ypeParameter`、`eneric`、
+  `nfer`、`apped`、`onditional`、`lias`、`mport`、`xport`、`odule`、`amespace`、`sdoc`。5,073 case、6,346構成）を
+  full runのreportと行ごとに比べ、tierも、診断とemitのdigestも全て同じだった。修正後のfull runはhostedの
+  `conformance (TypeScript 7.1)` job。
+- `--checkers 4`の並列対照：`--filter eclaration`（1,768 case、2,426構成）を1 checkerの同じfilterと
+  `scripts/conformance_ts71_compare.py`で比べ、2,424構成が同じ。違う2構成は記録済みのpartition依存
+  （`declarationEmitAugmentationUsesCorrectSourceFile`、`declarationEmitComputedPropertyNameSymbol2`の
+  "late visibility alias belongs to another source"、[conformance-ts71](../conformance-ts71/README.md)）。全caseの
+  対照はlocalの負荷の方針（full runはsliceごとに1回）により実行していない。
+- ratchet：0 regressions。上の2行のemitを`none`から`js`に上げた。
+- local：formatと、checker・emitter・compiler・conformanceのclippy、test（`fdebe320e`で2,704件）。workspace全体の
+  testとclippyはhostedの`rust` job。
+- perf（README corporaとVue.js、nice 20、main（P3-5bbのbuild、`c8aef18bb`と同じコード）対tsgo 7.1.0-dev、branchは
+  `fdebe320e`。どちらもconformanceと一緒のbuild）：
+  - **最初の計測で劣化が出て、直した**：`e068ff1c0`ではEffectの`bench-full`が757→865 ms、peak 1,152→1,525 MB
+    （1 checkerで51.9→53.1 G命令、835→1,179 MB。`ai/internal/mcpSchema/v2026_07_28.ts`のemitだけで73→218 ms）。
+    cacheのhitが返す位置無しの複製が、複製したnodeごとにnodeとemit metadataを割り当てていた（380,512 node）。
+    位置を持つnodeもlistも無い部分木は、その複製と同じbyteを印字し何もmapしないので、複製せずに共有し、位置を
+    持つnodeとそこへ至るnodeだけを複製する（根は必ず新しいnode。Effectで2,457 node）。出力は7 corporaとも
+    `e068ff1c0`と同じで、1 checkerのEffectは51.8 G命令、837 MBに戻った。
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 141→126、zod 537→525、Playwright 377→384、TypeScript
+    `src/compiler` 350→331、Next.js 812→775、Effect 509→513、Vue.js 350→344、VS Code 3,561→3,522。読み込んだ文書数と
+    診断は8 corporaで同一。peak（MB）はhono 318→308、zod 1,309→1,297、Playwright 810→807、TypeScript
+    `src/compiler` 288→289、Next.js 1,351→1,361、Effect 1,041→1,034、Vue.js 614→610、VS Code 5,456→5,443。
+  - `tsconfig.bench-full.json` 3回：hono 145→148、zod 631→628、Playwright 485→471、TypeScript `src/compiler` 549→527、
+    Next.js 1,045→1,025、Effect 749→764、Vue.js 408→407。peak（MB）はhono 356→355、zod 1,520→1,538、Playwright
+    887→895、TypeScript `src/compiler` 474→473、Next.js 1,476→1,474、Effect 1,167→1,161、Vue.js 638→638。7 corpora
+    とも診断は同一で、出力の違いはzod 4、Playwright 5、Next.js 9、Effect 25、Vue.js 4 file（全てtsgoと同じに
+    なった側）。
+  - 10回のA/B：`--noEmit` Effect 524→508、zod 525→528、VS Code 3,411→3,419、Next.js 776→774、Vue.js 353→344。
+    `bench-full` TypeScript `src/compiler` 521→504、Next.js 1,011→1,010、Playwright 486→481、Effect 766→761（peak
+    1,166→1,161 MB）、Vue.js 415→423（最小値は392→395）。1 checkerの命令数branch÷main：`--noEmit` zod 1.00017、
+    Effect 0.99989、Next.js 0.99982、Playwright 1.00003、Vue.js 0.99997、`bench-full` TypeScript `src/compiler`
+    0.99994、Next.js 0.99576、Vue.js 1.00020、Effect 0.99827。劣化無し。
+  - tsgo（同じ計測の3回のmedian、ms／peak MB）：`--noEmit` hono 154／331、zod 861／1,770、Playwright 517／986、
+    TypeScript `src/compiler` 359／393、Next.js 1,228／1,612、Effect 752／1,213、Vue.js 498／720、VS Code
+    4,777／6,756。`bench-full` hono 198／370、zod 987／1,909、Playwright 692／1,315、TypeScript `src/compiler`
+    628／658、Next.js 2,033（最小1,697）／2,057、Effect 1,085／1,785、Vue.js 585／859。
+- 次：
+  - 型parameterの名前のscope（Effectの残りの11 file）。既存nodeのvisitorのscopeの後始末
+    （`SyntacticScopeCleanup`）が、tsc 6.0の短絡する`forEach`（最初の1件だけ消し、最初の1件だけ戻す）を再現して
+    いる。tsgoは足した名前を全て消し、上書きした名前を全て戻す（checker/nodebuilderscopes.go:142-152）ので、
+    兄弟のconditional typeの`infer _E`や、前のsignatureの`<O, E, R>`が後ろで`_E_1`、`E_1`にならない。mapped typeの
+    型parameterの宣言は、tsgoではscopeに入ってから名前を付ける（checker/nodebuilderimpl.go:1583-1584）ので、
+    兄弟のmapped typeの`K`が`K_1`にならない。
+  - `declarationEmitNameConflicts`の残りの1行（`export import d = im`を通らず、moduleを`import("…")`で書く）。
+  - Vue.jsの診断：tsgoは`packages/compiler-sfc/src/style/pluginScoped.ts(107,3)`のTS5115（`'Container', 'Diff'`の
+    instantiationが深さ100に達する）、それに続くTS7006を2件、`packages/runtime-dom/src/directives/vModel.ts(446,37)`
+    のTS2345を出すが、tsc-rsは出さない。
+  - optionのerror（TS5069など）があるとき、tsgoは0.10 sで終わるが、tsc-rsはprogram全体をcheckしてから同じ1件を
+    出す（Vue.jsで0.35 s、597 MB）。

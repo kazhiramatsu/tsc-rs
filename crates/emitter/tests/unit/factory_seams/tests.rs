@@ -1027,3 +1027,149 @@ fn access_parenthesization_matches_typescript_kind_and_range_boundaries() {
         }
     }
 }
+
+#[test]
+fn position_free_copy_shares_the_subtrees_without_a_position() {
+    // tsgo's DeepCloneNode (ast/deepclone.go:6-73) hands out a cached type
+    // node as a copy without positions. A subtree that has none prints and
+    // maps exactly like its copy, so the copy shares it and allocates only
+    // the nodes that have a position or lead to one.
+    fn subtree(arena: &TransformArena, root: TransformNode) -> Vec<NodeId> {
+        let syntax = &arena.source(root.source()).unwrap().syntax().arena;
+        let mut nodes = vec![root.node()];
+        let mut next = 0;
+        while next < nodes.len() {
+            let node = syntax.node(nodes[next]);
+            tsc_syntax::for_each_child(syntax, node, |child| {
+                nodes.push(child);
+                false
+            });
+            next += 1;
+        }
+        nodes
+    }
+    fn has_no_position(arena: &TransformArena, root: TransformNode) -> bool {
+        let syntax = &arena.source(root.source()).unwrap().syntax().arena;
+        subtree(arena, root).into_iter().all(|id| {
+            let node = syntax.node(id);
+            node.pos == u32::MAX
+                && node.end == u32::MAX
+                && tsc_syntax::for_each_child_array(node, |array| {
+                    let list = syntax.node_array(array);
+                    list.pos != u32::MAX || list.end != u32::MAX
+                })
+                .is_none()
+        })
+    }
+    fn union_members(arena: &TransformArena, union: TransformNode) -> (NodeArrayId, Vec<NodeId>) {
+        let NodeData::UnionType(data) = &arena.node(union).unwrap().data else {
+            panic!("union type");
+        };
+        let types = data.types.unwrap();
+        let list = arena
+            .node_array(arena.node_array_ref(union.source(), types).unwrap())
+            .unwrap();
+        (types, list.nodes.to_vec())
+    }
+
+    let source_file = parsed("types.ts", "type A = { x: [string, number,] };\n");
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&source_file, None);
+    let literal = source_file
+        .arena
+        .node_ids()
+        .find(|id| source_file.arena.node(*id).kind == SyntaxKind::TypeLiteral)
+        .expect("parsed type literal");
+    let parsed_literal = arena.node_ref(source, literal).unwrap();
+    assert!(!has_no_position(&arena, parsed_literal));
+
+    // A parsed subtree: every node is copied and none keeps a position; the
+    // tuple's trailing comma is a flag of the copied list.
+    let copy = arena
+        .factory()
+        .deep_clone_node_without_positions(parsed_literal)
+        .unwrap();
+    assert!(has_no_position(&arena, copy));
+    assert!(subtree(&arena, copy)
+        .iter()
+        .all(|node| !subtree(&arena, parsed_literal).contains(node)));
+    let tuple = subtree(&arena, copy)
+        .into_iter()
+        .find(|id| {
+            arena
+                .node(arena.node_ref(source, *id).unwrap())
+                .unwrap()
+                .kind
+                == SyntaxKind::TupleType
+        })
+        .expect("copied tuple");
+    let NodeData::TupleType(data) = &arena
+        .node(arena.node_ref(source, tuple).unwrap())
+        .unwrap()
+        .data
+    else {
+        panic!("tuple type");
+    };
+    let elements = arena
+        .node_array_ref(source, data.elements.unwrap())
+        .unwrap();
+    assert!(arena.node_array(elements).unwrap().has_trailing_comma);
+    assert_eq!(arena.get_original_node(copy), parsed_literal);
+
+    // The copy has no position: copying it again makes a new root over the
+    // same children.
+    let again = arena
+        .factory()
+        .deep_clone_node_without_positions(copy)
+        .unwrap();
+    assert_ne!(again, copy);
+    assert_eq!(
+        arena.node(again).unwrap().data,
+        arena.node(copy).unwrap().data
+    );
+    assert_eq!(subtree(&arena, again)[1..], subtree(&arena, copy)[1..]);
+
+    // A synthetic union over the position-free copy and the parsed literal:
+    // the union and its list are copied (they lead to a position), the
+    // position-free member is shared, the parsed one is copied.
+    let types = arena
+        .factory()
+        .create_node_array(source, vec![copy, parsed_literal])
+        .unwrap();
+    let union = arena
+        .factory()
+        .create_union_type_node(source, types)
+        .unwrap();
+    let stripped = arena
+        .factory()
+        .deep_clone_node_without_positions(union)
+        .unwrap();
+    assert!(has_no_position(&arena, stripped));
+    let (original_list, original_members) = union_members(&arena, union);
+    let (stripped_list, stripped_members) = union_members(&arena, stripped);
+    assert_ne!(stripped_list, original_list);
+    assert_eq!(stripped_members[0], original_members[0]);
+    assert_ne!(stripped_members[1], original_members[1]);
+    // The source of the copy is untouched.
+    assert_eq!(original_members, vec![copy.node(), parsed_literal.node()]);
+    assert!(!has_no_position(&arena, parsed_literal));
+
+    // A wholly position-free union: only its root is new, the list is shared.
+    let free_types = arena
+        .factory()
+        .create_node_array(source, vec![copy, again])
+        .unwrap();
+    let free_union = arena
+        .factory()
+        .create_union_type_node(source, free_types)
+        .unwrap();
+    let shared = arena
+        .factory()
+        .deep_clone_node_without_positions(free_union)
+        .unwrap();
+    assert_ne!(shared, free_union);
+    assert_eq!(
+        union_members(&arena, shared),
+        union_members(&arena, free_union)
+    );
+}

@@ -5262,6 +5262,26 @@ impl<'arena> NodeFactory<'arena> {
         CrossSourceReuseClone::new(self.arena, original.source, target).clone_node(original.node)
     }
 
+    /// tsgo's `DeepCloneNode` (ast/deepclone.go:6-73): a clone of the whole
+    /// subtree whose nodes and node arrays have no positions. Each clone's
+    /// original is the node it copies, so its emit metadata follows, as
+    /// tsgo's clone hook copies the emit node.
+    ///
+    /// A subtree in which no node or list has a position is its own such
+    /// clone: it prints the same bytes and maps nothing. The copy shares it
+    /// instead of allocating it again (a node and its emit metadata for each
+    /// one; a declaration file that repeats one large inferred type would
+    /// otherwise hold every repetition), and copies only the nodes that have
+    /// a position or lead to one. The root is always a new node, so the
+    /// caller may give it a range or emit flags of its own.
+    pub fn deep_clone_node_without_positions(
+        &mut self,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.node(original)?;
+        CrossSourceReuseClone::sharing_position_free(self.arena, original).clone_node(original.node)
+    }
+
     pub fn update_node(
         &mut self,
         original: TransformNode,
@@ -7657,6 +7677,50 @@ struct CrossSourceReuseClone<'a> {
     target: TransformSourceId,
     nodes: BTreeMap<NodeId, NodeId>,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+    /// The root of a copy within one source that shares the subtrees
+    /// without a position ([`NodeFactory::deep_clone_node_without_positions`]);
+    /// `None` copies every node.
+    sharing_root: Option<NodeId>,
+    /// Whether a node's subtree has no position, for the sharing copy.
+    position_free: FxHashMap<NodeId, bool>,
+}
+
+/// Whether no node and no list of `node`'s subtree has a position (a list's
+/// trailing comma is a flag of its own and needs none).
+fn subtree_has_no_position(
+    arena: &tsc_syntax::NodeArena,
+    known: &mut FxHashMap<NodeId, bool>,
+    node: NodeId,
+) -> bool {
+    if let Some(&free) = known.get(&node) {
+        return free;
+    }
+    if !arena.contains_node(node) {
+        // Left to the copy, which reports the unknown node.
+        return false;
+    }
+    let record = arena.node(node);
+    let list_has_no_position = |array: NodeArrayId| {
+        let list = arena.node_array(array);
+        list.pos == u32::MAX && list.end == u32::MAX
+    };
+    let free = record.pos == u32::MAX
+        && record.end == u32::MAX
+        && record.js_doc.is_none_or(|array| {
+            list_has_no_position(array)
+                && arena
+                    .node_array(array)
+                    .nodes
+                    .iter()
+                    .all(|&child| subtree_has_no_position(arena, known, child))
+        })
+        && tsc_syntax::for_each_child_array(record, |array| !list_has_no_position(array)).is_none()
+        && tsc_syntax::for_each_child(arena, record, |child| {
+            !subtree_has_no_position(arena, known, child)
+        })
+        .is_none();
+    known.insert(node, free);
+    free
 }
 
 impl<'a> CrossSourceReuseClone<'a> {
@@ -7671,6 +7735,31 @@ impl<'a> CrossSourceReuseClone<'a> {
             target,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
+            sharing_root: None,
+            position_free: FxHashMap::default(),
+        }
+    }
+
+    /// The copy of `root`'s subtree within its source that shares every
+    /// subtree without a position.
+    fn sharing_position_free(arena: &'a mut TransformArena, root: TransformNode) -> Self {
+        Self {
+            sharing_root: Some(root.node),
+            ..Self::new(arena, root.source, root.source)
+        }
+    }
+
+    /// Whether the sharing copy keeps `node` as it is: every node but the
+    /// root whose subtree has no position.
+    fn shares(&mut self, node: NodeId) -> bool {
+        if self.sharing_root.is_none_or(|root| root == node) {
+            return false;
+        }
+        match self.arena.source(self.source) {
+            Ok(source) => {
+                subtree_has_no_position(&source.source.arena, &mut self.position_free, node)
+            }
+            Err(_) => false,
         }
     }
 
@@ -7684,6 +7773,9 @@ impl<'a> CrossSourceReuseClone<'a> {
             let target = TransformNode::new(self.target, node);
             self.arena.node(target)?;
             return Ok(target);
+        }
+        if self.shares(node) {
+            return Ok(original);
         }
         let record = self.arena.node(original)?.clone();
         let transform_flags = self.arena.transform_flags(original);
@@ -7735,6 +7827,13 @@ impl<'a> CrossSourceReuseClone<'a> {
         let elements = record.nodes.to_vec();
         let (has_trailing_comma, is_missing_list) =
             (record.has_trailing_comma, record.is_missing_list);
+        if self.sharing_root.is_some()
+            && record.pos == u32::MAX
+            && record.end == u32::MAX
+            && elements.iter().all(|&node| self.shares(node))
+        {
+            return Ok(array);
+        }
         let transform_flags = self.arena.array_transform_flags(original);
         let mut nodes = Vec::with_capacity(elements.len());
         for node in elements {
