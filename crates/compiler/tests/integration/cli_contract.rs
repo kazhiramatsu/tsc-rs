@@ -7978,3 +7978,50 @@ fn ambient_modules_merge_after_the_global_augmentations_like_tsgo() {
         )
     );
 }
+
+#[test]
+fn a_nested_call_resolution_keeps_the_errors_of_the_outer_one_like_tsgo() {
+    // The call in the body of an arrow function argument is resolved again
+    // while it is being resolved (the argument is checked for the outer call's
+    // inference). The nested resolution skips the constraint checks and
+    // succeeds; resolveCall has no early return for the signature it cached
+    // (checker/checker.go:9117-9133), so the outer resolution still fails and
+    // reports, and getResolvedSignature swaps to the cached signature only
+    // afterwards (8606-8614). tsc 6.0 returned the cached signature before
+    // reporting, which with the unchecked nested resolution lost the error
+    // (zod's `// @ts-expect-error` lines over `z.templateLiteral([…])` became
+    // unused directives). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function expect<T>(actual: T): void;\n",
+            "declare function templateLiteral<const Parts extends string[]>(parts: Parts): Parts;\n",
+            "declare function obj(): { o: 1 };\n",
+            "expect(() => templateLiteral([obj()]));\n",
+            "expect(() => templateLiteral([{}]));\n",
+            "templateLiteral([obj()]);\n",
+            "declare function lit<const P extends readonly (string | number)[]>(parts: P): P;\n",
+            "expect(() => lit([obj(), \"a\"]));\n",
+            "const direct = () => lit([obj()]);\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(4,31): error TS2322: Type '{ o: 1; }' is not assignable to type 'string'.\n",
+            "a.ts(5,31): error TS2322: Type '{}' is not assignable to type 'string'.\n",
+            "a.ts(6,18): error TS2322: Type '{ o: 1; }' is not assignable to type 'string'.\n",
+            "a.ts(8,19): error TS2322: Type '{ o: 1; }' is not assignable to type 'string | number'.\n",
+            "a.ts(9,27): error TS2322: Type '{ o: 1; }' is not assignable to type 'string | number'.\n",
+        )
+    );
+}

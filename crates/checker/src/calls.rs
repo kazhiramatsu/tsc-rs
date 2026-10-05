@@ -4085,15 +4085,13 @@ impl<'a> CheckerState<'a> {
         self.call_resolution_stack.pop();
         let result: Option<SignatureId> = chosen?;
 
-        // 76621-76625: a re-entrant resolution (context-sensitive arg →
-        // contextual read → getResolvedSignature of the SAME node) may
-        // have concretely resolved the links mid-flight.
-        if let LinkSlot::Resolved(resolved) = self
-            .links
-            .read_node(node, |links| links.resolved_signature.get())
-        {
-            return Ok(resolved);
-        }
+        // tsgo resolveCall (checker.go:9117-9133) has no early return for a
+        // signature that a re-entrant resolution of the same node cached
+        // meanwhile (tsc 6.0 returned it here, 76621-76625):
+        // getResolvedSignature swaps to the cached one after this returns,
+        // and a failed resolution reports its errors first. A nested
+        // resolution skips the constraint checks, so taking its signature
+        // here would lose the outer one's errors.
         if let Some(result) = result {
             return Ok(result);
         }
@@ -4126,12 +4124,6 @@ impl<'a> CheckerState<'a> {
                 /*is_single_non_generic_candidate*/ false,
                 true,
             )?;
-            if let LinkSlot::Resolved(resolved) = self
-                .links
-                .read_node(node, |links| links.resolved_signature.get())
-            {
-                return Ok(resolved);
-            }
             if let Some(retry) = retry {
                 return Ok(retry);
             }
@@ -6722,6 +6714,17 @@ impl<'a> CheckerState<'a> {
                 if result == self.resolving_signature {
                     return Ok(result);
                 }
+                // tsgo getResolvedSignature (checker.go:8606-8614): "it's
+                // possible that this inner resolution sets the
+                // resolvedSignature first. In such a case we ignore the
+                // local result and reuse the correct one that was cached."
+                let result = match self
+                    .links
+                    .read_node(node, |links| links.resolved_signature.get())
+                {
+                    LinkSlot::Resolved(cached) => cached,
+                    _ => result,
+                };
                 if self.flow_loop_start as usize == self.flow_loop_stack.len() {
                     self.links.set_node_resolved_signature_call_protocol(
                         self.speculation_depth,
