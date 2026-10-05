@@ -10348,11 +10348,6 @@ impl<'a> CheckerState<'a> {
             });
         self.check_module_export_name(property_name, has_module_specifier)?;
         self.check_module_export_name(name, true)?;
-        if crate::declaration_emit::emit_declarations(self.options) {
-            if let Some(name) = property_name.or(name) {
-                self.collect_linked_aliases(name, /*set_visibility*/ true)?;
-            }
-        }
         if !has_module_specifier {
             let Some(exported_name) = property_name.or(name) else {
                 return Ok(());
@@ -10615,9 +10610,6 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                 }
-            }
-            if crate::declaration_emit::emit_declarations(self.options) {
-                self.collect_linked_aliases(expression, /*set_visibility*/ true)?;
             }
         }
         if is_illegal_export_default_in_cjs {

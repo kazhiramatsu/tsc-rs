@@ -661,6 +661,10 @@ pub struct CheckerState<'a> {
     /// the file check, in the order they were queued, because printing the
     /// type earlier can resolve a type that is still being resolved.
     pub(crate) deferred_diagnostics: Vec<DeferredDiagnostic>,
+    /// tsgo `declarationFileLinks.aliasesMarked` (emitresolver.go:236-246):
+    /// the source files whose export assignments and export specifiers
+    /// have marked their targets visible for declaration emit.
+    pub(crate) declaration_emit_aliases_marked: rustc_hash::FxHashSet<NodeId>,
     pub(crate) potential_unused_renamed_binding_elements_in_types: Vec<NodeId>,
     /// tsc allPotentiallyUnusedIdentifiers, keyed by the owning source
     /// file's root. A checker visit can force a declaration in another
@@ -1534,6 +1538,7 @@ impl<'a> CheckerState<'a> {
             potential_weak_map_set_collisions: Vec::new(),
             potential_reflect_collisions: Vec::new(),
             deferred_diagnostics: Vec::new(),
+            declaration_emit_aliases_marked: rustc_hash::FxHashSet::default(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
             potentially_unused_identifiers: rustc_hash::FxHashMap::default(),
             deferred_global_disposable_type: None,
