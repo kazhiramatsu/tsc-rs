@@ -1172,4 +1172,44 @@ fn position_free_copy_shares_the_subtrees_without_a_position() {
         union_members(&arena, shared),
         union_members(&arena, free_union)
     );
+
+    // A synthetic comment is not copied (emitNode.copyFrom,
+    // printer/emitcontext.go:562-574), so a node that has one is not its
+    // own copy: the `elided` placeholder is copied without the comment and
+    // the original keeps it.
+    let elided = arena
+        .factory()
+        .create_keyword_type_node(source, SyntaxKind::AnyKeyword)
+        .unwrap();
+    arena
+        .metadata_mut(elided)
+        .add_leading_comment(crate::SyntheticComment::new(
+            crate::SyntheticCommentKind::MultiLine,
+            "elided",
+            false,
+            false,
+        ));
+    let commented_types = arena
+        .factory()
+        .create_node_array(source, vec![copy, elided])
+        .unwrap();
+    let commented = arena
+        .factory()
+        .create_union_type_node(source, commented_types)
+        .unwrap();
+    let uncommented = arena
+        .factory()
+        .deep_clone_node_without_positions(commented)
+        .unwrap();
+    let (_, original_members) = union_members(&arena, commented);
+    let (_, copied_members) = union_members(&arena, uncommented);
+    assert_eq!(copied_members[0], original_members[0]);
+    assert_ne!(copied_members[1], original_members[1]);
+    let comments = |node: NodeId| {
+        arena
+            .metadata(arena.node_ref(source, node).unwrap())
+            .map_or(0, |metadata| metadata.leading_comments().len())
+    };
+    assert_eq!(comments(original_members[1]), 1);
+    assert_eq!(comments(copied_members[1]), 0);
 }

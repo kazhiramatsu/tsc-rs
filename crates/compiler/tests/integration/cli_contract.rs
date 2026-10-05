@@ -6235,3 +6235,365 @@ fn async_arrow_concise_body_block_maps_like_tsgo() {
         r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAEA,IAAI,CAAC,GAAS,EAAE,kDACd,OAAA,IAAI,CAAC,QAAQ,CAAC,GAAG,EAAE,CAAC,IAAI,CAAC,CAAA,CAC3B,CAAC,CAD0B,EACzB,CAAC,CAAC,CAAC"}"#
     );
 }
+
+#[test]
+fn declaration_type_parameter_names_end_with_their_scope_like_tsgo() {
+    // enterNewScope gives the names a scope took back when it ends: every
+    // local a reused fake scope gained is removed and every replaced one is
+    // put back (checker/nodebuilderscopes.go:142-152), and a mapped type names
+    // its parameter inside its scope (checker/nodebuilderimpl.go:1582-1593).
+    // tsc 6.0 undid only the first local of each kind and named a mapped
+    // type's parameter before the scope, so a sibling conditional type's
+    // `infer _E` became `_E_1`, the generic return type after a parameter
+    // holding `<O, E, R>(…)` became `<E_1, R_1>`, the second member of a
+    // returned type literal became `<R, O_1, E_1, …>` and a sibling mapped
+    // type's `K` became `K_1`. A parameter that does shadow one in scope is
+    // still renamed. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export interface Box<A, E> { a: A; e: E }\n",
+            "export interface Fail<A, E> { b: A; f: E }\n",
+            "export interface Kind<F, R, O, E, A> { f: F; r: R; o: O; e: E; a: A }\n",
+            "export const builder = <T extends Box<any, any>>(self: T): [\n",
+            "  T extends Box<infer _A, infer _E> ? _A : never,\n",
+            "  T extends Fail<infer _A, infer _E> ? _E : never,\n",
+            "  T extends Box<infer _A, infer _E> ? true : never\n",
+            "] => null as any\n",
+            "declare function dual<A, B>(n: number, f: unknown): A & B\n",
+            "export const repeat = dual<{\n",
+            "  <Output, Input>(builder: ($: <O, E, R>(_: [O, E, R, Input]) => [O, E, R]) => Output): <E, R>(self: [Input, E, R]) => [Output, E, R]\n",
+            "}, {\n",
+            "  <Input, E, R, Output>(self: [Input, E, R], builder: ($: <O, E, R>(_: [O, E, R, Input]) => [O, E, R]) => Output): [Output, E, R]\n",
+            "}>(2, null)\n",
+            "export const let_ = <F>(map: F): {\n",
+            "  <N extends string, A extends object, B>(name: N, f: (a: A) => B): <R, O, E>(self: Kind<F, R, O, E, A>) => Kind<F, R, O, E, B>\n",
+            "  <R, O, E, A extends object, N extends string, B>(self: Kind<F, R, O, E, A>, name: N, f: (a: A) => B): Kind<F, R, O, E, B>\n",
+            "} => null as any\n",
+            "declare function pair<T, U>(x: T, y: U): { a: { [K in keyof T]: T[K] }; b: { [K in keyof U]: [U[K]] } }\n",
+            "export const g = <T, U>(x: T, y: U) => pair(x, y)\n",
+            "export const m = <T>(x: T): { a: { [K in keyof T]: T[K] }; b: { [K in keyof T]: { [K in keyof T]: T[K] } } } => null as any\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2022","module":"esnext","strict":true,"declaration":true,"declarationMap":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.d.ts"),
+        concat!(
+            "export interface Box<A, E> {\n",
+            "    a: A;\n",
+            "    e: E;\n",
+            "}\n",
+            "export interface Fail<A, E> {\n",
+            "    b: A;\n",
+            "    f: E;\n",
+            "}\n",
+            "export interface Kind<F, R, O, E, A> {\n",
+            "    f: F;\n",
+            "    r: R;\n",
+            "    o: O;\n",
+            "    e: E;\n",
+            "    a: A;\n",
+            "}\n",
+            "export declare const builder: <T extends Box<any, any>>(self: T) => [T extends Box<infer _A, infer _E> ? _A : never, T extends Fail<infer _A, infer _E> ? _E : never, T extends Box<infer _A, infer _E> ? true : never];\n",
+            "export declare const repeat: (<Output, Input>(builder: ($: <O, E, R>(_: [O, E, R, Input]) => [O, E, R]) => Output) => <E, R>(self: [Input, E, R]) => [Output, E, R]) & (<Input, E, R, Output>(self: [Input, E, R], builder: ($: <O, E_1, R_1>(_: [O, E_1, R_1, Input]) => [O, E_1, R_1]) => Output) => [Output, E, R]);\n",
+            "export declare const let_: <F>(map: F) => {\n",
+            "    <N extends string, A extends object, B>(name: N, f: (a: A) => B): <R, O, E>(self: Kind<F, R, O, E, A>) => Kind<F, R, O, E, B>;\n",
+            "    <R, O, E, A extends object, N extends string, B>(self: Kind<F, R, O, E, A>, name: N, f: (a: A) => B): Kind<F, R, O, E, B>;\n",
+            "};\n",
+            "export declare const g: <T, U>(x: T, y: U) => {\n",
+            "    a: { [K in keyof T]: T[K]; };\n",
+            "    b: { [K in keyof U]: [U[K]]; };\n",
+            "};\n",
+            "export declare const m: <T>(x: T) => {\n",
+            "    a: { [K in keyof T]: T[K]; };\n",
+            "    b: { [K in keyof T]: { [K_1 in keyof T]: T[K_1]; }; };\n",
+            "};\n",
+            "//# sourceMappingURL=a.d.ts.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.d.ts.map"),
+        r#"{"version":3,"file":"a.d.ts","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"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"}"#
+    );
+}
+
+#[test]
+fn declaration_alias_chains_try_the_earlier_declared_parent_like_tsgo() {
+    // getSymbolChain orders the parents of a chain's root with sortByBestName
+    // (checker/nodebuilderimpl.go:1153-1170): two module parents by their
+    // specifiers, any other pair by compareSymbols. A module that exports the
+    // target and is declared before the alias's container is therefore tried
+    // first: where the scope shadows the alias, the target is written through
+    // the module (`typeof import("./f1")`, `typeof import("./f2").g`) rather
+    // than through the container (`typeof M.d`, `typeof M.e`, as tsc 6.0
+    // did). An alias no imported module exports keeps its container
+    // (`typeof M.k`), and an alias that is not shadowed is used by its name.
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("f1.ts"),
+        concat!("namespace f { export class c { } }\n", "export = f;\n",),
+    )
+    .expect("write f1.ts");
+    fs::write(
+        tree.path("f2.ts"),
+        "export namespace g { export class c { } }\n",
+    )
+    .expect("write f2.ts");
+    fs::write(
+        tree.path("f0.ts"),
+        concat!(
+            "import im = require('./f1');\n",
+            "import * as two from './f2';\n",
+            "namespace Loc { export namespace Deep { export class K { } } }\n",
+            "export namespace M {\n",
+            "    export import d = im;\n",
+            "    export import e = two.g;\n",
+            "    export import k = Loc.Deep;\n",
+            "}\n",
+            "export namespace M.P {\n",
+            "    export var viaD = M.d;\n",
+            "    export var viaE = M.e;\n",
+            "    export var viaK = M.k;\n",
+            "}\n",
+            "export namespace M.R {\n",
+            "    export var d = 1;\n",
+            "    export var e = 2;\n",
+            "    export var k = 3;\n",
+            "    export var two = 4;\n",
+            "    export var Loc = 5;\n",
+            "    export var viaD = M.d;\n",
+            "    export var viaE = M.e;\n",
+            "    export var viaK = M.k;\n",
+            "}\n",
+        ),
+    )
+    .expect("write f0.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","declaration":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["f1.ts","f2.ts","f0.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/f0.d.ts")).expect("read out/f0.d.ts"),
+        concat!(
+            "import im = require('./f1');\n",
+            "import * as two from './f2';\n",
+            "declare namespace Loc {\n",
+            "    namespace Deep {\n",
+            "        class K {\n",
+            "        }\n",
+            "    }\n",
+            "}\n",
+            "export declare namespace M {\n",
+            "    export import d = im;\n",
+            "    export import e = two.g;\n",
+            "    export import k = Loc.Deep;\n",
+            "}\n",
+            "export declare namespace M.P {\n",
+            "    var viaD: typeof d;\n",
+            "    var viaE: typeof e;\n",
+            "    var viaK: typeof k;\n",
+            "}\n",
+            "export declare namespace M.R {\n",
+            "    var d: number;\n",
+            "    var e: number;\n",
+            "    var k: number;\n",
+            "    var two: number;\n",
+            "    var Loc: number;\n",
+            "    var viaD: typeof import(\"./f1\");\n",
+            "    var viaE: typeof import(\"./f2\").g;\n",
+            "    var viaK: typeof M.k;\n",
+            "}\n",
+            "export {};\n",
+        )
+    );
+}
+
+#[test]
+fn declaration_cached_type_copy_drops_the_elided_comment_like_tsgo() {
+    // A hit of the serialized type cache hands out DeepCloneNode's copy, and
+    // the clone hook copies an emit node without its synthetic comments
+    // (emitNode.copyFrom, printer/emitcontext.go:562-574): the second use of
+    // the cached literal writes its elided placeholders as plain `any`. tsc
+    // 6.0 merged the comments into the clone. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export var circularReference = class C {\n",
+            "    static getTags(c: C): C { return c }\n",
+            "    tags(c: C): C { return c }\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","declaration":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare var circularReference: {\n",
+            "    new (): {\n",
+            "        tags(c: /*elided*/ any): /*elided*/ any;\n",
+            "    };\n",
+            "    getTags(c: {\n",
+            "        tags(c: /*elided*/ any): /*elided*/ any;\n",
+            "    }): {\n",
+            "        tags(c: any): any;\n",
+            "    };\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn expando_member_types_name_exported_functions_like_tsgo() {
+    // The types of an expando function's members are written inside its
+    // namespace, where the file's own declarations are in scope: an exported
+    // function is `typeof Vec2`, like a local function or a class. tsc 6.0
+    // qualified an exported function with its module there
+    // (`typeof import("./a").Vec2`). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export function Vec2(len: number) {}\n",
+            "function local(len: number) {}\n",
+            "export class K {}\n",
+            "export function P2(x: number) {}\n",
+            "P2.direct = Vec2;\n",
+            "P2.obj = { p: Vec2, q: local, k: K };\n",
+            "P2.arrow = (v: typeof Vec2) => v;\n",
+            "export const Q = (x: number) => x;\n",
+            "Q.obj = { p: Vec2 };\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","strict":true,"declaration":true,"emitDeclarationOnly":true,"outDir":"out"},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        concat!(
+            "export declare function Vec2(len: number): void;\n",
+            "declare function local(len: number): void;\n",
+            "export declare class K {\n",
+            "}\n",
+            "export declare function P2(x: number): void;\n",
+            "export declare namespace P2 {\n",
+            "    export { Vec2 as direct };\n",
+            "    export var obj: {\n",
+            "        p: typeof Vec2;\n",
+            "        q: typeof local;\n",
+            "        k: typeof K;\n",
+            "    };\n",
+            "    export var arrow: (v: typeof Vec2) => typeof Vec2;\n",
+            "}\n",
+            "export declare function Q(x: number): number;\n",
+            "export declare namespace Q {\n",
+            "    var obj: {\n",
+            "        p: typeof Vec2;\n",
+            "    };\n",
+            "}\n",
+            "export {};\n",
+        )
+    );
+}
+
+#[test]
+fn jsx_children_start_on_their_own_marks_like_tsgo() {
+    // With more than one child, each JSX child is marked to start on a new
+    // line (transformers/jsxtransforms/jsx.go:709-713). The CommonJS
+    // transform replaces an imported name with a new access that takes only
+    // the name's ranges, so `{tree}` is written on the call's line, and an
+    // exported local with `exports.` and a clone of the name, which keeps
+    // the mark: `exports.⏎local`
+    // (transformers/moduletransforms/commonjsmodule.go:2064-2124). An element
+    // child and a local name keep their own lines. tsc substituted the names
+    // while printing, after the list had read the marks. The expected bytes
+    // are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("renderer.ts"),
+        "export function dom(...args: any[]): any { return args; }\n",
+    )
+    .expect("write renderer.ts");
+    fs::write(tree.path("component.ts"), "export const tree: any = 1;\n")
+        .expect("write component.ts");
+    fs::write(
+        tree.path("a.tsx"),
+        concat!(
+            "import { dom } from \"./renderer\";\n",
+            "import { tree } from \"./component\";\n",
+            "declare const Box: any;\n",
+            "export let local: any = tree;\n",
+            "const both = <Box x={1}>{tree}{tree}</Box>;\n",
+            "const first = <Box x={1}>{tree}<Box /></Box>;\n",
+            "const last = <Box x={1}><Box />{tree}</Box>;\n",
+            "const exported = <Box x={1}>{local}{local}</Box>;\n",
+            "const plain = <Box x={1}>{Box}{Box}</Box>;\n",
+        ),
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","jsx":"react","jsxFactory":"dom","sourceMap":true,"outDir":"out"},"files":["a.tsx"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.local = void 0;\n",
+            "const renderer_1 = require(\"./renderer\");\n",
+            "const component_1 = require(\"./component\");\n",
+            "exports.local = component_1.tree;\n",
+            "const both = (0, renderer_1.dom)(Box, { x: 1 }, component_1.tree, component_1.tree);\n",
+            "const first = (0, renderer_1.dom)(Box, { x: 1 }, component_1.tree,\n",
+            "    (0, renderer_1.dom)(Box, null));\n",
+            "const last = (0, renderer_1.dom)(Box, { x: 1 },\n",
+            "    (0, renderer_1.dom)(Box, null), component_1.tree);\n",
+            "const exported = (0, renderer_1.dom)(Box, { x: 1 }, exports.\n",
+            "    local, exports.\n",
+            "    local);\n",
+            "const plain = (0, renderer_1.dom)(Box, { x: 1 },\n",
+            "    Box,\n",
+            "    Box);\n",
+            "//# sourceMappingURL=a.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.js.map"),
+        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.tsx"],"names":[],"mappings":";;;AAAA,yCAAiC;AACjC,2CAAmC;AAExB,QAAA,KAAK,GAAQ,gBAAI,CAAC;AAC7B,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI,EAAE,gBAAI,CAAO,CAAC;AAC3C,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI;IAAC,oBAAC,GAAG,OAAG,CAAM,CAAC;AAC7C,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAE,oBAAC,GAAG,OAAG,EAAC,gBAAI,CAAO,CAAC;AAC5C,MAAM,QAAQ,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG;IAAA,KAAK,EAAE;IAAA,KAAK,CAAO,CAAC;AACjD,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAG,GAAG;IAAE,GAAG,CAAO,CAAC"}"#
+    );
+}

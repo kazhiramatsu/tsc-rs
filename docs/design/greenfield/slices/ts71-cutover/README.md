@@ -2825,3 +2825,96 @@ P3-5bbの後、README corporaの宣言（`.d.ts`と`.d.ts.map`）をtsgoと比�
     出す（Vue.jsで0.35 s、597 MB）。
 - hosted：PR #680（head `c0213e6c2`）、run 37274156113 — `plan` 29s、`rust` 10m9s、`conformance (TypeScript 7.1)` 15m51s、
   `gates` 14s。
+
+## P3-5bd 型parameterの名前のscope、鎖の親の順序、複製の合成コメント、JSXの子の行（2026-10-05）
+
+P3-5bcの「次」のうち宣言の名前に関わるものと、conformanceのemitに残っていた不一致のうち原因が近いもの：
+- **scopeが終わると、取った名前を全て返す**：`enterNewScope`の後始末は、再利用したfake scopeに足した名前を全て
+  消し、上書きした名前を全て戻す（checker/nodebuilderscopes.go:142-152）。自分で作ったfake scopeは、囲みの宣言を
+  戻すと一緒に無くなる。tsc 6.0は`Map.delete`と`Map.set`を短絡する`forEach`に渡していて最初の1件だけを戻し、
+  既存nodeのvisitorのscopeの後始末（`SyntacticScopeCleanup`）がそれを再現していた。再利用した注釈の中で、兄弟の
+  conditional typeの`infer _E`が`_E_1`に、`<O, E, R>(…)`を持つparameterの後のgenericな戻り値の型が
+  `<E_1, R_1>`に、返されるtype literalの2つ目のmemberが`<R, O_1, E_1, …>`になっていた。後始末はlocalsをscopeに
+  入る前の状態に戻すだけにした。再利用するmapped typeのscopeは、そのmapped type自身の型parameterを取る
+  （checker/nodecopy.go:842-846。該当の分岐が、scopeを開かないinfer型を見ていた）。
+- **mapped typeの型parameterはscopeの中で名付ける**：`createMappedTypeNodeFromType`は、mapped typeの型parameterで
+  scopeに入ってから、その宣言、name type、templateを作る（checker/nodebuilderimpl.go:1582-1593）。scopeが終われば
+  名前は返るので、兄弟のmapped typeはまた`K`と書く。tsc 6.0はscopeに入る前に名付けていた（`K_1`）。
+- **鎖の親の順序**：`getSymbolChain`は鎖の根の親を`sortByBestName`で並べる（checker/nodebuilderimpl.go:1105-1107、
+  1153-1170）。module同士はspecifierで、それ以外の組は`compareSymbols`で比べる。tsc 6.0は両方にspecifierが無い
+  限り0を返し、実のcontainerが先に残っていた。targetをexportしていて、aliasのcontainerより前に宣言されたmoduleが
+  先に試されるので、scopeに隠されたaliasはmodule経由で書かれる（`typeof import("./f1")`、
+  `typeof import("./f2").g`。6.0は`typeof M.d`）。importしたmoduleがexportしていないtargetはcontainer経由のまま
+  （`typeof M.k`）。比較は全順序でないので、`slices.SortStableFunc`が20件までに使う挿入sortで並べる。
+- **cacheの複製は合成コメントを持たない**：複製は元のnodeのemit nodeを`emitNode.copyFrom`で受け取り、これはflagsや
+  rangeは写すが合成コメントは写さない（printer/emitcontext.go:562-574）。cacheのhitが返す複製
+  （`DeepCloneNode`）は、省略のplaceholderをただの`any`と書く：
+  `getTags(c: { tags(c: /*elided*/ any): /*elided*/ any; }): { tags(c: any): any; };`。tsc 6.0はコメントも複製に
+  mergeしていた。位置無しの複製は、複製するnodeから合成コメントを落とし、合成コメントを持つ部分木は共有しない。
+- **合成のscopeでも、exportされた関数は名前で見つかる**：`lookupSymbolChainWorker`はそのまま`getSymbolChain`に進む
+  （checker/nodebuilderimpl.go:1065-1078）。expandoの関数のmemberを書くnamespaceからは、fileのexportされた関数も
+  localな関数やclassと同じく名前で届く。emitの経路は、合成の囲みの宣言の下でmoduleを親に持つ関数を全てmodule付きで
+  返していた（tsc 6.0の出力、`typeof import("./a").Vec2`。tsgoは`typeof Vec2`）。
+- **JSXの子の改行は、子ごとの印**：JSXのtransformは、子が2つ以上あるとき子の1つ1つに「新しい行で始める」印を
+  付け（transformers/jsxtransforms/jsx.go:709-713、750-754）、listは印を持つ引数だけを新しい行に書く。CommonJSの
+  transformは、importした名前を、名前のrangeだけを受け取る新しいaccessに置き換え、exportしたlocalを`exports.`と
+  名前の複製（emit flagsを保つ）に置き換える（transformers/moduletransforms/commonjsmodule.go:2064-2124）：
+  `(0, r.dom)(Box, { x: 1 }, component_1.tree, component_1.tree);`、
+  `(0, r.dom)(Box, { x: 1 }, exports.⏎local, exports.⏎local);`。tscは呼び出しに印を付け、名前は印字のときに
+  置き換えていたので、子は全て新しい行で始まっていた。印を子のものにし、呼び出しの引数のlistは引数ごとに印を読み
+  （先に印字時の置き換えを尋ねる）、moduleの置き換えはaccessに印を残さず`exports`のmemberの名前に移し、property
+  accessは印を持つ名前の前（dotの後）で改行する（`getLinesBetweenNodes`）。
+- unit test：CLI（tsgoの出力にpin）で5件（scopeをまたぐ型parameterの名前、module経由のaliasの鎖、複製の省略
+  placeholder、expandoのmemberの型、JSXの子の行）。emitterの位置無しの複製のtestに合成コメントの規則を足した。
+- 結果：Effectの`bench-full`は、宣言495/496、d.ts.map 496/496がtsgoの6回の出力のどれかと同じbyteになった
+  （P3-5bcは484と486）。残るのは`ai/internal/mcpProtocol/v2026_07_28.d.ts`（匿名のobject型のunionの順序）だけ。
+  他の6 corporaは全fileがtsgoと同じまま。
+- conformance（release build、`71feb95f6`、`--workers 2`、539 s）：15,228構成、lane A 13,467、full 13,411、emit full
+  13,431、emitの不一致9、`.js.map`の不一致1。P3-5bcの最後のreportと比べて変わったのは、emitがFullに上がった8構成
+  だけ：`declarationEmitHigherOrderRetainedGenerics`、`declarationEmitMappedTypeDistributivityPreservesConstraints`
+  （名前のscope）、`declarationEmitNameConflicts`、`es5ExportEqualsDts`（target=es2015、鎖の親の順序）、
+  `emitClassExpressionInDeclarationFile`、`noImplicitThisBigThis`（合成コメント）、
+  `jsDeclarationsFunctionLikeClasses2`（target=es2015、expandoのmember）、`inlineJsxFactoryDeclarationsLocalTypes`
+  （JSXの子の行）。他の構成はtierも、診断とemitのdigestも同じ。途中は18のfilter（`sx`、`eclaration`、`xpando`、
+  `unction`、`mport`、`xport`、`odule`、`lias`、`amespace`、`ypeParameter`、`eneric`、`nfer`、`apped`、
+  `onditional`、`sdoc`、`ommonjs`、`ropert`、`all`）をP3-5bcのreportと行ごとに比べた。
+- `--checkers 4`の並列対照：`--filter eclaration`（1,768 case、2,426構成）を1 checkerの同じfilterと比べ、2,424構成が
+  同じ。違う2構成は記録済みのpartition依存。全caseの対照はlocalの負荷の方針により実行していない。
+- ratchet：0 regressions。上の8行のemitを`none`から`js`に上げた。
+- local：formatと、checker・emitter・compiler・conformanceのclippy、test（`624a9c055`で2,709件）。workspace全体の
+  testとclippyはhostedの`rust` job。
+- perf（README corporaとVue.js、nice 20、main（P3-5bcのbuild、`fdebe320e`）対tsgo 7.1.0-dev、branchは
+  `71feb95f6`。どちらもconformanceと一緒のbuild）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 142→158、zod 571→570、Playwright 409→402、TypeScript
+    `src/compiler` 355→358、Next.js 863→807、Effect 571→530、Vue.js 400→377、VS Code 3,785→3,723。読み込んだ文書数と
+    診断は8 corporaで同一。honoは1 checkerの命令数で4.321→4.319 G（3回のmedian）で、差は計測の揺れ。
+  - `tsconfig.bench-full.json` 3回：hono 154→153、zod 736→713、Playwright 536→575（最小値は534→535）、TypeScript
+    `src/compiler` 564→548、Next.js 1,162→1,128、Effect 831→845、Vue.js 461→486（最小値は453→460）。7 corporaとも
+    診断は同一で、出力の違いはEffectの21 fileだけ（全てtsgoと同じになった側）。
+  - 10回のA/B：`--noEmit` Effect 561→549、zod 569→573、VS Code 3,714→3,697、Next.js 842→830、Vue.js 388→382。
+    `bench-full` TypeScript `src/compiler` 534→540、Next.js 1,099→1,098、Playwright 538→536、Effect 836→837、
+    Vue.js 460→447。peakは全て±1%以内（Effectの`bench-full` 1,164→1,170 MB）。1 checkerの命令数branch÷main：
+    `--noEmit` zod 1.00049、Effect 0.99947、Next.js 0.99983、Playwright 1.00018、Vue.js 0.99994、hono 0.99954、
+    `bench-full` TypeScript `src/compiler` 0.99987、Next.js 1.00034、Vue.js 1.00011、Effect 1.00066、hono
+    1.00032。劣化無し。
+  - tsgo（同じ計測の3回のmedian、ms／peak MB）：`--noEmit` hono 191／324、zod 902／1,809、Playwright 585／1,016、
+    TypeScript `src/compiler` 374／386、Next.js 1,334／1,684、Effect 833／1,214、Vue.js 519／721、VS Code
+    5,034／6,758。`bench-full` hono 226／381、zod 1,088／2,027、Playwright 768／1,308、TypeScript `src/compiler`
+    661／672、Next.js 1,772／2,041、Effect 1,182／1,806、Vue.js 659／860。（この回は計測機の負荷がP3-5bcの回より
+    高く、3者とも1割ほど遅い。）
+- 次：
+  - **tsgoは基底型を処理する前にmemberを公開しない**：`resolveObjectTypeMembers`は、基底型のmemberを足し終えてから
+    `setStructuredTypeMembers`を呼ぶ（checker/checker.go:19446-19493）。tsc 6.0（とtsc-rs）は基底型の前に自分の
+    memberだけを一度公開するので、基底型の型引数のinstantiationが解決中の型のmemberを要るとき、6.0は途中の表で
+    終わり、tsgoは同じ解決に再び入って深さ100でTS5115を出す。Vue.jsの
+    `packages/compiler-sfc/src/style/pluginScoped.ts(107,3)`のTS5115（と続くTS7006の2件）は14行に縮められ
+    （`type Diff<T, U> = T extends U ? never : T`、`interface _Selector<S> extends Container<string, Diff<Node, S>>`、
+    `type Selector = _Selector<Selector>`）、conformanceの`keyofGenericExtendingClassDoubleLayer`のTS5115
+    （`'Model', 'ModelAttributes', 'Exclude'`）も同じ形。
+  - Vue.jsの`packages/runtime-dom/src/directives/vModel.ts(446,37)`のTS2345（unionの呼び出しで
+    `DirectiveBinding<any, string, any>`が`DirectiveBinding<any, "number", any>`に代入できない）。
+  - JavaScriptの`@type`がgenericな関数型のとき、関数宣言の型parameter（`ensureTypeParams`の`FullSignature`、
+    `CreateTypeParametersOfSignatureDeclaration`、transformers/declarations/transform.go:2358-2390。
+    `typeTagOnFunctionReferencesGeneric`）。
+  - 匿名のmapped typeのunionの順序（`comparisonAnonymousMappedTypes`、`comparisonReverseMappedTypes`）、構文errorの
+    回復でのコメントの二重出力（`objectTypesWithOptionalProperties2`）。

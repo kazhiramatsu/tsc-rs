@@ -10758,7 +10758,33 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let transformed =
             create_import_binding_access(self.context, self.source, target, &binding)?;
         self.set_original_and_range(transformed, original)?;
+        self.leave_reference_on_its_line(transformed)?;
         Ok(transformed)
+    }
+
+    /// tsgo builds the access that replaces an imported or exported name as a
+    /// new node that takes the name's ranges only
+    /// (transformers/moduletransforms/commonjsmodule.go:2064-2124), so the
+    /// name's `EFStartOnNewLine` is not on it: a JSX child `{tree}` that
+    /// becomes `component_1.tree` stays on the line of the call, while an
+    /// element child keeps its own line. tsc substituted while printing,
+    /// after the list had read the name's flag.
+    fn leave_reference_on_its_line(
+        &mut self,
+        reference: TransformNode,
+    ) -> Result<(), TransformError> {
+        if self
+            .context
+            .arena()
+            .metadata(reference)
+            .is_some_and(|metadata| metadata.starts_on_new_line().is_some())
+        {
+            self.context
+                .arena_mut()?
+                .metadata_mut(reference)
+                .starts_on_new_line = None;
+        }
+        Ok(())
     }
 
     fn substitute_identifier(
@@ -10809,7 +10835,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     let name = identifier_text_owned(self.context.arena(), original)?;
                     let transformed = self.create_export_access(&name)?;
                     // tsgo accesses the reference's clone, which maps to the
-                    // reference (commonjsmodule.go:2070-2079).
+                    // reference (commonjsmodule.go:2070-2079). The clone has
+                    // the reference's emit flags, so a JSX child's
+                    // `EFStartOnNewLine` moves to the member name:
+                    // `exports.⏎local`.
                     if let NodeData::PropertyAccessExpression(access) =
                         self.context.arena().node(transformed)?.data.clone()
                     {
@@ -10820,9 +10849,21 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                             if self.context.arena().node(original)?.pos != u32::MAX {
                                 self.set_source_map_range_from(member, original)?;
                             }
+                            if self
+                                .context
+                                .arena()
+                                .metadata(original)
+                                .is_some_and(|metadata| metadata.starts_on_new_line() == Some(true))
+                            {
+                                self.context
+                                    .arena_mut()?
+                                    .metadata_mut(member)
+                                    .set_starts_on_new_line(true);
+                            }
                         }
                     }
                     self.set_original_and_range(transformed, original)?;
+                    self.leave_reference_on_its_line(transformed)?;
                     return Ok(transformed);
                 }
             }

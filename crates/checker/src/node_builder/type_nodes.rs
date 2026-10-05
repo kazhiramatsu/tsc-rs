@@ -2601,32 +2601,29 @@ fn create_mapped_type_node_from_type(
     } else {
         type_to_type_node_helper(checker, arena, target, constraint, context)?
     };
-    let parameter_node = type_parameter_to_declaration_with_constraint(
-        checker,
-        arena,
-        target,
-        parameter,
-        context,
-        constraint_node,
-    )?;
-
-    let scope_parameter = match declaration_data.type_parameter {
-        Some(parameter_declaration) => checker
-            .get_symbol_of_declaration(parameter_declaration)
-            .map(|symbol| checker.get_declared_type_of_type_parameter(symbol))
-            .map_err(|abort| checker_abort_error(checker, context, abort))?,
-        None => parameter,
-    };
+    // The parameter's declaration, the name type and the template are built
+    // in the new scope (checker/nodebuilderimpl.go:1582-1593), whose type
+    // parameter is the mapped type's own: the name it takes is given back
+    // when the scope ends, so a sibling mapped type writes `K` again. tsc
+    // 6.0 named the parameter before it entered the scope (`K_1`).
     let scope = super::signatures::enter_new_scope(
         context,
         Some(declaration),
         None,
-        Some(&[scope_parameter]),
+        Some(&[parameter]),
         None,
         None,
     );
-    prime_type_parameter_names_for_scope(checker, arena, target, context, &[scope_parameter])?;
     let scoped_nodes = (|| -> BuildResult<_> {
+        prime_type_parameter_names_for_scope(checker, arena, target, context, &[parameter])?;
+        let parameter_node = type_parameter_to_declaration_with_constraint(
+            checker,
+            arena,
+            target,
+            parameter,
+            context,
+            constraint_node,
+        )?;
         let name_type = if declaration_data.name_type.is_some() {
             match checker
                 .get_name_type_from_mapped_type(r#type)
@@ -2643,10 +2640,10 @@ fn create_mapped_type_node_from_type(
             .intersects(tsc_types::MappedTypeModifiers::INCLUDE_OPTIONAL);
         let template_type = checker.remove_missing_type(template_type, include_optional);
         let template = type_to_type_node_helper(checker, arena, target, template_type, context)?;
-        Ok((name_type, template))
+        Ok((parameter_node, name_type, template))
     })();
     super::signatures::exit_new_scope(context, scope);
-    let (name_type, template) = scoped_nodes?;
+    let (parameter_node, name_type, template) = scoped_nodes?;
 
     let node = create_node(
         arena,

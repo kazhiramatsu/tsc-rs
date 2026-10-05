@@ -7987,12 +7987,20 @@ impl Printer {
                     self.token_owned_child_prefix(transformation, token, Some(name))?;
                 let container_owned_prefix =
                     self.parent_comment_container_owned_prefix(transformation, node, name)?;
-                let break_after_dot = preserve_source_lines
-                    && self.source_node_leading_trivia_has_line_break(
-                        transformation,
-                        node.source(),
-                        name_id,
-                    )?;
+                // getLinesBetweenNodes always writes a new line for a node
+                // that asks for one (EFStartOnNewLine, printer/printer.go):
+                // the name of an `exports.x` access is a clone of the
+                // reference and keeps a JSX child's mark.
+                let break_after_dot = transformation
+                    .arena()
+                    .metadata(name)
+                    .is_some_and(|metadata| metadata.starts_on_new_line() == Some(true))
+                    || (preserve_source_lines
+                        && self.source_node_leading_trivia_has_line_break(
+                            transformation,
+                            node.source(),
+                            name_id,
+                        )?);
                 if break_after_dot {
                     // The token's same-line trailing comments stay in the
                     // outer scope; only the name's leading boundary opens the
@@ -14844,19 +14852,39 @@ impl Printer {
                     )?;
                 }
                 writer.write_punctuation(",");
+                // emitList (printer/printer.go): an argument that starts on a
+                // new line (EFStartOnNewLine, a JSX child) is written on its
+                // own line one level in, and the level is given back after it;
+                // an argument without the flag follows on the same line.
+                let starts_on_new_line =
+                    |transformation: &TransformationResult<'_>, node: TransformNode| {
+                        transformation
+                            .arena()
+                            .metadata(node)
+                            .is_some_and(|metadata| metadata.starts_on_new_line() == Some(true))
+                    };
+                let mut on_new_line = starts_on_new_line(transformation, node);
+                if on_new_line {
+                    // tsgo's module transform has replaced an imported or
+                    // exported name by now, with an access that does not
+                    // have the mark; here the name is substituted while it
+                    // is printed, so the substitution is asked first.
+                    let substituted = transformation.substitute_node(EmitHint::Expression, node)?;
+                    on_new_line =
+                        substituted == node || starts_on_new_line(transformation, substituted);
+                }
+                let on_new_line = on_new_line || (multi_line && index >= 2);
                 let list_owned = self.emit_delimited_boundary_comments(
                     transformation,
                     DelimitedCommentBoundary::BeforeItem(node),
                     expression_context,
-                    multi_line && index >= 2,
+                    on_new_line,
                     writer,
                 )?;
-                if multi_line && index >= 2 {
+                if on_new_line {
                     writer.write_line(false);
-                    if index == 2 {
-                        writer.increase_indent();
-                        increased_indent = true;
-                    }
+                    writer.increase_indent();
+                    increased_indent = true;
                 } else if !writer.is_at_start_of_line() {
                     // A single-line comment after the comma has already
                     // advanced the writer. CallExpressionArguments is a
@@ -14928,9 +14956,10 @@ impl Printer {
                     )?;
                 }
             }
-        }
-        if increased_indent {
-            writer.decrease_indent();
+            if increased_indent {
+                writer.decrease_indent();
+                increased_indent = false;
+            }
         }
         if !synthesized_array {
             if let Some(last) = ids.last().copied() {
