@@ -32,8 +32,8 @@ use super::type_nodes::{
 use super::{
     can_possibly_expand_type, restore_flags, save_restore_flags,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration_seam,
-    syntactic_serialize_name_of_parameter_seam, syntactic_try_reuse_existing_type_node,
-    type_parameter_to_name, type_to_type_node_helper, NodeBuilderContext,
+    syntactic_serialize_name_of_parameter_seam, type_parameter_to_name, type_to_type_node_helper,
+    NodeBuilderContext,
 };
 
 const WRITE_TYPE_ARGUMENTS_OF_SIGNATURE: u32 = 32;
@@ -1209,12 +1209,17 @@ fn type_to_type_node_helper_with_possible_reusable_type_node(
 ) -> BuildResult<Option<TransformNode>> {
     if !can_possibly_expand_type(r#type, context) {
         if let Some(type_node) = type_node {
-            if checker
-                .get_type_from_type_node(type_node)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?
-                == r#type
+            // `b.getTypeFromTypeNode(typeNode, false) == t`, then
+            // `tryReuseExistingNodeHelper` (checker/nodebuilderimpl.go:
+            // 1669-1681): the node's type under the context's mapper, and the
+            // existing-node visitor without strada's canReuseTypeNode gate.
+            // The declared constraint of an instantiated signature's type
+            // parameter is reused, and the visitor replaces only the type
+            // parameter references the mapper changes.
+            if super::chains::get_type_from_type_node2(checker, context, type_node, false)?
+                == Some(r#type)
             {
-                if let Some(reused) = syntactic_try_reuse_existing_type_node(
+                if let Some(reused) = super::serialize::syntactic_try_reuse_existing_node(
                     checker, arena, target, context, type_node,
                 )? {
                     return Ok(Some(reused));
