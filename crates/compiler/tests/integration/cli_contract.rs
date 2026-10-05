@@ -8241,3 +8241,80 @@ fn a_type_only_import_alias_of_a_declaration_is_not_recorded_like_tsgo() {
         )
     );
 }
+
+#[test]
+fn a_missing_jsx_runtime_is_reported_at_the_first_tag_of_the_file_like_tsgo() {
+    // The module of the automatic JSX runtime cannot be found. tsgo reports it
+    // at the first JSX tag of the file in source order, whichever tag asked
+    // for the runtime first (getJsxNamespaceContainerForImplicitImport,
+    // checker/jsx.go:1449-1484). Here the first tag is in the body of an arrow
+    // function, which is checked after the statement below it. tsc 6.0
+    // reported at the tag that asked first, `<b />`. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.tsx"),
+        concat!(
+            "declare namespace JSX {\n",
+            "    interface IntrinsicElements {\n",
+            "        [name: string]: any;\n",
+            "    }\n",
+            "}\n",
+            "const f = () => <a />;\n",
+            "const x = <b />;\n",
+        ),
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true,"jsx":"react-jsx","moduleResolution":"bundler"},"files":["a.tsx"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.tsx(6,17): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.\n",
+            "a.tsx(6,17): error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.\n",
+            "a.tsx(7,11): error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.\n",
+        )
+    );
+}
+
+#[test]
+fn a_missing_jsx_runtime_is_reported_at_the_opening_of_a_first_fragment_like_tsgo() {
+    // When the first JSX tag of the file is a fragment, the missing runtime
+    // module is reported at its opening `<>`
+    // (getJsxNamespaceContainerForImplicitImport, checker/jsx.go:1463-1466).
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.tsx"),
+        concat!(
+            "declare namespace JSX {\n",
+            "    interface IntrinsicElements {\n",
+            "        [name: string]: any;\n",
+            "    }\n",
+            "}\n",
+            "const f = () => <><a /></>;\n",
+            "const x = <b />;\n",
+        ),
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true,"jsx":"react-jsx","moduleResolution":"bundler"},"files":["a.tsx"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.tsx(6,17): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.\n",
+            "a.tsx(6,19): error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.\n",
+            "a.tsx(7,11): error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.\n",
+        )
+    );
+}
