@@ -1627,7 +1627,14 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
-        if !self.could_contain_type_variables(ty) {
+        // tsgo (checker.go:22494-22500) also instantiates a type whose alias
+        // type arguments could contain type variables, so `type Brand<T> =
+        // number & {}` gets its new alias type arguments although the type
+        // never refers to `T`. tsc 6.0 returned such a type as it was, with
+        // the alias's own type parameters as its arguments.
+        if !self.could_contain_type_variables(ty)
+            && !self.alias_type_arguments_could_contain_type_variables(ty)
+        {
             return Ok(ty);
         }
         if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
@@ -1702,6 +1709,19 @@ impl<'a> CheckerState<'a> {
         }
         self.instantiation_stack.pop();
         result
+    }
+
+    fn alias_type_arguments_could_contain_type_variables(&mut self, ty: TypeId) -> bool {
+        let data = self.tables.type_of(ty);
+        if data.alias_symbol.is_none() {
+            return false;
+        }
+        let Some(arguments) = data.alias_type_arguments.clone() else {
+            return false;
+        };
+        arguments
+            .iter()
+            .any(|&argument| self.could_contain_type_variables(argument))
     }
 
     /// tsgo: getCircularTypeNames (checker.go:22546-22564). The types that
