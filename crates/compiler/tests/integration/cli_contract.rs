@@ -8025,3 +8025,219 @@ fn a_nested_call_resolution_keeps_the_errors_of_the_outer_one_like_tsgo() {
         )
     );
 }
+
+#[test]
+fn an_import_alias_through_a_type_only_namespace_is_not_type_only_like_tsgo() {
+    // `import A = a.A` names a class through the type-only namespace import `a`:
+    // the import alias is reported (TS1380), and that is all. tsgo records a
+    // type-only declaration on an alias only when the alias is written type-only
+    // or when its target is a pure alias that has one (markSymbolOfAlias…,
+    // resolveIndirectionAlias, checker/checker.go:15325-15341, 16612-16620), and
+    // `a.A` resolves to the class itself. So `A` is usable as a value, `b.A` in
+    // another file is an ordinary alias, and only `b.a.A`, which names the
+    // type-only `a` again, is reported. tsc 6.0 marked the import alias from the
+    // namespace on the left of its name and reported every use of `A` and of
+    // the aliases that reach it. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export class A {}\n").expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import type * as a from './a';\n",
+            "import A = a.A;\n",
+            "export { a, A };\n",
+            "new A();\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("c.ts"),
+        concat!(
+            "import * as b from './b';\n",
+            "import A = b.a.A;\n",
+            "import AA = b.A;\n",
+            "new A();\n",
+            "new AA();\n",
+        ),
+    )
+    .expect("write c.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts","b.ts","c.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "b.ts(2,12): error TS1380: An import alias cannot reference a declaration that was imported using 'import type'.\n",
+            "c.ts(2,12): error TS1380: An import alias cannot reference a declaration that was imported using 'import type'.\n",
+        )
+    );
+}
+
+#[test]
+fn an_alias_merged_with_a_namespace_ends_the_type_only_chain_like_tsgo() {
+    // `A` in b.ts is an import merged with a namespace, so the symbol has a
+    // value meaning of its own. getTypeOnlyAliasDeclaration walks the alias
+    // chain only until a symbol with the wanted meaning
+    // (checker/checker.go:2182-2194): the walk from c.ts ends at b.ts's `A` and
+    // never reaches `export type { A }` in a.ts. tsc 6.0 took the type-only
+    // declaration from the final target of the chain and reported each use of
+    // `A` in c.ts (TS1362). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!("function A() {}\n", "export type { A };\n",),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import { A } from \"./a\";\n",
+            "namespace A {\n",
+            "  export const displayName = \"A\";\n",
+            "}\n",
+            "export { A };\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("c.ts"),
+        concat!(
+            "import { A } from \"./b\";\n",
+            "A;\n",
+            "A.displayName;\n",
+            "A();\n",
+        ),
+    )
+    .expect("write c.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts","b.ts","c.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "b.ts(1,10): error TS2440: Import declaration conflicts with local declaration of 'A'.\n",
+            "c.ts(4,1): error TS2349: This expression is not callable.\n",
+            "  Type 'typeof A' has no call signatures.\n",
+        )
+    );
+}
+
+#[test]
+fn a_renamed_re_export_of_a_name_from_export_type_star_is_type_only_like_tsgo() {
+    // `export { A as A1 } from "./b"` takes `A` from a module that has it only
+    // through `export type *`. getExportOfModule marks the export specifier with
+    // that export declaration (checker/checker.go:15031-15040), and the import
+    // of `A1` in d.ts copies the record when it resolves through the specifier
+    // (resolveIndirectionAlias). tsc 6.0 looked the importing name `A1` up in
+    // the exports of the `export type *` module, found nothing and let `new
+    // A1()` pass. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export class A {}\n").expect("write a.ts");
+    fs::write(tree.path("b.ts"), "export type * from './a';\n").expect("write b.ts");
+    fs::write(tree.path("c.ts"), "export { A as A1 } from './b';\n").expect("write c.ts");
+    fs::write(
+        tree.path("d.ts"),
+        concat!("import { A1 } from './c';\n", "new A1();\n", "let x: A1;\n",),
+    )
+    .expect("write d.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts","b.ts","c.ts","d.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        "d.ts(2,5): error TS1362: 'A1' cannot be used as a value because it was exported using 'export type'.\n"
+    );
+}
+
+#[test]
+fn an_import_alias_of_a_type_only_import_is_reported_like_tsgo() {
+    // `import AA = A` names the type-only `import type A = require(…)` of a
+    // class. checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol asks
+    // each part of the entity name, from the whole name to its leftmost
+    // identifier, whether it names a type-only alias under any meaning
+    // (checker/checker.go:14722-14754), so the import alias is reported
+    // (TS1380) next to the failed namespace lookup (TS2702). tsc 6.0 asked
+    // whether the import alias had been marked from its resolved target; the
+    // failed lookup left no target and only TS2702 was reported. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), concat!("class A {}\n", "export = A;\n",)).expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import type A = require('./a');\n",
+            "import AA = A;\n",
+            "let x: AA;\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"commonjs","noEmit":true,"strict":true},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "b.ts(2,13): error TS1380: An import alias cannot reference a declaration that was imported using 'import type'.\n",
+            "b.ts(2,13): error TS2702: 'A' only refers to a type, but is being used as a namespace here.\n",
+        )
+    );
+}
+
+#[test]
+fn a_type_only_import_alias_of_a_declaration_is_not_recorded_like_tsgo() {
+    // `import type T = N.C` is a grammar error (TS1392). Its name passes through
+    // no alias, and tsgo records the type-only declaration of an import alias
+    // while it resolves an alias in the name (resolveEntityName,
+    // checker/checker.go:16135-16138), so nothing is recorded and `new T()` is
+    // not reported. `import type U = M.C`, whose name starts at the import `M`,
+    // is recorded and its use is reported (TS1361). tsc 6.0 marked every import
+    // alias written `import type` and reported both uses. The expected bytes
+    // are tsgo's.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export class C {}\n").expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import * as M from './a';\n",
+            "namespace N {\n",
+            "  export class C {}\n",
+            "}\n",
+            "import type T = N.C;\n",
+            "import type U = M.C;\n",
+            "new T();\n",
+            "new U();\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "b.ts(5,1): error TS1392: An import alias cannot use 'import type'\n",
+            "b.ts(6,1): error TS1392: An import alias cannot use 'import type'\n",
+            "b.ts(8,5): error TS1361: 'U' cannot be used as a value because it was imported using 'import type'.\n",
+        )
+    );
+}
