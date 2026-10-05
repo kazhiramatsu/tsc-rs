@@ -1925,10 +1925,16 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 parent: kind,
                 field: "async arrow expression",
             })?;
+        // transformAsyncFunctionBodyWorker (transformers/estransforms/
+        // async.go:876-893): the return statement, its statement list and
+        // the block all take the concise body's range, so the generator's
+        // `}` maps after the body.
         let statement = self.create_return_statement(Some(expression))?;
         self.context.factory()?.set_text_range(statement, body)?;
         let block = self.create_block(vec![statement], false)?;
-        self.context.factory()?.set_text_range(block, body)
+        let block = self.context.factory()?.set_text_range(block, body)?;
+        super::range_block_statements_to_body(self.context, block, body)?;
+        Ok(block)
     }
 
     /// tsc-port: transformES2017.getPromiseConstructor @6.0.3
