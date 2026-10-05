@@ -47,7 +47,7 @@ fn malformed_alias_declarations_have_no_target_and_keep_resolved_value_fallback(
                 .get_symbol_of_declaration(import)
                 .expect("valid alias symbol");
             assert!(state
-                .get_target_of_alias_declaration(import, false)
+                .get_target_of_alias_declaration(import)
                 .expect("valid target lookup")
                 .is_some());
             let live_type = state
@@ -57,7 +57,7 @@ fn malformed_alias_declarations_have_no_target_and_keep_resolved_value_fallback(
 
             assert_eq!(
                 state
-                    .get_target_of_alias_declaration(root, false)
+                    .get_target_of_alias_declaration(root)
                     .expect("unexpected declaration has no alias target"),
                 None
             );

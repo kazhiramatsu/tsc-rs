@@ -2150,7 +2150,7 @@ impl<'a> CheckerState<'a> {
             && !self.is_valid_type_only_alias_use_site(error_location)
         {
             if let Some(type_only_declaration) =
-                self.get_type_only_alias_declaration_ex(result, Some(SymbolFlags::VALUE))?
+                self.get_type_only_alias_declaration_ex(result, SymbolFlags::VALUE)?
             {
                 let exported = matches!(
                     self.kind_of(type_only_declaration),
@@ -2551,8 +2551,9 @@ impl<'a> CheckerState<'a> {
             }
             _ => unreachable!("Unknown entity name kind."),
         };
-        // The type-only alias marking on entity names (49380-49391;
-        // nodeIsSynthesized is always false — no synthesis).
+        // The type-only alias marking on entity names (tsgo
+        // checker.go:16135-16138; nodeIsSynthesized is always false — no
+        // synthesis): only an alias declaration written type-only is marked.
         if matches!(
             self.kind_of(name),
             SyntaxKind::Identifier | SyntaxKind::QualifiedName
@@ -2566,14 +2567,7 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExportAssignment))
         {
             let alias_declaration = self.get_alias_declaration_from_name(name);
-            self.mark_symbol_of_alias_declaration_if_type_only(
-                alias_declaration,
-                Some(symbol),
-                /*final_target*/ None,
-                /*overwrite_empty*/ true,
-                None,
-                None,
-            )?;
+            self.mark_symbol_of_alias_declaration_if_type_only(alias_declaration, None)?;
         }
         // tsgo resolveEntityName (TypeScript 7.1): a symbol with the meaning
         // exists along the alias chain, so resolve until it is found (an
