@@ -3450,37 +3450,10 @@ impl Printer {
                 Ok(())
             }
             NodeData::DebuggerStatement(_) => {
-                // h2-6a-m-2 §4 route table: upstream writes the debugger
-                // keyword via writeToken (118931) — the keyword itself
-                // maps, anchored at the statement start with the keyword
-                // length.
-                let keyword_default = {
-                    let record = transformation.arena().node(node)?;
-                    let positions = transformation
-                        .arena()
-                        .source(node.source())?
-                        .syntax()
-                        .positions();
-                    match SourceRange::from_raw(record.pos, record.end, positions) {
-                        Ok(SourceRange::Original(range)) => self.token_map_range_spanning(
-                            transformation,
-                            node.source(),
-                            range.start().value(),
-                            "debugger",
-                            writer,
-                        )?,
-                        _ => None,
-                    }
-                };
-                self.record_brace_write(
-                    transformation,
-                    node,
-                    SyntaxKind::DebuggerKeyword,
-                    keyword_default,
-                    "debugger",
-                    |writer, spelling| writer.write_keyword(spelling),
-                    writer,
-                )?;
+                // tsgo writes the keyword through emitToken, which maps only
+                // braces (printer.go:822-830, 3683-3688): the statement's own
+                // range is the only mapping.
+                writer.write_keyword("debugger");
                 writer.write_trailing_semicolon(";");
                 Ok(())
             }
@@ -7139,41 +7112,16 @@ impl Printer {
                     .map(|expression| self.original_node_end_cursor(transformation, expression))
                     .transpose()?
                     .unwrap_or(case_keyword.cursor());
-                // emitCaseOrDefaultClauseRest decides the single-statement
-                // polarity BEFORE the colon: the same-line arm is upstream
-                // `writeToken` (the mapped token pipeline, h2-6a-m-3),
-                // the list arm is `emitTokenWithComment` (unmapped).
+                // emitCaseOrDefaultClauseStatements decides the
+                // single-statement polarity before the colon; tsgo maps the
+                // colon in neither arm (writeTokenText, or emitToken, which
+                // maps only braces: printer.go:822-830, 4449-4469).
                 let single_line_statement = self.clause_single_statement_same_line(
                     transformation,
                     node,
                     node.source(),
                     data.statements,
                 )?;
-                let colon_map_default =
-                    if single_line_statement && writer.has_source_map_recording() {
-                        match colon_cursor.source_position() {
-                            Some((cursor_source, position)) => self.token_map_range_spanning(
-                                transformation,
-                                cursor_source,
-                                position.value(),
-                                ":",
-                                writer,
-                            )?,
-                            None => None,
-                        }
-                    } else {
-                        None
-                    };
-                if single_line_statement {
-                    self.record_token_map_side(
-                        transformation,
-                        MapBoundary::Before,
-                        node,
-                        SyntaxKind::ColonToken,
-                        colon_map_default,
-                        writer,
-                    )?;
-                }
                 let colon = self.emit_token_with_comments(
                     transformation,
                     node,
@@ -7182,16 +7130,6 @@ impl Printer {
                     false,
                     writer,
                 )?;
-                if single_line_statement {
-                    self.record_token_map_side(
-                        transformation,
-                        MapBoundary::After,
-                        node,
-                        SyntaxKind::ColonToken,
-                        colon_map_default,
-                        writer,
-                    )?;
-                }
                 self.emit_case_clause_statements(
                     transformation,
                     node,
@@ -7217,31 +7155,6 @@ impl Printer {
                     node.source(),
                     data.statements,
                 )?;
-                let colon_map_default =
-                    if single_line_statement && writer.has_source_map_recording() {
-                        match default_keyword.cursor().source_position() {
-                            Some((cursor_source, position)) => self.token_map_range_spanning(
-                                transformation,
-                                cursor_source,
-                                position.value(),
-                                ":",
-                                writer,
-                            )?,
-                            None => None,
-                        }
-                    } else {
-                        None
-                    };
-                if single_line_statement {
-                    self.record_token_map_side(
-                        transformation,
-                        MapBoundary::Before,
-                        node,
-                        SyntaxKind::ColonToken,
-                        colon_map_default,
-                        writer,
-                    )?;
-                }
                 let colon = self.emit_token_with_comments(
                     transformation,
                     node,
@@ -7250,16 +7163,6 @@ impl Printer {
                     false,
                     writer,
                 )?;
-                if single_line_statement {
-                    self.record_token_map_side(
-                        transformation,
-                        MapBoundary::After,
-                        node,
-                        SyntaxKind::ColonToken,
-                        colon_map_default,
-                        writer,
-                    )?;
-                }
                 self.emit_case_clause_statements(
                     transformation,
                     node,
@@ -8960,23 +8863,9 @@ impl Printer {
                 });
             }
         };
-        let raw_pos = transformation.arena().node(node)?.pos;
-        let range = self.token_map_range_spanning(
-            transformation,
-            node.source(),
-            raw_pos,
-            spelling,
-            writer,
-        )?;
-        // writeToken has no contextNode here: neither the MetaProperty's
-        // token-map flags nor its per-token range override owns this token.
-        if let Some(range) = range {
-            self.record_token_map_default_side(transformation, MapBoundary::Before, range, writer)?;
-        }
+        // tsgo writes the keyword through emitToken, which maps only braces
+        // (printer.go:822-830, 3015-3021).
         writer.write_punctuation(spelling);
-        if let Some(range) = range {
-            self.record_token_map_default_side(transformation, MapBoundary::After, range, writer)?;
-        }
         writer.write_punctuation(".");
         if let Some(name) = data.name {
             let name = transformation
