@@ -951,6 +951,7 @@ fn apply_compiler_setting(
         }
         "stripinternal" => compiler_options.strip_internal = Some(boolean()?),
         "nocheck" => compiler_options.no_check = Some(boolean()?),
+        "deduplicatepackages" => compiler_options.deduplicate_packages = Some(boolean()?),
         "incremental" => compiler_options.incremental = Some(boolean()?),
         "assumechangesonlyaffectdirectdependencies"
         | "disablesizelimit"

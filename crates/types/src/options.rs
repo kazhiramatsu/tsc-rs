@@ -228,6 +228,11 @@ pub struct CompilerOptions {
     /// work. The bounded H1 bootstrap rejects the effective option before
     /// output; retaining it prevents an emitting loader from erasing it.
     pub no_check: Option<bool>,
+    /// TypeScript 7 `deduplicatePackages` (tsoptions/declscompiler.go:188-195):
+    /// a file of a package whose name and version an earlier file of the
+    /// Program already has redirects to that file. On unless set to `false`
+    /// (compiler/filesparser.go:365).
+    pub deduplicate_packages: Option<bool>,
     /// Reject runtime TypeScript syntax at the option/checking boundary. H1's
     /// syntax profile remains independently fail-closed even when absent.
     pub erasable_syntax_only: Option<bool>,
