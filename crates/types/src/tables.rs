@@ -2107,6 +2107,20 @@ impl TypeTables {
     /// tsc-hash: 17f8bfecf79e7fa7858909317b8081cfc45fe59c0e11ba4cae5ba8b38abfeaff
     /// tsc-span: _tsc.js:60169-60180
     pub fn create_type_reference(&mut self, target: TypeId, type_arguments: &[TypeId]) -> TypeId {
+        self.create_type_reference_ex(target, type_arguments, ObjectFlags::NONE)
+    }
+
+    /// tsgo-port: Checker.createTypeReferenceEx @7.1
+    /// (checker/checker.go:25572-25584)
+    ///
+    /// `extra_flags` reach only a reference this call creates: a reference
+    /// that exists already is returned as it is.
+    pub fn create_type_reference_ex(
+        &mut self,
+        target: TypeId,
+        type_arguments: &[TypeId],
+        extra_flags: ObjectFlags,
+    ) -> TypeId {
         let key = (
             target,
             InstantiationKey::plain(self.intern_type_list(type_arguments)),
@@ -2124,6 +2138,7 @@ impl TypeTables {
         );
         let object_flags = ObjectFlags::from_bits(
             ObjectFlags::REFERENCE.bits()
+                | extra_flags.bits()
                 | self
                     .get_propagating_flags_of_types(type_arguments, TypeFlags::from_bits(0))
                     .bits(),

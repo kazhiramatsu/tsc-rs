@@ -657,7 +657,25 @@ impl<'a> CheckerState<'a> {
                         .expect("parser invariant: ArrayType element_type always parsed");
                     vec![self.get_type_from_type_node(element)?]
                 };
-                self.create_normalized_type_reference_forced(target, &element_types)?
+                // tsgo (checker.go:24599-24603): the reference originates in
+                // a type node.
+                if self
+                    .tables
+                    .object_flags_of(target)
+                    .intersects(ObjectFlags::TUPLE)
+                {
+                    self.create_normalized_tuple_type_ex(
+                        target,
+                        &element_types,
+                        ObjectFlags::FROM_TYPE_NODE,
+                    )?
+                } else {
+                    self.tables.create_type_reference_ex(
+                        target,
+                        &element_types,
+                        ObjectFlags::FROM_TYPE_NODE,
+                    )
+                }
             }
         };
         self.links.set_node_resolved_type(
@@ -725,12 +743,26 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         element_types: &[TypeId],
     ) -> CheckResult<TypeId> {
+        self.create_normalized_tuple_type_ex(target, element_types, ObjectFlags::NONE)
+    }
+
+    /// tsgo-port: Checker.createNormalizedTupleTypeEx @7.1
+    /// (checker/checker.go:23759-23805): `object_flags` go to the reference
+    /// the normalization ends in (see `create_type_reference_ex`).
+    fn create_normalized_tuple_type_ex(
+        &mut self,
+        target: TypeId,
+        element_types: &[TypeId],
+        object_flags: ObjectFlags,
+    ) -> CheckResult<TypeId> {
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
             unreachable!("createNormalizedTupleType requires a tuple target");
         };
         if !data.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             // No non-required elements: plain reference (61215-61217).
-            return Ok(self.tables.create_type_reference(target, element_types));
+            return Ok(self
+                .tables
+                .create_type_reference_ex(target, element_types, object_flags));
         }
         if data.combined_flags.intersects(ElementFlags::VARIADIC) {
             // Union/never variadic distribution (61218-61223).
@@ -764,7 +796,7 @@ impl<'a> CheckerState<'a> {
                 return self.map_type_result(outer[union_index], move |state, t| {
                     let mut replaced = outer.clone();
                     replaced[union_index] = t;
-                    state.create_normalized_tuple_type_full(target, &replaced)
+                    state.create_normalized_tuple_type_ex(target, &replaced, object_flags)
                 });
             }
         }
@@ -973,7 +1005,7 @@ impl<'a> CheckerState<'a> {
             self.empty_object_type
         } else if !expanded_flags.is_empty() {
             self.tables
-                .create_type_reference(tuple_target, &expanded_types)
+                .create_type_reference_ex(tuple_target, &expanded_types, object_flags)
         } else {
             tuple_target
         })
@@ -2610,7 +2642,13 @@ impl<'a> CheckerState<'a> {
                 .unwrap_or_default();
             let mut type_arguments: Vec<TypeId> = type_parameters[..outer_count].to_vec();
             type_arguments.extend(filled);
-            return Ok(self.tables.create_type_reference(ty, &type_arguments));
+            // tsgo (checker.go:23664): the reference originates in a type
+            // node.
+            return Ok(self.tables.create_type_reference_ex(
+                ty,
+                &type_arguments,
+                ObjectFlags::FROM_TYPE_NODE,
+            ));
         }
         Ok(if self.check_no_type_arguments(node, Some(symbol)) {
             ty

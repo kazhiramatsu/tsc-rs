@@ -558,7 +558,13 @@ impl<'a> CheckerState<'a> {
             return Ok(self.circular_constraint_type);
         }
         let mut result: Option<TypeId> = None;
-        let identity = self.get_recursion_identity(t);
+        let identity = match self.get_recursion_identity(t) {
+            Ok(identity) => identity,
+            Err(err) => {
+                self.pop_type_resolution();
+                return Err(err);
+            }
+        };
         let computed = if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&identity)) {
             stack.push(identity);
             // 58929-58933: the constraint is computed over the

@@ -1852,6 +1852,11 @@ impl ObjectFlags {
     pub const IDENTICAL_BASE_TYPE_CALCULATED: Self = Self(33554432);
     /// tsc ObjectFlags.IdenticalBaseTypeExists
     pub const IDENTICAL_BASE_TYPE_EXISTS: Self = Self(67108864);
+    /// tsgo ObjectFlagsFromTypeNode (checker/types.go:644): a type
+    /// reference that the resolution of a type node created. Such a
+    /// reference cannot be the source of generative recursion before it is
+    /// instantiated, so its recursion identity is the reference itself.
+    pub const FROM_TYPE_NODE: Self = Self(536870912);
     /// tsc ObjectFlags.IsGenericTypeComputed
     pub const IS_GENERIC_TYPE_COMPUTED: Self = Self(2097152);
     /// tsc ObjectFlags.IsGenericObjectType
