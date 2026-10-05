@@ -2644,3 +2644,57 @@ P3-5azの後、README corporaの出力をtsgoと比べて見つけた差：
   右辺は、名前の複製（位置あり）でmapする。型assertionを消した括弧の終わりのmap。
 - hosted：PR #678（head `fa1d127f9`）、run 37258721214 — `plan` 28s、`rust` 8m35s、`conformance (TypeScript 7.1)` 20m57s、
   `gates` 12s。
+
+## P3-5bb concise bodyのblock化、名前の複製の位置、印字時の括弧（2026-10-05）
+
+P3-5baの後、README corporaの出力をtsgoと比べて残っていた差：
+- **concise bodyのblock化**：下位変換（ES2021の一時変数、class fieldsの束縛、decoratorの一時変数）がconcise bodyを
+  blockにするとき、tsgoの`VisitFunctionBody`は式にコメントを書かせず（`EFNoComments`）、`ConvertToFunctionBlock`は
+  return文、その文のリスト、blockに本体の範囲を与える（printer/emitcontext.go:930-962）。blockの`}`は本体の後ろに
+  mapされ、本体の後ろのコメントは`}`の前に書かれる（次の文も同じコメントを前置コメントとして書くので、tsgoでは2回
+  出る）。1行のblockの文の後置コメントも、複数行のときと同じく囲みの終わりと比べる（return文の終わりはarrow関数の
+  終わりと同じで、そのコメントはarrow関数が書く）。`using`の下位変換のblockは文の範囲を保つ（using.go:204-206）。
+  Next.jsの`router.js`ではJavaScriptも変わる。
+- **名前の複製の位置**：tsgoの`Clone`は位置を保つ（tscの`cloneNode`は保たない）。parameterの既定値の`x === void 0`と
+  代入の名前（emitcontext.go:892-917）、private fieldの受け手（両方のhelper呼び出し、classfields.go:1269-1281）、
+  関数を持つexport変数の`exports.x = x`の右辺（commonjsmodule.go:1067-1077）は名前にmapし、名前のコメントも書く。
+- **mapしないもの**：`export { x }`のための`exports.x = x;`はcomment rangeだけの文（commonjsmodule.go:578-588）。
+  class fieldsの`export default X;`は`GetLocalName`でmapしない（classfields.go:1978-1982）。private fieldのhelper
+  引数の括弧と、printerが優先順位のために足す括弧は、印字時に書くだけでmapしない（printer.go:3222-3226）。object
+  literalで始まるconcise bodyの括弧だけが、範囲を持つ括弧式になる（printer.go:2669-2685）。
+- **`new`の呼び出し先**：tsgoの`emitNewExpression`は、呼び出し先そのものが呼び出しのとき（PartiallyEmittedExpression
+  は飛ばす）だけ括弧を付け、それ以外はmemberの優先順位で書く。呼び出しの優先順位もmemberと同じ（printer.go:
+  2592-2605、ast/precedence.go:274-284）。tscは呼び出し先の左端の呼び出しを見ていたので、`new (f() as T).C()`は
+  `new (f().C)()`だったが、tsgoは`new f().C()`と書く。実行時の意味が変わる形だが、参照実装の出力に合わせた（Next.js
+  の`webpack-config.ts`に2箇所）。
+- unit test：CLI（tsgoの出力にpin）で2件。
+- 結果：README corporaの`bench-full`のJavaScriptと`.js.map`は、6 corporaとも全fileがtsgoとbyte単位で同じになった
+  （hono 187、zod 475、Playwright 704、TypeScript `src/compiler` 78、Next.js 1,665、Effect 496）。残る差は宣言とその
+  mapだけ（unionとpropertyの順序など）。
+- conformance（release build、`c8aef18bb`、`--workers 2`、513 s）：15,228構成、lane A 13,467、full 13,410、emit full
+  13,420、`.js.map`の不一致1。P3-5baの最後のreportと比べて変わったのは、負荷で結果の変わる
+  `intersectionConstructorReductionCrash`（今回はmemory limit、ratchetの外）だけ（conformanceにはこれらの形のcaseが
+  無く、効くのは実際のproject）。途中はfilter（`ourceMap`、`ptionalChain`、`rrowFunction`、`omment`、`arenthes`、
+  `rivateName`、`lassField`、`xport`、`efault`、`arameter`、`ecorator`、`sing`、`ewExpression`、`odule`）で確かめ、
+  上がった構成も下がった構成も無かった。`--checkers 4`の並列対照はcheckerを変えていないので実行していない。
+- ratchet：0 regressions。上がった行は無い。
+- local：formatと、emitter・compiler・conformanceのclippy、test（`c8aef18bb`で904件）。workspace全体のtestとclippyは
+  hostedの`rust` job。
+- perf（README corpora、nice 20、main（P3-5baのbuild、`fa1d127f9`と同じコード）対tsgo 7.1.0-dev、branchは
+  `c8aef18bb`。どちらもconformanceと一緒のbuild）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 138→143、zod 531→531、Playwright 385→362、TypeScript
+    `src/compiler` 371→347、Next.js 807→785、Effect 548→530、VS Code 3,572→3,509。読み込んだ文書数と診断は7 corporaで
+    同一。
+  - `tsconfig.bench-full.json` 3回：hono 157→154、zod 623→627、Playwright 484→477、TypeScript `src/compiler` 562→534、
+    Next.js 1,046→1,019、Effect 770→761。6 corporaとも診断は同一で、出力の違いはzod 4、Playwright 1、TypeScript
+    `src/compiler` 1、Next.js 36 file（全てtsgoと同じになった側）。
+  - 10回のA/B：`--noEmit` Effect 522→507、zod 517→520、VS Code 3,385→3,392、Next.js 781→773。`bench-full`
+    TypeScript `src/compiler` 511→513、Next.js 1,003→1,008、Playwright 473→476、Effect 754→755。1 checkerの命令数
+    branch÷main：`--noEmit` zod 1.00050、Effect 1.00042、Next.js 0.99964、Playwright 0.99986、`bench-full`
+    TypeScript `src/compiler` 0.99994、Next.js 0.99979。劣化無し。
+  - bench-fullの出力をtsgoと比べた、tsgoと同じbyteのfileの数（main→branch）：JavaScriptはNext.js 1,663→1,665/1,665
+    （他は既に全て同じ）。js.mapはzod 471→475/475、Playwright 703→704/704、TypeScript `src/compiler` 77→78/78、
+    Next.js 1,631→1,665/1,665（hono 187/187、Effect 496/496は変わらず）。宣言とd.ts.mapは変わらない。
+- 次：宣言のmap。別のfileから再利用した型のnode（`?`の記号など）が、そのfileの位置でmapされる（tsgoの
+  `setTextRange`は同じfileの位置だけを写す、nodebuilderimpl.go:1425-1460）。型parameterの制約の`Rpc.Any`などは、
+  tsgoでは部分ごとにmapされる。
