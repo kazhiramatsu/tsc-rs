@@ -2025,18 +2025,15 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let node_members: Option<&tsc_binder::SymbolTable> = self
-            .node_symbol(node)
-            .map(|s| &**self.binder.symbol(s).members());
-        let has_members = node_members.is_some_and(|m| !m.is_empty());
+        // tsc and tsgo ask only for the literal's symbol: its member table
+        // exists from binding, also when it is empty.
         let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
-        if has_members {
+        if let Some(node_symbol) = self.node_symbol(node) {
             for s in self.get_properties_of_type(contextual_type)? {
                 if !self.symbol_flags(s).intersects(SymbolFlags::OPTIONAL) {
                     continue;
                 }
                 let name = self.binder.symbol(s).escaped_name;
-                let node_symbol = self.node_symbol(node).expect("has_members implies symbol");
                 if self
                     .binder
                     .symbol(node_symbol)
@@ -2111,11 +2108,11 @@ impl<'a> CheckerState<'a> {
                 Some(_) => {}
             }
         }
-        let has_members = self
-            .node_symbol(node)
-            .is_some_and(|s| !self.binder.symbol(s).members().is_empty());
+        // tsgo (checker/jsx.go:266-292): the attributes node only needs its
+        // symbol, so an element without attributes is discriminated by
+        // every optional property it omits.
         let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
-        if has_members {
+        if let Some(node_symbol) = self.node_symbol(node) {
             for s in self.get_properties_of_type(contextual_type)? {
                 if !self.symbol_flags(s).intersects(SymbolFlags::OPTIONAL) {
                     continue;
@@ -2143,7 +2140,6 @@ impl<'a> CheckerState<'a> {
                         continue;
                     }
                 }
-                let node_symbol = self.node_symbol(node).expect("has_members implies symbol");
                 if self
                     .binder
                     .symbol(node_symbol)
