@@ -8650,9 +8650,15 @@ impl Printer {
                                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                                 writer,
                             )?;
-                            self.emit_trailing_comments_for_node(
+                            // The single-line list checks the enclosing
+                            // container like the multi-line one: a block made
+                            // from a concise body has a return statement that
+                            // ends where the arrow function does, and the
+                            // arrow function keeps that trailing comment.
+                            self.emit_trailing_comments_for_node_in_container(
                                 transformation,
                                 statement_node,
+                                expression_context.comments(),
                                 writer,
                             )?;
                         }

@@ -5,8 +5,8 @@
 //! walk and gives private storage and static-super aliases one ownership point.
 
 use super::super::{
-    array_memo, node_memo, update_children_lazily, update_node_array_lazily, ArrayElementVisit,
-    ArrayMemo, LazyChildVisitor, NodeMemo,
+    array_memo, node_memo, range_block_statements_to_body, update_children_lazily,
+    update_node_array_lazily, ArrayElementVisit, ArrayMemo, LazyChildVisitor, NodeMemo,
 };
 use crate::transform::try_visit_transform_children;
 use std::{
@@ -2021,6 +2021,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // sequence returns unparenthesized; this port updates first, so
             // drop the parentheses that update introduced.
             let body = self.strip_update_introduced_concise_parentheses(function, body)?;
+            // VisitFunctionBody: the concise body writes no comments of its
+            // own (printer/emitcontext.go:955).
+            self.context
+                .arena_mut()?
+                .metadata_mut(body)
+                .add_flags(EmitFlags::NO_COMMENTS);
             let return_statement = self.context.factory()?.create_node(
                 self.source,
                 NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
@@ -2028,13 +2034,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }),
                 TransformFlags::NONE,
             )?;
-            // convertToFunctionBlock retains the concise body's range on
-            // both the return statement and its synthesized block.
+            // convertToFunctionBlock retains the concise body's range on the
+            // return statement, its statement list and the block.
             self.context
                 .factory()?
                 .set_text_range(return_statement, body)?;
             let block = self.create_block(vec![return_statement], false)?;
             self.context.factory()?.set_text_range(block, body)?;
+            range_block_statements_to_body(self.context, block, body)?;
             self.prepend_function_prelude_to_block(block, bindings, initialization_statements)?
         } else {
             return Err(TransformError::RequiredChildRemoved {

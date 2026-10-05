@@ -1798,6 +1798,15 @@ impl<'context> TargetVisitor<'context> {
                 .factory()?
                 .update_node(body, NodeData::Block(data), flags)?
         } else if concise_body && function_kind == SyntaxKind::ArrowFunction {
+            // VisitFunctionBody (printer/emitcontext.go:943-962): the concise
+            // body writes no comments of its own, and ConvertToFunctionBlock
+            // gives the return statement, its statement list and the block
+            // the body's range, so the block's `}` maps after the body and
+            // the comments there are written before it.
+            self.context
+                .arena_mut()?
+                .metadata_mut(body)
+                .add_flags(EmitFlags::NO_COMMENTS);
             let return_flags = self.child_flags(&[body])?
                 | TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
             let return_statement = self.context.factory()?.create_node(
@@ -1814,6 +1823,13 @@ impl<'context> TargetVisitor<'context> {
                 .context
                 .factory()?
                 .create_node_array(self.source, vec![return_statement])?;
+            let (pos, end) = {
+                let record = self.context.arena().node(body)?;
+                (record.pos, record.end)
+            };
+            self.context
+                .factory()?
+                .set_node_array_text_range(statements, pos, end)?;
             let block_flags = self.context.arena().array_transform_flags(statements);
             let block = self.context.factory()?.create_node(
                 self.source,

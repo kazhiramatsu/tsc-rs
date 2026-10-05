@@ -4688,6 +4688,33 @@ fn safe_multi_line_comment(text: &str) -> String {
     text.replace("*/", "*_/")
 }
 
+/// A block made from a concise body has the body's range on its statement
+/// list too (`statements.Loc = node.Loc`, `ConvertToFunctionBlock`,
+/// printer/emitcontext.go:930-941): its `}` maps after the body, and the
+/// comments after the body are written before the `}`.
+pub(crate) fn range_block_statements_to_body(
+    context: &mut TransformationContext,
+    block: TransformNode,
+    body: TransformNode,
+) -> Result<(), TransformError> {
+    let statements = match &context.arena().node(block)?.data {
+        NodeData::Block(data) => data.statements,
+        _ => None,
+    };
+    let Some(statements) = statements else {
+        return Ok(());
+    };
+    let (pos, end) = {
+        let record = context.arena().node(body)?;
+        (record.pos, record.end)
+    };
+    context.factory()?.set_node_array_text_range(
+        TransformNodeArray::new(block.source(), statements),
+        pos,
+        end,
+    )
+}
+
 fn has_modifier(
     arena: &TransformArena,
     source: TransformSourceId,
