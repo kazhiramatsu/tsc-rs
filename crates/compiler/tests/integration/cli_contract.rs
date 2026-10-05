@@ -6085,7 +6085,7 @@ fn declaration_type_nodes_are_named_reused_and_mapped_like_tsgo() {
     .expect("write src/handler.ts");
     fs::write(
         tree.path("src/rpc.ts"),
-        concat!("export interface Any { readonly id: number }\n",),
+        "export interface Any { readonly id: number }\n",
     )
     .expect("write src/rpc.ts");
     fs::write(
