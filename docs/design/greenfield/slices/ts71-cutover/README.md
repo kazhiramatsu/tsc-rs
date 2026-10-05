@@ -2472,3 +2472,5 @@ P3-5awの後、checkerの5件：
     原因はsynthetic propertyのaccessibility（`9c5fe9c96`）で、それを除いたbuildはzod 1.0000。tsgoと同じくsynthetic
     propertyのcheck flagsをvalue declarationより先に読むためのlinksの読みで、transient symbolに限る2つのcommitの後は
     zod 1.0024、Next.js 1.0025。残りはtsgoの順序のための読みで、wall-clockの差はnoiseの範囲。
+- hosted：PR #675（head `ee78fae5d`）、run 37241993974 — `plan` 30s、`rust` 10m10s、`conformance (TypeScript 7.1)` 20m14s、
+  `gates` 11s。
