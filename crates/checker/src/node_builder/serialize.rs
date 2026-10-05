@@ -2032,6 +2032,24 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                     _ => None,
                 })
                 .flatten();
+            // The fake scope's locals answer a lookup only for a matching
+            // meaning (`getSymbol`: `symbol.flags & meaning`, or an alias
+            // whose target has it): a parameter `Model` or a type parameter
+            // `Rpc` does not hide the namespace in `Model.Any` or `Rpc.Any`.
+            let fake_scope_symbol = match fake_scope_symbol {
+                Some(local) => {
+                    let local_flags = self.checker.symbol_flags(local);
+                    let matches = local_flags.intersects(flags)
+                        || local_flags.intersects(SymbolFlags::ALIAS)
+                            && self
+                                .checker
+                                .get_symbol_flags_of(local)
+                                .map_err(|abort| checker_abort_error(self.checker, context, abort))?
+                                .intersects(flags);
+                    matches.then_some(local)
+                }
+                None => None,
+            };
             // Parameter locals in a synthesized signature scope are not in
             // scope for their own JSDoc type annotations. The parse-site
             // resolver can conservatively return that parameter in Rust;
