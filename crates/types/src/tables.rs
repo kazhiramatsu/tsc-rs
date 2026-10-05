@@ -2209,9 +2209,24 @@ impl TypeTables {
         id
     }
 
-    /// The `type.resolvedTypeArguments ??= ...` writes in getTypeArguments
-    /// (60211/60213): only fills a still-vacant slot, so a value that
-    /// appeared during the recursive resolution wins.
+    /// The `type.resolvedTypeArguments ??= ...` write of getTypeArguments'
+    /// resolved arm (60211): the caller tested the slot before it computed
+    /// `arguments`, and the assignment then replaces whatever a re-entrant
+    /// resolution stored in between.
+    pub fn set_resolved_type_arguments(&mut self, id: TypeId, arguments: Vec<TypeId>) {
+        let TypeData::Reference {
+            resolved_type_arguments,
+            ..
+        } = &mut self.type_mut(id).data
+        else {
+            unreachable!("resolved type arguments live on Reference types");
+        };
+        *resolved_type_arguments = Some(arguments.into_boxed_slice());
+    }
+
+    /// The `??=` write of getTypeArguments' circular arm (60213): nothing
+    /// is evaluated between the test and the store, so only a vacant slot
+    /// is filled.
     pub fn set_resolved_type_arguments_if_vacant(&mut self, id: TypeId, arguments: Vec<TypeId>) {
         let TypeData::Reference {
             resolved_type_arguments,

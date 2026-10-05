@@ -2034,17 +2034,20 @@ impl<'a> CheckerState<'a> {
             }
         };
         if self.pop_type_resolution() {
-            // `??=` short-circuits: a slot filled during the recursive
-            // resolution skips the mapper application entirely (60211).
+            // `??=` tests the slot before the mapper is applied and then
+            // assigns (tsgo checker.go:22319-22323): the resolution frame is
+            // already popped, so the instantiation can resolve these
+            // arguments again, and the outer frame's result replaces what an
+            // inner frame stored. A slot filled before the test skips the
+            // mapper application entirely (60211).
             if self.tables.try_type_arguments(ty).is_none() {
                 let resolved = match *self.links.type_cold().deferred_mapper.get(ty) {
-                    // An Err below unwinds with the slot still vacant —
-                    // nothing cached, re-queryable.
+                    // An Err below unwinds with the slot as the inner
+                    // frames left it.
                     Some(mapper) => self.instantiate_types(&type_arguments, mapper)?,
                     None => type_arguments,
                 };
-                self.tables
-                    .set_resolved_type_arguments_if_vacant(ty, resolved);
+                self.tables.set_resolved_type_arguments(ty, resolved);
             }
         } else {
             let fallback = self.error_filled_type_arguments(ty);
