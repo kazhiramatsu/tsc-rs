@@ -178,17 +178,18 @@ fn remove_comments_uses_the_same_position_cursor_without_comment_output() {
 }
 
 #[test]
-fn optional_catch_binding_advances_from_positions_without_token_search() {
+fn optional_catch_binding_is_a_new_clause_like_tsgo() {
+    // tsgo's optional catch transform creates a new catch clause, which has
+    // no range (optionalcatch.go:24-30): the comment before the block goes
+    // with the old clause. The expected bytes are tsgo's.
     let output = print_at_target(
         "try { work(); } catch /* 本体前😀 */ { /* 本体内 */ recover(); }\n",
         ScriptTarget::ES2018,
     );
 
-    assert_eq!(output.matches("本体前😀").count(), 1, "{output}");
-    assert_eq!(output.matches("本体内").count(), 2, "{output}");
-    assert!(
-        output.contains("catch /* 本体前😀 */ ( /* 本体内 */_a)"),
-        "{output}"
+    assert_eq!(
+        output,
+        "try {\n    work();\n}\ncatch (_a) { /* 本体内 */\n    recover();\n}\n"
     );
 }
 
