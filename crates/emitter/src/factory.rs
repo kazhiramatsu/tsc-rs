@@ -5267,13 +5267,18 @@ impl<'arena> NodeFactory<'arena> {
     /// original is the node it copies, so its emit metadata follows, as
     /// tsgo's clone hook copies the emit node.
     ///
-    /// A subtree in which no node or list has a position is its own such
-    /// clone: it prints the same bytes and maps nothing. The copy shares it
-    /// instead of allocating it again (a node and its emit metadata for each
-    /// one; a declaration file that repeats one large inferred type would
-    /// otherwise hold every repetition), and copies only the nodes that have
-    /// a position or lead to one. The root is always a new node, so the
-    /// caller may give it a range or emit flags of its own.
+    /// The clone hook copies an emit node without its synthetic comments
+    /// (emitNode.copyFrom, printer/emitcontext.go:562-574), so the `elided`
+    /// comment of a placeholder is not written again with the copy.
+    ///
+    /// A subtree in which no node or list has a position and no node has a
+    /// synthetic comment is its own such clone: it prints the same bytes and
+    /// maps nothing. The copy shares it instead of allocating it again (a
+    /// node and its emit metadata for each one; a declaration file that
+    /// repeats one large inferred type would otherwise hold every
+    /// repetition), and copies only the nodes that differ from their copy or
+    /// lead to one. The root is always a new node, so the caller may give it
+    /// a range or emit flags of its own.
     pub fn deep_clone_node_without_positions(
         &mut self,
         original: TransformNode,
@@ -7681,46 +7686,59 @@ struct CrossSourceReuseClone<'a> {
     /// without a position ([`NodeFactory::deep_clone_node_without_positions`]);
     /// `None` copies every node.
     sharing_root: Option<NodeId>,
-    /// Whether a node's subtree has no position, for the sharing copy.
-    position_free: FxHashMap<NodeId, bool>,
+    /// Whether a node's subtree is its own copy, for the sharing copy.
+    own_copies: FxHashMap<NodeId, bool>,
 }
 
-/// Whether no node and no list of `node`'s subtree has a position (a list's
-/// trailing comma is a flag of its own and needs none).
-fn subtree_has_no_position(
-    arena: &tsc_syntax::NodeArena,
+/// Whether `node`'s subtree is its own position-free copy: no node and no
+/// list of it has a position (a list's trailing comma is a flag of its own
+/// and needs none), and no node has a synthetic comment, which the copy
+/// would not carry.
+fn subtree_is_its_own_copy(
+    arena: &TransformArena,
+    source: TransformSourceId,
     known: &mut FxHashMap<NodeId, bool>,
     node: NodeId,
 ) -> bool {
-    if let Some(&free) = known.get(&node) {
-        return free;
+    if let Some(&own_copy) = known.get(&node) {
+        return own_copy;
     }
-    if !arena.contains_node(node) {
+    let Ok(mounted) = arena.source(source) else {
+        return false;
+    };
+    let syntax = &mounted.source.arena;
+    if !syntax.contains_node(node) {
         // Left to the copy, which reports the unknown node.
         return false;
     }
-    let record = arena.node(node);
+    let record = syntax.node(node);
     let list_has_no_position = |array: NodeArrayId| {
-        let list = arena.node_array(array);
+        let list = syntax.node_array(array);
         list.pos == u32::MAX && list.end == u32::MAX
     };
-    let free = record.pos == u32::MAX
+    let own_copy = record.pos == u32::MAX
         && record.end == u32::MAX
+        && arena
+            .metadata
+            .get(&TransformNode::new(source, node))
+            .is_none_or(|metadata| {
+                metadata.leading_comments.is_empty() && metadata.trailing_comments.is_empty()
+            })
         && record.js_doc.is_none_or(|array| {
             list_has_no_position(array)
-                && arena
+                && syntax
                     .node_array(array)
                     .nodes
                     .iter()
-                    .all(|&child| subtree_has_no_position(arena, known, child))
+                    .all(|&child| subtree_is_its_own_copy(arena, source, known, child))
         })
         && tsc_syntax::for_each_child_array(record, |array| !list_has_no_position(array)).is_none()
-        && tsc_syntax::for_each_child(arena, record, |child| {
-            !subtree_has_no_position(arena, known, child)
+        && tsc_syntax::for_each_child(syntax, record, |child| {
+            !subtree_is_its_own_copy(arena, source, known, child)
         })
         .is_none();
-    known.insert(node, free);
-    free
+    known.insert(node, own_copy);
+    own_copy
 }
 
 impl<'a> CrossSourceReuseClone<'a> {
@@ -7736,7 +7754,7 @@ impl<'a> CrossSourceReuseClone<'a> {
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             sharing_root: None,
-            position_free: FxHashMap::default(),
+            own_copies: FxHashMap::default(),
         }
     }
 
@@ -7750,17 +7768,12 @@ impl<'a> CrossSourceReuseClone<'a> {
     }
 
     /// Whether the sharing copy keeps `node` as it is: every node but the
-    /// root whose subtree has no position.
+    /// root whose subtree is its own copy.
     fn shares(&mut self, node: NodeId) -> bool {
         if self.sharing_root.is_none_or(|root| root == node) {
             return false;
         }
-        match self.arena.source(self.source) {
-            Ok(source) => {
-                subtree_has_no_position(&source.source.arena, &mut self.position_free, node)
-            }
-            Err(_) => false,
-        }
+        subtree_is_its_own_copy(self.arena, self.source, &mut self.own_copies, node)
     }
 
     fn clone_node(&mut self, node: NodeId) -> Result<TransformNode, TransformError> {
@@ -7808,6 +7821,14 @@ impl<'a> CrossSourceReuseClone<'a> {
         let cloned = TransformNode::new(self.target, cloned);
         self.arena.set_transform_flags(cloned, transform_flags);
         self.arena.set_original_node(cloned, Some(original))?;
+        if self.sharing_root.is_some() {
+            // The clone hook copies the emit node without its synthetic
+            // comments (emitNode.copyFrom, printer/emitcontext.go:562-574).
+            if let Some(metadata) = self.arena.metadata.get_mut(&cloned) {
+                metadata.leading_comments.clear();
+                metadata.trailing_comments.clear();
+            }
+        }
         self.arena.copy_literal_properties(original, cloned);
         keep_parsed_single_quote(self.arena, original, cloned)?;
         Ok(cloned)
