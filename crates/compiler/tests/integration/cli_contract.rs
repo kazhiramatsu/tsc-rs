@@ -5569,3 +5569,99 @@ fn the_command_refuses_only_an_emit_that_writes_build_info() {
         assert!(!tree.path("out").exists());
     }
 }
+
+#[test]
+fn source_maps_follow_tsgo() {
+    // tsgo maps only braces among tokens (shouldEmitTokenSourceMaps,
+    // printer.go:822-830), so `debugger`, a case colon and `new.target`'s
+    // keyword map with their statements; a parameter property assignment
+    // has no range of its own (runtimesyntax.go:784-807) and stays the
+    // TypeScript transform's unless the class hoists initializers
+    // (classfields.go:2365-2377); an erased parameter's name keeps its
+    // trailing map (typeeraser.go:228-249); a class with static properties
+    // keeps its trailing map; a namespace member name is the declaration
+    // name's clone (printer/factory.go:561-586), and a substituted reference
+    // is not (runtimesyntax.go:931-945); CommonJS renames an exported class
+    // or function with GetDeclarationName and creates `exports.x = x`
+    // without a source map, while `exports.x` of a reference or an
+    // `import =` clones the name (commonjsmodule.go:502-588, 777-821,
+    // 2064-2079); declaration emit updates constructors and methods
+    // (declarations/transform.go:1074-1085, 1140-1159). The expected bytes
+    // are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "function f(x: number = 1) {\n",
+            "    debugger;\n",
+            "    switch (x) {\n",
+            "        case 1: return new.target;\n",
+            "        default: return x;\n",
+            "    }\n",
+            "}\n",
+            "class P {\n",
+            "    static s = 1;\n",
+            "    constructor(public p: string) { }\n",
+            "}\n",
+            "namespace N.M {\n",
+            "    export class C { }\n",
+            "    export var v = 1;\n",
+            "    v = 2;\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import m = require(\"./c\");\n",
+            "export import n = require(\"./c\");\n",
+            "export class A { }\n",
+            "export function g() { }\n",
+            "class B { }\n",
+            "export { B };\n",
+            "m.q; n.q;\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(tree.path("c.ts"), "export const q = 1;\n").expect("write c.ts");
+    fs::write(
+        tree.path("d.ts"),
+        concat!(
+            "export class D {\n",
+            "    constructor(a: number) { }\n",
+            "    m(): void { }\n",
+            "}\n",
+        ),
+    )
+    .expect("write d.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","sourceMap":true,"declaration":true,"declarationMap":true,"outDir":"out"},"files":["a.ts","b.ts","c.ts","d.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read map");
+    assert_eq!(
+        read("out/a.js.map"),
+        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC,CAAC,CAAC,GAAW,CAAC;IACpB,SAAS;IACT,QAAQ,CAAC,EAAE,CAAC;QACR,KAAK,CAAC,EAAE,OAAO,IAAI,MAAM,CAAC;QAC1B,SAAS,OAAO,CAAC,CAAC;IACtB,CAAC;AACL,CAAC;AACD,MAAM,CAAC;IAEH,YAAmB,CAAS;iBAAT,CAAC;IAAY,CAAC;CACpC;AAFU,GAAC,GAAG,CAAC,CAAC;AAGjB,IAAU,CAAC,CAIV;AAJD,WAAU,CAAC;IAAC,IAAA,CAAC,CAIZ;IAJW,WAAA,CAAC;QACT,MAAa,CAAC;SAAI;QAAL,EAAA,CAAC,IAAI,CAAA;QACP,GAAC,GAAG,CAAC,CAAC;QACjB,GAAC,GAAG,CAAC,CAAC;IACV,CAAC,EAJW,CAAC,GAAD,EAAA,CAAC,KAAD,EAAA,CAAC,QAIZ;AAAD,CAAC,EAJS,CAAC,KAAD,CAAC,QAIV"}"#
+    );
+    assert_eq!(
+        read("out/a.d.ts.map"),
+        r#"{"version":3,"file":"a.d.ts","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"AAAA,iBAAS,CAAC,CAAC,CAAC,GAAE,MAAU,qBAMvB;AACD,cAAM,CAAC;IAEgB,CAAC,EAAE,MAAM;IAD5B,MAAM,CAAC,CAAC,SAAK;IACb,YAAmB,CAAC,EAAE,MAAM,EAAK;CACpC;AACD,kBAAU,CAAC,CAAC,CAAC,CAAC;IACV,MAAa,CAAC;KAAI;IACX,IAAI,CAAC,QAAI,CAAC;CAEpB"}"#
+    );
+    assert_eq!(
+        read("out/b.js.map"),
+        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":";;;;AAAA,MAAO,CAAC,kBAAkB;AAC1B,QAAc,CAAC,kBAAkB;AACjC;CAAkB;;AAClB,eAAsB,CAAC;AACvB,MAAM,CAAC;CAAI;QACF,CAAC;AACV,CAAC,CAAC,CAAC,CAAC;AAAC,QAAA,CAAC,CAAC,CAAC,CAAC"}"#
+    );
+    assert_eq!(
+        read("out/d.js.map"),
+        r#"{"version":3,"file":"d.js","sourceRoot":"","sources":["../d.ts"],"names":[],"mappings":";;;AAAA;IACI,YAAY,CAAS,IAAI,CAAC;IAC1B,CAAC,KAAW,CAAC;CAChB"}"#
+    );
+    assert_eq!(
+        read("out/d.d.ts.map"),
+        r#"{"version":3,"file":"d.d.ts","sourceRoot":"","sources":["../d.ts"],"names":[],"mappings":"AAAA,qBAAa,CAAC;IACV,YAAY,CAAC,EAAE,MAAM,EAAK;IAC1B,CAAC,IAAI,IAAI,CAAI;CAChB"}"#
+    );
+}

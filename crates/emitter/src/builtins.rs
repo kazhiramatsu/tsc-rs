@@ -823,6 +823,13 @@ impl TypeScriptTransformer<'_> {
                 .metadata_mut(generated)
                 .add_flags(EmitFlags::NO_SUBSTITUTION);
         }
+        // tsgo's visitExpressionIdentifier gives the member name's clone
+        // neither comments nor source maps (runtimesyntax.go:931-945); the
+        // access maps to the identifier.
+        context
+            .arena_mut()?
+            .metadata_mut(name)
+            .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP);
         Ok(Some(access))
     }
 
@@ -6249,6 +6256,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         data.name = Some(self.create_identifier(&name)?.node());
                     }
                 }
+                if syntactic_export {
+                    data.name = self.unmapped_declaration_name(data.name)?;
+                }
                 data.modifiers = self.remove_export_modifiers(data.modifiers)?;
                 let owner = if syntactic_export {
                     CommonJsFunctionLexicalOwner::Module
@@ -6301,6 +6311,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     })
                     .transpose()?
                     .flatten();
+                if has_modifier(
+                    self.context.arena(),
+                    self.source,
+                    data.modifiers,
+                    SyntaxKind::ExportKeyword,
+                )? {
+                    data.name = self.unmapped_declaration_name(data.name)?;
+                }
                 data.modifiers = self.remove_export_modifiers(data.modifiers)?;
                 let class = self.update_generic(statement, NodeData::ClassDeclaration(data))?;
                 let mut statements = vec![class];
@@ -6534,7 +6552,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let assignment = self.create_assignment(target, value)?;
             self.create_expression_statement(assignment)?
         };
-        self.set_original_and_range(statement, plan.location)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(statement, Some(plan.location))?;
         self.set_explicit_export_statement_location(statement, &plan.exported_name)?;
         self.context
             .arena_mut()?
@@ -6567,21 +6587,32 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 },
                 HoistedDeclarationName::Allocated(name) => self.create_identifier(name)?,
             };
-            let assignment = self.create_assignment(target, value)?;
-            let statement = self.create_expression_statement(assignment)?;
-            match publication.origin {
-                HoistedExportOrigin::DirectDeclaration => {
-                    self.context
-                        .factory()?
-                        .set_text_range(statement, exports.declaration)?;
-                    let metadata = self.context.arena_mut()?.metadata_mut(statement);
-                    metadata.add_flags(EmitFlags::NO_COMMENTS);
-                    metadata.set_starts_on_new_line(true);
-                }
-                HoistedExportOrigin::ExplicitSpecifier => {
-                    self.set_explicit_export_statement_location(statement, &publication.name)?;
+            // tsgo exports a declaration under GetDeclarationName, which has
+            // no source maps (commonjsmodule.go:502-518), and an export
+            // specifier under its name's clone, which keeps them.
+            if publication.origin == HoistedExportOrigin::DirectDeclaration {
+                if let NodeData::PropertyAccessExpression(access) =
+                    &self.context.arena().node(target)?.data
+                {
+                    if let Some(name) = access
+                        .name
+                        .and_then(|name| self.context.arena().node_ref(self.source, name))
+                    {
+                        self.context
+                            .arena_mut()?
+                            .metadata_mut(name)
+                            .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+                    }
                 }
             }
+            let assignment = self.create_assignment(target, value)?;
+            let statement = self.create_expression_statement(assignment)?;
+            // createExportStatement gives the statement only a comment range
+            // and no source map (commonjsmodule.go:578-588); without comments
+            // that range has no effect.
+            let metadata = self.context.arena_mut()?.metadata_mut(statement);
+            metadata.add_flags(EmitFlags::NO_COMMENTS);
+            metadata.set_starts_on_new_line(true);
             statements.push(statement);
         }
         Ok(statements)
@@ -6802,7 +6833,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         parent: SyntaxKind::ImportEqualsDeclaration,
                         field: "name",
                     })?;
+                // tsgo declares the name's clone, which keeps its range and
+                // maps to it (commonjsmodule.go:798-816).
+                let source_name = name;
                 let name = self.context.factory()?.clone_node(name)?;
+                self.set_source_map_range_from(name, source_name)?;
                 let declaration =
                     self.create_variable_declaration_from_name(name, Some(require))?;
                 let statement = self.create_variable_statement(
@@ -6818,6 +6853,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             (ImportEqualsPublication::ExportObject { exported_name }, false) => {
                 let require = self.create_require_call(original, module_specifier)?;
                 let target = self.create_export_access(exported_name)?;
+                // createExportExpression accesses the name's clone, which
+                // maps to the name (commonjsmodule.go:784-797, 660-667).
+                if let (NodeData::PropertyAccessExpression(access), Some(source_name)) = (
+                    self.context.arena().node(target)?.data.clone(),
+                    data.name
+                        .and_then(|name| self.context.arena().node_ref(self.source, name)),
+                ) {
+                    if let Some(member) = access
+                        .name
+                        .and_then(|name| self.context.arena().node_ref(self.source, name))
+                    {
+                        self.set_source_map_range_from(member, source_name)?;
+                    }
+                }
                 let assignment = self.create_assignment(target, require)?;
                 let statement = self.create_expression_statement(assignment)?;
                 statements.push(self.set_original_and_range(statement, original)?);
@@ -7793,14 +7842,37 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .unwrap_or(location))
     }
 
+    /// tsgo renames an exported class or function with GetDeclarationName
+    /// (commonjsmodule.go:940-968): the name's clone, without source maps or
+    /// comments. A generated name is left as it is.
+    fn unmapped_declaration_name(
+        &mut self,
+        name: Option<NodeId>,
+    ) -> Result<Option<NodeId>, TransformError> {
+        let Some(name) = name.and_then(|name| self.context.arena().node_ref(self.source, name))
+        else {
+            return Ok(name);
+        };
+        if self.context.arena().node(name)?.pos == u32::MAX {
+            return Ok(Some(name.node()));
+        }
+        let clone = self.context.factory()?.clone_node(name)?;
+        self.context.factory()?.set_text_range(clone, name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(clone)
+            .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+        Ok(Some(clone.node()))
+    }
+
+    /// tsgo's createExportStatement gives the statement only the export
+    /// name's comment range, no source map (commonjsmodule.go:578-588);
+    /// without comments that range has no effect.
     fn set_explicit_export_statement_location(
         &mut self,
         statement: TransformNode,
-        name: &ModuleExportName,
+        _name: &ModuleExportName,
     ) -> Result<(), TransformError> {
-        if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
-            self.context.factory()?.set_text_range(statement, node)?;
-        }
         let metadata = self.context.arena_mut()?.metadata_mut(statement);
         metadata.add_flags(EmitFlags::NO_COMMENTS);
         metadata.set_starts_on_new_line(true);
@@ -10830,6 +10902,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 if exported_from_source {
                     let name = identifier_text_owned(self.context.arena(), original)?;
                     let transformed = self.create_export_access(&name)?;
+                    // tsgo accesses the reference's clone, which maps to the
+                    // reference (commonjsmodule.go:2070-2079).
+                    if let NodeData::PropertyAccessExpression(access) =
+                        self.context.arena().node(transformed)?.data.clone()
+                    {
+                        if let Some(member) = access
+                            .name
+                            .and_then(|name| self.context.arena().node_ref(self.source, name))
+                        {
+                            if self.context.arena().node(original)?.pos != u32::MAX {
+                                self.set_source_map_range_from(member, original)?;
+                            }
+                        }
+                    }
                     self.set_original_and_range(transformed, original)?;
                     return Ok(transformed);
                 }
@@ -11694,14 +11780,17 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let exports = self.create_identifier("exports")?;
         let property = match name.syntax {
             ModuleExportNameSyntax::ExistingNode(node) => {
-                // `factory.cloneNode(name)` alone (_tsc.js:111841-111846): the
-                // clone is synthesized with no parent, so `getTextOfNode`
-                // prints `idText` (`exports.Foo`), never the parsed spelling.
+                // `name.Clone()` (commonjsmodule.go:660-667): the clone prints
+                // its text (`exports.Foo`), never the parsed spelling, and
+                // keeps the name's range, so it maps to the name.
                 let clone = self.context.factory()?.clone_node(node)?;
                 self.context
                     .arena_mut()?
                     .metadata_mut(clone)
                     .cloned_identifier_spelling = false;
+                if self.context.arena().node(node)?.pos != u32::MAX {
+                    self.set_source_map_range_from(clone, node)?;
+                }
                 clone
             }
             ModuleExportNameSyntax::SynthesizedIdentifier => self.create_identifier(
@@ -13251,7 +13340,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             }),
             TransformFlags::CONTAINS_LEXICAL_THIS,
         )?;
-        self.context.factory()?.set_text_range(access, name_node)?;
+        // tsgo gives the access, the assignment and the statement no range;
+        // only the two name clones keep the name's (runtimesyntax.go:784-807).
         let local_name = self.create_identifier_with_original(identifier.text(), name_node)?;
         self.context
             .factory()?
@@ -13265,9 +13355,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         self.context
             .arena_mut()?
             .set_original_node(statement, Some(parameter_node))?;
-        self.context
-            .factory()?
-            .set_text_range(statement, parameter_node)?;
         let metadata = self.context.arena_mut()?.metadata_mut(statement);
         metadata.add_flags(EmitFlags::NO_COMMENTS);
         metadata.set_starts_on_new_line(true);
@@ -14627,27 +14714,43 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .container_name
             .clone();
         let container = self.create_identifier(&container_name)?;
-        let target = self.create_property_access(container, name)?;
-        // getNamespaceMemberName ranges the exported access to the
-        // declaration name (position-carrying clone), so the printer emits
-        // the name-end boundary after `N.member` on the export statement.
-        // The metadata source-map channel carries it; a text range would
+        // GetExternalModuleOrNamespaceExportName (printer/factory.go:561-586)
+        // ranges the exported access to the declaration name, and its member
+        // name is the name's clone, which keeps its source maps. The metadata
+        // source-map channel carries the access's range; a text range would
         // give the synthesized access a parse-looking identity.
-        {
-            let name_node = {
-                let arena = self.context.arena();
-                match &arena.node(original)?.data {
-                    NodeData::FunctionDeclaration(data) => data.name,
-                    NodeData::ClassDeclaration(data) => data.name,
-                    _ => None,
-                }
-            };
-            if let Some(name_node) =
-                name_node.and_then(|name| self.context.arena().node_ref(original.source(), name))
-            {
-                self.set_source_map_range_from(target, name_node)?;
+        let name_node = {
+            let arena = self.context.arena();
+            match &arena.node(original)?.data {
+                NodeData::FunctionDeclaration(data) => data.name,
+                NodeData::ClassDeclaration(data) => data.name,
+                _ => None,
             }
         }
+        .and_then(|name| self.context.arena().node_ref(original.source(), name));
+        let target = match name_node {
+            Some(name_node) => {
+                let member = self.create_declaration_identifier_with_original(name, name_node)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(member)
+                    .add_flags(EmitFlags::NO_COMMENTS);
+                let target = self.context.factory()?.create_node(
+                    self.source,
+                    NodeData::PropertyAccessExpression(
+                        tsc_syntax::nodes::PropertyAccessExpressionData {
+                            name: Some(member.node()),
+                            expression: Some(container.node()),
+                            question_dot_token: None,
+                        },
+                    ),
+                    TransformFlags::NONE,
+                )?;
+                self.set_source_map_range_from(target, name_node)?;
+                target
+            }
+            None => self.create_property_access(container, name)?,
+        };
         let value = self.create_identifier(name)?;
         let assignment = self.create_assignment(target, value)?;
         // createExportMemberAssignmentStatement gives the assignment a
@@ -15004,9 +15107,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
     }
 
-    /// The transformed binding name owns visitParameter's emit flag. Keep an
-    /// unchanged parse name distinct from later synthetic projections (most
-    /// notably the parameter-property field) in the immutable transform arena.
+    /// The transformed binding name is a clone of an unchanged parse name,
+    /// kept distinct from later synthetic projections (most notably the
+    /// parameter-property field) in the immutable transform arena.
     fn isolate_updated_parameter_name(
         &mut self,
         updated: NodeId,
@@ -15027,14 +15130,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             return Ok(updated);
         };
         let name = self.node(name);
-        // visitParameter mutates this unchanged name in the original parse
-        // tree. Keep that same-emit side effect even though the JavaScript
-        // representation below isolates its name from parameter-property
-        // projections. A fresh declaration-only emit has no such mutation.
-        if self.context.arena().is_parsed_node(name)? {
-            let metadata = self.context.arena_mut()?.metadata_mut(name);
-            metadata.set_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
-        }
         let cloned_name = self.context.factory()?.clone_node(name)?;
         self.context.factory()?.set_text_range(cloned_name, name)?;
         data.name = Some(cloned_name.node());
@@ -15119,23 +15214,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             metadata.set_comment_range(CommentRange::new(original.source(), comment_range));
             metadata.set_source_map_range(SourceMapRange::new(original.source(), moved_range));
         }
-        let name = match &self.context.arena().node(updated)?.data {
-            NodeData::Parameter(data) => data.name,
-            _ => None,
-        }
-        .ok_or(TransformError::RequiredChildRemoved {
-            parent: SyntaxKind::Parameter,
-            field: "updated parameter name",
-        })?;
-        let name = self
-            .context
-            .arena()
-            .node_ref(self.source, name)
-            .ok_or_else(|| TransformError::UnknownNode(self.node(name)))?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(name)
-            .set_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        // tsgo's type eraser leaves the name's trailing source map
+        // (typeeraser.go:228-249); tsc set NoTrailingSourceMap on it.
         Ok(())
     }
 
@@ -16451,19 +16531,38 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok((text, name))
     }
 
-    /// tsc-port: getNamespaceMemberName @6.0.3
-    /// tsc-hash: b3471b16463a28d1c79b35c73fa5627a463fc3df9e93ff2b9e35f410cd8a1bec
-    /// tsc-span: _tsc.js:24812-24819
+    /// tsgo's `GetExternalModuleOrNamespaceExportName(ns, node, false, true)`
+    /// (printer/factory.go:561-586): the member name is the declaration
+    /// name's clone, which keeps its range and source maps
+    /// (`GetDeclarationNameEx` with `AllowSourceMaps`), and the access takes
+    /// the name's comment and source map ranges; neither has comments.
     fn namespace_member_name(
         &mut self,
         container: TransformNode,
         original_name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let name = self.identifier_text(original_name.node())?.to_owned();
-        let access = self.create_property_access(container, &name)?;
+        let text = self.identifier_text(original_name.node())?.to_owned();
+        let name = self.create_declaration_identifier_with_original(&text, original_name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(name)
+            .add_flags(EmitFlags::NO_COMMENTS);
+        let access = self.context.factory()?.create_node(
+            self.source,
+            NodeData::PropertyAccessExpression(tsc_syntax::nodes::PropertyAccessExpressionData {
+                name: Some(name.node()),
+                expression: Some(container.node()),
+                question_dot_token: None,
+            }),
+            TransformFlags::NONE,
+        )?;
         self.context
             .factory()?
             .set_text_range(access, original_name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(access)
+            .add_flags(EmitFlags::NO_COMMENTS);
         Ok(access)
     }
 
@@ -16632,15 +16731,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     fn finish_typescript_class_declaration(
         &mut self,
         class: NodeId,
-        has_static_initialized_properties: bool,
+        _has_static_initialized_properties: bool,
     ) -> Result<NodeId, TransformError> {
-        if has_static_initialized_properties {
-            let class_node = self.node(class);
-            self.context
-                .arena_mut()?
-                .metadata_mut(class_node)
-                .add_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
-        }
+        // tsgo keeps the class's trailing source map whatever its static
+        // properties (runtimesyntax.go:667-703); tsc set NoTrailingSourceMap
+        // for a class with static initialized properties.
         Ok(class)
     }
 

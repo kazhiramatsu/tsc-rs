@@ -1185,15 +1185,27 @@ fn run_lane_a(
         )
     };
     let emit_sha256 = sha256_hex(rendered_js.as_deref().unwrap_or_default());
-    let all_inputs: Vec<_> = files
+    // createSourceMapPreviewLink finds a map's sources among the Program's
+    // files in Program order (`result.Inputs()`, sourcemap_baseline.go:90-100),
+    // where a file another one imports comes first.
+    let program_inputs: Vec<_> = facts
+        .source_order
         .iter()
-        .map(|(name, content)| errors_baseline::InputFile { name, content })
+        .filter_map(|path| {
+            files
+                .iter()
+                .find(|(name, _)| absolute(&facts.current_directory, name) == *path)
+                .map(|(_, content)| errors_baseline::InputFile {
+                    name: path,
+                    content,
+                })
+        })
         .collect();
     let rendered_map = emit_baseline::render_js_map(
         map_options,
         !diagnostics.is_empty(),
         &emission,
-        &all_inputs,
+        &program_inputs,
         full_emit_paths,
     );
     let expected_map = std::fs::read(profile.js_map_baseline_path(suite, stem))

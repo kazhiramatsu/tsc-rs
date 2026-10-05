@@ -2213,7 +2213,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?;
         }
         let mut retained = operations.retained_members;
-        let synthetic_constructor = if !operations.instance.is_empty() {
+        // tsgo rewrites the constructor only for a class that hoists
+        // initializers (transformConstructor, classfields.go:2365-2377):
+        // parameter property assignments alone stay as the TypeScript
+        // transform wrote them.
+        let synthetic_constructor = if !operations.instance.is_empty()
+            && class_facts.will_hoist_initializers_to_constructor
+        {
             self.install_instance_operations(
                 &mut retained,
                 &operations.instance,
@@ -2443,7 +2449,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             None => None,
         };
         let mut retained = operations.retained_members;
-        let synthetic_constructor = if !operations.instance.is_empty() {
+        // tsgo rewrites the constructor only for a class that hoists
+        // initializers (transformConstructor, classfields.go:2365-2377):
+        // parameter property assignments alone stay as the TypeScript
+        // transform wrote them.
+        let synthetic_constructor = if !operations.instance.is_empty()
+            && class_facts.will_hoist_initializers_to_constructor
+        {
             self.install_instance_operations(
                 &mut retained,
                 &operations.instance,
