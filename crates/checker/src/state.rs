@@ -370,6 +370,9 @@ pub struct CheckerState<'a> {
     /// tsc isInferencePartiallyBlocked (47420) — only ever set by M6
     /// inference; resolveCall's reportErrors stays true until then.
     pub(crate) is_inference_partially_blocked: bool,
+    /// tsgo `Checker.callResolutionStack` (checker/checker.go:798): the
+    /// calls whose overloads are being chosen, innermost last.
+    pub(crate) call_resolution_stack: Vec<NodeId>,
     /// tsc apparentArgumentCount (77606) — only the signature-help LSP
     /// entry point sets it; None forever in the compile pipeline.
     pub(crate) apparent_argument_count: Option<usize>,
@@ -1448,6 +1451,7 @@ impl<'a> CheckerState<'a> {
             resolving_signature: SignatureId::new(0),
             silent_never_signature: SignatureId::new(0),
             is_inference_partially_blocked: false,
+            call_resolution_stack: Vec::new(),
             apparent_argument_count: None,
             no_constraint_type: TypeId::new(0),
             circular_constraint_type: TypeId::new(0),

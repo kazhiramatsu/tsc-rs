@@ -915,6 +915,10 @@ impl InferenceFlags {
     pub const ANY_DEFAULT: Self = Self(2);
     /// tsc InferenceFlags.SkippedGenericFunction
     pub const SKIPPED_GENERIC_FUNCTION: Self = Self(4);
+    /// tsgo InferenceFlagsNoConstraintChecks (checker/checker.go:271): an
+    /// inferred type is taken without comparing it with the constraint of
+    /// its type parameter.
+    pub const NO_CONSTRAINT_CHECKS: Self = Self(8);
 
     pub const fn from_bits(bits: i32) -> Self {
         Self(bits)

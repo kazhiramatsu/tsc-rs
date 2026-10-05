@@ -83,6 +83,10 @@ struct ResolveCallCtx {
     candidates_for_argument_error: Option<Vec<SignatureId>>,
     candidate_for_argument_arity_error: Option<SignatureId>,
     candidate_for_type_argument_error: Option<SignatureId>,
+    /// tsgo `CallState.recursiveResolution` (checker/checker.go:9022,
+    /// 9108): the call was already being resolved when this resolution
+    /// began.
+    recursive_resolution: bool,
 }
 
 /// tsrs-native: the value carried out of one rollback-capable
@@ -4052,25 +4056,34 @@ impl<'a> CheckerState<'a> {
             candidates_for_argument_error: None,
             candidate_for_argument_arity_error: None,
             candidate_for_type_argument_error: None,
+            recursive_resolution: self.call_resolution_stack.contains(&node),
         };
 
-        let mut result: Option<SignatureId> = None;
-        if ctx.candidates.len() > 1 {
-            result = self.choose_overload(
-                &mut ctx,
-                RelationKind::Subtype,
-                is_single_non_generic_candidate,
-                true,
-            )?;
-        }
-        if result.is_none() {
-            result = self.choose_overload(
-                &mut ctx,
-                RelationKind::Assignable,
-                is_single_non_generic_candidate,
-                true,
-            )?;
-        }
+        // tsgo resolveCall (checker.go:9108-9116): the call is on the
+        // resolution stack while its overloads are chosen.
+        self.call_resolution_stack.push(node);
+        let chosen = (|state: &mut Self| {
+            let mut result: Option<SignatureId> = None;
+            if ctx.candidates.len() > 1 {
+                result = state.choose_overload(
+                    &mut ctx,
+                    RelationKind::Subtype,
+                    is_single_non_generic_candidate,
+                    true,
+                )?;
+            }
+            if result.is_none() {
+                result = state.choose_overload(
+                    &mut ctx,
+                    RelationKind::Assignable,
+                    is_single_non_generic_candidate,
+                    true,
+                )?;
+            }
+            Ok(result)
+        })(self);
+        self.call_resolution_stack.pop();
+        let result: Option<SignatureId> = chosen?;
 
         // 76621-76625: a re-entrant resolution (context-sensitive arg →
         // contextual read → getResolvedSignature of the SAME node) may
@@ -4350,6 +4363,7 @@ impl<'a> CheckerState<'a> {
                 candidates_for_argument_error: None,
                 candidate_for_argument_arity_error: None,
                 candidate_for_type_argument_error: None,
+                recursive_resolution: ctx.recursive_resolution,
             };
             let chosen = state.choose_overload(
                 &mut probe_ctx,
@@ -4452,6 +4466,11 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let type_argument_nodes = ctx.type_argument_nodes.clone();
+            // tsgo chooseOverload (checker.go:9243-9246): "When we are
+            // recursively resolving a call with a single candidate, we skip
+            // constraints checks during type inference to avoid circularity
+            // errors."
+            let no_constraint_checks = ctx.recursive_resolution && ctx.candidates.len() == 1;
             let run_trial = |state: &mut Self| {
                 state.try_overload_candidate(
                     node,
@@ -4460,6 +4479,7 @@ impl<'a> CheckerState<'a> {
                     candidate,
                     relation,
                     ctx.arg_check_mode,
+                    no_constraint_checks,
                 )
             };
             let trial = if rollback_rejected_candidates {
@@ -4508,6 +4528,7 @@ impl<'a> CheckerState<'a> {
         candidate: SignatureId,
         relation: RelationKind,
         mut arg_check_mode: CheckMode,
+        no_constraint_checks: bool,
     ) -> CheckResult<OverloadCandidateTrial> {
         let mut check_candidate;
         let mut inference_context: Option<InferenceContextId> = None;
@@ -4533,11 +4554,14 @@ impl<'a> CheckerState<'a> {
                     .type_parameters
                     .clone()
                     .expect("checked Some above");
-                let flags = if self.is_in_js_file(node) {
+                let mut flags = if self.is_in_js_file(node) {
                     InferenceFlags::ANY_DEFAULT
                 } else {
                     InferenceFlags::NONE
                 };
+                if no_constraint_checks {
+                    flags |= InferenceFlags::NO_CONSTRAINT_CHECKS;
+                }
                 let context =
                     self.create_inference_context(&type_parameters, Some(candidate), flags, None);
                 inference_context = Some(context);
