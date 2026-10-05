@@ -2092,10 +2092,9 @@ impl RelationComparisonResult {
     pub const REPORTS_MASK: Self = Self(24);
     /// tsc RelationComparisonResult.ComplexityOverflow
     pub const COMPLEXITY_OVERFLOW: Self = Self(32);
-    /// tsc RelationComparisonResult.StackDepthOverflow
-    pub const STACK_DEPTH_OVERFLOW: Self = Self(64);
-    /// tsc RelationComparisonResult.Overflow
-    pub const OVERFLOW: Self = Self(96);
+    /// tsgo RelationComparisonResultOverflow (checker/relater.go:74): the
+    /// complexity overflow alone; 7.1 has no stack depth overflow.
+    pub const OVERFLOW: Self = Self(32);
 
     pub const fn from_bits(bits: i32) -> Self {
         Self(bits)

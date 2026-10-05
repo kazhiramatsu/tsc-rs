@@ -1376,17 +1376,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if !self.overflow {
             return Ok(None);
         }
-        let (overflow_bits, message) = if self.relation_count <= 0 {
-            (
-                RelationComparisonResult::COMPLEXITY_OVERFLOW,
-                &diagnostics::Excessive_complexity_comparing_types_0_and_1,
-            )
-        } else {
-            (
-                RelationComparisonResult::STACK_DEPTH_OVERFLOW,
-                &diagnostics::Excessive_stack_depth_comparing_types_0_and_1,
-            )
-        };
+        // tsgo (relater.go:371-381): the only overflow left is the
+        // complexity budget; 100 levels of nesting end in Maybe.
+        let overflow_bits = RelationComparisonResult::COMPLEXITY_OVERFLOW;
+        let message = &diagnostics::Excessive_complexity_comparing_types_0_and_1;
         let id = self.st.get_relation_key(
             source,
             target,
@@ -3556,8 +3549,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
             if self.source_depth == 100 || self.target_depth == 100 {
-                self.overflow = true;
-                return Ok(Ternary::FALSE);
+                // tsgo (relater.go:3135-3140) stops relating at 100 levels
+                // and assumes the types related, as it does for a
+                // comparison already in progress; tsc 6.0 failed the whole
+                // comparison with TS2321.
+                return Ok(Ternary::MAYBE);
             }
         }
         let maybe_start = self.maybe_count;
