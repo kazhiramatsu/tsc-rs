@@ -219,27 +219,34 @@ impl<'a> CheckerState<'a> {
             {
                 let inferred_flags = self.tables.flags_of(inferred_extends_type);
                 let check_flags = self.tables.flags_of(check_type);
-                let permissive_check = self.get_permissive_instantiation(check_type)?;
-                let permissive_extends =
-                    self.get_permissive_instantiation(inferred_extends_type)?;
+                // The permissive and restrictive instantiations are made
+                // only where tsc's `&&`/`||` reach them: an `unknown` or
+                // `any` extends type instantiates nothing, however deep the
+                // check type is.
                 if !inferred_flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
-                    && (check_flags.intersects(TypeFlags::ANY)
-                        || !self.is_type_assignable_to(permissive_check, permissive_extends)?)
+                    && (check_flags.intersects(TypeFlags::ANY) || {
+                        let permissive_check = self.get_permissive_instantiation(check_type)?;
+                        let permissive_extends =
+                            self.get_permissive_instantiation(inferred_extends_type)?;
+                        !self.is_type_assignable_to(permissive_check, permissive_extends)?
+                    })
                 {
-                    let mutually_possible_for_constraint =
-                        if for_constraint && !inferred_flags.intersects(TypeFlags::NEVER) {
+                    let include_true_type = check_flags.intersects(TypeFlags::ANY)
+                        || (for_constraint && !inferred_flags.intersects(TypeFlags::NEVER) && {
+                            let permissive_extends =
+                                self.get_permissive_instantiation(inferred_extends_type)?;
                             let mut some_assignable = false;
                             for member in self.union_members_or_self(permissive_extends) {
+                                let permissive_check =
+                                    self.get_permissive_instantiation(check_type)?;
                                 if self.is_type_assignable_to(member, permissive_check)? {
                                     some_assignable = true;
                                     break;
                                 }
                             }
                             some_assignable
-                        } else {
-                            false
-                        };
-                    if check_flags.intersects(TypeFlags::ANY) || mutually_possible_for_constraint {
+                        });
+                    if include_true_type {
                         let true_node = node
                             .true_type
                             .expect("parser invariant: ConditionalType true_type always parsed");
@@ -286,12 +293,12 @@ impl<'a> CheckerState<'a> {
                     };
                 }
 
-                let restrictive_check = self.get_restrictive_instantiation(check_type)?;
-                let restrictive_extends =
-                    self.get_restrictive_instantiation(inferred_extends_type)?;
-                if inferred_flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
-                    || self.is_type_assignable_to(restrictive_check, restrictive_extends)?
-                {
+                if inferred_flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || {
+                    let restrictive_check = self.get_restrictive_instantiation(check_type)?;
+                    let restrictive_extends =
+                        self.get_restrictive_instantiation(inferred_extends_type)?;
+                    self.is_type_assignable_to(restrictive_check, restrictive_extends)?
+                } {
                     let true_node = node
                         .true_type
                         .expect("parser invariant: ConditionalType true_type always parsed");
