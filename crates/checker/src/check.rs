@@ -9481,6 +9481,13 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        if type_text.is_none()
+            && !use_reverse_mapped_placeholder
+            && self.display_enclosing.is_some()
+            && self.tables.is_error_type(property_type)
+        {
+            type_text = self.error_property_pseudo_type_text(property, fully_qualified)?;
+        }
         let type_text = match type_text {
             Some(text) => text,
             None if use_reverse_mapped_placeholder => self.reverse_mapped_elision_placeholder().0,
@@ -10313,6 +10320,56 @@ impl<'a> CheckerState<'a> {
             return self.type_predicate_text(&predicate, fully_qualified);
         }
         self.type_to_string_ex(return_type, fully_qualified)
+    }
+
+    /// tsgo serializeTypeForDeclaration (checker/nodebuilderimpl.go) with an
+    /// enclosing declaration: the pseudo type of the property's value
+    /// declaration is compared with the property's type, and an error type
+    /// counts as equal ("we charitably assume equality",
+    /// pseudotypenodebuilder.go:363-366), so the pseudo type is printed in
+    /// place of `any`. The value declaration of an object literal property
+    /// that is written twice is the first one: `{ a: 1, a: missing }`
+    /// prints `{ a: number; }`. tsc 6.0 printed the property's type.
+    ///
+    /// The pseudo type of a property assignment prints as the declaration's
+    /// own type does, with two exceptions: an expression the pseudochecker
+    /// gives up on (`Inferred`) prints the checker's type, here `any`, and
+    /// a type assertion prints its type node as written.
+    fn error_property_pseudo_type_text(
+        &mut self,
+        property: SymbolId,
+        fully_qualified: bool,
+    ) -> CheckResult<Option<JsString>> {
+        let data = self.binder.symbol(property);
+        let Some(declaration) = data
+            .value_declaration
+            .or_else(|| data.declarations.first().copied())
+        else {
+            return Ok(None);
+        };
+        if !matches!(
+            self.kind_of(declaration),
+            SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
+        ) {
+            return Ok(None);
+        }
+        let pseudo =
+            crate::pseudochecker::PseudoChecker::new(self).get_type_of_declaration(declaration);
+        match pseudo {
+            crate::pseudochecker::PseudoType::Inferred(_) => Ok(None),
+            crate::pseudochecker::PseudoType::Direct(type_node) => {
+                self.reusable_annotation_node_text(type_node)
+            }
+            _ => {
+                let symbol = self.get_symbol_of_declaration(declaration)?;
+                if symbol == self.unknown_symbol {
+                    return Ok(None);
+                }
+                let declared = self.get_type_of_symbol(symbol)?;
+                let declared = self.get_widened_literal_type(declared)?;
+                Ok(Some(self.type_to_string_ex(declared, fully_qualified)?))
+            }
+        }
     }
 
     /// tsc-port: typeFromSingleReturnExpression @6.0.3 (the reusable
