@@ -8131,11 +8131,21 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::VariableDeclaration
                 | SyntaxKind::BindingElement
                 | SyntaxKind::JSDocPropertyTag
-                | SyntaxKind::JSDocParameterTag => state
-                    .get_widened_type_for_variable_like_declaration(
-                        declaration,
-                        /*report_errors*/ true,
-                    ),
+                | SyntaxKind::JSDocParameterTag => {
+                    // tsgo getTypeOfVariableOrParameterOrPropertyWorker
+                    // (TypeScript 7.1, checker.go:16927-16929) reports only
+                    // for a parameter that is not one of a context-sensitive
+                    // signature: such a parameter can still have its type
+                    // fixed to something else, and assignParameterType
+                    // reports for it when it is not. tsc 6.0.3 always
+                    // reported here, so asking for the type of a parameter
+                    // before its call was resolved (the emit resolver does,
+                    // ahead of the check) could report an implicit `any` the
+                    // check then replaced with the contextual type.
+                    let report_errors =
+                        !state.is_parameter_of_context_sensitive_signature(symbol)?;
+                    state.get_widened_type_for_variable_like_declaration(declaration, report_errors)
+                }
                 // 56703-56706: enum containers and members re-route to
                 // their dedicated workers.
                 SyntaxKind::EnumDeclaration => state.get_type_of_func_class_enum_module(symbol),

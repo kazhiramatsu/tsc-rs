@@ -2221,6 +2221,56 @@ fn an_emit_before_the_check_reports_nothing_the_check_does_not() {
 }
 
 #[test]
+fn an_emit_before_the_check_reports_no_implicit_any_for_a_parameter_its_call_types() {
+    // The reference walk of the emit asks for the type of `k`, the left of
+    // `k.length` (markPropertyAliasReferenced, checker/checker.go:28903-28907),
+    // before the call around it was resolved. The call is resolved from
+    // inside that request and gives `k` the type `unknown`; the request
+    // itself then finds no contextual signature, because the argument's
+    // contextual type has become `Mapped<unknown>`. tsgo reports no implicit
+    // `any` from there for a parameter of a context-sensitive signature
+    // (getTypeOfVariableOrParameterOrPropertyWorker, checker.go:16927-16929);
+    // tsc 6.0.3 did, so the second Program had one diagnostic more than the
+    // first. Both report tsgo's one diagnostic, at the position of its
+    // command line and of its baseline (reverseMappedPartiallyInferableTypes).
+    let source = concat!(
+        "type Box<T> = {\n",
+        "    contents?: T;\n",
+        "    contains?(content: T): boolean;\n",
+        "};\n",
+        "type Mapped<T> = {\n",
+        "    [K in keyof T]: Box<T[K]>;\n",
+        "};\n",
+        "declare function id<T>(arg: Mapped<T>): Mapped<T>;\n",
+        "const obj3 = id({\n",
+        "    foo: {\n",
+        "        contains(k) {\n",
+        "            return k.length > 0;\n",
+        "        }\n",
+        "    }\n",
+        "});\n",
+    );
+    let (first, second, _) = native_harness_programs(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        source,
+    );
+    let reported = |diagnostics: &[Diagnostic]| {
+        diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+            .collect::<Vec<_>>()
+    };
+    let access = u32::try_from(source.find("k.length").expect("k.length")).expect("offset");
+    assert_eq!(reported(&first), [(18046, Some(access), Some(1))]);
+    assert_eq!(reported(&second), reported(&first));
+}
+
+#[test]
 fn an_emit_before_the_check_keeps_the_aliases_the_file_uses() {
     // Import elision reads the `referenced` marks of the aliases. The check
     // leaves them; before it, tsgo's import elision walks the file and marks
