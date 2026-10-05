@@ -2823,6 +2823,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .parent
                     == Some(container_declaration)
             }
+            // The `children` property synthesized from a JSX element's body:
+            // its fabricated declaration is a child of the attributes node.
+            (None, Some(container_declaration)) => {
+                *self
+                    .st
+                    .links
+                    .symbol_cold()
+                    .fabricated_declaration_parent
+                    .get(prop)
+                    == Some(container_declaration)
+            }
             _ => false,
         }
     }

@@ -279,8 +279,8 @@ impl<'a> CheckerState<'a> {
     /// addIntraExpressionInferenceSite requires a live inference
     /// context; the synthesized children property carries
     /// NO fabricated PropertySignature valueDeclaration (node
-    /// fabrication is unavailable — its consumers are display/related-
-    /// span side, T2).
+    /// fabrication is unavailable); the declaration's parent is kept in
+    /// the symbol links for the excess property check.
     pub(crate) fn create_jsx_attributes_type_from_attributes_property(
         &mut self,
         opening_like_element: NodeId,
@@ -590,7 +590,14 @@ impl<'a> CheckerState<'a> {
                         LinkSlot::Resolved(children_prop_type),
                     );
                     // The fabricated PropertySignature valueDeclaration
-                    // (74456-74466) is elided — see the fn header.
+                    // (74456-74466; tsgo jsx.go:845-848) is not built; its
+                    // parent, which makes the property subject to the
+                    // excess property check, is recorded on the symbol.
+                    self.links.set_symbol_fabricated_declaration_parent(
+                        self.speculation_depth,
+                        children_prop_symbol,
+                        attribute_parent,
+                    );
                     let mut child_prop_map = SymbolTable::default();
                     child_prop_map.insert(*children_name, children_prop_symbol);
                     let child_type = self.make_resolved_anonymous_type(
