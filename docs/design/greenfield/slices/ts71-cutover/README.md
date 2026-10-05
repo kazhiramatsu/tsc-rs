@@ -3284,3 +3284,117 @@ buildしたもの）とtsc-rsの両方で出力し、最初に分かれる所を
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
 - hosted：PR #683（head `954075524`）、run 37323970919 — `plan` 28s、`rust` 10m3s、`conformance (TypeScript 7.1)` 19m43s、
   `gates` 13s。merge commitは`635305534`。
+
+## P3-5bg type-onlyのaliasをtsgoのmodelにする（2026-10-06）
+
+P3-5bfの「次」の1つ目。tsgoは、aliasの解決とtype-onlyの記録を、tsc 6.0と違う形に作り直している。tsc-rsは6.0の
+形のままだったので、aliasを解決する関数群をtsgoの形に書き換えた（checker/checker.go:14667-15341、
+15885-15947、16055-16086、16585-16712、2173-2194）：
+- **aliasの宣言のtargetは、直接のtarget**：`getTargetOfAliasDeclaration`に`dontRecursivelyResolve`の引数は無く、
+  どの種類の宣言でも、その宣言が直接名指すsymbolを返す（import clause、import specifier、export specifier、
+  `import x = a.b`、`export =`などの式は、全て`dontResolveAlias`がtrue）。targetが他の意味を持たない純粋なaliasの
+  ときに先へたどるのは`resolveAlias`で、`resolveIndirectionAlias(source, target)`がtargetを解決し、targetの
+  type-onlyの記録を、記録の無いsourceに写す。tsc 6.0は、各関数が自分のtargetを最後まで解決し、「直接のtarget」
+  と「最終のtarget」の両方からaliasに印を付けていた。
+- **type-onlyの記録は、そう書かれたalias自身に付く**：`markSymbolOfAliasDeclarationIfTypeOnly(aliasDeclaration,
+  exportStarDeclaration)`は、宣言自身が`import type`／`export type`のときにその宣言を、名前が`export type *`
+  経由でしか届かないとき（`typeOnlyExportStarMap`）にそのexport宣言を記録する。先に書かれた記録は変えない。
+  targetが何であるかは見ない。linksの`typeOnlyDeclaration`は「未計算／無し／宣言」の3状態から「無し／宣言」に
+  なり、`typeOnlyExportStarName`は無くなった。
+- **問い合わせ**：`getTypeOnlyAliasDeclaration(symbol)`は、aliasを解決した後のそのalias自身の記録。意味を指定する
+  `getTypeOnlyAliasDeclarationEx(symbol, meaning)`は、その意味を持つsymbolに着くまでaliasを1段ずつたどり、途中の
+  記録を返す。aliasが同じ意味の宣言とmergeされていれば、そこで終わる。`getSymbolFlagsEx`は、
+  `excludeTypeOnlyMeanings`のとき、type-onlyのaliasに着いた所で止まる（6.0は、type-onlyの宣言の解決先まで進んで
+  いた）。
+- **import aliasの報告**：`checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol`は、`import x = a.b.c`の
+  名前を、全体から左端の識別子へ順に、どの意味ででも解決し、type-onlyのaliasを名指す最初の部分でTS1380を
+  報告する。6.0は、import alias自身にtargetから印が付いたかを見ていた。
+- 一緒に合わせた所：`resolveESModuleSymbol`はaliasの宣言を受け取り、純粋なaliasである`export =`を
+  `resolveIndirectionAlias`でたどる。`combineValueAndTypeSymbols`は、型の側が値の意味を持てばそれを返し、
+  `getExternalModuleMember`は両方あれば（同じsymbolでも）合成する。`getTargetOfExportAssignment`は、namespaceの
+  中の`export =`／`export default`（文法error）にtargetを持たせない。decorator metadataの型参照の直列化は、
+  値のsymbolがあっても型のsymbolのtype-onlyの記録を見る。
+- 観測できる違い（どれもtsgoと同じ出力になった。probeは25本）：
+  - `import type * as a`を通した`import A = a.A`は、import aliasの位置のTS1380だけになる。`A`自身はtype-onlyに
+    ならないので、`A`の使用（TS1361）と、`A`をre-exportした先のimport alias（TS1380）は報告されない
+    （`importEquals3`）。
+  - 関数を`export type { A }`し、それをimportしてnamespaceとmergeし直した`A`は、値として使える。たどる途中で
+    値の意味を持つsymbol（mergeされたalias）に着くので、その先の`export type`に届かない（`typeOnlyMerge3`の
+    TS1362 3件が消える）。
+  - `export type *`でしか届かない名前を、`export { A as A1 } from`で名前を変えてre-exportすると、`A1`の値としての
+    使用がTS1362になる。6.0は、別名`A1`を`export type *`のmoduleのexportから探して見つけられず、通していた。
+  - `import type A = require(…)`を名指す`import AA = A`は、namespaceとしての解決に失敗しても（TS2702）、import
+    aliasのTS1380が出る。
+  - **tsgoの挙動で、6.0より緩い所**：`import type T = N.C`（文法errorのTS1392）で、名前の中にaliasが1つも
+    無いと、type-onlyは記録されず、`new T()`は報告されない。tsgoはimport aliasのtype-onlyを、名前の中のaliasを
+    解決するとき（`resolveEntityName`、checker.go:16135-16138）にだけ記録するためである。名前がimportから始まる
+    `import type U = M.C`は記録され、使用がTS1361になる。上流の退行かもしれないが、tsgoの出力に合わせ、unit
+    testに固定した。
+- unit test：CLI（tsgoの出力にpin）で5件（type-onlyのnamespaceを通したimport alias、namespaceとmergeされた
+  alias、`export type *`の名前の別名でのre-export、type-onlyのimportを名指すimport alias、aliasを通らない
+  `import type`）。どれもmainのbuildでは違う出力になる。checkerのunit test 1件は、関数の引数の変更に合わせた。
+- 結果（corporaの`--noEmit`の診断、tsgo 7.1.0-dev-19dadef8と比べて、`8ff6dca95`のbuild）：hono、Playwright、
+  TypeScript `src/compiler`、Next.js、Effect、Vue.js、VS Codeは、既定のchecker数で全て同じbyte。zodは7回の実行の
+  うち6回が37行対36行（P3-5beに記録したpartition依存のTS5115の1行）、1回が同じbyte。
+- conformance（release build、`8ff6dca95`、`--workers 2`、466 s）：15,228構成、lane A 13,466、full 13,445（+2）、
+  text 2、category 0、mismatch 2、emit full 13,434、emitの不一致7、未評価8、harness error 17、skip 1,720、
+  `.js.map`の不一致1。P3-5bfの最後のreportと行ごとに比べて変わったのは2構成だけ：`importEquals3`と
+  `typeOnlyMerge3`のerrorsがFullになった。他の構成はtierも、診断とemitのdigestも同じ。途中は11のfilter
+  （`mport`、`xport`、`ypeOnly`、`lias`、`amespace`、`equire`、`odule`、`ecorator`、`solated`、`erbatim`、
+  `eprecat`）で確かめた。
+- `--checkers 4`の並列対照（1 checkerの同じfilterと比べる）：`mport` 1,059構成、`ypeOnly` 84構成、`lias` 276構成、
+  `eclaration` 2,426構成が全て同じ。全caseの対照はlocalの負荷の方針により実行していない。
+- ratchet：0 regressions。上の2行を足した（13,445→13,447行）。
+- local：formatと、types・checker・emitter・compiler・conformance・harnessのclippy、test（2,811件）。workspace全体の
+  testとclippyはhostedの`rust` job。
+- perf（README corporaとVue.js、nice 20、main（P3-5bfのbuild、`d193abfeb`）対tsgo 7.1.0-dev、branchは
+  `8ff6dca95`）：
+  - 1 checkerの命令数branch÷main：`--noEmit` zod 1.000、Effect 1.000、Next.js 0.999、Playwright 0.999、Vue.js
+    1.000、`bench-full` TypeScript `src/compiler` 1.000、Next.js 0.999、Vue.js 1.001。仕事の量は変わっていない。
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 173→153、zod 567→589、Playwright 405→421、TypeScript
+    `src/compiler` 357→355、Next.js 825→845、Effect 585→589、Vue.js 390→383、VS Code 3,885→3,796。読み込んだ
+    文書数は8 corporaでmainと同じ。診断は、zodのpartition依存の1行（この回はmainが36件、branchが37件）を
+    除いて同じ。peak（MB）：hono 320→303、zod 1,291→1,286、Playwright 804→806、TypeScript `src/compiler`
+    285→284、Next.js 1,292→1,286、Effect 1,030→1,008、Vue.js 599→602、VS Code 5,412→5,429。
+  - `tsconfig.bench-full.json` 3回：hono 162→159、zod 711→702、Playwright 551→544、TypeScript `src/compiler`
+    575→559、Next.js 1,170→1,136、Effect 855→875、Vue.js 442→460。peak：hono 341→334、zod 1,517→1,506、
+    Playwright 872→871、TypeScript `src/compiler` 467→469、Next.js 1,430→1,423、Effect 1,164→1,173、Vue.js
+    624→623。出力は7 corporaとも、全fileがmainと同じbyte。
+  - 10回のA/B：`--noEmit` Effect 567→588（最小値533→503）、zod 591→592、VS Code 3,871→3,896、Next.js 832→844
+    （最小値744→804）、Vue.js 380→388。`bench-full` TypeScript `src/compiler` 548→537、Next.js 1,088→1,095、
+    Playwright 529→530、Effect 836→839、Vue.js 438→443。peakは±1%以内。時間の差は±3%の中で向きが揃わず、
+    命令数が同じなので、計測の誤差と判断した。劣化無し。この回は全体に前回（P3-5bf）より数%から1割ほど遅く
+    読めており、mainとbranchの両方が同じだけ動いている。
+  - tsgo（同じ計測の3回のmedian、ms／peak MB）：`--noEmit` hono 196／332、zod 985／1,760、Playwright 602／991、
+    TypeScript `src/compiler` 377／396、Next.js 1,476／1,691、Effect 864／1,215、Vue.js 557／732、VS Code
+    5,271／6,760。`bench-full` hono 216／375、zod 1,080／1,919、Playwright 779／1,335、TypeScript `src/compiler`
+    669／653、Next.js 1,817／2,052、Effect 1,285／1,788、Vue.js 664／945。
+  - 出力（`bench-full`、tsgoと同じbyteのfile数）：hono、zod、Playwright、TypeScript `src/compiler`、Next.js、Vue.jsは
+    `.js`、`.d.ts`、両方のmapの全file。Effectは宣言493/496（mainも同じ。tsgo自身の実行ごとの違いを含む）、他は
+    全て。
+- 次：
+  - **harnessはemitの後の診断をbaselineにする**（errorsがFullでない残りの4構成：`mutuallyRecursiveInference`、
+    `recursiveMappedTypes`、`incorrectRecursiveMappedTypeConstraint`、`typeParameterWithInvalidConstraintType`）。
+    このsliceの途中で、runnerの2つ目のProgramを「emitしてから診断を集める」順序にする試作をした（checkerの
+    driverに、初期化の直後に1回operationを呼ぶscheduleを足し、そこでemitする）。分かったこと：
+    - tsgoのharnessのProgramは1 thread・1 checker（`TestProgramIsSingleThreaded`）で、`Emit`はsource fileを
+      Programの順に、fileごとにJS、宣言の順で出す。emitの中でcheckerを動かすのは主に2つ：import elisionが最初に
+      呼ぶ`MarkLinkedReferencesRecursively`（fileの全nodeで`markLinkedReferences`）と、const enumのinlinerが全ての
+      property／element accessに呼ぶ`GetConstantValue`（解決済みのsymbolが無ければ`checkExpressionCached`）。
+      `mutuallyRecursiveInference`のTS5114が`this.a`の位置に出るのは後者による。
+    - 試作では4構成とも、errorsもemitもFullになった。
+    - 一方、tsc-rsのemit resolverは検査済みのProgramを前提にしている所があり、4つのfilter（`ecursive`、
+      `ircular`、`num`、`eclaration`。重複を除いて2,913構成）で、emitのtierが190構成、errorsのtierが16構成
+      下がった。原因は2種類：(1) import elisionが、検査のときに付く
+      aliasの参照の印に頼っている（tsc 6.0の形：未検査のfileだけ`markLinkedReferences`を歩く。tsgoは常に
+      歩く）。未検査のままemitすると、使われているimportが消える。(2) resolverの問い合わせの一部が、tscとtsgoの
+      `getReferencedValueSymbol`（診断を出さず、cacheもしない名前解決）ではなく、診断を出す`getResolvedSymbol`を
+      使っている（`getReferencedExportContainer`、`getReferencedValueDeclaration`など）。検査の後のemitでは、
+      その診断は誰にも読まれないので見えなかった。emitが先だと、宣言の名前に対する「宣言の前に使われた」
+      （TS2450／TS2448）などが診断に混ざり、harnessの「emitの前後で診断の数が違う」行になる。
+    - 次のsliceで、(1)を7.1の`markLinkedReferences`（未検査の場所を歩かないための条件が6.0より増えている）に
+      合わせ、(2)を直してから、runnerをemit-firstにする。`noEmitOnError`のProgramは、tsgoでも`Emit`が先に全ての
+      診断を求めるので、順序は今のまま。`--checkers 4`の対照は今の順序（検査が先）で走るので、この4構成は
+      記録する違いになる。
+  - emitの不一致7、harness error 17（`runExternalCode`の15件、`deduplicatePackages`の2件）。
+  - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
