@@ -13747,11 +13747,17 @@ impl Printer {
                 .then_some(GrammarParentheses::SourceRanged)
             }
             ExpressionGrammarContext::NewCallee => {
-                let leftmost = self.leftmost_expression(transformation, emitted, true)?;
-                let leftmost_record = transformation.arena().node(leftmost)?;
-                if leftmost_record.kind == SyntaxKind::CallExpression
+                // tsgo's emitNewExpression parenthesizes a callee that is
+                // itself a call (partially emitted wrappers skipped) and
+                // emits any other callee at member precedence, where a call
+                // counts as a member access (printer.go:2592-2605,
+                // ast/precedence.go:274-284). tsc looked for a call at the
+                // callee's left edge, so `new (f() as T).C()` printed
+                // `new (f().C)()`; tsgo prints `new f().C()`.
+                let callee_record = transformation.arena().node(emitted)?;
+                if callee_record.kind == SyntaxKind::CallExpression
                     || matches!(
-                        &leftmost_record.data,
+                        &callee_record.data,
                         NodeData::NewExpression(data) if data.arguments.is_none()
                     )
                 {
