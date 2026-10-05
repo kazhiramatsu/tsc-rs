@@ -2528,3 +2528,5 @@ P3-5axの後、emitとrunnerの5件：
   - 10回のA/B（`--noEmit`）：Effect 514→501、zod 518→521、VS Code 3,365→3,353、Next.js 779→766。
   - 1 checkerの命令数branch÷main（`--noEmit`）：zod 0.99983、Effect 0.99972、Next.js 0.99968、Playwright 0.99967。
     Playwrightの3回の差はnoiseで、劣化無し。
+- hosted：PR #676（head `1669f9b03`）、run 37246122418 — `plan` 30s、`rust` 9m49s、`conformance (TypeScript 7.1)` 17m52s、
+  `gates` 13s。
