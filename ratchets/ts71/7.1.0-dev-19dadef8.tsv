@@ -432,6 +432,7 @@ compiler/awaitUnionPromise	full	js
 compiler/awaitedType	full	js
 compiler/awaitedTypeCrash	full	js
 compiler/awaitedTypeJQuery	full	js
+compiler/awaitedTypeNoLib	full	js
 compiler/awaitedTypeStrictNull	full	js
 compiler/backslashBeforeNonSpecialChar	full	js
 compiler/badArrayIndex	full	js
@@ -463,6 +464,7 @@ compiler/bigint64ArraySubarray	full	js
 compiler/bigintAmbientMinimal(target=es2015)	full	js
 compiler/bigintArbirtraryIdentifier	full	js
 compiler/bigintIndex	full	js
+compiler/bigintPropertyName	full	js
 compiler/bigintWithLib	full	js
 compiler/bigintWithoutLib(target=es2015)	full	js
 compiler/binaryArithmatic1	full	js
@@ -482,7 +484,7 @@ compiler/bindingPatternOptionalParameterCached	full	js
 compiler/binopAssignmentShouldHaveType	full	js
 compiler/bitwiseCompoundAssignmentOperators	full	js
 compiler/blockScopedBindingCaptureThisInFunction	full	js
-compiler/blockScopedBindingUsedBeforeDef	category	js
+compiler/blockScopedBindingUsedBeforeDef	full	js
 compiler/blockScopedBindingsInDownlevelGenerator(target=es2015)	full	js
 compiler/blockScopedBindingsReassignedInLoop1	full	js
 compiler/blockScopedBindingsReassignedInLoop2	full	js
@@ -1312,6 +1314,7 @@ compiler/contextualTypingArrayDestructuringWithDefaults	full	js
 compiler/contextualTypingArrayOfLambdas	full	js
 compiler/contextualTypingFunctionReturningFunction	full	js
 compiler/contextualTypingFunctionReturningFunction2	full	js
+compiler/contextualTypingGenericFunction2	full	js
 compiler/contextualTypingOfAccessors	full	js
 compiler/contextualTypingOfArrayLiterals1	full	js
 compiler/contextualTypingOfConditionalExpression	full	js
@@ -1579,6 +1582,7 @@ compiler/declarationEmitComputedPropertyNameEnum2	full	js
 compiler/declarationEmitComputedPropertyNameEnum3	full	js
 compiler/declarationEmitComputedPropertyNameSymbol1	full	js
 compiler/declarationEmitComputedPropertyNameSymbol2	full	js
+compiler/declarationEmitComputedPropertyNameSymbolStripInternal	full	js
 compiler/declarationEmitConstObjectLiteralGenericMethod1	full	js
 compiler/declarationEmitConstantNoWidening	full	js
 compiler/declarationEmitConstructorType	full	js
@@ -1893,6 +1897,7 @@ compiler/deepExcessPropertyCheckingWhenTargetIsIntersection	full	js
 compiler/deepKeysIndexing	full	js
 compiler/deeplyDependentLargeArrayMutation	full	js
 compiler/deeplyDependentLargeArrayMutation2	full	js
+compiler/deeplyNestedArrayTypes	full	js
 compiler/deeplyNestedAssignabilityErrorsCombined	full	js
 compiler/deeplyNestedAssignabilityIssue	full	js
 compiler/deeplyNestedCheck	full	js
@@ -1900,6 +1905,7 @@ compiler/deeplyNestedConditionalTypes	full	js
 compiler/deeplyNestedConstraints	full	js
 compiler/deeplyNestedMappedTypes	full	js
 compiler/deeplyNestedTemplateLiteralIntersection	full	js
+compiler/deeplyNestedTupleTypes	full	js
 compiler/defaultArgsInFunctionExpressions	full	js
 compiler/defaultArgsInOverloads	full	js
 compiler/defaultBestCommonTypesHaveDecls	full	js
@@ -2585,6 +2591,7 @@ compiler/exportAssignmentFunction	full	js
 compiler/exportAssignmentImportMergeNoCrash	full	js
 compiler/exportAssignmentInterface	full	js
 compiler/exportAssignmentInternalModule	full	js
+compiler/exportAssignmentMembersVisibleInAugmentation	full	js
 compiler/exportAssignmentMerging1	full	js
 compiler/exportAssignmentMerging10	full	js
 compiler/exportAssignmentMerging2	full	js
@@ -3179,6 +3186,7 @@ compiler/gettersAndSettersErrors	full	js
 compiler/gettersAndSettersTypesAgree	full	js
 compiler/giant	full	js
 compiler/global	full	js
+compiler/globalArrayAugmentationWithAmbientModuleReexportMerge1	full	js
 compiler/globalFunctionAugmentationOverload	full	js
 compiler/globalIsContextualKeyword	full	js
 compiler/globalThis	full	js
@@ -3533,6 +3541,7 @@ compiler/inferringAnyFunctionType4	full	js
 compiler/inferringAnyFunctionType5	full	js
 compiler/inferringReturnTypeFromConstructSignatureGeneric	full	js
 compiler/infiniteConstraints	full	js
+compiler/infiniteConstraints2	full	js
 compiler/infiniteExpandingTypeThroughInheritanceInstantiation	full	js
 compiler/infiniteRecursionDestructuringLoop	full	js
 compiler/infinitelyExpandingBaseTypes1	full	js
@@ -3896,6 +3905,7 @@ compiler/jsDocOverloadNamedDefaultExport	full	js
 compiler/jsDocPrivateConstructor	full	js
 compiler/jsDocTypedefTagNamespace	full	js
 compiler/jsDocTypedefWithThisTag	full	js
+compiler/jsElementAccessNoContextualTypeCrash	full	js
 compiler/jsEmitIntersectionProperty	full	js
 compiler/jsEnumCrossFileExport	full	js
 compiler/jsEnumFunctionLocalNoCrash	full	js
@@ -4721,6 +4731,7 @@ compiler/nestedExcessPropertyChecking	full	js
 compiler/nestedFreshLiteral	full	js
 compiler/nestedGenericConditionalTypeWithGenericImportType	full	js
 compiler/nestedGenericSpreadInference	full	js
+compiler/nestedGenericTypeInference	full	js
 compiler/nestedGenerics	full	js
 compiler/nestedGlobalNamespaceInClass	full	js
 compiler/nestedHomomorphicMappedTypesWithArrayConstraint1	full	js
@@ -5411,7 +5422,7 @@ compiler/reachabilityChecks9	full	js
 compiler/reachabilityChecks9_promoted	full	js
 compiler/reachabilityChecksIgnored	full	js
 compiler/reachabilityChecksIgnored_promoted	full	js
-compiler/reachabilityChecksNoCrash1	category	js
+compiler/reachabilityChecksNoCrash1	full	js
 compiler/reactDefaultPropsInferenceSuccess	full	js
 compiler/reactHOCSpreadprops	full	js
 compiler/reactImportDropped	full	js
@@ -5484,6 +5495,7 @@ compiler/recursiveGenericUnionType2	full	js
 compiler/recursiveGetterAccess	full	js
 compiler/recursiveIdenticalAssignment	full	js
 compiler/recursiveIdenticalOverloadResolution	full	js
+compiler/recursiveIndexedAccessSimplification	full	js
 compiler/recursiveInference1	full	js
 compiler/recursiveInferenceBug	full	js
 compiler/recursiveInheritance	full	js
@@ -5508,12 +5520,15 @@ compiler/recursiveTypeAliasWithSpreadConditionalReturnNotCircular	full	js
 compiler/recursiveTypeComparison	full	js
 compiler/recursiveTypeComparison2	full	js
 compiler/recursiveTypeIdentity	full	js
+compiler/recursiveTypeInference	full	js
+compiler/recursiveTypeInference2	full	js
 compiler/recursiveTypeParameterConstraintReferenceLacksTypeArgs	full	js
 compiler/recursiveTypeParameterReferenceError1	full	js
 compiler/recursiveTypeParameterReferenceError2	full	js
 compiler/recursiveTypeRelations	full	js
 compiler/recursiveTypes1	full	js
 compiler/recursiveUnionTypeInference	full	js
+compiler/recursivelyExpandingUnionNoStackoverflow	full	js
 compiler/recursivelySpecializedConstructorDeclaration	full	js
 compiler/redeclarationOfVarWithGenericType	full	js
 compiler/redeclareParameterInCatchBlock	full	js
@@ -7028,7 +7043,7 @@ conformance/YieldExpression2_es6	full	js
 conformance/YieldExpression3_es6	full	js
 conformance/YieldExpression4_es6	full	js
 conformance/YieldExpression5_es6	full	js
-conformance/YieldExpression6_es6	category	js
+conformance/YieldExpression6_es6	full	js
 conformance/YieldExpression7_es6	full	js
 conformance/YieldExpression8_es6	full	js
 conformance/YieldExpression9_es6	full	js
@@ -7681,6 +7696,8 @@ conformance/checkJsxChildrenProperty11	full	js
 conformance/checkJsxChildrenProperty12	full	js
 conformance/checkJsxChildrenProperty13	full	js
 conformance/checkJsxChildrenProperty14	full	js
+conformance/checkJsxChildrenProperty15	full	js
+conformance/checkJsxChildrenProperty16	full	js
 conformance/checkJsxChildrenProperty2	full	js
 conformance/checkJsxChildrenProperty3	full	js
 conformance/checkJsxChildrenProperty4	full	js
@@ -10071,7 +10088,7 @@ conformance/mappedTypeAsClauseRecursiveNoCrash1	full	js
 conformance/mappedTypeAsClauseRelationships	full	js
 conformance/mappedTypeAsClauses	full	js
 conformance/mappedTypeConstraints	full	js
-conformance/mappedTypeConstraints2	text	js
+conformance/mappedTypeConstraints2	full	js
 conformance/mappedTypeErrors	full	js
 conformance/mappedTypeErrors2	full	js
 conformance/mappedTypeIndexSignatureModifiers	full	js
@@ -10134,6 +10151,7 @@ conformance/mixinAccessors5	full	js
 conformance/mixinClassesAnnotated	full	js
 conformance/mixinClassesAnonymous	full	js
 conformance/mixinClassesMembers	full	js
+conformance/mixinWithBaseDependingOnSelfNoCrash1	full	js
 conformance/modifierOnClassDeclarationMemberInFunction	full	js
 conformance/modifierOnClassExpressionMemberInFunction	full	js
 conformance/moduleExportAlias	full	js
@@ -10225,6 +10243,7 @@ conformance/nestedNamespace	full	js
 conformance/nestedPackageJsonRedirect(moduleresolution=bundler)	full	js
 conformance/nestedPackageJsonRedirect(moduleresolution=node16)	full	js
 conformance/nestedPackageJsonRedirect(moduleresolution=nodenext)	full	js
+conformance/nestedPrototypeAssignment	full	js
 conformance/neverInference	full	js
 conformance/neverIntersectionNotCallable	full	js
 conformance/neverReturningFunctions1	full	js
@@ -11920,6 +11939,7 @@ conformance/protectedStaticClassPropertyAccessibleWithinSubclass2(target=es2015)
 conformance/protectedStaticNotAccessibleInClodule	full	js
 conformance/prototypePropertyAssignmentMergeAcrossFiles	full	js
 conformance/prototypePropertyAssignmentMergeAcrossFiles2	full	js
+conformance/prototypePropertyAssignmentMergeWithInterfaceMethod	full	js
 conformance/prototypePropertyAssignmentMergedTypeReference	full	js
 conformance/publicIndexer	full	js
 conformance/quotedConstructors	full	js
@@ -12737,6 +12757,7 @@ conformance/tsxSpreadInvalidType	full	js
 conformance/tsxStatelessFunctionComponentOverload1	full	js
 conformance/tsxStatelessFunctionComponentOverload2	full	js
 conformance/tsxStatelessFunctionComponentOverload3	full	js
+conformance/tsxStatelessFunctionComponentOverload4	full	js
 conformance/tsxStatelessFunctionComponentOverload5	full	js
 conformance/tsxStatelessFunctionComponentOverload6	full	js
 conformance/tsxStatelessFunctionComponentWithDefaultTypeParameter1	full	js
@@ -12842,6 +12863,8 @@ conformance/typeFromPropertyAssignment6	full	js
 conformance/typeFromPropertyAssignment7	full	js
 conformance/typeFromPropertyAssignment8	full	js
 conformance/typeFromPropertyAssignment8_1	full	js
+conformance/typeFromPropertyAssignment9	full	js
+conformance/typeFromPropertyAssignment9_1	full	js
 conformance/typeFromPropertyAssignmentOutOfOrder(target=es2015)	full	js
 conformance/typeFromPropertyAssignmentWithExport	full	js
 conformance/typeFromPrototypeAssignment	full	js
