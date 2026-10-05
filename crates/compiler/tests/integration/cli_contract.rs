@@ -5810,3 +5810,203 @@ fn const_enum_values_are_inlined_in_kept_rebuilt_and_moved_subtrees_like_tsgo() 
         r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";;;AAIA,IAAI,CAAC,gBAAQ,EAAE,CAAC;IAAC,CAAC,cAAM,CAAC;AAAC,CAAC;AAC3B,SAAS,CAAC,CAAC,CAAS,IAAY,OAAO,CAAC,gBAAQ,CAAC,CAAC,aAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAC7D,MAAM,CAAC;IAAP;QACI,MAAC,GAAG,4BAAY,CAAC;IAGrB,CAAC;IADG,CAAC,KAAK,OAAO,eAAI,QAAQ,EAAE,GAAG,YAAI,OAAO,EAAE,CAAC,CAAC,CAAC;CACjD;AAFU,GAAC,gBAAA,CAAO;AAGN,QAAA,CAAC,GAAG,cAAM,IAAI,CAAC,EAAE,CAAC,CAAC,EAAE,CAAC,aAAK,CAAC,CAAC"}"#
     );
 }
+
+#[test]
+fn concise_body_blocks_and_name_clones_map_like_tsgo() {
+    // A concise body that a lowering turns into a block has the body's range on
+    // its statement list and writes no comments of its own (ConvertToFunctionBlock
+    // and VisitFunctionBody, printer/emitcontext.go:930-962): the `}` maps after
+    // the body, the comments after the body are written before it, and a single-
+    // line block's return statement leaves its trailing comment to the arrow
+    // function. tsgo's name clones keep their range: a parameter default's check
+    // (emitcontext.go:892-917), a private field's receiver (classfields.go:
+    // 1269-1281) and a function-valued export (commonjsmodule.go:1067-1077) map,
+    // while `exports.x = x;` for `export { x }` has only a comment range
+    // (commonjsmodule.go:578-588), a class fields default export maps nothing
+    // (GetLocalName) and a `using` block keeps its statement range (using.go:
+    // 204-206). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const r: { a?: { b: number } } | undefined;\n",
+            "export const f = () => r?.a?.b /* t */;\n",
+            "export function outer(o?: { p?: { q: Promise<number> } }) {\n",
+            "  const get = () =>\n",
+            "    o?.p?.q\n",
+            "      .then((d) => d)\n",
+            "\n",
+            "  // after the body\n",
+            "  return get;\n",
+            "}\n",
+            "export function h(/*c1*/ v /*c2*/ = r?.a?.b) { return v; }\n",
+            "export class Q {\n",
+            "    #n = 0;\n",
+            "    run() { this.#n++; }\n",
+            "}\n",
+            "const local = () => 1;\n",
+            "export { local };\n",
+            "export async function u() {\n",
+            "    await using d = { async [Symbol.asyncDispose]() {} };\n",
+            "    return d;\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "export default class R {\n",
+            "    static empty = new R();\n",
+            "}\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2018","module":"commonjs","lib":["esnext"],"noEmitHelpers":true,"sourceMap":true,"outDir":"out"},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "var _Q_n;\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.local = exports.Q = exports.f = void 0;\n",
+            "exports.outer = outer;\n",
+            "exports.h = h;\n",
+            "exports.u = u;\n",
+            "const f = () => { var _a; return (_a = r === null || r === void 0 ? void 0 : r.a) === null || _a === void 0 ? void 0 : _a.b; } /* t */;\n",
+            "exports.f = f;\n",
+            "function outer(o) {\n",
+            "    const get = () => {\n",
+            "        var _a;\n",
+            "        return (_a = o === null || o === void 0 ? void 0 : o.p) === null || _a === void 0 ? void 0 : _a.q.then((d) => d);\n",
+            "        // after the body\n",
+            "    };\n",
+            "    // after the body\n",
+            "    return get;\n",
+            "}\n",
+            "function h(/*c1*/ v /*c2*/) { var _a; if (v /*c2*/ === void 0) { v /*c2*/ = (_a = r === null || r === void 0 ? void 0 : r.a) === null || _a === void 0 ? void 0 : _a.b; } return v; }\n",
+            "class Q {\n",
+            "    constructor() {\n",
+            "        _Q_n.set(this, 0);\n",
+            "    }\n",
+            "    run() { var _a; __classPrivateFieldSet(this, _Q_n, (_a = __classPrivateFieldGet(this, _Q_n, \"f\"), _a++, _a), \"f\"); }\n",
+            "}\n",
+            "exports.Q = Q;\n",
+            "_Q_n = new WeakMap();\n",
+            "const local = () => 1;\n",
+            "exports.local = local;\n",
+            "async function u() {\n",
+            "    const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "    try {\n",
+            "        const d = __addDisposableResource(env_1, { async [Symbol.asyncDispose]() { } }, true);\n",
+            "        return d;\n",
+            "    }\n",
+            "    catch (e_1) {\n",
+            "        env_1.error = e_1;\n",
+            "        env_1.hasError = true;\n",
+            "    }\n",
+            "    finally {\n",
+            "        const result_1 = __disposeResources(env_1);\n",
+            "        if (result_1)\n",
+            "            await result_1;\n",
+            "    }\n",
+            "}\n",
+            "//# sourceMappingURL=a.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.js.map"),
+        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";;;;;;;AACO,MAAM,CAAC,GAAG,GAAG,EAAE,WAAC,OAAA,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,CAAA,CAAQ,CAAC,AAAT,CAAC,OAAO,CAAC;AAA1B,QAAA,CAAC,GAAD,CAAC,CAAyB;AACvC,eAAsB,CAAkC;IACtD,MAAM,GAAG,GAAG,GAAG,EAAE;;QACf,OAAA,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,CACJ,IAAI,CAAC,CAAC,CAAC,EAAE,EAAE,CAAC,CAAC,CAAC,CAAA;QAEnB,iBAAiB;IACjB,CAAC,AAHkB,CAAA;IAEnB,iBAAiB;IACjB,OAAO,GAAG,CAAC;AACb,CAAC;AACD,WAAkB,MAAM,CAAC,CAAC,CAAC,MAAgB,gBAAlB,CAAC,CAAC,MAAM,aAAR,EAAA,EAAE,MAAM,SAAG,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,IAAI,OAAO,CAAC,CAAC,CAAC,CAAC;AAC1D;IAAA;QACI,eAAK,CAAC,EAAC;IAEX,CAAC;IADG,GAAG,aAAK,uBAAA,IAAI,SAAJ,4BAAA,IAAI,YAAG,EAAP,IAAS,IAAA,OAAA,CAAC,CAAC,CAAC;CACvB;;;AACD,MAAM,KAAK,GAAG,GAAG,EAAE,CAAC,CAAC,CAAC;QACb,KAAK;AACP,KAAK;;;QACR,MAAY,CAAC,kCAAG,EAAE,KAAK,CAAC,CAAC,MAAM,CAAC,YAAY,CAAC,KAAI,CAAC,EAAE,OAAA,CAAC;QACrD,OAAO,CAAC,CAAC;;;;;;;;;;;AACb,CAAC"}"#
+    );
+    assert_eq!(
+        read("out/b.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "class R {\n",
+            "}\n",
+            "R.empty = new R();\n",
+            "exports.default = R;\n",
+            "//# sourceMappingURL=b.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/b.js.map"),
+        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":";;AAAA,MAAqB,CAAC;CAErB;AADU,OAAK,GAAG,IAAI,CAAC,EAAE,CAAC"}"#
+    );
+}
+
+#[test]
+fn print_time_parentheses_and_new_callees_follow_tsgo() {
+    // Parentheses that precedence needs are written while printing and map
+    // nothing (printer.go:3222-3226), including those around an optional chain
+    // whose type assertion was erased. A `new` callee is parenthesized only when
+    // it is itself a call (printer.go:2592-2605), so `new (load() as any).C()`
+    // prints `new load().C()` as tsgo does. A class fields default export after
+    // a moved static initializer maps nothing. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const result: { $defs?: { Inner?: { id: number } } };\n",
+            "declare function load(): { C: new () => object };\n",
+            "export const id = (result.$defs?.Inner as any).id;\n",
+            "export const made = new (load() as any).C();\n",
+            "export const kept = new (load().C)();\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "export default class R {\n",
+            "    static empty = new R();\n",
+            "}\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2021","module":"esnext","sourceMap":true,"outDir":"out"},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.js"),
+        concat!(
+            "export const id = (result.$defs?.Inner).id;\n",
+            "export const made = new load().C();\n",
+            "export const kept = new (load().C)();\n",
+            "//# sourceMappingURL=a.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.js.map"),
+        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"AAEA,MAAM,CAAC,MAAM,EAAE,GAAG,CAAC,MAAM,CAAC,KAAK,EAAE,KAAa,EAAC,EAAE,CAAC;AAClD,MAAM,CAAC,MAAM,IAAI,GAAG,IAAK,IAAI,EAAU,CAAC,CAAC,EAAE,CAAC;AAC5C,MAAM,CAAC,MAAM,IAAI,GAAG,IAAI,CAAC,IAAI,EAAE,CAAC,CAAC,CAAC,EAAE,CAAC"}"#
+    );
+    assert_eq!(
+        read("out/b.js"),
+        concat!(
+            "class R {\n",
+            "}\n",
+            "R.empty = new R();\n",
+            "export default R;\n",
+            "//# sourceMappingURL=b.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/b.js.map"),
+        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":"AAAA,MAAqB,CAAC;CAErB;AADU,OAAK,GAAG,IAAI,CAAC,EAAE,CAAC"}"#
+    );
+}
