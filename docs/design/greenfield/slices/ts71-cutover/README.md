@@ -2823,3 +2823,5 @@ P3-5bbの後、README corporaの宣言（`.d.ts`と`.d.ts.map`）をtsgoと比�
     のTS2345を出すが、tsc-rsは出さない。
   - optionのerror（TS5069など）があるとき、tsgoは0.10 sで終わるが、tsc-rsはprogram全体をcheckしてから同じ1件を
     出す（Vue.jsで0.35 s、597 MB）。
+- hosted：PR #680（head `c0213e6c2`）、run 37274156113 — `plan` 29s、`rust` 10m9s、`conformance (TypeScript 7.1)` 15m51s、
+  `gates` 14s。
