@@ -246,6 +246,11 @@ impl TransformSource {
         node.index() >= self.parsed_node_base && node.index() < self.parsed_node_end
     }
 
+    /// The id index of the first parsed node of the emit copy.
+    pub(crate) const fn parsed_node_base(&self) -> u32 {
+        self.parsed_node_base
+    }
+
     /// The number of parsed nodes the emit copy started from.
     pub fn parsed_node_count(&self) -> usize {
         (self.parsed_node_end - self.parsed_node_base) as usize
@@ -3466,6 +3471,8 @@ impl<'arena> NodeFactory<'arena> {
             }),
             flags,
         )?;
+        // tsgo's emitConciseBody wraps an object literal body in parentheses
+        // ranged to the body, which map (printer.go:2673-2679).
         self.set_text_range(parenthesized, body)
     }
 
@@ -3584,7 +3591,7 @@ impl<'arena> NodeFactory<'arena> {
             }),
             flags,
         )?;
-        self.set_text_range(parenthesized, operand)
+        self.parenthesizer_parentheses(parenthesized, operand)
     }
 
     /// tsc-port: createPrefixUnaryExpression @6.0.3
@@ -3643,7 +3650,7 @@ impl<'arena> NodeFactory<'arena> {
             }),
             flags,
         )?;
-        self.set_text_range(parenthesized, expression)
+        self.parenthesizer_parentheses(parenthesized, expression)
     }
 
     /// tsc-port: createPropertyAccessExpression @6.0.3
@@ -5690,6 +5697,21 @@ impl<'arena> NodeFactory<'arena> {
         Ok(())
     }
 
+    /// Parentheses the parenthesizer adds keep the operand's range for
+    /// comments but map nothing: tsgo's printer writes them while printing
+    /// (`emitExpression`, printer.go:3222-3226), with no node of their own.
+    fn parenthesizer_parentheses(
+        &mut self,
+        parenthesized: TransformNode,
+        operand: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let parenthesized = self.set_text_range(parenthesized, operand)?;
+        self.arena
+            .metadata_mut(parenthesized)
+            .add_flags(EmitFlags::NO_SOURCE_MAP);
+        Ok(parenthesized)
+    }
+
     fn create_ranged_parenthesized_expression(
         &mut self,
         expression: TransformNode,
@@ -5702,7 +5724,7 @@ impl<'arena> NodeFactory<'arena> {
             }),
             flags,
         )?;
-        self.set_text_range(parenthesized, expression)
+        self.parenthesizer_parentheses(parenthesized, expression)
     }
 
     fn parenthesize_statement_expression(
@@ -6087,7 +6109,7 @@ impl<'arena> NodeFactory<'arena> {
             }),
             flags,
         )?;
-        self.set_text_range(parenthesized, expression)
+        self.parenthesizer_parentheses(parenthesized, expression)
     }
 
     /// tsc's export-assignment factory uses assignment-RHS rules for

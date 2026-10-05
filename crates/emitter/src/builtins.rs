@@ -16,10 +16,9 @@ use crate::{
     factory::{private_identifier_expression_flags, EmitHelperName},
     CommentRange, EmitConstantValue, EmitExportContainerMode, EmitFlags, EmitHint, EmitHost,
     EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, InternalEmitFlags,
-    LexicalEnvironment, LexicalEnvironmentFlags, SourceMapRange, SourceRange, SyntheticComment,
-    SyntheticCommentKind, TransformArena, TransformError, TransformFlags, TransformNode,
-    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
-    UnsupportedTransformFeature,
+    LexicalEnvironment, LexicalEnvironmentFlags, SourceMapRange, SourceRange, TransformArena,
+    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer, UnsupportedTransformFeature,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -38,6 +37,7 @@ const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod class_fields;
+mod const_enums;
 mod es2015;
 mod es2017;
 mod es2018;
@@ -280,6 +280,13 @@ fn get_script_transformers_with_optional_host<'transformers>(
         transformers.push(transform_generators);
     }
     transformers.push(module_transformer);
+    // tsgo inlines const enum values after the module transform, in place of
+    // tsc's print-time substitution (compiler/emitter.go:174-177).
+    if !(options.isolated_modules == Some(true) || options.verbatim_module_syntax == Some(true)) {
+        transformers.push(const_enums::transform_const_enum_inlining(
+            options, resolver,
+        ));
+    }
     Ok(transformers)
 }
 
@@ -297,10 +304,7 @@ pub fn transform_type_script<'resolver>(
         downlevel_iteration: options.downlevel_iteration == Some(true),
         module_kind: options.emit_module_kind(),
         preserve_const_enums: options.should_preserve_const_enums(),
-        isolated_modules: options.isolated_modules == Some(true)
-            || options.verbatim_module_syntax == Some(true),
         verbatim_module_syntax: options.verbatim_module_syntax == Some(true),
-        remove_comments: options.remove_comments == Some(true),
         allow_jsx: matches!(options.jsx, None | Some(1..=5)),
         allow_legacy_decorators: true,
         // transformTypeScript always projects parameter properties into
@@ -385,9 +389,7 @@ struct TypeScriptTransformer<'resolver> {
     downlevel_iteration: bool,
     module_kind: i32,
     preserve_const_enums: bool,
-    isolated_modules: bool,
     verbatim_module_syntax: bool,
-    remove_comments: bool,
     allow_jsx: bool,
     allow_legacy_decorators: bool,
     project_parameter_properties_for_class_fields: bool,
@@ -502,14 +504,6 @@ impl Transformer for TypeScriptTransformer<'_> {
         hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        if matches!(
-            context.arena().node(node)?.kind,
-            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-        ) {
-            if let Some(substitute) = self.try_substitute_constant_value(context, node)? {
-                return Ok(substitute);
-            }
-        }
         if self.active_namespace_emit_depth == 0 && self.active_enum_emit_depth == 0 {
             return Ok(node);
         }
@@ -573,164 +567,6 @@ impl Transformer for TypeScriptTransformer<'_> {
 }
 
 impl TypeScriptTransformer<'_> {
-    /// tsc-port: substituteConstantValue @6.0.3
-    /// tsc-hash: bf287a3da8a7c335cc85c24c792272896e41ad2f81fd23a6dbb1098c9c450011
-    /// tsc-span: _tsc.js:95827-95839
-    ///
-    /// Const-enum folding is an emit substitution, not a TypeScript-tree
-    /// rewrite. Keeping it here lets the ordinary visitor retain its
-    /// transform-flag gate while every access expression remains eligible at
-    /// print time.
-    fn try_substitute_constant_value(
-        &self,
-        context: &mut TransformationContext,
-        node: TransformNode,
-    ) -> Result<Option<TransformNode>, TransformError> {
-        if self.isolated_modules {
-            return Ok(None);
-        }
-        let original = context.arena().get_original_node(node);
-        if !matches!(
-            context.arena().node(original)?.kind,
-            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-        ) {
-            return Ok(None);
-        }
-        let Some(resolver_node) = context.arena().parse_tree_resolver_node(node)? else {
-            return Ok(None);
-        };
-        let Some(value) = self.resolver.get_constant_value(resolver_node)? else {
-            return Ok(None);
-        };
-        // `setConstantValue` belongs to the access node, not its replacement.
-        // The parent property-access printer consults this metadata after the
-        // child has been substituted to decide whether an integer needs a
-        // second dot before the following property name.
-        context
-            .arena_mut()?
-            .metadata_mut(node)
-            .set_constant_value(value.clone());
-
-        let trailing_comment = if self.remove_comments {
-            None
-        } else {
-            let source = context.arena().source(original.source())?.syntax();
-            let record = context.arena().node(original)?;
-            let text = if record.end == u32::MAX || record.pos > record.end {
-                String::new()
-            } else {
-                let start = skip_trivia(source.text(), record.pos as usize);
-                safe_multi_line_comment(
-                    source
-                        .text()
-                        .get(start..record.end as usize)
-                        .unwrap_or_default(),
-                )
-            };
-            Some(text)
-        };
-
-        let source = node.source();
-        let substitute = {
-            let mut factory = context.substitution_factory()?;
-            let substitute = match &value {
-                EmitConstantValue::String(value) => factory.create_node(
-                    source,
-                    NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                        text: tsc_types::JsString::from_code_units(value.code_units()),
-                    }),
-                    TransformFlags::NONE,
-                )?,
-                EmitConstantValue::Number(value) => {
-                    let value = value.as_f64();
-                    if value.is_nan() {
-                        factory.create_node(
-                            source,
-                            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
-                                    "NaN",
-                                ),
-                            }),
-                            TransformFlags::NONE,
-                        )?
-                    } else if value.is_infinite() {
-                        let infinity = factory.create_node(
-                            source,
-                            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
-                                escaped_text: tsc_types::EscapedName::from_identifier_escaped_text(
-                                    "Infinity",
-                                ),
-                            }),
-                            TransformFlags::NONE,
-                        )?;
-                        if value.is_sign_negative() {
-                            factory.create_node(
-                                source,
-                                NodeData::PrefixUnaryExpression(
-                                    tsc_syntax::nodes::PrefixUnaryExpressionData {
-                                        operator: SyntaxKind::MinusToken,
-                                        operand: Some(infinity.node()),
-                                    },
-                                ),
-                                TransformFlags::NONE,
-                            )?
-                        } else {
-                            infinity
-                        }
-                    } else {
-                        let magnitude = if value < 0.0 { -value } else { value };
-                        let literal = factory.create_node(
-                            source,
-                            NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
-                                text: tsc_types::js_number_to_string(magnitude),
-                            }),
-                            TransformFlags::NONE,
-                        )?;
-                        if value < 0.0 {
-                            factory.create_node(
-                                source,
-                                NodeData::PrefixUnaryExpression(
-                                    tsc_syntax::nodes::PrefixUnaryExpressionData {
-                                        operator: SyntaxKind::MinusToken,
-                                        operand: Some(literal.node()),
-                                    },
-                                ),
-                                TransformFlags::NONE,
-                            )?
-                        } else {
-                            literal
-                        }
-                    }
-                }
-                EmitConstantValue::Boolean(value) => factory.create_token(
-                    source,
-                    if *value {
-                        SyntaxKind::TrueKeyword
-                    } else {
-                        SyntaxKind::FalseKeyword
-                    },
-                    TransformFlags::NONE,
-                )?,
-            };
-            substitute
-        };
-        // TypeScript returns the synthetic constant directly. Giving it the
-        // access expression's range/original adds node and token map spans
-        // which the substitution pipeline does not emit.
-        if let Some(text) = trailing_comment {
-            context
-                .arena_mut()?
-                .metadata_mut(substitute)
-                .add_trailing_comment(SyntheticComment::new(
-                    SyntheticCommentKind::MultiLine,
-                    format!(" {text} "),
-                    false,
-                    false,
-                ));
-        }
-        Ok(Some(substitute))
-    }
-
     /// tsc-port: trySubstituteNamespaceExportedName @6.0.3
     /// tsc-hash: a3e2a75d1877f53a89aa08f61a487e83adabeba271208dfd8a7c99f1e96ab102
     /// tsc-span: _tsc.js:95798-95816
@@ -6417,10 +6253,47 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .runtime_name
             .as_deref()
             .expect("an import declaration with a clause owns a runtime binding");
-        let mut declarations = vec![self.create_variable_declaration(runtime_name, initializer)?];
+        // tsgo declares a namespace import under its name's clone, which maps
+        // to the name; a default import's binding is a generated name
+        // (commonjsmodule.go:722-760).
+        let (namespace_name, default_import) = match data
+            .import_clause
+            .and_then(|clause| self.context.arena().node_ref(self.source, clause))
+            .map(|clause| {
+                self.context
+                    .arena()
+                    .node(clause)
+                    .map(|record| record.data.clone())
+            })
+            .transpose()?
+        {
+            Some(NodeData::ImportClause(clause)) => (
+                clause
+                    .named_bindings
+                    .and_then(|bindings| self.context.arena().node_ref(self.source, bindings))
+                    .and_then(
+                        |bindings| match &self.context.arena().node(bindings).ok()?.data {
+                            NodeData::NamespaceImport(namespace) => namespace.name,
+                            _ => None,
+                        },
+                    )
+                    .and_then(|name| self.context.arena().node_ref(self.source, name)),
+                clause.name.is_some(),
+            ),
+            _ => (None, false),
+        };
+        let runtime_declaration = self.create_variable_declaration(runtime_name, initializer)?;
+        if let (Some(name), false) = (namespace_name, default_import) {
+            self.map_declaration_name(runtime_declaration, name)?;
+        }
+        let mut declarations = vec![runtime_declaration];
         if let Some(namespace_alias) = plan.namespace_alias.as_deref() {
             let value = self.create_identifier(runtime_name)?;
-            declarations.push(self.create_variable_declaration(namespace_alias, value)?);
+            let alias_declaration = self.create_variable_declaration(namespace_alias, value)?;
+            if let Some(name) = namespace_name {
+                self.map_declaration_name(alias_declaration, name)?;
+            }
+            declarations.push(alias_declaration);
         }
         let keyword = if self.target >= ScriptTarget::ES2015 {
             NodeFlags::CONST
@@ -7840,6 +7713,27 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .name
             .and_then(|name| self.context.arena().node_ref(self.source, name))
             .unwrap_or(location))
+    }
+
+    /// Map a declaration's synthesized name to `source_name`, as tsgo's
+    /// clone of that name maps.
+    fn map_declaration_name(
+        &mut self,
+        declaration: TransformNode,
+        source_name: TransformNode,
+    ) -> Result<(), TransformError> {
+        if self.context.arena().node(source_name)?.pos == u32::MAX {
+            return Ok(());
+        }
+        let name = match &self.context.arena().node(declaration)?.data {
+            NodeData::VariableDeclaration(data) => data.name,
+            _ => None,
+        }
+        .and_then(|name| self.context.arena().node_ref(self.source, name));
+        if let Some(name) = name {
+            self.set_source_map_range_from(name, source_name)?;
+        }
+        Ok(())
     }
 
     /// tsgo renames an exported class or function with GetDeclarationName

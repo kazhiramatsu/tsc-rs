@@ -657,15 +657,24 @@ impl<'context> TargetVisitor<'context> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::CatchClauseData,
     ) -> Result<NodeId, TransformError> {
-        data.variable_declaration = if let Some(variable) = data.variable_declaration {
-            self.visit(variable)?
-        } else {
-            let binding = self.allocate_local_binding()?;
-            let name = self.create_generated_identifier(&binding)?;
-            Some(self.create_variable_declaration(name, None)?.node())
-        };
+        if let Some(variable) = data.variable_declaration {
+            data.variable_declaration = self.visit(variable)?;
+            data.block = self.visit_optional_node(data.block)?;
+            return self.update_without_visit(original, NodeData::CatchClause(data));
+        }
+        // tsgo creates a new catch clause, which has no range
+        // (optionalcatch.go:24-30).
+        let binding = self.allocate_local_binding()?;
+        let name = self.create_generated_identifier(&binding)?;
+        data.variable_declaration = Some(self.create_variable_declaration(name, None)?.node());
         data.block = self.visit_optional_node(data.block)?;
-        self.update_without_visit(original, NodeData::CatchClause(data))
+        let data = NodeData::CatchClause(data);
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        Ok(self
+            .context
+            .factory()?
+            .create_node(self.source, data, flags)?
+            .node())
     }
 
     fn stabilize_access_operand(
@@ -1143,11 +1152,20 @@ impl<'context> TargetVisitor<'context> {
         let receiver = match receiver {
             CallReceiver::Generated(receiver) => receiver,
             CallReceiver::Source(receiver) => {
+                // tsgo's clone keeps the receiver's range, so it maps to the
+                // receiver (optionalchain.go:198-204).
                 let clone = self.context.factory()?.clone_node(receiver)?;
-                self.context
-                    .arena_mut()?
-                    .metadata_mut(clone)
-                    .add_flags(EmitFlags::NO_COMMENTS);
+                let range = {
+                    let record = self.context.arena().node(receiver)?;
+                    let source = self.context.arena().source(receiver.source())?.syntax();
+                    crate::SourceRange::from_raw(record.pos, record.end, source.positions())
+                };
+                let metadata = self.context.arena_mut()?.metadata_mut(clone);
+                metadata.add_flags(EmitFlags::NO_COMMENTS);
+                if let Ok(range @ crate::SourceRange::Original(_)) = range {
+                    metadata
+                        .set_source_map_range(crate::SourceMapRange::new(receiver.source(), range));
+                }
                 clone
             }
         };

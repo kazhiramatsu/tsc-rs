@@ -5665,3 +5665,148 @@ fn source_maps_follow_tsgo() {
         r#"{"version":3,"file":"d.d.ts","sourceRoot":"","sources":["../d.ts"],"names":[],"mappings":"AAAA,qBAAa,CAAC;IACV,YAAY,CAAC,EAAE,MAAM,EAAK;IAC1B,CAAC,IAAI,IAAI,CAAI;CAChB"}"#
     );
 }
+
+#[test]
+fn const_enum_values_are_inlined_after_the_module_transform_like_tsgo() {
+    // tsgo inlines const enum values in a transform after the module
+    // transform (compiler/emitter.go:174-177): the literal has no range
+    // (inliners/constenum.go:32-89), so a line break before the access is
+    // not kept and a comment before it is not written, while a separator
+    // after it reads its own leading comments (printer.go:2901-2921). The
+    // maps follow tsgo: a namespace import declares its name's clone, an
+    // optional call's receiver and a concise body's parentheses map, a
+    // lowered `catch {}` and parentheses the parenthesizer adds do not
+    // (commonjsmodule.go:722-760, optionalchain.go:198-204,
+    // optionalcatch.go:24-30, printer.go:2669-2685, 3222-3226). The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "const enum F { A = 1, B = 2, None = 0 }\n",
+            "declare function g(): boolean;\n",
+            "declare function h(a: number, b: number): number;\n",
+            "const x = g()\n",
+            "    // one\n",
+            "    ? F.A\n",
+            "    // two\n",
+            "    : F.B;\n",
+            "const y = g() ? F.A :\n",
+            "    F.B;\n",
+            "const z = h(F.A, /*b:*/ F.None);\n",
+            "const w = F.A\n",
+            "    | F.B;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import * as ns from \"./c\";\n",
+            "declare const r: { close?(): void; v?: number } | undefined;\n",
+            "r?.close?.();\n",
+            "if (!r?.v) { }\n",
+            "try { r?.close?.(); } catch { }\n",
+            "const o = () => ({ v: r } as object);\n",
+            "ns.q;\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(tree.path("c.ts"), "export const q = 1;\n").expect("write c.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2017","module":"commonjs","sourceMap":true,"outDir":"out"},"files":["a.ts","b.ts","c.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "const x = g()\n",
+            "    // one\n",
+            "    ? 1 /* F.A */ \n",
+            "// two\n",
+            ": 2 /* F.B */;\n",
+            "const y = g() ? 1 /* F.A */ : 2 /* F.B */;\n",
+            "const z = h(1 /* F.A */, 0 /* F.None */);\n",
+            "const w = 1 /* F.A */ | 2 /* F.B */;\n",
+            "//# sourceMappingURL=a.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.js.map"),
+        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAGA,MAAM,CAAC,GAAG,CAAC,EAAE;IACT,MAAM;IACN,CAAC;AACD,MAAM;AACN,CAAC,YAAI,CAAC;AACV,MAAM,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC,aAAK,CAAC,YACd,CAAC;AACR,MAAM,CAAC,GAAG,CAAC,6BAAoB,CAAC;AAChC,MAAM,CAAC,GAAG,yBACD,CAAC"}"#
+    );
+    assert_eq!(
+        read("out/b.js.map"),
+        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,MAAY,EAAE,gCAAY;AAE1B,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,KAAK,+CAAR,CAAC,CAAW,CAAC;AACb,IAAI,EAAC,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,EAAE,CAAC,CAAC,CAAC;AACd,IAAI,CAAC;IAAC,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,KAAK,+CAAR,CAAC,CAAW,CAAC;AAAC,CAAC;WAAO,CAAC,CAAC,CAAC;AAC/B,MAAM,CAAC,GAAG,GAAG,EAAE,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAa,CAAA,CAAC;AACrC,EAAE,CAAC,CAAC,CAAC"}"#
+    );
+}
+
+#[test]
+fn const_enum_values_are_inlined_in_kept_rebuilt_and_moved_subtrees_like_tsgo() {
+    // The inlining visit skips a parsed subtree the earlier transforms kept
+    // unless it holds an access with a constant value, so accesses are
+    // placed in a statement no transform changed, a function the type
+    // eraser rebuilt, class field initializers moved into the constructor
+    // or after the class, an element access, an imported const enum, and
+    // receivers that need parentheses. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "import { K } from \"./k\";\n",
+            "const enum E { A = 1, B = 2 }\n",
+            "const enum S { X = \"x\", N = -1 }\n",
+            "declare let k: number;\n",
+            "if (k === E.A) { k = E.B; }\n",
+            "function f(p: number): number { return p === E.A ? E.B : p; }\n",
+            "class C {\n",
+            "    v = E[\"A\"] + K.Y;\n",
+            "    static s = S.X;\n",
+            "    m() { return S.N.toString() + E.B.toFixed(); }\n",
+            "}\n",
+            "export const t = [K.Y, new C().v, f(E.B)];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(tree.path("k.ts"), "export const enum K { Y = 3 }\n").expect("write k.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2017","module":"commonjs","sourceMap":true,"outDir":"out"},"files":["a.ts","k.ts"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read output");
+    assert_eq!(
+        read("out/a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.t = void 0;\n",
+            "if (k === 1 /* E.A */) {\n",
+            "    k = 2 /* E.B */;\n",
+            "}\n",
+            "function f(p) { return p === 1 /* E.A */ ? 2 /* E.B */ : p; }\n",
+            "class C {\n",
+            "    constructor() {\n",
+            "        this.v = 1 /* E[\"A\"] */ + 3 /* K.Y */;\n",
+            "    }\n",
+            "    m() { return (-1 /* S.N */).toString() + 2 /* E.B */.toFixed(); }\n",
+            "}\n",
+            "C.s = \"x\" /* S.X */;\n",
+            "exports.t = [3 /* K.Y */, new C().v, f(2 /* E.B */)];\n",
+            "//# sourceMappingURL=a.js.map",
+        )
+    );
+    assert_eq!(
+        read("out/a.js.map"),
+        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";;;AAIA,IAAI,CAAC,gBAAQ,EAAE,CAAC;IAAC,CAAC,cAAM,CAAC;AAAC,CAAC;AAC3B,SAAS,CAAC,CAAC,CAAS,IAAY,OAAO,CAAC,gBAAQ,CAAC,CAAC,aAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAC7D,MAAM,CAAC;IAAP;QACI,MAAC,GAAG,4BAAY,CAAC;IAGrB,CAAC;IADG,CAAC,KAAK,OAAO,eAAI,QAAQ,EAAE,GAAG,YAAI,OAAO,EAAE,CAAC,CAAC,CAAC;CACjD;AAFU,GAAC,gBAAA,CAAO;AAGN,QAAA,CAAC,GAAG,cAAM,IAAI,CAAC,EAAE,CAAC,CAAC,EAAE,CAAC,aAAK,CAAC,CAAC"}"#
+    );
+}
