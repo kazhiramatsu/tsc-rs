@@ -202,7 +202,17 @@ fn mutate_everything(state: &mut CheckerState) {
     // B: counters / flags.
     state.instantiation_stack.extend([string; 5]);
     state.inline_level += 2;
-    state.in_variance_computation = true;
+    let variance_symbol = state
+        .node_symbol(root)
+        .or_else(|| state.tables.type_of(string).symbol)
+        .unwrap_or(tsc_binder::SymbolId::new(0));
+    state
+        .variance_stack
+        .push(crate::variance::VarianceStackEntry {
+            symbol: variance_symbol,
+            type_parameters: Box::default(),
+        });
+    state.reliability_flags = tsc_types::RelationComparisonResult::REPORTS_UNRELIABLE;
     state.variance_type_parameter = Some(string);
     state.is_inference_partially_blocked = true;
     // D: diagnostics sinks.
@@ -246,7 +256,8 @@ struct Observed {
     exhaustive_switch_computing: usize,
     instantiation_depth: u32,
     inline_level: u32,
-    in_variance_computation: bool,
+    variance_stack: usize,
+    reliability_flags: i32,
     variance_type_parameter: Option<tsc_types::TypeId>,
     is_inference_partially_blocked: bool,
     diagnostics: usize,
@@ -295,7 +306,8 @@ fn observe(state: &CheckerState) -> Observed {
         exhaustive_switch_computing: state.exhaustive_switch_computing.len(),
         instantiation_depth: state.instantiation_stack.len() as u32,
         inline_level: state.inline_level,
-        in_variance_computation: state.in_variance_computation,
+        variance_stack: state.variance_stack.len(),
+        reliability_flags: state.reliability_flags.bits(),
         variance_type_parameter: state.variance_type_parameter,
         is_inference_partially_blocked: state.is_inference_partially_blocked,
         diagnostics: state.diagnostics.len(),

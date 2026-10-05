@@ -1890,9 +1890,9 @@ impl InferTypesWalker<'_, '_> {
                         .expect("shared alias symbol implies argument lists (68661)");
                     let variances = match self.st.get_alias_variances(alias)? {
                         VariancesResult::Known(variances) => variances,
-                        // In-measurement recursion: tsc reads the
-                        // links.cold().variances = emptyArray placeholder.
-                        VariancesResult::InProgress => Box::default(),
+                        // No variance information: the arguments infer
+                        // covariantly (inferFromTypeArguments' default).
+                        VariancesResult::Empty => Box::default(),
                     };
                     self.infer_from_type_arguments(&source_types, &target_types, &variances)?;
                 }
@@ -2160,7 +2160,7 @@ impl InferTypesWalker<'_, '_> {
             let reference_target = self.st.tables.reference_target(source);
             let variances = match self.st.get_variances(reference_target)? {
                 VariancesResult::Known(variances) => variances,
-                VariancesResult::InProgress => Box::default(),
+                VariancesResult::Empty => Box::default(),
             };
             self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
         } else if source_flags.intersects(TypeFlags::INDEX)
@@ -3151,7 +3151,7 @@ impl InferTypesWalker<'_, '_> {
             let reference_target = self.st.tables.reference_target(source);
             let variances = match self.st.get_variances(reference_target)? {
                 VariancesResult::Known(variances) => variances,
-                VariancesResult::InProgress => Box::default(),
+                VariancesResult::Empty => Box::default(),
             };
             self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
             return Ok(());

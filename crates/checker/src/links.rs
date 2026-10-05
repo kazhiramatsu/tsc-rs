@@ -597,12 +597,12 @@ pub struct SymbolLinksCold {
     /// tsc links.uniqueESSymbolType (getESSymbolLikeTypeForNode 63127)
     /// — the per-declaration `unique symbol` type memo.
     pub unique_es_symbol_type: SparseLinks<SymbolId, Option<TypeId>>,
-    /// tsc links.variances (getVariancesWorker 67315): Vacant =
-    /// undefined, Resolving = the in-progress emptyArray sentinel
-    /// (getVariances call sites answer Ternary.Unknown), Resolved =
-    /// the measured list — possibly genuinely empty for zero-parameter
-    /// alias symbols, which is DISTINCT from the sentinel exactly as
-    /// tsc's fresh `[]` differs from the shared emptyArray.
+    /// tsgo varianceLinks.variances (getVariancesWorker,
+    /// checker/relater.go:1334-1434): Vacant = nil, Resolved = the
+    /// measured list. An empty list is also the marker a circular request
+    /// stores for a type still being measured (getVariances call sites
+    /// answer Ternary.Unknown for it); the measurement replaces it.
+    /// Resolving is not used.
     pub variances: SparseLinks<SymbolId, LinkSlot<Box<[tsc_types::VarianceFlags]>>>,
     /// tsc links.originatingImport (cloneTypeAsModuleType 49769) — the
     /// import-site provenance an interop module clone carries; read by
@@ -2699,15 +2699,11 @@ impl LinksTables {
 
     /// Err-unwind twin for the variances slot: tsc cannot fail inside
     /// getVariancesWorker, so a measurement cut short by CheckAbort
-    /// must leave the slot re-queryable — Resolving reverts to Vacant.
+    /// must leave the slot re-queryable — the empty marker a circular
+    /// request left behind goes back to Vacant.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
-    pub fn revert_symbol_variances(&mut self, id: SymbolId) {
-        assert!(
-            self.symbol_cold.variances.get(id).is_resolving(),
-            "variances revert without an in-progress measurement for {id:?}"
-        );
-        note_resolving_transition(true, false);
+    pub fn clear_symbol_variances(&mut self, id: SymbolId) {
         self.symbol_cold.variances.clear(id);
     }
 

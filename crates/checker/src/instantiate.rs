@@ -89,12 +89,12 @@ pub enum FunctionMapper {
     /// 47112: `t => t.flags & TypeParameter ? uniqueLiteralType : t`
     /// (isReducibleIntersection's probe mapper).
     UniqueLiteral,
-    /// 47123-47131: fires the out-of-band variance handler with
-    /// onlyUnreliable=false when t is one of the three marker type
-    /// parameters; identity otherwise (M4 5.3b).
+    /// tsgo reportUnmeasurableWorker (checker.go:1153-1158): sets
+    /// ReportsUnmeasurable in the reliability flags when t is one of the
+    /// three marker type parameters; identity otherwise.
     ReportsUnmeasurable,
-    /// 47114-47122: fires the handler with onlyUnreliable=true on the
-    /// markers; identity otherwise.
+    /// tsgo reportUnreliableWorker (checker.go:1146-1151): sets
+    /// ReportsUnreliable on the markers; identity otherwise.
     ReportsUnreliable,
 }
 
@@ -407,11 +407,17 @@ impl<'a> CheckerState<'a> {
                         FunctionMapper::Restrictive => self.get_restrictive_type_parameter(ty),
                         FunctionMapper::UniqueLiteral => self.tables.intrinsics.unique_literal,
                         FunctionMapper::ReportsUnmeasurable => {
-                            self.fire_variance_marker_if_marker(ty, /*only_unreliable*/ false);
+                            self.report_reliability_if_marker(
+                                ty,
+                                tsc_types::RelationComparisonResult::REPORTS_UNMEASURABLE,
+                            );
                             ty
                         }
                         FunctionMapper::ReportsUnreliable => {
-                            self.fire_variance_marker_if_marker(ty, /*only_unreliable*/ true);
+                            self.report_reliability_if_marker(
+                                ty,
+                                tsc_types::RelationComparisonResult::REPORTS_UNRELIABLE,
+                            );
                             ty
                         }
                     })

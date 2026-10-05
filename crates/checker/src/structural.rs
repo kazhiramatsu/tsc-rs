@@ -528,7 +528,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     && !(self.st.is_marker_type(source) || self.st.is_marker_type(target))
                 {
                     match self.st.get_alias_variances(alias_symbol)? {
-                        crate::variance::VariancesResult::InProgress => {
+                        crate::variance::VariancesResult::Empty => {
                             return Ok(Ternary::UNKNOWN);
                         }
                         crate::variance::VariancesResult::Known(variances) => {
@@ -1401,7 +1401,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 let reference_target = self.st.tables.reference_target(source);
                 match self.st.get_variances(reference_target)? {
-                    crate::variance::VariancesResult::InProgress => {
+                    crate::variance::VariancesResult::Empty => {
                         return Ok(Ternary::UNKNOWN);
                     }
                     crate::variance::VariancesResult::Known(variances) => {

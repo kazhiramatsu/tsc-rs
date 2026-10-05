@@ -195,7 +195,6 @@ impl<'a> CheckerState<'a> {
             if let Some(&related) = self.relations.cache(relation).get(&key) {
                 perf::bump(PerfCounter::RelationEntryFound);
                 perf::bump(PerfCounter::RelationReturnedCached);
-                self.replay_cached_relation_variance_markers(source, related)?;
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
             }
         }
@@ -211,32 +210,6 @@ impl<'a> CheckerState<'a> {
             return self.check_type_related_to(source, target, relation);
         }
         Ok(false)
-    }
-
-    /// tsrs-native: reconcile retained relation-cache entries with variance
-    /// slots restored by the Rust speculation transaction.
-    ///
-    /// Replay tsc's out-of-band variance bits when a relation cache hit
-    /// bypasses `recursive_type_related_to`. The public cache fast path does
-    /// not need this in tsc because completed variance measurements are never
-    /// unwound; the Rust speculation transaction can restore a variance slot
-    /// while deliberately retaining the permanent relation cache.
-    pub(crate) fn replay_cached_relation_variance_markers(
-        &mut self,
-        source: TypeId,
-        entry: RelationComparisonResult,
-    ) -> CheckResult<()> {
-        if self.variance_handler_stack.is_empty() {
-            return Ok(());
-        }
-        let reports = entry.bits() & RelationComparisonResult::REPORTS_MASK.bits();
-        if reports & RelationComparisonResult::REPORTS_UNMEASURABLE.bits() != 0 {
-            self.instantiate_type(source, Some(self.report_unmeasurable_mapper))?;
-        }
-        if reports & RelationComparisonResult::REPORTS_UNRELIABLE.bits() != 0 {
-            self.instantiate_type(source, Some(self.report_unreliable_mapper))?;
-        }
-        Ok(())
     }
 
     /// tsc-port: isSimpleTypeRelatedTo @6.0.3
@@ -3433,7 +3406,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     self.st.compare_types_identical(s, t)?
                 };
             } else {
-                if self.st.in_variance_computation
+                if !self.st.variance_stack.is_empty()
                     && variance_flags.intersects(VarianceFlags::UNRELIABLE)
                 {
                     let mapper = self.st.report_unreliable_mapper;
@@ -3536,33 +3509,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // nested error path can be reconstructed.
             let replay_failure = report_errors
                 && entry.intersects(RelationComparisonResult::FAILED)
-                && !entry.intersects(RelationComparisonResult::from_bits(
-                    RelationComparisonResult::COMPLEXITY_OVERFLOW.bits()
-                        | RelationComparisonResult::STACK_DEPTH_OVERFLOW.bits(),
-                ));
+                && !entry.intersects(RelationComparisonResult::OVERFLOW);
             if replay_failure {
                 perf::bump(PerfCounter::RelationRecomputedForDiagnostic);
             } else {
                 perf::bump(PerfCounter::RelationReturnedCached);
-                // 65742-65750: replay the entry's Reports* bits into
-                // the active handler via the reporter mappers.
-                self.st
-                    .replay_cached_relation_variance_markers(source, entry)?;
-                if report_errors
-                    && entry.intersects(RelationComparisonResult::from_bits(
-                        RelationComparisonResult::COMPLEXITY_OVERFLOW.bits()
-                            | RelationComparisonResult::STACK_DEPTH_OVERFLOW.bits(),
-                    ))
-                {
-                    let message = if entry.intersects(RelationComparisonResult::COMPLEXITY_OVERFLOW)
-                    {
-                        &diagnostics::Excessive_complexity_comparing_types_0_and_1
-                    } else {
-                        &diagnostics::Excessive_stack_depth_comparing_types_0_and_1
-                    };
+                // tsgo (relater.go:3106): the entry's Reports* bits join
+                // the reliability flags of the comparison in progress.
+                self.st.reliability_flags = RelationComparisonResult::from_bits(
+                    self.st.reliability_flags.bits()
+                        | (entry.bits() & RelationComparisonResult::REPORTS_MASK.bits()),
+                );
+                if report_errors && entry.intersects(RelationComparisonResult::OVERFLOW) {
                     let source_text = self.st.type_to_string(source)?;
                     let target_text = self.st.type_to_string(target)?;
-                    self.report_error_js(message, vec![source_text, target_text])?;
+                    self.report_error_js(
+                        &diagnostics::Excessive_complexity_comparing_types_0_and_1,
+                        vec![source_text, target_text],
+                    )?;
                 }
                 return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
                     Ternary::TRUE
@@ -3607,7 +3571,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let save_expanding_flags = self.expanding_flags;
         let save_source_depth = self.source_depth;
         let save_target_depth = self.target_depth;
-        let mut pushed_handler = false;
+        let mut save_reliability_flags = None;
         let outcome = (|| {
             if recursion_flags.intersects(RecursionFlags::SOURCE) {
                 if self.source_stack.len() == self.source_depth {
@@ -3649,31 +3613,27 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     );
                 }
             }
-            // 65803-65810: wrap the active handler with a propagating
-            // accumulator — only when a handler exists, like tsc's
-            // `if (outofbandVarianceMarkerHandler)` gate.
-            pushed_handler = if !self.st.variance_handler_stack.is_empty() {
-                self.st.variance_handler_stack.push(
-                    crate::state::VarianceHandlerFrame::Propagating(RelationComparisonResult::NONE),
-                );
-                true
-            } else {
-                false
-            };
+            // tsgo (relater.go:3155-3156): this comparison collects its
+            // own reliability flags.
+            save_reliability_flags = Some(self.st.reliability_flags);
+            self.st.reliability_flags = RelationComparisonResult::NONE;
             if self.expanding_flags == ExpandingFlags::BOTH {
                 Ok(Ternary::MAYBE)
             } else {
                 self.structured_type_related_to(source, target, report_errors, intersection_state)
             }
         })();
-        // 65828-65830: restore the handler — on the Err unwind too.
-        let propagating_variance_flags = if pushed_handler {
-            match self.st.variance_handler_stack.pop() {
-                Some(crate::state::VarianceHandlerFrame::Propagating(flags)) => flags,
-                _ => unreachable!("the propagating frame pushed above is still on top"),
+        // tsgo (relater.go:3169-3170): the flags this comparison saw go
+        // into its cache entry and join the enclosing comparison's — on
+        // the Err unwind too.
+        let propagating_variance_flags = match save_reliability_flags {
+            Some(saved) => {
+                let flags = self.st.reliability_flags;
+                self.st.reliability_flags =
+                    RelationComparisonResult::from_bits(flags.bits() | saved.bits());
+                flags
             }
-        } else {
-            RelationComparisonResult::NONE
+            None => RelationComparisonResult::NONE,
         };
         self.source_depth = save_source_depth;
         self.target_depth = save_target_depth;

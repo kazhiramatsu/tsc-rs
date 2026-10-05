@@ -1,15 +1,19 @@
 //! Variance measurement (M4 5.3b): getVariances/getVariancesWorker
 //! over marker-type probes, createMarkerType, and the helpers the
 //! relateVariances arms consume. The measured lists live in
-//! SymbolLinks.variances — LinkSlot's Resolving state IS tsc's
-//! shared-emptyArray in-progress sentinel (getVariances call sites
-//! answer Ternary.Unknown while a measurement is on the stack).
+//! SymbolLinks.variances. A measurement in progress is an entry of
+//! `CheckerState::variance_stack` (tsgo's `varianceStack`); an empty
+//! stored list is tsgo's empty slice, which the getVariances call sites
+//! answer with Ternary.Unknown.
 
 use tsc_binder::{node_util, SymbolId};
-use tsc_types::{ModifierFlags, ObjectFlags, TypeData, TypeFlags, TypeId, VarianceFlags};
+use tsc_types::{
+    ModifierFlags, ObjectFlags, RelationComparisonResult, TypeData, TypeFlags, TypeId,
+    VarianceFlags,
+};
 
 use crate::links::LinkSlot;
-use crate::state::{CheckAbort, CheckResult, CheckerState, VarianceHandlerFrame};
+use crate::state::{CheckAbort, CheckResult, CheckerState};
 use tsc_types::perf::{self, PerfCounter};
 
 /// tsc arrayVariances (46460): `[VarianceFlags.Covariant]` — shared by
@@ -17,12 +21,21 @@ use tsc_types::perf::{self, PerfCounter};
 /// (typeArgumentsRelatedTo pads missing entries covariantly).
 pub(crate) const ARRAY_VARIANCES: &[VarianceFlags] = &[VarianceFlags::COVARIANT];
 
-/// A getVariances answer. `InProgress` is the identity test
-/// `variances === emptyArray` at the call sites (66084, 66425).
+/// A getVariances answer. `Empty` is tsgo's `len(variances) == 0` at the
+/// call sites (checker/relater.go:3427, 3866): the generic type has no
+/// variance information, because its own measurement asked for it.
 #[derive(Clone, Debug)]
 pub(crate) enum VariancesResult {
-    InProgress,
+    Empty,
     Known(Box<[VarianceFlags]>),
+}
+
+/// tsgo VarianceStackEntry (checker/checker.go): a generic type whose
+/// variances are being measured, with the type parameters to measure.
+#[derive(Clone, Debug)]
+pub(crate) struct VarianceStackEntry {
+    pub(crate) symbol: SymbolId,
+    pub(crate) type_parameters: Box<[TypeId]>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -70,69 +83,155 @@ impl<'a> CheckerState<'a> {
         self.get_variances_worker(symbol, &type_parameters)
     }
 
-    /// tsc-port: getVariancesWorker @6.0.3
-    /// tsc-hash: b3d0b6716d244e10697b68ff53caea57f5c265658ccd109699d7b82dc3140e05
-    /// tsc-span: _tsc.js:67312-67359
+    /// tsgo-port: Checker.getVariancesWorker @7.1
+    /// (checker/relater.go:1334-1434)
     ///
-    /// The tracing push/pop is elided. On CheckAbort unwind the
-    /// Resolving sentinel reverts (tsc cannot fail here) and the
-    /// inVarianceComputation/resolutionStart saves are restored on
-    /// both paths.
+    /// tsc 6.0 marked a measurement in progress in the links and let the
+    /// generic type that was entered first measure the others of its cycle
+    /// from inside, so the variances depended on which type was compared
+    /// first. tsgo keeps the measurements in progress on a stack: when one
+    /// asks for a type that is already on it, the measurement restarts from
+    /// the type of that cycle with the smallest symbol, and every entry
+    /// point gives the same variances.
+    ///
+    /// The tracing push/pop is elided. On CheckAbort unwind the stack entry
+    /// is popped, the resolutionStart save is restored and the empty marker
+    /// of the abandoned measurement is cleared (tsc cannot fail here).
     fn get_variances_worker(
         &mut self,
         symbol: SymbolId,
         type_parameters: &[TypeId],
     ) -> CheckResult<VariancesResult> {
-        match &self.links.symbol_cold().variances.get(symbol).clone() {
-            LinkSlot::Resolved(list) => return Ok(VariancesResult::Known(list.clone())),
-            LinkSlot::Resolving => {
-                perf::bump(PerfCounter::SentinelVarianceInProgress);
-                return Ok(VariancesResult::InProgress);
-            }
-            LinkSlot::Vacant => {}
+        if let Some(stored) = self.stored_variances(symbol) {
+            return Ok(stored);
         }
-        let old_variance_computation = self.in_variance_computation;
+        match self
+            .variance_stack
+            .iter()
+            .position(|entry| entry.symbol == symbol)
+        {
+            None => self.measure_variances(symbol, type_parameters)?,
+            Some(stack_index) => {
+                // A circularity. The variances depend on where the cycle is
+                // entered, so the measurement restarts from the generic type
+                // with the smallest symbol in the circular region.
+                perf::bump(PerfCounter::SentinelVarianceInProgress);
+                let mut min_index = stack_index;
+                {
+                    let order = crate::type_order::order_ctx!(self);
+                    for index in stack_index + 1..self.variance_stack.len() {
+                        if tsc_types::TypeOrderContext::compare_symbols(
+                            &order,
+                            Some(self.variance_stack[index].symbol),
+                            Some(self.variance_stack[min_index].symbol),
+                        ) == std::cmp::Ordering::Less
+                        {
+                            min_index = index;
+                        }
+                    }
+                }
+                if min_index > stack_index {
+                    let saved = std::mem::take(&mut self.variance_stack);
+                    let entry = saved[min_index].clone();
+                    let restarted = self.get_variances_worker(entry.symbol, &entry.type_parameters);
+                    self.variance_stack = saved;
+                    restarted?;
+                }
+                // An empty list marks that this type's variances cannot be
+                // computed here; its type arguments relate covariantly.
+                if self.stored_variances(symbol).is_none() {
+                    self.links.set_symbol_variances(
+                        self.speculation_depth,
+                        symbol,
+                        LinkSlot::Resolved(Box::default()),
+                    );
+                }
+            }
+        }
+        Ok(self
+            .stored_variances(symbol)
+            .expect("both arms store the symbol's variances"))
+    }
+
+    /// The stored list as a getVariances answer; `None` is tsgo's nil
+    /// `links.variances`.
+    fn stored_variances(&self, symbol: SymbolId) -> Option<VariancesResult> {
+        match self.links.symbol_cold().variances.get(symbol) {
+            LinkSlot::Resolved(list) if list.is_empty() => Some(VariancesResult::Empty),
+            LinkSlot::Resolved(list) => Some(VariancesResult::Known(list.clone())),
+            LinkSlot::Resolving => unreachable!("variances have no in-progress sentinel"),
+            LinkSlot::Vacant => None,
+        }
+    }
+
+    /// The measuring arm of getVariancesWorker (relater.go:1351-1409).
+    fn measure_variances(
+        &mut self,
+        symbol: SymbolId,
+        type_parameters: &[TypeId],
+    ) -> CheckResult<()> {
         let save_resolution_start = self.resolution_start;
-        if !self.in_variance_computation {
-            self.in_variance_computation = true;
+        if self.variance_stack.is_empty() {
             self.resolution_start = self.resolution_targets.len();
         }
-        self.links
-            .set_symbol_variances(self.speculation_depth, symbol, LinkSlot::Resolving);
+        self.variance_stack.push(VarianceStackEntry {
+            symbol,
+            type_parameters: type_parameters.into(),
+        });
         let mut variances: Vec<VarianceFlags> = Vec::with_capacity(type_parameters.len());
         let mut failure: Option<CheckAbort> = None;
         for &tp in type_parameters {
             match self.measure_type_parameter_variance(symbol, tp) {
-                Ok(variance) => variances.push(variance),
+                Ok(variance) => {
+                    // A measurement restarted for a circularity may have
+                    // stored this type's variances already.
+                    if matches!(
+                        self.stored_variances(symbol),
+                        Some(VariancesResult::Known(_))
+                    ) {
+                        break;
+                    }
+                    variances.push(variance);
+                }
                 Err(err) => {
                     failure = Some(err);
                     break;
                 }
             }
         }
-        if !old_variance_computation {
-            self.in_variance_computation = false;
+        self.variance_stack.pop();
+        if self.variance_stack.is_empty() {
             self.resolution_start = save_resolution_start;
         }
+        let restarted = matches!(
+            self.stored_variances(symbol),
+            Some(VariancesResult::Known(_))
+        );
         match failure {
             Some(err) => {
-                self.links.revert_symbol_variances(symbol);
+                if !restarted {
+                    self.links.clear_symbol_variances(symbol);
+                }
                 Err(err)
             }
             None => {
-                let list: Box<[VarianceFlags]> = variances.into();
-                self.links.set_symbol_variances(
-                    self.speculation_depth,
-                    symbol,
-                    LinkSlot::Resolved(list.clone()),
-                );
-                Ok(VariancesResult::Known(list))
+                // Store the results unless a restarted computation has
+                // already stored them.
+                if !restarted {
+                    self.links.set_symbol_variances(
+                        self.speculation_depth,
+                        symbol,
+                        LinkSlot::Resolved(variances.into()),
+                    );
+                }
+                Ok(())
             }
         }
     }
 
-    /// One iteration of the 67325-67350 loop: the in/out modifier fast
-    /// path, else marker measurement under a Base handler frame.
+    /// One iteration of the measuring loop (relater.go:1358-1394): the
+    /// in/out modifier fast path, else marker measurement with the
+    /// reliability flags cleared, which it reads and puts back.
     fn measure_type_parameter_variance(
         &mut self,
         symbol: SymbolId,
@@ -149,19 +248,14 @@ impl<'a> CheckerState<'a> {
         if modifiers.intersects(ModifierFlags::IN) {
             return Ok(VarianceFlags::CONTRAVARIANT);
         }
-        self.variance_handler_stack
-            .push(VarianceHandlerFrame::Base {
-                unmeasurable: false,
-                unreliable: false,
-            });
+        let save_reliability_flags = self.reliability_flags;
+        self.reliability_flags = RelationComparisonResult::NONE;
         let outcome = self.measure_type_parameter_variance_worker(symbol, tp);
-        let (unmeasurable, unreliable) = match self.variance_handler_stack.pop() {
-            Some(VarianceHandlerFrame::Base {
-                unmeasurable,
-                unreliable,
-            }) => (unmeasurable, unreliable),
-            _ => unreachable!("the Base frame pushed above is still on top"),
-        };
+        let reliability_flags = self.reliability_flags;
+        self.reliability_flags = save_reliability_flags;
+        let unmeasurable =
+            reliability_flags.intersects(RelationComparisonResult::REPORTS_UNMEASURABLE);
+        let unreliable = reliability_flags.intersects(RelationComparisonResult::REPORTS_UNRELIABLE);
         let mut variance = outcome?;
         if unmeasurable {
             variance =
