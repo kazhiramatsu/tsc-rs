@@ -2474,3 +2474,57 @@ P3-5awの後、checkerの5件：
     zod 1.0024、Next.js 1.0025。残りはtsgoの順序のための読みで、wall-clockの差はnoiseの範囲。
 - hosted：PR #675（head `ee78fae5d`）、run 37241993974 — `plan` 30s、`rust` 10m10s、`conformance (TypeScript 7.1)` 20m14s、
   `gates` 11s。
+
+## P3-5ay build info、harnessの出力順とunit、EOFと空リストのコメント、CommonJSのscript（2026-10-05）
+
+P3-5axの後、emitとrunnerの5件：
+- **build info**：tsgoの`compiler.Program.Emit`は、`incremental`と`composite`のProgramでもJavaScriptと宣言だけを書く。
+  build infoを書くのはcommandのincremental programだけ（execute/incremental/program.go:243-273）。emitterは`incremental`、
+  `composite`、`tsBuildInfoFile`を受け付け、build infoをまだ書けないcommandは、`incremental`か`composite`のProgramの
+  emitを拒む（execute/tsc.go:245、`IsIncremental`）。`tsBuildInfoFile`だけではbuild infoは無い（`GetBuildInfoFileName`）
+  ので、commandもtsgoと同じくemitする。`incrementalConfig`、`incrementalInvalid`、`incrementalTsBuildInfoFile`、
+  `compositeWithNodeModulesSourceFile`、`declarationEmitWithComposite`、`declarationEmitToDeclarationDirWithCompositeOption`、
+  `jsFileCompilationWithEnabledCompositeOption`、`optionsCompositeWithIncrementalFalse`、
+  `optionsTsBuildInfoFileWithoutIncrementalAndComposite`、`nodeNextPackageSelfNameWithOutDirDeclDirComposite`。
+  `tsBuildInfoFile`でcheckごと止まっていた`incrementalConcurrentSafeAliasFollowing`と`jsEmitIntersectionProperty`も
+  比べられるようになった（errorsとemit）。
+- **harnessの出力順**：harnessの`newCompilationResult`（harnessutil.go:746-834）は、各sourceの出力を`getOutputPath`の
+  path（宣言でも`outDir`の下）でProgram順に取り、取られなかったfile（`outDir`と違う`declarationDir`の宣言、宣言map）を
+  名前順で後ろに置く。runnerはemit順のままだった。`nodeNextPackageSelfNameWithOutDirDeclDirNestedDirs`、
+  `nodeNextPackageSelfNameWithOutDirDeclDirCompositeNestedDirs`、`declarationMapCrossFileNodeReuse`のmap。
+- **unitの分割**：Goのparserは各unitの内容を文字列に持つので、内容行の無いunitも空のfileになる
+  （test_case_parser.go:199-216）。compiler runnerは最後のunitをcompileし、それ以外は同名のunitも含めて後から書く
+  （compiler_runner.go:320-323）。tsc-rsはtscの、最後と同名のunitを除き、空のunitを書かない形だった。
+  `augmentExportEquals2`（errorsとemit）。
+- **EOFと空リストのコメント**：tsgoは、文の無いfileの残りのコメントを文リストの終わり（skipされたtokenの後）から読む
+  （printer.go:5404-5417。位置0以外では、同じ行のコメントは前のtokenのもの）。空リストの中と末尾カンマの後のコメントは、
+  そこで終わるcontainer（閉じていないリストの文）に任せる（printer.go:4765-4798、5371-5380、5604-5611）。
+  `parserSkippedTokens6`、`parserSkippedTokens7`、`parser509630`。tokenの後のコメントの`containerEnd`の判定は、
+  式の文脈を持つ経路（`emit_source_leading_token_with_context`）だけに入れ、他の経路は従来どおり。
+- **CommonJSのscript**：tsgoのCommonJS変換はscriptをそのまま返す（commonjsmodule.go:228-233）ので、JSX runtimeの
+  名前は書いたまま残る。tsc-rsはtscの、出力時の置換で`(0, _a.jsx)`にしていた。tsgoに無いAMDとUMDはtscの置換を残す。
+  `commentsOnJSXExpressionsArePreserved`（`react-jsx`と`react-jsxdev`のCommonJS、`moduleDetection: legacy`）。
+- unit test：CLI（tsgoの出力にpin）で4件、Program emit、runnerの出力順、harnessのunit分割で各1件。tscの置換に
+  pinしていたemitterのunit testを1件、tsgoに合わせた。
+- conformance（release build、`fa817ace1`、`--workers 2`、514 s）：
+  - 15,228構成、lane A 13,467（変化なし）。errors full 13,407→13,410（`augmentExportEquals2`、
+    `incrementalConcurrentSafeAliasFollowing`、`jsEmitIntersectionProperty`）。emit full 13,400→13,420、emitの不一致
+    37→19、harness error 22→20。`.js.map`の不一致は47→34（ratchetの外）。下がった構成は無い。
+    `intersectionConstructorReductionCrash`は今回もmemoryの上限で終わらなかった（負荷で結果の変わる構成で、ratchetの外）。
+  - 途中はfilter（`ncremental`、`omposite`、`sBuildInfo`、`OutDirDecl`、`eclarationDir`、`eclarationMap`、`ootDir`、
+    `utDir`、`ourceMap`、`omment`、`rrayLiteral`、`railingComma`、`kippedTokens`、`rrorRecovery`、`jsx`、`Jsx`、`tsx`、
+    `ommonJS`、`ommonjs`と、空のunitや同名のunitを持つ各case）で確かめ、下がった構成は無かった。
+  - `--checkers 4`の並列対照は、checkerを変えていないので実行していない。
+- ratchet：0 regressions、20行（3行追加、17行のemitを`js`に）。
+- local：formatと、emitter・compiler・harness・conformanceのclippy。emitter・compiler・harness・conformanceのtest
+  （31 targets、926件。tscの置換にpinしていたunit test 1件を直した後、その1件を再実行）。workspace全体のtestとclippyは
+  hostedの`rust` job。
+- perf（README corpora、nice 20、main（P3-5axのbuild、`7c3a6c302`）対tsgo 7.1.0-dev、branchは`fa817ace1`）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 142→135、zod 523→522、Playwright 346→369（min 341→354）、
+    TypeScript `src/compiler` 351→328、Next.js 807→782、Effect 500→483、VS Code 3,449→3,395。tsc-rs÷tsgo 0.62–0.93。
+    読み込んだ文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 147→145、zod 617→617、Playwright 501→474、TypeScript `src/compiler` 552→491、
+    Next.js 1,029→989、Effect 754→747。6 corporaとも出力fileと診断は同一。
+  - 10回のA/B（`--noEmit`）：Effect 514→501、zod 518→521、VS Code 3,365→3,353、Next.js 779→766。
+  - 1 checkerの命令数branch÷main（`--noEmit`）：zod 0.99983、Effect 0.99972、Next.js 0.99968、Playwright 0.99967。
+    Playwrightの3回の差はnoiseで、劣化無し。
