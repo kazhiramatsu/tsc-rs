@@ -3058,3 +3058,5 @@ tsc-rsの両方で出力し、最初に分かれる所で特定した：
     ときの記録は、zodで723 ms対983 ms）。
   - P3-5bdから持ち越し：`typeTagOnFunctionReferencesGeneric`、匿名のmapped typeのunionの順序、
     `objectTypesWithOptionalProperties2`。
+- hosted：PR #682（head `b6acb7286`）、run 37296279975 — `plan` 31s、`rust` 11m14s、`conformance (TypeScript 7.1)` 20m23s、
+  `gates` 12s。
