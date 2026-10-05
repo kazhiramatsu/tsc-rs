@@ -3034,7 +3034,7 @@ tsc-rsの両方で出力し、最初に分かれる所で特定した：
     全file。Effectは宣言493/496（この回のtsgoの1回の出力に対して。tsgo自身の実行ごとの違いを含む）、他は全て。
 - 次（conformanceでerrorsがFullでない33構成を見直した分類）：
   - **harnessはemitの後の診断をbaselineにする**：tsgoのtest harnessは、programを2つ作り、2つ目は先に`Emit`して
-    から診断を集め、そちらを`.errors.txt`に書く（testutil/harnessutil/harnessutil.go:647-686）。emitのresolverが
+    から診断を集め、そちらを`.errors.txt`に書く（testutil/harnessutil/harnessutil.go:660-690）。emitのresolverが
     先に型を解決するので、順序に依存するerrorの位置が変わる：`mutuallyRecursiveInference`のTS5114は、CLIでは
     class `X`（8,7）、baselineでは`this.a`（12,9。`checkExpression`がcurrent nodeにした式）。
     `recursiveMappedTypes`のTS2615の位置、`recursivelyExpandingUnionNoStackoverflow`の余分なTS5114も同じ形の
