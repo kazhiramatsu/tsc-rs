@@ -798,6 +798,15 @@ impl<'a> CheckerState<'a> {
             .set_type_simplified(self.speculation_depth, ty, writing, LinkSlot::Resolving);
         match self.simplified_indexed_access_worker(ty, writing) {
             Ok(simplified) => {
+                // tsgo (checker.go:28387-28391): a simplification that is a
+                // union including the type itself (the re-entrant reads
+                // above return it) loses that member. tsc 6.0 kept it.
+                let simplified = if simplified != ty {
+                    self.tables
+                        .filter_type(simplified, |_, member| member != ty)
+                } else {
+                    simplified
+                };
                 self.links.set_type_simplified(
                     self.speculation_depth,
                     ty,
