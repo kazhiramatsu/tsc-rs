@@ -2642,3 +2642,5 @@ P3-5azの後、README corporaの出力をtsgoと比べて見つけた差：
   `}`の前に入る。Next.jsの`router.js`ではJavaScriptも違う）。class fieldsの`export default X;`はmapしない
   （`GetLocalName`）。parameterの既定値の`x === void 0`、private fieldの受け手、CommonJSの関数を持つexport変数の
   右辺は、名前の複製（位置あり）でmapする。型assertionを消した括弧の終わりのmap。
+- hosted：PR #678（head `fa1d127f9`）、run 37258721214 — `plan` 28s、`rust` 8m35s、`conformance (TypeScript 7.1)` 20m57s、
+  `gates` 12s。
