@@ -15121,6 +15121,12 @@ impl Printer {
             return Ok(Self::visited_trailing_anchor_at_cursor(outcome, child_end)
                 .unwrap_or_else(|| TokenAnchor::from(child_end)));
         }
+        // A range-less child (an inlined const enum member) writes no
+        // trailing comments, so the separator token's own leading phase reads
+        // the comments before it (emitPunctuationNode, printer.go:2915).
+        if child_end.source_position().is_none() {
+            return Ok(TokenAnchor::from(separator_start));
+        }
         Ok(TokenAnchor::new(
             separator_start,
             self.child_owned_trailing_resume_at_cursor(transformation, separator_start)?,
