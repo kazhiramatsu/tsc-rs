@@ -26,7 +26,8 @@ use errors_baseline::remove_test_path_prefixes;
 use serde::Serialize;
 use sha2::Digest as _;
 use tsc_compiler::{
-    CheckerBudget, MemoryOutputSink, NativeHarnessCollection, PreparedProgramMode, ProgramSession,
+    CheckerBudget, DriverError, MemoryOutputSink, NativeHarnessCollection, PreparedProgramMode,
+    ProgramSession,
 };
 use tsc_diagnostics::{Diagnostic, PositionIndex};
 use tsc_harness::upstream_suites::execution::{
@@ -586,19 +587,38 @@ fn absolute(current_directory: &str, path: &str) -> String {
     normalize_compiler_fixture_path(current_directory, path).unwrap_or_else(|_| path.to_owned())
 }
 
-/// Emit the configuration as the native harness's second Program does
-/// (`compileFilesWithHost`: `program.Emit` after the diagnostics Program),
-/// collecting the written files, with the map options of the Program's
-/// effective compiler options (the directives and the config file) and the
-/// facts the emit baseline reads. Nothing is emitted for a Program that
-/// cannot emit (`noEmit`).
+/// What the native harness's second Program of a configuration produces.
+struct SecondProgram {
+    emission: Emission,
+    map_options: MapOptions,
+    facts: EmitFacts,
+    /// The diagnostics the Program reports after its emit. `None` when the
+    /// Program does not emit before its diagnostics are known (it cannot
+    /// emit, `noEmitOnError` asks for them first, or the control runs it
+    /// with several checkers): the first Program's diagnostics are then the
+    /// second's.
+    diagnostics: Option<Vec<Diagnostic>>,
+    /// Why the emit failed, when the diagnostics could still be collected.
+    emit_error: Option<String>,
+}
+
+/// Run the configuration as the native harness's second Program does
+/// (`compileFilesWithHost`, harnessutil.go:673-688: `program.Emit`, then the
+/// diagnostic getters), collecting the written files, the diagnostics
+/// reported after the emit, the map options of the Program's effective
+/// compiler options (the directives and the config file) and the facts the
+/// emit baseline reads. The emit comes first: what it resolves through the
+/// checker is resolved in emit order, and that is the order the reference
+/// baselines were written in. Nothing is emitted for a Program that cannot
+/// emit (`noEmit`).
 fn emit_outputs(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
     test_library: &Path,
     standard_library: &Path,
     budget: CheckerBudget,
-) -> Result<(Emission, MapOptions, EmitFacts), String> {
+    collection: NativeHarnessCollection,
+) -> Result<SecondProgram, String> {
     let prepared =
         load_native_compiler_program(workspace, plan, limits(), test_library, standard_library)
             .map_err(|error| format!("load: {error}"))?;
@@ -614,15 +634,46 @@ fn emit_outputs(
     };
     let facts = EmitFacts::new(&prepared);
     if prepared.mode() != PreparedProgramMode::Emit {
-        return Ok((Emission::default(), map_options, facts));
+        return Ok(SecondProgram {
+            emission: Emission::default(),
+            map_options,
+            facts,
+            diagnostics: None,
+            emit_error: None,
+        });
     }
     let mut sink = MemoryOutputSink::new();
-    ProgramSession::new(prepared)
-        .with_checker_budget(budget)
-        .emit(&mut sink)
-        .map_err(|error| format!("emit: {error}"))?;
-    let emission = harness_order(Emission::from_writes(sink.writes()), &facts);
-    Ok((emission, map_options, facts))
+    let session = ProgramSession::new(prepared).with_checker_budget(budget);
+    let (diagnostics, emit_error) = match session
+        .emit_then_run_for_native_harness(collection, &mut sink)
+        .map_err(|error| format!("emit: {error}"))?
+    {
+        Ok((outcome, emit)) => (
+            Some(outcome.native_harness_diagnostics().to_vec()),
+            emit.and_then(Result::err)
+                .map(|error| format!("emit: {}", DriverError::Emit(error))),
+        ),
+        // The Program's emit asks for the diagnostics first, or the
+        // budget has several checkers: the order of the first Program.
+        Err(session) => {
+            session
+                .emit(&mut sink)
+                .map_err(|error| format!("emit: {error}"))?;
+            (None, None)
+        }
+    };
+    let emission = if emit_error.is_some() {
+        Emission::default()
+    } else {
+        harness_order(Emission::from_writes(sink.writes()), &facts)
+    };
+    Ok(SecondProgram {
+        emission,
+        map_options,
+        facts,
+        diagnostics,
+        emit_error,
+    })
 }
 
 /// Order the emitted files as the native harness's `newCompilationResult`
@@ -962,13 +1013,18 @@ fn no_check_comparison(
         value: "true".to_owned(),
     });
     no_check_plan.effective_settings = settings.into();
-    let (no_check, _, _) = emit_outputs(
+    let no_check = emit_outputs(
         workspace,
         &no_check_plan,
         test_library,
         standard_library,
         budget,
+        NativeHarnessCollection::default(),
     )
+    .and_then(|second| match second.emit_error {
+        Some(error) => Err(error),
+        None => Ok(second.emission),
+    })
     .map_err(|error| format!("noCheck {error}"))?;
     Ok(emit_baseline::no_check_sections(
         emission,
@@ -1063,7 +1119,48 @@ fn run_lane_a(
     };
     let texts: BTreeMap<String, String> = files.iter().cloned().collect();
     let mut indexes = BTreeMap::new();
-    let diagnostics = outcome.native_harness_diagnostics();
+    // The native harness compiles a configuration twice
+    // (`compileFilesWithHost`, harnessutil.go:647-712): the first Program
+    // only reports its diagnostics, the second emits and then reports them,
+    // and the errors baseline holds the second Program's. Should the two
+    // counts differ, the harness keeps the shorter list and adds a row no
+    // reference baseline contains.
+    let (second, mut emit_error) = match emit_outputs(
+        workspace,
+        plan,
+        &test_library,
+        &standard_library,
+        budget(),
+        collection,
+    ) {
+        Ok(mut second) => {
+            let error = second.emit_error.take();
+            (second, error)
+        }
+        Err(error) => (
+            SecondProgram {
+                emission: Emission::default(),
+                map_options: MapOptions::default(),
+                facts: EmitFacts::default(),
+                diagnostics: None,
+                emit_error: None,
+            },
+            Some(error),
+        ),
+    };
+    let first_diagnostics = outcome.native_harness_diagnostics();
+    let (diagnostics, counts) = match second.diagnostics.as_deref() {
+        Some(after_emit) if after_emit.len() == first_diagnostics.len() => (after_emit, None),
+        Some(after_emit) => (
+            if after_emit.len() < first_diagnostics.len() {
+                after_emit
+            } else {
+                first_diagnostics
+            },
+            Some((first_diagnostics.len(), after_emit.len())),
+        ),
+        None => (first_diagnostics, None),
+    };
     let actual: Vec<_> = diagnostics
         .iter()
         .map(|diagnostic| baseline_view(diagnostic, &texts, &mut indexes))
@@ -1084,7 +1181,32 @@ fn run_lane_a(
         .iter()
         .map(|(name, content)| errors_baseline::InputFile { name, content })
         .collect();
-    let rendered = errors_baseline::render(diagnostics, &inputs, &library_inputs, pretty);
+    let mut rendered = errors_baseline::render(diagnostics, &inputs, &library_inputs, pretty);
+    if let Some((before_emit, after_emit)) = counts {
+        agreement = Agreement::None;
+        // The harness's row lists the diagnostics only the longer list has.
+        let (longer, shorter) = match second.diagnostics.as_deref() {
+            Some(post) if post.len() > first_diagnostics.len() => (post, first_diagnostics),
+            Some(post) => (first_diagnostics, post),
+            None => (first_diagnostics, first_diagnostics),
+        };
+        let mut excess = String::new();
+        for diagnostic in longer.iter().filter(|d| !shorter.contains(d)) {
+            let view = baseline_view(diagnostic, &texts, &mut indexes);
+            excess.push_str(&format!(
+                "  {}({},{}): TS{}: {}\n",
+                view.file.as_deref().unwrap_or_default(),
+                view.line.unwrap_or_default(),
+                view.column.unwrap_or_default(),
+                view.code,
+                view.text
+            ));
+        }
+        rendered = Some(format!(
+            "Pre-emit ({before_emit}) and post-emit ({after_emit}) diagnostic counts do not match!\nThe excess diagnostics are:\n{excess}{}",
+            rendered.unwrap_or_default()
+        ));
+    }
     let rendered_sha256 = Some(format!(
         "{:x}",
         sha2::Sha256::digest(rendered.as_deref().unwrap_or_default().as_bytes())
@@ -1109,18 +1231,9 @@ fn run_lane_a(
         .find(|a| !expected.iter().any(|d| key(a) == key(d)))
         .cloned();
 
-    // The emit, as the native harness's second Program produces it, against
-    // the `.js` and `.js.map` references.
-    let (emission, map_options, facts, mut emit_error) =
-        match emit_outputs(workspace, plan, &test_library, &standard_library, budget()) {
-            Ok((emission, map_options, facts)) => (emission, map_options, facts, None),
-            Err(error) => (
-                Emission::default(),
-                MapOptions::default(),
-                EmitFacts::default(),
-                Some(error),
-            ),
-        };
+    // The emit of the second Program against the `.js` and `.js.map`
+    // references.
+    let (emission, map_options, facts) = (&second.emission, second.map_options, &second.facts);
     let full_emit_paths = flag("fullemitpaths");
     let mut sections = String::new();
     if emit_error.is_none() {
@@ -1128,8 +1241,8 @@ fn run_lane_a(
         let extra = declaration_file_errors(
             workspace,
             plan,
-            &facts,
-            &emission,
+            facts,
+            emission,
             had_diagnostics,
             &test_library,
             &standard_library,
@@ -1140,8 +1253,8 @@ fn run_lane_a(
             no_check_comparison(
                 workspace,
                 plan,
-                &facts,
-                &emission,
+                facts,
+                emission,
                 had_diagnostics,
                 &test_library,
                 &standard_library,
@@ -1164,7 +1277,7 @@ fn run_lane_a(
     let rendered_js = emit_baseline::render_js(
         &header,
         &source_inputs,
-        &emission,
+        emission,
         full_emit_paths,
         &sections,
     );
@@ -1204,7 +1317,7 @@ fn run_lane_a(
     let rendered_map = emit_baseline::render_js_map(
         map_options,
         !diagnostics.is_empty(),
-        &emission,
+        emission,
         &program_inputs,
         full_emit_paths,
     );

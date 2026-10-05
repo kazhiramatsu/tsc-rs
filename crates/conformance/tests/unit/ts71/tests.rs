@@ -49,6 +49,43 @@ fn the_tuple_sample_reproduces_its_error_baselines() {
     );
 }
 
+/// The reference baselines hold the diagnostics of the native harness's
+/// second Program, which emits before it reports (`compileFilesWithHost`,
+/// harnessutil.go:647-712). In these four cases the emit reaches a circular
+/// instantiation or constraint before the check does, and the diagnostics
+/// differ from the first Program's in position or related information.
+#[test]
+fn the_errors_baseline_is_the_one_of_the_program_that_emits_first() {
+    for case in [
+        "compiler/mutuallyRecursiveInference.ts",
+        "compiler/incorrectRecursiveMappedTypeConstraint.ts",
+        "compiler/typeParameterWithInvalidConstraintType.ts",
+        "conformance/types/mapped/recursiveMappedTypes.ts",
+    ] {
+        let options = RunOptions {
+            profile: PROFILE.to_owned(),
+            filter: None,
+            case: Some(case.to_owned()),
+            threads: 1,
+            checkers: 1,
+            dump: None,
+        };
+        let results = run(&workspace(), &options).unwrap();
+        assert_eq!(results.len(), 1, "{case}");
+        assert!(
+            matches!(
+                results[0].outcome,
+                Outcome::Compared {
+                    agreement: Agreement::Full,
+                    ..
+                }
+            ),
+            "{case}: {:?}",
+            results[0].outcome
+        );
+    }
+}
+
 /// A restarted worker receives the stems of its case that it must not run
 /// again, and announces each lane-A configuration before running it.
 #[test]
