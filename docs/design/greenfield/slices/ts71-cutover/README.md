@@ -2581,3 +2581,64 @@ tsc 6.0の`cloneNode`は位置を写さないが、tsgoの`Clone`は写す（ast
     TypeScript `src/compiler` 75→78/78、Next.js 1,495→1,657/1,665、Effect 427→470/496。JavaScriptと宣言は変わらない。
 - hosted：PR #677（head `902111f18`）、run 37251690295 — `plan` 27s、`rust` 9m54s、`conformance (TypeScript 7.1)` 20m56s、
   `gates` 11s。
+
+## P3-5ba const enumのinline化と、source mapの残り（2026-10-05）
+
+P3-5azの後、README corporaの出力をtsgoと比べて見つけた差：
+- **const enumのinline化**：tsgoは、module変換の後の最後の変換でconst enumの値を埋め込む（compiler/emitter.go:174-177、
+  inliners/constenum.go:32-89）。値のliteralは位置もoriginalも持たず、印字の前から木にあるので、printerは合成された
+  nodeとして並べる。参照の前の改行は保たれず、参照の前のコメントも書かれない。tsc-rsはtscの、印字時の置換
+  （`substituteConstantValue`）で、printerが置換前のnodeで改行を決めていた。TypeScriptの`src/compiler`のJavaScriptは
+  59/78→78/78でtsgoと同じになった。
+- **区切りのコメント**：位置の無い子（埋め込んだ値）は後置コメントを書かないので、条件式の`:`などの区切りは、自分の
+  前のコメントを自分で読む（`emitPunctuationNode`、printer.go:2901-2921）。tsc-rsは子が書いたものとして飛ばしていた。
+- **source map**：CommonJSの`import * as x`は名前の複製で宣言し（commonjsmodule.go:722-760）、optional callの`this`
+  引数は複製でmapする（optionalchain.go:198-204）。optional catchの下位変換は新しい`catch`節（位置なし）を作る
+  （optionalcatch.go:24-30）。優先順位のための括弧はprinterが印字時に書くだけでmapしない（printer.go:3222-3226）が、
+  object literalのconcise bodyの括弧は本体の範囲でmapする（printer.go:2669-2685）。
+- **inline化の費用**：木の上の置換は、埋め込んだ参照の祖先を作り直す（tsgoの`VisitEachChild`と同じ）。全nodeを訪ねる
+  素直な形では、TypeScriptの`src/compiler`のfull emit（1 checker）の命令数が2.1%増えた。そこで、ファイルごとに構文木の
+  property/element accessを一度resolverに尋ね、値を持ちうるものとその祖先に印を付け、前の変換が残した構文木の部分木は
+  印が無ければ訪ねない（変換はparse nodeの子を書き換えないので、残ったparse nodeは自分の部分木を持つ）。値を持つ
+  accessの無いファイルは訪ねない。子が変わらないnodeはそのまま返し、作り直すnodeは元のtransform flagsを保つ（最後の
+  変換の後で読むものは無い）。出力は変わらず（6 corporaの12,404 fileがbyte単位で同じ）、増分は1.0%になった。残りは
+  作り直したnodeの生成とmetadata、printerがそれらのコメント範囲を引く費用で、全変換に共通のmetadataの持ち方に属する
+  （下の候補）。
+- unit test：CLI（tsgoの出力にpin）で2件（残した部分木、型を消して作り直した関数、constructorとclassの後ろへ移した
+  初期値、element access、importしたconst enum、括弧の要るreceiver）。tscの形に固定していたemitterのtest 3件
+  （変換の一覧、module変換の選択、optional catchのコメント）を、tsgoの形に直した。
+- conformance（release build、`72bb65cc8`、`--workers 2`、530 s）：15,228構成、lane A 13,467、full 13,411、emit full
+  13,421、`.js.map`の不一致1。P3-5azのreportと結果が全く同じ（conformanceにはこの形のcaseが無く、効くのは実際の
+  project）。`dfb73ab61`での1回目（531 s）とは、負荷で結果の変わる`intersectionConstructorReductionCrash`（1回目は
+  memory limit、ratchetの外）だけが違う。途中はfilter（`num`、`omment`、`onditional`、`ourceMap`、`atch`、`mport`、
+  `ptionalChain`、`arenthes`）で確かめ、下がった構成は無かった。`--checkers 4`の並列対照はcheckerを変えていないので
+  実行していない。
+- ratchet：0 regressions。上がった行は無い。
+- local：formatと、emitter・compilerのclippy（`dfb73ab61`ではconformanceも）。emitter・compiler・conformanceのtest
+  （`dfb73ab61`で901件、tscの形に固定していた3件を直して再実行）、emitter・compilerのtest（`72bb65cc8`で884件）。
+  workspace全体のtestとclippyはhostedの`rust` job。
+- perf（README corpora、nice 20、main（P3-5azのbuild、`902111f18`と同じコード）対tsgo 7.1.0-dev、branchは
+  `72bb65cc8`。どちらもconformanceと一緒のbuild）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 134→136、zod 548→526、Playwright 383→360、TypeScript
+    `src/compiler` 369→337、Next.js 791→783、Effect 525→511、VS Code 3,503→3,459。読み込んだ文書数と診断は7 corporaで同一。
+  - `tsconfig.bench-full.json` 3回：hono 152→147、zod 632→642、Playwright 479→492、TypeScript `src/compiler` 583→521
+    （min 510→515）、Next.js 1,043→1,007、Effect 845→772。6 corporaとも診断は同一で、出力の違いはzod 2、TypeScript
+    `src/compiler` 45、Next.js 200 file（下のtsgoとの比較の通り）。
+  - 10回のA/B：`--noEmit` Effect 525→524、zod 526→523、VS Code 3,461→3,437、Next.js 787→785。`bench-full`
+    TypeScript `src/compiler` 506→528（min 468→489、CPU 1,621→1,646 ms）、Next.js 1,092→1,085、Playwright 522→508、
+    Effect 811→820。1 checkerの命令数branch÷main：`--noEmit` zod 0.99970、Effect 1.00033、Next.js 0.99978、Playwright
+    0.99976、`bench-full` TypeScript `src/compiler` 1.00971（25.22G→25.47G）、Next.js 0.99855。TypeScript
+    `src/compiler`のemitは、inline化の多い`checker.ts`（7,631箇所、作り直し27,523 node）が最も長い仕事なので、wallの
+    増分が命令数より大きい。tsgoの構造に合わせた費用として記録し、上の候補で下げる（他のcorporaは劣化無し）。
+  - bench-fullの出力をtsgoと比べた、tsgoと同じbyteのfileの数（main→branch）：JavaScriptはTypeScript `src/compiler`
+    59→78/78（他は変わらず、Next.js 1,663/1,665）。js.mapはhono 187/187、zod 470→471/475、Playwright 703/704、
+    TypeScript `src/compiler` 51→77/78、Next.js 1,451→1,631/1,665、Effect 496/496。宣言とd.ts.mapは変わらない。
+- 残り：ES2018未満で`() => ({ ...x } as T)`のように、型を消した後のobject literalが別の式になるconcise bodyは、
+  tsc-rsでは括弧が残る（tsgoは印字時に判断する）。
+- 性能の候補（実装しない）：emit metadataを密な表にする（`set_original_node`の挿入とprinterの`comment_range_for_node`
+  の検索が、作り直したnodeの数だけ増える）、`update_node`が元のpayloadを複製してから置き換える二重の複製。
+- 次（P3-5bb）：concise bodyをblockにする変換（ES2021、class fields、decorator）がtsgoの`ConvertToFunctionBlock`の
+  `statements.Loc = body.Loc`と、`VisitFunctionBody`の式の`EFNoComments`を欠く（`}`のmapと、本体の後ろのコメントが
+  `}`の前に入る。Next.jsの`router.js`ではJavaScriptも違う）。class fieldsの`export default X;`はmapしない
+  （`GetLocalName`）。parameterの既定値の`x === void 0`、private fieldの受け手、CommonJSの関数を持つexport変数の
+  右辺は、名前の複製（位置あり）でmapする。型assertionを消した括弧の終わりのmap。
