@@ -2920,3 +2920,141 @@ P3-5bcの「次」のうち宣言の名前に関わるものと、conformanceの
     回復でのコメントの二重出力（`objectTypesWithOptionalProperties2`）。
 - hosted：PR #681（head `e6301e6b1`）、run 37282361616 — `plan` 28s、`rust` 9m55s、`conformance (TypeScript 7.1)` 13m45s、
   `gates` 14s。
+
+## P3-5be 7.1のcheckerの規則：基底型の後のmember、交差型の縮約、比較の深さ、varianceの計測（2026-10-05）
+
+P3-5bdの「次」のVue.jsの診断2件から始めて、tsgoのcheckerがtsc 6.0と違う規則を、corporaの診断の差から順に
+見つけた。差の場所は、instantiationのstackをtsgo（同じcommitのsourceの写しに計測を足してbuildしたもの）と
+tsc-rsの両方で出力し、最初に分かれる所で特定した：
+- **memberは基底型の後で公開する**：`resolveObjectTypeMembers`は、基底型のmemberを足し終えてから一度だけ
+  `setStructuredTypeMembers`を呼ぶ（checker/checker.go:19446-19493）。tsc 6.0は基底型を見る前に自分のmemberだけを
+  公開していたので、基底型の型引数が解決中の型のmemberを要るとき、6.0は途中の表を読んで終わり、tsgoは同じ解決に
+  再び入ってinstantiationの深さ100でTS5114／TS5115を出す（Vue.jsの`interface _Selector<S> extends
+  Container<string, Diff<Node, S>>`と`type Selector = _Selector<Selector>`）。早い公開と、Err時にそれを取り消す
+  処理を外した。
+- **型引数の制約はその場で検査する**：`checkTypeReferenceOrImport`は、型を得た直後に型引数を制約と照合する
+  （checker/checker.go:3046-3062）。tsc 6.0はこれをlazy diagnosticとして積み、fileの他の検査の後で、参照自身を
+  current nodeにして実行していた。上のTS5115はinterfaceではなく参照の位置に出ており、制約のerrorは後続の文の
+  errorより後に並んでいた。積むための補助（aliasの解決に再入し得る引数の判定、自己参照のaliasの判定）と、
+  deferred nodeの型参照の分岐を消した。lazyの順序をpinしていたcheckerのunit testを新しい順序に直した。
+- **交差型の縮約**（`getReducedType`、checker/checker.go:22177-22233）：
+  - 交差型は、propertyを見る前に「計算済み」にする。propertyの解決の途中で同じ交差型に戻った問い合わせは、
+    縮約されていない型を見る。tsc 6.0は計算の後で2つのflagを書いていた。
+  - 構成要素が全て同じobject型の上のmapped typeなら、neverに縮約するpropertyを探さない
+    （`isMappingOfSameObjectType`）。`M1<O> & M2<O>`は`kind`が`"a" & "b"`でも縮約されず、`M1<O> & M2<P>`は
+    neverになる。zodの再帰するobject schemaでは、homomorphicなmapped typeを`{…} & {…}`の上でinstantiateする
+    途中でそのmapped typeのmemberを解決しなくなり、tsc-rsだけが出していたTS5115（と続くTS2344の2件）が消えた。
+  - それ以外では、2つ以上の構成要素が持つ名前だけ、合成のpropertyを作って調べる
+    （`somePropertyReducesToNever`）。tsgoは名前をGoのmapの順でたどる。tsc-rsは構成要素が並べる順でたどる。
+- **交差型のproperty**（`createUnionOrIntersectionProperty`、checker/checker.go:21789-21990）：
+  - 交差型のpropertyはoptionalから始まり、構成要素のpropertyのうちproperty・method・accessorであるものだけが
+    それを狭める。2つのnamespaceやmoduleがexportする同じ名前は、`typeof A & typeof B`の中でoptionalのままになる
+    （`Property 'x' is optional in type 'typeof A & typeof B' but required in type …`）。tsc 6.0は最初のclass
+    memberまでflagを立てなかった。
+  - 構成要素のpropertyの宣言は、1つずつだけ集める（`AppendIfUnique`）。tsc 6.0は全てのlistを連結していて、
+    構成要素自身が合成のpropertyのとき段ごとに倍になる。`intersectionConstructorReductionCrash`では3 GBになって
+    いた。
+- **比較の入れ子は100段でMaybe**：`recursiveTypeRelatedTo`は、比較が100段入れ子になると、進行中の比較に出会った
+  ときと同じくMaybeを返す（checker/relater.go:3135-3140）。tsc 6.0はそこでoverflowを立て、比較全体をTS2321
+  （Excessive stack depth comparing types）で失敗させていた。tsgoはTS2321を出さない。残るoverflowは複雑さの
+  予算（TS2859）だけなので、`RelationComparisonResult`から`StackDepthOverflow`を消した（relater.go:66-75）。
+  Next.jsでtsc-rsだけが出していたtypeboxの`UnionToTuple`の制約のTS2321 3件が消えた。同じ型を関数の戻り値に
+  すると、100段でMaybeになった後、代入できないunionのmemberで失敗し、199行の鎖を出す（tsgoと同じbyte）。
+- **varianceは、計測中の型のstackで測る**：`getVariancesWorker`は、計測中のgenericな型をstackに積む
+  （checker/relater.go:1334-1434）。計測の途中で、既にstackにある型のvarianceが要ると、その循環の中でsymbolが
+  最小の型（`compareSymbols`）から計測をやり直し、その型と途中で終わった型のvarianceを保存する。外側の計測は
+  自分の途中の結果を捨てる。循環のどこから入っても同じvarianceになる。tsc 6.0は計測中の印をlinksに書き、
+  最初に比較された型の中から循環の残りを測っていた。Vue.jsの`vModel.ts`では、戻り値の型のsubtype reductionが
+  `ObjectDirective`から入り、`DirectiveBinding`が`dir` property抜きで測られ、tsgoが断る呼び出し（TS2345）が
+  通っていた。保存された空のlistはtsgoの空のsliceで、計測中の型への循環の要求が残す印（計測が終わると
+  置き換わる）であり、`getVariances`の呼び出し側はそれにTernary.Unknownを返す。
+- **信頼性のflag**：`Reports*`のbitをtsgoの`reliabilityFlags`に移した（checker/checker.go:742、1146-1158、
+  relater.go:3106、3155-3170）。report用のmapperがmarker型でbitを立て、`recursiveTypeRelatedTo`が比較ごとに
+  集めて結果と一緒にcacheに書き、cacheのhitはそのbitを進行中の比較に足し、`getVariancesWorker`が型parameter
+  ごとに読む。tsc 6.0の`outofbandVarianceMarkerHandler`のclosureの鎖は計測の間だけ在り、cacheのhitはsourceを
+  report用のmapperでinstantiateして再生していた。関係のcacheの近道での再生（tsgoに無い）は消した。
+- **型変数の無い型も、aliasの型引数はinstantiateする**：`instantiateTypeWithAlias`は、aliasの型引数が型変数を
+  含み得る型もinstantiateする（checker/checker.go:22494-22500）。parameterを使わないunionや交差型のaliasも、
+  参照ごとの型引数を持つ：`type Un<T> = string | number`は`Un<number>`、`type Brand<T> = number & {}`の
+  `Brand<U>`は`number`（交差型は`& {}`無しで作り直される）。tsc 6.0は宣言された型をそのまま返し、診断と宣言に
+  `Un<T>`、`Brand<T>`と書いていた。
+- **`hasBaseType`は、同じ型を1回だけたどる**（tsrs-native）：tscとtsgoは、型から基底への全ての経路をたどる。
+  interfaceがそれまでの全てのclassをextendsするmixinの鎖は、経路が指数的にある。
+  `intersectionConstructorReductionCrash`はここで28 s（tsgoはfile全体で9.5 s）かかり、負荷のあるときに
+  harnessの制限時間を超えるので、ratchetの外に置いていた。1回のたどりの中で基底に届かなかった型は、後で
+  訪ねても届かないので、訪ねた型を覚える。上の宣言の重複と合わせて、このfileは0.1 s、63 MBになった
+  （前は28 s、3.2 GB）。
+- unit test：CLI（tsgoの出力にpin）で7件（基底型の後のmemberとTS5115の位置、同じobjectの上のmappingの交差型、
+  100段の比較（通る場合と、199行の鎖で失敗する場合）、循環するvariance（Vue.jsの`vModel.ts`の縮約）、aliasの
+  型引数、namespaceの交差型のoptionalなproperty）。checkerのunit test 1件をtsgoの順序に直し、speculationの
+  unit testをvarianceのstackとflagに合わせた。
+- 結果（corporaの`--noEmit`の診断、tsgo 7.1.0-dev-19dadef8と比べて）：hono、Playwright、TypeScript `src/compiler`、
+  Next.js、Effect、Vue.js、VS Codeは、既定のchecker数で全て同じbyte（P3-5bdではVue.jsに4件足りず、Next.jsに3件
+  多かった）。zodは1 checker同士（`TSRS_CHECKERS=1`と`--checkers 1`）で43行が同じ。既定のchecker数では、
+  instantiationの深さのerror（TS5115）の出る場所がfileのcheckerへの割り当てで変わる：tsgo自身が`--checkers`
+  1／2／4／8で35／35／36／35件を出し、tsc-rsは8 shardで37件（8回中7回。1回は36件）。256 file以上のprogramは
+  shardが仕事を譲り合う（stealing）ので割り当てが実行ごとに変わり得る。`TSRS_SHARD_STEAL=0`では8回とも同じ出力。
+- conformance（release build、`469ccc709`、`--workers 2`、459 s）：15,228構成、lane A 13,467、full 13,416、text 3、
+  category 3、mismatch 27、emit full 13,432、emitの不一致9、未評価8、harness error 18、`.js.map`の不一致1。
+  P3-5bdの最後のreportと行ごとに比べて変わったのは6構成：errorsがFullに上がった`circularVariance1`、
+  `classVarianceResolveCircularity2`（varianceのstack）、`keyofGenericExtendingClassDoubleLayer`（基底型の後の
+  member）、`templateLiteralTypeExcessiveLength`（制約をその場で検査する順序）、harness error（制限時間。前の
+  buildは10分で終わらず5 GBを超えた）から全tierがFullになった`excessivelyDeepConditionalTypes`（0.44 s）、
+  tierは同じで診断が変わった`mutuallyRecursiveInference`（TS5114がclassの位置になった。tsgoのCLIと同じ位置
+  だが、baselineは`this.a`の位置。下の「次」）。他の構成はtierも、診断とemitのdigestも同じ。途中は21のfilterと、
+  前のreportでerrorsがFullでなかった40 caseの個別の実行で確かめた。
+- `--checkers 4`の並列対照：`--filter eclaration`（2,426構成）を1 checkerの同じfilterと比べ、2,424構成が同じ。違う
+  2構成は記録済みのpartition依存。`--filter ariance`（28構成）と`--filter ircular`（73構成）は全て同じ。全caseの
+  対照はlocalの負荷の方針により実行していない。
+- ratchet：0 regressions。上の5行と`intersectionConstructorReductionCrash`を足した（13,416→13,422行）。後者は
+  ratchetの外に置いていたが、0.1 sで終わるようになった。
+- local：formatと、types・checker・emitter・compiler・conformanceのclippy、test（`ed1f0ff40`で2,759件）。最初の
+  実行では、lazyの順序をpinしていたcheckerのunit test 1件が失敗し、tsgoの順序に直した。workspace全体のtestと
+  clippyはhostedの`rust` job。
+- perf（README corporaとVue.js、nice 20、main（P3-5bdのbuild、`71feb95f6`）対tsgo 7.1.0-dev、branchは
+  `469ccc709`）：
+  - `--noEmit` 3回のmedian（ms、main→branch）：hono 144→166、zod 573→557、Playwright 398→393、TypeScript
+    `src/compiler` 365→369、Next.js 891→810、Effect 580→586、Vue.js 403→386、VS Code 3,898→3,884。読み込んだ文書数は
+    8 corporaで同一。診断はzod、Next.js、Vue.jsで変わった（上の通りtsgoの側へ）。honoは6回ずつの計り直しで
+    0.11–0.13 sと0.12–0.13 s、1 checkerの命令数は4.316→4.260 G。
+  - `tsconfig.bench-full.json` 3回：hono 158→162、zod 706→723、Playwright 545→526、TypeScript `src/compiler`
+    581→552、Next.js 1,157→1,111、Effect 811→854（最小値は780→785）、Vue.js 465→466。出力は7 corporaとも
+    mainと同じbyte。
+  - 10回のA/B：`--noEmit` Effect 565→543、zod 558→552、VS Code 3,674→3,620、Next.js 830→811、Vue.js 383→367。
+    `bench-full` TypeScript `src/compiler` 546→544、Next.js 1,111→1,106、Playwright 545→519、Effect 851→820、
+    Vue.js 454→425。peakは±2%以内（Playwrightの`--noEmit`は5回ずつの計り直しでmedian 791→763 MB）。1 checkerの
+    命令数branch÷main：`--noEmit` zod 0.968、Effect 0.978、Next.js 0.956、Playwright 0.976、Vue.js 0.964、hono
+    0.987、`bench-full` TypeScript `src/compiler` 0.991、Next.js 0.969、Vue.js 0.972。劣化無し（関係のcacheの
+    近道での再生が無くなったことと、交差型のpropertyの扱いが軽くなったことで、2–4%減った）。
+  - tsgo（同じ計測の3回のmedian、ms／peak MB）：`--noEmit` hono 181／324、zod 931／1,710、Playwright 578／994、
+    TypeScript `src/compiler` 405／395、Next.js 1,334／1,684、Effect 815／1,205、Vue.js 551／730、VS Code
+    5,257／6,758。`bench-full` hono 210／380、zod 1,062／1,925、Playwright 752／1,340、TypeScript `src/compiler`
+    691／737、Next.js 1,881／2,013、Effect 1,168／1,820、Vue.js 639／861。
+  - 出力（`bench-full`、tsgoと同じbyteのfile数）：hono、zod、Playwright、TypeScript `src/compiler`、Next.js、Vue.jsは
+    全file。Effectは宣言493/496（この回のtsgoの1回の出力に対して。tsgo自身の実行ごとの違いを含む）、他は全て。
+- 次（conformanceでerrorsがFullでない33構成を見直した分類）：
+  - **harnessはemitの後の診断をbaselineにする**：tsgoのtest harnessは、programを2つ作り、2つ目は先に`Emit`して
+    から診断を集め、そちらを`.errors.txt`に書く（testutil/harnessutil/harnessutil.go:660-690）。emitのresolverが
+    先に型を解決するので、順序に依存するerrorの位置が変わる：`mutuallyRecursiveInference`のTS5114は、CLIでは
+    class `X`（8,7）、baselineでは`this.a`（12,9。`checkExpression`がcurrent nodeにした式）。
+    `recursiveMappedTypes`のTS2615の位置、`recursivelyExpandingUnionNoStackoverflow`の余分なTS5114も同じ形の
+    可能性がある。runnerに「emitしてから検査する」経路が要る。
+  - **再帰の同一性**：`getRecursionIdentity`は、型nodeの解決から来た型参照（`ObjectFlagsFromTypeNode`。
+    `createTypeReferenceEx`が最初に作ったときだけ付く）をsymbolやtupleのtargetでまとめない
+    （checker/relater.go:820-865、checker.go:23664、24600-24602）。`Inner[]`→`Mid[]`→`Leaf[]`の3段が
+    「深い入れ子」と見なされず、`deeplyNestedArrayTypes`、`deeplyNestedTupleTypes`のTS2322が出る。indexed accessの
+    同一性も、左端のobject型そのものではなく、その型の同一性になった。
+  - 循環の関連情報TS2751（`Circularity originates in type at this location`。
+    `incorrectRecursiveMappedTypeConstraint`、`typeParameterWithInvalidConstraintType`）。
+  - 推論と循環：zod形のgetterの循環のTS7022／TS7023（`recursiveTypeInference`、`recursiveTypeInference2`）、
+    `infiniteConstraints2`のTS2589、`nestedGenericTypeInference`のTS2345、`mixinWithBaseDependingOnSelfNoCrash1`の
+    TS2345、`contextualTypingGenericFunction2`のTS2322、`recursiveIndexedAccessSimplification`のTS2322。
+  - JSX（`checkJsxChildrenProperty15`、`16`、`tsxStatelessFunctionComponentOverload4`）、JavaScriptの代入宣言
+    （`nestedPrototypeAssignment`、`prototypePropertyAssignmentMergeWithInterfaceMethod`、
+    `typeFromPropertyAssignment9`、`9_1`）、type-onlyのalias（`importEquals3`、`typeOnlyMerge3`）、その他
+    （`awaitedTypeNoLib`、`bigintPropertyName`、`blockScopedBindingUsedBeforeDef`、`mappedTypeConstraints2`の鎖）。
+  - 既定のchecker数での診断の再現性：zodのように順序に依存するerrorがあると、stealingで出力が実行ごとに変わり
+    得る。静的な割り当て（`TSRS_SHARD_STEAL=0`）を既定にするかは、速度との兼ね合いで未決（stealingを入れた
+    ときの記録は、zodで723 ms対983 ms）。
+  - P3-5bdから持ち越し：`typeTagOnFunctionReferencesGeneric`、匿名のmapped typeのunionの順序、
+    `objectTypesWithOptionalProperties2`。

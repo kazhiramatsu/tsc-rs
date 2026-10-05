@@ -132,7 +132,7 @@ pub struct SpeculationCheckpoint {
     awaited_type_stack: usize,
     active_type_mappers: usize,
     active_type_mappers_caches: usize,
-    variance_handler_stack: usize,
+    reliability_flags: tsc_types::RelationComparisonResult,
     class_interface_declared_in_progress: usize,
     type_parameter_defaults_in_progress: usize,
     mapped_types_in_progress: usize,
@@ -153,7 +153,7 @@ pub struct SpeculationCheckpoint {
     // ---- B: counters / flags ----
     instantiation_depth: u32,
     inline_level: u32,
-    in_variance_computation: bool,
+    variance_stack: usize,
     variance_type_parameter: Option<TypeId>,
     is_inference_partially_blocked: bool,
 
@@ -374,7 +374,7 @@ impl CheckerState<'_> {
             awaited_type_stack: self.awaited_type_stack.len(),
             active_type_mappers: self.active_type_mappers.len(),
             active_type_mappers_caches: self.active_type_mappers_caches.len(),
-            variance_handler_stack: self.variance_handler_stack.len(),
+            reliability_flags: self.reliability_flags,
             class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
             mapped_types_in_progress: self.mapped_types_in_progress.len(),
@@ -386,7 +386,7 @@ impl CheckerState<'_> {
             exhaustive_switch_computing: self.exhaustive_switch_computing.clone(),
             instantiation_depth: self.instantiation_stack.len() as u32,
             inline_level: self.inline_level,
-            in_variance_computation: self.in_variance_computation,
+            variance_stack: self.variance_stack.len(),
             variance_type_parameter: self.variance_type_parameter,
             is_inference_partially_blocked: self.is_inference_partially_blocked,
             diagnostics: self.diagnostics.len(),
@@ -486,10 +486,6 @@ impl CheckerState<'_> {
                     checkpoint.active_type_mappers_caches,
                 ),
                 (
-                    self.variance_handler_stack.len(),
-                    checkpoint.variance_handler_stack,
-                ),
-                (
                     self.class_interface_declared_in_progress.len(),
                     checkpoint.class_interface_declared_in_progress,
                 ),
@@ -524,8 +520,9 @@ impl CheckerState<'_> {
                 );
             }
             assert_eq!(
-                self.in_variance_computation, checkpoint.in_variance_computation,
-                "speculative region committed with unbalanced variance flag"
+                self.variance_stack.len(),
+                checkpoint.variance_stack,
+                "speculative region committed with unbalanced variance stack"
             );
             assert_eq!(
                 self.variance_type_parameter, checkpoint.variance_type_parameter,
@@ -627,8 +624,7 @@ impl CheckerState<'_> {
             .truncate(checkpoint.active_type_mappers);
         self.active_type_mappers_caches
             .truncate(checkpoint.active_type_mappers_caches);
-        self.variance_handler_stack
-            .truncate(checkpoint.variance_handler_stack);
+        self.reliability_flags = checkpoint.reliability_flags;
         self.class_interface_declared_in_progress
             .truncate(checkpoint.class_interface_declared_in_progress);
         self.type_parameter_defaults_in_progress
@@ -647,7 +643,7 @@ impl CheckerState<'_> {
         self.instantiation_stack
             .truncate(checkpoint.instantiation_depth as usize);
         self.inline_level = checkpoint.inline_level;
-        self.in_variance_computation = checkpoint.in_variance_computation;
+        self.variance_stack.truncate(checkpoint.variance_stack);
         self.variance_type_parameter = checkpoint.variance_type_parameter;
         self.is_inference_partially_blocked = checkpoint.is_inference_partially_blocked;
 

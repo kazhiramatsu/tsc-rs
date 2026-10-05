@@ -3590,35 +3590,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: limits pre-force lazy-diagnostic scheduling to type
-    /// alias construction whose argument can re-enter alias resolution.
-    pub(crate) fn type_reference_arguments_may_resolve_alias(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<bool> {
-        let mut current = self.parent_of(node);
-        let mut within_type_alias = false;
-        while let Some(candidate) = current {
-            if self.kind_of(candidate) == SyntaxKind::TypeAliasDeclaration {
-                within_type_alias = true;
-                break;
-            }
-            current = self.parent_of(candidate);
-        }
-        if !within_type_alias {
-            return Ok(false);
-        }
-        let NodeData::TypeReference(data) = self.data_of(node) else {
-            return Ok(false);
-        };
-        for argument in self.nodes_of(data.type_arguments) {
-            if self.may_resolve_type_alias(argument)? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
-
     /// tsc-port: getTypeFromTypeQueryNode @6.0.3
     /// tsc-hash: d8e9b4a2ea79ce1b11bdaebf9b475b2b7175e9b653c0e8c0f87925ab8908f7c6
     /// tsc-span: _tsc.js:60596-60603
@@ -4497,13 +4468,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:57796-57841
     ///
     /// `source` is the declared-members carrier (`source_type` its
-    /// owner). The early setStructuredTypeMembers (57829) is ported as
-    /// an early slot write whose contents are completed in place at the
-    /// end: mid-cycle readers observe the pre-inheritance table (tsc
-    /// readers additionally observe the loop's incremental mutations,
-    /// but every such re-entry requires a heritage cycle that
-    /// getBaseTypes has already cut). An Err unwind retracts the slot —
-    /// tsc has no failure mode, so partial tables must not persist.
+    /// owner).
+    ///
+    /// tsgo-port: Checker.resolveObjectTypeMembers @7.1 (checker/checker.go:
+    /// 19446-19493): the members are published once, after the base types'
+    /// members were added. tsc 6.0 published the type's own members before
+    /// it looked at the base types, so a base type whose type arguments need
+    /// the members of the type being resolved (`interface _Selector<S>
+    /// extends Container<string, Diff<Node, S>>` with `type Selector =
+    /// _Selector<Selector>`) read that early table and stopped. tsgo enters
+    /// the same resolution again, until the instantiation depth limit
+    /// reports TS5114/TS5115.
     fn resolve_object_type_members(
         &mut self,
         ty: TypeId,
@@ -4556,11 +4531,11 @@ impl<'a> CheckerState<'a> {
             index_infos = self.instantiate_index_info_list(&declared_index_infos, type_mapper)?;
         }
         let base_types = self.get_base_types(source_type)?;
-        let early_id = if !base_types.is_empty() {
+        if !base_types.is_empty() {
             if members_are_live_table {
-                // 57821-57828: copy the declared properties (+ the
-                // index symbol) before inheriting — the symbol's own
-                // table must not absorb base members.
+                // Copy the declared properties (+ the index symbol) before
+                // inheriting — the symbol's own table must not absorb base
+                // members.
                 let declared_properties = self.members_of(source).properties.clone();
                 let mut table = MemberTable::from_symbols(&self.binder, &declared_properties);
                 let source_index = source_symbol.and_then(|symbol| {
@@ -4573,99 +4548,65 @@ impl<'a> CheckerState<'a> {
                 }
                 members = table;
             }
-            // Early write (57829): partial members become observable.
-            let container = self.tables.type_of(ty).symbol;
-            let properties = self.get_named_members(&members, container)?;
-            let id = self.alloc_members(ResolvedMembers {
-                members: members.clone(),
-                properties,
-                call_signatures: call_signatures.clone(),
-                construct_signatures: construct_signatures.clone(),
-                index_infos: index_infos.clone(),
-            });
-            self.links
-                .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(id));
             let this_argument = type_arguments.last().copied();
-            let inherited = (|state: &mut Self| -> CheckResult<()> {
-                for &base_type in &base_types {
-                    let instantiated_base_type = match this_argument {
-                        Some(this_argument) => {
-                            let instantiated = state.instantiate_type(base_type, mapper)?;
-                            state.get_type_with_this_argument(
-                                instantiated,
-                                Some(this_argument),
-                                /*need_apparent_type*/ false,
-                            )?
-                        }
-                        None => base_type,
-                    };
-                    let base_properties =
-                        state.get_properties_of_type_full(instantiated_base_type)?;
-                    state.add_inherited_members(&mut members, &base_properties)?;
-                    call_signatures.extend(state.get_signatures_of_type(
-                        instantiated_base_type,
-                        crate::structural::SignatureKind::Call,
-                    )?);
-                    construct_signatures.extend(state.get_signatures_of_type(
-                        instantiated_base_type,
-                        crate::structural::SignatureKind::Construct,
-                    )?);
-                    let inherited_index_infos =
-                        if instantiated_base_type != state.tables.intrinsics.any {
-                            state.get_index_infos_of_type(instantiated_base_type)?
-                        } else {
-                            vec![IndexInfo {
-                                key_type: state.tables.intrinsics.string,
-                                value_type: state.tables.intrinsics.any,
-                                is_readonly: false,
-                                declaration: None,
-                                components: None,
-                                is_enum_number_index_info: false,
-                                is_any_base_type_index_info: true,
-                            }]
-                        };
-                    for info in inherited_index_infos {
-                        if !index_infos
-                            .iter()
-                            .any(|existing| existing.key_type == info.key_type)
-                        {
-                            index_infos.push(info);
-                        }
+            for &base_type in &base_types {
+                let instantiated_base_type = match this_argument {
+                    Some(this_argument) => {
+                        let instantiated = self.instantiate_type(base_type, mapper)?;
+                        self.get_type_with_this_argument(
+                            instantiated,
+                            Some(this_argument),
+                            /*need_apparent_type*/ false,
+                        )?
+                    }
+                    None => base_type,
+                };
+                let base_properties = self.get_properties_of_type_full(instantiated_base_type)?;
+                self.add_inherited_members(&mut members, &base_properties)?;
+                call_signatures.extend(self.get_signatures_of_type(
+                    instantiated_base_type,
+                    crate::structural::SignatureKind::Call,
+                )?);
+                construct_signatures.extend(self.get_signatures_of_type(
+                    instantiated_base_type,
+                    crate::structural::SignatureKind::Construct,
+                )?);
+                let inherited_index_infos = if instantiated_base_type != self.tables.intrinsics.any
+                {
+                    self.get_index_infos_of_type(instantiated_base_type)?
+                } else {
+                    vec![IndexInfo {
+                        key_type: self.tables.intrinsics.string,
+                        value_type: self.tables.intrinsics.any,
+                        is_readonly: false,
+                        declaration: None,
+                        components: None,
+                        is_enum_number_index_info: false,
+                        is_any_base_type_index_info: true,
+                    }]
+                };
+                for info in inherited_index_infos {
+                    if !index_infos
+                        .iter()
+                        .any(|existing| existing.key_type == info.key_type)
+                    {
+                        index_infos.push(info);
                     }
                 }
-                Ok(())
-            })(self);
-            if let Err(err) = inherited {
-                self.links.retract_type_members(ty);
-                return Err(err);
             }
-            Some(id)
-        } else {
-            None
-        };
+        }
         let container = self.tables.type_of(ty).symbol;
         let properties = self.get_named_members(&members, container)?;
-        let resolved = ResolvedMembers {
+        let id = self.alloc_members(ResolvedMembers {
             members,
             properties,
             call_signatures,
             construct_signatures,
             index_infos,
-        };
-        match early_id {
-            Some(id) => {
-                // Final setStructuredTypeMembers (57840): complete the
-                // early table in place.
-                *self.members_mut(id) = resolved;
-                Ok(id)
-            }
-            None => {
-                let id = self.alloc_members(resolved);
-                self.links
-                    .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(id));
-                Ok(id)
-            }
-        }
+        });
+        self.links
+            .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(id));
+        Ok(id)
     }
 
     /// createSymbolTable(symbols) (50128): a table keyed by escaped
@@ -5588,7 +5529,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasBaseType @6.0.3
     /// tsc-hash: 4be36907403570c20f53afc9305703585ad832eac42b2d7bba4f94d43f95c211
     /// tsc-span: _tsc.js:56996-57007
+    ///
+    /// tsc and tsgo walk every path to a base; a chain of mixins whose
+    /// interfaces extend all the classes before them has exponentially many
+    /// (intersectionConstructorReductionCrash: 28 s here, 9.5 s in tsgo).
+    /// A type that did not lead to `check_base` once does not on a later
+    /// visit of the same walk, so each type is walked once.
     pub(crate) fn has_base_type(&mut self, ty: TypeId, check_base: TypeId) -> CheckResult<bool> {
+        let mut visited = rustc_hash::FxHashSet::default();
+        self.has_base_type_worker(ty, check_base, &mut visited)
+    }
+
+    fn has_base_type_worker(
+        &mut self,
+        ty: TypeId,
+        check_base: TypeId,
+        visited: &mut rustc_hash::FxHashSet<TypeId>,
+    ) -> CheckResult<bool> {
         if self
             .tables
             .object_flags_of(ty)
@@ -5598,19 +5555,25 @@ impl<'a> CheckerState<'a> {
             if target == check_base {
                 return Ok(true);
             }
+            if !visited.insert(target) {
+                return Ok(false);
+            }
             for base in self.get_base_types(target)? {
-                if self.has_base_type(base, check_base)? {
+                if self.has_base_type_worker(base, check_base, visited)? {
                     return Ok(true);
                 }
             }
             return Ok(false);
         }
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
+            if !visited.insert(ty) {
+                return Ok(false);
+            }
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
                 unreachable!("intersection flag implies intersection data");
             };
             for t in types.iter() {
-                if self.has_base_type(*t, check_base)? {
+                if self.has_base_type_worker(*t, check_base, visited)? {
                     return Ok(true);
                 }
             }

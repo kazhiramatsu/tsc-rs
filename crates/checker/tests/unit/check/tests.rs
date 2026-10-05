@@ -9737,7 +9737,9 @@ const RELATION_HEAD_FIXTURE: &str = "interface A { a: number; }\n\
      const t = {} satisfies A;\n";
 
 /// The rows come in check order: the type-argument constraint of
-/// `C<B>` is a lazy diagnostic and lands after the `satisfies` row.
+/// `C<B>` is checked with its reference (tsgo checkTypeReferenceOrImport,
+/// checker.go:3046-3062), before the `satisfies` row of the next
+/// statement. tsc 6.0 queued it as a lazy diagnostic, after that row.
 #[test]
 fn ts71_profile_reports_missing_property_rows_in_place_of_relation_heads() {
     assert_eq!(
@@ -9751,8 +9753,8 @@ fn ts71_profile_reports_missing_property_rows_in_place_of_relation_heads() {
             "Property 'a' is missing in type 'B' but required in type 'A'.",
             "Property 'a' is missing in type '{}' but required in type 'A'.",
             "Type '{}' is missing the following properties from type 'AB': a, b",
-            "Property 'a' is missing in type '{}' but required in type 'A'.",
             "Property 'a' is missing in type 'B' but required in type 'A'.",
+            "Property 'a' is missing in type '{}' but required in type 'A'.",
         ]
     );
 }

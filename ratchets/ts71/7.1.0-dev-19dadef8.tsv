@@ -679,6 +679,7 @@ compiler/circularReferenceInReturnType2	full	js
 compiler/circularResolvedSignature	full	js
 compiler/circularTypeArgumentsLocalAndOuterNoCrash1	full	js
 compiler/circularTypeofWithFunctionModule	full	js
+compiler/circularVariance1	full	js
 compiler/circularVariance2	full	js
 compiler/circularlyConstrainedMappedTypeContainingConditionalNoInfiniteInstantiationDepth	full	js
 compiler/circularlyReferentialInterfaceAccessNoCrash	full	js
@@ -804,6 +805,7 @@ compiler/classUpdateTests	full	js
 compiler/classUsedBeforeInitializedVariables(target=es2015)	full	js
 compiler/classVarianceCircularity	full	js
 compiler/classVarianceResolveCircularity1	full	js
+compiler/classVarianceResolveCircularity2	full	js
 compiler/classWithDuplicateIdentifier	full	js
 compiler/classWithEmptyTypeParameter	full	js
 compiler/classWithMultipleBaseClasses	full	js
@@ -2538,6 +2540,7 @@ compiler/excessPropertyCheckingIntersectionWithConditional	full	js
 compiler/excessPropertyChecksWithNestedIntersections	full	js
 compiler/excessPropertyErrorForFunctionTypes	full	js
 compiler/excessiveStackDepthFlatArray	full	js
+compiler/excessivelyDeepConditionalTypes	full	js
 compiler/excessivelyLargeTupleSpread	full	js
 compiler/exhaustiveSwitchCheckCircularity	full	js
 compiler/exhaustiveSwitchImplicitReturn	full	js
@@ -3730,6 +3733,7 @@ compiler/internalImportUnInstantiatedModuleMergedWithClassNotReferencingInstance
 compiler/internalImportUnInstantiatedModuleNotReferencingInstanceNoConflict	full	js
 compiler/intersectionApparentTypeCaching	full	js
 compiler/intersectionConstraintReduction	full	js
+compiler/intersectionConstructorReductionCrash	full	js
 compiler/intersectionOfMixinConstructorTypeAndNonConstructorType	full	js
 compiler/intersectionOfTypeVariableHasApparentSignatures	full	js
 compiler/intersectionPropertyCheck	full	js
@@ -4160,6 +4164,7 @@ compiler/keepImportsInDts1	full	js
 compiler/keepImportsInDts2	full	js
 compiler/keyRemappingKeyofResult	full	js
 compiler/keyRemappingKeyofResult2	full	js
+compiler/keyofGenericExtendingClassDoubleLayer	full	js
 compiler/keyofIsLiteralContexualType	full	js
 compiler/keyofModuleObjectHasCorrectKeys	full	js
 compiler/keyofObjectWithGlobalSymbolIncluded	full	js
@@ -6130,6 +6135,7 @@ compiler/templateLiteralIntersection2	full	js
 compiler/templateLiteralIntersection3	full	js
 compiler/templateLiteralIntersection4	full	js
 compiler/templateLiteralMultiByteCharInference	full	js
+compiler/templateLiteralTypeExcessiveLength	full	js
 compiler/templateLiteralTypeSurrogatePairConcatenation	full	js
 compiler/templateLiteralTypeTooComplex	full	js
 compiler/templateLiteralsAndDecoratorMetadata	full	js

@@ -89,12 +89,12 @@ pub enum FunctionMapper {
     /// 47112: `t => t.flags & TypeParameter ? uniqueLiteralType : t`
     /// (isReducibleIntersection's probe mapper).
     UniqueLiteral,
-    /// 47123-47131: fires the out-of-band variance handler with
-    /// onlyUnreliable=false when t is one of the three marker type
-    /// parameters; identity otherwise (M4 5.3b).
+    /// tsgo reportUnmeasurableWorker (checker.go:1153-1158): sets
+    /// ReportsUnmeasurable in the reliability flags when t is one of the
+    /// three marker type parameters; identity otherwise.
     ReportsUnmeasurable,
-    /// 47114-47122: fires the handler with onlyUnreliable=true on the
-    /// markers; identity otherwise.
+    /// tsgo reportUnreliableWorker (checker.go:1146-1151): sets
+    /// ReportsUnreliable on the markers; identity otherwise.
     ReportsUnreliable,
 }
 
@@ -407,11 +407,17 @@ impl<'a> CheckerState<'a> {
                         FunctionMapper::Restrictive => self.get_restrictive_type_parameter(ty),
                         FunctionMapper::UniqueLiteral => self.tables.intrinsics.unique_literal,
                         FunctionMapper::ReportsUnmeasurable => {
-                            self.fire_variance_marker_if_marker(ty, /*only_unreliable*/ false);
+                            self.report_reliability_if_marker(
+                                ty,
+                                tsc_types::RelationComparisonResult::REPORTS_UNMEASURABLE,
+                            );
                             ty
                         }
                         FunctionMapper::ReportsUnreliable => {
-                            self.fire_variance_marker_if_marker(ty, /*only_unreliable*/ true);
+                            self.report_reliability_if_marker(
+                                ty,
+                                tsc_types::RelationComparisonResult::REPORTS_UNRELIABLE,
+                            );
                             ty
                         }
                     })
@@ -1621,7 +1627,14 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
-        if !self.could_contain_type_variables(ty) {
+        // tsgo (checker.go:22494-22500) also instantiates a type whose alias
+        // type arguments could contain type variables, so `type Brand<T> =
+        // number & {}` gets its new alias type arguments although the type
+        // never refers to `T`. tsc 6.0 returned such a type as it was, with
+        // the alias's own type parameters as its arguments.
+        if !self.could_contain_type_variables(ty)
+            && !self.alias_type_arguments_could_contain_type_variables(ty)
+        {
             return Ok(ty);
         }
         if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
@@ -1696,6 +1709,19 @@ impl<'a> CheckerState<'a> {
         }
         self.instantiation_stack.pop();
         result
+    }
+
+    fn alias_type_arguments_could_contain_type_variables(&mut self, ty: TypeId) -> bool {
+        let data = self.tables.type_of(ty);
+        if data.alias_symbol.is_none() {
+            return false;
+        }
+        let Some(arguments) = data.alias_type_arguments.clone() else {
+            return false;
+        };
+        arguments
+            .iter()
+            .any(|&argument| self.could_contain_type_variables(argument))
     }
 
     /// tsgo: getCircularTypeNames (checker.go:22546-22564). The types that

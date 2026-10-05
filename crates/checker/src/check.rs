@@ -71,7 +71,6 @@ struct UnwindSnapshot {
     display_reuse_visit_depth: usize,
     display_clone_indent: usize,
     display_clone_at_line_start: bool,
-    variance_handler_stack: usize,
     class_interface_declared_in_progress: usize,
     type_parameter_defaults_in_progress: usize,
     mapped_types_in_progress: usize,
@@ -81,7 +80,7 @@ struct UnwindSnapshot {
     // leaked in-progress state.
     speculation_depth: u32,
     instantiation_depth: u32,
-    in_variance_computation: bool,
+    variance_stack: usize,
     variance_type_parameter: Option<TypeId>,
     flow_loop_start: u32,
     flow_loop_stack: usize,
@@ -119,13 +118,12 @@ impl<'a> CheckerState<'a> {
             display_reuse_visit_depth: self.display_reuse_visit_depth,
             display_clone_indent: self.display_clone_indent,
             display_clone_at_line_start: self.display_clone_at_line_start,
-            variance_handler_stack: self.variance_handler_stack.len(),
             class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
             mapped_types_in_progress: self.mapped_types_in_progress.len(),
             speculation_depth: self.speculation_depth,
             instantiation_depth: self.instantiation_stack.len() as u32,
-            in_variance_computation: self.in_variance_computation,
+            variance_stack: self.variance_stack.len(),
             variance_type_parameter: self.variance_type_parameter,
             flow_loop_start: self.flow_loop_start,
             flow_loop_stack: self.flow_loop_stack.len(),
@@ -304,13 +302,12 @@ impl<'a> CheckerState<'a> {
                 display_reuse_visit_depth: 0,
                 display_clone_indent: 0,
                 display_clone_at_line_start: false,
-                variance_handler_stack: 0,
                 class_interface_declared_in_progress: 0,
                 type_parameter_defaults_in_progress: 0,
                 mapped_types_in_progress: 0,
                 speculation_depth: 0,
                 instantiation_depth: 0,
-                in_variance_computation: false,
+                variance_stack: 0,
                 variance_type_parameter: None,
                 flow_loop_start: 0,
                 flow_loop_stack: 0,
@@ -3148,21 +3145,19 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         has_type_arguments: bool,
     ) -> CheckResult<()> {
-        if has_type_arguments
-            && (self.type_reference_arguments_may_resolve_alias(node)?
-                || self.is_self_referential_type_alias_reference(node)?)
-        {
-            // Queue the force when an argument can re-enter an alias
-            // still being declared. The deferred worker runs both the
-            // constraint block and this owner's deprecation tail once
-            // the reference can be materialized safely.
-            self.check_node_deferred(node);
-            return Ok(());
-        }
+        // tsgo-port: Checker.checkTypeReferenceOrImport @7.1
+        // (checker/checker.go:3046-3062): the type arguments are checked
+        // against their constraints in place. tsc 6.0 queued that check as
+        // a lazy diagnostic, which ran with the reference as the current
+        // node after the file's other checks.
         let ty = self.get_type_from_type_node(node)?;
         if !self.tables.is_error_type(ty) {
             if has_type_arguments {
-                self.check_node_deferred(node);
+                if let Some(type_parameters) =
+                    self.get_type_parameters_for_type_reference_or_import(node)?
+                {
+                    self.check_type_argument_constraints(node, &type_parameters)?;
+                }
             }
             self.check_deprecated_type_reference_or_import(node);
         }
@@ -3230,39 +3225,6 @@ impl<'a> CheckerState<'a> {
                 }),
             _ => false,
         }
-    }
-
-    fn is_self_referential_type_alias_reference(&mut self, node: NodeId) -> CheckResult<bool> {
-        let NodeData::TypeReference(data) = self.data_of(node) else {
-            return Ok(false);
-        };
-        let Some(type_name) = data.type_name else {
-            return Ok(false);
-        };
-        let Some(referenced) = self.resolve_entity_name(
-            type_name,
-            SymbolFlags::TYPE,
-            /*ignore_errors*/ true,
-            None,
-        )?
-        else {
-            return Ok(false);
-        };
-        let mut nested_in_type_reference = false;
-        let mut current = self.parent_of(node);
-        while let Some(candidate) = current {
-            if self.kind_of(candidate) == SyntaxKind::TypeReference {
-                nested_in_type_reference = true;
-            }
-            if self.kind_of(candidate) == SyntaxKind::TypeAliasDeclaration {
-                return Ok(nested_in_type_reference
-                    && self
-                        .node_symbol(candidate)
-                        .is_some_and(|symbol| self.get_merged_symbol(symbol) == referenced));
-            }
-            current = self.parent_of(candidate);
-        }
-        Ok(false)
     }
 
     /// tsc-port: getTypeParametersForTypeReferenceOrImport @6.0.3
@@ -4184,26 +4146,6 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ClassExpression => self.check_class_expression_deferred(node),
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
-            SyntaxKind::TypeReference
-            | SyntaxKind::ImportType
-            | SyntaxKind::ExpressionWithTypeArguments => {
-                let needs_deprecation_tail = self
-                    .links
-                    .read_node(node, |links| links.resolved_type.resolved())
-                    .is_none();
-                if let Some(type_parameters) =
-                    self.get_type_parameters_for_type_reference_or_import(node)?
-                {
-                    self.check_type_argument_constraints(node, &type_parameters)?;
-                }
-                if needs_deprecation_tail {
-                    let ty = self.get_type_from_type_node(node)?;
-                    if !self.tables.is_error_type(ty) {
-                        self.check_deprecated_type_reference_or_import(node);
-                    }
-                }
-                Ok(())
-            }
             SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element_deferred(node),
             SyntaxKind::JsxElement => self.check_jsx_element_deferred(node),
             SyntaxKind::TypeAssertionExpression
