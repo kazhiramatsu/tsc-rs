@@ -2149,14 +2149,15 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: getJsxNamespaceContainerForImplicitImport @6.0.3
-    /// tsc-hash: 16500826e40cbc991b27656d3a45fccf52785730d7e32550d1a46c56698a822c
-    /// tsc-span: _tsc.js:74563-74585
+    /// tsgo-port: getJsxNamespaceContainerForImplicitImport @7.1
+    /// (checker/jsx.go:1449-1484).
     ///
     /// Non-None requires getJSXImplicitImportBase — jsx react-jsx/
-    /// react-jsxdev or an @jsxImportSource pragma — both escape in
-    /// the entity guard, so the survivors always answer None (2792/
-    /// 2875 module-resolution rows ride 5.8).
+    /// react-jsxdev or an @jsxImportSource pragma. A missing runtime module
+    /// is reported at the first JSX tag of the file, whichever tag asked
+    /// first: the check and the emit resolver's reference walk reach the
+    /// tags in different orders and through different nodes (tsc 6.0
+    /// reported at the asking node).
     pub(crate) fn get_jsx_namespace_container_for_implicit_import(
         &mut self,
         location: NodeId,
@@ -2198,11 +2199,12 @@ impl<'a> CheckerState<'a> {
         } else {
             &diagnostics::This_JSX_tag_requires_the_module_path_0_to_exist_but_none_could_be_found_Make_sure_you_have_types_for_the_appropriate_package_installed
         };
+        let canonical_error_tag = self.first_jsx_tag_in_file(file_index).unwrap_or(location);
         let module = self.resolve_external_module(
-            location,
+            canonical_error_tag,
             &runtime,
             Some(error_message),
-            Some(location),
+            Some(canonical_error_tag),
             /*is_for_augmentation*/ false,
             /*import_attributes_type*/ None,
         )?;
@@ -2215,6 +2217,35 @@ impl<'a> CheckerState<'a> {
         self.jsx_implicit_import_containers
             .insert(file_index, resolved);
         Ok(resolved)
+    }
+
+    /// The canonical error tag of tsgo's
+    /// getJsxNamespaceContainerForImplicitImport (checker/jsx.go:1455-1471):
+    /// the first JSX element or self-closing element of the file in source
+    /// order, or the opening fragment of its first fragment.
+    fn first_jsx_tag_in_file(&self, file_index: usize) -> Option<NodeId> {
+        let source = self.binder.source(file_index);
+        let mut stack = Vec::new();
+        tsc_syntax::for_each_child(&source.arena, source.arena.node(source.root), |child| {
+            stack.push(child);
+            false
+        });
+        stack.reverse();
+        while let Some(node) = stack.pop() {
+            let record = source.arena.node(node);
+            match &record.data {
+                NodeData::JsxElement(_) | NodeData::JsxSelfClosingElement(_) => return Some(node),
+                NodeData::JsxFragment(data) => return data.opening_fragment,
+                _ => {}
+            }
+            let first = stack.len();
+            tsc_syntax::for_each_child(&source.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+            stack[first..].reverse();
+        }
+        None
     }
 
     /// tsc-port: getJsxNamespace @6.0.3
