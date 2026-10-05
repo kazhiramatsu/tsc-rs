@@ -5,8 +5,9 @@
 //! Ported from `tsc/internal/testrunner/{compiler_runner,test_case_parser}.go`
 //! and `tsc/internal/testutil/harnessutil/harnessutil.go` at the commit named by
 //! the profile's `manifest.json` (written by `scripts/vendor_typescript_native.py`).
-//! Units are split by the Strada-compatible `compiler::make_units_from_test`;
-//! Go's `ParseTestFilesAndSymlinksWithOptions` has the same unit semantics.
+//! Units are split by `compiler::make_units_from_test` as Go's
+//! `ParseTestFilesAndSymlinksWithOptions` splits them (a unit without content
+//! lines is an empty file).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;

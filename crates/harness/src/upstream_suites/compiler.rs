@@ -114,12 +114,16 @@ pub(super) fn make_units_from_test(
             }
 
             if current_name.as_deref().is_some_and(|name| !name.is_empty()) {
+                // Go's parser keeps each unit's content in a string builder
+                // (`ParseTestFilesAndSymlinksWithOptions`,
+                // testrunner/test_case_parser.go:199-216), so a unit without
+                // content lines is an empty file.
                 units.push(ParsedUnit {
                     name: current_name
                         .take()
                         .expect("truthy file name must be present"),
                     file_options: std::mem::take(&mut current_options),
-                    content: current_content.take(),
+                    content: Some(current_content.take().unwrap_or_default()),
                 });
                 current_name = Some(value);
             } else {
@@ -151,8 +155,6 @@ pub(super) fn make_units_from_test(
     units.push(ParsedUnit {
         name,
         file_options: current_options,
-        // The final unit uses `currentFileContent || ""` upstream. Only
-        // intermediate units can retain JavaScript `undefined` content.
         content: Some(current_content.unwrap_or_default()),
     });
 

@@ -68,7 +68,7 @@ fn erasable_syntax_only_is_checker_policy_not_an_emit_preflight_axis() {
 }
 
 #[test]
-fn declaration_is_admitted_while_composite_remains_refused() {
+fn declaration_and_composite_are_admitted() {
     assert_eq!(
         validate_emit_options(&CompilerOptions {
             target: Some(2),
@@ -98,9 +98,20 @@ fn declaration_is_admitted_while_composite_remains_refused() {
             composite: Some(true),
             ..CompilerOptions::default()
         }),
-        Err(EmitFailure::UnsupportedCompilerOption {
-            option: "composite"
+        Ok(()),
+    );
+
+    // `compiler.Program.Emit` writes no build info; only the command's
+    // incremental program does.
+    assert_eq!(
+        validate_emit_options(&CompilerOptions {
+            target: Some(2),
+            module: Some(1),
+            incremental: Some(true),
+            ts_build_info_file: Some("/out/a.tsbuildinfo".into()),
+            ..CompilerOptions::default()
         }),
+        Ok(()),
     );
 }
 

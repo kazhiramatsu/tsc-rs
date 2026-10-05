@@ -2336,6 +2336,7 @@ impl Printer {
             original_source_was_statementless,
             original_first_statement,
             original_statement_list_start,
+            original_statement_list_end,
         ) = {
             let original_root = transformation.arena().get_original_node(root);
             match &transformation.arena().node(original_root)?.data {
@@ -2369,13 +2370,29 @@ impl Printer {
                         })
                         .transpose()?
                         .map(|start| (original_root.source(), start));
+                    // The list ends at the EOF token's full start, after any
+                    // token the parser skipped.
+                    let list_end = statements
+                        .filter(|array| array.pos != u32::MAX && array.end != u32::MAX)
+                        .map(|array| {
+                            let positions = transformation
+                                .arena()
+                                .source(original_root.source())?
+                                .syntax()
+                                .positions();
+                            Ok::<_, PrinterError>(
+                                SourceBytePosition::new(array.end, positions)?.value() as usize,
+                            )
+                        })
+                        .transpose()?;
                     (
                         statements.is_none_or(|array| array.nodes.is_empty()),
                         first,
                         list_start,
+                        list_end,
                     )
                 }
-                _ => (false, None, None),
+                _ => (false, None, None, None),
             }
         };
         let source_text = transformation.arena().source(source_id)?.syntax().text();
@@ -2668,9 +2685,23 @@ impl Printer {
             // A transform may have inserted statements into an empty source.
             writer.write_line(false);
             let source = transformation.arena().source(source_id)?.syntax();
-            let start = tail_resume.map_or(0, |resume| resume.next().position().value() as usize);
+            // emitLeadingComments(detachedRange.End()) reads the comments at
+            // the statement list's end (printer.go:5404-5417), so a comment
+            // before a skipped token is not emitted.
+            let list_end = original_statement_list_end.unwrap_or(0);
+            let start = tail_resume.map_or(list_end, |resume| {
+                (resume.next().position().value() as usize).max(list_end)
+            });
+            // GetLeadingCommentRanges collects from the first character only
+            // at position 0; after it, a comment on the opening line belongs
+            // to the preceding token.
+            let trivia = SourceTrivia::from_start(source.text(), start);
             emit_leading_comments(
-                SourceTrivia::new(source.text(), start, source.text().len()),
+                if start == 0 {
+                    trivia
+                } else {
+                    strip_same_line_comment_prefix(trivia)
+                },
                 writer,
                 true,
                 self.options.only_print_js_doc_style,
@@ -9756,7 +9787,13 @@ impl Printer {
         if ids.is_empty() {
             if let Some(brackets) = brackets {
                 if !expression_context.nested_comments_suppressed() {
-                    self.emit_empty_node_array_comments(transformation, source, elements, writer)?;
+                    self.emit_empty_node_array_comments(
+                        transformation,
+                        source,
+                        elements,
+                        expression_context.comments(),
+                        writer,
+                    )?;
                 }
                 writer.write_punctuation(brackets.closing());
             }
@@ -10033,7 +10070,13 @@ impl Printer {
             (Vec::new(), false)
         };
         if ids.is_empty() {
-            self.emit_empty_node_array_comments(transformation, parent.source(), elements, writer)?;
+            self.emit_empty_node_array_comments(
+                transformation,
+                parent.source(),
+                elements,
+                expression_context.comments(),
+                writer,
+            )?;
             writer.write_punctuation(close);
             return Ok(());
         }
@@ -13562,7 +13605,13 @@ impl Printer {
             (Vec::new(), false)
         };
         if ids.is_empty() {
-            self.emit_empty_node_array_comments(transformation, source, parameters, writer)?;
+            self.emit_empty_node_array_comments(
+                transformation,
+                source,
+                parameters,
+                expression_context.comments(),
+                writer,
+            )?;
         } else {
             let count = ids.len();
             let mut pending_delimited_comment = None;
@@ -14152,7 +14201,13 @@ impl Printer {
             (Vec::new(), false, false)
         };
         if ids.is_empty() {
-            self.emit_empty_node_array_comments(transformation, source, elements, writer)?;
+            self.emit_empty_node_array_comments(
+                transformation,
+                source,
+                elements,
+                expression_context.comments(),
+                writer,
+            )?;
             writer.write_punctuation("}");
             return Ok(());
         }
@@ -14748,15 +14803,17 @@ impl Printer {
         Ok(!transformation.arena().node_array(array)?.nodes.is_empty())
     }
 
-    /// Empty delimited lists retain comments at both NodeArray boundaries.
-    /// This is the typed equivalent of tsc's empty `emitNodeList` branch:
-    /// trailing comments belong to `children.pos`, while leading comments
-    /// before the closing delimiter belong to `children.end`.
+    /// Empty delimited lists retain comments at both NodeArray boundaries
+    /// (`emitList`, printer.go:4765-4798): the trailing comments at
+    /// `children.pos` unless the enclosing container ends there (an unclosed
+    /// list ends with its parent), then the leading comments before the
+    /// closing delimiter at `children.end` unless the container starts there.
     fn emit_empty_node_array_comments(
         &self,
         transformation: &TransformationResult<'_>,
         source: TransformSourceId,
         array: Option<tsc_syntax::NodeArrayId>,
+        scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if self.comments_disabled() {
@@ -14772,10 +14829,20 @@ impl Printer {
             return Ok(());
         }
         let syntax = transformation.arena().source(source)?.syntax();
+        let positions = syntax.positions();
+        let utf16 = |raw: u32| -> Result<SourceUtf16Position, PrinterError> {
+            Ok(SourceUtf16Position::from_byte(
+                SourceBytePosition::new(raw, positions)?,
+                positions,
+            )?)
+        };
+        let emit_trailing =
+            !(scope.container_end().is_some() && scope.retains_end(utf16(array.pos)?));
+        let emit_leading = scope.container_pos() != Some(utf16(array.end)?);
         emit_empty_node_array_boundary_comments(
             syntax.text(),
-            array.pos as usize,
-            array.end as usize,
+            emit_trailing.then_some(array.pos as usize),
+            emit_leading.then_some(array.end as usize),
             false,
             writer,
         );
@@ -14835,7 +14902,13 @@ impl Printer {
             })
             .unwrap_or_default();
         if ids.is_empty() {
-            self.emit_empty_node_array_comments(transformation, source, arguments, writer)?;
+            self.emit_empty_node_array_comments(
+                transformation,
+                source,
+                arguments,
+                expression_context.comments(),
+                writer,
+            )?;
             return Ok(());
         }
         let mut increased_indent = false;
@@ -18386,6 +18459,7 @@ impl Printer {
             TokenLeadingSpace::None,
             Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
+            None,
             writer,
         )
     }
@@ -18409,6 +18483,7 @@ impl Printer {
             TokenLeadingSpace::None,
             Some(PositionCommentPhase::SourceLeading),
             indent_leading,
+            None,
             writer,
         )
     }
@@ -18435,6 +18510,7 @@ impl Printer {
             (!expression_context.nested_comments_suppressed())
                 .then_some(PositionCommentPhase::SourceLeading),
             false,
+            Some(expression_context.comments()),
             writer,
         )
     }
@@ -18456,6 +18532,7 @@ impl Printer {
             TokenLeadingSpace::Required,
             Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
+            None,
             writer,
         )
     }
@@ -18484,6 +18561,7 @@ impl Printer {
             TokenLeadingSpace::Required,
             Some(PositionCommentPhase::SourceLeading),
             indent_leading,
+            None,
             writer,
         )
     }
@@ -18501,6 +18579,7 @@ impl Printer {
         leading_space: TokenLeadingSpace,
         leading_phase: Option<PositionCommentPhase>,
         indent_leading: bool,
+        trailing_scope: Option<CommentEmissionScope>,
         writer: &mut TextWriter,
     ) -> Result<TokenEmission, PrinterError> {
         let anchor = anchor.into();
@@ -18658,11 +18737,21 @@ impl Printer {
         };
         let returned = TokenCursor::source(cursor_source, token_end_position);
 
+        // tsgo's emitCommentsAfterToken reads the comments after the token
+        // through emitTrailingComments, which leaves them to the enclosing
+        // container ending there (printer.go:5371-5380, 5604-5611).
+        let container_retains_end = match trailing_scope {
+            Some(scope) if scope.container_end().is_some() => scope.retains_end(
+                SourceUtf16Position::from_byte(token_end_position, source.positions())?,
+            ),
+            _ => false,
+        };
         let mut comment_resume = None;
         if similar
             && owner_record.end != token_end_raw
             && !self.comments_disabled()
             && leading_phase.is_some()
+            && !container_retains_end
         {
             let comments = collect_source_comment_ranges(source.text(), token_end, true);
             let last_trailing_comment_end = comments
@@ -19904,15 +19993,18 @@ impl Printer {
 /// tsc-span: _tsc.js:120029-120066
 fn emit_empty_node_array_boundary_comments(
     source: &str,
-    trailing_position: usize,
-    leading_position: usize,
+    trailing_position: Option<usize>,
+    leading_position: Option<usize>,
     suppress_same_line_trailing: bool,
     writer: &mut TextWriter,
 ) -> bool {
-    let trailing = collect_source_comment_ranges(source, trailing_position, true);
+    let trailing = trailing_position.map_or_else(Vec::new, |position| {
+        collect_source_comment_ranges(source, position, true)
+    });
     let mut emitted = BTreeSet::new();
     let mut wrote_comment = false;
     for comment in trailing {
+        let trailing_position = trailing_position.expect("trailing comments have a position");
         if suppress_same_line_trailing
             && !source[trailing_position..comment.start]
                 .chars()
@@ -19932,6 +20024,9 @@ fn emit_empty_node_array_boundary_comments(
         wrote_comment = true;
     }
 
+    let Some(leading_position) = leading_position else {
+        return wrote_comment;
+    };
     wrote_comment |= collect_source_comment_ranges(source, leading_position, false)
         .into_iter()
         .any(|comment| !emitted.contains(&(comment.start, comment.end)));

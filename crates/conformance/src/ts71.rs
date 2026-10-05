@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-use emit_baseline::{Emission, MapOptions};
+use emit_baseline::{Emission, EmittedFile, MapOptions};
 use errors_baseline::remove_test_path_prefixes;
 use serde::Serialize;
 use sha2::Digest as _;
@@ -498,10 +498,17 @@ struct EmitFacts {
     current_directory: String,
     /// The normalized absolute `outDir`.
     out_dir: Option<String>,
+    /// The normalized absolute `declarationDir`.
+    declaration_dir: Option<String>,
+    /// `jsx` is `preserve`, which keeps a `.jsx` or `.tsx` file's output a
+    /// `.jsx` file (`GetOutputExtension`).
+    jsx_preserve: bool,
     /// `Program.CommonSourceDirectory()`: empty or ending with `/`.
     common_source_directory: String,
     /// The normalized absolute paths of the Program's source files.
     source_paths: HashSet<String>,
+    /// The same paths in Program order (`program.GetSourceFiles()`).
+    source_order: Vec<String>,
 }
 
 impl EmitFacts {
@@ -539,6 +546,16 @@ impl EmitFacts {
             case_sensitive,
         );
         let current_directory = current_directory.to_string_lossy().into_owned();
+        let source_order: Vec<_> = prepared
+            .source_files()
+            .iter()
+            .map(|source| {
+                absolute(
+                    &current_directory,
+                    &source.path().display().to_string_lossy(),
+                )
+            })
+            .collect();
         Self {
             declaration: on(options.declaration),
             allow_js: options.allow_js,
@@ -548,20 +565,16 @@ impl EmitFacts {
             out_dir: options.out_dir.as_ref().map(|directory| {
                 absolute(&current_directory, &directory.as_js().to_string_lossy())
             }),
+            declaration_dir: options.declaration_dir.as_ref().map(|directory| {
+                absolute(&current_directory, &directory.as_js().to_string_lossy())
+            }),
+            jsx_preserve: options.jsx == Some(1),
             common_source_directory: common_source_directory
                 .as_js()
                 .to_string_lossy()
                 .into_owned(),
-            source_paths: prepared
-                .source_files()
-                .iter()
-                .map(|source| {
-                    absolute(
-                        &current_directory,
-                        &source.path().display().to_string_lossy(),
-                    )
-                })
-                .collect(),
+            source_paths: source_order.iter().cloned().collect(),
+            source_order,
             current_directory,
         }
     }
@@ -608,7 +621,155 @@ fn emit_outputs(
         .with_checker_budget(budget)
         .emit(&mut sink)
         .map_err(|error| format!("emit: {error}"))?;
-    Ok((Emission::from_writes(sink.writes()), map_options, facts))
+    let emission = harness_order(Emission::from_writes(sink.writes()), &facts);
+    Ok((emission, map_options, facts))
+}
+
+/// Order the emitted files as the native harness's `newCompilationResult`
+/// does (harnessutil.go:746-834): for each Program source file that is not
+/// a declaration file, in Program order, the JavaScript, declaration and map
+/// files at the paths `getOutputPath` computes, then the files no source
+/// matched (a declaration under a `declarationDir` other than `outDir`, a
+/// declaration map, an `outFile` bundle), sorted by name.
+fn harness_order(emission: Emission, facts: &EmitFacts) -> Emission {
+    let Emission { js, dts, maps } = emission;
+    let mut js = HarnessGroup::new(js, facts);
+    let mut dts = HarnessGroup::new(dts, facts);
+    let mut maps = HarnessGroup::new(maps, facts);
+    for source in &facts.source_order {
+        if is_declaration_file_name(source) {
+            continue;
+        }
+        let extension = output_extension(source, facts.jsx_preserve);
+        js.take(harness_output_path(facts, source, extension));
+        dts.take(harness_output_path(
+            facts,
+            source,
+            &declaration_emit_extension(source),
+        ));
+        maps.take(harness_output_path(
+            facts,
+            source,
+            &format!("{extension}.map"),
+        ));
+    }
+    Emission {
+        js: js.finish(),
+        dts: dts.finish(),
+        maps: maps.finish(),
+    }
+}
+
+/// One output group of [`harness_order`]: the files a source claimed, in
+/// claim order, and the files not yet claimed with their absolute names.
+struct HarnessGroup {
+    claimed: Vec<EmittedFile>,
+    unclaimed: Vec<(String, EmittedFile)>,
+}
+
+impl HarnessGroup {
+    fn new(files: Vec<EmittedFile>, facts: &EmitFacts) -> Self {
+        let unclaimed = files
+            .into_iter()
+            .map(|file| (absolute(&facts.current_directory, &file.path), file))
+            .collect();
+        Self {
+            claimed: Vec::new(),
+            unclaimed,
+        }
+    }
+
+    fn take(&mut self, path: Option<String>) {
+        let Some(path) = path else {
+            return;
+        };
+        if let Some(index) = self.unclaimed.iter().position(|(name, _)| *name == path) {
+            let (_, file) = self.unclaimed.remove(index);
+            self.claimed.push(file);
+        }
+    }
+
+    fn finish(mut self) -> Vec<EmittedFile> {
+        self.unclaimed
+            .sort_by(|(left, _), (right, _)| left.cmp(right));
+        self.claimed
+            .extend(self.unclaimed.into_iter().map(|(_, file)| file));
+        self.claimed
+    }
+}
+
+/// The harness's `getOutputPath(path, ext)` (harnessutil.go:836-860): under
+/// an output directory, the source's path relative to the common source
+/// directory is placed under `outDir` (also for a declaration, whose
+/// `declarationDir` only decides whether a directory applies). `None` when
+/// the path leaves the common source directory (`..` segments, which no
+/// written file name has) or keeps no known extension to change.
+fn harness_output_path(facts: &EmitFacts, source: &str, extension: &str) -> Option<String> {
+    let declaration = is_declaration_extension(extension);
+    let directory = if declaration {
+        facts.declaration_dir.as_ref().or(facts.out_dir.as_ref())
+    } else {
+        facts.out_dir.as_ref()
+    };
+    let mut path = source.to_owned();
+    if directory.is_some() && !facts.common_source_directory.is_empty() {
+        let relative = source.strip_prefix(&facts.common_source_directory)?;
+        let out_dir = facts
+            .out_dir
+            .clone()
+            .unwrap_or_else(|| facts.current_directory.clone());
+        path = format!("{}/{relative}", out_dir.trim_end_matches('/'));
+    }
+    if extension == declaration_emit_extension(&path) {
+        return Some(change_to_declaration_extension(&path));
+    }
+    const KNOWN: [&str; 12] = [
+        ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
+        ".json",
+    ];
+    let known = KNOWN.iter().find(|known| path.ends_with(*known))?;
+    Some(format!("{}{extension}", &path[..path.len() - known.len()]))
+}
+
+/// `outputpaths.GetOutputExtension`.
+fn output_extension(path: &str, jsx_preserve: bool) -> &'static str {
+    if path.ends_with(".json") {
+        ".json"
+    } else if jsx_preserve && (path.ends_with(".jsx") || path.ends_with(".tsx")) {
+        ".jsx"
+    } else if path.ends_with(".mts") || path.ends_with(".mjs") {
+        ".mjs"
+    } else if path.ends_with(".cts") || path.ends_with(".cjs") {
+        ".cjs"
+    } else {
+        ".js"
+    }
+}
+
+/// `tspath.GetDeclarationEmitExtensionForPath`.
+fn declaration_emit_extension(path: &str) -> String {
+    if path.ends_with(".mjs") || path.ends_with(".mts") {
+        ".d.mts".to_owned()
+    } else if path.ends_with(".cjs") || path.ends_with(".cts") {
+        ".d.cts".to_owned()
+    } else if [".ts", ".tsx", ".js", ".jsx"]
+        .iter()
+        .any(|extension| path.ends_with(extension))
+    {
+        ".d.ts".to_owned()
+    } else {
+        let base = path.rsplit('/').next().unwrap_or(path);
+        match base.rfind('.') {
+            Some(index) => format!(".d{}.ts", &base[index..]),
+            None => ".d.ts".to_owned(),
+        }
+    }
+}
+
+/// The declaration extensions `getOutputPath` places under `declarationDir`.
+fn is_declaration_extension(extension: &str) -> bool {
+    matches!(extension, ".d.ts" | ".d.mts" | ".d.cts")
+        || (extension.ends_with(".ts") && extension.contains(".d."))
 }
 
 /// The declaration files the native runner compiles again for one fixture

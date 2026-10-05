@@ -33,9 +33,8 @@ use crate::HarnessResult;
 mod js_paths;
 
 /// The compiler-runner fixture of one native (TypeScript 7.x) case: units,
-/// links and the tsconfig root plan with Strada's unit semantics, which Go's
-/// runner keeps. Configurations are supplied per plan by
-/// [`native_compiler_plan`].
+/// links and the tsconfig root plan as Go's runner splits them.
+/// Configurations are supplied per plan by [`native_compiler_plan`].
 pub fn native_compiler_fixture(
     profile: &super::native::NativeProfile,
     case: &super::native::NativeCase,
@@ -1130,7 +1129,8 @@ pub struct CompilerFixtureInput {
 pub struct CompilerUnitInput {
     pub id: CompilerUnitId,
     pub name: Arc<str>,
-    /// `None` preserves JavaScript `undefined` for an intermediate empty unit.
+    /// The unit's text. Go's parser gives every unit a string, so a unit
+    /// without content lines is an empty file.
     pub content: Option<Arc<str>>,
     pub file_options: Arc<[OrderedSetting]>,
     pub original_fixture_path: Arc<str>,
@@ -1651,14 +1651,12 @@ fn compiler_root_selection(
         || last_content.contains("require(")
         || contains_reference_path(last_content);
     if implicit_references {
+        // Every unit but the last one, also a unit of the same name
+        // (testrunner/compiler_runner.go:320-323; tsc's runner left out
+        // every unit named like the last one).
         let other_units = candidates
             .into_iter()
-            .filter(|id| {
-                fixture
-                    .units
-                    .get(id.0 as usize)
-                    .is_some_and(|unit| unit.name != last_unit.name)
-            })
+            .filter(|id| *id != last)
             .collect::<Vec<_>>();
         Ok(explicit_compiler_roots(
             fixture,

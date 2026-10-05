@@ -2740,11 +2740,14 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             });
         let requires_module_rewrite =
             is_effective_external || has_dynamic_import || json_amd_bundle;
-        // A script (nothing to rewrite) still takes the transform when one of
-        // its references carries an import declaration to substitute; only
-        // that case scans for one (a module is rewritten regardless).
+        // tsgo's CommonJS transform leaves a script alone
+        // (commonjsmodule.go:228-233), so a reference carrying an import
+        // declaration there (a JSX runtime name) keeps its name. tsc's
+        // substitution hook rewrote it, which the AMD and UMD formats (not in
+        // tsgo) keep: only they scan a script for one.
         if !requires_module_rewrite
-            && !source_contains_import_reference_substitution(context.arena(), current_root)?
+            && (!matches!(self.module_kind, MODULE_AMD | MODULE_UMD)
+                || !source_contains_import_reference_substitution(context.arena(), current_root)?)
         {
             return Ok(TransformRoot::SourceFile(source));
         }

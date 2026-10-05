@@ -162,18 +162,12 @@ fn validate_options(
         // and reads `verbatim_module_syntax` for alias elision on every
         // route, and the checker owns both options' diagnostics
         // (H2.8a-A-RES-EMITTER-FINAL EF3 / EF7-VERBATIM-GATE).
-        // `incremental` and `composite` select the builder's build info,
-        // which only the file emit would write; the declaration diagnostics
-        // getter reads neither (a --noEmit check of a composite project
-        // reports its declaration diagnostics as tsc does).
-        (
-            operation != EmitOperation::DeclarationDiagnostics && options.incremental == Some(true),
-            "incremental",
-        ),
-        (
-            operation != EmitOperation::DeclarationDiagnostics && options.composite == Some(true),
-            "composite",
-        ),
+        // `incremental`, `composite` and `tsBuildInfoFile` select the build
+        // info, which only the incremental program writes
+        // (execute/incremental/program.go:243-273); `compiler.Program.Emit`
+        // writes the JavaScript and declarations alone. The command, which
+        // would compile an incremental program, refuses them itself
+        // (`ProgramSession::emit_for_cli`).
         // assumeChangesOnlyAffectDirectDependencies changes the builder's
         // affected-file traversal only. It is inert in this fresh Program.
         // `emitDecoratorMetadata` without `experimentalDecorators` is inert
@@ -186,9 +180,6 @@ fn validate_options(
     }
     if !matches!(options.jsx, None | Some(1..=5)) {
         return unsupported("jsx");
-    }
-    if options.ts_build_info_file.is_some() {
-        return unsupported("tsBuildInfoFile");
     }
     Ok(())
 }

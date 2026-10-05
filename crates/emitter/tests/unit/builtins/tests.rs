@@ -4985,7 +4985,9 @@ fn classic_jsx_preserves_single_line_whitespace_text_children() {
 }
 
 #[test]
-fn common_js_substitutes_orphan_automatic_jsx_import_references() {
+fn common_js_leaves_orphan_automatic_jsx_import_references_in_scripts() {
+    // tsgo's CommonJS transform leaves a script alone
+    // (commonjsmodule.go:228-233), so the runtime name stays as written.
     let source_text = "const value = <div>{null/* preserved */}</div>;\n";
     let parsed = parse_source_file(
         "legacy-script.tsx",
@@ -5026,11 +5028,10 @@ fn common_js_substitutes_orphan_automatic_jsx_import_references() {
     .text()
     .to_owned();
 
-    assert!(
-        output.contains("(0, _a.jsx)(\"div\", { children: null /* preserved */ })"),
-        "{output}",
+    assert_eq!(
+        output,
+        "const value = _jsx(\"div\", { children: null /* preserved */ });\n"
     );
-    assert!(!output.contains("react/jsx-runtime"), "{output}");
 }
 
 #[test]

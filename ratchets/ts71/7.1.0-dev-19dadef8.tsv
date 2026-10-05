@@ -381,6 +381,7 @@ compiler/asyncYieldStarContextualType	full	js
 compiler/augmentArray	full	js
 compiler/augmentExportEquals1	full	js
 compiler/augmentExportEquals1_1	full	js
+compiler/augmentExportEquals2	full	js
 compiler/augmentExportEquals2_1	full	js
 compiler/augmentExportEquals3	full	js
 compiler/augmentExportEquals3_1	full	js
@@ -996,10 +997,10 @@ compiler/commentsOnJSXExpressionsArePreserved(jsx=react,module=commonjs,modulede
 compiler/commentsOnJSXExpressionsArePreserved(jsx=react,module=commonjs,moduledetection=legacy)	full	js
 compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsx,module=commonjs,moduledetection=auto)	full	js
 compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsx,module=commonjs,moduledetection=force)	full	js
-compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsx,module=commonjs,moduledetection=legacy)	full	none
+compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsx,module=commonjs,moduledetection=legacy)	full	js
 compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsxdev,module=commonjs,moduledetection=auto)	full	js
 compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsxdev,module=commonjs,moduledetection=force)	full	js
-compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsxdev,module=commonjs,moduledetection=legacy)	full	none
+compiler/commentsOnJSXExpressionsArePreserved(jsx=react-jsxdev,module=commonjs,moduledetection=legacy)	full	js
 compiler/commentsOnObjectLiteral1	full	js
 compiler/commentsOnObjectLiteral2	full	js
 compiler/commentsOnObjectLiteral3(target=es2015)	full	js
@@ -1050,7 +1051,7 @@ compiler/complicatedIndexesOfIntersectionsAreInferencable	full	js
 compiler/complicatedPrivacy(target=es2015)	full	js
 compiler/compositeContextualSignature	full	js
 compiler/compositeGenericFunction	full	js
-compiler/compositeWithNodeModulesSourceFile	full	none
+compiler/compositeWithNodeModulesSourceFile	full	js
 compiler/compoundVarDecl1	full	js
 compiler/computedEnumMemberKeyNoCrash1	full	js
 compiler/computedEnumMemberSyntacticallyString(isolatedmodules=false)	full	js
@@ -1775,7 +1776,7 @@ compiler/declarationEmitStringNamedPropertyConsistency	full	js
 compiler/declarationEmitStripInternalExpandoFunction	full	js
 compiler/declarationEmitSubpathImportsReexport	full	js
 compiler/declarationEmitSymlinkPaths(target=es2015)	full	js
-compiler/declarationEmitToDeclarationDirWithCompositeOption	full	none
+compiler/declarationEmitToDeclarationDirWithCompositeOption	full	js
 compiler/declarationEmitToDeclarationDirWithDeclarationOption	full	js
 compiler/declarationEmitToDeclarationDirWithoutCompositeAndDeclarationOptions	full	js
 compiler/declarationEmitTopLevelNodeFromCrossFile	full	js
@@ -1808,7 +1809,7 @@ compiler/declarationEmitUsingTypeAlias1	full	js
 compiler/declarationEmitUsingTypeAlias2	full	js
 compiler/declarationEmitVarInElidedBlock	full	js
 compiler/declarationEmitVariableBindingPatternsRetained	full	js
-compiler/declarationEmitWithComposite	full	none
+compiler/declarationEmitWithComposite	full	js
 compiler/declarationEmitWithDefaultAsComputedName(target=es2015)	full	js
 compiler/declarationEmitWithDefaultAsComputedName2(target=es2015)	full	js
 compiler/declarationEmitWithInvalidPackageJsonTypings	full	js
@@ -3397,9 +3398,10 @@ compiler/incorrectNumberOfTypeArgumentsDuringErrorReporting	full	js
 compiler/incorrectRecursiveMappedTypeConstraint	text	js
 compiler/incrementOnNullAssertion	full	js
 compiler/incrementOnTypeParameter	full	js
-compiler/incrementalConfig	full	none
-compiler/incrementalInvalid	full	none
-compiler/incrementalTsBuildInfoFile	full	none
+compiler/incrementalConcurrentSafeAliasFollowing	full	js
+compiler/incrementalConfig	full	js
+compiler/incrementalInvalid	full	js
+compiler/incrementalTsBuildInfoFile	full	js
 compiler/indexAt(target=es2021)	full	js
 compiler/indexAt(target=es2022)	full	js
 compiler/indexAt(target=esnext)	full	js
@@ -3890,6 +3892,7 @@ compiler/jsDocOverloadNamedDefaultExport	full	js
 compiler/jsDocPrivateConstructor	full	js
 compiler/jsDocTypedefTagNamespace	full	js
 compiler/jsDocTypedefWithThisTag	full	js
+compiler/jsEmitIntersectionProperty	full	js
 compiler/jsEnumCrossFileExport	full	js
 compiler/jsEnumFunctionLocalNoCrash	full	js
 compiler/jsEnumTagOnObjectFrozen	full	js
@@ -3961,7 +3964,7 @@ compiler/jsFileCompilationTypeParameterSyntaxOfClassExpression	full	js
 compiler/jsFileCompilationTypeParameterSyntaxOfFunction	full	js
 compiler/jsFileCompilationTypeSyntaxOfVar	full	js
 compiler/jsFileCompilationWithDeclarationEmitPathSameAsInput	full	js
-compiler/jsFileCompilationWithEnabledCompositeOption	full	none
+compiler/jsFileCompilationWithEnabledCompositeOption	full	js
 compiler/jsFileCompilationWithJsEmitPathSameAsInput	full	none
 compiler/jsFileCompilationWithMapFileAsJs	full	js
 compiler/jsFileCompilationWithMapFileAsJsWithInlineSourceMap	full	js
@@ -4876,9 +4879,9 @@ compiler/nodeNextPackageImportMapRootDir	full	js
 compiler/nodeNextPackageSelfNameExportsEqualsDeclarationDir	full	js
 compiler/nodeNextPackageSelfNameWithOutDir	full	js
 compiler/nodeNextPackageSelfNameWithOutDirDeclDir	full	js
-compiler/nodeNextPackageSelfNameWithOutDirDeclDirComposite	full	none
-compiler/nodeNextPackageSelfNameWithOutDirDeclDirCompositeNestedDirs	full	none
-compiler/nodeNextPackageSelfNameWithOutDirDeclDirNestedDirs	full	none
+compiler/nodeNextPackageSelfNameWithOutDirDeclDirComposite	full	js
+compiler/nodeNextPackageSelfNameWithOutDirDeclDirCompositeNestedDirs	full	js
+compiler/nodeNextPackageSelfNameWithOutDirDeclDirNestedDirs	full	js
 compiler/nodeNextPackageSelfNameWithOutDirDeclDirRootDir	full	js
 compiler/nodeNextPackageSelfNameWithOutDirRootDir	full	js
 compiler/nodeResolution1	full	js
@@ -5046,7 +5049,7 @@ compiler/optionalPropertiesSyntax	full	js
 compiler/optionalPropertiesTest	full	js
 compiler/optionalSetterParam	full	js
 compiler/optionalTupleElementsAndUndefined	full	js
-compiler/optionsCompositeWithIncrementalFalse	full	none
+compiler/optionsCompositeWithIncrementalFalse	full	js
 compiler/optionsInlineSourceMapMapRoot	full	js
 compiler/optionsInlineSourceMapSourceRoot	full	js
 compiler/optionsInlineSourceMapSourcemap	full	js
@@ -5055,7 +5058,7 @@ compiler/optionsSourcemapInlineSourcesMapRoot	full	js
 compiler/optionsSourcemapInlineSourcesSourceRoot	full	js
 compiler/optionsStrictPropertyInitializationStrict	full	js
 compiler/optionsStrictPropertyInitializationStrictNullChecks	full	js
-compiler/optionsTsBuildInfoFileWithoutIncrementalAndComposite	full	none
+compiler/optionsTsBuildInfoFileWithoutIncrementalAndComposite	full	js
 compiler/orderMattersForSignatureGroupIdentity	full	js
 compiler/out-flag(target=es2015)	full	js
 compiler/overEagerReturnTypeSpecialization	full	js
@@ -10897,7 +10900,7 @@ conformance/parser509546	full	js
 conformance/parser509546_1	full	js
 conformance/parser509546_2	full	js
 conformance/parser509618	full	js
-conformance/parser509630	full	none
+conformance/parser509630	full	js
 conformance/parser509667	full	js
 conformance/parser509668	full	js
 conformance/parser509669	full	js
@@ -11538,8 +11541,8 @@ conformance/parserSkippedTokens20	full	js
 conformance/parserSkippedTokens3	full	js
 conformance/parserSkippedTokens4	full	js
 conformance/parserSkippedTokens5	full	js
-conformance/parserSkippedTokens6	full	none
-conformance/parserSkippedTokens7	full	none
+conformance/parserSkippedTokens6	full	js
+conformance/parserSkippedTokens7	full	js
 conformance/parserSkippedTokens8	full	js
 conformance/parserSkippedTokens9	full	js
 conformance/parserStatementIsNotAMemberVariableDeclaration1(alwaysstrict=true)	full	js
