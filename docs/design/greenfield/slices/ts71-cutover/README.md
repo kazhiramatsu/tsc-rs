@@ -3282,3 +3282,5 @@ buildしたもの）とtsc-rsの両方で出力し、最初に分かれる所を
     `typeTagOnFunctionReferencesGeneric`、`objectTypesWithOptionalProperties2`）、harness error 17
     （`runExternalCode`の15件、`deduplicatePackages`の2件）。
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
+- hosted：PR #683（head `954075524`）、run 37323970919 — `plan` 28s、`rust` 10m3s、`conformance (TypeScript 7.1)` 19m43s、
+  `gates` 13s。merge commitは`635305534`。
