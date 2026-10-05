@@ -9440,6 +9440,7 @@ conformance/importElisionConstEnumMerge1	full	js
 conformance/importEmptyFromModuleNotExisted	full	js
 conformance/importEquals1	full	js
 conformance/importEquals2	full	js
+conformance/importEquals3	full	js
 conformance/importEqualsBindingDefer	full	js
 conformance/importEqualsDeclaration	full	js
 conformance/importFromDot	full	js
@@ -12979,6 +12980,7 @@ conformance/typeOnlyESMImportFromCJS(module=node20)	full	js
 conformance/typeOnlyESMImportFromCJS(module=nodenext)	full	js
 conformance/typeOnlyMerge1	full	js
 conformance/typeOnlyMerge2	full	none
+conformance/typeOnlyMerge3	full	none
 conformance/typeParameterAsBaseType	full	js
 conformance/typeParameterAsTypeArgument	full	js
 conformance/typeParameterAsTypeParameterConstraint	full	js
