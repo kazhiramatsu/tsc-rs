@@ -6976,3 +6976,1005 @@ fn a_comparison_a_hundred_levels_deep_reports_its_own_failure_like_tsgo() {
     assert_eq!(lines[198].len() - lines[198].trim_start().len(), 396);
     assert!(!stdout.contains("TS2321"), "{stdout}");
 }
+
+#[test]
+fn array_types_written_as_type_nodes_share_a_recursion_identity_like_tsgo() {
+    // A type reference made from a type node carries ObjectFlagsFromTypeNode and
+    // its recursion identity is its node (checker/relater.go:766-870; checker.go
+    // 23664, 24600-24602), so the arrays `Inner[]`, `Mid[]` and `Leaf[]` of two
+    // structurally parallel aliases are not taken for one expanding type and the
+    // comparison reaches the differing `id`. tsc 6.0 identified every array by
+    // the global `Array` and stopped at the third level with Maybe: no error.
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "namespace A {\n",
+            "    export type Outer = { inners: Inner[] }\n",
+            "    export type Inner = { mids: Mid[] }\n",
+            "    export type Mid = { leaves: Leaf[] }\n",
+            "    export type Leaf = { id: string }\n",
+            "}\n",
+            "namespace B {\n",
+            "    export type Outer = { inners: Inner[] }\n",
+            "    export type Inner = { mids: Mid[] }\n",
+            "    export type Mid = { leaves: Leaf[] }\n",
+            "    export type Leaf = { id: number }\n",
+            "}\n",
+            "function test(a: A.Outer, b: B.Outer) {\n",
+            "    a = b\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(14,5): error TS2322: Type 'B.Outer' is not assignable to type 'A.Outer'.\n",
+            "  Types of property 'inners' are incompatible.\n",
+            "    Type 'B.Inner[]' is not assignable to type 'A.Inner[]'.\n",
+            "      Type 'B.Inner' is not assignable to type 'A.Inner'.\n",
+            "        Types of property 'mids' are incompatible.\n",
+            "          Type 'B.Mid[]' is not assignable to type 'A.Mid[]'.\n",
+            "            Type 'B.Mid' is not assignable to type 'A.Mid'.\n",
+            "              Types of property 'leaves' are incompatible.\n",
+            "                Type 'B.Leaf[]' is not assignable to type 'A.Leaf[]'.\n",
+            "                  Type 'B.Leaf' is not assignable to type 'A.Leaf'.\n",
+            "                    Types of property 'id' are incompatible.\n",
+            "                      Type 'number' is not assignable to type 'string'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_circular_mapped_property_is_an_error_before_it_is_reported_like_tsgo() {
+    // getTypeOfMappedSymbol stores the error type of a property whose type
+    // circularly references itself and then writes TS2615 (checker/checker.go:
+    // 21345-21349). Printing the mapped type for the message asks for the
+    // property again: tsc 6.0 stored the type after the message and the print
+    // resolved the property once more, down to the instantiation depth (an
+    // extra TS5114). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type N<T, K extends string> = T | { [P in K]: N<T, K> }[K];\n",
+            "\n",
+            "type M = N<number, \"M\">;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        "a.ts(3,10): error TS2615: Type of property 'M' circularly references itself in mapped type '{ [P in \"M\"]: any; }'.\n"
+    );
+}
+
+#[test]
+fn a_computed_name_that_names_its_own_binding_is_checked_once_like_tsgo() {
+    // checkComputedPropertyName caches on the computed name node and marks it
+    // while its expression is checked (checker/checker.go:27272-27290), so the
+    // binding element `{[b]: b}`, whose name expression is the variable it
+    // declares, reports the use before the declaration once and no implicit
+    // any. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "for (let {[a]: a} of [{ }]) continue;\n",
+            "\n",
+            "for (let {[c]: c} = { }; false; ) continue;\n",
+            "\n",
+            "let {[b]: b} = { };\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(1,12): error TS2448: Block-scoped variable 'a' used before its declaration.\n",
+            "a.ts(1,12): error TS2538: Type '{}' cannot be used as an index type.\n",
+            "a.ts(3,12): error TS2448: Block-scoped variable 'c' used before its declaration.\n",
+            "a.ts(3,12): error TS2538: Type '{}' cannot be used as an index type.\n",
+            "a.ts(5,7): error TS2448: Block-scoped variable 'b' used before its declaration.\n",
+            "a.ts(5,7): error TS2538: Type '{}' cannot be used as an index type.\n",
+        )
+    );
+}
+
+#[test]
+fn the_keys_of_a_remapping_mapped_type_are_not_deferred_like_tsgo() {
+    // The base constraint of `keyof M` for a generic mapped type `M` with a
+    // `as` clause is the constraint of its keys (checker/checker.go:27901-27910,
+    // 27988-27995), getSimplifiedType has no index type case (28367-28375), and
+    // checkIndexedAccessIndexType takes the keys of a remapping mapped type
+    // undeferred (8399-8405). `obj[key]` with `key: keyof Mapped6<K>` is
+    // `Mapped6<K>[keyof Mapped6<K>]` and is not a `_${string}`. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type Mapped5<K extends string> = {\n",
+            "  [P in K as P extends `_${string}` ? P : never]: P;\n",
+            "};\n",
+            "\n",
+            "function f5<K extends string>(obj: Mapped5<K>, key: keyof Mapped5<K>) {\n",
+            "  let s: `_${string}` = obj[key];\n",
+            "}\n",
+            "\n",
+            "type Mapped6<K extends string> = {\n",
+            "  [P in K as `_${P}`]: P;\n",
+            "};\n",
+            "\n",
+            "function f6<K extends string>(obj: Mapped6<K>, key: keyof Mapped6<K>) {\n",
+            "  let s: `_${string}` = obj[key]; // Error\n",
+            "}\n",
+            "\n",
+            "type Foo<T extends string> = {\n",
+            "    [RemappedT in T as `get${RemappedT}`]: RemappedT;\n",
+            "};\n",
+            "\n",
+            "const get = <T extends string>(t: T, foo: Foo<T>): T => foo[`get${t}`];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2017","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(14,7): error TS2322: Type 'Mapped6<K>[keyof Mapped6<K>]' is not assignable to type '`_${string}`'.\n",
+            "  Type 'Mapped6<K>[`_${string}`]' is not assignable to type '`_${string}`'.\n",
+            "a.ts(21,57): error TS2322: Type 'Foo<T>[`get${T}`]' is not assignable to type 'T'.\n",
+            "  'T' could be instantiated with an arbitrary type which could be unrelated to 'Foo<T>[`get${T}`]'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_recursive_alias_indexed_by_number_keeps_its_indexed_access_like_tsgo() {
+    // Three rules meet in `Recur<T>[number]`, whose alias contains an array of
+    // itself. getTypeArguments stores the instantiated arguments of a deferred
+    // reference with `??=` after its resolution frame is popped, so the result
+    // of the outermost instantiation replaces the error type the innermost one
+    // stored at the depth limit (checker/checker.go:22319-22323).
+    // getSimplifiedIndexedAccessType drops the type itself from a simplified
+    // union (28380-28393). In a writing position the access is
+    // `Recur<T>[number] & (…)[number]`, which a string is not assignable to.
+    // tsc 6.0 kept the innermost error type: every assignment here was to
+    // `any`. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type Recur<T> =\n",
+            "    (T extends  (unknown[]) ? {} : { [K in keyof T]?: Recur<T[K]>}) |\n",
+            "    [...Recur<T>[number][]];\n",
+            "\n",
+            "declare function g1<T>(): Recur<T>[number];\n",
+            "function f1<T>() { const n: { zz: 1 } = g1<T>(); }\n",
+            "type C<T> = (T extends (unknown[]) ? {} : { [K in keyof T]?: Recur<T[K]>});\n",
+            "function f2<T>(s: string) { const a: C<T>[number] = s; }\n",
+            "function f3<T>(s: string, c: C<T>) { c[0] = s; }\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(3,5): error TS4109: Type arguments for 'Array' circularly reference themselves.\n",
+            "a.ts(3,9): error TS2536: Type 'number' cannot be used to index type 'Recur<T>'.\n",
+            "a.ts(5,27): error TS2536: Type 'number' cannot be used to index type 'Recur<T>'.\n",
+            "a.ts(5,27): error TS2589: Type instantiation is excessively deep and possibly infinite.\n",
+            "a.ts(6,26): error TS2322: Type '(T extends unknown[] ? {} : { [K in keyof T]?: Recur<T[K]> | undefined; })[number]' is not assignable to type '{ zz: 1; }'.\n",
+            "  Type 'unknown' is not assignable to type '{ zz: 1; }'.\n",
+            "a.ts(6,41): error TS2589: Type instantiation is excessively deep and possibly infinite.\n",
+            "a.ts(8,35): error TS2322: Type 'string' is not assignable to type 'C<T>[number]'.\n",
+            "a.ts(8,38): error TS2536: Type 'number' cannot be used to index type 'C<T>'.\n",
+            "a.ts(9,38): error TS7053: Element implicitly has an 'any' type because expression of type '0' can't be used to index type '{ [K in keyof T]?: Recur<T[K]> | undefined; } | {}'.\n",
+            "  Property '0' does not exist on type '{ [K in keyof T]?: Recur<T[K]> | undefined; } | {}'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_distributive_conditional_type_depends_on_its_distribution_like_tsgo() {
+    // isTypeParameterPossiblyReferenced finds a reference by the symbol of the
+    // type reference (checker/checker.go, getSymbolFromTypeReference(node) ==
+    // tp.symbol). The check type of a distributive conditional type is the
+    // distributed form of its type parameter, so a comparison of types found
+    // no reference, isDistributionDependent was false, and a relation to
+    // `T extends unknown[] ? {} : {…}` instantiated its check type again: the
+    // return statement got TS2589 in place of TS2322. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type Recur<T> =\n",
+            "    (T extends  (unknown[]) ? {} : { [K in keyof T]?: Recur<T[K]>}) |\n",
+            "    [...Recur<T>[number][]];\n",
+            "\n",
+            "function join<T>(l: Recur<T>[]): Recur<T> {\n",
+            "    return ['marker', ...l];\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(3,5): error TS4109: Type arguments for 'Array' circularly reference themselves.\n",
+            "a.ts(3,9): error TS2536: Type 'number' cannot be used to index type 'Recur<T>'.\n",
+            "a.ts(6,5): error TS2322: Type '[string, ...Recur<T>[]]' is not assignable to type 'Recur<T>'.\n",
+            "  Type '[string, ...Recur<T>[]]' is not assignable to type 'Recur<T>[number][]'.\n",
+            "    Type 'string | Recur<T>' is not assignable to type 'Recur<T>[number] & (T extends unknown[] ? {} : { [K in keyof T]?: Recur<T[K]> | undefined; })[number]'.\n",
+            "      Type 'string' is not assignable to type 'Recur<T>[number] & (T extends unknown[] ? {} : { [K in keyof T]?: Recur<T[K]> | undefined; })[number]'.\n",
+            "        Type 'string' is not assignable to type 'Recur<T>[number] & (T extends unknown[] ? {} : { [K in keyof T]?: Recur<T[K]> | undefined; })[number]'.\n",
+            "          Type 'string' is not assignable to type '(T extends unknown[] ? {} : { [K in keyof T]?: Recur<T[K]> | undefined; })[number]'.\n",
+            "a.ts(6,12): error TS2589: Type instantiation is excessively deep and possibly infinite.\n",
+        )
+    );
+}
+
+#[test]
+fn closely_matched_union_members_are_inferred_deepest_first_like_tsgo() {
+    // inferFromMatchingTypes collects the closely matched pairs and infers over
+    // the matched targets in order of decreasing depth of generic
+    // instantiation (checker/inference.go:370-409), so `Value[][]` is related to
+    // `T[][]` before `T[]` and T is `Value`. tsc 6.0 inferred in the order the
+    // union lists its members, took `Value[]` for T and rejected the call
+    // (TS2345). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function flat<T>(args: T[] | T[][]): T;\n",
+            "type Value = 1 | 2;\n",
+            "declare const n: Value[] | Value[][];\n",
+            "const a: string = flat(n);\n",
+            "\n",
+            "type Box<T> = { value: T };\n",
+            "declare function flat0<T>(args: Box<T> | Box<Box<T>>): T;\n",
+            "declare const arg0: Box<string> | Box<Box<string>>;\n",
+            "const b: number = flat0(arg0);\n",
+            "\n",
+            "interface Column<T> {\n",
+            "  dataIndex?: (T | (string & {}))[]\n",
+            "}\n",
+            "declare function table<T>(rows: readonly T[], columns: Column<T>[]): T\n",
+            "declare const rows: { id: number }[]\n",
+            "const c: string = table(rows, [{ dataIndex: ['id'] }])\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(4,7): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+            "  Type 'number' is not assignable to type 'string'.\n",
+            "a.ts(9,7): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+            "a.ts(16,7): error TS2322: Type '{ id: number; }' is not assignable to type 'string'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_recursive_call_resolution_skips_constraint_checks_like_tsgo() {
+    // A call that is resolved again while its overloads are being chosen, and
+    // has a single candidate, infers without comparing the inferences with
+    // their constraints (Checker.callResolutionStack and
+    // InferenceFlagsNoConstraintChecks, checker/checker.go:9108-9116,
+    // 9243-9246; inference.go:1381). `Item`'s base expression asks for
+    // `typeof BaseItem`, whose construct signatures need `typeof Item` and so
+    // the same call: tsc 6.0 compared `typeof BaseItem`, still without
+    // signatures, with the constraint and reported TS2345. The expected result
+    // is tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare class Document<Parent> {}\n",
+            "\n",
+            "declare class BaseItem extends Document<typeof Item> {}\n",
+            "\n",
+            "declare function ClientDocumentMixin<\n",
+            "  BaseClass extends new (...args: any[]) => any,\n",
+            ">(Base: BaseClass): any;\n",
+            "\n",
+            "declare class Item extends ClientDocumentMixin(BaseItem) {}\n",
+            "\n",
+            "export {};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn an_unknown_extends_type_instantiates_nothing_like_tsgo() {
+    // getConditionalType reaches the permissive and restrictive instantiations
+    // of the check type through `&&` and `||` (checker/checker.go:24838-24893):
+    // with an `unknown` extends type none is made. Computing them first
+    // instantiated every check type of `T extends unknown ? … : never`; in a
+    // constraint walk whose check types nest a level deeper at each step that
+    // reached the depth limit (TS2589). The expected result is tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export type Prepend<Elm, T extends unknown[]> =\n",
+            " T extends unknown ?\n",
+            " ((arg: Elm, ...rest: T) => void) extends ((...args: infer T2) => void) ? T2 :\n",
+            " never :\n",
+            " never;\n",
+            "export type ExactExtract<T, U> = (T extends U ? U extends T ? T : never : never) & string;\n",
+            "type Conv<T, U = T> = {\n",
+            "    0: [T];\n",
+            "    1: Prepend<T, Conv<ExactExtract<U, T>, {a: number}>>;\n",
+            "}[U extends T ? 0 : 1];\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn a_type_that_is_not_iterable_is_reported_after_the_file_like_tsgo() {
+    // reportTypeNotIterableError is queued with addDeferredDiagnostic and
+    // produced at the end of the file check (checker/checker.go:6463-6467,
+    // 6511-6522), when printing the type cannot re-enter a resolution in
+    // progress. tsc 6.0 reported inside the inference of `foo`'s return type,
+    // which printed the function as `() => any` and failed that resolution.
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "function* foo() {\n",
+            "  yield*foo\n",
+            "}\n",
+            "declare const u: number | string[];\n",
+            "for (const x of u) {}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es6","module":"esnext","noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(2,9): error TS2488: Type '() => Generator<any, void, unknown>' must have a '[Symbol.iterator]()' method that returns an iterator.\n",
+            "a.ts(5,17): error TS2488: Type 'number | string[]' must have a '[Symbol.iterator]()' method that returns an iterator.\n",
+        )
+    );
+}
+
+#[test]
+fn a_contextual_function_return_type_is_computed_in_full_like_tsgo() {
+    // contextuallyCheckFunctionExpressionOrObjectLiteralMethod removes
+    // CheckModeSkipContextSensitive before getReturnTypeFromBody
+    // (checker/checker.go:10377-10384): the return type is cached for good and
+    // must not hold the wildcard function. tsc 6.0 passed the mode through, so
+    // a generic callback that returns a context-sensitive function was
+    // accepted whatever that function is (TypeScript issue 61979). The
+    // expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare function fn<P>(config: {\n",
+            "  callback: (params: P) => (context: number, params: P) => number;\n",
+            "  unrelated?: (arg: string) => void;\n",
+            "}): (params: P) => number;\n",
+            "\n",
+            "export const result1 = fn({\n",
+            "  callback: <T,>(params: T) => {\n",
+            "    return (a: boolean, b) => (a ? 1 : 0);\n",
+            "  },\n",
+            "  unrelated: (_) => {},\n",
+            "});\n",
+            "\n",
+            "export const result2 = fn({\n",
+            "  callback: <T,>(params: T) => {\n",
+            "    return (a, b) => true;\n",
+            "  },\n",
+            "  unrelated: (_) => {},\n",
+            "});\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(7,3): error TS2322: Type '<T>(params: T) => (a: boolean, b: unknown) => 0 | 1' is not assignable to type '(params: T) => (context: number, params: T) => number'.\n",
+            "  Type '(a: boolean, b: unknown) => 0 | 1' is not assignable to type '(context: number, params: T) => number'.\n",
+            "    Types of parameters 'a' and 'context' are incompatible.\n",
+            "      Type 'number' is not assignable to type 'boolean'.\n",
+            "a.ts(14,3): error TS2322: Type '<T>(params: T) => (a: number, b: unknown) => boolean' is not assignable to type '(params: T) => (context: number, params: T) => number'.\n",
+            "  Type '(a: number, b: unknown) => boolean' is not assignable to type '(context: number, params: T) => number'.\n",
+            "    Type 'boolean' is not assignable to type 'number'.\n",
+        )
+    );
+}
+
+#[test]
+fn an_error_typed_property_prints_its_pseudo_type_like_tsgo() {
+    // With an enclosing declaration serializeTypeForDeclaration compares the
+    // pseudo type of a property's value declaration with its type, and an
+    // error type counts as equal (checker/pseudotypenodebuilder.go:363-366).
+    // A property written twice keeps the first declaration and the last type:
+    // with an unresolved last value the first value's pseudo type is printed.
+    // An expression the pseudochecker gives up on (`[1]`) prints `any`, a type
+    // assertion its type node. tsc 6.0 printed `any` for all of them. The
+    // expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const P: number;\n",
+            "declare const T: any;\n",
+            "declare const x: number;\n",
+            "P < T > { a: 1 as Missing };\n",
+            "P < T > { a: \"s\", a: v };\n",
+            "P < T > { a: true, a: v };\n",
+            "P < T > { a: null, a: v };\n",
+            "P < T > { a: undefined, a: v };\n",
+            "P < T > { a: -1, a: v };\n",
+            "P < T > { a: 1n, a: v };\n",
+            "P < T > { a: `t`, a: v };\n",
+            "P < T > { a: () => 1, a: v };\n",
+            "P < T > { a: [1], a: v };\n",
+            "P < T > { a: { b: 1 }, a: v };\n",
+            "P < T > { a: [1] as const, a: v };\n",
+            "P < T > { a: x, a: v };\n",
+            "P < T > { a: 1 as const, a: v };\n",
+            "P < T > { a: \"s\" as string | number, a: v };\n",
+            "P < T > { a: (y: number) => y, a: v };\n",
+            "P < T > { a: x + 1, a: v };\n",
+            "P < T > { a() { return 1; }, a: v };\n",
+            "const k = { a: 1, a: v } as const;\n",
+            "P < T > k;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(4,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: Missing; }'.\n",
+            "a.ts(4,19): error TS2304: Cannot find name 'Missing'.\n",
+            "a.ts(5,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: string; }'.\n",
+            "a.ts(5,19): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(5,22): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(6,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: boolean; }'.\n",
+            "a.ts(6,20): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(6,23): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(7,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: null; }'.\n",
+            "a.ts(7,20): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(7,23): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(8,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: undefined; }'.\n",
+            "a.ts(8,25): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(8,28): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(9,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: number; }'.\n",
+            "a.ts(9,18): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(9,21): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(10,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: bigint; }'.\n",
+            "a.ts(10,18): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(10,21): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(11,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: string; }'.\n",
+            "a.ts(11,19): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(11,22): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(12,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: () => number; }'.\n",
+            "a.ts(12,23): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(12,26): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(13,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: any; }'.\n",
+            "a.ts(13,19): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(13,22): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(14,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: { b: number; }; }'.\n",
+            "a.ts(14,24): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(14,27): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(15,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: readonly [1]; }'.\n",
+            "a.ts(15,28): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(15,31): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(16,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: number; }'.\n",
+            "a.ts(16,17): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(16,20): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(17,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: 1; }'.\n",
+            "a.ts(17,26): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(17,29): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(18,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: string | number; }'.\n",
+            "a.ts(18,38): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(18,41): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(19,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: (y: number) => number; }'.\n",
+            "a.ts(19,32): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(19,35): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(20,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: number; }'.\n",
+            "a.ts(20,21): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(20,24): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(21,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ a: any; }'.\n",
+            "a.ts(21,11): error TS2300: Duplicate identifier 'a'.\n",
+            "a.ts(21,30): error TS1119: An object literal cannot have property and accessor with the same name.\n",
+            "a.ts(21,30): error TS2300: Duplicate identifier 'a'.\n",
+            "a.ts(21,33): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(22,19): error TS1117: An object literal cannot have multiple properties with the same name.\n",
+            "a.ts(22,22): error TS2304: Cannot find name 'v'.\n",
+            "a.ts(23,1): error TS2365: Operator '>' cannot be applied to types 'boolean' and '{ readonly a: 1; }'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_jsx_element_without_attributes_discriminates_its_props_like_tsgo() {
+    // discriminateContextualTypeByJSXAttributes takes the optional discriminant
+    // properties the element does not write whenever the attributes node has a
+    // symbol (checker/jsx.go:266-292). An element with no attribute at all was
+    // left undiscriminated, and the parameter of its child function was an
+    // implicit any (TS7006). The expected result is tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("jsx.d.ts"),
+        concat!(
+            "declare namespace JSX {\n",
+            "    interface Element {}\n",
+            "    interface IntrinsicElements { div: {} }\n",
+            "    interface IntrinsicAttributes { key?: string }\n",
+            "    interface ElementChildrenAttribute { children: {} }\n",
+            "}\n",
+        ),
+    )
+    .expect("write jsx.d.ts");
+    fs::write(
+        tree.path("a.tsx"),
+        concat!(
+            "type Props =\n",
+            "  | { renderNumber?: false; children: (arg: string) => void }\n",
+            "  | { renderNumber: true; children: (arg: number) => void };\n",
+            "\n",
+            "declare function Foo(props: Props): JSX.Element;\n",
+            "\n",
+            "export const a = <Foo>{(value) => { const s: number = value; }}</Foo>;\n",
+            "export const b = <Foo renderNumber>{(value) => { const n: string = value; }}</Foo>;\n",
+            "export const c = <Foo children={(value) => { const s: number = value; }} />;\n",
+        ),
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true,"jsx":"preserve"},"files":["jsx.d.ts","a.tsx"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.tsx(7,43): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+            "a.tsx(8,56): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+            "a.tsx(9,52): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+        )
+    );
+}
+
+#[test]
+fn the_children_of_a_jsx_element_body_are_an_excess_property_like_tsgo() {
+    // The `children` property synthesized from an element's body has a
+    // fabricated declaration whose parent is the attributes node (checker/
+    // jsx.go:845-848), which makes it subject to the excess property check.
+    // The port left it without a declaration: body children of a component
+    // that takes none were accepted next to another attribute. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("jsx.d.ts"),
+        concat!(
+            "declare namespace JSX {\n",
+            "    interface Element {}\n",
+            "    interface IntrinsicElements { div: {} }\n",
+            "    interface IntrinsicAttributes { key?: string }\n",
+            "    interface ElementChildrenAttribute { children: {} }\n",
+            "}\n",
+        ),
+    )
+    .expect("write jsx.d.ts");
+    fs::write(
+        tree.path("a.tsx"),
+        concat!(
+            "const Tag = (x: {}) => <div></div>;\n",
+            "\n",
+            "const k1 = <Tag />;\n",
+            "const k2 = <Tag></Tag>;\n",
+            "const k3 = <Tag children={<div></div>} />;\n",
+            "const k4 = <Tag key=\"1\"><div></div></Tag>;\n",
+            "const k5 = <Tag key=\"1\"><div></div><div></div></Tag>;\n",
+            "const k6 = <Tag><div></div></Tag>;\n",
+        ),
+    )
+    .expect("write a.tsx");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"jsx":"preserve"},"files":["jsx.d.ts","a.tsx"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.tsx(5,17): error TS2322: Type '{ children: Element; }' is not assignable to type 'IntrinsicAttributes'.\n",
+            "  Property 'children' does not exist on type 'IntrinsicAttributes'.\n",
+            "a.tsx(6,13): error TS2322: Type '{ key: string; children: Element; }' is not assignable to type 'IntrinsicAttributes'.\n",
+            "  Property 'children' does not exist on type 'IntrinsicAttributes'.\n",
+            "a.tsx(7,13): error TS2322: Type '{ key: string; children: Element[]; }' is not assignable to type 'IntrinsicAttributes'.\n",
+            "  Property 'children' does not exist on type 'IntrinsicAttributes'.\n",
+            "a.tsx(8,13): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_member_named_by_a_bigint_literal_is_not_a_property_like_tsgo() {
+    // The binder declares an object literal member named by a bigint literal
+    // as `__missing`, and getNamedMembers keeps reserved names out of a type's
+    // properties. The literal `{ 3n: … }` is `{}`: it lacks the property `"3n"`
+    // (TS2741) and has no excess one (TS2353 was reported, and the type printed
+    // as `{ __missing: string; }`). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "interface H {\n",
+            "    \"3n\": string;\n",
+            "}\n",
+            "const h : H = { 3n: \"propertyNameErrorAndMissingProperty3\" };\n",
+            "const h3 = { 3n: \"x\", a: 1 };\n",
+            "const n: number = h3;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"esnext","module":"esnext","noEmit":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.ts(4,7): error TS2741: Property '\"3n\"' is missing in type '{}' but required in type 'H'.\n",
+            "a.ts(4,17): error TS1539: A 'bigint' literal cannot be used as a property name.\n",
+            "a.ts(5,14): error TS1539: A 'bigint' literal cannot be used as a property name.\n",
+            "a.ts(6,7): error TS2322: Type '{ a: number; }' is not assignable to type 'number'.\n",
+        )
+    );
+}
+
+#[test]
+fn a_defaulted_expando_initializer_is_an_ordinary_expression_like_tsgo() {
+    // tsgo has no `X = X || {}` form: checkBinaryLikeExpression checks both
+    // operands (checker/checker.go:12538-12544) and the assignment is always
+    // compared. tsc 6.0 took the right operand's type and skipped the
+    // comparison; the port kept the first half and reported the expando
+    // members of `Common` as missing from `{}` (TS2741). The expected bytes
+    // are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.js"),
+        concat!(
+            "var Common = {};\n",
+            "self['Common'] = self['Common'] || {};\n",
+            "/**\n",
+            " * @param {string} string\n",
+            " * @return {string}\n",
+            " */\n",
+            "Common.localize = function (string) {\n",
+            "    return string;\n",
+            "};\n",
+            "/** @type {number} */\n",
+            "const n1 = self['Common'];\n",
+            "/** @type {number} */\n",
+            "const n2 = self['Common'] || {};\n",
+            "/** @type {number} */\n",
+            "const n3 = Common;\n",
+            "self['Common'] = {};\n",
+            "self.Common = {};\n",
+            "Common = {};\n",
+        ),
+    )
+    .expect("write a.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020","dom"],"target":"es2015","module":"esnext","noEmit":true,"checkJs":true,"allowJs":true},"files":["a.js"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.js(11,7): error TS2322: Type '{ localize: (string: string) => string; }' is not assignable to type 'number'.\n",
+            "a.js(13,7): error TS2322: Type '{ localize: (string: string) => string; }' is not assignable to type 'number'.\n",
+            "a.js(15,7): error TS2322: Type '{ localize: (string: string) => string; }' is not assignable to type 'number'.\n",
+            "a.js(16,1): error TS2741: Property 'localize' is missing in type '{}' but required in type '{ localize: (string: string) => string; }'.\n",
+            "a.js(17,1): error TS2741: Property 'localize' is missing in type '{}' but required in type '{ localize: (string: string) => string; }'.\n",
+            "a.js(18,1): error TS2741: Property 'localize' is missing in type '{}' but required in type '{ localize: (string: string) => string; }'.\n",
+        )
+    );
+}
+
+#[test]
+fn the_root_of_a_javascript_property_assignment_is_an_ordinary_name_like_tsgo() {
+    // tsgo's binder declares no container for an assignment to a property of
+    // an undeclared name, so its checker resolves the root as any other name:
+    // TS2304 at each use, also for a prototype assignment, and TS2708 where the
+    // name is a namespace without values. tsc 6.0's binder declared the
+    // container. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lf.d.ts"),
+        concat!(
+            "declare namespace lf {\n",
+            "  export interface Transaction {\n",
+            "    commit(): Promise<void>\n",
+            "  }\n",
+            "}\n",
+        ),
+    )
+    .expect("write lf.d.ts");
+    fs::write(
+        tree.path("a.js"),
+        concat!(
+            "lf.Transaction = function() {};\n",
+            "/**\n",
+            " * @param {number} scope\n",
+            " */\n",
+            "lf.Transaction.prototype.begin = function(scope) {};\n",
+            "C.prototype = {}\n",
+            "C.prototype.bar.foo = {};\n",
+            "D.x = 1;\n",
+            "E.prototype.m = function() {};\n",
+        ),
+    )
+    .expect("write a.js");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2015","module":"esnext","noEmit":true,"checkJs":true,"allowJs":true},"files":["lf.d.ts","a.js"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.js(1,1): error TS2708: Cannot use namespace 'lf' as a value.\n",
+            "a.js(5,1): error TS2708: Cannot use namespace 'lf' as a value.\n",
+            "a.js(6,1): error TS2304: Cannot find name 'C'.\n",
+            "a.js(7,1): error TS2304: Cannot find name 'C'.\n",
+            "a.js(8,1): error TS2304: Cannot find name 'D'.\n",
+            "a.js(9,1): error TS2304: Cannot find name 'E'.\n",
+        )
+    );
+}
+
+#[test]
+fn an_export_of_a_declaration_file_marks_nothing_visible_like_tsgo() {
+    // The declarations an `export =` or an export specifier names become
+    // visible when the declarations of that file are transformed
+    // (PrecalculateDeclarationEmitVisibility, checker/emitresolver.go:236-306;
+    // transformers/declarations/transform.go:304). A declaration file is never
+    // transformed, so `namespace foo` of `export = foo` stays invisible and a
+    // name an augmentation resolves to its member is a private name (TS4060):
+    // `a.d.ts` is not written. tsc 6.0 marked the namespace when it checked
+    // the export; the port did too, on the checker that checked that file, so
+    // the result depended on how the files were shared out (the default
+    // library set of this test put both files on one checker). The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/foo")).expect("create node_modules/foo");
+    fs::write(
+        tree.path("node_modules/foo/index.d.ts"),
+        concat!(
+            "export = foo;\n",
+            "declare namespace foo {\n",
+            "    export type T = number;\n",
+            "}\n",
+        ),
+    )
+    .expect("write node_modules/foo/index.d.ts");
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "import * as foo from \"foo\";\n",
+            "declare module \"foo\" {\n",
+            "    export function f(): T;\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!(
+            "import * as foo from \"foo\";\n",
+            "declare module \"foo\" {\n",
+            "    export function g(): foo.T;\n",
+            "}\n",
+        ),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"target":"es2015","module":"commonjs","declaration":true,"outDir":"out"},"files":["a.ts","b.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        "a.ts(3,26): error TS4060: Return type of exported function has or is using private name 'T'.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.d.ts")).expect("read out/b.d.ts"),
+        concat!(
+            "import * as foo from \"foo\";\n",
+            "declare module \"foo\" {\n",
+            "    function g(): foo.T;\n",
+            "}\n",
+        )
+    );
+    assert!(!tree.path("out/a.d.ts").exists());
+}
+
+#[test]
+fn ambient_modules_merge_after_the_global_augmentations_like_tsgo() {
+    // initializeChecker merges the locals of the script files, then the
+    // global-scope augmentations, looks the global types up, and then merges
+    // the ambient module declarations (checker/checker.go initializeChecker).
+    // Merging the two `mymod` declarations resolves the alias `foo`, which
+    // loads the module `foo` and reads `string[]`: the import was reported as
+    // unresolved (TS2307) in place of the conflict (TS2451), and with lib es5
+    // alone the augmented `Array<T>`, a global with one declaration, had two
+    // declared types (TS2339 for `customMethod`). The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/foo")).expect("create node_modules/foo");
+    fs::write(
+        tree.path("node_modules/foo/index.d.ts"),
+        concat!(
+            "declare function foo(): void;\n",
+            "declare namespace foo { export const items: string[]; }\n",
+            "export = foo;\n",
+        ),
+    )
+    .expect("write node_modules/foo/index.d.ts");
+    fs::write(
+        tree.path("a.d.ts"),
+        "declare module 'mymod' { import * as foo from 'foo'; export { foo }; }\n",
+    )
+    .expect("write a.d.ts");
+    fs::write(
+        tree.path("b.d.ts"),
+        "declare module 'mymod' { export const foo: number; }\n",
+    )
+    .expect("write b.d.ts");
+    fs::write(
+        tree.path("augment.ts"),
+        concat!(
+            "declare global {\n",
+            "    interface Array<T> {\n",
+            "        customMethod(): T;\n",
+            "    }\n",
+            "}\n",
+            "export {};\n",
+        ),
+    )
+    .expect("write augment.ts");
+    fs::write(
+        tree.path("index.ts"),
+        concat!(
+            "import * as foo from 'foo';\n",
+            "const items = foo.items;\n",
+            "const result: string = items.customMethod();\n",
+            "\n",
+            "const fresh: string[] = [];\n",
+            "const result2: number = fresh.customMethod();\n",
+        ),
+    )
+    .expect("write index.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es5"],"target":"es2015","module":"esnext","noEmit":true},"files":["a.d.ts","b.d.ts","augment.ts","index.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("UTF-8 diagnostics"),
+        concat!(
+            "a.d.ts(1,63): error TS2451: Cannot redeclare block-scoped variable 'foo'.\n",
+            "b.d.ts(1,39): error TS2451: Cannot redeclare block-scoped variable 'foo'.\n",
+            "index.ts(6,7): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+        )
+    );
+}
