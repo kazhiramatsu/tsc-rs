@@ -2698,3 +2698,5 @@ P3-5baの後、README corporaの出力をtsgoと比べて残っていた差：
 - 次：宣言のmap。別のfileから再利用した型のnode（`?`の記号など）が、そのfileの位置でmapされる（tsgoの
   `setTextRange`は同じfileの位置だけを写す、nodebuilderimpl.go:1425-1460）。型parameterの制約の`Rpc.Any`などは、
   tsgoでは部分ごとにmapされる。
+- hosted：PR #679（head `4300dde89`）、run 37262470561 — `plan` 36s、`rust` 7m37s、`conformance (TypeScript 7.1)` 20m2s、
+  `gates` 12s。
