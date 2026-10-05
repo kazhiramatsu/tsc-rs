@@ -252,7 +252,6 @@ struct JsxVisitorSettings<'settings> {
 
 #[derive(Clone, Copy)]
 struct ElementCallFormatting {
-    multi_line: bool,
     is_child: bool,
 }
 
@@ -444,7 +443,7 @@ impl<'context> JsxVisitor<'context> {
         is_child: bool,
     ) -> Result<TransformNode, TransformError> {
         if self.import_base.is_some() {
-            let (children, _) = self.transform_jsx_children(data.children)?;
+            let children = self.transform_jsx_children(data.children)?;
             let static_children = self.children_are_static(&children)?;
             let props = self.create_automatic_props(Vec::new(), children.clone())?;
             let tag = self.get_implicit_import_for_name("Fragment")?;
@@ -467,16 +466,8 @@ impl<'context> JsxVisitor<'context> {
         );
         let tag = self.create_entity_expression(self.fragment_entity.clone(), factory_reference)?;
         let props = self.create_token(SyntaxKind::NullKeyword)?;
-        let (children, multi_line) = self.transform_jsx_children(data.children)?;
-        self.create_element_call(
-            original,
-            factory_reference,
-            tag,
-            props,
-            children,
-            multi_line,
-            is_child,
-        )
+        let children = self.transform_jsx_children(data.children)?;
+        self.create_element_call(original, factory_reference, tag, props, children, is_child)
     }
 
     fn visit_jsx_opening_like(
@@ -495,7 +486,7 @@ impl<'context> JsxVisitor<'context> {
         let tag = self.transform_tag_name(tag_name)?;
         if self.import_base.is_none() || self.has_key_after_props_spread(attributes)? {
             let props = self.transform_attributes(attributes)?;
-            let (children, multi_line) = self.transform_jsx_children(children)?;
+            let children = self.transform_jsx_children(children)?;
             let callee = if self.import_base.is_some() {
                 self.get_implicit_import_for_name("createElement")?
             } else {
@@ -507,14 +498,11 @@ impl<'context> JsxVisitor<'context> {
                 tag,
                 props,
                 children,
-                ElementCallFormatting {
-                    multi_line,
-                    is_child,
-                },
+                ElementCallFormatting { is_child },
             );
         }
 
-        let (children, _) = self.transform_jsx_children(children)?;
+        let children = self.transform_jsx_children(children)?;
         let static_children = self.children_are_static(&children)?;
         let key = self.find_key_attribute(attributes)?;
         let properties = self.transform_attribute_properties(attributes, key)?;
@@ -839,10 +827,9 @@ impl<'context> JsxVisitor<'context> {
     fn transform_jsx_children(
         &mut self,
         children: Option<NodeArrayId>,
-    ) -> Result<(Vec<TransformNode>, bool), TransformError> {
+    ) -> Result<Vec<TransformNode>, TransformError> {
         let ids = self.array_nodes(children)?;
         let mut transformed = Vec::new();
-        let mut contains_direct_jsx = false;
         for id in ids {
             let child = self.node(id);
             let record = self.context.arena().node(child)?.clone();
@@ -851,18 +838,11 @@ impl<'context> JsxVisitor<'context> {
                 NodeData::JsxExpression(data) => self
                     .visit_jsx_expression(child, data)?
                     .map(|id| self.node(id)),
-                NodeData::JsxElement(data) => {
-                    contains_direct_jsx = true;
-                    Some(self.visit_jsx_element(child, data, true)?)
-                }
+                NodeData::JsxElement(data) => Some(self.visit_jsx_element(child, data, true)?),
                 NodeData::JsxSelfClosingElement(data) => {
-                    contains_direct_jsx = true;
                     Some(self.visit_jsx_self_closing_element(child, data, true)?)
                 }
-                NodeData::JsxFragment(data) => {
-                    contains_direct_jsx = true;
-                    Some(self.visit_jsx_fragment(child, data, true)?)
-                }
+                NodeData::JsxFragment(data) => Some(self.visit_jsx_fragment(child, data, true)?),
                 _ => {
                     return Err(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::JsxElement,
@@ -875,8 +855,7 @@ impl<'context> JsxVisitor<'context> {
                 transformed.push(result);
             }
         }
-        let multi_line = transformed.len() > 1 || contains_direct_jsx;
-        Ok((transformed, multi_line))
+        Ok(transformed)
     }
 
     fn visit_jsx_expression(
@@ -1219,7 +1198,6 @@ impl<'context> JsxVisitor<'context> {
         tag: TransformNode,
         props: TransformNode,
         children: Vec<TransformNode>,
-        multi_line: bool,
         is_child: bool,
     ) -> Result<TransformNode, TransformError> {
         let callee =
@@ -1230,10 +1208,7 @@ impl<'context> JsxVisitor<'context> {
             tag,
             props,
             children,
-            ElementCallFormatting {
-                multi_line,
-                is_child,
-            },
+            ElementCallFormatting { is_child },
         )
     }
 
@@ -1246,6 +1221,19 @@ impl<'context> JsxVisitor<'context> {
         children: Vec<TransformNode>,
         formatting: ElementCallFormatting,
     ) -> Result<TransformNode, TransformError> {
+        // With more than one child, each child starts on a new line
+        // (transformers/jsxtransforms/jsx.go:709-713, 750-754). The mark is
+        // the child's own: a child the module transform replaces with a new
+        // access (`{tree}` → `component_1.tree`) is written on the call's
+        // line again.
+        if children.len() > 1 {
+            for &child in &children {
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(child)
+                    .set_starts_on_new_line(true);
+            }
+        }
         let mut arguments = Vec::with_capacity(children.len() + 2);
         arguments.push(tag);
         arguments.push(props);
@@ -1264,9 +1252,6 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
-        if formatting.multi_line {
-            self.context.factory()?.set_multi_line(call, true)?;
-        }
         self.set_jsx_call_location(call, original)?;
         self.context
             .arena_mut()?
