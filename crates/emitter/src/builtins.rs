@@ -4688,6 +4688,33 @@ fn safe_multi_line_comment(text: &str) -> String {
     text.replace("*/", "*_/")
 }
 
+/// A block made from a concise body has the body's range on its statement
+/// list too (`statements.Loc = node.Loc`, `ConvertToFunctionBlock`,
+/// printer/emitcontext.go:930-941): its `}` maps after the body, and the
+/// comments after the body are written before the `}`.
+pub(crate) fn range_block_statements_to_body(
+    context: &mut TransformationContext,
+    block: TransformNode,
+    body: TransformNode,
+) -> Result<(), TransformError> {
+    let statements = match &context.arena().node(block)?.data {
+        NodeData::Block(data) => data.statements,
+        _ => None,
+    };
+    let Some(statements) = statements else {
+        return Ok(());
+    };
+    let (pos, end) = {
+        let record = context.arena().node(body)?;
+        (record.pos, record.end)
+    };
+    context.factory()?.set_node_array_text_range(
+        TransformNodeArray::new(block.source(), statements),
+        pos,
+        end,
+    )
+}
+
 fn has_modifier(
     arena: &TransformArena,
     source: TransformSourceId,
@@ -5100,8 +5127,6 @@ struct ExportAssignmentPlan {
 struct DeclarationExportPlan {
     local: TransformNode,
     exported_name: ModuleExportName,
-    location: TransformNode,
-    source_map_location: TransformNode,
 }
 
 struct AliasedAsynchronousDependency {
@@ -7098,7 +7123,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .expect("direct export-object storage owns a publication plan");
                 let name = publication_name.expect("a direct export-object plan owns a name");
                 let target = self.create_export_access_from_name(name)?;
-                let value = self.create_identifier(&plan.local_name)?;
+                // The value is the name's clone, which keeps its range
+                // (`v.Name().Clone()`, commonjsmodule.go:1067-1077).
+                let value = match local_name {
+                    Some(local_name) => {
+                        let value = self.context.factory()?.clone_node(local_name)?;
+                        self.context.factory()?.set_text_range(value, local_name)?;
+                        value
+                    }
+                    None => self.create_identifier(&plan.local_name)?,
+                };
                 let assignment = self.create_assignment(target, value)?;
                 exported_expressions.push(assignment);
                 remove_comments_on_expressions = true;
@@ -7678,41 +7712,26 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .cloned()
                 .unwrap_or_default();
             for exported_name in exports {
-                let Some(location) = self
+                if self
                     .state
                     .info
                     .export_specifier_locations
                     .get(&(JsString::from(&local_name), exported_name.text.clone()))
                     .and_then(|location| self.context.arena().node_ref(self.source, *location))
-                else {
+                    .is_none()
+                {
                     // A syntactic `export` modifier is published by the
                     // declaration lowering itself. This append phase owns
                     // only explicit export specifiers.
                     continue;
-                };
-                let source_map_location = self.declaration_export_source_map_location(location)?;
+                }
                 plans.push(DeclarationExportPlan {
                     local: leaf.name,
                     exported_name,
-                    location,
-                    source_map_location,
                 });
             }
         }
         Ok(plans)
-    }
-
-    fn declaration_export_source_map_location(
-        &self,
-        location: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        let NodeData::ExportSpecifier(data) = &self.context.arena().node(location)?.data else {
-            return Ok(location);
-        };
-        Ok(data
-            .name
-            .and_then(|name| self.context.arena().node_ref(self.source, name))
-            .unwrap_or(location))
     }
 
     /// Map a declaration's synthesized name to `source_name`, as tsgo's
@@ -7832,14 +7851,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let target = self.create_export_access_from_module_name(&plan.exported_name)?;
             let assignment = self.create_assignment(target, value)?;
             let statement = self.create_expression_statement(assignment)?;
-            self.set_original_and_range(statement, plan.location)?;
-            self.context
-                .factory()?
-                .set_text_range(statement, plan.source_map_location)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .add_flags(EmitFlags::NO_COMMENTS);
+            self.set_explicit_export_statement_location(statement, &plan.exported_name)?;
             statements.push(statement);
         }
         Ok(statements)

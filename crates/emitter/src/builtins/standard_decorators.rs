@@ -15,7 +15,7 @@ use crate::{
 };
 
 use super::{
-    constructor_prologue, flags_after_update,
+    constructor_prologue, flags_after_update, range_block_statements_to_body,
     system::collect_identifier_texts,
     target_bindings::{ParsedSourceIdentifierNames, TargetBinding, UsedNames},
     ConstructorPrologue,
@@ -5802,13 +5802,21 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let block = if matches!(self.context.arena().node(body)?.data, NodeData::Block(_)) {
             body
         } else {
-            // convertToFunctionBlock retains the concise body's source range.
+            // VisitFunctionBody: the concise body writes no comments of its
+            // own, and convertToFunctionBlock retains its source range on the
+            // return statement, its statement list and the block
+            // (printer/emitcontext.go:930-962).
+            self.context
+                .arena_mut()?
+                .metadata_mut(body)
+                .add_flags(EmitFlags::NO_COMMENTS);
             let return_statement = self.create_return_statement(body)?;
             self.context
                 .factory()?
                 .set_text_range(return_statement, body)?;
             let block = self.create_block(vec![return_statement], false)?;
             self.context.factory()?.set_text_range(block, body)?;
+            range_block_statements_to_body(self.context, block, body)?;
             block
         };
         let merged = self.merge_block_environment(block, temporaries, initialization_statements)?;

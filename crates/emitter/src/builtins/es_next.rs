@@ -646,6 +646,21 @@ impl<'context> EsNextVisitor<'context> {
             .context
             .factory()?
             .create_node_array(self.source, output)?;
+        // The new list keeps the block's statement range
+        // (`statementList.Loc = node.Statements.Loc`, using.go:204-206), so
+        // the block's `}` maps as before.
+        if let Some(original_statements) = data
+            .statements
+            .and_then(|array| self.context.arena().node_array_ref(self.source, array))
+        {
+            let (pos, end) = {
+                let record = self.context.arena().node_array(original_statements)?;
+                (record.pos, record.end)
+            };
+            self.context
+                .factory()?
+                .set_node_array_text_range(statement_array, pos, end)?;
+        }
         data.statements = Some(statement_array.array());
         let flags = flags_after_update(
             self.context.arena(),

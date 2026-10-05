@@ -5,8 +5,8 @@
 //! walk and gives private storage and static-super aliases one ownership point.
 
 use super::super::{
-    array_memo, node_memo, update_children_lazily, update_node_array_lazily, ArrayElementVisit,
-    ArrayMemo, LazyChildVisitor, NodeMemo,
+    array_memo, node_memo, range_block_statements_to_body, update_children_lazily,
+    update_node_array_lazily, ArrayElementVisit, ArrayMemo, LazyChildVisitor, NodeMemo,
 };
 use crate::transform::try_visit_transform_children;
 use std::{
@@ -1685,10 +1685,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .add_flags(EmitFlags::NO_TRAILING_COMMENTS);
         // The comma sequence becomes a helper argument through
         // parenthesizeExpressionForDisallowedComma (_tsc.js:20483-20488):
-        // the parentheses take the sequence's range (the update expression),
-        // so the argument maps its `(` and `)` to the update's ends.
+        // the parentheses take the sequence's range (the update expression)
+        // for comments, but tsgo's printer writes them while printing, so
+        // they map nothing (printer.go:3222-3226).
         let value = self.create_parenthesized(expression)?;
         self.context.factory()?.set_text_range(value, expression)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(value)
+            .add_flags(EmitFlags::NO_SOURCE_MAP);
         expression = self.create_private_set(assignment_receiver, &slot, value)?;
         expression = self.set_original_and_range(expression, original)?;
         if let Some(result_binding) = &result_binding {
@@ -2021,6 +2026,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // sequence returns unparenthesized; this port updates first, so
             // drop the parentheses that update introduced.
             let body = self.strip_update_introduced_concise_parentheses(function, body)?;
+            // VisitFunctionBody: the concise body writes no comments of its
+            // own (printer/emitcontext.go:955).
+            self.context
+                .arena_mut()?
+                .metadata_mut(body)
+                .add_flags(EmitFlags::NO_COMMENTS);
             let return_statement = self.context.factory()?.create_node(
                 self.source,
                 NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
@@ -2028,13 +2039,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }),
                 TransformFlags::NONE,
             )?;
-            // convertToFunctionBlock retains the concise body's range on
-            // both the return statement and its synthesized block.
+            // convertToFunctionBlock retains the concise body's range on the
+            // return statement, its statement list and the block.
             self.context
                 .factory()?
                 .set_text_range(return_statement, body)?;
             let block = self.create_block(vec![return_statement], false)?;
             self.context.factory()?.set_text_range(block, body)?;
+            range_block_statements_to_body(self.context, block, body)?;
             self.prepend_function_prelude_to_block(block, bindings, initialization_statements)?
         } else {
             return Err(TransformError::RequiredChildRemoved {
@@ -8062,17 +8074,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// tsc-hash: 4e366a50034f7622b6496c16b631befe9559c33e38b453b94cdb0f7e2e1dc675
     /// tsc-span: _tsc.js:96567-96578
     ///
-    /// The receiver is cloned first (`cloneNode`: a synthesized node with no
-    /// text range that keeps the receiver's emit metadata and `original`);
-    /// an inlineable clone is read directly, any other receiver is stored
-    /// in a hoisted temp whose initializer holds the clone. Neither the temp
-    /// nor the clone maps to the source receiver: the visited receiver node
-    /// itself is never placed in the transformed expression.
+    /// The receiver is cloned first; tsgo's `Clone` keeps the receiver's
+    /// range (classfields.go:1269-1281), so the clone maps to the source
+    /// receiver. An inlineable clone is read directly, any other receiver is
+    /// stored in a hoisted temp whose initializer holds the clone. The
+    /// visited receiver node itself is never placed in the transformed
+    /// expression.
     fn stabilize_inline_receiver(
         &mut self,
         receiver: TransformNode,
     ) -> Result<StabilizedReceiver, TransformError> {
         let clone = self.context.factory()?.clone_node(receiver)?;
+        self.context.factory()?.set_text_range(clone, receiver)?;
         if self.is_simple_inlineable_expression(receiver)? {
             return Ok(StabilizedReceiver {
                 read: clone,
@@ -9493,7 +9506,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )
     }
 
-    /// The split default export uses getLocalName(false, true).
+    /// The split default export uses `GetLocalName`, which allows neither
+    /// comments nor source maps (classfields.go:1978-1982, printer/factory.go:
+    /// 496-528); tsc's getLocalName(false, true) mapped the name.
     ///
     /// tsc-port: getName @6.0.3
     /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
@@ -9508,10 +9523,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.context
                 .factory()?
                 .set_text_range(name, declaration_name)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(name)
-                .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::LOCAL_NAME);
+            self.context.arena_mut()?.metadata_mut(name).add_flags(
+                EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP | EmitFlags::LOCAL_NAME,
+            );
             name
         } else {
             self.create_identifier(local_name)?

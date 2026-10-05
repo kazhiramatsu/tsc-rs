@@ -1694,10 +1694,19 @@ impl<'context> TargetVisitor<'context> {
             // tsc-span: _tsc.js:91239-91276
             // Preserve name identity and the parameter's assignment/block
             // ranges while suppressing the moved initializer's own maps and
+            // comments. tsgo's two name clones keep the name's range
+            // (addDefaultValueAssignmentForInitializer, printer/emitcontext.go:
+            // 892-917): the check maps to the name, and both write its
             // comments.
             let condition_name = self.context.factory()?.clone_node(name)?;
+            self.context
+                .factory()?
+                .set_text_range(condition_name, name)?;
             let condition = self.create_strict_undefined_check(condition_name)?;
             let assignment_name = self.context.factory()?.clone_node(name)?;
+            self.context
+                .factory()?
+                .set_text_range(assignment_name, name)?;
             self.context
                 .arena_mut()?
                 .metadata_mut(assignment_name)
@@ -1798,6 +1807,15 @@ impl<'context> TargetVisitor<'context> {
                 .factory()?
                 .update_node(body, NodeData::Block(data), flags)?
         } else if concise_body && function_kind == SyntaxKind::ArrowFunction {
+            // VisitFunctionBody (printer/emitcontext.go:943-962): the concise
+            // body writes no comments of its own, and ConvertToFunctionBlock
+            // gives the return statement, its statement list and the block
+            // the body's range, so the block's `}` maps after the body and
+            // the comments there are written before it.
+            self.context
+                .arena_mut()?
+                .metadata_mut(body)
+                .add_flags(EmitFlags::NO_COMMENTS);
             let return_flags = self.child_flags(&[body])?
                 | TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
             let return_statement = self.context.factory()?.create_node(
@@ -1814,6 +1832,13 @@ impl<'context> TargetVisitor<'context> {
                 .context
                 .factory()?
                 .create_node_array(self.source, vec![return_statement])?;
+            let (pos, end) = {
+                let record = self.context.arena().node(body)?;
+                (record.pos, record.end)
+            };
+            self.context
+                .factory()?
+                .set_node_array_text_range(statements, pos, end)?;
             let block_flags = self.context.arena().array_transform_flags(statements);
             let block = self.context.factory()?.create_node(
                 self.source,
