@@ -4520,6 +4520,7 @@ impl<'a> CheckerState<'a> {
 
     /// One chooseOverload candidate body (76791-76868). The caller
     /// owns the transaction and applies bookkeeping after it resolves.
+    #[allow(clippy::too_many_arguments)] // The candidate, its call and the two modes of the trial.
     fn try_overload_candidate(
         &mut self,
         node: NodeId,

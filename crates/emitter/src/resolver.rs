@@ -1619,4 +1619,14 @@ mod node_builder_seam_tests;
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct UnavailableEmitResolver;
 
-impl EmitResolver for UnavailableEmitResolver {}
+impl EmitResolver for UnavailableEmitResolver {
+    /// The declaration transform marks the export targets of every file
+    /// before it visits a statement; a tree that reaches no semantic query
+    /// has none to mark.
+    fn precalculate_declaration_emit_visibility(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<(), EmitResolverError> {
+        Ok(())
+    }
+}

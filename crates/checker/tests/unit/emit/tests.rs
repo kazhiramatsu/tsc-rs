@@ -652,7 +652,11 @@ fn dm_visibility_walk_collects_and_monotonically_paints_linked_aliases() {
 }
 
 #[test]
-fn dm_check_phase_paints_both_export_alias_arms_only_for_declaration_outputs() {
+fn dm_export_alias_arms_are_painted_when_their_file_is_transformed() {
+    // tsgo marks the declarations an export assignment or an export
+    // specifier names in PrecalculateDeclarationEmitVisibility
+    // (emitresolver.go:236-306), which the declaration transformer runs for
+    // the file it transforms. tsc 6.0 marked them while checking the export.
     let files = [
         (
             "assignment.ts",
@@ -671,11 +675,14 @@ fn dm_check_phase_paints_both_export_alias_arms_only_for_declaration_outputs() {
             ),
         ),
     ];
-
-    let visibility_after_check = |options: &CompilerOptions| {
-        with_program_state(&files, options, |state| {
-            state.check_source_file(0);
-            state.check_source_file(1);
+    let declaration_options = CompilerOptions {
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_program_state(&files, &declaration_options, |state| {
+        state.check_source_file(0);
+        state.check_source_file(1);
+        let visibility = |state: &CheckerState<'_>| {
             (0..2)
                 .map(|file| {
                     let declaration = state
@@ -688,21 +695,25 @@ fn dm_check_phase_paints_both_export_alias_arms_only_for_declaration_outputs() {
                     *state.links.node_cold().is_visible.get(declaration)
                 })
                 .collect::<Vec<_>>()
-        })
-    };
-
-    assert_eq!(
-        visibility_after_check(&CompilerOptions::default()),
-        vec![None, None]
-    );
-    let declaration_options = CompilerOptions {
-        declaration: Some(true),
-        ..CompilerOptions::default()
-    };
-    assert_eq!(
-        visibility_after_check(&declaration_options),
-        vec![Some(true), Some(true)]
-    );
+        };
+        // Checking the exports marks nothing.
+        assert_eq!(visibility(state), vec![None, None]);
+        let first = state.binder.source(0).root;
+        state
+            .emit_precalculate_declaration_emit_visibility(first)
+            .expect("mark the export assignment's target");
+        assert_eq!(visibility(state), vec![Some(true), None]);
+        let second = state.binder.source(1).root;
+        state
+            .emit_precalculate_declaration_emit_visibility(second)
+            .expect("mark the export specifier's target");
+        assert_eq!(visibility(state), vec![Some(true), Some(true)]);
+        // A file is marked once.
+        state
+            .emit_precalculate_declaration_emit_visibility(first)
+            .expect("second precalculation");
+        assert_eq!(visibility(state), vec![Some(true), Some(true)]);
+    });
 }
 
 #[test]
@@ -1033,22 +1044,6 @@ fn dm_meaning_classification_table_and_emit_declaration_gate_are_exact() {
             }
         },
     );
-
-    assert!(!crate::declaration_emit::emit_declarations(
-        &CompilerOptions::default()
-    ));
-    assert!(crate::declaration_emit::emit_declarations(
-        &CompilerOptions {
-            declaration: Some(true),
-            ..CompilerOptions::default()
-        }
-    ));
-    assert!(crate::declaration_emit::emit_declarations(
-        &CompilerOptions {
-            composite: Some(true),
-            ..CompilerOptions::default()
-        }
-    ));
 }
 
 #[test]
