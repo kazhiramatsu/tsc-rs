@@ -1171,7 +1171,13 @@ fn module_specifier_is_relative(specifier: &tsc_types::JsString) -> bool {
 /// tsc-port: typeParametersToTypeParameterDeclarations @6.0.3
 /// tsc-hash: 786175bc645d5b5f91a1562f899b9b8448fcd88f0493fedca42d371ddafd0987
 /// tsc-span: _tsc.js:53018-53025
-fn type_parameters_to_type_parameter_declarations(
+///
+/// tsgo's version (checker/nodebuilderimpl.go:1696-1713) is the one ported:
+/// it tests `SymbolFlagsAlias` where tsc 6.0.3 tested `TypeAlias`, and it
+/// gives a function the type parameters of its declaration, which are those
+/// of its `@type` signature in JavaScript (getTypeParametersFromDeclaration,
+/// checker.go:20249-20258).
+pub(super) fn type_parameters_to_type_parameter_declarations(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
@@ -1179,13 +1185,21 @@ fn type_parameters_to_type_parameter_declarations(
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Option<Vec<TransformNode>>> {
     let target_symbol = checker.get_target_symbol(symbol);
-    if !checker
-        .symbol_flags(target_symbol)
-        .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE | SymbolFlags::TYPE_ALIAS)
+    let target_flags = checker.symbol_flags(target_symbol);
+    let parameters = if target_flags
+        .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE | SymbolFlags::ALIAS)
     {
+        checker.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)
+    } else if target_flags.intersects(SymbolFlags::FUNCTION) {
+        let Some(declaration) = checker.binder.symbol(symbol).value_declaration else {
+            return Ok(None);
+        };
+        checker
+            .get_type_parameters_from_declaration(declaration)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+    } else {
         return Ok(None);
-    }
-    let parameters = checker.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol);
+    };
     let mut declarations = Vec::with_capacity(parameters.len());
     for parameter in parameters {
         declarations.push(type_parameter_to_declaration(

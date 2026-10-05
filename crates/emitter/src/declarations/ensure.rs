@@ -489,8 +489,75 @@ impl DeclarationTransformer<'_> {
                     .visit_hosted_type_parameters(cx, owner, &tags)
                     .map(Some);
             }
+            if super::javascript::hosted_full_signature(cx, owner)?.is_some() {
+                return self.full_signature_type_params(cx, owner);
+            }
         }
         self.visit_type_node_array(cx, owner.source(), parameters, SyntaxKind::TypeParameter)
+    }
+
+    /// The type parameters of a JavaScript function whose signature a `@type`
+    /// tag gives: those of the tag's signature, from the node builder (tsgo
+    /// ensureTypeParams, transformers/declarations/transform.go:2366-2389).
+    /// The list has the function's range.
+    fn full_signature_type_params(
+        &mut self,
+        cx: &mut TransformationContext,
+        owner: TransformNode,
+    ) -> Result<Option<TransformNodeArray>, TransformError> {
+        let old_error_name =
+            std::mem::replace(&mut self.tracker.error_name_node, node_name(cx, owner)?);
+        let saved_diag = if self.tracker.suppress_new_diagnostic_contexts
+            || !can_produce_diagnostics(self.kind(cx, owner)?)
+        {
+            None
+        } else {
+            match self
+                .tracker
+                .replace_diagnostic_context(cx.arena(), DiagnosticContext::ForNode(owner))
+            {
+                Ok(saved) => Some(saved),
+                Err(error) => {
+                    self.tracker.error_name_node = old_error_name;
+                    return Err(error);
+                }
+            }
+        };
+        let result = (|| {
+            let declaration = self.required_resolver_node(cx, owner)?;
+            let enclosing = self.current_enclosing_resolver_node(cx)?;
+            let target = self.state()?.current_source_file;
+            let out = self
+                .resolver
+                .create_type_parameters_of_signature_declaration(
+                    cx.arena_mut()?,
+                    target,
+                    declaration,
+                    enclosing,
+                    EmitNodeBuilderFlags::DECLARATION_EMIT,
+                    EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                    &mut self.tracker,
+                )
+                .map_err(TransformError::from);
+            let effects = self.tracker.take_pending_effects();
+            materialize_effects(cx, self.host, effects)?;
+            let Some(nodes) = out? else {
+                return Ok(None);
+            };
+            let (pos, end) = {
+                let record = cx.arena().node(owner)?;
+                (record.pos, record.end)
+            };
+            let mut factory = cx.factory()?;
+            let list = factory.create_node_array(target, nodes)?;
+            factory.set_node_array_text_range(list, pos, end)?;
+            Ok(Some(list))
+        })();
+        self.tracker.error_name_node = old_error_name;
+        if let Some(saved) = saved_diag {
+            self.tracker.restore_diagnostic_context(saved);
+        }
+        result
     }
 
     /// tsc-port: ensureModifiers @6.0.3

@@ -1176,6 +1176,31 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn create_type_parameters_of_signature_declaration(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        signature_declaration: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, EmitResolverError> {
+        let method = EmitResolverMethod::CreateTypeParametersOfSignatureDeclaration;
+        let mut state = self.state.lock().expect("checker session state");
+        validate_resolver_node(&state, method, signature_declaration)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        state.emit_create_type_parameters_of_signature_declaration(
+            arena,
+            target,
+            signature_declaration.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
     fn create_type_of_expression(
         &self,
         arena: &mut tsc_emitter::TransformArena,
