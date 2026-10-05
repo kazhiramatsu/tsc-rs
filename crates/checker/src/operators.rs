@@ -2789,6 +2789,13 @@ impl<'a> CheckerState<'a> {
                         "__instantiationExpression",
                     ),
                 );
+                // tsgo getInstantiationExpressionType (checker.go:10893-10895)
+                // gives the symbol the declarations of the source type's
+                // symbol; the type order reads the first of them.
+                if let Some(source_symbol) = self.tables.type_of(ty).symbol {
+                    let declarations = self.binder.symbol(source_symbol).declarations.clone();
+                    self.binder.symbol_mut(symbol).declarations = declarations;
+                }
                 let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
