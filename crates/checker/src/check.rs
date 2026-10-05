@@ -8041,13 +8041,15 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-    /// trySymbolTable (50331-50360): the direct hit, then per entry —
-    /// in table order — the alias leg and the exportSymbol arm; an
-    /// alias leg that declines (or whose candidate walk misses) falls
-    /// through to the arm on the SAME entry before the next entry is
-    /// seen, tsc's single forEachEntry pass. If the globals table itself
-    /// misses, 50359 retries through globalThisSymbol's exports; that is
-    /// what makes a shadowed script-global type name serializable as
+    /// tsgo-port: Checker.trySymbolTable @7.1 (checker/symbolaccessibility.go:
+    /// 535-609): the direct hit; otherwise every candidate chain — the
+    /// name-matching local whose export slot is the symbol, and each alias
+    /// that is or reaches the symbol — and of those the shortest, the first
+    /// by `compareSymbols` among chains of one length. tsc 6.0 took the
+    /// first candidate in table order, so `import * as ns` written before
+    /// `import { T }` gave `ns.T`; tsgo gives `T`. If the globals table
+    /// itself misses, the lookup retries through globalThisSymbol's exports;
+    /// that is what makes a shadowed script-global type name serializable as
     /// `globalThis.A`.
     #[allow(clippy::too_many_arguments)]
     fn try_symbol_table(
@@ -8073,6 +8075,25 @@ impl<'a> CheckerState<'a> {
         )? {
             return Ok(Some(vec![symbol]));
         }
+        let mut candidates: Vec<Vec<SymbolId>> = Vec::new();
+        // The exportSymbol arm: a name-matching local whose export slot IS
+        // the symbol (the EXPORT_VALUE locals of containers.rs:566-591)
+        // yields the bare [symbol].
+        if let Some(export_symbol) =
+            direct.and_then(|direct| self.binder.symbol(direct).export_symbol)
+        {
+            let merged = self.get_merged_symbol(export_symbol);
+            if self.symbol_chain_is_accessible(
+                symbol,
+                Some(merged),
+                None,
+                meaning,
+                ignore_qualification,
+                enclosing,
+            )? {
+                candidates.push(vec![symbol]);
+            }
+        }
         for (name, &entry) in table.iter() {
             let alias_leg = self
                 .binder
@@ -8081,17 +8102,14 @@ impl<'a> CheckerState<'a> {
                 .intersects(tsc_types::SymbolFlags::ALIAS)
                 && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
                 && name != tsc_types::InternalSymbolName::DEFAULT
-                // The isUMDExportSymbol leg (50341): inside an
-                // external module the UMD global alias is excluded —
-                // r1 armed `enclosing` (the member faces re-enclose at
-                // the property declaration), so the filter is live.
-                // The useOnlyExternalAliasing half stays off: the
-                // error path passes false (52959).
+                // The isUMDExportSymbol leg: inside an external module the
+                // UMD global alias is excluded. The useOnlyExternalAliasing
+                // half stays off: the error path passes false.
                 && !(self.is_umd_export_symbol(entry)
                     && enclosing
                         .is_some_and(|enclosing| self.binder.is_external_module_of_node(enclosing)))
-                // isNamespaceReexportDeclaration (50341): `export * as
-                // ns from` — the only grammatical NamespaceExport.
+                // isNamespaceReexportDeclaration: `export * as ns from` —
+                // the only grammatical NamespaceExport.
                 && !(is_local_name_lookup
                     && self.symbol_has_declaration_of_kind(entry, SyntaxKind::NamespaceExport))
                 && (ignore_qualification
@@ -8107,33 +8125,33 @@ impl<'a> CheckerState<'a> {
                     visited,
                     enclosing,
                 )? {
-                    return Ok(Some(chain));
+                    candidates.push(chain);
                 }
             }
-            // The exportSymbol arm (50348-50357): a name-matching
-            // local whose export slot IS the symbol (the EXPORT_VALUE
-            // locals of containers.rs:566-591) yields the bare
-            // [symbol] before any LATER entry's alias leg can qualify
-            // it (per-entry order, probe C: `[s]`, not `[Self.s]`).
-            let export_symbol = {
-                let entry_symbol = self.binder.symbol(entry);
-                (entry_symbol.escaped_name == escaped)
-                    .then_some(entry_symbol.export_symbol)
-                    .flatten()
-            };
-            if let Some(export_symbol) = export_symbol {
-                let merged = self.get_merged_symbol(export_symbol);
-                if self.symbol_chain_is_accessible(
-                    symbol,
-                    Some(merged),
-                    None,
-                    meaning,
-                    ignore_qualification,
-                    enclosing,
-                )? {
-                    return Ok(Some(vec![symbol]));
-                }
-            }
+        }
+        if !candidates.is_empty() {
+            // "pick first, shortest": a stable sort's first element is the
+            // first minimum.
+            let order = crate::type_order::order_ctx!(self);
+            let best = candidates
+                .into_iter()
+                .min_by(|a, b| {
+                    a.len().cmp(&b.len()).then_with(|| {
+                        a.iter()
+                            .zip(b)
+                            .map(|(&a, &b)| {
+                                tsc_types::TypeOrderContext::compare_symbols(
+                                    &order,
+                                    Some(a),
+                                    Some(b),
+                                )
+                            })
+                            .find(|ordering| ordering.is_ne())
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                })
+                .expect("candidates is not empty");
+            return Ok(Some(best));
         }
         if table_key == ScopeTableKey::Globals {
             return self.candidate_list_for_symbol(
@@ -8640,19 +8658,59 @@ impl<'a> CheckerState<'a> {
         Ok(self.get_merged_symbol(resolved1) == self.get_merged_symbol(resolved2))
     }
 
+    /// tsgo-port: createAccessFromSymbolChain's lookup of a link's name in
+    /// its parent @7.1 (checker/nodebuilderimpl.go:770-793): the symbol's
+    /// own name when the parent's export of that name is the symbol;
+    /// otherwise, of the exports that are the symbol, the first by
+    /// `compareSymbols` — never `export=` or a late-bound `__@` key. tsc 6.0
+    /// took the first in table order, so a module that declares
+    /// `export default f` before it re-exports `f` named the link `default`.
+    pub(crate) fn exported_name_of_chain_link(
+        &mut self,
+        parent: SymbolId,
+        symbol: SymbolId,
+    ) -> CheckResult<Option<JsString>> {
+        let exports = self.get_exports_of_symbol(parent)?;
+        let own = self.binder.symbol(symbol).escaped_name;
+        let usable = |name: tsc_types::EscapedName| {
+            !name.starts_with("__@") && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
+        };
+        if usable(own) {
+            if let Some(&exported) = exports.get(own) {
+                if self.symbol_if_same_reference(exported, symbol)? {
+                    return Ok(Some(
+                        tsc_binder::unescape_leading_underscores(own).to_owned(),
+                    ));
+                }
+            }
+        }
+        let mut matches: Vec<(SymbolId, JsString)> = Vec::new();
+        for (name, &exported) in exports.iter() {
+            if usable(*name) && self.symbol_if_same_reference(exported, symbol)? {
+                matches.push((
+                    exported,
+                    tsc_binder::unescape_leading_underscores(name).to_owned(),
+                ));
+            }
+        }
+        let order = crate::type_order::order_ctx!(self);
+        Ok(matches
+            .into_iter()
+            .min_by(|(a, _), (b, _)| {
+                tsc_types::TypeOrderContext::compare_symbols(&order, Some(*a), Some(*b))
+            })
+            .map(|(_, name)| name))
+    }
+
     /// tsc-port: createAccessFromSymbolChain @6.0.3 (below-root naming)
     /// tsc-hash: 702a651dcc1e3cb163bfbcd065fcb88ceb8714e0dd9cb8bb6b81b452f1f3e757
     /// tsc-span: _tsc.js:53199-53251
     ///
-    /// A below-root link takes its NAME from the first entry of the
-    /// parent's resolved export table that same-references it,
-    /// skipping export= and late-bound `__@` keys (53210-53218) — NOT
-    /// from the link symbol itself (oracle-probed: `export { N as M }`
-    /// renders `typeof import("/b").M`; with both `export { N as M }`
-    /// and `export { N }` the FIRST table entry wins regardless of the
-    /// symbol's own name or the import path). The computed-name
-    /// fallback (53221-53228) and the parent-members IndexedAccess
-    /// face (53232-53238) need member-table parents that
+    /// A below-root link takes its NAME from the parent's resolved export
+    /// table (`exported_name_of_chain_link`) — NOT from the link symbol
+    /// itself (`export { N as M }` renders `typeof import("/b").M`). The
+    /// computed-name fallback (53221-53228) and the parent-members
+    /// IndexedAccess face (53232-53238) need member-table parents that
     /// module/namespace/alias links never have;
     /// getNameOfSymbolAsWritten (the symbol_display_name posture)
     /// closes the misses — including alias parents, whose unresolved
@@ -8664,14 +8722,8 @@ impl<'a> CheckerState<'a> {
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
     ) -> CheckResult<JsString> {
-        let exports = self.get_exports_of_symbol(parent)?;
-        for (name, &exported) in exports.iter() {
-            if self.symbol_if_same_reference(exported, symbol)?
-                && !name.starts_with("__@")
-                && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
-            {
-                return Ok(tsc_binder::unescape_leading_underscores(name).to_owned());
-            }
+        if let Some(name) = self.exported_name_of_chain_link(parent, symbol)? {
+            return Ok(name);
         }
         Ok(self.entity_symbol_name_as_written(
             symbol,

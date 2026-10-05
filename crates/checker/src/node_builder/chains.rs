@@ -1722,24 +1722,9 @@ fn exported_name_for_chain_link(
     symbol: SymbolId,
     context: &NodeBuilderContext<'_>,
 ) -> BuildResult<Option<JsString>> {
-    let exports = checker
-        .get_exports_of_symbol(parent)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    for (name, &exported) in exports.iter() {
-        let same_reference = checker
-            .get_symbol_if_same_reference(exported, symbol)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?
-            .is_some();
-        if same_reference
-            && !name.starts_with("__@")
-            && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
-        {
-            return Ok(Some(
-                tsc_binder::unescape_leading_underscores(name).to_owned(),
-            ));
-        }
-    }
-    Ok(None)
+    checker
+        .exported_name_of_chain_link(parent, symbol)
+        .map_err(|abort| checker_abort_error(checker, context, abort))
 }
 
 /// tsc-port: createAccessFromSymbolChain @6.0.3
