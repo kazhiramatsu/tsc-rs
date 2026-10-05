@@ -238,7 +238,16 @@ pub(crate) struct SyntacticTrackedEntityName {
 
 /// Owned cleanup returned by the checker-side `enterNewScope` callback.
 /// It captures exactly the context slots restored by
-/// `cloneNodeBuilderContext`, plus enclosing-declaration and mapper.
+/// `cloneNodeBuilderContext`, plus enclosing-declaration and mapper, and the
+/// fake scopes' locals.
+///
+/// tsgo's cleanup (checker/nodebuilderscopes.go:142-152, 243-252) removes
+/// every name the scope added to a fake scope it reused and puts back every
+/// name it replaced; a fake scope the scope created is dropped with the
+/// restored enclosing declaration. Either way the locals are as they were
+/// before the scope. (tsc 6.0 passed `Map.delete`/`Map.set` to its
+/// short-circuiting `forEach`, which undid only the first of each; a sibling
+/// conditional type's `infer _E` then became `_E_1`.)
 pub(crate) struct SyntacticScopeCleanup {
     enclosing_declaration: Option<tsc_syntax::NodeId>,
     enclosing_declaration_is_synthetic: bool,
@@ -256,17 +265,6 @@ pub(crate) struct SyntacticScopeCleanup {
     synthetic_type_params_scope_active: bool,
     synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
     fake_scopes: context::FakeScopeChain,
-    /// pushFakeScope("params") found a fake scope to reuse: an enclosing
-    /// signature's. Its cleanup is the short-circuiting one below.
-    reuses_synthetic_scope: bool,
-    /// pushFakeScope("typeParams") found a fake scope to reuse: an enclosing
-    /// GENERIC signature's. Otherwise the type-parameter locals form a fresh
-    /// scope that the cleanup drops entirely, as upstream drops its Block.
-    reuses_type_params_scope: bool,
-    first_new_parameter_local: Option<tsc_types::EscapedName>,
-    first_old_parameter_local: Option<(tsc_types::EscapedName, tsc_binder::SymbolId)>,
-    first_new_type_parameter_local: Option<tsc_types::EscapedName>,
-    first_old_type_parameter_local: Option<(tsc_types::EscapedName, tsc_binder::SymbolId, bool)>,
 }
 
 impl SyntacticScopeCleanup {
@@ -290,120 +288,11 @@ impl SyntacticScopeCleanup {
             synthetic_type_params_scope_active: context.synthetic_type_params_scope_active,
             synthetic_scope_kind: context.synthetic_scope_kind,
             fake_scopes: context.fake_scopes,
-            reuses_synthetic_scope: context.enclosing_declaration_is_synthetic,
-            reuses_type_params_scope: context.synthetic_type_params_scope_active,
-            first_new_parameter_local: None,
-            first_old_parameter_local: None,
-            first_new_type_parameter_local: None,
-            first_old_type_parameter_local: None,
-        }
-    }
-
-    fn record_local(
-        first_new: &mut Option<tsc_types::EscapedName>,
-        first_old: &mut Option<(tsc_types::EscapedName, tsc_binder::SymbolId)>,
-        name: &tsc_types::EscapedName,
-        old_symbol: Option<tsc_binder::SymbolId>,
-    ) {
-        // `enterNewScope` appends every changed local, but its cleanup passes
-        // `Map.delete`/`Map.set` directly to upstream's short-circuiting
-        // `forEach`. Consequently only the first new and first overwritten
-        // local are cleaned up. Preserve that observable scope topology.
-        if let Some(old_symbol) = old_symbol {
-            if first_old.is_none() {
-                *first_old = Some((name.to_owned(), old_symbol));
-            }
-        } else if first_new.is_none() {
-            *first_new = Some(name.to_owned());
-        }
-    }
-
-    /// tsrs-native: enterNewScope changed-local bookkeeping for parameter locals (see record_local).
-    pub(crate) fn record_parameter_local(
-        &mut self,
-        name: &tsc_types::EscapedName,
-        old_symbol: Option<tsc_binder::SymbolId>,
-    ) {
-        if self.reuses_synthetic_scope {
-            Self::record_local(
-                &mut self.first_new_parameter_local,
-                &mut self.first_old_parameter_local,
-                name,
-                old_symbol,
-            );
-        }
-    }
-
-    /// tsrs-native: enterNewScope changed-local bookkeeping for type-parameter locals (see record_local).
-    pub(crate) fn record_type_parameter_local(
-        &mut self,
-        name: &str,
-        old_symbol: Option<tsc_binder::SymbolId>,
-        old_was_type_parameter: bool,
-    ) {
-        // A fresh "typeParams" scope needs no bookkeeping: the cleanup drops
-        // every type-parameter local.
-        if self.reuses_type_params_scope {
-            let name = tsc_types::EscapedName::from_identifier_escaped_text(name);
-            if let Some(old_symbol) = old_symbol {
-                if self.first_old_type_parameter_local.is_none() {
-                    self.first_old_type_parameter_local =
-                        Some((name, old_symbol, old_was_type_parameter));
-                }
-            } else if self.first_new_type_parameter_local.is_none() {
-                self.first_new_type_parameter_local = Some(name);
-            }
         }
     }
 
     /// tsrs-native: scoped save/restore completion (upstream closure capture).
     pub(crate) fn restore(self, context: &mut NodeBuilderContext<'_>) {
-        let (synthetic_scope_locals, type_param_names) = if self.reuses_synthetic_scope {
-            let mut locals = context.synthetic_scope_locals.take().unwrap_or_default();
-            let mut names = std::mem::take(&mut context.synthetic_type_param_names);
-            if let Some(name) = self.first_new_parameter_local {
-                locals.remove(&name);
-            }
-            if let Some((name, symbol)) = self.first_old_parameter_local {
-                locals.insert(name, symbol);
-            }
-            if self.reuses_type_params_scope {
-                if let Some(name) = self.first_new_type_parameter_local {
-                    locals.remove(&name);
-                    names.retain(|candidate| *candidate != name);
-                }
-                if let Some((name, symbol, old_was_type_parameter)) =
-                    self.first_old_type_parameter_local
-                {
-                    locals.insert(name, symbol);
-                    if !old_was_type_parameter {
-                        names.retain(|candidate| *candidate != name);
-                    }
-                }
-            } else {
-                // The signature created the "typeParams" fake scope: upstream
-                // drops that Block with everything nested signatures leaked
-                // into it, while the reused "params" scope keeps its locals.
-                for name in names.drain(..) {
-                    match self
-                        .synthetic_scope_locals
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.get(&name))
-                    {
-                        Some(&symbol) => {
-                            locals.insert(name, symbol);
-                        }
-                        None => {
-                            locals.remove(&name);
-                        }
-                    }
-                }
-                names = self.synthetic_type_param_names;
-            }
-            (Some(locals), names)
-        } else {
-            (self.synthetic_scope_locals, self.synthetic_type_param_names)
-        };
         context.enclosing_declaration = self.enclosing_declaration;
         context.enclosing_declaration_is_synthetic = self.enclosing_declaration_is_synthetic;
         context.mapper = self.mapper;
@@ -416,8 +305,8 @@ impl SyntacticScopeCleanup {
         context.type_parameter_names_by_text = self.type_parameter_names_by_text;
         context.type_parameter_names_by_text_next_name_count =
             self.type_parameter_names_by_text_next_name_count;
-        context.synthetic_scope_locals = synthetic_scope_locals;
-        context.synthetic_type_param_names = type_param_names;
+        context.synthetic_scope_locals = self.synthetic_scope_locals;
+        context.synthetic_type_param_names = self.synthetic_type_param_names;
         context.synthetic_type_params_scope_active = self.synthetic_type_params_scope_active;
         context.synthetic_scope_kind = self.synthetic_scope_kind;
         context.fake_scopes = self.fake_scopes;

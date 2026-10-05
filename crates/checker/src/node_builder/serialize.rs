@@ -2535,7 +2535,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         node: TransformNode,
     ) -> Result<SyntacticScopeCleanup, EmitResolverError> {
         let node = self.parse_node(arena, node)?;
-        let mut cleanup = SyntacticScopeCleanup::capture(context);
+        let cleanup = SyntacticScopeCleanup::capture(context);
         if node_util::is_function_like_kind(self.checker.kind_of(node))
             || self.checker.kind_of(node) == SyntaxKind::JSDocSignature
         {
@@ -2555,11 +2555,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             if context.enclosing_declaration_is_synthetic {
                 for &parameter in &signature.parameters {
                     for (name, symbol) in parameter_scope_symbols(self.checker, parameter) {
-                        let old_symbol = context
-                            .synthetic_scope_locals
-                            .as_ref()
-                            .and_then(|locals| locals.get(&name).copied());
-                        cleanup.record_parameter_local(&name, old_symbol);
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(rustc_hash::FxHashMap::default)
@@ -2583,18 +2578,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         self.checker.tables.type_of(type_parameter).symbol,
                         &arena.node(name).map_err(factory_error)?.data,
                     ) {
-                        let old_symbol = context
-                            .synthetic_scope_locals
-                            .as_ref()
-                            .and_then(|locals| locals.get(&data.escaped_text).copied());
-                        let old_was_type_parameter = context
-                            .synthetic_type_param_names
-                            .contains(&data.escaped_text);
-                        cleanup.record_type_parameter_local(
-                            data.escaped_text.identifier_text(),
-                            old_symbol,
-                            old_was_type_parameter,
-                        );
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(rustc_hash::FxHashMap::default)
@@ -2619,11 +2602,13 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 }
             }
         } else {
+            // nodecopy.go:842-846: a conditional type's `infer` type
+            // parameters, a mapped type's own type parameter.
             let type_parameters = if self.checker.kind_of(node) == SyntaxKind::ConditionalType {
                 self.checker.get_infer_type_parameters(node)
             } else {
                 match self.checker.data_of(node) {
-                    NodeData::InferType(data) => data
+                    NodeData::MappedType(data) => data
                         .type_parameter
                         .and_then(|type_parameter| self.checker.node_symbol(type_parameter))
                         .map(|symbol| {
@@ -2650,18 +2635,6 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         self.checker.tables.type_of(type_parameter).symbol,
                         &arena.node(name).map_err(factory_error)?.data,
                     ) {
-                        let old_symbol = context
-                            .synthetic_scope_locals
-                            .as_ref()
-                            .and_then(|locals| locals.get(&data.escaped_text).copied());
-                        let old_was_type_parameter = context
-                            .synthetic_type_param_names
-                            .contains(&data.escaped_text);
-                        cleanup.record_type_parameter_local(
-                            data.escaped_text.identifier_text(),
-                            old_symbol,
-                            old_was_type_parameter,
-                        );
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(rustc_hash::FxHashMap::default)
