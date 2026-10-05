@@ -111,10 +111,21 @@ impl ClassBinding {
     }
 }
 
+/// Where a generated binding is declared. tsgo decides between a `var` of
+/// the variable environment and a `let` of the lexical environment
+/// (`AddVariableDeclaration` / `AddLexicalDeclaration`,
+/// printer/emitcontext.go:164-172, 237-242); the innermost lexical
+/// environment is the body of a loop or, outside one, the function body or
+/// the source file.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum LexicalBindingOwner {
+    /// `var` of the enclosing function or source file.
     Hoisted,
+    /// `let` at the start of the enclosing loop body.
     CurrentLoop,
+    /// `let` after the hoisted `var` statement of the enclosing function
+    /// or source file.
+    CurrentFunction,
 }
 
 #[derive(Debug)]
@@ -128,13 +139,26 @@ struct ClassGeneratedBindings(Vec<PlannedTargetBinding>);
 
 impl ClassGeneratedBindings {
     fn is_empty(&self) -> bool {
-        !self.has_hoisted_declarations()
+        !self.has_hoisted_declarations() && !self.has_lexical_declarations()
     }
 
     fn has_hoisted_declarations(&self) -> bool {
         self.0
             .iter()
             .any(|binding| binding.owner == LexicalBindingOwner::Hoisted)
+    }
+
+    fn has_lexical_declarations(&self) -> bool {
+        self.0
+            .iter()
+            .any(|binding| binding.owner == LexicalBindingOwner::CurrentFunction)
+    }
+
+    fn lexical_bindings(&self) -> impl Iterator<Item = &TargetBinding> {
+        self.0
+            .iter()
+            .filter(|binding| binding.owner == LexicalBindingOwner::CurrentFunction)
+            .map(|binding| &binding.binding)
     }
 
     fn bindings(&self) -> &[PlannedTargetBinding] {
@@ -307,6 +331,9 @@ struct PrivateEnvironment {
     is_legacy_decorated: bool,
     /// Captured before any later class-expression sequencing fallback temp.
     has_class_facts: bool,
+    /// `WillHoistInitializersToConstructor`: the constructor receives the
+    /// instance initializers of the class.
+    will_hoist_initializers_to_constructor: bool,
 }
 
 #[derive(Clone)]
@@ -916,12 +943,6 @@ impl OriginalTreeOwnership {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum InlineSequencePlacement {
-    ExistingListContext,
-    RequiresParentheses,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct StatementExpansionOwner(NodeId);
 
 #[derive(Clone, Debug)]
@@ -1005,6 +1026,9 @@ struct DownlevelClassVisitor<'context, 'resolver, 'aliases> {
     /// suffix (computed auto-accessor names), by backing node.
     generated_private_temp_backings: BTreeMap<NodeId, &'static str>,
     generated_auto_accessor_pairs: BTreeMap<NodeId, NodeId>,
+    /// The name a generated auto-accessor setter receives, recorded when its
+    /// getter cached the computed name (`stabilize_auto_accessor_member_name`).
+    stabilized_auto_accessor_setter_names: BTreeMap<NodeId, NodeId>,
     assigned_class_names: BTreeMap<NodeId, AssignedClassName>,
     /// The root this pass started from, and the parent table of its tree,
     /// collected on first use (see [`Self::tree_ownership`]).
@@ -1019,7 +1043,32 @@ struct DownlevelClassVisitor<'context, 'resolver, 'aliases> {
     /// `NeedsSubstitutionForThisInClassStaticField` was reached by a class:
     /// the transformer enables the print-time `this` substitution.
     static_this_substitution_needed: bool,
+    /// tsgo's `inIterationStatement` (estransforms/classfields.go:117): set
+    /// for the body of a `for` statement and for every child of the other
+    /// iteration statements, cleared for a function declaration or
+    /// expression, for a method, accessor or constructor outside a class
+    /// member list and for a private method lowered to a function. An arrow
+    /// function and the members of a class keep it.
+    in_iteration_statement: bool,
+    /// Whether each class being lowered is a class expression, innermost
+    /// last (the kind of tsgo's `currentClassContainer`).
+    class_expression_containers: Vec<bool>,
+    /// Set while the parameters of a constructor are visited ahead of the
+    /// constructor's scope (`visit_parameters_in_enclosing_environment`);
+    /// cleared inside every function scope that starts meanwhile.
+    parameters_in_enclosing_environment: bool,
+    /// The declarations and initialization statements of the visited
+    /// constructor of a class that hoists initializers, by the depth of the
+    /// class. tsgo visits the initializers and then the statements of the
+    /// body in one variable environment (transformConstructorBody,
+    /// estransforms/classfields.go:2520-2600), so their temps share one
+    /// `var` statement; tsc 6.0.3 visited the constructor first and wrote
+    /// two.
+    deferred_constructor_preludes: BTreeMap<usize, ConstructorPrelude>,
 }
+
+/// What `install_function_bindings` writes at the head of a function body.
+type ConstructorPrelude = (ClassGeneratedBindings, Vec<TransformNode>);
 
 impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, 'aliases> {
     #[allow(clippy::too_many_arguments)]
@@ -1056,6 +1105,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             generated_auto_accessor_backings: BTreeSet::new(),
             generated_private_temp_backings: BTreeMap::new(),
             generated_auto_accessor_pairs: BTreeMap::new(),
+            stabilized_auto_accessor_setter_names: BTreeMap::new(),
             assigned_class_names: BTreeMap::new(),
             root,
             tree_ownership: OnceCell::new(),
@@ -1063,7 +1113,39 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             emit_environments: Vec::new(),
             static_emit_environments,
             static_this_substitution_needed: false,
+            in_iteration_statement: false,
+            class_expression_containers: Vec::new(),
+            parameters_in_enclosing_environment: false,
+            deferred_constructor_preludes: BTreeMap::new(),
         }
+    }
+
+    /// tsgo-port: classFieldsTransformer.requiresBlockScopedVar @7.1
+    /// (estransforms/classfields.go:195-201): the temps of a class expression
+    /// inside an iteration statement are block-scoped. tsc 6.0.3 read the
+    /// checker's `BlockScopedBindingInLoop` flag, which only an instance
+    /// computed name, a private name and their class carried.
+    fn requires_block_scoped_var(&self) -> bool {
+        self.in_iteration_statement && self.class_expression_containers.last() == Some(&true)
+    }
+
+    fn block_scoped_binding_owner(&self) -> LexicalBindingOwner {
+        if self.requires_block_scoped_var() {
+            LexicalBindingOwner::CurrentLoop
+        } else {
+            LexicalBindingOwner::Hoisted
+        }
+    }
+
+    fn with_iteration_statement<T>(
+        &mut self,
+        in_iteration_statement: bool,
+        operation: impl FnOnce(&mut Self) -> Result<T, TransformError>,
+    ) -> Result<T, TransformError> {
+        let saved = std::mem::replace(&mut self.in_iteration_statement, in_iteration_statement);
+        let result = operation(self);
+        self.in_iteration_statement = saved;
+        result
     }
 
     /// Enter the emit-time environment of the class whose private
@@ -1366,13 +1448,61 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(())
     }
 
+    /// A function reached through the main visitor. tsgo clears
+    /// `inIterationStatement` for a function declaration or expression and
+    /// for a method, accessor or constructor that is not a class member
+    /// (classFieldsTransformer.visit, estransforms/classfields.go:333-336);
+    /// an arrow function keeps it.
     fn visit_function_scope(
         &mut self,
         original: TransformNode,
         data: NodeData,
         captures_static_bindings: bool,
     ) -> Result<NodeId, TransformError> {
-        let _loop_binding_boundary = self.loop_binding_scopes.enter_function_boundary();
+        if matches!(data, NodeData::ArrowFunction(_)) {
+            return self.visit_function_scope_worker(original, data, captures_static_bindings);
+        }
+        self.with_iteration_statement(false, |visitor| {
+            visitor.visit_function_scope_worker(original, data, captures_static_bindings)
+        })
+    }
+
+    fn visit_function_scope_worker(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+        captures_static_bindings: bool,
+    ) -> Result<NodeId, TransformError> {
+        // The name of a method or accessor is visited before the function's
+        // scope starts: tsgo's VisitEachChild of ast.MethodDeclaration and the
+        // accessors visits the name before visitParameters starts the
+        // variable environment (tsc's visitEachChild does the same), so the
+        // temps of a computed name are declared in the enclosing scope. The
+        // visit is remembered, and the children pass below reuses it.
+        let name = match &data {
+            NodeData::MethodDeclaration(data) => data.name,
+            NodeData::GetAccessor(data) => data.name,
+            NodeData::SetAccessor(data) => data.name,
+            _ => None,
+        };
+        if let Some(name) = name {
+            self.visit(name)?;
+        }
+        let (transformed, (bindings, initialization_statements)) =
+            self.visit_function_scope_parts(original, data, captures_static_bindings)?;
+        self.install_function_bindings(self.node(transformed), bindings, initialization_statements)
+            .map(TransformNode::node)
+    }
+
+    /// Visits a function in a scope of its own and returns it with the
+    /// declarations and initialization statements its body still has to
+    /// receive.
+    fn visit_function_scope_parts(
+        &mut self,
+        original: TransformNode,
+        data: NodeData,
+        captures_static_bindings: bool,
+    ) -> Result<(NodeId, ConstructorPrelude), TransformError> {
         let _static_binding_scope = (!captures_static_bindings).then(|| {
             self.static_binding_frames
                 .enter(StaticBindingFrame::FunctionBoundary)
@@ -1396,12 +1526,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let lexical_environment = lexical_environment?;
         debug_assert!(lexical_environment.variable_declarations().is_empty());
         debug_assert!(lexical_environment.function_declarations().is_empty());
-        self.install_function_bindings(
-            self.node(transformed),
-            bindings,
-            lexical_environment.initialization_statements().to_vec(),
-        )
-        .map(TransformNode::node)
+        Ok((
+            transformed,
+            (
+                bindings,
+                lexical_environment.initialization_statements().to_vec(),
+            ),
+        ))
     }
 
     fn visit_expression_statement(
@@ -1444,9 +1575,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         mut data: tsc_syntax::nodes::ForInStatementData,
     ) -> Result<NodeId, TransformError> {
-        data.initializer = self.visit_optional_node(data.initializer)?;
-        data.expression = self.visit_optional_node(data.expression)?;
-        data.statement = self.visit_iteration_body(data.statement, SyntaxKind::ForInStatement)?;
+        // tsgo visits every child of a `for`-`in`, `for`-`of`, `while` or
+        // `do` statement with `inIterationStatement` set
+        // (estransforms/classfields.go:329-330); only the body of a `for`
+        // statement is (visitForStatement, 1243-1253).
+        self.with_iteration_statement(true, |visitor| {
+            data.initializer = visitor.visit_optional_node(data.initializer)?;
+            data.expression = visitor.visit_optional_node(data.expression)?;
+            data.statement =
+                visitor.visit_iteration_body(data.statement, SyntaxKind::ForInStatement)?;
+            Ok(())
+        })?;
         self.update_contextual_node(original, NodeData::ForInStatement(data))
             .map(TransformNode::node)
     }
@@ -1456,10 +1595,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         mut data: tsc_syntax::nodes::ForOfStatementData,
     ) -> Result<NodeId, TransformError> {
-        data.await_modifier = self.visit_optional_node(data.await_modifier)?;
-        data.initializer = self.visit_optional_node(data.initializer)?;
-        data.expression = self.visit_optional_node(data.expression)?;
-        data.statement = self.visit_iteration_body(data.statement, SyntaxKind::ForOfStatement)?;
+        self.with_iteration_statement(true, |visitor| {
+            data.await_modifier = visitor.visit_optional_node(data.await_modifier)?;
+            data.initializer = visitor.visit_optional_node(data.initializer)?;
+            data.expression = visitor.visit_optional_node(data.expression)?;
+            data.statement =
+                visitor.visit_iteration_body(data.statement, SyntaxKind::ForOfStatement)?;
+            Ok(())
+        })?;
         self.update_contextual_node(original, NodeData::ForOfStatement(data))
             .map(TransformNode::node)
     }
@@ -1469,8 +1612,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         mut data: tsc_syntax::nodes::WhileStatementData,
     ) -> Result<NodeId, TransformError> {
-        data.expression = self.visit_optional_node(data.expression)?;
-        data.statement = self.visit_iteration_body(data.statement, SyntaxKind::WhileStatement)?;
+        self.with_iteration_statement(true, |visitor| {
+            data.expression = visitor.visit_optional_node(data.expression)?;
+            data.statement =
+                visitor.visit_iteration_body(data.statement, SyntaxKind::WhileStatement)?;
+            Ok(())
+        })?;
         self.update_contextual_node(original, NodeData::WhileStatement(data))
             .map(TransformNode::node)
     }
@@ -1480,8 +1627,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         mut data: tsc_syntax::nodes::DoStatementData,
     ) -> Result<NodeId, TransformError> {
-        data.statement = self.visit_iteration_body(data.statement, SyntaxKind::DoStatement)?;
-        data.expression = self.visit_optional_node(data.expression)?;
+        self.with_iteration_statement(true, |visitor| {
+            data.statement =
+                visitor.visit_iteration_body(data.statement, SyntaxKind::DoStatement)?;
+            data.expression = visitor.visit_optional_node(data.expression)?;
+            Ok(())
+        })?;
         self.update_contextual_node(original, NodeData::DoStatement(data))
             .map(TransformNode::node)
     }
@@ -1496,7 +1647,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         };
         let loop_scope = self.loop_binding_scopes.enter_iteration();
         let visited = self
-            .visit(statement)?
+            .with_iteration_statement(true, |visitor| visitor.visit(statement))?
             .map(|statement| self.node(statement))
             .ok_or(TransformError::RequiredChildRemoved {
                 parent,
@@ -1706,11 +1857,32 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(expression.node())
     }
 
+    /// Visit a parameter list without the parameter environment: nothing is
+    /// recorded as hoisted in parameters, so no initializer is lowered. The
+    /// visits are remembered, and the function's own pass reuses them.
+    fn visit_parameters_in_enclosing_environment(
+        &mut self,
+        parameters: Option<NodeArrayId>,
+    ) -> Result<(), TransformError> {
+        let saved = std::mem::replace(&mut self.parameters_in_enclosing_environment, true);
+        let result = (|| {
+            for parameter in self.array_nodes(parameters)? {
+                self.visit(parameter.node())?;
+            }
+            Ok(())
+        })();
+        self.parameters_in_enclosing_environment = saved;
+        result
+    }
+
     fn visit_parameter(
         &mut self,
         original: TransformNode,
         data: tsc_syntax::nodes::ParameterData,
     ) -> Result<NodeId, TransformError> {
+        if self.parameters_in_enclosing_environment {
+            return self.update_generic(original, NodeData::Parameter(data));
+        }
         let was_in_parameters = self
             .context
             .lexical_environment_flags()
@@ -1945,9 +2117,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         owner: GeneratedBindingOwner,
         operation: impl FnOnce(&mut Self) -> Result<T, TransformError>,
     ) -> Result<(T, ClassGeneratedBindings), TransformError> {
+        // A function body (and the function a static block becomes) starts a
+        // lexical environment of its own (tsgo StartVariableEnvironment,
+        // printer/emitcontext.go:109-112): a block-scoped temp requested
+        // inside is declared there, not in a loop around the function.
+        let loop_binding_boundary = self.loop_binding_scopes.enter_function_boundary();
+        let parameters_in_enclosing_environment =
+            std::mem::replace(&mut self.parameters_in_enclosing_environment, false);
         let (previous, scope) = self.generated_bindings.enter(owner);
         self.generated_binding_frames.push(Vec::new());
         let result = operation(self);
+        self.parameters_in_enclosing_environment = parameters_in_enclosing_environment;
+        drop(loop_binding_boundary);
         let planned_bindings = self.generated_bindings.exit(previous, scope);
         let bindings = ClassGeneratedBindings(
             self.generated_binding_frames
@@ -2112,10 +2293,23 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.context.factory()?.update_node_array(original, members)
     }
 
+    /// tsgo visitInNewClassLexicalEnvironment (estransforms/classfields.go:1835-1886)
+    /// makes the class the current container for the whole visit.
+    fn visit_class_declaration(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ClassDeclarationData,
+    ) -> Result<NodeId, TransformError> {
+        self.class_expression_containers.push(false);
+        let result = self.visit_class_declaration_in_container(original, data);
+        self.class_expression_containers.pop();
+        result
+    }
+
     /// tsc-port: visitClassDeclarationInNewClassLexicalEnvironment @6.0.3
     /// tsc-hash: 07a4943badefc9b5d6d774a2d04dac4f3803e24852f8410d2bb735feef6fd6d7
     /// tsc-span: _tsc.js:96971-97045
-    fn visit_class_declaration(
+    fn visit_class_declaration_in_container(
         &mut self,
         original: TransformNode,
         mut data: tsc_syntax::nodes::ClassDeclarationData,
@@ -2201,8 +2395,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         private_environment.has_class_facts = private_environment.is_legacy_decorated
             || reference_plan.needs_identity()
             || class_facts.will_hoist_initializers_to_constructor;
+        private_environment.will_hoist_initializers_to_constructor =
+            class_facts.will_hoist_initializers_to_constructor;
         private_environment.class_this = class_this;
-        data.members = self.stabilize_auto_accessor_names(data.members)?;
         if !self.selectively_transforms_private_static_elements() {
             if let Some(alias) = private_environment.class_alias.as_ref() {
                 self.register_class_alias(original, alias)?;
@@ -2241,6 +2436,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 data.members,
             )?
         } else {
+            self.install_deferred_constructor_prelude(&mut retained)?;
             None
         };
         self.install_private_static_pending_block(
@@ -2304,10 +2500,21 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(class.node())
     }
 
+    fn visit_class_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ClassExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        self.class_expression_containers.push(true);
+        let result = self.visit_class_expression_in_container(original, data);
+        self.class_expression_containers.pop();
+        result
+    }
+
     /// tsc-port: visitClassExpressionInNewClassLexicalEnvironment @6.0.3
     /// tsc-hash: 5885e805a286e1451a1c60771127ff84a6c108f88522eb2f90901c2703763319
     /// tsc-span: _tsc.js:97049-97129
-    fn visit_class_expression(
+    fn visit_class_expression_in_container(
         &mut self,
         original: TransformNode,
         mut data: tsc_syntax::nodes::ClassExpressionData,
@@ -2315,7 +2522,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let _static_binding_scope = self
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
-        let class_temp_plan = self.class_temp_plan(original)?;
+        let class_temp_plan = self.class_temp_plan(data.members)?;
         let mut class_facts = self.scan_class_facts(data.members)?;
         // getClassFacts (_tsc.js:96960-96962): `isAutoAccessorPropertyDeclaration(member)
         // && shouldTransformAutoAccessors === True && !node.name && !node.emitNode?.classThis`
@@ -2428,8 +2635,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         private_environment.has_class_facts = private_environment.is_legacy_decorated
             || reference_plan.needs_identity()
             || class_facts.will_hoist_initializers_to_constructor;
+        private_environment.will_hoist_initializers_to_constructor =
+            class_facts.will_hoist_initializers_to_constructor;
         private_environment.class_this = class_this;
-        data.members = self.stabilize_auto_accessor_names(data.members)?;
         let private_expression_binding = private_environment.class_alias.clone();
         let emit_environment = self.push_static_emit_environment(&private_environment);
         self.private_environments.push(private_environment);
@@ -2477,6 +2685,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 data.members,
             )?
         } else {
+            self.install_deferred_constructor_prelude(&mut retained)?;
             None
         };
         self.install_private_static_pending_block(
@@ -2672,7 +2881,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }
         }
         expressions.push(self.create_binding_identifier(&binding)?);
-        let expression = self.inline_class_expression(expressions, class, original)?;
+        let expression = self.inline_class_expression(expressions, class)?;
         Ok(expression.node())
     }
 
@@ -3214,7 +3423,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         expressions: Vec<TransformNode>,
         class: TransformNode,
-        original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         self.context
             .arena_mut()?
@@ -3226,58 +3434,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .metadata_mut(*expression)
                 .set_starts_on_new_line(true);
         }
-        let expression = self.inline_expressions(expressions)?;
-        if self.inline_sequence_placement(original)? == InlineSequencePlacement::ExistingListContext
-        {
-            Ok(expression)
-        } else {
-            self.create_parenthesized(expression)
-        }
-    }
-
-    fn inline_sequence_placement(
-        &self,
-        original: TransformNode,
-    ) -> Result<InlineSequencePlacement, TransformError> {
-        let mut current = original.node();
-        while let Some(parent) = self.tree_ownership()?.unique_parent(current) {
-            let parent_node = self
-                .context
-                .arena()
-                .node_ref(self.source, parent)
-                .ok_or_else(|| TransformError::UnknownNode(self.node(parent)))?;
-            let record = self.context.arena().node(parent_node)?;
-            match &record.data {
-                NodeData::ParenthesizedExpression(_)
-                | NodeData::ReturnStatement(_)
-                | NodeData::ArrowFunction(_) => {
-                    return Ok(InlineSequencePlacement::ExistingListContext);
-                }
-                // Preserve the erased wrapper's range: its enclosing factory
-                // must put any grammar parentheses around the whole wrapper,
-                // not around this synthetic comma sequence inside it.
-                NodeData::PartiallyEmittedExpression(_) => {
-                    return Ok(InlineSequencePlacement::ExistingListContext);
-                }
-                NodeData::BinaryExpression(data) => {
-                    let operator = data
-                        .operator_token
-                        .and_then(|operator| self.context.arena().node_ref(self.source, operator))
-                        .map(|operator| self.context.arena().node(operator).map(|node| node.kind))
-                        .transpose()?;
-                    if matches!(
-                        operator,
-                        Some(SyntaxKind::EqualsToken | SyntaxKind::CommaToken)
-                    ) {
-                        current = parent;
-                    } else {
-                        return Ok(InlineSequencePlacement::RequiresParentheses);
-                    }
-                }
-                _ => return Ok(InlineSequencePlacement::RequiresParentheses),
-            }
-        }
-        Ok(InlineSequencePlacement::RequiresParentheses)
+        // The sequence is returned without parentheses: the printer writes
+        // the ones a context needs from its precedence, as tsgo's
+        // emitExpression does (printer/printer.go:3222-3226), so the
+        // condition of an `if` or a `throw` operand gets none.
+        self.inline_expressions(expressions)
     }
 
     /// tsc-port: transformClassFields.shouldTransformAutoAccessorsInCurrentClass @6.0.3
@@ -3452,98 +3613,40 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         ))
     }
 
-    /// Stabilize the shared name of each generated auto-accessor pair after
-    /// the class lexical environment has allocated its receiver/super aliases.
-    /// Upstream performs this in `transformAutoAccessor`: the getter owns the
-    /// single key evaluation and the setter reads the same generated binding.
-    /// Delaying allocation until this boundary also preserves generated-name
-    /// order relative to the class alias selected by the private environment.
-    fn stabilize_auto_accessor_names(
+    /// Gives the getter and the setter of a generated auto-accessor pair
+    /// their names when the member loop reaches them. tsgo caches a computed
+    /// name in `transformAutoAccessor` (estransforms/classfields.go:839-857),
+    /// that is, when the class element visitor reaches the accessor: the temp
+    /// is declared after those of the members before it and before those its
+    /// own name expression needs.
+    fn stabilize_auto_accessor_member_name(
         &mut self,
-        members: Option<NodeArrayId>,
-    ) -> Result<Option<NodeArrayId>, TransformError> {
-        let Some(members) = members else {
-            return Ok(None);
-        };
-        let original_array = self.array(members);
-        let mut nodes = self.array_nodes(Some(members))?;
-        let positions = nodes
-            .iter()
-            .enumerate()
-            .map(|(index, node)| (node.node(), index))
-            .collect::<BTreeMap<_, _>>();
-
-        for getter_index in 0..nodes.len() {
-            let getter = nodes[getter_index];
-            let Some(setter_id) = self.generated_auto_accessor_pairs.remove(&getter.node()) else {
-                continue;
-            };
-            let setter_index =
-                positions
-                    .get(&setter_id)
-                    .copied()
-                    .ok_or(TransformError::RequiredChildRemoved {
-                        parent: SyntaxKind::PropertyDeclaration,
-                        field: "expanded auto-accessor setter",
-                    })?;
-            let setter = nodes[setter_index];
-            let NodeData::GetAccessor(mut getter_data) =
-                self.context.arena().node(getter)?.data.clone()
-            else {
-                return Err(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::PropertyDeclaration,
-                    field: "expanded auto-accessor getter",
-                });
-            };
-            let NodeData::SetAccessor(mut setter_data) =
-                self.context.arena().node(setter)?.data.clone()
-            else {
-                return Err(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::PropertyDeclaration,
-                    field: "expanded auto-accessor setter",
-                });
-            };
-            let name = getter_data
-                .name
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::GetAccessor,
-                    field: "name",
-                })?;
-            let (getter_name, setter_name) = self.stabilize_auto_accessor_name(name)?;
-            getter_data.name = Some(getter_name);
-            setter_data.name = Some(setter_name);
-
-            let getter_node_data = NodeData::GetAccessor(getter_data);
-            let getter_flags = flags_after_update(self.context.arena(), getter, &getter_node_data)?;
-            let updated_getter =
-                self.context
-                    .factory()?
-                    .update_node(getter, getter_node_data, getter_flags)?;
-            let setter_node_data = NodeData::SetAccessor(setter_data);
-            let setter_flags = flags_after_update(self.context.arena(), setter, &setter_node_data)?;
-            let updated_setter =
-                self.context
-                    .factory()?
-                    .update_node(setter, setter_node_data, setter_flags)?;
-
-            if self.generated_static_auto_accessors.remove(&getter.node()) {
-                self.generated_static_auto_accessors
-                    .insert(updated_getter.node());
+        member: TransformNode,
+        mut data: NodeData,
+    ) -> Result<NodeData, TransformError> {
+        match &mut data {
+            NodeData::GetAccessor(getter) => {
+                let setter = self.generated_auto_accessor_pairs.remove(&member.node());
+                if let (Some(setter), Some(name)) = (setter, getter.name) {
+                    let (getter_name, setter_name) = self.stabilize_auto_accessor_name(name)?;
+                    getter.name = Some(getter_name);
+                    if setter_name != name {
+                        self.stabilized_auto_accessor_setter_names
+                            .insert(setter, setter_name);
+                    }
+                }
             }
-            if self.generated_static_auto_accessors.remove(&setter.node()) {
-                self.generated_static_auto_accessors
-                    .insert(updated_setter.node());
+            NodeData::SetAccessor(setter) => {
+                if let Some(name) = self
+                    .stabilized_auto_accessor_setter_names
+                    .remove(&member.node())
+                {
+                    setter.name = Some(name);
+                }
             }
-            nodes[getter_index] = updated_getter;
-            nodes[setter_index] = updated_setter;
+            _ => {}
         }
-
-        Ok(Some(
-            self.context
-                .factory()?
-                .update_node_array(original_array, nodes)?
-                .array(),
-        ))
+        Ok(data)
     }
 
     /// tsc-port: transformAutoAccessor.computedNameBranch @6.0.3
@@ -3577,7 +3680,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok((name, setter_name));
         }
 
-        let temporary = self.allocate_temp_name()?;
+        // `factory.createTempVariable(hoistVariableDeclaration)`: the temp is
+        // not reserved in nested scopes.
+        let temporary = self.allocate_shadowable_temp_name()?;
         let target = self.create_binding_identifier(&temporary)?;
         // transformAutoAccessor: `setSourceMapRange(temp, name.expression)`
         // — the temp itself maps to the key expression, so its end emits a
@@ -3999,14 +4104,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 untransformed_names.insert(private_name);
                 continue;
             }
-            let binding_owner = if self.resolver.has_node_check_flag(
-                self.resolver_node(name)?,
-                NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32,
-            )? {
-                LexicalBindingOwner::CurrentLoop
-            } else {
-                LexicalBindingOwner::Hoisted
-            };
+            // createHoistedVariableForClass and its variants
+            // (estransforms/classfields.go:3126-3165).
+            let binding_owner = self.block_scoped_binding_owner();
             if self
                 .generated_auto_accessor_backings
                 .contains(&member.node())
@@ -4060,15 +4160,37 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         })
     }
 
-    fn class_temp_plan(&self, original: TransformNode) -> Result<ClassTempPlan, TransformError> {
-        let owner = if self.resolver.has_node_check_flag(
-            self.resolver_node(original)?,
-            NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32,
-        )? {
-            LexicalBindingOwner::CurrentLoop
-        } else {
-            LexicalBindingOwner::Hoisted
-        };
+    /// tsgo-port: classFieldsTransformer.classExpressionNeedsBlockScopedTemp @7.1
+    /// (estransforms/classfields.go:203-218): the temp of a class expression
+    /// in a loop is block-scoped when the class has an instance property with
+    /// a computed name.
+    fn class_temp_plan(
+        &self,
+        members: Option<NodeArrayId>,
+    ) -> Result<ClassTempPlan, TransformError> {
+        let mut owner = LexicalBindingOwner::Hoisted;
+        if self.requires_block_scoped_var() {
+            for member in self.array_nodes(members)? {
+                let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data
+                else {
+                    continue;
+                };
+                if self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)? {
+                    continue;
+                }
+                let computed = match data.name {
+                    Some(name) => {
+                        self.context.arena().node(self.node(name))?.kind
+                            == SyntaxKind::ComputedPropertyName
+                    }
+                    None => false,
+                };
+                if computed {
+                    owner = LexicalBindingOwner::CurrentLoop;
+                    break;
+                }
+            }
+        }
         Ok(ClassTempPlan { owner })
     }
 
@@ -4151,6 +4273,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             super_alias,
             is_legacy_decorated,
             has_class_facts: false,
+            will_hoist_initializers_to_constructor: false,
         };
         for declaration in declarations {
             let PrivateDeclaration {
@@ -5334,10 +5457,57 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         };
         let target = self.create_private_get(target_receiver, &slot)?;
         let target = self.set_original_and_range(target, access)?;
-        Ok(Some(PrivateCallBinding {
-            target,
-            this_arg: stabilized.read,
-        }))
+        // tsgo visits the receiver once for the helper call and once for
+        // `thisArg` (visitCallExpression, classfields.go:1289-1291), and its
+        // visitIdentifier clones the class alias on each visit (459-472).
+        // Only the helper's receiver gives up its comment start
+        // (createPrivateIdentifierAccessHelper, 1028): the `thisArg` of a
+        // reference to the class keeps the comments before the reference.
+        // Any other receiver is one node in both places, as in tsc 6.0.3.
+        let this_arg = if stabilized.initialized.is_none()
+            && self.receiver_is_class_alias_reference(receiver)?
+        {
+            let this_arg = self.context.factory()?.clone_node(receiver)?;
+            self.set_original_and_range(this_arg, receiver)?
+        } else {
+            stabilized.read
+        };
+        Ok(Some(PrivateCallBinding { target, this_arg }))
+    }
+
+    /// Whether `receiver` is a reference the class alias substitution
+    /// replaces: an identifier with the constructor-reference check flag whose
+    /// class has a registered alias (the condition of `substitute_node`).
+    fn receiver_is_class_alias_reference(
+        &self,
+        receiver: TransformNode,
+    ) -> Result<bool, TransformError> {
+        if self.class_aliases.is_empty()
+            || !matches!(
+                self.context.arena().node(receiver)?.data,
+                NodeData::Identifier(_)
+            )
+        {
+            return Ok(false);
+        }
+        let Some(resolver_node) = self.context.arena().parse_tree_resolver_node(receiver)? else {
+            return Ok(false);
+        };
+        if !self.resolver.has_node_check_flag(
+            resolver_node,
+            NodeCheckFlags::CONSTRUCTOR_REFERENCE.bits() as u32,
+        )? {
+            return Ok(false);
+        }
+        let Some(declaration) = self
+            .resolver
+            .get_referenced_value_declaration(resolver_node)?
+        else {
+            return Ok(false);
+        };
+        Ok(self
+            .class_aliases
+            .contains_key(&(declaration.source().raw(), declaration.node().index())))
     }
 
     /// The `super` keyword of a super property/element access: the node
@@ -6238,6 +6408,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
                 data => {
                     let data = self.strip_accessor_modifier_from_class_member(data)?;
+                    let data = self.stabilize_auto_accessor_member_name(member, data)?;
                     let updated = if self
                         .generated_static_auto_accessors
                         .contains(&member.node())
@@ -6480,18 +6651,46 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
+        // A member of a class keeps `inIterationStatement`: tsgo visits it
+        // through its class element visitor, which does not clear the flag
+        // (visitClassElement, estransforms/classfields.go:416-437).
         match data {
             NodeData::MethodDeclaration(data) => {
-                self.visit_function_scope(original, NodeData::MethodDeclaration(data), false)
+                self.visit_function_scope_worker(original, NodeData::MethodDeclaration(data), false)
             }
             NodeData::GetAccessor(data) => {
-                self.visit_function_scope(original, NodeData::GetAccessor(data), false)
+                self.visit_function_scope_worker(original, NodeData::GetAccessor(data), false)
             }
             NodeData::SetAccessor(data) => {
-                self.visit_function_scope(original, NodeData::SetAccessor(data), false)
+                self.visit_function_scope_worker(original, NodeData::SetAccessor(data), false)
             }
             NodeData::Constructor(data) => {
-                self.visit_function_scope(original, NodeData::Constructor(data), false)
+                // tsgo transformConstructor (estransforms/classfields.go:2382-2387):
+                // the parameters of a constructor that receives the
+                // initializers of its class are visited with the plain
+                // visitor, before the variable environment of the body starts.
+                // A temp a parameter initializer needs is declared in the
+                // enclosing scope, and the initializer stays in the parameter
+                // list (tsc 6.0.3 moved it into the body).
+                if !self
+                    .private_environments
+                    .last()
+                    .is_some_and(|environment| environment.will_hoist_initializers_to_constructor)
+                {
+                    return self.visit_function_scope_worker(
+                        original,
+                        NodeData::Constructor(data),
+                        false,
+                    );
+                }
+                self.visit_parameters_in_enclosing_environment(data.parameters)?;
+                // The body receives its declarations together with those of
+                // the initializers (`take_deferred_constructor_prelude`).
+                let (transformed, prelude) =
+                    self.visit_function_scope_parts(original, NodeData::Constructor(data), false)?;
+                self.deferred_constructor_preludes
+                    .insert(self.private_environments.len(), prelude);
+                Ok(transformed)
             }
             data => self.update_generic(original, data),
         }
@@ -6565,10 +6764,30 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<TransformNode, TransformError> {
         let name = self.create_binding_identifier(function_name)?;
         let type_parameters = self.visit_optional_nodes(type_parameters)?;
-        let parameters = self.visit_optional_nodes(parameters)?;
-        let r#type = self.visit_optional_node(r#type)?;
-        let asterisk_token = self.visit_optional_node(asterisk_token)?;
-        let body = self.visit_optional_node(body)?;
+        // tsgo visitMethodOrAccessorDeclaration (estransforms/classfields.go:694-707):
+        // the body of the function a private method becomes has a variable
+        // environment of its own, so the temps of the body are declared in
+        // it; the parameters are visited outside that environment, and the
+        // function is not part of an enclosing iteration statement.
+        let (parameters, r#type, asterisk_token, body) =
+            self.with_iteration_statement(false, |visitor| {
+                let parameters = visitor.visit_optional_nodes(parameters)?;
+                let r#type = visitor.visit_optional_node(r#type)?;
+                let asterisk_token = visitor.visit_optional_node(asterisk_token)?;
+                let (body, bindings) = visitor
+                    .with_new_generated_scope(GeneratedBindingOwner::FunctionBody, |visitor| {
+                        visitor.visit_optional_node(body)
+                    })?;
+                let body = match body {
+                    Some(body) => Some(
+                        visitor
+                            .prepend_generated_declarations_to_block(visitor.node(body), bindings)?
+                            .node(),
+                    ),
+                    None => None,
+                };
+                Ok((parameters, r#type, asterisk_token, body))
+            })?;
         let modifiers = self.visit_function_modifiers(modifiers)?;
         let function = self.context.factory()?.create_node(
             self.source,
@@ -6621,6 +6840,39 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
     }
 
+    /// The prelude `visit_retained_class_member` kept back for the
+    /// constructor of the class being lowered.
+    fn take_deferred_constructor_prelude(&mut self) -> Option<ConstructorPrelude> {
+        self.deferred_constructor_preludes
+            .remove(&self.private_environments.len())
+    }
+
+    /// Writes the kept-back prelude into the constructor of a class that
+    /// turned out to move no initializer into it.
+    fn install_deferred_constructor_prelude(
+        &mut self,
+        members: &mut [TransformNode],
+    ) -> Result<(), TransformError> {
+        let Some((bindings, initialization_statements)) = self.take_deferred_constructor_prelude()
+        else {
+            return Ok(());
+        };
+        let constructor = members.iter().position(|member| {
+            self.context
+                .arena()
+                .node(*member)
+                .is_ok_and(|member| member.kind == SyntaxKind::Constructor)
+        });
+        if let Some(index) = constructor {
+            members[index] = self.install_function_bindings(
+                members[index],
+                bindings,
+                initialization_statements,
+            )?;
+        }
+        Ok(())
+    }
+
     /// tsc-port: transformConstructorBody @6.0.3
     /// tsc-hash: ed62e2b9ac66528ca42730f1e550c81010c83d3b99a605bf1a1d66a4ed64667d
     /// tsc-span: _tsc.js:97329-97365
@@ -6633,6 +6885,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         class: TransformNode,
         member_range: Option<NodeArrayId>,
     ) -> Result<Option<TransformNode>, TransformError> {
+        let constructor_prelude = self.take_deferred_constructor_prelude();
         // Private-brand setup precedes parameter properties, and parameter
         // properties precede ordinary field initializers regardless of the
         // synthetic member order produced by transformTypeScript.
@@ -6655,7 +6908,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 && !is_parameter_property(operation)
         }));
         let class_binding = class_name.map(ClassBinding::existing);
-        let (statements, bindings) =
+        let (statements, mut bindings) =
             self.with_new_generated_scope(GeneratedBindingOwner::FunctionBody, |visitor| {
                 let mut statements = Vec::with_capacity(ordered_operations.len());
                 for operation in ordered_operations {
@@ -6695,7 +6948,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.arrange_synthetic_members(members, Some(constructor), None);
             (constructor, true)
         };
-        let constructor = self.install_function_bindings(constructor, bindings, Vec::new())?;
+        // The temps of the initializers precede those of the body: tsgo
+        // visits the initializers first, in the body's variable environment.
+        let (body_bindings, initialization_statements) = constructor_prelude.unwrap_or_default();
+        bindings.0.extend(body_bindings.0);
+        let constructor =
+            self.install_function_bindings(constructor, bindings, initialization_statements)?;
         let index = members
             .iter()
             .position(|member| *member == constructor)
@@ -7208,15 +7466,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let identifier = self.context.arena().node(inner)?.kind == SyntaxKind::Identifier;
         let (key_expression, evaluation) = if should_capture && !inlineable {
             // getPropertyNameExpressionIfNeeded selects the name's loop
-            // binding owner independently of the enclosing class temp.
-            let owner = if self.resolver.has_node_check_flag(
-                self.resolver_node(original)?,
-                NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32,
-            )? {
-                LexicalBindingOwner::CurrentLoop
-            } else {
-                LexicalBindingOwner::Hoisted
-            };
+            // binding owner independently of the enclosing class temp
+            // (estransforms/classfields.go:2895-2902): a static name is
+            // block-scoped too.
+            let owner = self.block_scoped_binding_owner();
             let temporary_name =
                 self.allocate_temp_name_with_nested_scope_reservation_and_owner(true, owner)?;
             let target = self.create_binding_identifier(&temporary_name)?;
@@ -8538,16 +8791,31 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 actual: self.context.arena().node(root)?.kind,
             });
         };
-        let statement = self.create_generated_variable_statement(&bindings)?;
+        let hoisted = if bindings.has_hoisted_declarations() {
+            Some(self.create_generated_variable_statement(&bindings)?)
+        } else {
+            None
+        };
+        let lexical = if bindings.has_lexical_declarations() {
+            Some(self.create_generated_lexical_statement(&bindings)?)
+        } else {
+            None
+        };
         let original_statements = data
             .statements
             .and_then(|array| self.context.arena().node_array_ref(self.source, array));
         let mut statements = self.array_nodes(data.statements)?;
-        let insertion = statements
+        let mut insertion = statements
             .iter()
             .take_while(|statement| self.is_prologue_statement(**statement).unwrap_or(false))
             .count();
-        statements.insert(insertion, statement);
+        if let Some(hoisted) = hoisted {
+            statements.insert(insertion, hoisted);
+            insertion += 1;
+        }
+        if let Some(lexical) = lexical {
+            statements.insert(insertion, lexical);
+        }
         let array = if let Some(original) = original_statements {
             self.context
                 .factory()?
@@ -8627,10 +8895,39 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         {
             left_variables += 1;
         }
+        // tsgo EndVariableEnvironment (printer/emitcontext.go:117-133) hands
+        // the merge the `var` statement, the initialization statements and
+        // then the `let` statement of the lexical environment. A `let`
+        // statement without initializers counts as a hoisted variable
+        // statement, so it follows the `var` statement directly unless an
+        // initialization statement separates them; then it follows those, as
+        // a custom prologue.
+        let initialization_count = initialization_statements.len();
         statements.splice(left_variables..left_variables, initialization_statements);
-        if !bindings.is_empty() {
-            let statement = self.create_generated_variable_statement(&bindings)?;
-            statements.insert(left_functions, statement);
+        let hoisted = if bindings.has_hoisted_declarations() {
+            Some(self.create_generated_variable_statement(&bindings)?)
+        } else {
+            None
+        };
+        let lexical = if bindings.has_lexical_declarations() {
+            Some(self.create_generated_lexical_statement(&bindings)?)
+        } else {
+            None
+        };
+        let lexical = match lexical {
+            Some(lexical) if initialization_count != 0 => {
+                statements.insert(left_variables + initialization_count, lexical);
+                None
+            }
+            lexical => lexical,
+        };
+        let mut insertion = left_functions;
+        if let Some(hoisted) = hoisted {
+            statements.insert(insertion, hoisted);
+            insertion += 1;
+        }
+        if let Some(lexical) = lexical {
+            statements.insert(insertion, lexical);
         }
         let array = if let Some(original) = original_statements {
             self.context
@@ -8655,6 +8952,16 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<TransformNode, TransformError> {
         let bindings = bindings.hoisted_bindings().cloned().collect::<Vec<_>>();
         self.create_binding_variable_statement(&bindings, NodeFlags::NONE)
+    }
+
+    /// The `let` statement of a function's or the source file's lexical
+    /// environment (tsgo EndLexicalEnvironment, printer/emitcontext.go:197-207).
+    fn create_generated_lexical_statement(
+        &mut self,
+        bindings: &ClassGeneratedBindings,
+    ) -> Result<TransformNode, TransformError> {
+        let bindings = bindings.lexical_bindings().cloned().collect::<Vec<_>>();
+        self.create_binding_variable_statement(&bindings, NodeFlags::LET)
     }
 
     fn create_binding_variable_statement(
@@ -8827,12 +9134,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         binding: &TargetBinding,
         requested: LexicalBindingOwner,
     ) -> LexicalBindingOwner {
-        if requested == LexicalBindingOwner::CurrentLoop
-            && self.loop_binding_scopes.add(binding.clone())
-        {
-            LexicalBindingOwner::CurrentLoop
-        } else {
-            LexicalBindingOwner::Hoisted
+        match requested {
+            LexicalBindingOwner::Hoisted => LexicalBindingOwner::Hoisted,
+            // The innermost lexical environment is the loop body when no
+            // function starts inside the loop, and the function body or the
+            // source file otherwise.
+            LexicalBindingOwner::CurrentLoop | LexicalBindingOwner::CurrentFunction => {
+                if self.loop_binding_scopes.add(binding.clone()) {
+                    LexicalBindingOwner::CurrentLoop
+                } else {
+                    LexicalBindingOwner::CurrentFunction
+                }
+            }
         }
     }
 
