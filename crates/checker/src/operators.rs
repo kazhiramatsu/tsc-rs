@@ -243,19 +243,10 @@ impl<'a> CheckerState<'a> {
             state.set_last_result(Some(self.tables.intrinsics.error));
             return Ok(());
         };
-        if self.is_in_js_file(node)
-            && tsc_binder::assignment::get_assigned_expando_initializer(
-                self.binder.source_of_node(node),
-                node,
-            )
-            .is_some()
-        {
-            let result = self.check_expression(right, check_mode)?;
-            let state = user.as_mut().expect("created above");
-            state.skip = true;
-            state.set_last_result(Some(result));
-            return Ok(());
-        }
+        // tsc 6.0 took the type of the right operand alone for a defaulted
+        // expando initializer in JavaScript (`X = X || {}`,
+        // getAssignedExpandoInitializer); tsgo has no such form and checks
+        // the expression as any other (checker.go:12538-12544).
         self.check_nullish_coalesce_operands(node)?;
         let operator = self.operator_kind(operator_token);
         if operator == SyntaxKind::EqualsToken
