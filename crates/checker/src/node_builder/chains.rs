@@ -712,17 +712,6 @@ pub(super) fn lookup_symbol_chain_worker(
             }
         }
     }
-    if yield_module_symbol && value_meaning(meaning) && context.enclosing_declaration_is_synthetic {
-        if let Some(parent) = checker.binder.symbol(symbol).parent {
-            if checker
-                .symbol_flags(symbol)
-                .intersects(SymbolFlags::FUNCTION)
-                && checker.symbol_has_external_module_declaration(parent)
-            {
-                return Ok(vec![parent, symbol]);
-            }
-        }
-    }
     if !checker
         .symbol_flags(symbol)
         .intersects(SymbolFlags::TYPE_PARAMETER)
