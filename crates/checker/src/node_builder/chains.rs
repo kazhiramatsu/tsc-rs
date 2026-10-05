@@ -2981,12 +2981,14 @@ pub(crate) fn get_module_specifier_override(
     let parent_parse = arena
         .parse_tree_resolver_node(parent)
         .map_err(factory_error)?;
-    let node_symbol = match parent_parse {
-        Some(parent) => checker
-            .get_resolved_symbol(parent.node())
-            .map_err(|abort| checker_abort_error(checker, context, abort))?,
-        None => None,
-    };
+    // tsgo reads the symbol the checker resolved for the node; a node it has
+    // not resolved has none, and nothing is resolved (or reported) here.
+    let node_symbol = parent_parse.and_then(|parent| {
+        checker
+            .links
+            .read_node(parent.node(), |links| links.resolved_symbol.resolved())
+            .filter(|&symbol| symbol != checker.unknown_symbol)
+    });
     let is_type_of = matches!(
         &arena.node(parent).map_err(factory_error)?.data,
         NodeData::ImportType(data) if data.is_type_of

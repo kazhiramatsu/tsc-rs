@@ -1905,7 +1905,19 @@ pub(crate) fn try_get_module_name_from_ambient_module(
         let Some(export_assignment) = export_assignment else {
             continue;
         };
-        let Some(mut export_symbol) = state.get_resolved_symbol(export_assignment)? else {
+        // checker.getSymbolAtLocation(exportAssignment): the entity the
+        // `export =` names, under any meaning and without a report.
+        if !state.is_entity_name_expression(export_assignment) {
+            continue;
+        }
+        let Some(mut export_symbol) = state.resolve_entity_name_ex(
+            export_assignment,
+            SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE | SymbolFlags::ALIAS,
+            /*ignore_errors*/ true,
+            None,
+            /*dont_resolve_alias*/ false,
+        )?
+        else {
             continue;
         };
         if state
@@ -4174,7 +4186,15 @@ pub(super) fn module_name_literals(
     let mut dynamic_imports = Vec::<NodeId>::new();
     let mut augmentations = Vec::<NodeId>::new();
     for node in source.arena.node_ids() {
-        match &source.arena.node(node).data {
+        let record = source.arena.node(node);
+        // The arena also holds the nodes a reparse discarded (a statement
+        // parsed again once the file turned out to have a top-level
+        // `await`). They are in no tree and the program collected no module
+        // name from them.
+        if record.parent.is_none() {
+            continue;
+        }
+        match &record.data {
             NodeData::ImportDeclaration(data) => {
                 if let Some(literal) = string_literal_like(state, data.module_specifier)
                     .filter(|&literal| static_module_reference_is_collected(state, node, literal))

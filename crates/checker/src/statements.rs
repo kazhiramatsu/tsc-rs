@@ -1345,7 +1345,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclarationContainer @6.0.3
     /// tsc-hash: 3d4b993da842ea191877ffad47fb0c8045a3d1086066350235a4992e74413283
     /// tsc-span: _tsc.js:55784-55798
-    fn get_declaration_container(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_declaration_container(&self, node: NodeId) -> Option<NodeId> {
         let source = self.binder.source_of_node(node);
         let root = node_util::get_root_declaration(source, node);
         let mut current = Some(root);
