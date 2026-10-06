@@ -490,6 +490,12 @@ struct ClassFieldsVisitor<'context, 'resolver, 'aliases> {
     target: ScriptTarget,
     use_define_for_class_fields: bool,
     legacy_decorators: bool,
+    /// tsgo's `inIterationStatement` (estransforms/classfields.go:117): set
+    /// for the body of a `for` statement and for every child of the other
+    /// iteration statements, cleared for a function declaration or
+    /// expression and for a method, accessor or constructor outside a class
+    /// member list. An arrow function and the members of a class keep it.
+    in_iteration_statement: bool,
 }
 
 struct ParameterPropertyLocal {
@@ -547,7 +553,65 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             target,
             use_define_for_class_fields,
             legacy_decorators,
+            in_iteration_statement: false,
         })
+    }
+
+    /// tsgo-port: classFieldsTransformer.requiresBlockScopedVar @7.1
+    /// (estransforms/classfields.go:195-201): the temps of a class expression
+    /// inside an iteration statement are block-scoped. tsc 6.0.3 read the
+    /// checker's `BlockScopedBindingInLoop` flag, which only an instance
+    /// computed name and its class carried.
+    fn requires_block_scoped_var(&self) -> Result<bool, TransformError> {
+        if !self.in_iteration_statement {
+            return Ok(false);
+        }
+        match self.class_frames.last() {
+            Some(frame) => {
+                Ok(self.context.arena().node(frame.container)?.kind == SyntaxKind::ClassExpression)
+            }
+            None => Ok(false),
+        }
+    }
+
+    /// tsgo-port: classFieldsTransformer.classExpressionNeedsBlockScopedTemp @7.1
+    /// (estransforms/classfields.go:203-218), for the class expression whose
+    /// frame is about to be pushed.
+    fn class_expression_needs_block_scoped_temp(
+        &self,
+        members: Option<NodeArrayId>,
+    ) -> Result<bool, TransformError> {
+        if !self.in_iteration_statement {
+            return Ok(false);
+        }
+        for member in self.array_nodes(members)? {
+            let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data
+            else {
+                continue;
+            };
+            if self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)? {
+                continue;
+            }
+            if let Some(name) = data.name {
+                if self.context.arena().node(self.node(name))?.kind
+                    == SyntaxKind::ComputedPropertyName
+                {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    fn with_iteration_statement<T>(
+        &mut self,
+        in_iteration_statement: bool,
+        operation: impl FnOnce(&mut Self) -> Result<T, TransformError>,
+    ) -> Result<T, TransformError> {
+        let saved = std::mem::replace(&mut self.in_iteration_statement, in_iteration_statement);
+        let result = operation(self);
+        self.in_iteration_statement = saved;
+        result
     }
 }
 
@@ -1620,7 +1684,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         if !already_transformed && !inlineable && should_hoist {
             let binding = self.computed_name_binding(name)?;
             let generated = self.create_binding_identifier(&binding)?;
-            if self.retained_resolver_flag(name, NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP)? {
+            if self.requires_block_scoped_var()? {
                 self.context.add_block_scoped_variable(generated)?;
             } else {
                 self.context.hoist_variable_declaration(generated)?;
@@ -2540,9 +2604,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
     ) -> Result<NodeId, TransformError> {
         let facts = self.retained_class_facts(original, data.members)?;
         let constructor_reference = if facts.needs_constructor_reference {
-            let placement = if self
-                .retained_resolver_flag(original, NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP)?
-            {
+            let placement = if self.class_expression_needs_block_scoped_temp(data.members)? {
                 RetainedBindingPlacement::Iteration
             } else {
                 RetainedBindingPlacement::Hoisted
@@ -2872,9 +2934,6 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         constructor: Option<TransformNode>,
     ) -> Result<Option<TransformNode>, TransformError> {
-        let constructor = self
-            .visit_optional_node(constructor.map(TransformNode::node))?
-            .map(|node| self.node(node));
         let frame = self
             .class_frames
             .last()
@@ -2883,7 +2942,16 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 field: "class environment",
             })?;
         if !frame.facts.will_hoist_initializers {
-            return Ok(constructor);
+            // tsgo transformConstructor (estransforms/classfields.go:2371-2377):
+            // a constructor that receives no initializers is visited child by
+            // child. It is a member of its class, so `inIterationStatement`
+            // stays as it is.
+            let Some(constructor) = constructor else {
+                return Ok(None);
+            };
+            let data = self.context.arena().node(constructor)?.data.clone();
+            let visited = self.visit_class_member_function(constructor, data)?;
+            return Ok(Some(self.node(visited)));
         }
         let container = frame.container;
         let source_members = frame.members;
@@ -2900,15 +2968,22 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 Ok(data)
             })
             .transpose()?;
+        // tsgo visits the parameters with the plain visitor, before the
+        // variable environment of the body starts
+        // (estransforms/classfields.go:2382-2387): a temp a parameter
+        // initializer needs is declared in the enclosing scope, and the
+        // initializer stays in the parameter list. tsc 6.0.3 visited the whole
+        // constructor first and its parameter list again, each in an
+        // environment of the constructor, which moved such an initializer
+        // into the body.
+        let parameters =
+            self.visit_optional_nodes(existing_data.as_ref().and_then(|data| data.parameters))?;
         self.context.start_lexical_environment()?;
+        self.context.start_block_scope()?;
         let (previous, scope) = self
             .generated_names
             .enter(GeneratedBindingOwner::FunctionBody);
         let result: Result<_, TransformError> = (|| {
-            let parameters = self.visit_retained_parameters(
-                existing_data.as_ref().and_then(|data| data.parameters),
-            )?;
-            self.context.resume_lexical_environment()?;
             let initializers = self.retained_instance_initializers(source_members, constructor)?;
             let old_body = existing_data
                 .as_ref()
@@ -2975,12 +3050,13 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                 }
                 statements.extend(initializers);
             }
-            Ok((parameters, old_body, old_statements, statements))
+            Ok((old_body, old_statements, statements))
         })();
+        let lexical = self.context.end_block_scope();
         let environment = self.context.end_lexical_environment();
         self.generated_names.exit(previous, scope);
-        let (parameters, old_body, old_statements, mut statements) = result?;
-        self.merge_lexical_environment(&mut statements, environment?)?;
+        let (old_body, old_statements, mut statements) = result?;
+        self.merge_lexical_environment(&mut statements, environment?, lexical?)?;
         if statements.is_empty() && constructor.is_none() {
             return Ok(None);
         }
@@ -3341,7 +3417,37 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         )
     }
 
+    /// The declarations of one variable environment: tsc's lexical
+    /// environment, followed by the `let` statement of the block-scoped temps
+    /// declared outside a loop body (tsgo EndVariableEnvironment and
+    /// EndLexicalEnvironment, printer/emitcontext.go:117-133, 197-207).
     fn materialize_lexical_environment(
+        &mut self,
+        environment: LexicalEnvironment,
+        lexical: Vec<TransformNode>,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut statements = self.materialize_hoisted_environment(environment)?;
+        if !lexical.is_empty() {
+            let mut declarations = Vec::with_capacity(lexical.len());
+            for name in lexical {
+                let declaration = self.create_variable_declaration(name, None)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(declaration)
+                    .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+                declarations.push(declaration);
+            }
+            let statement = self.create_variable_statement(declarations, NodeFlags::LET)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .add_flags(EmitFlags::CUSTOM_PROLOGUE);
+            statements.push(statement);
+        }
+        Ok(statements)
+    }
+
+    fn materialize_hoisted_environment(
         &mut self,
         environment: LexicalEnvironment,
     ) -> Result<Vec<TransformNode>, TransformError> {
@@ -3459,8 +3565,9 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         statements: &mut Vec<TransformNode>,
         environment: LexicalEnvironment,
+        lexical: Vec<TransformNode>,
     ) -> Result<(), TransformError> {
-        let declarations = self.materialize_lexical_environment(environment)?;
+        let declarations = self.materialize_lexical_environment(environment, lexical)?;
         if declarations.is_empty() {
             return Ok(());
         }
@@ -3644,15 +3751,17 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         &mut self,
         body: Option<NodeId>,
         environment: LexicalEnvironment,
+        lexical: Vec<TransformNode>,
     ) -> Result<Option<NodeId>, TransformError> {
         if environment.variable_declarations().is_empty()
             && environment.function_declarations().is_empty()
             && environment.initialization_statements().is_empty()
+            && lexical.is_empty()
         {
             return Ok(body);
         }
         let Some(original) = body.map(|id| self.node(id)) else {
-            let declarations = self.materialize_lexical_environment(environment)?;
+            let declarations = self.materialize_lexical_environment(environment, lexical)?;
             return Ok(Some(self.create_block(declarations, false)?.node()));
         };
         let block = if matches!(
@@ -3678,7 +3787,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             unreachable!("function conversion creates a block")
         };
         let mut statements = self.array_nodes(data.statements)?;
-        self.merge_lexical_environment(&mut statements, environment)?;
+        self.merge_lexical_environment(&mut statements, environment, lexical)?;
         let statements = if let Some(original) = data.statements {
             let original = self.array(original);
             self.context
@@ -3759,6 +3868,10 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         owner: GeneratedBindingOwner,
     ) -> Result<(Option<NodeArrayId>, Option<NodeId>, Option<NodeId>), TransformError> {
         self.context.start_lexical_environment()?;
+        // A variable environment is also the lexical environment of the
+        // block-scoped temps requested outside a loop body (tsgo
+        // StartVariableEnvironment, printer/emitcontext.go:109-112).
+        self.context.start_block_scope()?;
         let (previous, scope) = self.generated_names.enter(owner);
         let result: Result<_, TransformError> = (|| {
             let parameters = self.visit_retained_parameters(parameters)?;
@@ -3769,10 +3882,11 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             let body = self.visit_optional_node(body)?;
             Ok((parameters, return_type, body))
         })();
+        let lexical = self.context.end_block_scope();
         let environment = self.context.end_lexical_environment();
         self.generated_names.exit(previous, scope);
         let (parameters, return_type, body) = result?;
-        let body = self.install_function_environment(body, environment?)?;
+        let body = self.install_function_environment(body, environment?, lexical?)?;
         Ok((parameters, return_type, body))
     }
 
@@ -3799,12 +3913,31 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         Ok(parameters)
     }
 
+    /// A function reached through the main visitor. tsgo clears
+    /// `inIterationStatement` for a function declaration or expression and
+    /// for a method, accessor or constructor that is not a class member
+    /// (classFieldsTransformer.visit, estransforms/classfields.go:333-336);
+    /// an arrow function keeps it, and so does a member of a class
+    /// (`visit_class_member_function`).
     fn visit_function(
         &mut self,
         original: TransformNode,
         data: NodeData,
     ) -> Result<NodeId, TransformError> {
-        self.visit_function_with_name_visitor(original, data, RetainedFunctionNameVisitor::Ordinary)
+        if matches!(data, NodeData::ArrowFunction(_)) {
+            return self.visit_function_with_name_visitor(
+                original,
+                data,
+                RetainedFunctionNameVisitor::Ordinary,
+            );
+        }
+        self.with_iteration_statement(false, |visitor| {
+            visitor.visit_function_with_name_visitor(
+                original,
+                data,
+                RetainedFunctionNameVisitor::Ordinary,
+            )
+        })
     }
 
     fn visit_class_member_function(
@@ -3961,14 +4094,13 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         original: TransformNode,
         mut data: tsc_syntax::nodes::ClassStaticBlockDeclarationData,
     ) -> Result<NodeId, TransformError> {
-        let (parameters, return_type, body) = self.visit_function_parts(
-            None,
-            None,
-            data.body,
-            GeneratedBindingOwner::StaticEvaluation,
-        )?;
-        debug_assert!(parameters.is_none() && return_type.is_none());
-        data.body = body;
+        // tsgo keeps the static block and visits its body as an ordinary
+        // child (ast.ClassStaticBlockDeclaration.VisitEachChild,
+        // ast/ast_generated.go:3534-3536): no variable environment starts, so
+        // the temps the body needs are declared in the enclosing function,
+        // loop body or source file. tsc 6.0.3 started a lexical environment
+        // for the block and declared them inside it.
+        data.body = self.visit_optional_node(data.body)?;
         Ok(self
             .update_contextual_node(original, NodeData::ClassStaticBlockDeclaration(data))?
             .node())
@@ -3983,7 +4115,9 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(None);
         };
         self.context.start_block_scope()?;
-        let result = self.visit_statement_lifted(self.node(body));
+        let body = self.node(body);
+        let result =
+            self.with_iteration_statement(true, |visitor| visitor.visit_statement_lifted(body));
         let names = self.context.end_block_scope();
         let visited = result?.ok_or(TransformError::RequiredChildRemoved {
             parent,
@@ -4030,30 +4164,46 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
                     self.visit_iteration_body(data.statement, SyntaxKind::ForStatement)?;
                 NodeData::ForStatement(data)
             }
+            // tsgo visits every child of a `for`-`in`, `for`-`of`, `while`
+            // or `do` statement with `inIterationStatement` set
+            // (estransforms/classfields.go:329-330); only the body of a `for`
+            // statement is (visitForStatement, 1243-1253).
             NodeData::ForInStatement(mut data) => {
-                data.initializer = self.visit_optional_node(data.initializer)?;
-                data.expression = self.visit_optional_node(data.expression)?;
-                data.statement =
-                    self.visit_iteration_body(data.statement, SyntaxKind::ForInStatement)?;
+                self.with_iteration_statement(true, |visitor| {
+                    data.initializer = visitor.visit_optional_node(data.initializer)?;
+                    data.expression = visitor.visit_optional_node(data.expression)?;
+                    data.statement =
+                        visitor.visit_iteration_body(data.statement, SyntaxKind::ForInStatement)?;
+                    Ok(())
+                })?;
                 NodeData::ForInStatement(data)
             }
             NodeData::ForOfStatement(mut data) => {
-                data.initializer = self.visit_optional_node(data.initializer)?;
-                data.expression = self.visit_optional_node(data.expression)?;
-                data.statement =
-                    self.visit_iteration_body(data.statement, SyntaxKind::ForOfStatement)?;
+                self.with_iteration_statement(true, |visitor| {
+                    data.initializer = visitor.visit_optional_node(data.initializer)?;
+                    data.expression = visitor.visit_optional_node(data.expression)?;
+                    data.statement =
+                        visitor.visit_iteration_body(data.statement, SyntaxKind::ForOfStatement)?;
+                    Ok(())
+                })?;
                 NodeData::ForOfStatement(data)
             }
             NodeData::WhileStatement(mut data) => {
-                data.expression = self.visit_optional_node(data.expression)?;
-                data.statement =
-                    self.visit_iteration_body(data.statement, SyntaxKind::WhileStatement)?;
+                self.with_iteration_statement(true, |visitor| {
+                    data.expression = visitor.visit_optional_node(data.expression)?;
+                    data.statement =
+                        visitor.visit_iteration_body(data.statement, SyntaxKind::WhileStatement)?;
+                    Ok(())
+                })?;
                 NodeData::WhileStatement(data)
             }
             NodeData::DoStatement(mut data) => {
-                data.statement =
-                    self.visit_iteration_body(data.statement, SyntaxKind::DoStatement)?;
-                data.expression = self.visit_optional_node(data.expression)?;
+                self.with_iteration_statement(true, |visitor| {
+                    data.statement =
+                        visitor.visit_iteration_body(data.statement, SyntaxKind::DoStatement)?;
+                    data.expression = visitor.visit_optional_node(data.expression)?;
+                    Ok(())
+                })?;
                 NodeData::DoStatement(data)
             }
             _ => {
@@ -4190,11 +4340,13 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
             return Ok(original.node());
         }
         self.context.start_lexical_environment()?;
+        self.context.start_block_scope()?;
         let visited = self.visit_optional_nodes(data.statements);
+        let lexical = self.context.end_block_scope();
         let environment = self.context.end_lexical_environment();
         let visited = visited?;
         let mut statements = self.array_nodes(visited)?;
-        self.merge_lexical_environment(&mut statements, environment?)?;
+        self.merge_lexical_environment(&mut statements, environment?, lexical?)?;
         let statements = if let Some(previous) = visited {
             let previous = self.array(previous);
             self.context

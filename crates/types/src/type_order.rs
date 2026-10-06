@@ -1,6 +1,8 @@
-//! Stable type ordering: tsc 6.0.3's `--stableTypeOrdering` comparator
-//! (`compareTypes`, _tsc.js:90610-90777), the order TypeScript 7 (tsgo's
-//! `CompareTypes`) always uses.
+//! Stable type ordering: tsgo's `CompareTypes` (checker/utilities.go:414-622
+//! at the vendored 7.1 commit), the order TypeScript 7 always uses. The port
+//! started from tsc 6.0.3's `--stableTypeOrdering` comparator (`compareTypes`,
+//! _tsc.js:90610-90777); where the two differ the 7.1 rule is the one here
+//! and its comment cites the Go source.
 //!
 //! tsrs-native: with the option off, union members are kept in type-id
 //! order (tsc's default, the creation order of one checker). With the
@@ -44,6 +46,15 @@ pub trait TypeOrderContext {
         a: Option<MapperId>,
         b: Option<MapperId>,
     ) -> Ordering;
+    /// The first declaration of a symbol, as `compareNodes` reads it for an
+    /// instantiation expression type (tsgo CompareTypes,
+    /// checker/utilities.go:443-454).
+    fn first_declaration(&self, symbol: Option<SymbolId>) -> Option<u32>;
+    /// The instantiation a mapped type was made with: `instantiateAnonymousType`
+    /// combines a mapping of the mapped type's own type parameter to a fresh
+    /// one with the instantiation's mapper, and the order compares the second
+    /// (tsgo CompareTypes, checker/utilities.go:512-521).
+    fn mapped_instantiation_mapper(&self, mapper: Option<MapperId>) -> Option<MapperId>;
 }
 
 /// The member order of unions: `None` keeps tsc's default type-id order,
@@ -86,9 +97,34 @@ pub fn compare_types(
     )) {
         // Only distinguished by type ids, handled below.
     } else if flags.intersects(TypeFlags::OBJECT) {
-        let c = ctx.compare_symbols(tables.type_of(t1).symbol, tables.type_of(t2).symbol);
-        if c != Ordering::Equal {
-            return c;
+        if tables
+            .object_flags_of(t1)
+            .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+            && tables
+                .object_flags_of(t2)
+                .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        {
+            // tsgo CompareTypes (checker/utilities.go:440-457): one
+            // instantiation expression can make a type for each member of a
+            // union, so the declarations of the sources are compared before
+            // the expression the types share.
+            let c = compare_optional_nodes(
+                ctx,
+                ctx.first_declaration(tables.type_of(t1).symbol),
+                ctx.first_declaration(tables.type_of(t2).symbol),
+            );
+            if c != Ordering::Equal {
+                return c;
+            }
+            let c = compare_optional_nodes(ctx, ctx.deferred_node(t1), ctx.deferred_node(t2));
+            if c != Ordering::Equal {
+                return c;
+            }
+        } else {
+            let c = ctx.compare_symbols(tables.type_of(t1).symbol, tables.type_of(t2).symbol);
+            if c != Ordering::Equal {
+                return c;
+            }
         }
         let reference1 = tables
             .object_flags_of(t1)
@@ -124,11 +160,7 @@ pub fn compare_types(
                     return c;
                 }
             } else {
-                let c = match (node1, node2) {
-                    (Some(node1), Some(node2)) => ctx.compare_nodes(node1, node2),
-                    (None, _) => Ordering::Greater,
-                    (_, None) => Ordering::Less,
-                };
+                let c = compare_optional_nodes(ctx, node1, node2);
                 if c != Ordering::Equal {
                     return c;
                 }
@@ -149,6 +181,24 @@ pub fn compare_types(
             let c = kind1.cmp(&kind2);
             if c != Ordering::Equal {
                 return c;
+            }
+            // tsgo CompareTypes (checker/utilities.go:497-509): reverse mapped
+            // types are ordered by their source, mapped type and constraint.
+            if let (TypeData::ReverseMapped(data1), TypeData::ReverseMapped(data2)) =
+                (&tables.type_of(t1).data, &tables.type_of(t2).data)
+            {
+                let c = compare_types(tables, ctx, data1.source, data2.source);
+                if c != Ordering::Equal {
+                    return c;
+                }
+                let c = compare_types(tables, ctx, data1.mapped_type, data2.mapped_type);
+                if c != Ordering::Equal {
+                    return c;
+                }
+                let c = compare_types(tables, ctx, data1.constraint_type, data2.constraint_type);
+                if c != Ordering::Equal {
+                    return c;
+                }
             }
             let c = ctx.compare_mappers(
                 tables,
@@ -433,7 +483,27 @@ fn compare_type_names(
     match (s1, s2) {
         (None, _) => Ordering::Greater,
         (_, None) => Ordering::Less,
-        (Some(s1), Some(s2)) => ctx.compare_symbol_names(s1, s2),
+        // tsgo compareTypeNames (checker/utilities.go:644-648): two
+        // declarations with one name stay apart before their alias arguments
+        // or their structure are compared.
+        (Some(s1), Some(s2)) => ctx
+            .compare_symbol_names(s1, s2)
+            .then_with(|| ctx.compare_symbols(Some(s1), Some(s2))),
+    }
+}
+
+/// tsgo compareNodes (checker/utilities.go:392-412) over nodes that may be
+/// absent: an absent node follows a present one.
+fn compare_optional_nodes(
+    ctx: &dyn TypeOrderContext,
+    n1: Option<u32>,
+    n2: Option<u32>,
+) -> Ordering {
+    match (n1, n2) {
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Greater,
+        (Some(_), None) => Ordering::Less,
+        (Some(n1), Some(n2)) => ctx.compare_nodes(n1, n2),
     }
 }
 
@@ -491,11 +561,15 @@ fn compare_tuple_types(
             return c;
         }
     }
+    // tsgo compareTupleTypes (checker/utilities.go:683-687) compares the
+    // label of every element, so a tuple without labels precedes a labeled
+    // one of the same shape (tsc 6.0.3 read only the labels of the first).
     let labels1 = data1.labeled_element_declarations.as_deref().unwrap_or(&[]);
     let labels2 = data2.labeled_element_declarations.as_deref().unwrap_or(&[]);
-    for (index, label1) in labels1.iter().enumerate() {
+    for index in 0..data1.element_flags.len() {
+        let label1 = labels1.get(index).copied().flatten();
         let label2 = labels2.get(index).copied().flatten();
-        let c = ctx.compare_element_labels(*label1, label2);
+        let c = ctx.compare_element_labels(label1, label2);
         if c != Ordering::Equal {
             return c;
         }
@@ -564,7 +638,7 @@ fn anonymous_or_mapped_mapper(
     ty: TypeId,
 ) -> Option<MapperId> {
     match &tables.type_of(ty).data {
-        TypeData::Mapped(data) => data.mapper,
+        TypeData::Mapped(data) => ctx.mapped_instantiation_mapper(data.mapper),
         TypeData::ReverseMapped(_) => None,
         _ => ctx.object_mapper(ty),
     }

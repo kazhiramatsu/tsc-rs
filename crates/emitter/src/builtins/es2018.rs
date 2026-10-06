@@ -2545,6 +2545,9 @@ impl<'context> Es2018Visitor<'context> {
         })
     }
 
+    /// tsc and tsgo ignore the rest token here (`isSimpleParameterList`,
+    /// estransforms/async.go:952-960): `...rest` stays on the outer function
+    /// and the generator closes over it.
     fn parameter_list_is_simple(
         &self,
         parameters: Option<NodeArrayId>,
@@ -2562,7 +2565,7 @@ impl<'context> Es2018Visitor<'context> {
                     .node(name)
                     .is_ok_and(|name| name.kind == SyntaxKind::Identifier)
             });
-            if data.initializer.is_some() || data.dot_dot_dot_token.is_some() || !simple_name {
+            if data.initializer.is_some() || !simple_name {
                 return Ok(false);
             }
         }
@@ -2875,12 +2878,23 @@ impl<'context> Es2018Visitor<'context> {
                 })?;
         let outer_body_is_multi_line = self.context.arena().node(body)?.multi_line() == Some(true)
             || super_capture.owns_access && super_capture.has_element_access;
-        let inner_name = name
-            .and_then(|name| self.identifier_text(name).ok())
-            .map(str::to_owned)
-            .map(|name| self.generated_bindings.allocate_local_numbered(&name))
-            .map(|name| self.create_identifier(&name))
-            .transpose()?;
+        // `factory.getGeneratedNameForNode(node.name)` (tsgo
+        // transformAsyncGeneratorFunctionBody, estransforms/forawait.go:803-806):
+        // an identifier gives a numbered name, any other name (computed, or a
+        // string or numeric literal) a temp of the outer function's scope.
+        let inner_name = match name {
+            Some(name) => Some(match self.identifier_text(name).ok().map(str::to_owned) {
+                Some(text) => {
+                    let numbered = self.generated_bindings.allocate_local_numbered(&text);
+                    self.create_identifier(&numbered)?
+                }
+                None => {
+                    let binding = self.allocate_local_temp_binding()?;
+                    self.create_generated_identifier(&binding)?
+                }
+            }),
+            None => None,
+        };
         let parameters = match inner_parameters {
             Some(parameters) => self.array(parameters),
             None => self

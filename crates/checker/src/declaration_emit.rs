@@ -2175,6 +2175,33 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsgo-port: EmitResolver.CreateTypeParametersOfSignatureDeclaration @7.1
+    /// (checker/emitresolver.go:962-972): the type parameters of the symbol
+    /// of a signature declaration; for a JavaScript function typed by a
+    /// `@type` tag they are those of the tag's signature.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_type_parameters_of_signature_declaration(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        signature_declaration: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, tsc_emitter::EmitResolverError> {
+        crate::node_builder::serialize_type_parameters_for_signature(
+            self,
+            arena,
+            target,
+            signature_declaration,
+            Some(enclosing_declaration),
+            Some(flags),
+            Some(internal_flags),
+            Some(tracker),
+        )
+    }
+
     /// tsc-port: createTypeOfExpression @6.0.3
     /// tsc-hash: dd314f61d3160f871fe3d2568358c718dbca65cc107f1668ef3d0f6f79611fb4
     /// tsc-span: _tsc.js:88389-88395

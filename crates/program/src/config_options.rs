@@ -1056,6 +1056,7 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
     option("sourceMap", CompilerOptionValueKind::Boolean),
     option("inlineSourceMap", CompilerOptionValueKind::Boolean),
     option("noCheck", CompilerOptionValueKind::Boolean),
+    option("deduplicatePackages", CompilerOptionValueKind::Boolean),
     jsconfig_option(
         "noEmit",
         CompilerOptionValueKind::Boolean,

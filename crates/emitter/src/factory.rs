@@ -6063,6 +6063,15 @@ impl<'arena> NodeFactory<'arena> {
     /// grammar rule at the shared factory boundary so a transform may return
     /// a comma sequence without knowing which declaration or object-literal
     /// member owns it.
+    ///
+    /// The expression of a `switch` statement and of a `case` clause is not
+    /// routed here, although tsc 6.0.3's factory did: tsgo prints both at the
+    /// lowest precedence (`emitSwitchStatement`, `emitCaseClause`,
+    /// printer/printer.go:3633, 4475), so a comma sequence a transform puts
+    /// there stays unparenthesized. The expression of a `for`-`of` statement
+    /// stays: tsgo prints it at the lowest precedence too
+    /// (`emitForOfStatement`, 3578), which writes a comma sequence without
+    /// parentheses and is not valid JavaScript.
     fn parenthesize_initializer_for_disallowed_comma(
         &mut self,
         source: TransformSourceId,
@@ -6075,8 +6084,6 @@ impl<'arena> NodeFactory<'arena> {
             NodeData::VariableDeclaration(data) => data.initializer,
             NodeData::PropertyAssignment(data) => data.initializer,
             NodeData::ShorthandPropertyAssignment(data) => data.object_assignment_initializer,
-            NodeData::CaseClause(data) => data.expression,
-            NodeData::SwitchStatement(data) => data.expression,
             NodeData::ForOfStatement(data) => data.expression,
             _ => None,
         };
@@ -6103,8 +6110,6 @@ impl<'arena> NodeFactory<'arena> {
             NodeData::ShorthandPropertyAssignment(data) => {
                 data.object_assignment_initializer = Some(parenthesized.node)
             }
-            NodeData::CaseClause(data) => data.expression = Some(parenthesized.node),
-            NodeData::SwitchStatement(data) => data.expression = Some(parenthesized.node),
             NodeData::ForOfStatement(data) => data.expression = Some(parenthesized.node),
             _ => unreachable!("initializer owner was checked above"),
         }

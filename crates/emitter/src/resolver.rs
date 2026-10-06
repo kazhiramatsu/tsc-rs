@@ -520,6 +520,7 @@ pub enum EmitResolverMethod {
     IsFirstDeclarationOfSymbol,
     CreateTypeOfDeclaration,
     CreateReturnTypeOfSignatureDeclaration,
+    CreateTypeParametersOfSignatureDeclaration,
     CreateTypeOfExpression,
     TryJsTypeNodeToTypeNode,
     CreateLiteralConstValue,
@@ -616,6 +617,9 @@ impl EmitResolverMethod {
             Self::CreateTypeOfDeclaration => "createTypeOfDeclaration",
             Self::CreateReturnTypeOfSignatureDeclaration => {
                 "createReturnTypeOfSignatureDeclaration"
+            }
+            Self::CreateTypeParametersOfSignatureDeclaration => {
+                "createTypeParametersOfSignatureDeclaration"
             }
             Self::CreateTypeOfExpression => "createTypeOfExpression",
             Self::TryJsTypeNodeToTypeNode => "tryJSTypeNodeToTypeNode",
@@ -1523,6 +1527,36 @@ pub trait EmitResolver {
         );
         Err(unavailable(
             EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
+            signature_declaration,
+        ))
+    }
+
+    /// The type parameter declarations of a signature declaration's symbol,
+    /// or `None` when it has none (tsgo
+    /// CreateTypeParametersOfSignatureDeclaration,
+    /// checker/emitresolver.go:962-972). The declaration transform asks for a
+    /// function whose signature a JSDoc `@type` tag gives.
+    #[allow(clippy::too_many_arguments)]
+    fn create_type_parameters_of_signature_declaration(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        signature_declaration: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<Vec<TransformNode>>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::CreateTypeParametersOfSignatureDeclaration,
             signature_declaration,
         ))
     }

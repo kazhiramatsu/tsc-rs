@@ -27,6 +27,7 @@ fn catalog_preserves_the_tsc_declaration_order() {
         "sourceMap",
         "inlineSourceMap",
         "noCheck",
+        "deduplicatePackages",
         "noEmit",
         "assumeChangesOnlyAffectDirectDependencies",
         "locale",

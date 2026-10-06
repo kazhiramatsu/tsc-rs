@@ -5647,11 +5647,24 @@ impl Printer {
                     .arena()
                     .node_ref(node.source(), initializer)
                     .ok_or(PrinterError::UnknownStatement(initializer.index()))?;
-                let skipped_prefix_bytes = self.emit_intervening_comments_before_node(
+                // tsgo emitPropertyAssignment reads the comments before the
+                // initializer through emitTrailingComments, which leaves them
+                // to the container that ends there (printer/printer.go:4555-4558,
+                // 5604-5611). A missing initializer is empty at the end of its
+                // property, so the property writes those comments after it.
+                let skipped_prefix_bytes = if self.comment_range_start_retained_by_container(
                     transformation,
                     initializer_node,
-                    writer,
-                )?;
+                    expression_context.comments(),
+                )? {
+                    None
+                } else {
+                    self.emit_intervening_comments_before_node(
+                        transformation,
+                        initializer_node,
+                        writer,
+                    )?
+                };
                 // The positional trailing pass above is independent of
                 // containerPos. Only the initializer's leading phase resumes
                 // after a prefix already owned by its surrounding property.
@@ -9259,6 +9272,30 @@ impl Printer {
             (SourceRange::Synthesized, SourceRange::Original(_)) => true,
             _ => false,
         })
+    }
+
+    /// tsc's trailing guard for a position read before a node
+    /// (`forEachTrailingCommentToEmit`, _tsc.js:121232-121238; tsgo
+    /// emitTrailingComments, printer/printer.go:5604-5611): the comments at
+    /// the start of `node`'s comment range stay with the active container
+    /// when it, or the active declaration list, ends there.
+    fn comment_range_start_retained_by_container(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        active_scope: CommentEmissionScope,
+    ) -> Result<bool, PrinterError> {
+        if active_scope.container_end().is_none() {
+            return Ok(false);
+        }
+        let range = self.comment_range_for_node(transformation, node)?;
+        let Some(start) = range.range().start() else {
+            return Ok(false);
+        };
+        Ok(active_scope.retains_end(Self::comment_container_position(
+            transformation,
+            CommentCursor::new(range.source(), start),
+        )?))
     }
 
     fn child_trailing_comments_escape_active_container(

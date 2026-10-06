@@ -1369,6 +1369,45 @@ pub(crate) fn serialize_return_type_for_signature(
     .map(Option::flatten)
 }
 
+/// tsgo-port: NodeBuilder.SerializeTypeParametersForSignature @7.1
+/// (checker/nodebuilder.go:126-131, 249-252): the type parameter
+/// declarations of the symbol of a signature declaration, in a new context.
+/// `None` when the symbol has none.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn serialize_type_parameters_for_signature(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    signature_declaration: NodeId,
+    enclosing_declaration: Option<NodeId>,
+    flags: Option<EmitNodeBuilderFlags>,
+    internal_flags: Option<EmitInternalNodeBuilderFlags>,
+    tracker: Option<&mut dyn EmitSymbolTracker>,
+) -> BuildResult<Option<Vec<TransformNode>>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        flags,
+        internal_flags,
+        tracker,
+        None,
+        None,
+        |checker, arena, target, context| {
+            let symbol = checker
+                .get_symbol_of_declaration(signature_declaration)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            let declarations = super::chains::type_parameters_to_type_parameter_declarations(
+                checker, arena, target, symbol, context,
+            )?;
+            Ok(declarations.filter(|declarations| !declarations.is_empty()))
+        },
+        None,
+    )
+    .map(Option::flatten)
+}
+
 /// tsgo-port: NodeBuilder.SerializeTypeForExpression @7.1
 /// (nodebuilder.go:139-143): the expression's type in a new context.
 #[allow(clippy::too_many_arguments)]

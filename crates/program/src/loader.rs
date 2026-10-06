@@ -3892,7 +3892,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 source,
             )
         })?;
-        if let Some(package_id) = reason.package_id.as_ref() {
+        // tsgo keeps the package-id map only while `deduplicatePackages` is
+        // not `false` (compiler/filesparser.go:362-368).
+        let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
+        if let Some(package_id) = reason.package_id.as_ref().filter(|_| deduplicate_packages) {
             if let Some(source) = self.package_id_to_source.get(package_id).copied() {
                 // TypeScript calls host.getSourceFile before consulting the
                 // package-id map, so retain read/decode failure precedence and
@@ -4068,7 +4071,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             self.total_source_bytes + self.reserved_bytes <= self.limits.max_total_source_bytes,
             "retained read-ahead payloads exceed the total-byte limit"
         );
-        if let Some(package_id) = reason.package_id.clone() {
+        if let Some(package_id) = reason.package_id.clone().filter(|_| deduplicate_packages) {
             self.package_id_to_source.insert(package_id, source);
         }
         if self.resolver.path_context().use_case_sensitive_file_names() {

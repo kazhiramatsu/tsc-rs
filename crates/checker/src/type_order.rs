@@ -94,14 +94,21 @@ impl<'s, 'a> OrderCtx<'s, 'a> {
     }
 
     fn mapper_kind(mapper: &TypeMapper) -> u8 {
-        // tsc TypeMapKind: Simple, Array, Deferred, Function, Composite, Merged.
+        // tsgo TypeMapperKind (checker/mapper.go:13-18): Unknown, Simple,
+        // Array, Merged. Every other mapper is Unknown, including the one
+        // that maps its sources to a single target
+        // (ArrayToSingleTypeMapper), which is an array mapper without
+        // targets here. tsc 6.0.3 ordered its own six kinds instead.
         match mapper {
-            TypeMapper::Simple { .. } => 0,
-            TypeMapper::Array { .. } => 1,
-            TypeMapper::Deferred(_) => 2,
-            TypeMapper::Function(_) => 3,
-            TypeMapper::Composite { .. } => 4,
-            TypeMapper::Merged { .. } => 5,
+            TypeMapper::Simple { .. } => 1,
+            TypeMapper::Array {
+                targets: Some(_), ..
+            } => 2,
+            TypeMapper::Merged { .. } => 3,
+            TypeMapper::Array { targets: None, .. }
+            | TypeMapper::Deferred(_)
+            | TypeMapper::Function(_)
+            | TypeMapper::Composite { .. } => 0,
         }
     }
 
@@ -277,8 +284,27 @@ impl TypeOrderContext for OrderCtx<'_, '_> {
         }
     }
 
+    fn first_declaration(&self, symbol: Option<SymbolId>) -> Option<u32> {
+        let symbol = symbol?;
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .first()
+            .map(|declaration| declaration.index())
+    }
+
+    fn mapped_instantiation_mapper(&self, mapper: Option<MapperId>) -> Option<MapperId> {
+        let mapper = mapper?;
+        match &self.mappers[mapper.index() as usize] {
+            TypeMapper::Composite { mapper2, .. } => Some(*mapper2),
+            _ => Some(mapper),
+        }
+    }
+
     /// tsc-port: compareTypeMappers @6.0.3
     /// tsc-span: _tsc.js:90859-90898
+    ///
+    /// The kinds are tsgo's (compareTypeMappers, checker/utilities.go:716-755).
     fn compare_mappers(
         &self,
         tables: &TypeTables,
