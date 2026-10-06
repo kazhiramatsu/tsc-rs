@@ -1438,7 +1438,9 @@ struct StagedSource {
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     module_requests: Vec<(ResolutionKey, bool)>,
-    module_request_spans: rustc_hash::FxHashMap<ResolutionKey, (u32, u32)>,
+    /// The spans of the occurrences of each request that load a source, in
+    /// source order; a request without one is synthetic.
+    module_request_spans: rustc_hash::FxHashMap<ResolutionKey, Vec<(u32, u32)>>,
     found_searching_node_modules: bool,
     modules_with_elided_imports: bool,
     processing_references: bool,
@@ -4023,8 +4025,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     plan.module_requests()
                         .iter()
                         .filter_map(|key| {
-                            plan.module_request_span(key)
-                                .map(|span| (key.clone(), span))
+                            let spans = plan.module_request_spans(key);
+                            (!spans.is_empty()).then(|| (key.clone(), spans.to_vec()))
                         })
                         .collect::<rustc_hash::FxHashMap<_, _>>()
                 });
@@ -4805,27 +4807,38 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let containing_file = self.sources[source].prepared.path().display().to_owned();
         let containing_file_is_declaration = is_declaration_file_name(containing_file.as_js());
         for (key, loads_source) in requests {
-            let inclusion = self.sources[source]
-                .module_request_spans
-                .get(&key)
-                .map(|(pos, end)| {
-                    let prepared = &self.sources[source].prepared;
+            // One inclusion reason per occurrence that loads the target:
+            // processImportedModules adds the resolved file once for every
+            // import of it (tsgo fileloader.go:928-940), and the file's
+            // explanation then lists each import. A request without a span
+            // is a synthetic import.
+            let staged = &self.sources[source];
+            let inclusions = staged.module_request_spans.get(&key).map_or_else(
+                || vec![SourceInclusionReason::Synthetic],
+                |spans| {
+                    let prepared = &staged.prepared;
                     let positions = prepared.snapshot().positions();
-                    let start_byte = positions
-                        .utf16_to_byte(*pos)
-                        .expect("module request starts at a source token boundary");
-                    let end_byte = positions
-                        .utf16_to_byte(*end)
-                        .expect("module request ends at a source token boundary");
-                    SourceInclusionReason::Import {
-                        parent: containing_file.clone(),
-                        reference_text: prepared.text()[start_byte as usize..end_byte as usize]
-                            .to_owned(),
-                        pos: *pos,
-                        end: *end,
-                    }
-                })
-                .unwrap_or(SourceInclusionReason::Synthetic);
+                    spans
+                        .iter()
+                        .map(|&(pos, end)| {
+                            let start_byte = positions
+                                .utf16_to_byte(pos)
+                                .expect("module request starts at a source token boundary");
+                            let end_byte = positions
+                                .utf16_to_byte(end)
+                                .expect("module request ends at a source token boundary");
+                            SourceInclusionReason::Import {
+                                parent: containing_file.clone(),
+                                reference_text: prepared.text()
+                                    [start_byte as usize..end_byte as usize]
+                                    .to_owned(),
+                                pos,
+                                end,
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                },
+            );
             let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
                 self.module_resolutions[index].loads_source |= loads_source;
                 index
@@ -4882,12 +4895,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.module_resolution_by_key.insert(key, index);
                 index
             };
-            phase_indices.push((index, inclusion));
+            phase_indices.push((index, inclusions));
         }
 
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS.
-        for (index, inclusion) in phase_indices {
+        for (index, inclusions) in phase_indices {
             let loads_source = self.module_resolutions[index].loads_source;
             let target = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => Some((
@@ -4974,22 +4987,23 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         "a JSON target was resolved while resolveJsonModule is disabled",
                     ));
                 }
-                let loaded = self.visit_source(
-                    target.clone(),
-                    depth.saturating_add(1),
-                    child_node_modules_depth,
-                    DiscoveryReason::dependency(inclusion.clone())
-                        .with_package_id(package_id.clone()),
-                    SourceClass::Ordinary,
-                )?;
-                let Some(target_source) = loaded else {
-                    return Err(ProgramLoadError::invalid_data_js(
+                let missing = || {
+                    ProgramLoadError::invalid_data_js(
                         ProgramLoadOperation::ReadSource,
                         Some(target.display().to_owned()),
                         "resolver reported a JSON module target that the host no longer returns",
-                    ));
+                    )
                 };
-                self.record_source_edge(source, target_source, external);
+                self.visit_import_target(
+                    source,
+                    &target,
+                    depth,
+                    child_node_modules_depth,
+                    external,
+                    package_id,
+                    inclusions,
+                    missing,
+                )?;
                 continue;
             }
             if !is_loadable_typescript_extension(&extension) && !extension.is_javascript() {
@@ -5003,20 +5017,57 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     ),
                 ));
             }
+            let missing = || {
+                ProgramLoadError::invalid_data_js(
+                    ProgramLoadOperation::ReadSource,
+                    Some(target.display().to_owned()),
+                    "resolver reported a module target that the host no longer returns",
+                )
+            };
+            self.visit_import_target(
+                source,
+                &target,
+                depth,
+                child_node_modules_depth,
+                external,
+                package_id,
+                inclusions,
+                missing,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Visits the target of an import once per occurrence of the import, so
+    /// the target carries one inclusion reason per occurrence, and records
+    /// the edge once.
+    #[allow(clippy::too_many_arguments)]
+    fn visit_import_target(
+        &mut self,
+        source: usize,
+        target: &ProgramPath,
+        depth: usize,
+        child_node_modules_depth: usize,
+        external: bool,
+        package_id: Option<PackageId>,
+        inclusions: Vec<SourceInclusionReason>,
+        missing: impl Fn() -> ProgramLoadError,
+    ) -> Result<(), ProgramLoadError> {
+        let mut target_source = None;
+        for inclusion in inclusions {
             let loaded = self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
                 child_node_modules_depth,
-                DiscoveryReason::dependency(inclusion).with_package_id(package_id),
+                DiscoveryReason::dependency(inclusion).with_package_id(package_id.clone()),
                 SourceClass::Ordinary,
             )?;
-            let Some(target_source) = loaded else {
-                return Err(ProgramLoadError::invalid_data_js(
-                    ProgramLoadOperation::ReadSource,
-                    Some(target.display().to_owned()),
-                    "resolver reported a module target that the host no longer returns",
-                ));
+            let Some(loaded) = loaded else {
+                return Err(missing());
             };
+            target_source = Some(loaded);
+        }
+        if let Some(target_source) = target_source {
             self.record_source_edge(source, target_source, external);
         }
         Ok(())
