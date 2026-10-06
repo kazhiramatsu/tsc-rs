@@ -3892,3 +3892,46 @@ tsgoは検査する）。診断の違いは無い。ただしroot `tsconfig.json
   `compare-projects.py`は既定で`--noEmit`を足すようにしたが、`incremental`のprojectではtsgoが`tsconfig.tsbuildinfo`
   （`tsBuildInfoFile`の指定があればその場所、`packages-internal/scripts/build/`）を書くので、実行のたびに同じ列挙で
   確認して消す。
+
+## P3-5bm material-uiの残り：importの出現ごとの「Imported via」と、options診断があるときの検査（2026-10-06）
+
+P3-5blのbuildでのmaterial-uiの再実行（両compilerに`--noEmit`）に残った、診断の違い1件と遅いproject 1件。どちらも
+tsgoの挙動をcommandが持っていなかったもので、修正した。
+- **fileはimportの出現ごとに説明される**（`crates/program/src/module_requests.rs`、`loader.rs`）：tsgoの
+  `processImportedModules`はimportの出現ごとに解決したfileをprogramに加える（fileloader.go:928-940。同じfileへの
+  2つ目のsubtaskは読み込まれずreasonだけ足す）ので、「The file is in the program because:」にはspecifierの出現ごとに
+  `Imported via`が1行並ぶ。planはoccurrenceを解決keyで重複排除して最初のspanだけ持っていた。
+  `scripts/buildLlmsDocs/tsconfig.json`（両方36 error）では`packages-internal/api-docs-builder/src/index.ts`が
+  `./utils/createTypeScriptProject`から値と型を別の文でre-exportしていて、tsgoは2行、tsc-rsは1行だった。planは
+  sourceを読み込む出現（augmentationの名前と、TypeScript fileのJSDocのimport typeは読み込まない）のspanを全て持ち、
+  loaderはkeyごとに1回解決して、出現ごとに`visit_source`してinclusion reasonを1つずつ積む（辺は1回）。1つの
+  specifierを3回importしたfileのTS6059はtsgoのbyteになり、projectは一致した。
+- **options診断があるときはsourceを検査しない**（`crates/checker/src/lib.rs`、`crates/compiler/src/lib.rs`、
+  `cli.rs`）：tscの`emitFilesAndReportErrors`（tsgo compiler/program.go `GetDiagnosticsOfAnyProgram`）は、optionsと
+  globalの診断が空のときだけfileのsemantic診断を求める。`examples/material-ui-remix-ts`は削除されたoption
+  （`moduleResolution: node`、TS5108）を持ち、tsgoはfileをbindしてglobal診断のためにcheckerを初期化するだけで
+  sourceを検査せず20 ms。tsc-rsは全部を検査して報告の段で捨てていて80 ms（大きなprojectにoptionのエラーがあれば
+  検査全体が無駄になる）。options行は検査の前に分かる：Program自身のもの（`available_options_diagnostics`、1回だけ
+  計算するようにした）と、CLIが自分で報告するconfig planの非致命の行（`ProgramSession::with_command_options_diagnostics`）。
+  どちらかがあればsessionは`SyntacticDiagnosticsGate::GlobalDiagnosticsOnly`を渡す。これは構文診断がbindの前に閉じる
+  点は同じで、そうでなければcheckerを1つ初期化してsourceを検査しないschedule
+  （`DiagnosticSchedule::GlobalDiagnosticsUnlessSyntacticDiagnostics`。serial driverの`check_sources` false。tsgoの
+  checkerが全て出すglobal行は、初期化したchecker 1つが出す）。native harnessは全sourceを検査したまま。lib-cacheの
+  harness経路にも同じgateを通し、cacheありのsessionがcache無しと同じ報告をするようにした。exampleは30 msで出力は同一。
+- material-ui（このbuild、`compare-projects.py`、tsgo `--singleThreaded`／`TSRS_CHECKERS=1`、`--noEmit`、1 job、
+  46秒）：38 projectのうち26が一致、違う12は未対応のoptionだけ（`incremental` 5、project references 5、`composite` 2）。
+  `test/tsconfig.json`はこの条件で1.43 vs 2.31秒、両compilerの既定の並列では0.96 vs 0.96〜1.11秒、
+  `--singleThreaded`／1 checkerの単発では1.35 vs 1.59秒。実行後にtsgoの`incremental`が書いた`.tsbuildinfo` 6件
+  （`tsBuildInfoFile`の`packages-internal/scripts/build/`を含む）を消し、cloneは0件。
+- test：specifierを2回importしたplanのspan（とspanの無いaugmentation名）の契約、1つのspecifierを3回importしたfileの
+  TS6059をtsgoのbyteで固定するcommandの契約、削除されたoptionと型エラーのcommandの契約（tsgoのbyte。phase traceが
+  bindと閉じた検査を示す）とsessionの契約。TS5108を持つprogramの検査を`run`で観測していたsessionの契約7件は、ungated
+  なnative harnessで観測するようにした（commandと`run`はそのprogramのsourceを検査しないので、authoritativeな表は参照
+  されず、suggestionも作られない）。
+- 残る制限：合成import（`importHelpers`の`tslib`、JSX runtime）はinclusion reasonを持たない（tsgoは「to import
+  'importHelpers' as specified in compilerOptions」「to import 'jsx' and 'jsxs' factory functions」で説明する）。
+  合成かつ書かれたspecifierは書かれた出現だけを並べる（以前と同じ）。
+- conformance（このsliceの1回の全体実行。macOS、`nice -n 20`、2 worker）：`985edadd1`のbuildで15,228 configuration、full 13,451、不一致0、emit full 13,443、harness error 15、ratchet 0 regression（474秒）。P3-5blのreportと行ごとに同一（import理由だけのbuildの全体実行も同じ結果）。
+  file inclusionの説明を含む16 caseの`--filter`実行は全てFull。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、5 crate（checker、program、compiler、conformance、
+  harness）の`cargo clippy --all-targets -- -D warnings`と`cargo test --no-fail-fast`（2,767 passed）。
