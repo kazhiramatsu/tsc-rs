@@ -10,6 +10,7 @@ use tsc_types::CompilerOptions;
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
 use crate::module_resolution::{is_external_module_name_relative, validate_owned_path_text};
 use crate::path::{CanonicalPath, ProgramPath};
+use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{
     MissingResolutionError, ModuleResolution, ResolutionError, ResolutionKey, ResolutionMode,
     ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
@@ -195,6 +196,10 @@ pub struct PreparedSourceFile {
     /// aliases or symlink spellings: the resolver must retain the selected
     /// path while the parser/binder/checker consume this source only once.
     package_redirect_paths: Vec<ProgramPath>,
+    /// The sources of referenced projects this file is the output of (tsgo
+    /// getParseFileRedirect): a resolution reaching such a source selects
+    /// this file.
+    project_reference_source_paths: Vec<ProgramPath>,
     real_path: Option<ProgramPath>,
     snapshot: Arc<TextSnapshot>,
     may_be_emitted: bool,
@@ -234,6 +239,7 @@ impl PreparedSourceFile {
             path,
             alternate_display_paths: Vec::new(),
             package_redirect_paths: Vec::new(),
+            project_reference_source_paths: Vec::new(),
             real_path: None,
             snapshot,
             // A prepared source is normally a direct program input. Loaders
@@ -346,6 +352,22 @@ impl PreparedSourceFile {
     /// order.
     pub fn package_redirect_paths(&self) -> &[ProgramPath] {
         &self.package_redirect_paths
+    }
+
+    /// The sources of referenced projects loaded as this output declaration
+    /// file (see the field).
+    pub fn project_reference_source_paths(&self) -> &[ProgramPath] {
+        &self.project_reference_source_paths
+    }
+
+    pub(crate) fn remember_project_reference_source(&mut self, path: ProgramPath) {
+        if !self
+            .project_reference_source_paths
+            .iter()
+            .any(|existing| existing.canonical() == path.canonical())
+        {
+            self.project_reference_source_paths.push(path);
+        }
     }
 
     pub fn real_path(&self) -> Option<&ProgramPath> {
@@ -971,6 +993,9 @@ pub struct ProgramConfigFile {
     compiler_option_value_locations: BTreeMap<JsString, Vec<ProgramConfigSpan>>,
     compiler_option_string_locations: BTreeMap<JsString, BTreeMap<JsString, ProgramConfigSpan>>,
     root_option_array_locations: BTreeMap<JsString, BTreeMap<JsString, ProgramConfigSpan>>,
+    /// The span of each element of the root `references` array, by index
+    /// (tsoptions CreateDiagnosticAtReferenceSyntax).
+    project_reference_locations: Vec<Option<ProgramConfigSpan>>,
 }
 
 impl ProgramConfigFile {
@@ -993,6 +1018,7 @@ impl ProgramConfigFile {
             compiler_option_value_locations: BTreeMap::new(),
             compiler_option_string_locations: BTreeMap::new(),
             root_option_array_locations: BTreeMap::new(),
+            project_reference_locations: Vec::new(),
         }
     }
 
@@ -1069,6 +1095,27 @@ impl ProgramConfigFile {
             .entry(value.into())
             .or_insert(location);
         self
+    }
+
+    pub fn with_project_reference_location(
+        mut self,
+        index: usize,
+        location: ProgramConfigSpan,
+    ) -> Self {
+        if self.project_reference_locations.len() <= index {
+            self.project_reference_locations.resize(index + 1, None);
+        }
+        self.project_reference_locations[index] = Some(location);
+        self
+    }
+
+    /// The span of the `references` element at `index`, when the root
+    /// config's syntax has one.
+    pub fn project_reference_location(&self, index: usize) -> Option<ProgramConfigSpan> {
+        self.project_reference_locations
+            .get(index)
+            .copied()
+            .flatten()
     }
 
     pub fn path(&self) -> &ProgramPath {
@@ -1168,9 +1215,25 @@ pub struct ProgramOptions {
     default_library_file_name: Option<String>,
     root_dirs: Option<Vec<ProgramPath>>,
     paths: Option<Arc<ProgramPathMappings>>,
+    /// The projects the config's `references` name, resolved once per
+    /// command (see [`ResolvedProjectReferences`]); absent for a program
+    /// without references.
+    project_references: Option<Arc<ResolvedProjectReferences>>,
 }
 
 impl ProgramOptions {
+    pub fn with_project_references(
+        mut self,
+        project_references: Arc<ResolvedProjectReferences>,
+    ) -> Self {
+        self.project_references = Some(project_references);
+        self
+    }
+
+    pub fn project_references(&self) -> Option<&Arc<ResolvedProjectReferences>> {
+        self.project_references.as_ref()
+    }
+
     pub(crate) fn with_config_parsing_diagnostics(
         mut self,
         diagnostics: Vec<Diagnostic>,
@@ -2634,7 +2697,15 @@ impl PreparedProgramBuilder {
             .package_redirect_paths()
             .iter()
             .any(|path| path.canonical() == target.canonical());
-        if !matches_program_path && !matches_real && !matches_package_redirect {
+        let matches_project_reference_source = prepared
+            .project_reference_source_paths()
+            .iter()
+            .any(|path| path.canonical() == target.canonical());
+        if !matches_program_path
+            && !matches_real
+            && !matches_package_redirect
+            && !matches_project_reference_source
+        {
             return Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 operation,
@@ -2655,7 +2726,9 @@ impl PreparedProgramBuilder {
             // resolution reached it directly or through a symlinked
             // node_modules entry; the lexical path stays on the record, as
             // tsc keeps resolvedModule.originalPath beside the redirect.
-            None | Some(_) if matches_package_redirect => Ok(()),
+            None | Some(_) if matches_package_redirect || matches_project_reference_source => {
+                Ok(())
+            }
             Some(original)
                 if original.canonical() == program_path
                     && distinct_real == Some(target.canonical())

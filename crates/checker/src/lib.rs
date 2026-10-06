@@ -448,6 +448,10 @@ pub struct AuthoritativeResolutionDiagnosticModule {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AuthoritativeNotFoundModule {
     pub alternate_result: Option<JsString>,
+    /// The resolution reached a source file of a referenced project whose
+    /// output declaration file is not built: the output's name and the
+    /// source's (tsgo checker.go resolveExternalModule, TS6305).
+    pub project_reference_output: Option<(JsString, JsString)>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
