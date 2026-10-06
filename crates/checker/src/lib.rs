@@ -1637,6 +1637,14 @@ enum DiagnosticSchedule {
     /// so a Program with a parse error in any file is never bound or
     /// checked. The result then carries the syntactic rows alone.
     EagerUnlessSyntacticDiagnostics,
+    /// [`Self::EagerUnlessSyntacticDiagnostics`] for a command whose options
+    /// diagnostics are already known to be non-empty: emitFilesAndReportErrors
+    /// (tsgo compiler/program.go GetDiagnosticsOfAnyProgram) then still binds
+    /// the files and asks for the global diagnostics, which initializes the
+    /// checker, but asks for no file's semantic diagnostics, so no source is
+    /// checked. The result carries the syntactic rows (empty) and the global
+    /// rows of the initialized checker.
+    GlobalDiagnosticsUnlessSyntacticDiagnostics,
     OnDemand,
     /// The eager schedule after one call of the scoped operation over the
     /// initialized checker, before any source is checked: the order of the
@@ -1646,9 +1654,31 @@ enum DiagnosticSchedule {
 }
 
 impl DiagnosticSchedule {
-    /// Whether every source is checked eagerly once the check runs.
+    /// Whether the whole Program is checked at once, once the check runs:
+    /// the eager drivers, as opposed to the on-demand and emit-first ones.
     fn is_eager(self) -> bool {
-        matches!(self, Self::Eager | Self::EagerUnlessSyntacticDiagnostics)
+        matches!(
+            self,
+            Self::Eager
+                | Self::EagerUnlessSyntacticDiagnostics
+                | Self::GlobalDiagnosticsUnlessSyntacticDiagnostics
+        )
+    }
+
+    /// Whether the syntactic diagnostics close the check before any source
+    /// is bound (the command's no-emit check).
+    fn closed_by_syntactic_diagnostics(self) -> bool {
+        matches!(
+            self,
+            Self::EagerUnlessSyntacticDiagnostics
+                | Self::GlobalDiagnosticsUnlessSyntacticDiagnostics
+        )
+    }
+
+    /// Whether the sources are checked at all once the checker is
+    /// initialized.
+    fn checks_sources(self) -> bool {
+        self != Self::GlobalDiagnosticsUnlessSyntacticDiagnostics
     }
 }
 
@@ -1894,7 +1924,8 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
 /// H0 sessions must keep using the owned entry above; this exists only to
 /// avoid reparsing and rebinding the same vendored lib prefix for every
 /// conformance case. `TSRS_LIB_BUNDLE_CACHE=0` retains the owned path for the
-/// cache-off evidence run.
+/// cache-off evidence run. The command's `gate` applies as in the owned
+/// entries, so a cached session reports what the owned session reports.
 #[doc(hidden)]
 #[allow(clippy::too_many_arguments)]
 pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
@@ -1906,6 +1937,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     library_prefix: LibraryPrefixCompletion,
+    gate: SyntacticDiagnosticsGate,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
@@ -1921,7 +1953,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
         None,
         None,
         library_prefix,
-        DiagnosticSchedule::Eager,
+        gate.schedule(),
         WorkerBudget::serial(),
     )
 }
@@ -2014,6 +2046,12 @@ pub fn check_program_with_authoritative_modules_at_with_checkers<'cwd>(
 pub enum SyntacticDiagnosticsGate {
     CheckEverySource,
     CloseTheCheck,
+    /// `CloseTheCheck` for a command whose options diagnostics are already
+    /// non-empty: tsc then binds the files and asks for the global
+    /// diagnostics alone (GetDiagnosticsOfAnyProgram asks for the semantic
+    /// diagnostics only when the options and global diagnostics are empty),
+    /// so no source is checked.
+    GlobalDiagnosticsOnly,
 }
 
 impl SyntacticDiagnosticsGate {
@@ -2021,6 +2059,9 @@ impl SyntacticDiagnosticsGate {
         match self {
             Self::CheckEverySource => DiagnosticSchedule::Eager,
             Self::CloseTheCheck => DiagnosticSchedule::EagerUnlessSyntacticDiagnostics,
+            Self::GlobalDiagnosticsOnly => {
+                DiagnosticSchedule::GlobalDiagnosticsUnlessSyntacticDiagnostics
+            }
         }
     }
 }
@@ -2282,11 +2323,14 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         // Sharding is a property of the eager whole-Program schedule with
         // per-checker providers; the on-demand schedule and emit callbacks
-        // keep the serial driver.
+        // keep the serial driver, and so does a schedule that checks no
+        // source (one initialized checker publishes the global rows that
+        // tsgo's checkers all publish).
         let sharded_factory = match run.provider {
             AuthoritativeProviderSource::PerChecker(factory)
                 if checkers.is_sharded()
                     && diagnostic_schedule.is_eager()
+                    && diagnostic_schedule.checks_sources()
                     && emit_operation.is_none() =>
             {
                 Some(factory)
@@ -2857,7 +2901,7 @@ fn syntactic_diagnostics_close_the_check(
     options: &CompilerOptions,
     work_counters: &CheckWorkCounters,
 ) -> Option<CheckResult> {
-    if schedule != DiagnosticSchedule::EagerUnlessSyntacticDiagnostics {
+    if !schedule.closed_by_syntactic_diagnostics() {
         return None;
     }
     let started = std::time::Instant::now();
@@ -4106,6 +4150,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         replay_host,
         collect_global_diagnostics,
         complete_library_prefix,
+        true,
         work_counters,
         sharded_emit,
         checkers.leaks_states(),
@@ -4123,7 +4168,9 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
 /// through it, so the two cannot drift in check order or assembly; the legacy
 /// fixture-only, on-demand and emit-callback paths keep the serial driver's
 /// inline sequence. A replayed emitting run emits every file with this one
-/// checker through the same per-shard protocol.
+/// checker through the same per-shard protocol. With `check_sources` false
+/// the checker is initialized and no source is checked (the command's
+/// options diagnostics close the check of the sources).
 #[allow(clippy::too_many_arguments)]
 fn check_snapshot_serially(
     snapshot: &ProgramSnapshot,
@@ -4138,10 +4185,12 @@ fn check_snapshot_serially(
     host: HostFacts,
     collect_global_diagnostics: bool,
     complete_library_prefix: bool,
+    check_sources: bool,
     work_counters: CheckWorkCounters,
     sharded_emit: Option<&mut ShardedEmit<'_>>,
     leak_state: bool,
 ) -> CheckExecution {
+    let init_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, authoritative, host);
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
@@ -4151,6 +4200,37 @@ fn check_snapshot_serially(
     } else {
         Vec::new()
     };
+    if !check_sources {
+        // The command's options diagnostics are non-empty: the checker is
+        // initialized for the global rows and no source is checked
+        // (DiagnosticSchedule::GlobalDiagnosticsUnlessSyntacticDiagnostics).
+        // The whole-Program semantic getter exists and is empty.
+        tsc_types::trace::mark(
+            "checker: options diagnostics close the check of the sources (init only)",
+            init_started,
+        );
+        debug_assert!(
+            sharded_emit.is_none(),
+            "an emitting session checks the files it emits"
+        );
+        let partial_checks = state.partial_check_records.clone();
+        let authoritative_failure = state.take_authoritative_module_failure();
+        state.line_profile.flush();
+        let result = assemble_check_result(
+            &file_diagnostics,
+            Some(&[]),
+            &global_diagnostics,
+            &partial_checks,
+            work_counters,
+        );
+        if leak_state {
+            std::mem::forget(state);
+        }
+        return CheckExecution {
+            result,
+            authoritative_failure,
+        };
+    }
     let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
     let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
     let check_started = std::time::Instant::now();
@@ -4413,6 +4493,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 host,
                 collect_global_diagnostics,
                 run.library_prefix == LibraryPrefixCompletion::Complete,
+                run.diagnostic_schedule.checks_sources(),
                 work_counters,
                 None,
                 false,

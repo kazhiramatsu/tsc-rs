@@ -100,6 +100,11 @@ pub struct ProgramSession {
     /// shared immutable snapshot. The emit and declaration paths stay serial
     /// until their coordinated write finalization exists.
     checker_budget: CheckerBudget,
+    /// Whether the command owns options diagnostics the prepared program
+    /// does not carry (the config plan's non-fatal option rows, such as
+    /// TS5108, which the CLI reports in the options bucket itself). They
+    /// close the check of the sources as the Program's own options rows do.
+    command_options_diagnostics: bool,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -1147,6 +1152,7 @@ impl ProgramSession {
             leak_program: false,
             native_harness: None,
             checker_budget: CheckerBudget::serial(),
+            command_options_diagnostics: false,
         }
     }
 
@@ -1155,6 +1161,15 @@ impl ProgramSession {
     /// should set this.
     pub fn with_leaked_program(mut self, leak: bool) -> Self {
         self.leak_program = leak;
+        self
+    }
+
+    /// Tell the session that the command reports options diagnostics of its
+    /// own (see the `command_options_diagnostics` field): tsc's
+    /// emitFilesAndReportErrors then asks for no file's semantic
+    /// diagnostics, and the session checks no source.
+    pub fn with_command_options_diagnostics(mut self, present: bool) -> Self {
+        self.command_options_diagnostics = present;
         self
     }
 
@@ -1284,6 +1299,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1518,6 +1534,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1638,6 +1655,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1738,6 +1756,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         if forced_declarations {
@@ -1890,6 +1909,7 @@ impl ProgramSession {
             checker_budget,
             leak_program,
             native_harness: _,
+            command_options_diagnostics: _,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
@@ -2575,18 +2595,43 @@ impl ProgramSession {
     /// TS5055), which the native runner collects with the options
     /// diagnostics; none for a Program that cannot emit, and none under
     /// `suppressOutputPathCheck`, which verifies no output path.
-    /// tsc's emitFilesAndReportErrors (tsgo execute.go compileAndEmit) asks
-    /// for the options, global and semantic diagnostics only when the
-    /// syntactic diagnostics are empty, so the command's check is closed by
-    /// them: a Program with a parse error is neither bound nor checked. The
-    /// native harness collects every diagnostic kind of the second Program
-    /// and checks every source.
-    fn syntactic_diagnostics_gate(&self) -> SyntacticDiagnosticsGate {
+    /// tsc's emitFilesAndReportErrors (tsgo compiler/program.go
+    /// GetDiagnosticsOfAnyProgram) asks for the options, global and semantic
+    /// diagnostics only when the syntactic diagnostics are empty, so the
+    /// command's check is closed by them: a Program with a parse error is
+    /// neither bound nor checked. It asks for the semantic diagnostics only
+    /// when the options and global diagnostics are empty too, so a Program
+    /// whose options diagnostics (`available_options`, known before the
+    /// check, or the command's own; see `command_options_diagnostics`) are
+    /// not is bound and its checker initialized for the global diagnostics,
+    /// and no source is checked. The native harness collects every
+    /// diagnostic kind of the second Program and checks every source.
+    fn syntactic_diagnostics_gate(
+        &self,
+        available_options: &[Diagnostic],
+    ) -> SyntacticDiagnosticsGate {
         if self.native_harness.is_some() {
             SyntacticDiagnosticsGate::CheckEverySource
-        } else {
+        } else if available_options.is_empty() && !self.command_options_diagnostics {
             SyntacticDiagnosticsGate::CloseTheCheck
+        } else {
+            SyntacticDiagnosticsGate::GlobalDiagnosticsOnly
         }
+    }
+
+    /// The options diagnostics of the command's no-emit report, which tsc
+    /// gathers as the Program's options diagnostics
+    /// (`getOptionsDiagnostics`): the config's option rows, the programmatic
+    /// option rows and the Program rows outside every source (the rows a
+    /// source owns are its include-processor diagnostics, joined to its
+    /// semantic diagnostics). Each public getter applies
+    /// sortAndDeduplicateDiagnostics to its combined result.
+    fn available_options_diagnostics(&self) -> Vec<Diagnostic> {
+        let mut available_options = self.prepared.diagnostics().options().to_vec();
+        available_options.extend(programmatic_option_diagnostics(&self.prepared));
+        available_options.extend(program_rows_outside_sources(&self.prepared));
+        sort_and_dedupe_diagnostics(&mut available_options);
+        available_options
     }
 
     fn native_output_diagnostics(&self) -> Vec<Diagnostic> {
@@ -2660,6 +2705,13 @@ impl ProgramSession {
                 || command_report && self.prepared.compiler_options().no_emit == Some(true));
         let mut declaration_diagnostics: Option<Result<DiagnosticList, DriverError>> = None;
         let mut first_emit: Option<Result<EmitOutcome, EmitFailure>> = None;
+        // Program-construction diagnostics are part of tsc's combined
+        // diagnostic map. File-less rows and rows owned by config or other
+        // auxiliary files feed getOptionsDiagnostics; rows owned by a
+        // program SourceFile feed that source's getSemanticDiagnostics. The
+        // options rows are known before the check and gate it.
+        let available_options = self.available_options_diagnostics();
+        let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(&available_options);
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
                 &inputs.libs,
@@ -2670,6 +2722,7 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 library_prefix,
+                syntactic_diagnostics_gate,
             )
         } else if let Some(sink) = emit_first {
             // tsgo's test harness, `compileFilesWithHost`
@@ -2895,7 +2948,7 @@ impl ProgramSession {
                 },
                 self.worker_budget,
                 self.checker_budget,
-                self.syntactic_diagnostics_gate(),
+                syntactic_diagnostics_gate,
             )
         } else {
             check_program_with_authoritative_modules_at_with_workers_gated(
@@ -2907,7 +2960,7 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 self.worker_budget,
-                self.syntactic_diagnostics_gate(),
+                syntactic_diagnostics_gate,
             )
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
@@ -2936,23 +2989,9 @@ impl ProgramSession {
         sort_and_dedupe_diagnostics(&mut syntactic_diagnostics);
         let partial_checks = checked.partial_checks;
 
-        // Program-construction diagnostics are part of tsc's
-        // combined diagnostic map. File-less rows and rows owned by config
-        // or other auxiliary files feed getOptionsDiagnostics; rows owned by
-        // a program SourceFile feed that source's getSemanticDiagnostics.
-        // Each public getter applies sortAndDeduplicateDiagnostics to its
-        // combined result.
-        let mut available_options = preparation.options().to_vec();
-        available_options.extend(programmatic_option_diagnostics(&self.prepared));
         let mut available_semantic = checked
             .program_semantic_diagnostics
             .expect("authoritative checker sessions publish whole-Program semantic diagnostics");
-        // The Program rows located in a source are its include-processor
-        // diagnostics: the checker joined them to that source's semantic
-        // diagnostics, in the public per-source getters and the whole-Program
-        // view alike. The rows outside every source are options diagnostics.
-        available_options.extend(program_rows_outside_sources(&self.prepared));
-        sort_and_dedupe_diagnostics(&mut available_options);
         sort_and_dedupe_diagnostics(&mut available_semantic);
 
         // emitFilesAndReportErrors compares the aggregate length with the

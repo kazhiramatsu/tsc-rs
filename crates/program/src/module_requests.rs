@@ -135,7 +135,7 @@ pub struct SourceRequestPlan {
     module_requests: Vec<ResolutionKey>,
     unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
     loadable_module_requests: BTreeSet<ResolutionKey>,
-    module_request_spans: BTreeMap<ResolutionKey, (u32, u32)>,
+    module_request_spans: BTreeMap<ResolutionKey, Vec<(u32, u32)>>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     observed_request_occurrence_count: usize,
@@ -188,12 +188,18 @@ impl SourceRequestPlan {
             .then(|| self.loadable_module_requests.contains(key))
     }
 
-    /// The first source span for a module request, including its string
-    /// literal delimiters.  Program construction uses this only for
-    /// file-preprocessing inclusion diagnostics; synthetic requests have no
-    /// source span.
-    pub fn module_request_span(&self, key: &ResolutionKey) -> Option<(u32, u32)> {
-        self.module_request_spans.get(key).copied()
+    /// The source spans of the occurrences of a module request that load
+    /// their target, in source order, each including its string literal
+    /// delimiters. Program construction records one inclusion reason per
+    /// occurrence (tsgo's processImportedModules adds a file once for every
+    /// import of it; fileloader.go:928-940), so a specifier imported twice
+    /// explains its target twice. Synthetic requests and occurrences that do
+    /// not load a source (augmentation names, JSDoc import types of a
+    /// TypeScript file) have no span here.
+    pub fn module_request_spans(&self, key: &ResolutionKey) -> &[(u32, u32)] {
+        self.module_request_spans
+            .get(key)
+            .map_or(&[], Vec::as_slice)
     }
 
     pub fn type_reference_directives(&self) -> &[PlannedTypeReferenceDirective] {
@@ -706,7 +712,7 @@ fn plan_module_requests_worker(
     dynamic_occurrences.sort_by_key(|occurrence| occurrence.pos);
     augmentation_occurrences.sort_by_key(|occurrence| occurrence.pos);
     let mut module_requests = Vec::new();
-    let mut module_request_spans = BTreeMap::new();
+    let mut module_request_spans: BTreeMap<ResolutionKey, Vec<(u32, u32)>> = BTreeMap::new();
     let mut loadable_module_requests = BTreeSet::new();
     let mut seen_module_requests = BTreeSet::new();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
@@ -770,16 +776,17 @@ fn plan_module_requests_worker(
     {
         if occurrence.loads_source {
             loadable_module_requests.insert(occurrence.key.clone());
+            let span_start =
+                skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
+            let span = (
+                byte_to_utf16_offset(positions, source_text, span_start),
+                byte_to_utf16_offset(positions, source_text, occurrence.end as usize),
+            );
+            module_request_spans
+                .entry(occurrence.key.clone())
+                .or_default()
+                .push(span);
         }
-        let span_start =
-            skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
-        let span = (
-            byte_to_utf16_offset(positions, source_text, span_start),
-            byte_to_utf16_offset(positions, source_text, occurrence.end as usize),
-        );
-        module_request_spans
-            .entry(occurrence.key.clone())
-            .or_insert(span);
         if seen_module_requests.insert(occurrence.key.clone()) {
             module_requests.push(occurrence.key);
         }

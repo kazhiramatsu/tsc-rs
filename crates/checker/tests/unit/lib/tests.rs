@@ -6935,6 +6935,7 @@ fn library_related_information_follows_program_membership_across_entry_families(
                 "/",
                 &NeverProvider,
                 completion,
+                SyntacticDiagnosticsGate::CheckEverySource,
             )
             .unwrap(),
         ));
