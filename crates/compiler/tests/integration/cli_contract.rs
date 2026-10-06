@@ -10814,3 +10814,173 @@ fn a_file_resolved_through_the_package_imports_is_explained_with_its_package_id_
         )
     );
 }
+
+/// A referenced composite project `lib` (its `dist` built or not) and an
+/// `app` that imports a source file of it.
+fn write_referenced_project(tree: &TempTree, built: bool) {
+    fs::create_dir_all(tree.path("lib/src")).expect("create lib/src");
+    fs::create_dir_all(tree.path("app/src")).expect("create app/src");
+    fs::write(
+        tree.path("lib/tsconfig.json"),
+        r#"{"compilerOptions":{"composite":true,"outDir":"dist","module":"nodenext","target":"es2022","lib":["es2022"],"types":[],"strict":true},"include":["src"]}"#,
+    )
+    .expect("write lib/tsconfig.json");
+    fs::write(
+        tree.path("lib/src/index.ts"),
+        concat!(
+            "export function add(a: number, b: number): number { return a + b; }\n",
+            "export type Pair = [number, number];\n",
+        ),
+    )
+    .expect("write lib/src/index.ts");
+    if built {
+        fs::create_dir_all(tree.path("lib/dist/src")).expect("create lib/dist/src");
+        fs::write(
+            tree.path("lib/dist/src/index.d.ts"),
+            concat!(
+                "export declare function add(a: number, b: number): number;\n",
+                "export type Pair = [number, number];\n",
+            ),
+        )
+        .expect("write lib/dist/src/index.d.ts");
+    }
+    fs::write(
+        tree.path("app/tsconfig.json"),
+        r#"{"compilerOptions":{"module":"nodenext","target":"es2022","lib":["es2022"],"types":[],"strict":true,"noEmit":true},"files":["src/main.ts"],"references":[{"path":"../lib"}]}"#,
+    )
+    .expect("write app/tsconfig.json");
+    fs::write(
+        tree.path("app/src/main.ts"),
+        concat!(
+            "import { add, type Pair } from \"../../lib/src/index.js\";\n",
+            "const p: Pair = [1, 2];\n",
+            "export const s: string = add(p[0], p[1]);\n",
+        ),
+    )
+    .expect("write app/src/main.ts");
+}
+
+#[test]
+fn a_source_of_a_referenced_project_is_loaded_as_its_output_like_tsgo() {
+    // tsgo loads the output declaration file of a referenced project in
+    // place of its source (getParseFileRedirect; the command never uses the
+    // sources of a reference), so `main.ts` sees `lib/dist/src/index.d.ts`
+    // and its type error is reported against the declarations. The command
+    // refused every config with `references`. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    write_referenced_project(&tree, true);
+    let output = run_from(&tree, "app", &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "src/main.ts(3,14): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+}
+
+#[test]
+fn an_unbuilt_output_of_a_referenced_project_reports_ts6305_like_tsgo() {
+    // Without the output the resolution of `../../lib/src/index.js` loads
+    // nothing, and resolveExternalModule reports the output that has not
+    // been built from the source (checker.go, TS6305) instead of a missing
+    // module. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    write_referenced_project(&tree, false);
+    let project = compiler_current_directory(&tree);
+    let project = project.display();
+    let output = run_from(&tree, "app", &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            "src/main.ts(1,32): error TS6305: Output file '{project}/lib/dist/src/index.d.ts' has not been built from source file '{project}/lib/src/index.ts'.\n"
+        ),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+}
+
+#[test]
+fn project_references_are_verified_at_their_syntax_like_tsgo() {
+    // tsgo verifyProjectReferences: a reference whose config does not exist
+    // is TS6053 (the written path, resolved; `tsconfig.json` is implied for
+    // a directory), and when the referencing project has files a
+    // non-composite reference is TS6306 and one that disables emit is
+    // TS6310, each at the reference's element in the config. A config whose
+    // `files` is empty but that has references is not TS18002, and its
+    // references are verified. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    for directory in ["app/src", "plain/src", "noemit/src"] {
+        fs::create_dir_all(tree.path(directory)).expect("create directory");
+    }
+    fs::write(tree.path("plain/src/a.ts"), "export const x = 1;\n").expect("write a.ts");
+    fs::write(tree.path("noemit/src/b.ts"), "export const y = 2;\n").expect("write b.ts");
+    fs::write(
+        tree.path("plain/tsconfig.json"),
+        r#"{"compilerOptions":{"module":"nodenext","target":"es2022","lib":["es2022"],"types":[],"outDir":"out"},"include":["src"]}"#,
+    )
+    .expect("write plain/tsconfig.json");
+    fs::write(
+        tree.path("noemit/tsconfig.json"),
+        r#"{"compilerOptions":{"composite":true,"noEmit":true,"module":"nodenext","target":"es2022","lib":["es2022"],"types":[]},"include":["src"]}"#,
+    )
+    .expect("write noemit/tsconfig.json");
+    fs::write(
+        tree.path("app/tsconfig.json"),
+        concat!(
+            "{\n",
+            "  \"compilerOptions\": {\"module\":\"nodenext\",\"target\":\"es2022\",\"lib\":[\"es2022\"],\"types\":[],\"noEmit\":true},\n",
+            "  \"files\": [\"src/main.ts\"],\n",
+            "  \"references\": [\n",
+            "    {\"path\": \"../missing\"},\n",
+            "    {\"path\": \"../plain\"},\n",
+            "    {\"path\": \"../noemit/tsconfig.json\"},\n",
+            "    {\"path\": \"../also-missing/tsconfig.json\"}\n",
+            "  ]\n",
+            "}\n",
+        ),
+    )
+    .expect("write app/tsconfig.json");
+    fs::write(
+        tree.path("app/tsconfig.empty.json"),
+        r#"{"compilerOptions": {"module":"nodenext","target":"es2022","lib":["es2022"],"types":[],"noEmit":true},"files": [],"references": [{"path": "../missing"},{"path": "../plain"}]}"#,
+    )
+    .expect("write app/tsconfig.empty.json");
+    fs::write(
+        tree.path("app/src/main.ts"),
+        "export const z: number = 1;\n",
+    )
+    .expect("write main.ts");
+    let project = compiler_current_directory(&tree);
+    let project = project.display();
+    let output = run_from(&tree, "app", &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            concat!(
+                "tsconfig.json(5,5): error TS6053: File '{project}/missing' not found.\n",
+                "tsconfig.json(6,5): error TS6306: Referenced project '{project}/plain' must have setting \"composite\": true.\n",
+                "tsconfig.json(7,5): error TS6310: Referenced project '{project}/noemit/tsconfig.json' may not disable emit.\n",
+                "tsconfig.json(8,5): error TS6053: File '{project}/also-missing/tsconfig.json' not found.\n",
+            ),
+            project = project,
+        ),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    let output = run_from(
+        &tree,
+        "app",
+        &["-p", "tsconfig.empty.json", "--pretty", "false"],
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!("tsconfig.empty.json(1,130): error TS6053: File '{project}/missing' not found.\n"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+}

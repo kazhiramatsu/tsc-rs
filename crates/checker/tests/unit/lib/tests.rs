@@ -1350,6 +1350,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
                     alternate_result: Some(
                         ("/node_modules/pkg/definitely-not-index.d.ts".to_owned()).into(),
                     ),
+                    project_reference_output: None,
                 },
             ))
         }
