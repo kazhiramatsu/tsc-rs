@@ -849,6 +849,16 @@ impl<'a> CheckerState<'a> {
     /// boundary and its body is not traversed. A per-augmentation CheckAbort
     /// is contained like the check_source_element boundary.
     pub fn merge_module_augmentations(&mut self) {
+        self.merge_module_augmentations_around(|_| ());
+    }
+
+    /// `merge_module_augmentations` with `between` run where tsgo's
+    /// initializeChecker (checker.go:1352-1382) constructs the global types:
+    /// after the global-scope augmentations merge and before the deferred
+    /// ambient module declarations do. The program driver constructs them
+    /// there (materialize_init_global_diagnostics); the unit tests leave
+    /// them lazy.
+    pub fn merge_module_augmentations_around(&mut self, between: impl FnOnce(&mut Self)) {
         let file_count = self.binder.file_count();
         let mut global_augmentations: Vec<NodeId> = Vec::new();
         let mut module_augmentations: Vec<NodeId> = Vec::new();
@@ -891,6 +901,16 @@ impl<'a> CheckerState<'a> {
         // with `lib: ["es5"]` an augmented `Array<T>` had two declared
         // types and `string[]` did not see the augmentation.
         self.run_init_global_type_probes();
+        // The global types are also CONSTRUCTED here, before the deferred
+        // ambient module declarations merge (tsgo initializeChecker,
+        // checker.go:1352-1382): getDeclaredTypeOfClassOrInterface of
+        // `Function` resolves the base names of every `Function` declaration
+        // (isThislessInterface), and a global augmentation that extends an
+        // imported interface resolves its import then. An import of a name
+        // that only an ambient module declaration provides is not found at
+        // that point (the alias is cached unresolved, TS2307); DefinitelyTyped's
+        // `ember/v2` depends on it.
+        between(self);
         self.merge_deferred_ambient_modules();
         // tsgo (checker.go:1385): pattern modules merge before the
         // external-module augmentations resolve.

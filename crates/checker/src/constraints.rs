@@ -513,44 +513,56 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 76ee41842b8482f7c2b97c06ffb69c0a793e81007d4c8be3325e3a63450a1c55
     /// tsc-span: _tsc.js:58915-59025
     ///
+    /// tsgo getResolvedBaseConstraint (checker.go:27912-27953): one
+    /// function and one cache (`resolvedBaseConstraint`) serve the
+    /// top-level request and the nested ones (getNextBaseConstraint), and a
+    /// request for a type whose resolution is in progress returns the
+    /// circular sentinel WITHOUT caching it, so every later request during
+    /// that resolution finds the cycle again and marks the resolutions
+    /// between them circular. tsc 6.0 (getResolvedBaseConstraint over
+    /// getImmediateBaseConstraint) cached the sentinel of the first
+    /// re-entrant request in `resolvedBaseConstraint` and answered the later
+    /// ones from it. The difference is visible: while the constraint of an
+    /// `infer P` is inferred from `DefineComponent<infer P, …>`, the
+    /// distributive conditional `ExtractDefaultPropTypes<P>` compares `P`
+    /// with `object` (its substitution `P & object`) several times; tsgo
+    /// marks the conditional type's constraint circular at each, so its
+    /// mapped type's parameter `K` is never asked for its own constraint,
+    /// where the port asked and reported TS2313 on `K`.
+    ///
     /// computeBaseConstraint arms present: TypeParameter,
-    /// Union/Intersection, TemplateLiteral, StringMapping,
-    /// IndexedAccess, Substitution, generic tuple, and the default
-    /// identity. Conditional resolution is the named 9.6c boundary.
+    /// Union/Intersection, Index, TemplateLiteral, StringMapping,
+    /// IndexedAccess, Conditional, Substitution, generic tuple, and the
+    /// default identity.
     pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult<TypeId> {
-        if let Some(cached) = self
-            .links
-            .read_ty(ty, |links| links.resolved_base_constraint.resolved())
-        {
-            return Ok(cached);
-        }
         let mut stack: Vec<crate::engine::RecursionIdentity> = Vec::new();
-        let resolved = self.get_immediate_base_constraint(ty, &mut stack)?;
-        // tsc's `links.resolvedBaseConstraint ?? (links... = ...)`
-        // can re-enter while evaluating the right-hand side. The
-        // inner evaluation then publishes the same result before this
-        // outer frame resumes. Coalesce that semantic single write
-        // instead of presenting it to the Rust one-write Links guard
-        // as a rewrite.
-        if let Some(cached) = self
-            .links
-            .read_ty(ty, |links| links.resolved_base_constraint.resolved())
-        {
-            debug_assert_eq!(cached, resolved);
-            return Ok(cached);
-        }
-        self.links.set_type_resolved_base_constraint(ty, resolved);
-        Ok(resolved)
+        self.get_resolved_base_constraint_with_stack(ty, &mut stack)
     }
 
-    fn get_immediate_base_constraint(
+    fn get_resolved_base_constraint_with_stack(
         &mut self,
         t: TypeId,
         stack: &mut Vec<crate::engine::RecursionIdentity>,
     ) -> CheckResult<TypeId> {
+        // A type that is not constrained (tsgo: no ConstrainedType — the
+        // intrinsics, literals and unique symbols) is its own base
+        // constraint and starts no resolution.
+        if !self.tables.flags_of(t).intersects(TypeFlags::from_bits(
+            TypeFlags::TYPE_PARAMETER.bits()
+                | TypeFlags::OBJECT.bits()
+                | TypeFlags::UNION_OR_INTERSECTION.bits()
+                | TypeFlags::INDEX.bits()
+                | TypeFlags::INDEXED_ACCESS.bits()
+                | TypeFlags::CONDITIONAL.bits()
+                | TypeFlags::SUBSTITUTION.bits()
+                | TypeFlags::TEMPLATE_LITERAL.bits()
+                | TypeFlags::STRING_MAPPING.bits(),
+        )) {
+            return Ok(t);
+        }
         if let Some(cached) = self
             .links
-            .read_ty(t, |links| links.immediate_base_constraint.resolved())
+            .read_ty(t, |links| links.resolved_base_constraint.resolved())
         {
             return Ok(cached);
         }
@@ -568,10 +580,15 @@ impl<'a> CheckerState<'a> {
                 return Err(err);
             }
         };
+        // We always explore at least 10 levels of nested constraints.
+        // Thereafter, we continue to explore up to 50 levels of nested
+        // constraints provided there are no "deeply nested" types on the
+        // stack (i.e. no types for which five instantiations have been
+        // recorded on the stack).
         let computed = if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&identity)) {
             stack.push(identity);
-            // 58929-58933: the constraint is computed over the
-            // SIMPLIFIED type (reading direction).
+            // The constraint is computed over the SIMPLIFIED type (reading
+            // direction).
             let computed = match self.get_simplified_type(t, /*writing*/ false) {
                 Ok(simplified) => self.compute_base_constraint(simplified, stack),
                 Err(err) => Err(err),
@@ -611,11 +628,10 @@ impl<'a> CheckerState<'a> {
                         &diagnostics::Type_parameter_0_has_a_circular_constraint,
                         &[(&name).into()],
                     );
-                    // getImmediateBaseConstraint 58939-58942: the
-                    // driver's current node identifies where the
-                    // recursive constraint computation originated.
-                    // A nested/containing node is the same declaration
-                    // face and therefore does not become related info.
+                    // The driver's current node identifies where the
+                    // recursive constraint computation originated. A
+                    // nested/containing node is the same declaration face
+                    // and therefore does not become related info.
                     if let Some(current_node) = self.current_node {
                         if !self.is_node_descendant_of(error_node, current_node)
                             && !self.is_node_descendant_of(current_node, error_node)
@@ -632,17 +648,24 @@ impl<'a> CheckerState<'a> {
             }
             self.circular_constraint_type
         };
-        self.links.set_type_immediate_base_constraint(t, resolved);
+        if self
+            .links
+            .read_ty(t, |links| links.resolved_base_constraint.resolved())
+            .is_none()
+        {
+            self.links.set_type_resolved_base_constraint(t, resolved);
+        }
         Ok(resolved)
     }
 
-    /// getBaseConstraint (58953-58956): sentinel-filtered immediate.
+    /// tsgo getNextBaseConstraint (checker.go:28047-28056): the nested
+    /// resolution, sentinel-filtered.
     fn get_base_constraint_inner(
         &mut self,
         t: TypeId,
         stack: &mut Vec<crate::engine::RecursionIdentity>,
     ) -> CheckResult<Option<TypeId>> {
-        let c = self.get_immediate_base_constraint(t, stack)?;
+        let c = self.get_resolved_base_constraint_with_stack(t, stack)?;
         Ok((c != self.no_constraint_type && c != self.circular_constraint_type).then_some(c))
     }
 

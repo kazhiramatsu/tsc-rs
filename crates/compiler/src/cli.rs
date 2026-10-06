@@ -276,6 +276,13 @@ fn stable_io_message(error: &io::Error, operation: &str, path: JsStr<'_>) -> JsS
     }
 }
 
+/// The directory of the embedded standard library: tsgo's bundled
+/// library path (`bundled:///libs`, internal/bundled/embed.go), a URL that
+/// no filesystem path equals. Diagnostics and `--listFiles` name a library
+/// file `bundled:///libs/lib.dom.d.ts`, as tsgo does, and such a name sorts
+/// after every absolute path, which orders the diagnostics as tsgo's.
+const EMBEDDED_LIBRARY_DIRECTORY: &str = "bundled:///libs";
+
 /// Production CLI host with an immutable, binary-owned TypeScript 7.1
 /// standard-library directory. User/config/package paths retain ordinary
 /// filesystem semantics; only exact immediate children of this private
@@ -287,13 +294,10 @@ struct CliCompilerHost {
 }
 
 impl CliCompilerHost {
-    fn new(filesystem: FsCompilerHost, current_directory: &Path) -> Self {
+    fn new(filesystem: FsCompilerHost) -> Self {
         Self {
             filesystem,
-            library_directory: current_directory
-                .join(".tsc-rs-embedded-569177652966bd52")
-                .join(EMBEDDED_LIBRARY_PROFILE)
-                .join("lib"),
+            library_directory: PathBuf::from(EMBEDDED_LIBRARY_DIRECTORY),
         }
     }
 
@@ -575,7 +579,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         output_filesystem: &mut output_filesystem,
     };
     let current_directory = filesystem.current_directory().map_err(host_error)?;
-    let host = CliCompilerHost::new(filesystem, &current_directory);
+    let host = CliCompilerHost::new(filesystem);
     let catalog = LibraryCatalog::typescript_7_1(host.library_directory());
     tsc_types::trace::mark("cli: arguments, host, catalog", prologue_started);
 

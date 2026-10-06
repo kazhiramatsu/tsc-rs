@@ -739,12 +739,11 @@ pub struct TypeLinks {
     /// tsc TypeParameter.constraint (getConstraintFromTypeParameter
     /// 60103) — Resolved(noConstraintType sentinel) = computed, none.
     pub type_parameter_constraint: IdSlot<TypeId>,
-    /// tsc type.resolvedBaseConstraint (getResolvedBaseConstraint
-    /// 58916-58920).
+    /// tsgo ConstrainedType.resolvedBaseConstraint (getResolvedBaseConstraint,
+    /// checker.go:27912-27953), the one cache of the top-level and the
+    /// nested base-constraint resolutions; the resolution property is
+    /// IMMEDIATE_BASE_CONSTRAINT.
     pub resolved_base_constraint: IdSlot<TypeId>,
-    /// tsc type.immediateBaseConstraint (getImmediateBaseConstraint
-    /// 58921-58951; the ImmediateBaseConstraint resolution property).
-    pub immediate_base_constraint: IdSlot<TypeId>,
     /// tsc type.target for ObjectFlags::INSTANTIATED anonymous types
     /// (instantiateAnonymousType 63658).
     pub instantiated_target: Option<TypeId>,
@@ -771,7 +770,7 @@ pub struct TypeLinks {
     pub deferred_node: Option<NodeId>,
 }
 
-const _: () = assert!(std::mem::size_of::<TypeLinks>() == 40);
+const _: () = assert!(std::mem::size_of::<TypeLinks>() == 36);
 
 /// The TypeLinks fields few types set, one sparse map per field (see
 /// [`SparseLinks`]).
@@ -3814,15 +3813,6 @@ impl LinksTables {
     pub fn set_type_resolved_base_constraint(&mut self, id: TypeId, value: TypeId) {
         Self::write_id_slot(
             &mut self.ty.slot(id).resolved_base_constraint,
-            LinkSlot::Resolved(value),
-        );
-    }
-
-    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn set_type_immediate_base_constraint(&mut self, id: TypeId, value: TypeId) {
-        Self::write_id_slot(
-            &mut self.ty.slot(id).immediate_base_constraint,
             LinkSlot::Resolved(value),
         );
     }

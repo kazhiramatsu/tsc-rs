@@ -713,14 +713,32 @@ fn absolute_virtual_path<'a, 'b>(
 
 fn source_file_name(file_name: JsStr<'_>, current_directory: JsStr<'_>) -> JsString {
     let file_name = normalize_slashes(file_name);
-    if file_name.starts_with("/") {
-        // Already-absolute public names retain their leading UNC root.
+    if file_name.starts_with("/") || has_url_scheme(file_name.as_js()) {
+        // Already-absolute public names retain their leading UNC root. A URL
+        // is rooted at its scheme (tspath getEncodedRootLength, `scheme://`):
+        // tsgo's bundled libraries are `bundled:///libs/<lib>`, which sorts
+        // after every `/`-rooted file name.
         return file_name;
     }
     let mut path = absolute_current_directory(current_directory);
     path.push('/');
     path.push_js(file_name.as_js());
     resolve_posix_path(path.as_js())
+}
+
+/// Whether `path` starts with a URL scheme (`scheme://`), the root of a URL
+/// in tspath's getEncodedRootLength: letters, digits, `+`, `-` and `.` before
+/// the first `://`, at least one letter first.
+fn has_url_scheme(path: JsStr<'_>) -> bool {
+    let bytes = path.as_bytes();
+    let Some(end) = bytes.windows(3).position(|window| window == b"://") else {
+        return false;
+    };
+    end > 0
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[..end]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'))
 }
 
 /// `normalizeFileName(path.posix.resolve(cwd))` from program-host.mjs.

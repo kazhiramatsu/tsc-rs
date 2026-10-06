@@ -872,7 +872,6 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 || !diagnostic.message.next.is_empty()
                 || diagnostic.related_information_present
                 || !diagnostic.related.is_empty()
-                || diagnostic.canonical_head.is_some()
         }) {
             return Err(AuthoritativeModuleLookupFailure::Unsupported(
                 UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
@@ -900,6 +899,30 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 module.extension(),
                 ModuleExtension::Tsx | ModuleExtension::Jsx
             );
+            let loads_source = self.module_request_loads_source(source_file, source, &key)?;
+            if !module.extension().is_javascript()
+                && !jsx_syntax_extension
+                && !arbitrary_declaration
+                && !loads_source
+                && matches!(reason, UnloadedModuleReason::ResolutionOnly)
+            {
+                // The name of a module augmentation resolved to a TypeScript
+                // or JSON file that no import loads (DefinitelyTyped's
+                // `declare module "htmlbars-inline-precompile"` in
+                // `ember/index.d.ts`). resolveExternalModule finds the
+                // resolution but no source file for it and takes the path of
+                // an unresolved name: an augmentation in an ambient context
+                // stays unmerged without a diagnostic, one in a `.ts` module
+                // reports TS2664 (checker.go resolveExternalModule;
+                // mergeModuleAugmentation passes no error for an ambient
+                // augmentation).
+                let alternate_result = resolution
+                    .alternate_result()
+                    .map(|path| path.display().to_owned());
+                return Ok(AuthoritativeModuleResolution::NotFound(
+                    AuthoritativeNotFoundModule { alternate_result },
+                ));
+            }
             if !module.extension().is_javascript()
                 && !jsx_syntax_extension
                 && !arbitrary_declaration
@@ -917,7 +940,6 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     UnsupportedAuthoritativeResolution::UnloadedJsxWithoutJsxOption,
                 ));
             }
-            let loads_source = self.module_request_loads_source(source_file, source, &key)?;
             if arbitrary_declaration
                 && matches!(reason, UnloadedModuleReason::ResolutionOnly)
                 && !loads_source

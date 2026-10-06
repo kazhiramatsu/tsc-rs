@@ -71,7 +71,6 @@ struct UnwindSnapshot {
     display_reuse_visit_depth: usize,
     display_clone_indent: usize,
     display_clone_at_line_start: bool,
-    class_interface_declared_in_progress: usize,
     type_parameter_defaults_in_progress: usize,
     mapped_types_in_progress: usize,
     // widening_contexts is deliberately ABSENT: it is an arena
@@ -118,7 +117,6 @@ impl<'a> CheckerState<'a> {
             display_reuse_visit_depth: self.display_reuse_visit_depth,
             display_clone_indent: self.display_clone_indent,
             display_clone_at_line_start: self.display_clone_at_line_start,
-            class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
             mapped_types_in_progress: self.mapped_types_in_progress.len(),
             speculation_depth: self.speculation_depth,
@@ -326,7 +324,6 @@ impl<'a> CheckerState<'a> {
                 display_reuse_visit_depth: 0,
                 display_clone_indent: 0,
                 display_clone_at_line_start: false,
-                class_interface_declared_in_progress: 0,
                 type_parameter_defaults_in_progress: 0,
                 mapped_types_in_progress: 0,
                 speculation_depth: 0,
@@ -5037,23 +5034,12 @@ impl<'a> CheckerState<'a> {
         } else {
             source_display
         };
-        let (source_text, target_text) = if unmatched.len() == 1 {
-            let source_text = self.type_to_string_with_error_enclosing(source_display)?;
-            let target_text = self.type_to_string_with_error_enclosing(target)?;
-            if source_text == target_text {
-                (
-                    self.get_type_name_for_error_display(source_display)?,
-                    self.get_type_name_for_error_display(target)?,
-                )
-            } else {
-                (source_text, target_text)
-            }
-        } else {
-            (
-                self.type_to_string(source_display)?,
-                self.type_to_string(target)?,
-            )
-        };
+        // tsgo names the types of every missing-property message through
+        // getTypeNamesForErrorDisplay (relater.go:4392-4406): two types that
+        // print alike are written fully qualified. tsc 6.0.3 did so for the
+        // single-property message only.
+        let (source_text, target_text) =
+            self.get_type_names_for_error_display(source_display, target)?;
         if unmatched.len() == 1 {
             let prop = unmatched[0];
             // tsgo's single-property face is plain symbolToString
@@ -8776,21 +8762,36 @@ impl<'a> CheckerState<'a> {
     /// fileName against the program cwd (program-host.mjs
     /// absoluteProgramFileName), the same posture as
     /// getFullyQualifiedName's source-file arm.
-    fn specifier_for_module_symbol_display(&self, symbol: SymbolId) -> CheckResult<JsString> {
-        let data = self.binder.symbol(symbol);
-        // tsgo (nodebuilderimpl.go:1269-1276) names a module without a
-        // source file by its first string-literal declaration name: an
-        // ambient module with import attributes has a unique internal
-        // symbol name.
-        if !data
-            .declarations
+    fn specifier_for_module_symbol_display(&mut self, symbol: SymbolId) -> CheckResult<JsString> {
+        // tsgo (nodebuilderimpl.go:1260-1281): the module's file is its
+        // source-file declaration or, for the `export =` target of a file
+        // (the `React` namespace of `export = React`), that file
+        // (getFileSymbolIfFileSymbolExportEqualsContainer). Only a module
+        // without one is named by its first string-literal declaration name
+        // (an ambient module with import attributes has a unique internal
+        // symbol name); the augmentation `declare module "react"` of a file's
+        // export target does not name it.
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let mut has_file = declarations
             .iter()
-            .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
-        {
+            .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
+        if !has_file {
+            for &declaration in &declarations {
+                if self
+                    .file_symbol_if_export_equals_container(declaration, symbol)?
+                    .is_some()
+                {
+                    has_file = true;
+                    break;
+                }
+            }
+        }
+        if !has_file {
             if let Some(name) = self.string_literal_module_declaration_name(symbol) {
                 return Ok(name);
             }
         }
+        let data = self.binder.symbol(symbol);
         let escaped = data.escaped_name.as_js();
         // ambientModuleSymbolRegex (46291): /^".+"$/.
         if let Some(name) = escaped
@@ -8909,7 +8910,7 @@ impl<'a> CheckerState<'a> {
     /// module roots use the shortest relative module specifier, while
     /// ambient-module names remain their declared bare spelling.
     fn specifier_for_module_symbol_at(
-        &self,
+        &mut self,
         symbol: SymbolId,
         enclosing: NodeId,
     ) -> CheckResult<JsString> {
@@ -9633,6 +9634,10 @@ impl<'a> CheckerState<'a> {
         member_name: Option<(tsc_types::JsStr<'_>, bool)>,
         fully_qualified: bool,
     ) -> CheckResult<JsString> {
+        // signatureToSignatureDeclarationHelper (tsgo nodebuilderimpl.go:1868;
+        // tsc 6.0.3 the same): "Usually a signature contributes a few more
+        // characters than this, but 3 is the minimum."
+        self.display_add_approximate_length(3);
         let expanded = self.expanded_parameter_faces(signature)?;
         let sig = self.signature_of(signature);
         let type_parameters = sig.type_parameters.clone();
@@ -9657,6 +9662,21 @@ impl<'a> CheckerState<'a> {
                 }
                 faces
             }
+        };
+        // signatureToSignatureDeclarationHelper writes the type parameters
+        // before the parameters and the return type; the estimate follows
+        // that order.
+        let type_parameters_text = match &type_parameters {
+            Some(parameters) if !parameters.is_empty() => {
+                let mut rendered = Vec::with_capacity(parameters.len());
+                for &parameter in parameters {
+                    rendered.push(
+                        self.type_parameter_to_declaration_display(parameter, fully_qualified)?,
+                    );
+                }
+                crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
+            }
+            _ => JsString::new(),
         };
         let mut parameter_texts = Vec::with_capacity(faces.len() + 1);
         if let Some(this_parameter) = this_parameter {
@@ -9688,18 +9708,6 @@ impl<'a> CheckerState<'a> {
         for face in &faces {
             parameter_texts.push(self.parameter_face_to_string(face, fully_qualified)?);
         }
-        let type_parameters_text = match &type_parameters {
-            Some(parameters) if !parameters.is_empty() => {
-                let mut rendered = Vec::with_capacity(parameters.len());
-                for &parameter in parameters {
-                    rendered.push(
-                        self.type_parameter_to_declaration_display(parameter, fully_qualified)?,
-                    );
-                }
-                crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
-            }
-            _ => JsString::new(),
-        };
         let return_text =
             self.serialize_return_type_for_signature_display(signature, fully_qualified)?;
         let parameters_text = crate::join_js_texts(&parameter_texts, ", ");
@@ -10135,6 +10143,14 @@ impl<'a> CheckerState<'a> {
                 }
             }
         };
+        // symbolToParameterDeclaration (tsgo nodebuilderimpl.go:1759; tsc
+        // 6.0.3 the same): the parameter symbol's name and `: ` and a
+        // separator, after its type.
+        let accounted_name_length = match face.symbol {
+            Some(symbol) => self.binder.symbol(symbol).escaped_name.as_js().len_units(),
+            None => Self::slice_js_length(&name_text),
+        };
+        self.display_add_approximate_length(accounted_name_length + 3);
         let dots = if face.rest { "..." } else { "" };
         let question = if face.optional { "?" } else { "" };
         Ok(crate::concat_js(&[
@@ -11008,11 +11024,23 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let saved_had_error = std::mem::replace(&mut self.display_reuse_had_error, false);
         let saved_depth = std::mem::replace(&mut self.display_reuse_visit_depth, 0);
+        // tsgo tryReuseExistingNodeHelper (checker/nodecopy.go:197-231): the
+        // estimate made while the existing node is visited is discarded with
+        // the recovery boundary, and a reused node counts its source span
+        // (`Loc.End() - Loc.Pos()`, the leading trivia included).
+        let saved_approximate_length = self.display_approximate_length;
         let result = self.visit_type_annotation_face(node);
         let had_error = self.display_reuse_had_error;
         self.display_reuse_had_error = saved_had_error;
         self.display_reuse_visit_depth = saved_depth;
-        result.map(|face| (!had_error).then_some(face))
+        self.display_approximate_length = saved_approximate_length;
+        let face = result?;
+        if had_error {
+            return Ok(None);
+        }
+        let span = self.end_of(node).saturating_sub(self.pos_of(node)) as usize;
+        self.display_add_approximate_length(span);
+        Ok(Some(face))
     }
 
     fn visit_type_annotation_face(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
