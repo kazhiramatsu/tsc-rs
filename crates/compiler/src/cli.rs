@@ -1141,6 +1141,7 @@ fn execute_prepared(
         .with_worker_budget(cli_worker_budget())
         .with_checker_budget(cli_checker_budget())
         .with_leaked_program(true)
+        .with_command_options_diagnostics(!additional_diagnostics.is_empty())
         .run_no_emit_pass(false, tsc_checker::LibraryPrefixCompletion::Complete, true)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check session", session_started);
