@@ -164,6 +164,208 @@ pub fn source_file_path_in_new_directory(
     }
 }
 
+/// tspath.GetRelativePathFromDirectory (tsgo): the path of `to` relative to
+/// `from_directory`, both absolute; `..` for each component of `from` past
+/// the shared prefix, which is compared case-insensitively when file names
+/// are.
+fn relative_path_from_directory(
+    from_directory: JsStr<'_>,
+    to: JsStr<'_>,
+    case_sensitive: bool,
+) -> JsString {
+    let from = components(from_directory);
+    let to = components(to);
+    let shared = from
+        .iter()
+        .zip(&to)
+        .take_while(|(left, right)| {
+            canonical(left.as_js(), case_sensitive) == canonical(right.as_js(), case_sensitive)
+        })
+        .count();
+    if shared == 0 {
+        return to
+            .last()
+            .map_or_else(JsString::new, |_| from_components(&to));
+    }
+    let mut parts: Vec<JsString> = Vec::with_capacity(from.len() + to.len());
+    // The root is the first component of both; everything past the shared
+    // prefix of `from` is climbed.
+    parts.push(JsString::from(""));
+    for _ in shared..from.len() {
+        parts.push(JsString::from(".."));
+    }
+    parts.extend(to[shared..].iter().cloned());
+    join_components(&parts[1..])
+}
+
+/// outputpaths.getOutputPathWithoutChangingExtension (tsgo): the input's
+/// path under `output_directory`, by its path relative to the common source
+/// directory; the input itself without an output directory.
+fn output_path_without_changing_extension(
+    input: JsStr<'_>,
+    output_directory: Option<JsStr<'_>>,
+    common: JsStr<'_>,
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+) -> JsString {
+    let input = normalized(input, current_directory);
+    let Some(output_directory) = output_directory.filter(|directory| !directory.is_empty()) else {
+        return input;
+    };
+    let common = normalized(common, current_directory);
+    let relative = relative_path_from_directory(common.as_js(), input.as_js(), case_sensitive);
+    let output_directory = normalized(output_directory, current_directory);
+    normalized(
+        crate::js_path::combine_paths(output_directory.as_js(), relative.as_js()).as_js(),
+        current_directory,
+    )
+}
+
+/// outputpaths.ChangeToDeclarationExtension (tsgo): `.d.mts`/`.d.cts` for
+/// the module-flavored extensions, `.d.json.ts` for JSON, `.d.ts` otherwise.
+fn change_to_declaration_extension(path: JsStr<'_>) -> JsString {
+    let lower: JsString = path
+        .code_units()
+        .map(|unit| {
+            if (0x41..=0x5a).contains(&unit) {
+                unit + 0x20
+            } else {
+                unit
+            }
+        })
+        .collect();
+    let extension = if lower.ends_with(".mts") || lower.ends_with(".mjs") {
+        ".d.mts"
+    } else if lower.ends_with(".cts") || lower.ends_with(".cjs") {
+        ".d.cts"
+    } else if lower.ends_with(".json") {
+        ".d.json.ts"
+    } else {
+        ".d.ts"
+    };
+    let mut without_extension = remove_file_extension(path);
+    without_extension.push_str(extension);
+    without_extension
+}
+
+/// tspath.RemoveFileExtension: the path without its last extension (any
+/// extension when the last is not a TypeScript-known one).
+fn remove_file_extension(path: JsStr<'_>) -> JsString {
+    let name = base_name(path);
+    let Some(dot) = name
+        .as_js()
+        .as_bytes()
+        .iter()
+        .rposition(|byte| *byte == b'.')
+    else {
+        return path.to_owned();
+    };
+    if dot == 0 {
+        return path.to_owned();
+    }
+    let cut = path
+        .len_units()
+        .saturating_sub(name.len_units().saturating_sub(dot));
+    path.substring(0, cut).to_owned()
+}
+
+fn base_name(path: JsStr<'_>) -> JsString {
+    path.rsplit_once("/")
+        .map_or_else(|| path.to_owned(), |(_, name)| name.to_owned())
+}
+
+/// outputpaths.GetOutputDeclarationFileNameWorker (tsgo): the declaration
+/// file a project emits for `input` (under `declarationDir`, else `outDir`,
+/// else beside the input), given the project's common source directory.
+pub fn output_declaration_file_name(
+    input: JsStr<'_>,
+    options: &CompilerOptions,
+    common: JsStr<'_>,
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+) -> JsString {
+    let directory = options
+        .declaration_dir
+        .as_ref()
+        .map(JsString::as_js)
+        .filter(|directory| !directory.is_empty())
+        .or(options
+            .out_dir
+            .as_ref()
+            .map(JsString::as_js)
+            .filter(|directory| !directory.is_empty()));
+    change_to_declaration_extension(
+        output_path_without_changing_extension(
+            input,
+            directory,
+            common,
+            current_directory,
+            case_sensitive,
+        )
+        .as_js(),
+    )
+}
+
+/// outputpaths.GetBuildInfoFileName (tsgo): the `.tsbuildinfo` an
+/// incremental or composite project writes: `tsBuildInfoFile`, else the
+/// config's name under `outDir` (relative to `rootDir` when both are set),
+/// else beside the config. `None` for a project that writes none.
+pub fn build_info_file_name(
+    options: &CompilerOptions,
+    config_file_path: Option<JsStr<'_>>,
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+) -> Option<JsString> {
+    if options.incremental != Some(true) && options.composite != Some(true) {
+        return None;
+    }
+    if let Some(file) = options
+        .ts_build_info_file
+        .as_ref()
+        .map(JsString::as_js)
+        .filter(|file| !file.is_empty())
+    {
+        return Some(normalized(file, current_directory));
+    }
+    let config = normalized(config_file_path?, current_directory);
+    let config_extension_less = remove_file_extension(config.as_js());
+    let out_dir = options
+        .out_dir
+        .as_ref()
+        .map(JsString::as_js)
+        .filter(|directory| !directory.is_empty());
+    let root_dir = options
+        .root_dir
+        .as_ref()
+        .map(JsString::as_js)
+        .filter(|directory| !directory.is_empty());
+    let mut extension_less = match (out_dir, root_dir) {
+        (Some(out_dir), Some(root_dir)) => {
+            let out_dir = normalized(out_dir, current_directory);
+            let root_dir = normalized(root_dir, current_directory);
+            let relative = relative_path_from_directory(
+                root_dir.as_js(),
+                config_extension_less.as_js(),
+                case_sensitive,
+            );
+            normalized(
+                crate::js_path::combine_paths(out_dir.as_js(), relative.as_js()).as_js(),
+                current_directory,
+            )
+        }
+        (Some(out_dir), None) => {
+            let out_dir = normalized(out_dir, current_directory);
+            crate::js_path::combine_paths(
+                out_dir.as_js(),
+                base_name(config_extension_less.as_js()).as_js(),
+            )
+        }
+        (None, _) => config_extension_less,
+    };
+    extension_less.push_str(".tsbuildinfo");
+    Some(extension_less)
+}
+
 /// tsc-port: sourceFileMayBeEmitted @6.0.3
 /// tsc-hash: 333fcd249758d38eb80146910286d7cabdbbf6f1ea0787f8f1a2c85e9535ecb2
 /// tsc-span: _tsc.js:16617-16634

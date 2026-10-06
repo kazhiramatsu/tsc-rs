@@ -103,6 +103,7 @@ mod option_validation;
 mod output_directories;
 mod path;
 mod prepared;
+mod project_references;
 mod resolution;
 mod resolution_cache;
 mod resolution_error;
@@ -174,6 +175,11 @@ pub use prepared::{
     PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder, PreparedProgramMode,
     PreparedRoot, PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax, ProgramConfigFile,
     ProgramConfigSpan, ProgramOptions, ResolutionTable, SourceFileId,
+};
+pub use project_references::{
+    resolve_config_file_name_of_project_reference, resolve_project_references,
+    ProjectReferenceSourceOutput, ResolvedProjectReference, ResolvedProjectReferences,
+    ResolvedReferenceEntry,
 };
 pub use resolution::{
     MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,

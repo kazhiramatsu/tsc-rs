@@ -879,6 +879,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     return Ok(AuthoritativeModuleResolution::NotFound(
                         AuthoritativeNotFoundModule {
                             alternate_result: None,
+                            project_reference_output: None,
                         },
                     ));
                 }
@@ -907,7 +908,10 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 .alternate_result()
                 .map(|path| path.display().to_owned());
             return Ok(AuthoritativeModuleResolution::NotFound(
-                AuthoritativeNotFoundModule { alternate_result },
+                AuthoritativeNotFoundModule {
+                    alternate_result,
+                    project_reference_output: None,
+                },
             ));
         };
         if let ResolvedModuleTarget::Unloaded {
@@ -945,7 +949,31 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     .alternate_result()
                     .map(|path| path.display().to_owned());
                 return Ok(AuthoritativeModuleResolution::NotFound(
-                    AuthoritativeNotFoundModule { alternate_result },
+                    AuthoritativeNotFoundModule {
+                        alternate_result,
+                        project_reference_output: None,
+                    },
+                ));
+            }
+            if matches!(reason, UnloadedModuleReason::ProjectReferenceOutputNotBuilt) {
+                // The source of a referenced project is loaded as its output
+                // declaration file (tsgo getParseFileRedirect); without the
+                // output nothing was loaded, and the checker reports TS6305.
+                let project_reference_output = self
+                    .prepared
+                    .program_options()
+                    .project_references()
+                    .and_then(|references| references.output_for_source(resolved_file.canonical()))
+                    .and_then(|output| {
+                        output
+                            .output_dts()
+                            .map(|dts| (dts.to_owned(), output.source().to_owned()))
+                    });
+                return Ok(AuthoritativeModuleResolution::NotFound(
+                    AuthoritativeNotFoundModule {
+                        alternate_result: None,
+                        project_reference_output,
+                    },
                 ));
             }
             if !module.extension().is_javascript()
@@ -981,7 +1009,10 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     .alternate_result()
                     .map(|path| path.display().to_owned());
                 return Ok(AuthoritativeModuleResolution::NotFound(
-                    AuthoritativeNotFoundModule { alternate_result },
+                    AuthoritativeNotFoundModule {
+                        alternate_result,
+                        project_reference_output: None,
+                    },
                 ));
             }
             let node_modules_depth_applies = module.is_external_library_import()

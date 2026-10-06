@@ -201,7 +201,7 @@ pub struct ConfigParseError {
 }
 
 impl ConfigParseError {
-    fn new_js(
+    pub(crate) fn new_js(
         kind: ConfigParseErrorKind,
         path: Option<JsString>,
         detail: impl Into<String>,
@@ -1456,7 +1456,7 @@ fn validate_config_plan_for_mode(
     plan: &ConfigRootPlan,
     emitting: bool,
 ) -> Result<(), ConfigProgramLoadError> {
-    if let Some((feature, detail)) = unsupported_config_scope(&plan.options, &plan.raw, emitting) {
+    if let Some((feature, detail)) = unsupported_config_scope(&plan.options, emitting) {
         return Err(ConfigProgramLoadError::Program(
             ProgramLoadError::unsupported_js(
                 crate::loader::ProgramLoadOperation::ValidateOptions,
@@ -1520,6 +1520,34 @@ fn load_config_program_inner(
         .collect::<Vec<_>>();
     let mut compiler_options = plan.compiler_options().clone();
     let mut program_options = plan.program_options().clone();
+    if plan
+        .project_references()
+        .is_some_and(|references| !references.is_empty())
+    {
+        // tsgo parses every referenced project before the files are loaded
+        // (fileloader.go: projectReferenceParser.parse); the loader redirects
+        // the sources of those projects to their outputs.
+        let current_directory = host.current_directory_js().map_err(|error| {
+            ConfigProgramLoadError::Program(ProgramLoadError::host_js(
+                crate::loader::ProgramLoadOperation::ValidateOptions,
+                Some(plan.config_file_name().to_owned()),
+                error,
+            ))
+        })?;
+        let references = crate::project_references::resolve_project_references(
+            &crate::config_host::CompilerConfigHost::new(host),
+            plan,
+            current_directory.as_js(),
+        )
+        .map_err(|error| {
+            ConfigProgramLoadError::Program(ProgramLoadError::invalid_data_js(
+                crate::loader::ProgramLoadOperation::ValidateOptions,
+                Some(plan.config_file_name().to_owned()),
+                format!("project references: {error}"),
+            ))
+        })?;
+        program_options = program_options.with_project_references(Arc::new(references));
+    }
     match mode {
         ConfigProgramMode::NoEmit { force: true } => compiler_options.no_emit = Some(true),
         ConfigProgramMode::Emit { force: true } => compiler_options.no_emit = Some(false),
@@ -1846,18 +1874,10 @@ fn parse_config_root_plan_inner(
 /// command admits them and the plan only observes them.
 fn unsupported_config_scope(
     options: &ConfigOptionBag,
-    raw: &Value,
     emitting: bool,
 ) -> Option<(&'static str, String)> {
-    if let Some(references) = raw.as_object().and_then(|raw| raw.get("references")) {
-        if config_value_requests_feature(references) {
-            return Some((
-                "project-references",
-                "project references are outside the H0 single-project driver".to_owned(),
-            ));
-        }
-    }
-
+    // `references` are resolved by the config program load
+    // (`resolve_project_references`) and consumed by the loader.
     for option in options.entries() {
         // Unknown names have already produced config conversion diagnostics
         // (TS5023) and do not request a feature in the converted options;
@@ -2217,6 +2237,12 @@ const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
     "emitBOM",
     "listEmittedFiles",
     "pretty",
+    // The incremental options change what a command writes, not what it
+    // reports; the build info file is not written yet (the roadmap's
+    // incremental slice).
+    "incremental",
+    "tsBuildInfoFile",
+    "assumeChangesOnlyAffectDirectDependencies",
 ];
 
 /// Declaration-product options a no-emit command admits: tsc's
@@ -5107,6 +5133,22 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
                 literal.text.clone(),
                 ProgramConfigSpan::new(span.start, span.length),
             );
+        }
+    }
+    for property in root_properties
+        .iter()
+        .filter(|property| property.name == "references")
+    {
+        for (index, element) in config_array_elements(&parsed, property.initializer)
+            .into_iter()
+            .enumerate()
+        {
+            if let Some(span) = config_span(&parsed, element) {
+                config_file = config_file.with_project_reference_location(
+                    index,
+                    ProgramConfigSpan::new(span.start, span.length),
+                );
+            }
         }
     }
     for compiler_options in root_properties

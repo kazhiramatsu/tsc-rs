@@ -86,6 +86,8 @@ pub(crate) enum ProgramModuleResolution {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct UnresolvedProgramModule {
     alternate_result: Option<JsString>,
+    /// See [`crate::AuthoritativeNotFoundModule::project_reference_output`].
+    project_reference_output: Option<(JsString, JsString)>,
 }
 
 impl ProgramModuleResolution {
@@ -4664,6 +4666,24 @@ impl<'a> CheckerState<'a> {
                 // only yields typed results); the NOT-FOUND face rides
                 // the plain tail below in tsc too.
             }
+            // tsgo resolveExternalModule: a resolution that reached a source
+            // file of a referenced project loaded nothing because the
+            // project's output is not built (the output, not the source, is
+            // what the program loads).
+            if let ProgramModuleResolution::Missed(UnresolvedProgramModule {
+                project_reference_output: Some((output, source)),
+                ..
+            }) = &resolution
+            {
+                let output = output.clone();
+                let source = source.clone();
+                self.error_at_js(
+                    Some(error_node),
+                    &tsc_diagnostics::gen::Output_file_0_has_not_been_built_from_source_file_1,
+                    &[output.as_js(), source.as_js()],
+                );
+                return Ok(None);
+            }
             let alternate_result = match &resolution {
                 ProgramModuleResolution::Missed(unresolved) => {
                     unresolved.alternate_result.as_ref().map(JsString::as_js)
@@ -5273,6 +5293,7 @@ impl<'a> CheckerState<'a> {
             Ok(crate::AuthoritativeModuleResolution::NotFound(not_found)) => {
                 ProgramModuleResolution::Missed(UnresolvedProgramModule {
                     alternate_result: not_found.alternate_result,
+                    project_reference_output: not_found.project_reference_output,
                 })
             }
             Ok(crate::AuthoritativeModuleResolution::Untyped(untyped)) => {

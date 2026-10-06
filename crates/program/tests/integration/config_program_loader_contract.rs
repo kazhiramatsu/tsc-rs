@@ -26,6 +26,10 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
         .expect("build unsupported-scope host");
     let adapter = ConfigHostAdapter::new(&host);
 
+    // A config with `references` loads (the referenced projects are
+    // resolved, see project_references_contract); a reference that names no
+    // config is TS6053 among the program diagnostics, as tsgo's
+    // verifyProjectReferences reports it.
     let references = parse_config_root_plan(
         &adapter,
         ConfigRootPlanRequest {
@@ -35,21 +39,22 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
         },
     )
     .expect("project-reference config remains observable as a partial plan");
-    let references_error = load_config_program_with_no_emit_override(
+    let prepared = load_config_program_with_no_emit_override(
         &host,
         &references,
         &LibraryCatalog::typescript_7_1(PathBuf::from("/work/lib")),
         LIMITS,
     )
-    .expect_err("project references must not enter the single-project loader");
-    let ConfigProgramLoadError::Program(references_error) = references_error else {
-        panic!("project references should be a typed program-scope failure");
-    };
-    assert_eq!(
-        references_error.kind(),
-        tsc_program::ProgramLoadErrorKind::Unsupported
+    .expect("a config with project references loads");
+    assert!(
+        prepared
+            .diagnostics()
+            .program()
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 6053),
+        "{:?}",
+        prepared.diagnostics().program()
     );
-    assert!(references_error.to_string().contains("project references"));
 
     let emit = parse_config_root_plan(
         &adapter,
@@ -75,29 +80,36 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
 }
 
 #[test]
-fn recognized_but_unprojected_config_options_fail_closed() {
+fn incremental_is_admitted_for_a_no_emit_check() {
+    // tsgo checks an incremental project like any other (the build info it
+    // writes is an emit product); the no-emit loader keeps the option on the
+    // program instead of refusing the config.
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
     let plan = parse_config_root_plan(
         &adapter,
         request(
-            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"incremental":true},"files":["main.ts"]}"#,
+            r#"{"compilerOptions":{"noEmit":true,"noLib":true,"incremental":true,"tsBuildInfoFile":"cache/main.tsbuildinfo"},"files":["main.ts"]}"#,
         ),
     )
     .expect("incremental is a recognized partial-plan option");
 
-    let error = load_config_program_with_no_emit_override(
+    let prepared = load_config_program_with_no_emit_override(
         &host,
         &plan,
         &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
     )
-    .expect_err("incremental must not be silently ignored by the no-emit loader");
-    let ConfigProgramLoadError::Program(error) = error else {
-        panic!("recognized out-of-scope options must fail at the program gate");
-    };
-    assert_eq!(error.kind(), tsc_program::ProgramLoadErrorKind::Unsupported);
-    assert!(error.to_string().contains("incremental"));
+    .expect("an incremental project is checked");
+    assert_eq!(prepared.compiler_options().incremental, Some(true));
+    assert_eq!(
+        prepared
+            .compiler_options()
+            .ts_build_info_file
+            .as_ref()
+            .map(|file| file.as_js().to_owned()),
+        Some("/project/cache/main.tsbuildinfo".into())
+    );
 }
 
 #[test]

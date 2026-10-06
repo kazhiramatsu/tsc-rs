@@ -408,6 +408,12 @@ pub enum UnloadedModuleReason {
     JsonWithoutResolveJsonModule,
     /// An arbitrary extension was resolved without its admission option.
     ArbitraryExtensionWithoutOption,
+    /// A source file of a referenced project whose output declaration file
+    /// does not exist: the program loads the output in place of the source
+    /// (tsgo getParseFileRedirect), so nothing was loaded, and the checker
+    /// reports TS6305 for the import. The output's name is the referenced
+    /// project's for the source (`ResolvedProjectReferences::output_for_source`).
+    ProjectReferenceOutputNotBuilt,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -26,6 +26,7 @@ use crate::prepared::{
     PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramMode,
     PreparedRoot, PreparedSourceFile, ProgramConfigFile, ProgramOptions, SourceFileId,
 };
+use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
     ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
@@ -468,7 +469,7 @@ impl ProgramLoadError {
         .with_js_path(path)
     }
 
-    fn invalid_data_js(
+    pub(crate) fn invalid_data_js(
         operation: ProgramLoadOperation,
         path: Option<JsString>,
         detail: impl Into<String>,
@@ -476,7 +477,11 @@ impl ProgramLoadError {
         Self::invalid_data(operation, error_display_path(path.as_ref()), detail).with_js_path(path)
     }
 
-    fn host_js(operation: ProgramLoadOperation, path: Option<JsString>, source: HostError) -> Self {
+    pub(crate) fn host_js(
+        operation: ProgramLoadOperation,
+        path: Option<JsString>,
+        source: HostError,
+    ) -> Self {
         Self::host(operation, error_display_path(path.as_ref()), source).with_js_path(path)
     }
 
@@ -1300,17 +1305,29 @@ enum VisitState {
     /// A distinct resolved path whose exact package identity redirects to the
     /// first source admitted for that `PackageId`.
     PackageRedirect(usize),
+    /// A source file of a referenced project, loaded as its output
+    /// declaration file (tsgo getParseFileRedirect): the source path names
+    /// that output's staged source.
+    ProjectReferenceRedirect(usize),
     Missing,
 }
 
 impl VisitState {
     const fn source(self) -> Option<usize> {
         match self {
-            Self::Visiting(source) | Self::Complete(source) | Self::PackageRedirect(source) => {
-                Some(source)
-            }
+            Self::Visiting(source)
+            | Self::Complete(source)
+            | Self::PackageRedirect(source)
+            | Self::ProjectReferenceRedirect(source) => Some(source),
             Self::Missing => None,
         }
+    }
+
+    const fn is_redirect(self) -> bool {
+        matches!(
+            self,
+            Self::PackageRedirect(_) | Self::ProjectReferenceRedirect(_)
+        )
     }
 }
 
@@ -1785,6 +1802,7 @@ struct CompleteGraph {
     type_resolutions: Vec<StagedTypeResolution>,
     program_diagnostics: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
+    project_reference_redirects: Vec<(ProgramPath, usize)>,
 }
 
 struct StagedGraph<'host, 'options, 'resolver> {
@@ -1845,6 +1863,14 @@ struct StagedGraph<'host, 'options, 'resolver> {
     directory_resolutions:
         rustc_hash::FxHashMap<(JsString, JsString, ResolutionMode), HostModuleResolution>,
     directory_resolution_hits: usize,
+    /// One resolver per referenced project whose output is in the program
+    /// (tsgo GetCompilerOptionsWithRedirect: the module names of such an
+    /// output resolve with its project's options), by the project's
+    /// canonical config path.
+    project_resolvers: BTreeMap<CanonicalPath, ModuleResolver<'options>>,
+    /// The sources of referenced projects loaded as their outputs: the
+    /// source's path and the output's staged source.
+    project_reference_redirects: Vec<(ProgramPath, usize)>,
 }
 
 /// Immutable and borrowed inputs for one staged graph. Keeping this boundary
@@ -1861,7 +1887,7 @@ struct StagedGraphConfig<'host, 'options, 'resolver> {
     library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
 }
 
-impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
+impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
             host: config.host,
@@ -1897,6 +1923,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             pre_resolved_types: BTreeMap::new(),
             directory_resolutions: rustc_hash::FxHashMap::default(),
             directory_resolution_hits: 0,
+            project_resolvers: BTreeMap::new(),
+            project_reference_redirects: Vec::new(),
             reserved_sources: 0,
             reserved_bytes: 0,
         }
@@ -2327,6 +2355,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let mut path_references: Vec<PlannedPathReference> = Vec::new();
         let mut lib_references: Vec<PlannedLibReferenceDirective> = Vec::new();
         let mut type_references: Vec<PlannedTypeReferenceDirective> = Vec::new();
+        // A referenced project's source is read ahead in vain: its output is
+        // what the walk loads, and the output is read when it is reached.
+        if self
+            .project_reference_redirect(canonical)
+            .ok()
+            .flatten()
+            .is_some()
+        {
+            return (requests, Vec::new());
+        }
         let containing_path = {
             let Some(entry) = self.prefetched.get(canonical) else {
                 return (requests, Vec::new());
@@ -2341,8 +2379,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 return (requests, Vec::new());
             };
             let containing_file = parse.prepared.path().display().to_owned();
+            // The output of a referenced project resolves with its project's
+            // options on the walk, not with the read-ahead's resolver.
+            let resolved_ahead = self.project_for_resolution(canonical).is_none();
             for (key, loads_source) in plan.module_requests_with_loadability() {
-                if self.module_resolution_by_key.contains_key(key)
+                if !resolved_ahead
+                    || self.module_resolution_by_key.contains_key(key)
                     || self.pre_resolved.contains_key(key)
                 {
                     continue;
@@ -3558,6 +3600,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         // command reporting skips after an option/global diagnostic.
         self.program_diagnostics
             .extend(self.source_module_option_diagnostics());
+        self.program_diagnostics
+            .extend(self.project_reference_diagnostics());
         self.program_diagnostics.extend(root_diagnostics);
         let mut library_postorder = self
             .postorder
@@ -3598,7 +3642,109 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             type_resolutions: self.type_resolutions,
             program_diagnostics: self.program_diagnostics,
             option_diagnostics,
+            project_reference_redirects: self.project_reference_redirects,
         }
+    }
+
+    /// tsgo verifyProjectReferences: for every reference of the root config
+    /// and of the referenced projects, the config must exist (TS6053) and,
+    /// when the referencing project has files, be composite (TS6306) and
+    /// emit (TS6310); a referenced project must not write the same build
+    /// info file (TS5056). Each diagnostic is located at the reference's
+    /// syntax in the referencing config.
+    fn project_reference_diagnostics(&self) -> Vec<Diagnostic> {
+        let Some(references) = self.project_references() else {
+            return Vec::new();
+        };
+        let context = self.resolver.path_context();
+        let current_directory = context.current_directory().display();
+        let case_sensitive = context.use_case_sensitive_file_names();
+        let root_config = self.program_options.config_file();
+        let root_build_info = (self.compiler_options.suppress_output_path_check != Some(true))
+            .then(|| {
+                crate::output_directories::build_info_file_name(
+                    self.compiler_options,
+                    root_config.map(|config| config.path().display()),
+                    current_directory,
+                    case_sensitive,
+                )
+            })
+            .flatten();
+        let mut diagnostics = Vec::new();
+        let mut pending = vec![(
+            root_config.map(|config| (config.diagnostic_file_name().to_owned(), config.clone())),
+            !self.roots.is_empty(),
+            references.root_references(),
+        )];
+        let mut seen = HashSet::default();
+        while let Some((parent_config, parent_has_files, entries)) = pending.pop() {
+            for (index, entry) in entries.iter().enumerate() {
+                let location = parent_config.as_ref().and_then(|(file_name, config)| {
+                    config
+                        .project_reference_location(index)
+                        .map(|span| (file_name.clone(), span))
+                });
+                let at = |message: &'static tsc_diagnostics::DiagnosticMessage,
+                          args: &[JsString]| {
+                    let chain = MessageChain::new_js(message, args);
+                    match &location {
+                        Some((file_name, span)) => Diagnostic::new_js(
+                            Some(file_name.clone()),
+                            Some(span.start()),
+                            Some(span.length()),
+                            chain,
+                        ),
+                        None => Diagnostic::new_js(None, None, None, chain),
+                    }
+                };
+                let written = entry.reference().path.clone();
+                let Some(project) = entry.project() else {
+                    diagnostics.push(at(&gen::File_0_not_found, &[written]));
+                    continue;
+                };
+                let options = project.compiler_options();
+                if (options.composite != Some(true) || options.no_emit == Some(true))
+                    && parent_has_files
+                {
+                    if options.composite != Some(true) {
+                        diagnostics.push(at(
+                            &gen::Referenced_project_0_must_have_setting_composite_true,
+                            std::slice::from_ref(&written),
+                        ));
+                    }
+                    if options.no_emit == Some(true) {
+                        diagnostics.push(at(
+                            &gen::Referenced_project_0_may_not_disable_emit,
+                            std::slice::from_ref(&written),
+                        ));
+                    }
+                }
+                if let (Some(mine), Some(theirs)) =
+                    (&root_build_info, project.build_info_file_name())
+                {
+                    if mine.as_js() == theirs {
+                        diagnostics.push(at(
+                            &gen::Cannot_write_file_0_because_it_will_overwrite_tsbuildinfo_file_generated_by_referenced_project_1,
+                            &[mine.clone(), written],
+                        ));
+                    }
+                }
+                if seen.insert(project.canonical().clone()) {
+                    pending.push((
+                        project
+                            .plan()
+                            .program_options()
+                            .config_file()
+                            .map(|config| {
+                                (config.diagnostic_file_name().to_owned(), config.clone())
+                            }),
+                        !project.plan().file_names().is_empty(),
+                        references.references_in_config(project.canonical()),
+                    ));
+                }
+            }
+        }
+        diagnostics
     }
 
     // tsc-port: verifyCompilerOptions (source module constraints) @6.0.3
@@ -3824,6 +3970,84 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         (diagnostics, root_diagnostics)
     }
 
+    fn project_references(&self) -> Option<&'options Arc<ResolvedProjectReferences>> {
+        self.program_options.project_references()
+    }
+
+    /// tsgo getParseFileRedirect for the command (no source of a project
+    /// reference is used): the output declaration file loaded in place of a
+    /// referenced project's source, with the source's name.
+    fn project_reference_redirect(
+        &self,
+        path: &CanonicalPath,
+    ) -> Result<Option<(ProgramPath, JsString)>, ProgramLoadError> {
+        let Some(output) = self
+            .project_references()
+            .and_then(|references| references.output_for_source(path))
+        else {
+            return Ok(None);
+        };
+        let Some(output_dts) = output.output_dts() else {
+            return Ok(None);
+        };
+        let output_path = crate::module_resolution::make_program_path(
+            output_dts,
+            self.resolver.path_context().use_case_sensitive_file_names(),
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution_js(
+                ProgramLoadOperation::NormalizeReference,
+                Some(output.source().to_owned()),
+                None,
+                error,
+            )
+        })?;
+        Ok(Some((output_path, output.source().to_owned())))
+    }
+
+    /// tsgo getRedirectForResolution: the referenced project whose options
+    /// resolve the module names of `file`, when it is such a project's
+    /// source or output and not the root project itself.
+    fn project_for_resolution(
+        &self,
+        file: &CanonicalPath,
+    ) -> Option<&'options Arc<crate::project_references::ResolvedProjectReference>> {
+        let project = self.project_references()?.project_for_resolution(file)?;
+        let root_config = self
+            .program_options
+            .config_file_path()
+            .map(ProgramPath::canonical);
+        (root_config != Some(project.canonical())).then_some(project)
+    }
+
+    /// tsgo ResolveModuleName with the redirect's options: the resolver of
+    /// the referenced project `file` belongs to, created on first use.
+    fn resolve_module_for_file(
+        &mut self,
+        file: &CanonicalPath,
+        containing_file: &JsString,
+        key: &ResolutionKey,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        let Some(project) = self.project_for_resolution(file) else {
+            return self
+                .resolver
+                .resolve_with_facts(containing_file, key.specifier(), key.mode());
+        };
+        if !self.project_resolvers.contains_key(project.canonical()) {
+            let resolver = ModuleResolver::new_with_program_options(
+                self.host,
+                project.compiler_options(),
+                project.plan().program_options(),
+            )?;
+            self.project_resolvers
+                .insert(project.canonical().clone(), resolver);
+        }
+        self.project_resolvers
+            .get_mut(project.canonical())
+            .expect("inserted above")
+            .resolve_with_facts(containing_file, key.specifier(), key.mode())
+    }
+
     fn visit_source(
         &mut self,
         path: ProgramPath,
@@ -3841,10 +4065,29 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     node_modules_depth,
                     &reason,
                     class,
-                    matches!(state, VisitState::PackageRedirect(_)),
+                    state.is_redirect(),
                 )?;
             }
             return Ok(state.source());
+        }
+        if let Some((output, _source_name)) = self.project_reference_redirect(path.canonical())? {
+            // tsgo parseTask.redirect: the output declaration file is loaded
+            // with this task's reason (increaseDepth and elideOnDepth are not
+            // copied), and the source path then names it.
+            let loaded = self.visit_source(output, depth, node_modules_depth, reason, class)?;
+            let state = match loaded {
+                Some(source) => {
+                    self.sources[source]
+                        .prepared
+                        .remember_project_reference_source(path.clone());
+                    self.project_reference_redirects
+                        .push((path.clone(), source));
+                    VisitState::ProjectReferenceRedirect(source)
+                }
+                None => VisitState::Missing,
+            };
+            self.states.insert(path.canonical().clone(), state);
+            return Ok(loaded);
         }
         // A retained read-ahead result stands in for the host call it already
         // made (see `prefetch_roots`); otherwise the host is queried here.
@@ -3963,9 +4206,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 )
             })?;
         let file_name = path.display();
-        let implied = implied_node_format(file_name, package_scope.as_ref(), self.compiler_options);
+        // The output of a referenced project takes its project's options
+        // (tsgo getCompilerOptionsForFile): its format and its requests
+        // follow them.
+        let options_for_file = self
+            .project_for_resolution(path.canonical())
+            .map_or(self.compiler_options, |project| project.compiler_options());
+        let implied = implied_node_format(file_name, package_scope.as_ref(), options_for_file);
         let implied_for_emit =
-            implied_node_format_for_emit(file_name, package_scope.as_ref(), self.compiler_options);
+            implied_node_format_for_emit(file_name, package_scope.as_ref(), options_for_file);
         // A read-ahead parse is adopted only when its assumptions are the
         // facts computed above; otherwise its decoded text is planned here.
         let (mut prepared, prefetched_plan) = match decoded {
@@ -4008,15 +4257,13 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 Some(planned) => planned,
                 // The planning parse is the only parse of this snapshot: the
                 // checker session adopts it after proving equal parse options.
-                None => {
-                    match plan_source_requests_retaining_syntax(&prepared, self.compiler_options) {
-                        Ok((plan, syntax)) => {
-                            prepared = prepared.with_preparsed_syntax(syntax);
-                            Ok(plan)
-                        }
-                        Err(error) => Err(error),
+                None => match plan_source_requests_retaining_syntax(&prepared, options_for_file) {
+                    Ok((plan, syntax)) => {
+                        prepared = prepared.with_preparsed_syntax(syntax);
+                        Ok(plan)
                     }
-                }
+                    Err(error) => Err(error),
+                },
             };
             Some(planned.map_err(|error| {
                 ProgramLoadError::resolution_js(
@@ -4834,7 +5081,14 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     ) -> Result<(), ProgramLoadError> {
         let mut phase_indices = Vec::with_capacity(requests.len());
         let containing_file = self.sources[source].prepared.path().display().to_owned();
+        let containing_canonical = self.sources[source].prepared.path().canonical().clone();
         let containing_file_is_declaration = is_declaration_file_name(containing_file.as_js());
+        // The output of a referenced project resolves with its project's
+        // options; its resolutions share no per-directory cache with the
+        // root project's files.
+        let containing_project = self
+            .project_for_resolution(&containing_canonical)
+            .map(|project| project.canonical().clone());
         for (key, loads_source) in requests {
             // One inclusion reason per occurrence that loads the target:
             // processImportedModules adds the resolved file once for every
@@ -4887,18 +5141,21 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                             key.specifier().to_owned(),
                             key.mode(),
                         );
-                        match self.directory_resolutions.get(&directory_key) {
+                        match self
+                            .directory_resolutions
+                            .get(&directory_key)
+                            .filter(|_| containing_project.is_none())
+                        {
                             Some(host) => {
                                 self.directory_resolution_hits += 1;
                                 host.clone()
                             }
                             None => {
                                 let host = self
-                                    .resolver
-                                    .resolve_with_facts(
+                                    .resolve_module_for_file(
+                                        &containing_canonical,
                                         &containing_file,
-                                        key.specifier(),
-                                        key.mode(),
+                                        &key,
                                     )
                                     .map_err(|error| {
                                         ProgramLoadError::resolution_js(
@@ -4908,8 +5165,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                                             error,
                                         )
                                     })?;
-                                self.directory_resolutions
-                                    .insert(directory_key, host.clone());
+                                if containing_project.is_none() {
+                                    self.directory_resolutions
+                                        .insert(directory_key, host.clone());
+                                }
                                 host
                             }
                         }
@@ -4960,7 +5219,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.module_resolutions[index].unloaded_reason = Some(reason);
                 continue;
             }
-            if extension.is_javascript() {
+            // tsgo fileloader.go:911: a resolved file is JavaScript unless it
+            // is a source of a referenced project (its output is loaded).
+            let redirected = self
+                .project_reference_redirect(target.canonical())?
+                .is_some();
+            if extension.is_javascript() && !redirected {
                 // tsc records the reprocessing latch from depth elision before
                 // checking whether this occurrence can add a source. That is
                 // observable for JSX errors, augmentation-only resolutions,
@@ -5024,16 +5288,22 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         "resolver reported a JSON module target that the host no longer returns",
                     )
                 };
-                self.visit_import_target(
-                    source,
-                    &target,
-                    depth,
-                    child_node_modules_depth,
-                    external,
-                    package_id,
-                    inclusions,
-                    missing,
-                )?;
+                if self
+                    .visit_import_target(
+                        source,
+                        &target,
+                        depth,
+                        child_node_modules_depth,
+                        external,
+                        package_id,
+                        inclusions,
+                        missing,
+                    )?
+                    .is_none()
+                {
+                    self.module_resolutions[index].unloaded_reason =
+                        Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt);
+                }
                 continue;
             }
             if !is_loadable_typescript_extension(&extension) && !extension.is_javascript() {
@@ -5054,16 +5324,22 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     "resolver reported a module target that the host no longer returns",
                 )
             };
-            self.visit_import_target(
-                source,
-                &target,
-                depth,
-                child_node_modules_depth,
-                external,
-                package_id,
-                inclusions,
-                missing,
-            )?;
+            if self
+                .visit_import_target(
+                    source,
+                    &target,
+                    depth,
+                    child_node_modules_depth,
+                    external,
+                    package_id,
+                    inclusions,
+                    missing,
+                )?
+                .is_none()
+            {
+                self.module_resolutions[index].unloaded_reason =
+                    Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt);
+            }
         }
         Ok(())
     }
@@ -5082,7 +5358,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         package_id: Option<PackageId>,
         inclusions: Vec<SourceInclusionReason>,
         missing: impl Fn() -> ProgramLoadError,
-    ) -> Result<(), ProgramLoadError> {
+    ) -> Result<Option<usize>, ProgramLoadError> {
         let mut target_source = None;
         for inclusion in inclusions {
             let loaded = self.visit_source(
@@ -5093,6 +5369,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 SourceClass::Ordinary,
             )?;
             let Some(loaded) = loaded else {
+                // A referenced project's source whose output declaration
+                // file is not built loads nothing; the checker reports
+                // TS6305 for the import.
+                if self
+                    .project_reference_redirect(target.canonical())?
+                    .is_some()
+                {
+                    return Ok(None);
+                }
                 return Err(missing());
             };
             target_source = Some(loaded);
@@ -5100,7 +5385,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if let Some(target_source) = target_source {
             self.record_source_edge(source, target_source, external);
         }
-        Ok(())
+        Ok(target_source)
     }
 
     fn enforce_limit(
@@ -5164,6 +5449,7 @@ fn publish_program(
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
 ) -> Result<PreparedProgram, ProgramLoadError> {
+    let case_sensitive_file_names = path_context.use_case_sensitive_file_names();
     let mut builder = match mode {
         PreparedProgramMode::NoEmit => {
             PreparedProgram::builder(path_context, compiler_options.clone())
@@ -5175,12 +5461,46 @@ fn publish_program(
     builder = builder.with_dependency_symlink_resolutions(dependency_symlink_resolutions);
     let config_file = program_options.config_file().cloned();
     let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
+    let mut auxiliary_paths = HashSet::default();
     for source in program_options.config_parsing_sources() {
+        auxiliary_paths.insert(source.path().canonical().clone());
         builder
             .add_auxiliary_file(source.clone())
             .map_err(|error| {
                 ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
             })?;
+    }
+    if let Some(config_file) = &config_file {
+        auxiliary_paths.insert(config_file.path().canonical().clone());
+    }
+    // The configs of the referenced projects: a diagnostic at a reference
+    // of a referenced project is located in that project's config.
+    if let Some(references) = program_options.project_references() {
+        for project in references.projects() {
+            let path = crate::module_resolution::make_program_path(
+                project.config_file_name(),
+                case_sensitive_file_names,
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::BuildPreparedProgram,
+                    Some(project.config_file_name().to_owned()),
+                    None,
+                    error,
+                )
+            })?;
+            if !auxiliary_paths.insert(path.canonical().clone()) {
+                continue;
+            }
+            builder
+                .add_auxiliary_file(PreparedAuxiliaryFile::from_snapshot(
+                    path,
+                    Arc::clone(project.plan().source().snapshot()),
+                ))
+                .map_err(|error| {
+                    ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+                })?;
+        }
     }
     builder.set_program_options(program_options);
 
@@ -5223,6 +5543,11 @@ fn publish_program(
         }
         published_ids[source_index] = Some(source_id);
         source_by_canonical.insert(prepared.path().canonical().clone(), source_id);
+        for (redirected, output) in &staged.project_reference_redirects {
+            if *output == source_index {
+                source_by_canonical.insert(redirected.canonical().clone(), source_id);
+            }
+        }
         for redirect in prepared.package_redirect_paths() {
             if let Some(previous) =
                 source_by_canonical.insert(redirect.canonical().clone(), source_id)
