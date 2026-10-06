@@ -3406,7 +3406,7 @@ compiler/incompleteDottedExpressionAtEOF	full	js
 compiler/incompleteObjectLiteral1	full	js
 compiler/incorrectClassOverloadChain	full	js
 compiler/incorrectNumberOfTypeArgumentsDuringErrorReporting	full	js
-compiler/incorrectRecursiveMappedTypeConstraint	text	js
+compiler/incorrectRecursiveMappedTypeConstraint	full	js
 compiler/incrementOnNullAssertion	full	js
 compiler/incrementOnTypeParameter	full	js
 compiler/incrementalConcurrentSafeAliasFollowing	full	js
@@ -4632,6 +4632,7 @@ compiler/mutrec	full	js
 compiler/mutuallyRecursiveCallbacks	full	js
 compiler/mutuallyRecursiveGenericBaseTypes1	full	js
 compiler/mutuallyRecursiveGenericBaseTypes2	full	js
+compiler/mutuallyRecursiveInference	full	js
 compiler/mutuallyRecursiveInterfaceDeclaration	full	js
 compiler/nameCollisionWithBlockScopedVariable1	full	js
 compiler/nameCollisions	full	js
@@ -6404,7 +6405,7 @@ compiler/typeParameterInConstraint1	full	js
 compiler/typeParameterLeak	full	js
 compiler/typeParameterListWithTrailingComma1	full	js
 compiler/typeParameterOrderReversal	full	js
-compiler/typeParameterWithInvalidConstraintType	text	js
+compiler/typeParameterWithInvalidConstraintType	full	js
 compiler/typeParametersAndParametersInComputedNames	full	js
 compiler/typeParametersInStaticAccessors	full	js
 compiler/typeParametersInStaticMethods	full	js
@@ -11957,6 +11958,7 @@ conformance/readonlyRestParameters	full	js
 conformance/recurringTypeParamForContainerOfBase01	full	js
 conformance/recursiveInitializer	full	js
 conformance/recursiveIntersectionTypes	full	js
+conformance/recursiveMappedTypes	full	js
 conformance/recursiveTypeInGenericConstraint	full	js
 conformance/recursiveTypeReferences1	full	js
 conformance/recursiveTypeReferences2	full	js

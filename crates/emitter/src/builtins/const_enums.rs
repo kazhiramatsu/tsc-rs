@@ -79,7 +79,8 @@ enum Scan {
     /// No parsed access has a constant value, so no visit changes the file.
     NoCandidate,
     Candidates(ParsedCandidates),
-    /// The file has no program source to ask the resolver about.
+    /// The file has no program source to ask the resolver about, or its
+    /// checker has not checked it: the visit asks each access it reaches.
     Unscanned,
 }
 
@@ -112,6 +113,14 @@ impl ParsedCandidates {
         let Some(program_source) = transform_source.program_source() else {
             return Ok(Scan::Unscanned);
         };
+        // The resolver checks an access of an unchecked source to answer
+        // (`GetConstantValue`, checker/services.go:869-888). Asking every
+        // parsed access would check the ones the earlier transforms erased
+        // (`implements a.B`, a type query), which tsgo's inliner never sees:
+        // the visit asks the accesses of the transformed tree, in its order.
+        if !resolver.is_source_checked(program_source)? {
+            return Ok(Scan::Unscanned);
+        }
         let syntax = transform_source.syntax();
         let base = transform_source.parsed_node_base();
         let count = u32::try_from(transform_source.parsed_node_count())

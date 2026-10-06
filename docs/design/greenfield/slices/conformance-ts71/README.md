@@ -301,6 +301,14 @@ Fullになった。`exportAssignmentMembersVisibleInAugmentation`と宣言emit�
 checkerの検査のときではなく宣言のtransformのときに付けるようにしたP3-5bfで直った（印が、fileを検査したshardにだけ
 付いていた）。`tslibMissingHelper`と`jsDeclarationsCrossfileMerge`はそれより前のsliceで直っていた。
 
+2026-10-06の追記：[ts71-cutover](../ts71-cutover/README.md)のP3-5bhから、1 checkerのrunnerは、tsgoのtest harnessと
+同じく2つ目のProgram（emitしてから診断を集める）の診断を`.errors.txt`のbaselineに使う。`--checkers 4`の対照は、
+複数checkerのProgramがemitを先にできないので、検査が先の順序（1つ目のProgramと同じ）で走る。2つのProgramで
+診断の位置や関連情報が違う4構成（`compiler/mutuallyRecursiveInference`、
+`compiler/incorrectRecursiveMappedTypeConstraint`、`compiler/typeParameterWithInvalidConstraintType`、
+`conformance/recursiveMappedTypes`）は、1 checkerではfull、4 checkerでは不一致またはtextになり、
+`conformance_ts71_compare.py`はこの4件を違いとして挙げる。partitionに依存する欠陥ではなく、順序の違いである。
+
 READMEのcorpus（hono、zod、Playwright、TypeScript `src/compiler`、Next.js、Effect、VS Code）でも、同じbinaryを
 `TSRS_CHECKERS=1`／8／12で走らせた：`--noEmit`の診断は7 corpusすべてで同一、declaration出力はzod・Playwright・Next.jsで
 同一、Effectは496 fileのうち`ai/internal/mcpProtocol/v2026_07_28.d.ts`の1 file（既知の型ID tiebreak、順序のみ）。

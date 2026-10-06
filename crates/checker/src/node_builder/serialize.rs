@@ -330,6 +330,17 @@ fn recover_suppressed_import_target(
     None
 }
 
+/// The symbol an identifier names, for the recoveries below: the symbol the
+/// check resolved for the node, otherwise a lookup that reports nothing and
+/// caches nothing. The declaration may be described before its source is
+/// checked, and a name that is not an identifier names no import.
+fn symbol_named_without_report(checker: &mut CheckerState<'_>, name: NodeId) -> Option<SymbolId> {
+    if checker.kind_of(name) != SyntaxKind::Identifier {
+        return None;
+    }
+    checker.emit_get_referenced_value_symbol(name, false).ok()?
+}
+
 fn recover_suppressed_type_reference(
     checker: &mut CheckerState<'_>,
     type_node: NodeId,
@@ -338,7 +349,7 @@ fn recover_suppressed_type_reference(
         NodeData::TypeReference(data) => data.type_name?,
         _ => return None,
     };
-    let alias = checker.get_resolved_symbol(type_name).ok()??;
+    let alias = symbol_named_without_report(checker, type_name)?;
     let target = recover_suppressed_import_target(checker, alias)?;
     checker.get_declared_type_of_symbol(target).ok()
 }
@@ -361,7 +372,7 @@ fn recover_suppressed_import_call_return_type(
         }
         _ => return None,
     };
-    let alias = checker.get_resolved_symbol(expression).ok()??;
+    let alias = symbol_named_without_report(checker, expression)?;
     let exported = recover_suppressed_import_target(checker, alias)?;
     let exported_type = checker.get_type_of_symbol(exported).ok()?;
     let signature = checker

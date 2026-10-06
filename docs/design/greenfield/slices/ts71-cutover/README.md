@@ -3400,3 +3400,109 @@ P3-5bfの「次」の1つ目。tsgoは、aliasの解決とtype-onlyの記録を�
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
 - hosted：PR #684（head `59b2afb24`）、run 37333860159 — `plan` 30s、`rust` 10m54s、`conformance (TypeScript 7.1)` 19m1s、
   `gates` 11s。merge commitは`e70475159`。
+
+## P3-5bh harnessの「emitが先」の順序と、検査の前に答えるemit resolver（2026-10-06）
+
+errorsがFullでない残りの4構成（`mutuallyRecursiveInference`、`recursiveMappedTypes`、
+`incorrectRecursiveMappedTypeConstraint`、`typeParameterWithInvalidConstraintType`）は、tsc-rsの診断がtsgoの
+command lineと同じで、baselineとだけ違っていた。tsgoのtest harnessは、1つの構成を2回compileする
+（`compileFilesWithHost`、testutil/harnessutil/harnessutil.go:647-712）：1つ目のProgramは診断だけを集め、2つ目は
+**先に`Emit`してから**診断を集める。`.errors.txt`に書くのは2つ目の診断で、2つの数が違えば短い方に「Pre-emit (n)
+and post-emit (m) diagnostic counts do not match!」の行を足す（その行を持つreferenceのbaselineは無い）。Programは
+1 thread・1 checkerで（`TestProgramIsSingleThreaded`）、`Emit`はsource fileをProgramの順に、fileごとにJS、宣言の
+順で出す。emitがcheckerに尋ねたことは、その順序で解決される。解決の順序に依存する診断（循環の報告の位置など）は、
+emitが最初に届いた所に出る。runnerをこの順序にした：
+- **runnerの2つ目のProgram**（`crates/conformance/src/ts71.rs`）：これまでは「検査してからemit」するsessionでemitの
+  出力だけを取っていた。これを「emitしてから、同じcheckerで診断を集める」sessionにし、errorsのbaselineには
+  その診断を使う。1つ目のProgramの診断と数が違えば、harnessの行を持つbaselineは無いので不一致にし、dumpの
+  先頭に、多い方にだけある診断を書く。`noEmit`のProgramと、`noEmitOnError`のProgram（`Emit`が先に全ての診断を
+  求める。`HandleNoEmitOptions`、compiler/program.go:1976-2008）は、emitの前に検査するので、1つ目の順序のまま。
+  `--checkers 4`の対照も検査が先の順序で走る（下の「並列対照」）。
+- **checkerのdriver**（`crates/checker/src/lib.rs`）：`DiagnosticSchedule::EagerAfterEmit`を足した。初期化した直後、
+  どのsourceも検査していないsessionでoperationを1回呼び（emit）、そのstateのままeagerな検査を進め、検査の後で
+  もう1回呼ぶ（宣言の診断のgetter）。入口は`check_program_with_authoritative_modules_at_emit_first_with_workers`。
+- **compilerのsession**（`crates/compiler/src/lib.rs`）：`ProgramSession::emit_then_run_for_native_harness`。emitが
+  先にならないProgram（上の2種類と、複数checkerのbudget）では、sessionを消費せずに返す。
+
+emitを先にすると、tsc-rsのemit resolverが「検査済みのProgram」を前提にしている所が表に出た。tscのemitは必ず
+検査の後なので、6.0からの移植ではそれで足りていた。tsgoのemitは検査の前でも動く。次を直した：
+- **resolverの名前解決は診断を出さない**：`getReferencedExportContainer`、`getReferencedValueDeclaration`（と
+  複数形）、`isArgumentsLocalBinding`、`getReferencedDeclarationWithCollidingName`は、tscでもtsgoでも
+  `getReferencedValueSymbol`を使う（binder/referenceresolver.go:83-105）：検査が解決したsymbolがnodeにあれば
+  それを返し、無ければ、診断を出さず、使用の印も付けず、cacheもしない名前解決をする。tsc-rsはこれらに
+  `getResolvedSymbol`（診断を出し、結果をnodeに書く）を使っていた。検査の後では既に解決済みのnodeにしか
+  当たらないので見えなかったが、検査の前では、宣言の名前（`namespace x`と後ろの`enum x`のmergeなど）を値として
+  解決し、「宣言の前に使われた」（TS2450／TS2448）を出していた。
+- **aliasの参照の印は、未検査のsourceでは歩いて付ける**：import elisionは、aliasの「参照された」印を読む。tsgoの
+  import elisionは、最初に`MarkLinkedReferencesRecursively`でfileの全nodeを歩いて印を付ける
+  （transformers/tstransforms/importelision.go:29、checker/emitresolver.go:808-830）。tsc 6.0は、検査しない
+  source（`noCheck`など）でだけ歩いていたので、tsc-rsもそうだった。emitterは常にresolverに頼み、resolverは
+  自分のcheckerがまだ検査していないsourceだけを歩く（検査済みなら、同じ印が検査で付いている）。歩く関数は
+  7.1の`markLinkedReferences`の`Unspecified`の腕に合わせた（checker/checker.go:28654-28817）：検査が解決しない
+  場所の識別子を解決すると、検査が出さない診断が出るので、`with`の中、JSXのintrinsicなtag名、meta property、
+  decorateできないnodeのdecorator、宣言の無い`for`-`in`／`of`の式、enum memberや不正なcomputed name、interfaceの
+  `extends`、classの2つ目以降の`extends`、初期値付きのshorthand propertyの名前は歩かない。type queryの`this`は
+  解決しない（`markIdentifierAliasReferenced`）。`import x = a.b.c`の名前はproperty accessとして印を付けない
+  （`isPartOfImportEqualsModuleReference`）。
+- **const enumのinlinerは、未検査のsourceでは変換後の木だけを尋ねる**：tsgoのinlinerは最後のtransformerで、
+  変換後の木に残ったproperty／element accessにだけ`GetConstantValue`を呼ぶ（解決済みのsymbolが無ければ
+  `checkExpressionCached`。checker/services.go:869-888）。tsc-rsのinlinerは、速くするために、parseされた全ての
+  accessを先に尋ねていた。検査済みのsourceでは結果を読むだけだが、未検査では、型の消去で消えるaccess
+  （`implements a.B`など）まで検査してしまう。resolverに`is_source_checked`を足し、未検査のsourceでは
+  tsgoと同じく、訪ねたaccessごとに尋ねる。`mutuallyRecursiveInference`のTS5114が`this.a`に出るのは、この
+  問い合わせが`X`のinstantiationを最初に必要とするからである。
+- **node check flagは、未検査のsourceなら求める**：`calculateNodeCheckFlagWorker`は、6.0では「Programが検査する
+  source」なら何もしない（検査が付けた筈）。検査がまだ走っていないsourceでもそうなるので、decorateされたclassの
+  自己参照のalias（`Foo_1`）や、async関数の`arguments`の捕捉が出力から消えていた。条件を「このcheckerが検査した
+  source」にした。flagのために識別子を解決するときは、上と同じ診断を出さない名前解決を使う（検査が解決しない
+  JSXのtag名などで診断を出さない）。
+- **JSXのruntimeのmoduleが無いときの位置**：`getJsxNamespaceContainerForImplicitImport`は、fileで最初のJSXのtag
+  （fragmentなら開きtag）に報告する（checker/jsx.go:1449-1484）。tsc 6.0は、最初に尋ねたnodeに報告していた。
+  検査の順（arrow functionの本体は後回し）でも、emitが先の順（参照を歩くとき、開きtagから尋ねる）でも位置が
+  変わるので、tsgoは位置を固定している。command lineの出力も変わる（下のunit test）。
+- **捨てられたnodeからmodule名を集めない**：top-levelの`await`を見つけてparseし直した文の古いnodeは、arenaに
+  残るがどの木にも入らない。宣言emitのmodule specifierの計算は、arenaの全nodeからdynamic importの名前を
+  集めていて、古いnodeの文字列（親が無いので`import()`の中だと分からない）をfileの既定のmodeで解決しようとし、
+  Programが記録していない組を求めて、sessionの「解決の欠落」を立てていた。検査の後のemitではその記録は
+  読まれなかった。emitが先だと、sessionが失敗する（`dynamicImportsDeclaration`）。親の無いnodeを飛ばす。
+- **context-sensitiveなsignatureのparameterは、型の問い合わせからは暗黙の`any`を報告しない**：全体の実行で1構成
+  （`reverseMappedPartiallyInferableTypes`）が「emitの前後で診断の数が違う」になった。emitの参照の印付けは、
+  `k.length`の左の`k`の型を求める（`markPropertyAliasReferenced`、checker/checker.go:28903-28907）。`k`は、まだ
+  解決されていない呼び出し`id({ foo: { contains(k) { … } } })`の中のmethodのparameterで、その問い合わせの中から
+  呼び出しが解決され、`k`には推論の途中の文脈の型（`unknown`）が付く。問い合わせ自身は、解決の後で文脈の型を
+  取り直す。引数の文脈の型は`Mapped<unknown>`になっていて、`foo`のpropertyが無いので、文脈のsignatureは
+  見つからない。7.1の`getTypeOfVariableOrParameterOrPropertyWorker`は、context-sensitiveなsignatureのparameterに
+  ついては診断を報告しない（checker.go:16927-16929「context-sensitive ones may have their type fixed to
+  something else」。報告は`assignParameterType`が、文脈の型が無いときにする）。tsc 6.0は常に報告していたので、
+  ここでTS7006（暗黙の`any`）が1件増えていた。検査が先の順序では、parameterの型は呼び出しの解決の中で先に
+  付くので、この経路は通らない。tsgoのcommand lineとも、emitが先のtsgo（計器を付けたbuild）とも同じ1件
+  （TS18046）になった。
+- conformance（このsliceの1回の全体実行。macOS、`taskpolicy -c maintenance nice -n 20`、1 worker、4,710秒）：
+  `32865e697`で15,228 configuration、lane A 13,466、full 13,448、text 0、不一致1、emit full 13,434、emitの不一致7、
+  harness error 17、skipped 1,720。P3-5bgの最終reportと行ごとに比べると、上がったのは狙った4構成
+  （`mutuallyRecursiveInference`と`recursiveMappedTypes`が不一致→full、`incorrectRecursiveMappedTypeConstraint`と
+  `typeParameterWithInvalidConstraintType`がtext→full）、下がったのは上の1構成で、他の構成はtierもdigest
+  （errors、emit）も変わらない。上の修正の後、18本のfilter（`everse`、`ontextual`、`nfer`、`mplicit`、`rrow`、
+  `allback`、`eneric`、`unction`、`sx`、`bject`、`estructur`、`arameter`、`verload`、`apped`、`ypeGuard`、
+  `ontrolFlow`、`sync`、`enerator`。重複を除いて4,883構成）を走らせ、全体のreportと全ての欄を比べた：違うのは
+  直した1構成（不一致→full）だけ。**errorsを比べる13,449構成は、全てfullになった**（lane Aの残りの17は
+  harness error）。ratchetは2行を足し、2行を上げた（`--filter <case> --update`。13,449行）。全体の実行は
+  修正の前のbytesのもので、修正後のheadの全件はhostedの`conformance (TypeScript 7.1)` jobが走らせる。
+- test：CLI 2件（JSXのruntimeの位置。どちらもmainのbuildと違う）、sessionのtest 5件（2つ目のProgramがemitの
+  最初に届いた所に報告する／emitが先でも検査が出さない診断を出さない／使われているaliasを残す／parameterに
+  暗黙の`any`を報告しない／`noEmitOnError`のProgramは渡し返される）、runnerのtest 1件（4構成）。
+- local（macOS。夜間のため全て`taskpolicy -c maintenance nice -n 20`、1 job、test thread 1）：`cargo fmt --all --
+  --check`、6 crate（types、checker、emitter、compiler、conformance、harness）の`cargo clippy --all-targets -- -D
+  warnings`、同じ6 crateの`cargo test --no-fail-fast`（41 target、2,819 passed）を`adccdbb0b`のtreeで実行した。
+  workspace全体のtestとclippyはhostedの`rust` job。
+- **並列対照**：1 checkerのrunnerは2つ目のProgram（emitが先）の診断をbaselineにし、`--checkers 4`の対照は
+  検査が先の順序のままなので、2つのProgramで診断が違う4構成は、1 checkerと4 checkerで作りとして違う
+  （[conformance-ts71](../conformance-ts71/README.md)の「並列実行の対照」に追記）。
+- **この記録の時点で未実行のもの**：corpusの速度・peak memory・出力の比較、`--checkers 4`の対照の実行、corpusの
+  診断のtsgoとの比較。夜間の低CPU設定（QoSのclamp）では時間の比較ができないので、mergeの前に通常の設定で
+  実行し、結果をhostedの記録に書く。
+- 次：
+  - emitの不一致7（`typeTagOnFunctionReferencesGeneric`、`privateNameStaticMethod`、`computedPropertyNames52`の
+    es2015、`objectTypesWithOptionalProperties2`、`comparisonAnonymousMappedTypes`、`comparisonReverseMappedTypes`、
+    `binderBinaryExpressionStress`）とharness error 17（`runExternalCode`の15件、`deduplicatePackages`の2件）。
+  - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。

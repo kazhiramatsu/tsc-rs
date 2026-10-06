@@ -1101,28 +1101,19 @@ fn emit_javascript_unit(
     let _ = preflight;
     let mut arena = TransformArena::new();
     let transform_root = mount_emit_root(&mut arena, host, unit.root(), true)?;
-    // tsc-port: emitJsFileOrBundle @6.0.3 (_tsc.js:116594-116598)
-    // Unchecked sources (noCheck, or a file excluded by
-    // canIncludeBindAndCheckDiagnostics) have their alias
-    // references marked lazily before the script transform so
-    // import elision sees the same `referenced` facts a checked
-    // file would have. Resolvers without a checker
-    // (transform-only fixtures) answer UnavailableForSource and
-    // keep their pre-H2.8c "checked file" assumption.
+    // tsgo's import elision marks the alias references of every source it
+    // transforms before it looks at an import
+    // (transformers/tstransforms/importelision.go:29), so import elision
+    // sees the `referenced` facts whether or not the source was checked
+    // first. The resolver walks only a source its checker has not checked
+    // (emit before the check, noCheck, a file excluded by
+    // canIncludeBindAndCheckDiagnostics). Resolvers without a checker
+    // (transform-only fixtures) answer UnavailableForSource and keep their
+    // "checked file" assumption.
     for &file in unit.root().source_files() {
-        let unchecked = if options.no_check == Some(true) {
-            true
-        } else {
-            match resolver.can_include_bind_and_check_diagnostics(file) {
-                Ok(can_include) => !can_include,
-                Err(EmitResolverError::UnavailableForSource { .. }) => false,
-                Err(error) => return Err(TransformError::from(error).into()),
-            }
-        };
-        if unchecked {
-            resolver
-                .mark_linked_references(file)
-                .map_err(TransformError::from)?;
+        match resolver.mark_linked_references(file) {
+            Ok(()) | Err(EmitResolverError::UnavailableForSource { .. }) => {}
+            Err(error) => return Err(TransformError::from(error).into()),
         }
     }
     let transformers = get_script_transformers_for_source(options, resolver, host, source_id)?;

@@ -354,29 +354,26 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7b82d130c6cce9b63a376c99b857ceb846dab03dd8533aef173e0035fd0a5ec2
     /// tsc-span: _tsc.js:88131-88230
     ///
-    /// For an unchecked source (`noCheck`, or a file excluded by
-    /// canIncludeBindAndCheckDiagnostics) the transformers still ask
-    /// `hasNodeCheckFlag`; the checker derives just the requested flag
-    /// group on demand and records the group in `calculatedFlags` so each
-    /// subtree is walked once per group.
+    /// For a source this checker has not checked (emit before the check,
+    /// `noCheck`, or a file excluded by canIncludeBindAndCheckDiagnostics)
+    /// the transformers still ask `hasNodeCheckFlag`; the checker derives
+    /// just the requested flag group on demand and records the group in
+    /// `calculatedFlags` so each subtree is walked once per group. tsc 6.0
+    /// asked whether the source is one the Program checks, which holds for
+    /// a source whose check has not run yet; its emit always follows the
+    /// check, and the native harness's second Program emits first.
     pub(crate) fn calculate_node_check_flag_worker(
         &mut self,
         node: NodeId,
         flag: NodeCheckFlags,
     ) -> CheckResult<()> {
-        if self.options.no_check != Some(true) {
-            let file = ProgramFileId::from_raw(
-                u32::try_from(self.binder.file_index_of_node(node))
-                    .expect("Program file index overflow"),
-            );
-            let source = self.binder.source(file.index());
-            if crate::can_include_bind_and_check_diagnostics(
-                crate::is_js_file_name(&source.file_name),
-                crate::check_directive(source.text()),
-                self.options,
-            ) {
-                return Ok(());
-            }
+        let root = self.binder.source_of_node(node).root;
+        if self
+            .links
+            .read_node(root, |links| links.check_flags)
+            .intersects(NodeCheckFlags::TYPE_CHECKED)
+        {
+            return Ok(());
         }
         if self
             .links
@@ -521,7 +518,16 @@ impl<'a> CheckerState<'a> {
         if !is_expression_or_shorthand_name || is_property_access_name {
             return Ok(());
         }
-        if let Some(symbol) = self.get_resolved_symbol(node)? {
+        // The flags are derived for a source that has not been checked, and
+        // its check may still follow (the native harness's second Program
+        // emits first). The symbol the checker already resolved for the
+        // node is used when there is one; otherwise the lookup reports
+        // nothing and caches nothing, so the check resolves the identifier
+        // itself and no diagnostic appears where the check would not report
+        // one (an intrinsic JSX tag name, a decorator the check skips).
+        // tsc 6.0 called getResolvedSymbol here; its only callers were
+        // sources whose diagnostics are never read.
+        if let Some(symbol) = self.emit_get_referenced_value_symbol(node, false)? {
             if symbol != self.unknown_symbol {
                 self.check_identifier_calculate_node_check_flags(node, symbol)?;
             }

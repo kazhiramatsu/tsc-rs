@@ -322,6 +322,19 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn is_source_checked(
+        &self,
+        source: tsc_program::SourceFileId,
+    ) -> Result<bool, EmitResolverError> {
+        let state = self.state.lock().expect("checker session state");
+        let index = resolver_source_index(&state, EmitResolverMethod::IsSourceChecked, source)?;
+        let root = state.binder.source(index).root;
+        Ok(state
+            .links
+            .read_node(root, |links| links.check_flags)
+            .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED))
+    }
+
     fn can_include_bind_and_check_diagnostics(
         &self,
         source: tsc_program::SourceFileId,
@@ -712,9 +725,16 @@ impl EmitResolver for CheckerSession<'_> {
         })
     }
 
-    /// tsc-port: markLinkedReferences @6.0.3
-    /// tsc-hash: 3b99dce4b11fe63515ea8d8369e8f411cefeac7b3071b3e64de3a13cb9c5332f
-    /// tsc-span: _tsc.js:71662-71732
+    /// tsgo-port: MarkLinkedReferencesRecursively @7.1
+    /// (checker/emitresolver.go:808-830).
+    ///
+    /// tsgo's import elision calls this for every source it transforms
+    /// (transformers/tstransforms/importelision.go:29). A source this checker
+    /// has checked already carries every mark the walk would add (the check
+    /// reaches the same markers from checkIdentifier, checkPropertyAccess and
+    /// the rest), so the walk is left to the sources it has not checked: emit
+    /// before the check, `noCheck`, and a file excluded by
+    /// canIncludeBindAndCheckDiagnostics.
     fn mark_linked_references(
         &self,
         source: tsc_program::SourceFileId,
@@ -723,7 +743,13 @@ impl EmitResolver for CheckerSession<'_> {
         let index =
             resolver_source_index(&state, EmitResolverMethod::MarkLinkedReferences, source)?;
         let file = state.binder.source(index);
-        if crate::is_js_file_name(&file.file_name) {
+        if crate::is_js_file_name(&file.file_name)
+            || state.options.verbatim_module_syntax == Some(true)
+            || state
+                .links
+                .read_node(file.root, |links| links.check_flags)
+                .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED)
+        {
             return Ok(());
         }
         // forEachChildRecursively(file, cb): pre-order over the children of

@@ -178,7 +178,8 @@ impl<'a> CheckerState<'a> {
             NodeData::PropertyAssignment(data) => data.name == Some(node),
             _ => false,
         };
-        Ok(!is_property_name && self.get_resolved_symbol(node)? == Some(self.arguments_symbol))
+        Ok(!is_property_name
+            && self.emit_get_referenced_value_symbol(node, false)? == Some(self.arguments_symbol))
     }
 
     /// tsc-port: isBindingCapturedByNode @6.0.3
@@ -212,7 +213,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(None);
         }
-        let Some(symbol) = self.get_resolved_symbol(node)? else {
+        let Some(symbol) = self.emit_get_referenced_value_symbol(node, false)? else {
             return Ok(None);
         };
         if self.is_symbol_of_declaration_with_colliding_name(symbol)? {
@@ -388,7 +389,19 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(None);
         }
-        let Some(symbol) = self.get_resolved_symbol(node)? else {
+        // When resolving the export for the name of a module or enum
+        // declaration, resolution starts at the declaration's container:
+        // otherwise the name could resolve to an exported member of the same
+        // name inside the declaration.
+        let start_in_declaration_container = self.parent_of(node).is_some_and(|parent| {
+            matches!(
+                self.kind_of(parent),
+                SyntaxKind::ModuleDeclaration | SyntaxKind::EnumDeclaration
+            ) && self.name_of_node(parent) == Some(node)
+        });
+        let Some(symbol) =
+            self.emit_get_referenced_value_symbol(node, start_in_declaration_container)?
+        else {
             return Ok(None);
         };
         self.emit_get_referenced_export_container_for_symbol(
@@ -396,6 +409,51 @@ impl<'a> CheckerState<'a> {
             node,
             self.parent_of(node),
             mode,
+        )
+    }
+
+    /// tsgo-port: getReferencedValueSymbol @7.1
+    /// (binder/referenceresolver.go:83-105).
+    ///
+    /// The symbol an identifier refers to, for emit: the symbol the checker
+    /// resolved for the node when it has checked it, otherwise a lookup that
+    /// reports nothing, marks nothing as used and is not cached. Emit may run
+    /// before the check (the native harness's second Program), and a query of
+    /// the emit resolver must not leave a diagnostic the check would not
+    /// report: `getResolvedSymbol` would, for a declaration name.
+    pub(crate) fn emit_get_referenced_value_symbol(
+        &mut self,
+        reference: NodeId,
+        start_in_declaration_container: bool,
+    ) -> CheckResult<Option<SymbolId>> {
+        if let Some(symbol) = self
+            .links
+            .read_node(reference, |links| links.resolved_symbol.resolved())
+        {
+            return Ok(Some(symbol));
+        }
+        let mut location = reference;
+        if start_in_declaration_container {
+            if let Some(parent) = self.parent_of(reference) {
+                if node_util::is_declaration(self.binder.source_of_node(parent), parent)
+                    && self.name_of_node(parent) == Some(reference)
+                {
+                    if let Some(container) = self.get_declaration_container(parent) {
+                        location = container;
+                    }
+                }
+            }
+        }
+        let Some(name) = self.identifier_text_of(reference).map(str::to_owned) else {
+            return Ok(None);
+        };
+        self.resolve_name(
+            Some(location),
+            &name,
+            SymbolFlags::EXPORT_VALUE | SymbolFlags::VALUE | SymbolFlags::ALIAS,
+            /*name_not_found_message*/ None,
+            /*is_use*/ false,
+            /*exclude_globals*/ false,
         )
     }
 
@@ -500,7 +558,7 @@ impl<'a> CheckerState<'a> {
             &name,
             SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
             /*name_not_found_message*/ None,
-            /*is_use*/ true,
+            /*is_use*/ false,
             /*exclude_globals*/ false,
         )?;
         self.emit_get_referenced_import_declaration_for_symbol(symbol)
@@ -533,7 +591,7 @@ impl<'a> CheckerState<'a> {
             &name,
             SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
             /*name_not_found_message*/ None,
-            /*is_use*/ true,
+            /*is_use*/ false,
             /*exclude_globals*/ false,
         )
     }
@@ -575,7 +633,7 @@ impl<'a> CheckerState<'a> {
             name,
             SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
             /*name_not_found_message*/ None,
-            /*is_use*/ true,
+            /*is_use*/ false,
             /*exclude_globals*/ false,
         )?;
         self.emit_get_referenced_import_declaration_for_symbol(symbol)
@@ -596,7 +654,7 @@ impl<'a> CheckerState<'a> {
             name,
             SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
             /*name_not_found_message*/ None,
-            /*is_use*/ true,
+            /*is_use*/ false,
             /*exclude_globals*/ false,
         )?
         else {
@@ -620,7 +678,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(None);
         }
-        let Some(symbol) = self.get_resolved_symbol(node)? else {
+        let Some(symbol) = self.emit_get_referenced_value_symbol(node, false)? else {
             return Ok(None);
         };
         let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
@@ -637,7 +695,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(Vec::new());
         }
-        let Some(symbol) = self.get_resolved_symbol(node)? else {
+        let Some(symbol) = self.emit_get_referenced_value_symbol(node, false)? else {
             return Ok(Vec::new());
         };
         let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
@@ -1134,16 +1192,46 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4225275401c1d5fb74dde15c238b68cb619d329262e0d4ef49d301274062f822
     /// tsc-span: _tsc.js:71733-71738
     pub(crate) fn mark_identifier_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
+        // tsgo (checker/checker.go:28862-28870) leaves `this` of a type query
+        // unresolved: there is no name `this` to find.
+        if self.is_this_in_type_query(location) {
+            return Ok(());
+        }
         let symbol = self.get_resolved_symbol(location)?;
         if let Some(symbol) = symbol {
-            if symbol != self.arguments_symbol
-                && symbol != self.unknown_symbol
-                && !self.is_this_in_type_query(location)
-            {
+            if symbol != self.arguments_symbol && symbol != self.unknown_symbol {
                 self.mark_alias_referenced(symbol, location)?;
             }
         }
         Ok(())
+    }
+
+    /// tsgo-port: isPartOfImportEqualsModuleReference @7.1
+    /// (checker/checker.go:28943-28954): the names of `import x = a.b.c` are
+    /// resolved by the alias, never as property accesses of a value.
+    fn is_part_of_import_equals_module_reference(&self, location: NodeId) -> bool {
+        let mut import_equals = Some(location);
+        while let Some(node) = import_equals {
+            if self.kind_of(node) == SyntaxKind::ImportEqualsDeclaration {
+                break;
+            }
+            import_equals = self.parent_of(node);
+        }
+        let Some(import_equals) = import_equals else {
+            return false;
+        };
+        let module_reference = match self.data_of(import_equals) {
+            NodeData::ImportEqualsDeclaration(data) => data.module_reference,
+            _ => None,
+        };
+        let mut current = Some(location);
+        while let Some(node) = current.filter(|&node| node != import_equals) {
+            if Some(node) == module_reference {
+                return true;
+            }
+            current = self.parent_of(node);
+        }
+        false
     }
 
     /// tsc-port: markPropertyAliasReferenced @6.0.3
@@ -1156,6 +1244,9 @@ impl<'a> CheckerState<'a> {
         prop: Option<SymbolId>,
         parent_type: TypeId,
     ) -> CheckResult<()> {
+        if self.is_part_of_import_equals_module_reference(location) {
+            return Ok(());
+        }
         if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }
@@ -1218,15 +1309,17 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: markLinkedReferences @6.0.3
-    /// tsc-hash: 3b99dce4b11fe63515ea8d8369e8f411cefeac7b3071b3e64de3a13cb9c5332f
-    /// tsc-span: _tsc.js:71662-71732
+    /// tsgo-port: markLinkedReferences @7.1 (checker/checker.go:28654-28817),
+    /// the `ReferenceHintUnspecified` arm.
     ///
-    /// The emitter walks an unchecked source (noCheck or a file excluded by
+    /// The emitter walks a source the checker has not checked (emit may come
+    /// before the check; `noCheck`; a file excluded by
     /// canIncludeBindAndCheckDiagnostics) and calls this front door for
     /// every node; the checked path reaches the same hint-specific markers
-    /// from checkIdentifier/checkPropertyAccess/... instead. The front-door
-    /// guards (verbatimModuleSyntax, ambient locations) are preserved here.
+    /// from checkIdentifier/checkPropertyAccess/... instead. The markers
+    /// resolve names as the check does, so the guards below keep the walk
+    /// out of the places the check never resolves, where it would report a
+    /// diagnostic the check does not.
     pub(crate) fn mark_linked_references_unspecified(
         &mut self,
         location: NodeId,
@@ -1247,14 +1340,34 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.source_of_node(location);
         let parent = self.parent_of(location);
+        // No semantic question can be answered within a `with` block.
+        if self
+            .binder
+            .flags_of(location)
+            .intersects(tsc_types::NodeFlags::IN_WITH_STATEMENT)
+        {
+            return Ok(());
+        }
+        // Intrinsic JSX tag names are expressions that refer to nothing.
+        let is_jsx_tag_name = parent.is_some_and(|parent| match self.data_of(parent) {
+            NodeData::JsxOpeningElement(data) => data.tag_name == Some(location),
+            NodeData::JsxSelfClosingElement(data) => data.tag_name == Some(location),
+            NodeData::JsxClosingElement(data) => data.tag_name == Some(location),
+            _ => false,
+        });
+        if is_jsx_tag_name && self.is_jsx_intrinsic_tag_name(location) {
+            return Ok(());
+        }
         if self.kind_of(location) == SyntaxKind::Identifier {
+            if !self.unspecified_reference_is_resolved_by_check(location, parent) {
+                return Ok(());
+            }
             let is_expression = node_util::is_expression_node(source, location)
                 || parent.is_some_and(|parent| {
                     matches!(
                         self.data_of(parent),
                         NodeData::ShorthandPropertyAssignment(_)
-                    ) || matches!(self.data_of(parent), NodeData::ImportEqualsDeclaration(data)
-                            if data.module_reference == Some(location))
+                    )
                 });
             if is_expression && self.should_mark_identifier_alias_referenced(location) {
                 if let Some(parent) = parent {
@@ -1349,6 +1462,154 @@ impl<'a> CheckerState<'a> {
         self.mark_decorator_metadata_aliases(location)
     }
 
+    /// The guards of the identifier arm of tsgo's markLinkedReferences
+    /// (checker/checker.go:28686-28754): whether the check resolves an
+    /// identifier at this place. It does not inside a meta property, a
+    /// decorator on a node that cannot be decorated, the expression of a
+    /// `for`-`in`/`of` statement with an empty declaration list, the computed
+    /// name of an enum member or an invalid computed name, the `extends`
+    /// clause of an interface, a class's `extends` types after the first, and
+    /// the name of a shorthand property with an initializer outside an
+    /// assignment target.
+    fn unspecified_reference_is_resolved_by_check(
+        &self,
+        location: NodeId,
+        parent: Option<NodeId>,
+    ) -> bool {
+        let source = self.binder.source_of_node(location);
+        if let Some(parent) = parent {
+            if let NodeData::ShorthandPropertyAssignment(data) = self.data_of(parent) {
+                if data.name == Some(location)
+                    && data.object_assignment_initializer.is_some()
+                    && !self
+                        .parent_of(parent)
+                        .is_some_and(|literal| node_util::is_assignment_target(source, literal))
+                {
+                    return false;
+                }
+            }
+        }
+        // ast.FindManyAncestors: the nearest node of each kind, the
+        // identifier's own position included; a node counts for one kind.
+        let mut meta_property = None;
+        let mut decorator = None;
+        let mut for_node = None;
+        let mut computed_name = None;
+        let mut heritage_clause = None;
+        let mut current = Some(location);
+        while let Some(node) = current {
+            let slot = match self.kind_of(node) {
+                SyntaxKind::MetaProperty => &mut meta_property,
+                SyntaxKind::Decorator => &mut decorator,
+                SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement => &mut for_node,
+                SyntaxKind::ComputedPropertyName => &mut computed_name,
+                SyntaxKind::HeritageClause => &mut heritage_clause,
+                _ => {
+                    current = self.parent_of(node);
+                    continue;
+                }
+            };
+            if slot.is_none() {
+                *slot = Some(node);
+            }
+            current = self.parent_of(node);
+        }
+        if meta_property.is_some() {
+            return false;
+        }
+        if let Some(decorator) = decorator {
+            if let Some(decorated) = self.parent_of(decorator) {
+                let decorated_parent = self.parent_of(decorated);
+                if !self.node_can_be_decorated(
+                    self.options.experimental_decorators,
+                    decorated,
+                    decorated_parent,
+                    decorated_parent.and_then(|parent| self.parent_of(parent)),
+                ) {
+                    return false;
+                }
+            }
+        }
+        if let Some(for_node) = for_node {
+            let (initializer, expression) = match self.data_of(for_node) {
+                NodeData::ForInStatement(data) => (data.initializer, data.expression),
+                NodeData::ForOfStatement(data) => (data.initializer, data.expression),
+                _ => (None, None),
+            };
+            let empty_declaration_list = initializer.is_some_and(|initializer| {
+                matches!(self.data_of(initializer), NodeData::VariableDeclarationList(data)
+                    if self.nodes_of(data.declarations).is_empty())
+            });
+            if empty_declaration_list
+                && expression.is_some_and(|expression| {
+                    location == expression || self.is_node_descendant_of(location, expression)
+                })
+            {
+                return false;
+            }
+        }
+        if let Some(computed_name) = computed_name {
+            let owner = self.parent_of(computed_name);
+            if owner.is_some_and(|owner| self.kind_of(owner) == SyntaxKind::EnumMember) {
+                return false;
+            }
+            // isInvalidComputedPropertyName: `[a in b]` in a type literal, a
+            // class or an interface, outside an accessor.
+            let container = owner.and_then(|owner| self.parent_of(owner));
+            let in_type_or_class = container.is_some_and(|container| {
+                matches!(
+                    self.kind_of(container),
+                    SyntaxKind::TypeLiteral
+                        | SyntaxKind::ClassDeclaration
+                        | SyntaxKind::ClassExpression
+                        | SyntaxKind::InterfaceDeclaration
+                )
+            });
+            let expression = match self.data_of(computed_name) {
+                NodeData::ComputedPropertyName(data) => data.expression,
+                _ => None,
+            };
+            let is_in_expression = expression.is_some_and(|expression| {
+                matches!(self.data_of(expression), NodeData::BinaryExpression(data)
+                if data.operator_token.is_some_and(|operator| {
+                    self.kind_of(operator) == SyntaxKind::InKeyword
+                }))
+            });
+            let is_accessor = owner.is_some_and(|owner| {
+                matches!(
+                    self.kind_of(owner),
+                    SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+                )
+            });
+            if in_type_or_class && is_in_expression && !is_accessor {
+                return false;
+            }
+        }
+        if let Some(heritage_clause) = heritage_clause {
+            if let Some(owner) = self.parent_of(heritage_clause) {
+                if self.kind_of(owner) == SyntaxKind::InterfaceDeclaration {
+                    return false;
+                }
+                let is_extends = matches!(self.data_of(heritage_clause), NodeData::HeritageClause(data)
+                    if data.token == SyntaxKind::ExtendsKeyword);
+                if matches!(
+                    self.kind_of(owner),
+                    SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                ) && is_extends
+                {
+                    if let Some(first_extends) = self.get_class_extends_heritage_element(owner) {
+                        if location != first_extends
+                            && !self.is_node_descendant_of(location, first_extends)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        true
+    }
+
     /// markPropertyAliasReferenced (71739-71769) when neither propSymbol nor
     /// parentType is supplied: resolve the left type through
     /// checkExpressionCached and look the property up on its apparent type.
@@ -1357,6 +1618,9 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         left: NodeId,
     ) -> CheckResult<()> {
+        if self.is_part_of_import_equals_module_reference(location) {
+            return Ok(());
+        }
         if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }

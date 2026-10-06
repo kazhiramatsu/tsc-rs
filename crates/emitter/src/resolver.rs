@@ -499,6 +499,7 @@ pub enum EmitResolverMethod {
     HasGlobalName,
     CollectLinkedAliases,
     MarkLinkedReferences,
+    IsSourceChecked,
     CanIncludeBindAndCheckDiagnostics,
     IsReferencedAliasDeclaration,
     IsTopLevelValueImportEqualsWithEntityName,
@@ -589,6 +590,7 @@ impl EmitResolverMethod {
             Self::HasGlobalName => "hasGlobalName",
             Self::CollectLinkedAliases => "collectLinkedAliases",
             Self::MarkLinkedReferences => "markLinkedReferences",
+            Self::IsSourceChecked => "isSourceChecked",
             Self::CanIncludeBindAndCheckDiagnostics => "canIncludeBindAndCheckDiagnostics",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
             Self::IsTopLevelValueImportEqualsWithEntityName => {
@@ -812,6 +814,18 @@ pub trait EmitResolver {
             method: EmitResolverMethod::MarkLinkedReferences,
             source,
         })
+    }
+
+    /// Whether the checker behind this resolver has checked `source`. A
+    /// query about a node of a checked source reads what the check resolved;
+    /// about a node of an unchecked source it resolves, and may report, so
+    /// a transform asks such a source only what tsgo's transform asks, in
+    /// its order. Resolvers without a checker assume a checked source.
+    /// tsrs-native: tsgo's emit never needs to know; its transforms ask no
+    /// more of a checked source than of an unchecked one.
+    fn is_source_checked(&self, source: SourceFileId) -> Result<bool, EmitResolverError> {
+        let _ = source;
+        Ok(true)
     }
 
     /// tsc-port: canIncludeBindAndCheckDiagnostics @6.0.3

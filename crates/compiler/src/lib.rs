@@ -17,6 +17,7 @@ use std::sync::Arc;
 use tsc_checker::emit::CheckerSession;
 pub use tsc_checker::CheckerBudget;
 use tsc_checker::{
+    check_program_with_authoritative_modules_at_emit_first_with_workers,
     check_program_with_authoritative_modules_at_for_emit_with_checkers,
     check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle,
     check_program_with_authoritative_modules_at_for_emit_with_workers,
@@ -2513,6 +2514,40 @@ impl ProgramSession {
         self.run_no_emit_pass(false, LibraryPrefixCompletion::Complete, false)
     }
 
+    /// The native compiler runner's second Program for one configuration
+    /// (`compileFilesWithHost`: `program.Emit`, then the diagnostic getters).
+    /// The Program emits into `sink` before any of its sources is checked,
+    /// and the diagnostics of
+    /// [`run_for_native_harness`](Self::run_for_native_harness) are then
+    /// collected over the same checker: what the emit resolved through the
+    /// checker stays resolved, so a diagnostic that depends on the order of
+    /// resolution is reported where the emit first reached it. The second
+    /// value is the emit's result.
+    ///
+    /// The session is handed back unconsumed (the inner `Err`) for a Program
+    /// that does not emit before its diagnostics are known: one that cannot
+    /// emit, one under `noEmitOnError` (`Emit` asks for every diagnostic
+    /// first), and a sharded checker budget.
+    /// tsrs-native: harness execution order; the command line checks first.
+    #[doc(hidden)]
+    #[allow(clippy::type_complexity)]
+    pub fn emit_then_run_for_native_harness(
+        mut self,
+        collection: NativeHarnessCollection,
+        sink: &mut dyn OutputSink,
+    ) -> Result<Result<(NoEmitOutcome, Option<Result<EmitOutcome, EmitFailure>>), Self>, DriverError>
+    {
+        if self.prepared.mode() != PreparedProgramMode::Emit
+            || self.prepared.compiler_options().no_emit_on_error == Some(true)
+            || self.checker_budget.is_sharded()
+        {
+            return Ok(Err(self));
+        }
+        self.native_harness = Some(collection);
+        self.run_inner_after_emit(false, LibraryPrefixCompletion::Complete, false, Some(sink))
+            .map(Ok)
+    }
+
     /// The output-path diagnostics an emitting Program reports before it
     /// writes anything (`verifyCompilerOptions`' emit blocking, such as
     /// TS5055), which the native runner collects with the options
@@ -2558,6 +2593,21 @@ impl ProgramSession {
         library_prefix: LibraryPrefixCompletion,
         command_report: bool,
     ) -> Result<NoEmitOutcome, DriverError> {
+        self.run_inner_after_emit(harness_lib_cache, library_prefix, command_report, None)
+            .map(|(outcome, _)| outcome)
+    }
+
+    /// [`run_inner`](Self::run_inner), with `emit_first` in the order of the
+    /// native compiler runner's second Program: the one checker emits into
+    /// the sink before it checks a source. The second value is that emit's
+    /// result, absent when nothing asked for it.
+    fn run_inner_after_emit(
+        self,
+        harness_lib_cache: bool,
+        library_prefix: LibraryPrefixCompletion,
+        command_report: bool,
+        emit_first: Option<&mut dyn OutputSink>,
+    ) -> Result<(NoEmitOutcome, Option<Result<EmitOutcome, EmitFailure>>), DriverError> {
         let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
         let has_roots = !self.prepared.roots().is_empty();
         let provider = PreparedModuleProvider {
@@ -2573,6 +2623,7 @@ impl ProgramSession {
             && (native_harness
                 || command_report && self.prepared.compiler_options().no_emit == Some(true));
         let mut declaration_diagnostics: Option<Result<DiagnosticList, DriverError>> = None;
+        let mut first_emit: Option<Result<EmitOutcome, EmitFailure>> = None;
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
                 &inputs.libs,
@@ -2583,6 +2634,78 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 library_prefix,
+            )
+        } else if let Some(sink) = emit_first {
+            // tsgo's test harness, `compileFilesWithHost`
+            // (testutil/harnessutil/harnessutil.go:673-688): the second
+            // Program emits and then asks for the diagnostics, over one
+            // checker. The operation's first call is that emit, over the
+            // unchecked session; its second is the declaration getter.
+            let emit_host = PreparedEmitHost::new_for_route(
+                &self.prepared,
+                self.emit_route,
+                &self.source_api_facts,
+            )?;
+            let mut preflight = match validate_emit_request(&emit_host) {
+                Ok(()) => Some(
+                    preflight_emit(&emit_host, EmitSelection::WholeProgram)
+                        .map_err(DriverError::Emit)?,
+                ),
+                Err(failure) => {
+                    first_emit = Some(Err(failure));
+                    None
+                }
+            };
+            let mut unchecked = true;
+            let mut operation = |snapshot: &ProgramSnapshot,
+                                 session: &CheckerSession<'_>,
+                                 checked: &CheckResult| {
+                if std::mem::take(&mut unchecked) {
+                    if let Some(preflight) = preflight.take() {
+                        let gate = emit_session_diagnostics(&self.prepared, checked).gate();
+                        let host = CheckedEmitHost {
+                            prepared: &emit_host,
+                            snapshot,
+                            prepared_sources: None,
+                        };
+                        first_emit = Some(session.with_emit_resolver(|resolver| {
+                            emit_files(
+                                resolver,
+                                &host,
+                                preflight,
+                                EmitSelection::WholeProgram,
+                                &gate,
+                                &mut *sink,
+                            )
+                        }));
+                    }
+                    return;
+                }
+                if declaration_getter {
+                    let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
+                    declaration_diagnostics = Some(no_emit_declaration_diagnostics(
+                        &self.prepared,
+                        self.emit_route,
+                        &self.source_api_facts,
+                        snapshot,
+                        std::slice::from_ref(session),
+                        std::slice::from_ref(&every_file),
+                        self.worker_budget,
+                        0,
+                        false,
+                    ));
+                }
+            };
+            check_program_with_authoritative_modules_at_emit_first_with_workers(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                self.prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+                self.worker_budget,
+                &mut operation,
             )
         } else if declaration_getter && !self.checker_budget.is_sharded() {
             // One checker: the getter runs in the checked-session callback
@@ -2867,17 +2990,20 @@ impl ProgramSession {
         if self.leak_program {
             std::mem::forget(self);
         }
-        Ok(NoEmitOutcome {
-            config_diagnostics,
-            syntactic_diagnostics,
-            options_diagnostics,
-            global_diagnostics,
-            semantic_diagnostics,
-            declaration_diagnostics,
-            conformance_diagnostics,
-            native_harness_diagnostics,
-            work_counters,
-        })
+        Ok((
+            NoEmitOutcome {
+                config_diagnostics,
+                syntactic_diagnostics,
+                options_diagnostics,
+                global_diagnostics,
+                semantic_diagnostics,
+                declaration_diagnostics,
+                conformance_diagnostics,
+                native_harness_diagnostics,
+                work_counters,
+            },
+            first_emit,
+        ))
     }
 }
 

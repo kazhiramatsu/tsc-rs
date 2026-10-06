@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 
 use tsc_compiler::{
     DriverError, EmitArtifact, EmitFailure, EmitFileSystem, EmitIoError, EmitWriteDisposition,
-    FsOutputSink, MemoryOutputSink, OutputSink, ProgramSession,
+    FsOutputSink, MemoryOutputSink, NativeHarnessCollection, OutputSink, ProgramSession,
 };
+use tsc_diagnostics::Diagnostic;
 use tsc_program::ResolutionMode;
 use tsc_program::{
     CompilerOptions, ModuleExtension, ModuleResolution, PathContext, PathMapping, PreparedProgram,
@@ -2100,3 +2101,223 @@ fn assert_filesystem_failure_at_each_write_index(module: i32) {
 }
 
 use crate::utf16_scalar_path::ScalarTestPath as _;
+
+/// The diagnostics of the native compiler runner's two Programs for one
+/// source: the first only reports, the second emits and then reports.
+fn native_harness_programs(
+    options: CompilerOptions,
+    source: &str,
+) -> (Vec<Diagnostic>, Vec<Diagnostic>, MemoryOutputSink) {
+    let prepared =
+        || prepared_with_sources_and_minimal_lib(options.clone(), &[("/project/input.ts", source)]);
+    let first = ProgramSession::new(prepared())
+        .run_for_native_harness(NativeHarnessCollection::default())
+        .expect("first Program");
+    let mut sink = MemoryOutputSink::new();
+    let Ok((second, emit)) = ProgramSession::new(prepared())
+        .emit_then_run_for_native_harness(NativeHarnessCollection::default(), &mut sink)
+        .expect("second Program")
+    else {
+        panic!("the Program emits before its diagnostics are known");
+    };
+    emit.expect("the second Program emits")
+        .expect("emit before the check");
+    let in_source = |diagnostics: &[Diagnostic]| {
+        diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .is_some_and(|name| name == "/project/input.ts")
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    (
+        in_source(first.native_harness_diagnostics()),
+        in_source(second.native_harness_diagnostics()),
+        sink,
+    )
+}
+
+#[test]
+fn the_native_harness_second_program_reports_where_its_emit_first_resolved() {
+    // tsgo's test harness compiles a configuration twice (compileFilesWithHost,
+    // testutil/harnessutil/harnessutil.go:647-712) and baselines the
+    // diagnostics of the second Program, which emits first. The const enum
+    // inliner asks the checker about each property access the emitted file
+    // keeps (GetConstantValue checks an access that has no resolved symbol,
+    // checker/services.go:869-888), so `this.a` in `m2` is the first place
+    // that needs the instantiations of `T`, and the circularity is reported
+    // there. The first Program, like the command line, reaches it from the
+    // class declaration. The positions are the ones of tsgo's baseline
+    // (mutuallyRecursiveInference) and of its command line.
+    let source = concat!(
+        "class T<A> {\n",
+        "    a: A;\n",
+        "    b: any\n",
+        "}\n",
+        "class L<RT extends { a: 'a' | 'b', b: any }> extends T<RT[RT['a']]> {\n",
+        "    m() { this.a }\n",
+        "}\n",
+        "class X extends L<X> {\n",
+        "    a: 'a' | 'b'\n",
+        "    b: number\n",
+        "    m2() {\n",
+        "        this.a\n",
+        "    }\n",
+        "}\n",
+    );
+    let (first, second, _) = native_harness_programs(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            ..CompilerOptions::default()
+        },
+        source,
+    );
+    let circularity = |diagnostics: &[Diagnostic]| {
+        diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 5114)
+            .map(|diagnostic| (diagnostic.start, diagnostic.length))
+            .collect::<Vec<_>>()
+    };
+    let class_name = u32::try_from(source.find("X extends").expect("class X")).expect("offset");
+    let access = u32::try_from(source.rfind("this.a").expect("this.a in m2")).expect("offset");
+    assert_eq!(circularity(&first), [(Some(class_name), Some(1))]);
+    assert_eq!(circularity(&second), [(Some(access), Some(6))]);
+    assert_eq!(first.len(), second.len());
+}
+
+#[test]
+fn an_emit_before_the_check_reports_nothing_the_check_does_not() {
+    // A query of the emit resolver about an unchecked source resolves what it
+    // needs; it must leave no diagnostic of its own. Each source below made
+    // the emit report one before the resolver's lookups were silent
+    // (getReferencedValueSymbol, binder/referenceresolver.go:83-105) and the
+    // reference walk kept to the places the check resolves
+    // (markLinkedReferences, checker/checker.go:28654-28817): the name of a
+    // namespace merged with a later enum (TS2450), `implements` of a
+    // qualified interface name (TS2689), `this` in a type query (TS2304) and
+    // the names of an import alias (TS2708).
+    for source in [
+        "namespace x {\n    export let y = 123\n}\nenum x {\n    z = y\n}\n",
+        "namespace NS {\n    export interface Dep {}\n}\nclass Src implements NS.Dep {}\n",
+        "class C {\n    foo = 1;\n    bar: typeof this.foo = 2;\n}\n",
+        "namespace a {\n    export type A = number;\n}\nnamespace b {\n    export import A = a.A;\n    export namespace A {}\n}\n",
+    ] {
+        let (first, second, _) = native_harness_programs(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(99),
+                ..CompilerOptions::default()
+            },
+            source,
+        );
+        assert_eq!(first, second, "{source}");
+    }
+}
+
+#[test]
+fn an_emit_before_the_check_reports_no_implicit_any_for_a_parameter_its_call_types() {
+    // The reference walk of the emit asks for the type of `k`, the left of
+    // `k.length` (markPropertyAliasReferenced, checker/checker.go:28903-28907),
+    // before the call around it was resolved. The call is resolved from
+    // inside that request and gives `k` the type `unknown`; the request
+    // itself then finds no contextual signature, because the argument's
+    // contextual type has become `Mapped<unknown>`. tsgo reports no implicit
+    // `any` from there for a parameter of a context-sensitive signature
+    // (getTypeOfVariableOrParameterOrPropertyWorker, checker.go:16927-16929);
+    // tsc 6.0.3 did, so the second Program had one diagnostic more than the
+    // first. Both report tsgo's one diagnostic, at the position of its
+    // command line and of its baseline (reverseMappedPartiallyInferableTypes).
+    let source = concat!(
+        "type Box<T> = {\n",
+        "    contents?: T;\n",
+        "    contains?(content: T): boolean;\n",
+        "};\n",
+        "type Mapped<T> = {\n",
+        "    [K in keyof T]: Box<T[K]>;\n",
+        "};\n",
+        "declare function id<T>(arg: Mapped<T>): Mapped<T>;\n",
+        "const obj3 = id({\n",
+        "    foo: {\n",
+        "        contains(k) {\n",
+        "            return k.length > 0;\n",
+        "        }\n",
+        "    }\n",
+        "});\n",
+    );
+    let (first, second, _) = native_harness_programs(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        source,
+    );
+    let reported = |diagnostics: &[Diagnostic]| {
+        diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+            .collect::<Vec<_>>()
+    };
+    let access = u32::try_from(source.find("k.length").expect("k.length")).expect("offset");
+    assert_eq!(reported(&first), [(18046, Some(access), Some(1))]);
+    assert_eq!(reported(&second), reported(&first));
+}
+
+#[test]
+fn an_emit_before_the_check_keeps_the_aliases_the_file_uses() {
+    // Import elision reads the `referenced` marks of the aliases. The check
+    // leaves them; before it, tsgo's import elision walks the file and marks
+    // them itself (MarkLinkedReferencesRecursively,
+    // transformers/tstransforms/importelision.go:29). Without the walk an
+    // emit that comes first drops the import alias the file uses.
+    let options = || CompilerOptions {
+        no_emit: Some(false),
+        target: Some(99),
+        ..CompilerOptions::default()
+    };
+    let source = "namespace N {\n    export const y = 1;\n}\nimport a = N.y;\nconst b = a;\n";
+    let (first, second, sink) = native_harness_programs(options(), source);
+    assert_eq!(first, second);
+    let mut checked = MemoryOutputSink::new();
+    ProgramSession::new(prepared_with_sources_and_minimal_lib(
+        options(),
+        &[("/project/input.ts", source)],
+    ))
+    .emit(&mut checked)
+    .expect("emit after the check");
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        checked.writes()[0].callback_text()
+    );
+    assert!(sink.writes()[0].callback_text().contains("var a = N.y;"));
+}
+
+#[test]
+fn a_program_that_reports_before_it_emits_keeps_the_first_programs_order() {
+    // `Emit` asks for every diagnostic first under noEmitOnError
+    // (HandleNoEmitOptions, compiler/program.go:1976-2008): such a Program
+    // has no emit-first order, and the session is handed back unconsumed.
+    let mut sink = MemoryOutputSink::new();
+    let session = ProgramSession::new(prepared_with_sources_and_minimal_lib(
+        CompilerOptions {
+            no_emit: Some(false),
+            no_emit_on_error: Some(true),
+            target: Some(99),
+            ..CompilerOptions::default()
+        },
+        &[("/project/input.ts", "export const value: number = 1;\n")],
+    ));
+    let handed_back = session
+        .emit_then_run_for_native_harness(NativeHarnessCollection::default(), &mut sink)
+        .expect("session");
+    assert!(handed_back.is_err());
+    assert!(sink.writes().is_empty());
+}

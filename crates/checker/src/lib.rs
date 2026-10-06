@@ -1631,6 +1631,11 @@ pub enum LibraryPrefixCompletion {
 enum DiagnosticSchedule {
     Eager,
     OnDemand,
+    /// The eager schedule after one call of the scoped operation over the
+    /// initialized checker, before any source is checked: the order of the
+    /// native compiler runner's second Program, which emits and then asks
+    /// for the diagnostics.
+    EagerAfterEmit,
 }
 
 /// Constructs one [`AuthoritativeModuleProvider`] per checker state.
@@ -1786,6 +1791,48 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
         None,
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
+        workers,
+    )
+}
+
+/// [`check_program_with_authoritative_modules_at_for_emit_with_workers`] in
+/// the order of the native compiler runner's second Program
+/// (`compileFilesWithHost` in `tsc/internal/testutil/harnessutil`:
+/// `program.Emit`, then the diagnostic getters). `operation` runs twice over
+/// the one checker session: first before any source is checked, with a
+/// result that holds no semantic diagnostics, and again after the eager
+/// schedule with the checked result. What the first call asks of the
+/// session's emit resolver is resolved in emit order, and a diagnostic that
+/// depends on the order of resolution is reported where emit first reached
+/// it.
+/// tsrs-native: harness execution order; the command line checks first.
+#[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_emit_first_with_workers<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    provider: &dyn AuthoritativeModuleProvider,
+    workers: WorkerBudget,
+    mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
+    check_program_with_authoritative_modules_at_cache_mode(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        false,
+        Some(&mut operation),
+        None,
+        LibraryPrefixCompletion::Complete,
+        DiagnosticSchedule::EagerAfterEmit,
         workers,
     )
 }
@@ -4211,6 +4258,29 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         work_counters.record_checker_shards(1, 1);
         perf::add(PerfCounter::CheckerShardsRun, 1);
         perf::add(PerfCounter::CheckerShardThreads, 1);
+        let mut emit_operation = emit_operation;
+        if authoritative_run
+            .is_some_and(|run| run.diagnostic_schedule == DiagnosticSchedule::EagerAfterEmit)
+        {
+            // The operation's first call: the checker is initialized and no
+            // source is checked. The state returns to the eager schedule
+            // below with whatever the call resolved.
+            let unchecked = assemble_check_result(
+                &file_diagnostics,
+                program_semantic_diagnostics.as_deref(),
+                &global_diagnostics,
+                &state.partial_check_records,
+                work_counters,
+            );
+            let session = CheckerSession::from_checked_state(state)
+                .with_program_diagnostics(program_diagnostics.clone(), None);
+            emit_operation
+                .as_deref_mut()
+                .expect("the emit-first schedule requires a scoped consumer")(
+                &snapshot, &session, &unchecked,
+            );
+            state = session.into_state();
+        }
         if collect_global_diagnostics {
             global_diagnostics = state.visible_global_diagnostics.clone();
             tsc_diagnostics::sort_and_dedupe_diagnostics(&mut global_diagnostics);
