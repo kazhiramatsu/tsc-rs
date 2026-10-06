@@ -4017,3 +4017,50 @@ tsgoの挙動の欠落3つで、修正した。
   0.64〜0.93。劣化なし。
 - cloneの状態：azure-sdk-for-jsにはdist（467 package）だけが残る（ユーザーが(a)で許可）。DefinitelyTypedとmaterial-ui、
   bench corpusにこの実行が残したfileは無い。
+
+## P3-6a project referencesの第1段：`-p`で参照先の出力を読む（2026-10-07）
+
+実projectの段階（P3-5bk〜5bn）が終わった時点で残っていた違いは全て未対応のoptionで、ユーザーは次の順序を承認した：
+project references（`composite`／`incremental`込み）→ `--explainFiles` → content mapper／LSP。このsliceはその第1段、
+`tsc -p` での project references（tsgo compiler/projectreferenceparser.go、projectreferencefilemapper.go、
+tsoptions ParseInputOutputNames、program.go verifyProjectReferences、checker.go resolveExternalModule のTS6305）。
+`tsc -b` と tsbuildinfo の読み書き（execute/build、execute/incremental）は次のslice。
+- **参照先のconfigを全て読む**（新しい`crates/program/src/project_references.rs`）：rootの`references`から到達できる
+  configを（`ResolveConfigFileNameOfProjectReference`：`.json`でなければ`<path>/tsconfig.json`）1回ずつparseし
+  （`parse_config_root_plan_with_cache`、循環は既読で止まる）、root以外の各projectの入力fileを出力の宣言fileに
+  対応づける（`.d.ts`とJSONは出力無し。`output_declaration_file_name`：`declarationDir`／`outDir`の下に、projectの
+  common source directory（`rootDir`、無ければconfigのdirectory）からの相対path。tsgo 7の
+  `getOutputPathWithoutChangingExtension`は相対pathで`..`を許す）。親→子の順で後のprojectが上書きする（tsgo
+  initMapperWorker）。`ResolvedProjectReferences`は`ProgramOptions::with_project_references`でloaderに渡す
+  （command 1回につき1つ、同一性で等しい）。`build_info_file_name`（tsgo GetBuildInfoFileName）も計算する。
+- **参照先のsourceは、その出力として読まれる**（`crates/program/src/loader.rs`）：commandはproject referenceの
+  sourceを使わない（`UseSourceOfProjectReference`はlanguage serviceだけ）ので、`visit_source`が参照先projectの
+  source（出力のあるもの）に来たら、同じinclusion reasonで出力の`.d.ts`を読む（tsgo parseTask.redirect。
+  `VisitState::ProjectReferenceRedirect`）。解決の`resolved_file`はsourceのまま、targetは出力のsource
+  （`PreparedSourceFile::project_reference_source_paths`にsourceを登録してbuilderの検証が通る）。出力が無ければ
+  何も読まず、解決は`UnloadedModuleReason::ProjectReferenceOutputNotBuilt`になり、checkerが`Cannot find module`
+  ではなく**TS6305**「Output file '…' has not been built from source file '…'」を出す（compilerが
+  `AuthoritativeNotFoundModule::project_reference_output`で出力名とsource名を渡す）。参照先の出力のmodule名は
+  そのprojectのoptionで解決する（tsgo GetCompilerOptionsWithRedirect。projectごとのresolver、directory cacheは
+  共有しない。read-aheadは参照先のsourceと出力の解決を先読みしない）。参照先のsourceは`allowJs`の判定でも
+  JavaScriptとして扱わない（fileloader.go:911）。
+- **referencesの検証**（tsgo verifyProjectReferences）：configの無い参照はTS6053（書かれたpathを絶対化したもの）、
+  参照元にfileがあるとき`composite`でなければTS6306、`noEmit`ならTS6310、参照先と同じtsbuildinfoを書くならTS5056。
+  それぞれ参照元configの`references`要素の位置（`ProgramConfigFile::project_reference_location`）。参照先projectの
+  referencesも同じく検証し、参照先configはauxiliary fileとしてprogramに入れて診断の位置を描ける。`files: []`で
+  referencesがあるconfigはTS18002にならない（既存）。
+- **config**：`references`の拒否を外した。`incremental`、`tsBuildInfoFile`、`assumeChangesOnlyAffectDirectDependencies`
+  はno-emitのcommandが受け入れる（tsgoはincremental projectも同じように検査する。**tsbuildinfoはまだ書かない**：
+  次のslice）。
+- test：`project_references_contract`（参照の解決、source→出力の対応、nested project、`declarationDir`、
+  出力の有無による解決の形、参照先configのauxiliary file）、`config_program_loader_contract`の2件を新しい挙動に
+  （referencesはloadされTS6053、incrementalは受け入れ）、commandの契約3件をtsgoのbyteで固定（参照先の出力で検査、
+  未buildのTS6305、TS6053/6306/6310と`files: []`）。
+- 実project（このbuild、`compare-projects.py`、`--noEmit`、1 job）：azure-sdk-for-jsは2,756 leaf config全てが一致（P3-5bnの残り78のproject references configを含む。壁時計の合計はtsgo 306秒／tsc-rs 234秒。tsgoが書いた`*.tsbuildinfo`は実行後に消した）。material-ui：38 project全てが一致（残っていた12のreferences／`incremental`／`composite`のprojectを含む。27秒／20秒）。実projectの段階の残差はこれで無くなった（DefinitelyTyped 9,067、material-ui 38、azure-sdk-for-js 2,756）。
+- 参照先の出力のimplied module formatとmodule requestの計画もそのprojectのoptionで行う（tsgo
+  getCompilerOptionsForFile）。
+- 残る制限：tsbuildinfoを書かない（`incremental`／`composite`のprojectで、tsgoは`--noEmit`でも書く）。`tsc -b`
+  （build mode）は未対応。`--listFiles`は未対応。
+- conformance（このsliceの1回の全体実行。macOS、`nice -n 20`、2 worker）：`f75e2d799`のtreeのbuild（codeは`4a0810f5a`）で15,228 configuration、full 13,451、不一致0、emit full 13,443、harness error 15、ratchet 0 regression（484秒）。P3-5bnのreportと行ごとに同一。`--filter`のcomposite（3構成）、incremental（4）、tsconfig（5）、reference（21）、outDir（1）は全てFull。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、5 crate（program、compiler、checker、conformance、
+  harness）の`cargo clippy --all-targets -- -D warnings`と`cargo test --no-fail-fast`（2,776 passed）。
