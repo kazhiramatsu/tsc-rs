@@ -10661,3 +10661,156 @@ fn an_options_diagnostic_closes_the_check_of_the_sources_after_binding_like_tsgo
         "no source is checked:\n{trace}"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn a_package_duplicated_under_pnpm_is_named_through_its_workspace_link_like_tsgo() {
+    // pnpm's layout: `logger` is a workspace package linked into
+    // `node_modules`, and `identity` (installed under `node_modules/.pnpm`)
+    // links the same version of `logger` from the store. tsgo loads the
+    // store copy first (through `identity`), and the workspace copy, having
+    // the same package identity, redirects to it (filesparser.go:462,
+    // redirectTargetsMap). The declaration emitter then names `Logger`
+    // through the redirect: `forEachFileNameOfModule` takes the redirected
+    // copies as further names of the file, and the workspace link gives the
+    // portable `logger`. The command knew no redirect targets and could only
+    // name the file through `identity`'s nested `node_modules`: TS2883. The
+    // expected bytes are tsgo's (azure-sdk-for-js, `@azure/logger` through
+    // `@azure/identity`, six configs).
+    let tree = TempTree::new();
+    for directory in [
+        "src",
+        "packages/logger",
+        "node_modules/.pnpm/identity@1.0.0/node_modules/identity",
+        "node_modules/.pnpm/logger@1.0.0/node_modules/logger",
+    ] {
+        fs::create_dir_all(tree.path(directory)).expect("create directory");
+    }
+    fs::write(
+        tree.path("package.json"),
+        r#"{"name":"app","version":"1.0.0","type":"module","dependencies":{"identity":"1.0.0","logger":"1.0.0"}}"#,
+    )
+    .expect("write package.json");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"module":"nodenext","target":"es2022","lib":["es2022"],"types":[],"declaration":true,"noEmit":true,"strict":true},"files":["src/index.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    fs::write(
+        tree.path("src/index.ts"),
+        concat!(
+            "import { Client } from \"identity\";\n",
+            "import { createLogger } from \"logger\";\n",
+            "export const client = new Client();\n",
+            "export const logger = createLogger(\"app\");\n",
+        ),
+    )
+    .expect("write index.ts");
+    for copy in [
+        "packages/logger",
+        "node_modules/.pnpm/logger@1.0.0/node_modules/logger",
+    ] {
+        fs::write(
+            tree.path(&format!("{copy}/package.json")),
+            r#"{"name":"logger","version":"1.0.0","type":"module","types":"./index.d.ts"}"#,
+        )
+        .expect("write logger package.json");
+        fs::write(
+            tree.path(&format!("{copy}/index.d.ts")),
+            concat!(
+                "export interface Logger { name: string; }\n",
+                "export declare function createLogger(name: string): Logger;\n",
+            ),
+        )
+        .expect("write logger index.d.ts");
+    }
+    fs::write(
+        tree.path("node_modules/.pnpm/identity@1.0.0/node_modules/identity/package.json"),
+        r#"{"name":"identity","version":"1.0.0","type":"module","types":"./index.d.ts","dependencies":{"logger":"1.0.0"}}"#,
+    )
+    .expect("write identity package.json");
+    fs::write(
+        tree.path("node_modules/.pnpm/identity@1.0.0/node_modules/identity/index.d.ts"),
+        concat!(
+            "import type { Logger } from \"logger\";\n",
+            "export declare class Client { logger: Logger; }\n",
+        ),
+    )
+    .expect("write identity index.d.ts");
+    for (link, target) in [
+        ("node_modules/logger", "../packages/logger"),
+        (
+            "node_modules/identity",
+            ".pnpm/identity@1.0.0/node_modules/identity",
+        ),
+        (
+            "node_modules/.pnpm/identity@1.0.0/node_modules/logger",
+            "../../logger@1.0.0/node_modules/logger",
+        ),
+    ] {
+        std::os::unix::fs::symlink(target, tree.path(link)).expect("create symlink");
+    }
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "",
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(0));
+}
+
+#[test]
+fn a_file_resolved_through_the_package_imports_is_explained_with_its_package_id_like_tsgo() {
+    // A resolution with a package identity is explained "with packageId"
+    // (tsgo fileInclude.go computeReferenceFileDiagnostic;
+    // `name[/subModuleName]@version`): here the package's own `imports`
+    // resolve `#helpers/util` to a file of the project, which TS6307 then
+    // explains through both of its importers. The command printed the
+    // identity-less form. The expected bytes are tsgo's (azure-sdk-for-js
+    // `@azure/ai-projects` `tsconfig.samples.json`).
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("src/helpers")).expect("create src/helpers");
+    fs::write(
+        tree.path("package.json"),
+        r##"{"name":"app","version":"1.0.0","type":"module","imports":{"#helpers/*":"./src/helpers/*.ts"}}"##,
+    )
+    .expect("write package.json");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"module":"nodenext","target":"es2022","lib":["es2022"],"types":[],"noEmit":true,"strict":true,"composite":true,"rootDir":"src"},"files":["src/index.ts","src/other.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    fs::write(
+        tree.path("src/index.ts"),
+        "import { util } from \"#helpers/util\";\nexport const v: number = util();\n",
+    )
+    .expect("write index.ts");
+    fs::write(
+        tree.path("src/other.ts"),
+        "import { util } from \"#helpers/util\";\nexport const w: number = util();\n",
+    )
+    .expect("write other.ts");
+    fs::write(
+        tree.path("src/helpers/util.ts"),
+        "export function util(): number { return 1; }\n",
+    )
+    .expect("write util.ts");
+    let project = compiler_current_directory(&tree);
+    let project = project.display();
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            concat!(
+                "src/index.ts(1,22): error TS6307: File '{project}/src/helpers/util.ts' is not listed within the file list of project '{project}/tsconfig.json'. Projects must list all files or use an 'include' pattern.\n",
+                "  The file is in the program because:\n",
+                "    Imported via \"#helpers/util\" from file '{project}/src/index.ts' with packageId 'app/src/helpers/util.ts@1.0.0'\n",
+                "    Imported via \"#helpers/util\" from file '{project}/src/other.ts' with packageId 'app/src/helpers/util.ts@1.0.0'\n",
+                "  File is ECMAScript module because '{project}/package.json' has field \"type\" with value \"module\"\n",
+            ),
+            project = project,
+        )
+    );
+}
