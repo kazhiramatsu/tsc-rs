@@ -4257,15 +4257,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 Some(planned) => planned,
                 // The planning parse is the only parse of this snapshot: the
                 // checker session adopts it after proving equal parse options.
-                None => {
-                    match plan_source_requests_retaining_syntax(&prepared, options_for_file) {
-                        Ok((plan, syntax)) => {
-                            prepared = prepared.with_preparsed_syntax(syntax);
-                            Ok(plan)
-                        }
-                        Err(error) => Err(error),
+                None => match plan_source_requests_retaining_syntax(&prepared, options_for_file) {
+                    Ok((plan, syntax)) => {
+                        prepared = prepared.with_preparsed_syntax(syntax);
+                        Ok(plan)
                     }
-                }
+                    Err(error) => Err(error),
+                },
             };
             Some(planned.map_err(|error| {
                 ProgramLoadError::resolution_js(
