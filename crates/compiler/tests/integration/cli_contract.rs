@@ -10564,3 +10564,56 @@ fn a_re_entered_base_constraint_is_circular_every_time_like_tsgo() {
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stdout.is_empty());
 }
+
+#[test]
+fn a_file_imported_three_times_is_explained_by_each_import_like_tsgo() {
+    // tsgo adds the resolved file to the program once for every import of it
+    // (processImportedModules, compiler/fileloader.go:928-940), so the file's
+    // explanation lists one "Imported via" line per occurrence, and TS6059
+    // keeps the explanation because the file has more than one reason. The
+    // command listed one line per specifier. The expected bytes are tsgo's
+    // (material-ui `scripts/buildLlmsDocs`: a value and a type re-export of
+    // one specifier).
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("src")).expect("create src");
+    fs::write(
+        tree.path("src/index.ts"),
+        concat!(
+            "export { create, build } from '../shared';\n",
+            "export type { Options } from '../shared';\n",
+            "import('../shared');\n",
+        ),
+    )
+    .expect("write index.ts");
+    fs::write(
+        tree.path("shared.ts"),
+        concat!(
+            "export function create(): number { return 1; }\n",
+            "export function build(): number { return 2; }\n",
+            "export type Options = { a: number };\n",
+        ),
+    )
+    .expect("write shared.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"rootDir":"src","outDir":"out","module":"esnext","target":"es2020","lib":["es2020"],"types":[],"noEmit":true},"files":["src/index.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let project = compiler_current_directory(&tree);
+    let project = project.display();
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            concat!(
+                "src/index.ts(1,31): error TS6059: File '{project}/shared.ts' is not under 'rootDir' '{project}/src'. 'rootDir' is expected to contain all source files.\n",
+                "  The file is in the program because:\n",
+                "    Imported via '../shared' from file '{project}/src/index.ts'\n",
+                "    Imported via '../shared' from file '{project}/src/index.ts'\n",
+                "    Imported via '../shared' from file '{project}/src/index.ts'\n",
+            ),
+            project = project,
+        )
+    );
+}

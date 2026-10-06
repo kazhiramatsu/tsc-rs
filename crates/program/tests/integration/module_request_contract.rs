@@ -197,14 +197,46 @@ fn dynamic_import_templates_publish_literal_requests_with_original_spans() {
     for (request, specifier) in requests.iter().zip(["./plain.js", "./attributes.js"]) {
         assert_eq!(request.specifier(), specifier);
         assert_eq!(request.mode(), ResolutionMode::EsNext);
-        let (start, end) = plan
-            .module_request_span(request)
-            .expect("original template span");
+        let [(start, end)] = plan.module_request_spans(request) else {
+            panic!("one original template span for {specifier}");
+        };
         assert_eq!(
-            &text[start as usize..end as usize],
+            &text[*start as usize..*end as usize],
             format!("`{specifier}`")
         );
     }
+}
+
+/// tsgo adds the resolved file once per import of it (fileloader.go:928-940),
+/// so a specifier imported twice carries both occurrences' spans; the name of
+/// an augmentation does not load a source and has none.
+#[test]
+fn every_loading_occurrence_of_a_module_request_keeps_its_span() {
+    let text = concat!(
+        "export { a } from './twice';\n",
+        "export type { B } from './twice';\n",
+        "declare module 'augmented' {}\n",
+        "import 'augmented';\n",
+    );
+    let source = source(text, ResolutionMode::EsNext);
+    let plan = plan_source_requests(&source, &node_options()).expect("plan repeated imports");
+    let requests = plan.module_requests();
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| request.specifier().as_str().expect("scalar specifier"))
+            .collect::<Vec<_>>(),
+        ["./twice", "augmented"]
+    );
+    let spans = |request: &tsc_program::ResolutionKey| {
+        plan.module_request_spans(request)
+            .iter()
+            .map(|&(start, end)| &text[start as usize..end as usize])
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(spans(&requests[0]), ["'./twice'", "'./twice'"]);
+    assert_eq!(spans(&requests[1]), ["'augmented'"]);
+    assert_eq!(plan.observed_request_occurrence_count(), 4);
 }
 
 #[test]
