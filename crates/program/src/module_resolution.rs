@@ -268,6 +268,9 @@ struct CachedPackage {
     main: Option<JsString>,
     tsconfig: Option<JsString>,
     metadata: Arc<PackageMetadata>,
+    /// The package identity's peer dependency suffix (`+name@version` per
+    /// peer found beside the package), when `peerDependencies` names any.
+    peer_dependencies: Option<JsString>,
 }
 
 #[derive(Clone, Debug)]
@@ -4909,6 +4912,8 @@ impl<'a> ModuleResolver<'a> {
                     json_object_get(&object, "type").is_some_and(js_json_value_is_truthy),
                 ),
         );
+        let peer_dependencies =
+            self.package_json_peer_dependencies(&object, package_directory.as_js())?;
         let package = Arc::new(CachedPackage {
             root: package_directory,
             exports: json_object_get(&object, "exports").cloned(),
@@ -4926,12 +4931,79 @@ impl<'a> ModuleResolver<'a> {
             main: non_empty_string_field(&object, "main"),
             tsconfig: non_empty_string_field(&object, "tsconfig"),
             metadata,
+            peer_dependencies,
         });
         if self.package_cache_enabled {
             self.package_cache
                 .insert(cache_key, PackageCacheEntry::Found(Arc::clone(&package)));
         }
         Ok(Some(package))
+    }
+
+    /// The peer dependency suffix of a package identity (tsgo
+    /// module/resolver.go readPackageJsonPeerDependencies): for a
+    /// `peerDependencies` object whose values are all strings, each name in
+    /// sorted order whose `package.json` exists beside the package (in the
+    /// nearest `node_modules` of the package directory's real path)
+    /// contributes `+name@version`. Two copies of one version of a package
+    /// with different peers are then different packages. The peers are read
+    /// from the host directly: they are not loaded as packages here, so a
+    /// peer cycle cannot recurse.
+    fn package_json_peer_dependencies(
+        &self,
+        object: &Map,
+        package_directory: JsStr<'_>,
+    ) -> Result<Option<JsString>, ResolutionError> {
+        let Some(peers) = json_object_own_get(object, "peerDependencies") else {
+            return Ok(None);
+        };
+        let Some(peers) = peers.as_object() else {
+            return Ok(None);
+        };
+        if peers.is_empty() || !peers.values().all(Value::is_string) {
+            return Ok(None);
+        }
+        let real_directory = match self.host.realpath_js(package_directory)? {
+            Some(real) => {
+                normalize_absolute_js_path(real.as_js(), Some(self.current_directory_text()), true)?
+            }
+            None => package_directory.to_owned(),
+        };
+        // `strings.LastIndex(packageDirectory, "/node_modules")`: the text up
+        // to and including the last `/node_modules`.
+        let Some((before, _)) = real_directory.as_js().rsplit_once("/node_modules") else {
+            return Ok(None);
+        };
+        let mut node_modules = before.to_owned();
+        node_modules.push_str("/node_modules");
+        let mut names = peers.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        let mut suffix = JsString::from("");
+        for name in names {
+            let peer_package_json =
+                join_normalized(&join_normalized(&node_modules, &name), "package.json");
+            if !self.host.file_exists_js(peer_package_json.as_js())? {
+                continue;
+            }
+            let bytes = self
+                .host
+                .read_file_js(peer_package_json.as_js())?
+                .unwrap_or_default();
+            let text = decode_host_text(bytes).map_err(|error| {
+                ResolutionError::invalid_data(format!(
+                    "cannot decode {}: {error}",
+                    peer_package_json.as_js().to_string_lossy()
+                ))
+            })?;
+            let (_, peer) = parse_json_object(peer_package_json.as_js(), text);
+            suffix.push_str("+");
+            suffix.push_js(name.as_js());
+            suffix.push_str("@");
+            if let Some(version) = json_object_get(&peer, "version").and_then(Value::as_js) {
+                suffix.push_js(version);
+            }
+        }
+        Ok(Some(suffix))
     }
 
     /// tsc-port: loadModuleFromExports @6.0.3
@@ -6159,7 +6231,11 @@ fn package_id_for_legacy_path_from_directory<'d, 'p>(
     // so even their odd sliced spelling is observable.
     let start = package_directory.len_units().saturating_add(1);
     let submodule_name = lexical_path.substring(start, lexical_path.len_units());
-    Ok(Some(PackageId::new(name, submodule_name, version)))
+    let package_id = PackageId::new(name, submodule_name, version);
+    Ok(Some(match &package.peer_dependencies {
+        Some(peer_dependencies) => package_id.with_peer_dependencies(peer_dependencies.clone()),
+        None => package_id,
+    }))
 }
 
 fn arbitrary_declaration_twin<'p>(candidate: impl Into<JsStr<'p>>) -> Option<(JsString, JsString)> {

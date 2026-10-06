@@ -1207,6 +1207,83 @@ fn package_map_ts_targets_are_exact_but_js_targets_use_replacement_groups() {
 }
 
 #[test]
+fn package_identity_carries_the_peer_dependencies_found_beside_the_package() {
+    // tsgo readPackageJsonPeerDependencies (module/resolver.go): a
+    // `peerDependencies` object (string values) adds `+name@version` for each
+    // name, in sorted order, whose package.json exists in the nearest
+    // `node_modules` of the package directory; a missing peer adds nothing,
+    // a peer without a version adds `+name@`. The text is part of the
+    // identity (tsgo's PackageId.String) and of the explanations that name
+    // it. An invalid field (a non-string value) is no field at all.
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.2.3","types":"./index.d.ts",
+                "peerDependencies":{"zeta":"*","alpha":">=1","absent":"*","bare":"*"}}"#
+                .to_vec(),
+        )
+        .file("/work/node_modules/pkg/index.d.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/zeta/package.json",
+            br#"{"name":"zeta","version":"9.0.0"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/alpha/package.json",
+            br#"{"name":"alpha","version":"1.5.0"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/bare/package.json",
+            br#"{"name":"bare"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/invalid/package.json",
+            br#"{"name":"invalid","version":"1.0.0","types":"./index.d.ts",
+                "peerDependencies":{"zeta":1}}"#
+                .to_vec(),
+        )
+        .file(
+            "/work/node_modules/invalid/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build peer dependency host");
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    let module = resolved(
+        resolver
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
+            .expect("resolve pkg"),
+    );
+    let package_id = module.package_id().expect("package identity");
+    assert_eq!(
+        package_id.peer_dependencies(),
+        Some(Into::into("+alpha@1.5.0+bare@+zeta@9.0.0"))
+    );
+    assert_eq!(
+        package_id.display_text(),
+        tsc_diagnostics::JsString::from("pkg/index.d.ts@1.2.3+alpha@1.5.0+bare@+zeta@9.0.0")
+    );
+
+    let module = resolved(
+        resolver
+            .resolve("/work/main.ts", "invalid", ResolutionMode::EsNext)
+            .expect("resolve invalid"),
+    );
+    let package_id = module.package_id().expect("package identity");
+    assert_eq!(package_id.peer_dependencies(), None);
+    assert_eq!(
+        package_id.display_text(),
+        tsc_diagnostics::JsString::from("invalid/index.d.ts@1.0.0")
+    );
+}
+
+#[test]
 fn package_map_exact_targets_skip_parent_preflight_but_directory_fields_require_it() {
     let failure = HostError::new(
         HostErrorKind::Other,

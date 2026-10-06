@@ -743,6 +743,10 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostAdapter<'_> {
     fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
         self.host.symlinked_files()
     }
+
+    fn redirect_targets(&self, file_path: JsStr<'_>) -> Vec<JsString> {
+        self.host.redirect_targets(file_path)
+    }
 }
 
 impl ModuleSpecifierHostAdapter<'_> {
