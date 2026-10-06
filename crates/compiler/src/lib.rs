@@ -107,6 +107,11 @@ pub struct ProgramSession {
     /// TS5108, which the CLI reports in the options bucket itself). They
     /// close the check of the sources as the Program's own options rows do.
     command_options_diagnostics: bool,
+    /// Whether this session is tsgo's `tsc` command, which compiles an
+    /// `incremental`/`composite` project as an incremental program and
+    /// writes its build info (execute/tsc.go:245); a Program of the harness
+    /// or of the API (`compiler.Program`) never writes one.
+    command_build_info: bool,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -1204,6 +1209,7 @@ impl ProgramSession {
             worker_budget: WorkerBudget::serial(),
             leak_program: false,
             native_harness: None,
+            command_build_info: false,
             checker_budget: CheckerBudget::serial(),
             command_options_diagnostics: false,
         }
@@ -1292,7 +1298,19 @@ impl ProgramSession {
     /// nothing is emitted. `run` itself keeps H0's no-emitter contract.
     pub fn run_no_emit_command(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
-        self.run_no_emit_pass(false, LibraryPrefixCompletion::Complete, true)
+        self.with_command_build_info().run_no_emit_pass(
+            false,
+            LibraryPrefixCompletion::Complete,
+            true,
+        )
+    }
+
+    /// This session is the `tsc` command: an `incremental`/`composite`
+    /// project compiles as an incremental program whose --noEmit report or
+    /// emit writes the build info (see `command_build_info`).
+    pub(crate) fn with_command_build_info(mut self) -> Self {
+        self.command_build_info = true;
+        self
     }
 
     /// Consume this Program for a declaration-only diagnostic getter.
@@ -1352,6 +1370,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_build_info: _,
             command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
@@ -1546,7 +1565,8 @@ impl ProgramSession {
         // or `composite` (`IsIncremental`, execute/tsc.go:245), whose emit
         // also writes the build info (execute/incremental/program.go:243-273):
         // the emit routes write it after the files (`incremental::emit_build_info`).
-        self.emit_with_command_outcome(sink, None)
+        self.with_command_build_info()
+            .emit_with_command_outcome(sink, None)
     }
 
     /// Borrow the production checked host and live resolver for internal
@@ -1578,6 +1598,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_build_info: _,
             command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
@@ -1700,6 +1721,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_build_info: _,
             command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
@@ -1802,6 +1824,7 @@ impl ProgramSession {
             checker_budget: _,
             leak_program: _,
             native_harness: _,
+            command_build_info,
             command_options_diagnostics: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
@@ -1823,8 +1846,8 @@ impl ProgramSession {
             prepared: &prepared,
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
         };
-        let incremental_facts_requested =
-            tsc_incremental::options::is_incremental(prepared.compiler_options());
+        let incremental_facts_requested = command_build_info
+            && tsc_incremental::options::is_incremental(prepared.compiler_options());
         let mut pending_preflight = preflight;
         let mut emit_result: Option<Result<CliEmitSessionOutcome, DriverError>> = None;
         let mut operation =
@@ -1999,14 +2022,15 @@ impl ProgramSession {
             checker_budget,
             leak_program,
             native_harness: _,
+            command_build_info,
             command_options_diagnostics: _,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         validate_emit_request(&emit_host).map_err(DriverError::Emit)?;
         tsc_types::trace::mark("emit: host and request validation", setup_started);
-        let incremental_facts_requested =
-            tsc_incremental::options::is_incremental(prepared.compiler_options());
+        let incremental_facts_requested = command_build_info
+            && tsc_incremental::options::is_incremental(prepared.compiler_options());
         let mut recording = incremental::SignatureRecordingSink::new(sink);
         let sink: &mut dyn OutputSink = &mut recording;
         let selection = EmitSelection::WholeProgram;
@@ -2837,8 +2861,8 @@ impl ProgramSession {
         // options rows are known before the check and gate it.
         let available_options = self.available_options_diagnostics();
         let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(&available_options);
-        let incremental_facts_requested =
-            tsc_incremental::options::is_incremental(self.prepared.compiler_options());
+        let incremental_facts_requested = self.command_build_info
+            && tsc_incremental::options::is_incremental(self.prepared.compiler_options());
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
                 &inputs.libs,

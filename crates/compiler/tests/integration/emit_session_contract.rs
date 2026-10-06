@@ -281,7 +281,9 @@ fn a_program_emit_writes_no_build_info_like_compiler_program_emit() {
     // tsgo's `compiler.Program.Emit` writes the JavaScript and declarations
     // of an `incremental` or `composite` program; only the command's
     // incremental program adds the build info
-    // (execute/incremental/program.go:243-273).
+    // (execute/incremental/program.go:243-273), also when `tsBuildInfoFile`
+    // names one for a program without a config file (the harness's
+    // programs, whose option paths may still be relative).
     for (incremental, composite) in [(Some(true), None), (None, Some(true))] {
         let prepared = prepared_with_sources(
             CompilerOptions {
@@ -290,6 +292,7 @@ fn a_program_emit_writes_no_build_info_like_compiler_program_emit() {
                 module: Some(99),
                 incremental,
                 composite,
+                ts_build_info_file: Some("/project/input.tsbuildinfo".into()),
                 ..CompilerOptions::default()
             },
             &[("/project/input.ts", "export const value: number = 1;\n")],
