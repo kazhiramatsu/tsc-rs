@@ -3999,3 +3999,21 @@ tsgoの挙動の欠落3つで、修正した。
   実行後に列挙して消した。cloneに残るのはdistだけ。
 - DefinitelyTyped（package identityがpeerを含むようになったので再実行）：9,067 project全てで一致（`dt-compare.py`、
   1 job、`nice -n 20`、1,184秒。壁時計の合計はtsgo 700秒／tsc-rs 483秒。エラーのあるprojectは279で変わらず）。
+
+### P3-5bnのhostedの記録、計測、merge（2026-10-06）
+
+- hosted：PR #692 run 37480249272（head `74020aba9`：`plan` 30s、`rust` 7m05s、`conformance (TypeScript 7.1)` 19m31s、
+  `gates` 13s。全て成功。code+testのhead `a540e7bda`のrun 37475426412も全て成功）。merge → `3365d0e7b`（merge commit）。
+- corpusの診断（`--noEmit`、既定のchecker数。`a540e7bda`のbuild vs tsgo 7.1.0-dev）：hono、Playwright、TypeScript
+  `src/compiler`、Next.js、Effect、Vue.js、VS Codeはbyte一致。zodはP3-5beの記録の、partitionに依存するTS5115の1行だけ
+  違う（37 vs 36）。
+- 性能（分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝P3-5bmの`985edadd1`のbuild）：
+  `--noEmit`のwallはこのbuild/main 0.950〜1.020（hono 137 vs 138 ms、zod 513 vs 517、Playwright 370 vs 363、
+  TypeScript compiler 326 vs 324、Next.js 741 vs 781、Effect 509 vs 505、Vue.js 342 vs 336、VS Code 3,444 vs
+  3,588）、peak RSS 0.995〜1.019。bench-full（emitあり）は0.944〜1.059（hono 149 vs 152 ms、zod 616 vs 610、
+  Playwright 522 vs 493、TypeScript compiler 492 vs 501、Next.js 1,003 vs 1,062、Effect 745 vs 736、Vue.js 393 vs
+  388）、peak RSS 0.994〜1.038。Playwright/fullとTypeScript compiler/fullの10 roundのA/Bは0.997／1.011（wall）、
+  0.998／0.984（RSS）：noise。tsgoに対してはwall 0.58〜0.92（`--noEmit`）、0.61〜0.78（bench-full）、peak memory
+  0.64〜0.93。劣化なし。
+- cloneの状態：azure-sdk-for-jsにはdist（467 package）だけが残る（ユーザーが(a)で許可）。DefinitelyTypedとmaterial-ui、
+  bench corpusにこの実行が残したfileは無い。
