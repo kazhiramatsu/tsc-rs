@@ -3632,3 +3632,53 @@ transformerの構造にあった：置換をvisitのときに行い、変数環�
     stackのthread、または大きな仮想stackと上限の見直し）が要り、設計の判断になる。別のsliceで扱う。
   - harness error 15（`runExternalCode`。content mapperの機能）。
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
+
+## P3-5bj 構文木の深さの上限を撤廃し、compileを1 GiBの仮想stackで走らせる（2026-10-06）
+
+ユーザー決定（2026-10-06）：「H2期の上限『深さ256を超えるsourceは拒む』はなくしてください」。
+
+emitterは、H2期の安全策として、構文木の深さが256を超えるsourceを拒んでいた（`preflight_source`の
+`MAX_TRANSFORM_DEPTH`、`TransformError::AstDepthDeferred`「deferred to H2.9」）。compile全体が「compiler failure」で
+失敗し、conformanceの`binderBinaryExpressionStress`（約4,950段の`+`の連鎖）がemitの最後の不一致として残っていた。
+400項の文字列連結、400段のmethod chain、300重の配列literalでも起きるので、実プロジェクトでも当たり得る。
+tsgoはGoのstack（1 GBまで伸びる）でそのままcompileする。
+
+実測（上限を環境変数で外した実験build、P3-5biのhead）：emitは16 MiBのthread stackで深さ1,000〜2,000の間で
+stack overflowする（文字列連結1,800は通る＝1段約8 KiB、method chainと入れ子のobject literalは1,000で落ちる＝1段
+16 KiB以上）。checkerには上限が無く、`f(f(f(…)))`2,000段はmain thread（8 MiB）でabortする。
+
+- **stackの方針**（`crates/program/src/workers.rs`）：compilerが起こす全てのthread（worker、checker shard、emitの
+  prelude、conformanceのcase thread）の予約を16 MiBから**1 GiB**にした（`WORKER_STACK_BYTES`）。予約は仮想で、
+  再帰が触ったpageだけが確保されるので、普通のsourceのthreadの費用は変わらない。Goのstackの上限と同じ桁なので、
+  tsgoがcompileするsourceはこの予約にも収まる。
+- **commandの作業もそのthreadで**（`crates/compiler/src/bin/tsc-rs.rs`）：main threadのstack（macOS・Linuxで
+  8 MiB）はprocessが選べない唯一の大きさなので、`run_cli`を`WORKER_STACK_BYTES`のthread（`tsc-rs-main`）で走らせ、
+  joinして出力する。threadが拒まれたらmain threadで走る。panicはmainで再送する。
+- **上限の削除**（`crates/emitter/src/builtins.rs`、`factory.rs`、`transform.rs`）：preflightは深さを見ない。
+  classifierの深さの計測（`parsed_max_depth`）と`AstDepthDeferred`も、使う所が無くなったので削除した。
+- **conformanceのcase thread**（`crates/conformance/src/ts71.rs`）：256 MiBの独自定数を`WORKER_STACK_BYTES`にした。
+- **Rust API**：既定のserialな予算はcallerのthreadで走り、そのstackはembeddingが選ぶ。READMEのAPIの節に、深い
+  sourceは`std::thread::Builder::new().stack_size(tsc_program::WORKER_STACK_BYTES)`のthreadで走らせるよう書いた。
+- 結果：深さ5,000の文字列連結、2,000段の入れ子呼び出し・配列・arrow・条件式・括弧・template・block、1,000段の
+  method chainと入れ子object literal、50,000項の文字列連結、20,000段のmethod chainが、どれもtsgoと同じ出力
+  （JS・d.ts）と同じ診断になる。深い入力はstackのpageを深さに比例して確保する：50,000項の連結はpeak RSS
+  555 MB（tsgoは199 MB。tsgoのbinderとcheckerは二項式を反復で処理する）。普通のsourceでは変わらない。
+  `binderBinaryExpressionStress`はerrors・emit・mapが全てFull。**emitの不一致は0になった。**
+- test：CLI 5件（5,000項の文字列連結、2,000段の入れ子呼び出し（checkerのoverflowの再現）、1,000段のmethod
+  chain、2,000重の配列literal、1,000重のobject literalとその宣言。期待値はtsgoのbytes）。
+- conformance（このsliceの1回の全体実行。macOS、`nice -n 20`、2 worker、523秒）：`9c4a7c8ae`で15,228 configuration、
+  lane A 13,466、full 13,451、text 0、不一致0、emit full 13,443、emitの不一致0、emit未評価8、harness error 15、
+  skipped 1,720。P3-5biの最終reportと行ごとに比べると、変わったのは`binderBinaryExpressionStress`だけ（emitと
+  mapがnone→Full）。ratchetは1行を上げた（`--filter <case> --update`。13,451行）。**errorsを比べる13,451構成は
+  全てFull、emitを比べる13,443構成も全てFullになった。** 残りはharness error 15（content mapperの
+  `runExternalCode`）、emit未評価8（native runnerがJS baselineを持たない構成）、tsgo自身のskip list 42。
+- local（macOS、`nice -n 20`、2 job）：`cargo fmt --all -- --check`、6 crate（emitter、compiler、conformance、program、
+  checker、harness）の`cargo clippy --all-targets -- -D warnings`、4 crate（emitter、compiler、conformance、program）
+  の`cargo test --no-fail-fast`（40 target、1,561 passed）を`9c4a7c8ae`のtreeで実行した。workspace全体はhostedの
+  `rust` job。
+- **この記録の時点で未実行のもの**：corpusの速度・peak memory・出力の比較、`--checkers 4`の対照、corpusの診断の
+  tsgoとの比較。#685・#686と合わせて、積んだheadで1回実行し、hostedの記録に書く。
+- 次：
+  - harness error 15（`runExternalCode`。content mapperの機能）。
+  - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
+  - 実プロジェクトでの完全一致と計測（DefinitelyTyped、azure-sdk-for-js、material-ui。roadmapのstep 2）。

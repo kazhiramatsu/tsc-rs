@@ -9765,3 +9765,163 @@ fn deduplicate_packages_false_keeps_each_copy_of_a_package_like_tsgo() {
         )
     );
 }
+
+/// The source `export const <name> = <expression>;` and the JavaScript tsgo
+/// writes for it at ES2020 with ESNext modules: the same line.
+fn deep_source(name: &str, expression: &str) -> String {
+    format!("export const {name} = {expression};\n")
+}
+
+#[test]
+fn a_string_concatenation_of_five_thousand_operands_compiles_like_tsgo() {
+    // The parser, binder, checker and emitter recurse on the native stack in
+    // proportion to the nesting depth of the source, and the command runs
+    // them on threads with the compiler's stack reservation
+    // (tsc_program::WORKER_STACK_BYTES); tsgo's Go stacks grow to 1 GB. The
+    // emit used to refuse a source deeper than 256 nodes
+    // (`emit transform AST depth above 256`), which failed the whole compile
+    // for inputs tsgo compiles, such as this 4,999-operator chain
+    // (binderBinaryExpressionStress has 4,954). The expected bytes are
+    // tsgo's: the expression on one line, and the declaration.
+    let expression = vec!["\"a\""; 5000].join(" + ");
+    let source = deep_source("s", &expression);
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), &source).expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        source
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        "export declare const s: string;\n"
+    );
+}
+
+#[test]
+fn two_thousand_nested_calls_type_check_like_tsgo() {
+    // `f(f(f(…)))` two thousand deep overflowed the main thread's 8 MiB stack
+    // in the checker, which aborted the process; the command's work now runs
+    // on a thread with the compiler's stack reservation. tsgo reports
+    // nothing. The expected bytes are tsgo's.
+    let expression = format!("{}1{}", "f(".repeat(2000), ")".repeat(2000));
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        format!(
+            "declare function f(x: any): any;\n{}",
+            deep_source("v", &expression)
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","noEmit":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn a_method_chain_of_a_thousand_calls_compiles_like_tsgo() {
+    // A chain of property accesses and calls is the deepest common shape of
+    // generated code (about 16 KiB of stack per level in the emit). The
+    // expected bytes are tsgo's: the chain on one line, and `any` declared.
+    let expression = format!("f{}", ".g()".repeat(1000));
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        format!("declare const f: any;\n{}", deep_source("c", &expression)),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        deep_source("c", &expression)
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        "export declare const c: any;\n"
+    );
+}
+
+#[test]
+fn two_thousand_nested_array_literals_compile_like_tsgo() {
+    // The declaration of the nested arrays is as deep as the literal: the
+    // node builder recurses once per level too. The expected bytes are
+    // tsgo's.
+    let expression = format!("{}1{}", "[".repeat(2000), "]".repeat(2000));
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), deep_source("o", &expression)).expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        deep_source("o", &expression)
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        format!("export declare const o: number{};\n", "[]".repeat(2000))
+    );
+}
+
+#[test]
+fn a_thousand_deep_object_literal_compiles_like_tsgo() {
+    // Nested object literals are the deepest shape measured in the emit, and
+    // their declaration is written one level per line. The expected bytes
+    // are tsgo's.
+    let depth = 1000;
+    let expression = format!("{}1{}", "{ a: ".repeat(depth), " }".repeat(depth));
+    let mut declaration = String::from("export declare const o: {\n");
+    for level in 1..depth {
+        declaration.push_str(&"    ".repeat(level));
+        declaration.push_str("a: {\n");
+    }
+    declaration.push_str(&"    ".repeat(depth));
+    declaration.push_str("a: number;\n");
+    for level in (1..depth).rev() {
+        declaration.push_str(&"    ".repeat(level));
+        declaration.push_str("};\n");
+    }
+    declaration.push_str("};\n");
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), deep_source("o", &expression)).expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es2020"],"target":"es2020","module":"esnext","outDir":"out","declaration":true,"strict":true},"files":["a.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        deep_source("o", &expression)
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        declaration
+    );
+}

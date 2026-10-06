@@ -1416,10 +1416,6 @@ pub enum TransformError {
     },
     MissingProgramSourceForModuleFormat(TransformSourceId),
     EmitHostRequiredForImpliedModuleFormat,
-    AstDepthDeferred {
-        limit: usize,
-        owner_slice: &'static str,
-    },
     UnsupportedCompilerOption {
         option: &'static str,
         detail: &'static str,
@@ -1595,10 +1591,6 @@ impl fmt::Display for TransformError {
             ),
             Self::EmitHostRequiredForImpliedModuleFormat => formatter
                 .write_str("implied module-format transformation requires a Program emit host"),
-            Self::AstDepthDeferred { limit, owner_slice } => write!(
-                formatter,
-                "emit transform AST depth above {limit} is deferred to {owner_slice}"
-            ),
             Self::UnsupportedCompilerOption { option, detail } => {
                 write!(formatter, "unsupported transform option {option}: {detail}")
             }

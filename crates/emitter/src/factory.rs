@@ -180,11 +180,6 @@ pub struct TransformSource {
     /// Whether generated-binding metadata was ever merged onto a parsed
     /// node (see [`TransformArena::parsed_nodes_carry_no_generated_binding`]).
     generated_binding_on_parsed_node: bool,
-    /// The depth of the parsed tree along its child edges (the root at 1,
-    /// MissingDeclaration subtrees excluded), recorded by the linear
-    /// transform-flag classifier of the parsed root; the transform preflight
-    /// reads it instead of walking the tree again.
-    parsed_max_depth: Option<u32>,
 }
 
 /// Structural equality covers the emit copy and its provenance; the two
@@ -217,15 +212,6 @@ impl TransformSource {
 
     pub(crate) fn set_classified_transform_flags(&mut self, nodes: u32, arrays: u32) {
         self.classified_transform_flags = (nodes, arrays);
-    }
-
-    /// The parsed tree's depth as the classifier measured it (see the field).
-    pub(crate) fn parsed_max_depth(&self) -> Option<u32> {
-        self.parsed_max_depth
-    }
-
-    pub(crate) fn set_parsed_max_depth(&mut self, depth: u32) {
-        self.parsed_max_depth = Some(depth);
     }
 
     pub const fn program_source(&self) -> Option<SourceFileId> {
@@ -457,7 +443,6 @@ impl TransformArena {
             complete_synthesized: FxHashSet::default(),
             classified_transform_flags: (0, 0),
             generated_binding_on_parsed_node: false,
-            parsed_max_depth: None,
         });
         id
     }

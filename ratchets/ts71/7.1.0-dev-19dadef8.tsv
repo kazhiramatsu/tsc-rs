@@ -474,7 +474,7 @@ compiler/binaryArithmatic4	full	js
 compiler/binaryArithmeticControlFlowGraphNotTooLarge	full	js
 compiler/bind1	full	js
 compiler/bind2	full	js
-compiler/binderBinaryExpressionStress	full	none
+compiler/binderBinaryExpressionStress	full	js
 compiler/binderBinaryExpressionStressJs	full	js
 compiler/bindingPatternCannotBeOnlyInferenceSource	full	js
 compiler/bindingPatternContextualTypeDoesNotCauseWidening	full	js
