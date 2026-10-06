@@ -3506,3 +3506,129 @@ emitを先にすると、tsc-rsのemit resolverが「検査済みのProgram」�
     es2015、`objectTypesWithOptionalProperties2`、`comparisonAnonymousMappedTypes`、`comparisonReverseMappedTypes`、
     `binderBinaryExpressionStress`）とharness error 17（`runExternalCode`の15件、`deduplicatePackages`の2件）。
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
+
+## P3-5bi emitの残りの不一致：型の順序、JavaScriptの`@type`の型parameter、コメント、class fieldsの変数環境（2026-10-06）
+
+P3-5bhの後に残ったemitの不一致7構成のうち6構成と、harness errorの2構成（`deduplicatePackages`）を直した。
+class fieldsの2構成（`privateNameStaticMethod`、`computedPropertyNames52`）の原因は、tsgoのclass fields
+transformerの構造にあった：置換をvisitのときに行い、変数環境（`var`と`let`の宣言先）を関数ごとに自分で開閉する。
+同じ構造から出る違いは、baselineが当たっていない所にもある。class式を文・式・memberの各位置に置いたsource
+10本を、target 4種（es2015、es2021、es2022、esnext）と`useDefineForClassFields`の両方でtsgoと突き合わせ、
+見つかった違いを一緒に直した。
+- **型の順序**（`CompareTypes`、checker/utilities.go:414-755。`crates/types/src/type_order.rs`、
+  `crates/checker/src/type_order.rs`）：7.1の比較器は、tsc 6.0の`--stableTypeOrdering`の比較器から次の所が
+  変わっている（`comparisonAnonymousMappedTypes`、`comparisonReverseMappedTypes`の宣言の出力）。
+  - 同じ名前で別のsymbol（`N1.A`と`N2.A`）は、aliasの型引数や構造より先に、`compareSymbols`で分ける
+    （`compareTypeNames`、632-649）。
+  - instantiation expressionの型どうしは、symbolの最初の宣言で比べ、次に式のnodeで比べる（442-462）。その
+    symbolは、元の型のsymbolの宣言を持つ（`getInstantiationExpressionType`、checker/checker.go:10893-10895。
+    `crates/checker/src/operators.rs`）。`[g<string>, f<string>]`の要素の型は、`f`の宣言が先なら`f`が先になる。
+  - tupleのlabelは全ての要素で比べる（`compareTupleTypes`、668-700）。これまでは1つ目のtupleのlabelだけを
+    数えていたので、labelの無いtupleとlabelのあるtupleが等しくなり、型idの順（作った順）になっていた。
+  - reverse mapped typeは、source、mapped type、constraintの順に比べる（497-509）。これまでは型idの順だった。
+  - mapped typeのinstantiationは、composite mapperの2つ目（型引数を運ぶ方）で比べる（509-520）。1つ目は、
+    instantiationごとに新しく作る型parameterへの対応で、比べても作った順にしかならない。
+  - mapperの種類の番号は、tsgoの4種（unknown 0、simple 1、array 2、merged 3。checker/mapper.go:13-18）にした。
+- **JavaScriptの`@type`がsignatureを与える関数の型parameter**（`typeTagOnFunctionReferencesGeneric`）：
+  `/** @type {<T>(m: T) => T} */ function f(m) {}`の宣言は`declare function f<T>(m: T): T;`である。関数自身には
+  型parameterのlistが無いので、`ensureTypeParams`はresolverに尋ねる（transformers/declarations/transform.go:
+  2376-2384、`CreateTypeParametersOfSignatureDeclaration`、checker/emitresolver.go:962）。答えるのは
+  `typeParametersToTypeParameterDeclarations`（checker/nodebuilderimpl.go:1696-1713）で、関数のsymbolなら、その
+  宣言の型parameter（JavaScriptでは`@type`のsignatureのもの）を返す。これまでは`<T>`が出ていなかった。resolverの
+  methodを足した（`crates/emitter/src/resolver.rs`、`crates/checker/src/emit.rs`、
+  `crates/checker/src/node_builder/serialize.rs`、`crates/emitter/src/declarations/ensure.rs`）。methodのsymbolには
+  答えが無いので、tsgoは`method(m: T): T;`と、宣言されていない`T`を書く。同じ出力にして、testで固定した。
+- **property assignmentの値の前のコメント**（`objectTypesWithOptionalProperties2`）：`x()?: 1 // error`は、
+  本体の無いmethodと、値の無いproperty `1`にparseされる。`emitPropertyAssignment`は値の始まりの位置の
+  trailing commentを求めるが（printer/printer.go:4554-4558）、`emitTrailingComments`は、その位置が今の
+  containerの終わりなら何も書かない（5604-5611。containerが自分で書く）。これまでは値の前にも書いていて、
+  コメントが2回出ていた（`crates/emitter/src/printer.rs`）。
+- **class fields：class aliasの置換**（`privateNameStaticMethod`）：tsgoは、class名をaliasに置き換える処理を
+  identifierのvisitで行い、使うたびに複製を作る（`visitIdentifier`、estransforms/classfields.go:462-473）。
+  private staticなmethodの呼び出し`A1.#method()`では、receiverがhelperの引数と`.call`の`this`の2か所に出る。
+  helperの側だけがコメントの始まりを手放す（`createPrivateIdentifierAccessHelper`、1027-1028）ので、`this`の側の
+  複製は`A1`の範囲を持ったままになり、引数の無い呼び出しの後ろのコメントが`.call(`の直後にも出る。tsc 6.0は
+  印字のときに置換していて、2か所が同じnodeだった。classのaliasへの参照のときだけ、`this`の側を別の複製にした。
+- **class fields：loopの中のclass式**（`computedPropertyNames52`のes2015）：`requiresBlockScopedVar`は
+  「`inIterationStatement`で、今のclassがclass式」（195-201）。tsc 6.0はcheckerの`BlockScopedBindingInLoop`の印
+  （loopの変数を捕まえる束縛にだけ付く）を読んでいた。7.1では、loopの中のclass式のcomputed nameとprivate nameの
+  一時変数は、捕まえているかに関係なく`let`になる。classそのものの一時変数は、computed nameを持つinstance
+  propertyがあるときだけ`let`（`classExpressionNeedsBlockScopedTemp`、203-218）。`inIterationStatement`は、
+  `for`では本体だけ、`for`-`in`・`for`-`of`・`while`・`do`では全ての子で立ち（329-330、`visitForStatement`
+  1244-1253）、関数宣言・関数式・object literalのmethodとaccessorで下り、arrow functionとclassのmemberでは
+  そのまま（333-336、`visitClassElement` 416-437）。`let`の宣言先は一番内側のlexical environmentで、loopの本体か、
+  loopの外なら関数の本体かsource fileである（`AddLexicalDeclaration`、printer/emitcontext.go:237-242）。関数や
+  source fileでは、`var`の文の後ろ（初期化の文があればその後ろ）に`let`の文を置く（`EndVariableEnvironment`、
+  117-133）。fieldをnativeに残す変換（es2022以降で`useDefineForClassFields: false`）にも同じ規則を入れた
+  （`crates/emitter/src/builtins/class_fields.rs`）。
+- **class fields：一時変数を宣言する関数**（`crates/emitter/src/builtins/class_fields/downlevel.rs`、
+  `class_fields.rs`）：tsgoは、parameterのvisitで変数環境を開き、関数の本体のvisitで閉じる
+  （`VisitParameters`／`VisitFunctionBody`、printer/emitcontext.go:799-818、943-970）。class fieldsのtransformerは、
+  一部の関数でこれを自分で組み立てる。その通りにした：
+  - methodとaccessorの名前は、関数の環境が開く前にvisitされる。computed nameの中の一時変数は、classを囲む
+    scopeに宣言される。**mainには不具合があった**：`class C { [class A { static x = 1 }]() {} }`のes2015の出力で、
+    名前の一時変数がmethodの本体の中に`var`で宣言されていた（classの定義の時点では未宣言で、strict modeでは
+    ReferenceErrorになる）。
+  - 関数に下ろしたprivateなmethod・accessor（`visitMethodOrAccessorDeclaration`、695-702）：本体は自分の
+    変数環境を持ち、本体の一時変数はその関数の中に宣言される。parameterは本体の後で、環境の外でvisitされるので、
+    parameterの初期値の一時変数はclassを囲むscopeに出て、初期値はparameterのlistに残る。これまでは本体の
+    一時変数もclassを囲むscopeに出ていた。
+  - initializerを受け取るconstructor（`transformConstructor`、2365-2422）：parameterは本体の環境が開く前に
+    普通のvisitorでvisitされる（2382-2387）。初期値の一時変数はclassを囲むscopeに出て、初期値はparameterのlistに
+    残る（tsc 6.0は本体に移していた）。initializerと本体の文は1つの環境でvisitされる（`transformConstructorBody`、
+    2520-2600）ので、一時変数は1つの`var`の文になる（initializerの分が先。これまでは2文）。
+  - 出力に残るstatic block：本体は普通の子としてvisitされ、変数環境を開かない（`visitClassStaticBlockDeclaration`、
+    2181-2184）。中の一時変数は、囲む関数・loopの本体・source fileに宣言される（これまではblockの中）。
+  - auto-accessorのcomputed nameをcacheする一時変数は、memberの順で、そのaccessorに届いたときに作る
+    （`transformAutoAccessor`、839-857）。入れ子のscopeには予約しない。これまではclassの最初に作っていて、
+    他のmemberの一時変数と番号がずれていた。
+- **lowerしたclass式の括弧**：static memberを持つclass式は、comma式になる。tsgoの印字は、`if`・`while`・`do`・
+  `switch`・`case`・`throw`・`with`の式を一番低い優先度で書く（printer/printer.go:3465、3509、3628-3638、3656、
+  4471）ので、括弧は付かない。class fieldsの変換が位置を見て付けていた括弧をやめ、factoryが`switch`と`case`の
+  式に付けていた括弧（tsc 6.0の`parenthesizeExpressionForDisallowedComma`）も外した。必要な括弧は、印字が
+  優先度から付ける。
+- **async generatorのmethod**（`crates/emitter/src/builtins/es2018.rs`）：内側のgeneratorの名前は、名前の種類に
+  よらず`getGeneratedNameForNode(node.name)`（estransforms/forawait.go:803-806）。identifierなら`name_1`、
+  computed name・文字列・数値の名前なら一時変数の名前（`function* _a()`）になる。これまではidentifierのときだけ
+  名前を付けていた。`isSimpleParameterList`はrestの印を見ない（estransforms/async.go:952-960）ので、
+  `...rest`は外側の関数に残る（これまではgeneratorに移していた）。
+- **`deduplicatePackages`**（TypeScript 7のoption。tsoptions/declscompiler.go:188-195）：既定はtrueで、同じ名前と
+  versionのpackageの2つ目以降のfileを、1つ目のfileにredirectする。`false`ならredirectしない
+  （compiler/filesparser.go:361-368）。tsconfigのoptionとharnessの設定に足し、loaderのpackage idの表を、`false`の
+  ときに使わないようにした（`crates/program/src/loader.rs`）。command lineのflagは未対応
+  （tsc-rsのcommand lineは、READMEの一覧のflagだけを受ける）。
+- **意図して合わせていない所**：`for (const x of <comma式>)`。tsgoは`for`-`of`の式も一番低い優先度で書くので
+  （`emitForOfStatement`、printer/printer.go:3565-3590）、変換がcomma式を置くと括弧の無い
+  `for (const x of _a = class {…}, _a)`になる。これはJavaScriptとして不正である（`of`の右はAssignmentExpression）。
+  tsc-rsは括弧を残す。当たるbaselineは無い。
+- conformance（このsliceの1回の全体実行。macOS、`taskpolicy -c maintenance nice -n 20`、1 worker、4,763秒）：
+  `09c2be445`で15,228 configuration、lane A 13,466、full 13,451、text 0、不一致0、emit full 13,442、emitの不一致1、
+  emit未評価8、harness error 15、skipped 1,720。P3-5bhの最終report（直した1構成を差し替えたもの）と行ごとに
+  比べると、変わったのは狙った8構成だけ：emitがnone→fullの6構成と、harness error→compared（errors full・emit
+  full）の`deduplicatePackages`2構成。他の構成はtierもdigest（errors、emit、map）も変わらない。ratchetは
+  6行を上げ、2行を足した（`--filter <case> --update`。13,451行）。**emitの不一致は`binderBinaryExpressionStress`
+  の1構成だけになった**（下）。
+- probe：class式を文・式・memberの各位置に置いたsource 10本（loop、文、式、消される包み、computed name、
+  async generator、private method、static block・constructor）と宣言の順序のsource 2本を、tsgoとtsc-rsで
+  tsconfig経由にemitし、出力をdiffした。全てbyte一致（`for`-`of`の括弧の1点を除く）。
+- test：CLI 22件（tsgoのbytes。型の順序5、anonymousの順序1、JSの`@type`1、コメント2、class fields 9、
+  async generator 2、`deduplicatePackages` 2。20件はbranchの基点のbuildと違う）。`deduplicatePackages`を
+  足したので、optionの一覧の順序のtest（program）を7.1の宣言順に合わせた。
+- local（macOS。夜間のため全て`taskpolicy -c maintenance nice -n 20`、1 job、test thread 1）：`cargo fmt --all --
+  --check`、7 crate（types、checker、emitter、compiler、conformance、harness、program）の`cargo clippy
+  --all-targets -- -D warnings`を`09c2be445`のtreeで、同じ7 crateの`cargo test --no-fail-fast`（49 target、
+  3,422 passed）を直前のtree（違いはoption一覧のtestの期待値とtestのコメント）で、その2 targetを`09c2be445`の
+  treeで（program contracts 503、compiler contracts 307 passed）実行した。workspace全体のtestとclippyは
+  hostedの`rust` job。
+- **この記録の時点で未実行のもの**：corpusの速度・peak memory・出力の比較、`--checkers 4`の対照の実行、corpusの
+  診断のtsgoとの比較。P3-5bhと同じく、夜間の低CPU設定では時間の比較ができないので、mergeの前に通常の設定で
+  実行し、結果をhostedの記録に書く。
+- 次：
+  - `binderBinaryExpressionStress`（emit）：emitterは、構文木の深さが256を超えるsourceを拒む
+    （`preflight_source`、`crates/emitter/src/builtins.rs`の`MAX_TRANSFORM_DEPTH`。H2期の上限）。compileの全体が
+    「compiler failure」で失敗する。400項の文字列連結、400段のmethod chain、300重の配列literalでも起きる。tsgoは
+    Goのstack（1 GBまで伸びる）でそのままemitする。worker threadのstackは16 MiB（`WORKER_STACK_BYTES`）、
+    conformanceのcase threadは256 MiB、CLIのmain threadは8 MiB。上限を外すにはemitのstackの方針（深さに応じた
+    stackのthread、または大きな仮想stackと上限の見直し）が要り、設計の判断になる。別のsliceで扱う。
+  - harness error 15（`runExternalCode`。content mapperの機能）。
+  - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
