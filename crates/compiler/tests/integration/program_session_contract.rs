@@ -226,6 +226,17 @@ impl UngatedOutcome {
     }
 }
 
+/// The native harness run of a program whose options carry a removed-option
+/// row: tsc's command, and the session's `run`, then bind the files and
+/// initialize the checker for the global diagnostics but check no source, so
+/// the authoritative table is never consulted and the suggestion rows never
+/// produced. The harness checks every source.
+fn run_ungated(session: ProgramSession) -> Result<NoEmitOutcome, DriverError> {
+    session.run_for_native_harness(NativeHarnessCollection {
+        capture_suggestions: true,
+    })
+}
+
 fn consume_ungated(session: ProgramSession) -> UngatedOutcome {
     let outcome = session
         .run_for_native_harness(NativeHarnessCollection {
@@ -638,20 +649,40 @@ fn located_program_diagnostics_route_by_text_owner() {
         ],
     ));
 
-    let outcome = consume(ProgramSession::new(
-        builder.build().expect("build prepared program"),
-    ));
+    let prepared = builder.build().expect("build prepared program");
+    // The command: the row the config owns is an options diagnostic, which
+    // closes the check of the sources (no semantic rows, no checked source).
+    let outcome = consume(ProgramSession::new(prepared.clone()));
     assert_eq!(codes(outcome.options_diagnostics()), [9501]);
     assert!(outcome.global_diagnostics().is_empty());
     assert!(outcome.semantic_diagnostics().is_empty());
+    assert!(outcome.conformance_diagnostics().is_empty());
+    // The native harness collects every kind: the row the source owns is
+    // joined to that source's semantic diagnostics.
+    let harness = run_ungated(ProgramSession::new(prepared)).expect("one-shot session");
+    assert_eq!(codes(harness.options_diagnostics()), [9501]);
+    let mut routed = harness
+        .native_harness_diagnostics()
+        .iter()
+        .filter(|diagnostic| matches!(diagnostic.code(), 9501 | 9502))
+        .map(|diagnostic| {
+            (
+                diagnostic.code(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .and_then(|name| name.as_str())
+                    .map(str::to_owned),
+            )
+        })
+        .collect::<Vec<_>>();
+    routed.sort();
     assert_eq!(
-        outcome
-            .conformance_diagnostics()
-            .iter()
-            .filter(|diagnostic| matches!(diagnostic.code(), 9501 | 9502))
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [9502]
+        routed,
+        [
+            (9501, Some("tsconfig.json".to_owned())),
+            (9502, Some("main.ts".to_owned()))
+        ]
     );
 }
 
@@ -1498,8 +1529,7 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
         )
     };
 
-    let error = ProgramSession::new(make_program(false))
-        .run()
+    let error = run_ungated(ProgramSession::new(make_program(false)))
         .expect_err("missing synthetic tslib row must fail the session");
     let DriverError::MissingResolution(missing) = error else {
         panic!("unexpected driver error: {error:?}");
@@ -2056,8 +2086,7 @@ fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
                     .expect("add unsupported record");
             },
         );
-        let error = ProgramSession::new(prepared)
-            .run()
+        let error = run_ungated(ProgramSession::new(prepared))
             .expect_err("unsupported row must fail the session");
         let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
             source_token,
@@ -2225,13 +2254,13 @@ fn authoritative_unloaded_javascript_keeps_suggestions_out_of_cli_output() {
             },
         );
 
-        let outcome = consume(ProgramSession::new(prepared));
+        let outcome = run_ungated(ProgramSession::new(prepared)).expect("one-shot session");
         assert!(outcome.semantic_diagnostics().is_empty());
         assert!(outcome
             .diagnostics()
             .all(|diagnostic| diagnostic.code() != 7016));
         let suggestions = outcome
-            .conformance_diagnostics()
+            .native_harness_diagnostics()
             .iter()
             .filter(|diagnostic| diagnostic.code() == 7016)
             .collect::<Vec<_>>();
@@ -2291,13 +2320,13 @@ fn loaded_external_javascript_preserves_authoritative_package_detail_precedence(
             },
         );
 
-        let outcome = consume(ProgramSession::new(prepared));
+        let outcome = run_ungated(ProgramSession::new(prepared)).expect("one-shot session");
         assert!(outcome.semantic_diagnostics().is_empty());
         assert!(outcome
             .diagnostics()
             .all(|diagnostic| diagnostic.code() != 7016));
         let diagnostic = outcome
-            .conformance_diagnostics()
+            .native_harness_diagnostics()
             .iter()
             .find(|diagnostic| diagnostic.code() == 7016)
             .expect("loaded external JavaScript suggestion");
@@ -2770,8 +2799,7 @@ fn malformed_unloaded_reasons_fail_closed() {
             },
         );
 
-        let error = ProgramSession::new(prepared)
-            .run()
+        let error = run_ungated(ProgramSession::new(prepared))
             .expect_err("unsupported unloaded target must fail the session");
         let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
             failure: AuthoritativeModuleLookupFailure::Unsupported(actual),
