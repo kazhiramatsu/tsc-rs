@@ -4064,3 +4064,14 @@ tsoptions ParseInputOutputNames、program.go verifyProjectReferences、checker.g
 - conformance（このsliceの1回の全体実行。macOS、`nice -n 20`、2 worker）：`f75e2d799`のtreeのbuild（codeは`4a0810f5a`）で15,228 configuration、full 13,451、不一致0、emit full 13,443、harness error 15、ratchet 0 regression（484秒）。P3-5bnのreportと行ごとに同一。`--filter`のcomposite（3構成）、incremental（4）、tsconfig（5）、reference（21）、outDir（1）は全てFull。
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、5 crate（program、compiler、checker、conformance、
   harness）の`cargo clippy --all-targets -- -D warnings`と`cargo test --no-fail-fast`（2,776 passed）。
+
+### P3-6aのhostedの記録、計測、merge（2026-10-07）
+
+- hosted：PR #693 run 37496993797（head `78fb61f93`：`plan` 28s、`rust` 10m40s、`conformance (TypeScript 7.1)`
+  19m51s、`gates` 13s。全て成功）。最初のrun 37495842161（head `54711e4db`）は`rust`の`cargo fmt --check`で
+  落ちた（最後のfmtの後に加えた編集）。`78fb61f93`はその整形だけ。merge → `4c8efd09e`（merge commit）。
+- corpusの診断（`--noEmit`、既定のchecker数。`4a0810f5a`のbuild vs tsgo 7.1.0-dev）：hono、Playwright、TypeScript `src/compiler`、Next.js、Effect、Vue.js、VS Codeはbyte一致。zodはP3-5beの記録の、partitionに依存するTS5115の1行だけ違う（37 vs 36）。
+- 性能（分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝P3-5bnの`a540e7bda`のbuild）：
+  `--noEmit`のwallはこのbuild/main 0.929〜1.000（hono 133 vs 143 ms、zod 484 vs 486、Playwright 341 vs 351、TypeScript compiler 313 vs 313、Next.js 692 vs 726、Effect 489 vs 504、Vue.js 316 vs 333、VS Code 3,242 vs 3,455）、peak RSS 0.993〜1.006。bench-full（emitあり）は0.977〜1.013（hono 140 vs 142 ms、zod 584 vs 598、Playwright 452 vs 460、TypeScript compiler 474 vs 474、Next.js 935 vs 951、Effect 710 vs 711、Vue.js 387 vs 382）、peak RSS 0.982〜1.022。tsgoに対してはwall 0.58〜0.91（`--noEmit`）、0.61〜0.79（bench-full）、peak memory 0.63〜0.94。劣化なし（referencesの無いprogramでは参照の表が無く、追加の検索は無い）。
+- cloneの状態：azure-sdk-for-jsにはdistだけ、DefinitelyTypedにはpnpm-lock.yamlだけ（どちらも以前から）。material-uiと
+  bench corpusにこの実行が残したfileは無い。
