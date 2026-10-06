@@ -3682,3 +3682,35 @@ stack overflowする（文字列連結1,800は通る＝1段約8 KiB、method cha
   - harness error 15（`runExternalCode`。content mapperの機能）。
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
   - 実プロジェクトでの完全一致と計測（DefinitelyTyped、azure-sdk-for-js、material-ui。roadmapのstep 2）。
+
+### P3-5bh・P3-5bi・P3-5bjのhostedの記録とmerge（2026-10-06）
+
+3つのsliceは積み重ねたbranchで進め、通常負荷の計測を1回にまとめてからmergeした。
+- hosted：P3-5bh PR #685 run 37372359768（`plan`、`rust` 6m58s、`conformance (TypeScript 7.1)` 15m34s、`gates`。
+  初回はhosted runnerが`conformance`と`gates`を取れず「The job was not acquired by Runner of type hosted」で
+  cancelledになり、`gh run rerun --failed`で成功）。P3-5bi PR #686 run 37394229477（`rust` 10m10s、`conformance`
+  12m26s、`gates`成功）。#685のbranchを`git push --delete`で消したとき、それをbaseにしていた#686をGitHubが閉じた
+  （閉じたPRはbaseを変えられず、開き直せない）ので、同じhead `fab5bc989`をmain向けのPR #688として開き直した
+  （run 37402238012、`rust`・`conformance`・`gates`成功）。P3-5bj PR #687 run 37400729383（`rust` 10m31s、
+  `conformance` 19m15s、`gates`）と、mainへのbase変更の後の`gh pr update-branch`による`7ab2f7d6e`の
+  run 37404416817（成功）。**積んだPRは、baseのbranchを消す前に`gh pr edit --base main`で切り替える。**
+- merge：#685 → `f85fdd159`、#688 → `41f38ccaa`、#687 → `136d1d512`（全てmerge commit）。
+- 並列対照（`--checkers 4`、`9c4a7c8ae`＝P3-5bjのhead。3 sliceの変更を含む）：`lass` 1,946・`eclaration` 2,426・
+  `omputed` 361構成が一致。`apped` 140（＋2）、`nfer` 356（＋1）、`ecursive` 132（＋3）の違いは全て、P3-5bhが
+  記録した「emitが先」の4構成のうちの`incorrectRecursiveMappedTypeConstraint`、`mutuallyRecursiveInference`、
+  `recursiveMappedTypes`（作りとして1 checkerと4 checkerで違う）。
+- corpusの診断（`--noEmit`、既定のchecker数。main `e70475159`、P3-5bi `09c2be445`、P3-5bj `4b4ff6df3`の
+  3 buildをtsgoと比較）：hono、Playwright、TypeScript `src/compiler`、Next.js、Effect、Vue.js、VS Codeは3 build
+  ともtsgoとbyte一致。zodはP3-5beの記録の、partitionに依存するTS5115の1行だけ違う（37 vs 36。変わらず）。
+- 性能（README corpora＋Vue.js、3 round、interleaved、中央値。main / P3-5bi / P3-5bj / tsgo）：`--noEmit`は
+  P3-5bi/main 0.87〜0.99、P3-5bj/main 0.90〜1.03（VS Code 3,720・3,718 vs 3,784 ms）、peak RSSは±1%以内
+  （honoだけ285 MBの基数で＋7〜11%）。bench-full（emitあり）はP3-5bi/main 0.96〜1.05、P3-5bj/main 0.99〜1.07
+  （中央値の揺れ。遅く見える行のminはmain以下：TypeScript compiler 519 vs 537 ms、Effect 778 vs 771 ms）。tsgoに
+  対しては0.59〜0.98（`--noEmit`）、0.59〜0.87（bench-full）。10 roundのA/Bと命令数は、ユーザーが機械を使って
+  いたので省略した（負荷を下げる指示。以後の計測は小さく分けて回す）。
+- emit出力（7 corpusのbench-full）：main→P3-5biで変わったのはEffectの宣言1 file（tsgoのbytesに一致するように
+  なった。Effectのd.tsのtsgo一致は493→494/496。残る2 fileと1つのd.ts.mapはP3-5beの記録のpartition依存の順序）。
+  他の6 corpus（hono 748、zod 1,884、Playwright 2,816、TypeScript compiler 312、Next.js 6,660、Vue.js 1,760 file）
+  は変わらず。P3-5bi→P3-5bjは全fileが同一（stackの予約は出力を変えない）。
+- **この時点で、errorsを比べる13,451構成とemitを比べる13,443構成は全てFull。** 残りはcontent mapperの
+  harness error 15、JS baselineの無い8構成、tsgoのskip list 42。
