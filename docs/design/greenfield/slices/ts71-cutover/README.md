@@ -3993,5 +3993,9 @@ tsgoの挙動の欠落3つで、修正した。
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、6 crate（emitter、program、compiler、checker、
   conformance、harness）の`cargo clippy --all-targets -- -D warnings`、4 crate（emitter、program、compiler、checker）
   の`cargo test --no-fail-fast`（3,359 passed）。
-- azure-sdk-for-js（最終build）：2,756 leaf configのうち2,678が一致（12回に分けて実行、両compilerの壁時計の合計はtsgo 278秒／tsc-rs 219秒）。違う78は全てproject references（の古いlayout）。tsgoはのconfigではでもを書く（の。338件）ので、実行後に列挙して消した。cloneに残るのはdistだけ。
-- DefinitelyTyped（package identityがpeerを含むようになったので再実行）：9,067 project全てで一致（、1 job、、1,184秒。壁時計の合計はtsgo 700秒／tsc-rs 483秒。エラーのあるprojectは279で変わらず）。
+- azure-sdk-for-js（最終build）：2,756 leaf configのうち2,678が一致（12回に分けて実行、両compilerの壁時計の合計は
+  tsgo 278秒／tsc-rs 219秒）。違う78は全てproject references（`tsconfig.test.json`の古いlayout）。tsgoは
+  `composite`のconfigでは`--noEmit`でも`*.tsbuildinfo`を書く（`tsconfig.lib.json`の`composite: true`。338件）ので、
+  実行後に列挙して消した。cloneに残るのはdistだけ。
+- DefinitelyTyped（package identityがpeerを含むようになったので再実行）：9,067 project全てで一致（`dt-compare.py`、
+  1 job、`nice -n 20`、1,184秒。壁時計の合計はtsgo 700秒／tsc-rs 483秒。エラーのあるprojectは279で変わらず）。
