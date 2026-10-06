@@ -3935,3 +3935,20 @@ tsgoの挙動をcommandが持っていなかったもので、修正した。
   file inclusionの説明を含む16 caseの`--filter`実行は全てFull。
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、5 crate（checker、program、compiler、conformance、
   harness）の`cargo clippy --all-targets -- -D warnings`と`cargo test --no-fail-fast`（2,767 passed）。
+
+### P3-5bmのhostedの記録、計測、merge（2026-10-06）
+
+- hosted：PR #691 run 37466148849（head `e82c06b8b`：`plan` 30s、`rust` 6m54s、`conformance (TypeScript 7.1)` 12m03s、
+  `gates` 15s。全て成功）。merge → `6c515bad9`（merge commit）。
+- corpusの診断（`--noEmit`、既定のchecker数。`985edadd1`のbuild vs tsgo 7.1.0-dev）：hono、zod、Playwright、
+  TypeScript `src/compiler`、Next.js、Effect、Vue.js、VS Codeの8つ全てがbyte一致（zodのpartition依存のTS5115の
+  1行はこの実行では一致した）。
+- 性能（P3-5blとP3-5bmの両方を含む。分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。
+  main＝P3-5blの前の`d286575ea`のbuild）：`--noEmit`のwallはこのbuild/main 0.944〜1.032（hono 132 vs 129 ms、
+  zod 509 vs 539、Playwright 372 vs 360、TypeScript compiler 324 vs 333、Next.js 724 vs 741、Effect 521 vs 526、
+  Vue.js 342 vs 356、VS Code 3,512 vs 3,663）、peak RSS 0.885〜1.005。bench-full（emitあり）は0.957〜1.043
+  （hono 151 vs 146 ms、zod 670 vs 669、Playwright 507 vs 486、TypeScript compiler 581 vs 569、Next.js 1,033 vs
+  1,052、Effect 766 vs 800、Vue.js 412 vs 412）、peak RSS 0.983〜1.011。Playwrightの＋3〜4%は10 roundのA/B
+  （`--noEmit`）で432 vs 439 ms＝0.984、最小値は390 vs 390で同じ：noise。tsgoに対してはwall 0.57〜0.93
+  （`--noEmit`）、0.61〜0.82（bench-full）、peak memory 0.64〜0.87。劣化なし。
+- bench corpusとmaterial-uiのcloneに、この実行が残したfileは無い（bench configと以前からの`out/`だけ）。
