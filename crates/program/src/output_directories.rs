@@ -168,7 +168,10 @@ pub fn source_file_path_in_new_directory(
 /// `from_directory`, both absolute; `..` for each component of `from` past
 /// the shared prefix, which is compared case-insensitively when file names
 /// are.
-fn relative_path_from_directory(
+/// tsgo tspath.GetRelativePathFromDirectory: `to` relative to
+/// `from_directory` (`..` per unshared component of the directory), or `to`
+/// itself when the two share no root.
+pub fn relative_path_from_directory(
     from_directory: JsStr<'_>,
     to: JsStr<'_>,
     case_sensitive: bool,

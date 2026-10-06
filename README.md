@@ -86,7 +86,10 @@ type-checks it. Two differences matter when you switch:
   keep those settings in `tsconfig.json` as well. The type check reads the
   whole file, including `rootDir` and `declaration`, and writes nothing.
 
-Watch mode, `--build` and project references are not supported; see the
+Watch mode and `--build` are not supported; a project with `references`
+compiles against the built outputs of the referenced projects, and an
+`incremental` or `composite` project writes its `.tsbuildinfo` as `tsgo`
+does but does not reuse it yet; see the
 [current limitations](#current-limitations).
 
 To switch an npm project:
@@ -873,8 +876,9 @@ The measurements above are a quick interleaved run on one machine, not the
 project's formal protocol. For repeatable measurements with recorded
 provenance, exact output verification before timing, several sessions and
 confidence intervals, see [docs/benchmarking.md](docs/benchmarking.md) and
-`scripts/benchmark-cli.py`. Watch mode and incremental builds are not
-supported, and cold-cache, Linux and Windows timings were not measured.
+`scripts/benchmark-cli.py`. Watch mode and `--build` are not supported, an
+incremental build does not yet reuse its previous build info, and
+cold-cache, Linux and Windows timings were not measured.
 
 ## Run CI
 
@@ -951,8 +955,12 @@ runs are listed under the repository's Actions tab.
 
 - Some TypeScript options and configuration combinations are unsupported
   and return an error.
-- The command runs one compilation at a time. Watch mode, `--build`, and
-  project-reference builds are not supported.
+- The command runs one compilation at a time. Watch mode and `--build` are
+  not supported. A project with `references` reads the referenced projects'
+  built outputs (it does not build them), and an `incremental` or
+  `composite` project writes the same `.tsbuildinfo` as `tsgo` but every
+  compilation is a first build: the previous build info is not read, so
+  nothing is skipped.
 - `--noEmit -p` does not accept command-line emit overrides such as
   `--target` or `--module`; see the
   [configuration for type checks](#configuration-for-type-checks).

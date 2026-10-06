@@ -41,6 +41,18 @@ fn init_global_type_probe_names(options: &CompilerOptions) -> [(&'static str, bo
 /// The no-source equivalent of initializeTypeChecker's eager global probes.
 /// There is no binder from which to construct a `CheckerState`, and therefore
 /// every live probe is necessarily a miss.
+/// tsgo onFailedToResolveSymbol for a global the checker looks up itself
+/// (no location): the name and, when a later `lib` would declare it, that
+/// lib (`getSuggestedLibForNonExistentName`). The message prints only the
+/// name; the build info records both arguments.
+fn missing_global_args(name: &str) -> Vec<&str> {
+    let display = tsc_syntax::unescape_leading_underscores(name);
+    match crate::resolve::get_suggested_lib_for_non_existent_name(name) {
+        Some(lib) => vec![display, lib],
+        None => vec![display],
+    }
+}
+
 pub(crate) fn missing_init_global_type_diagnostics(options: &CompilerOptions) -> DiagnosticList {
     let mut diagnostics = init_global_type_probe_names(options)
         .into_iter()
@@ -51,7 +63,13 @@ pub(crate) fn missing_init_global_type_diagnostics(options: &CompilerOptions) ->
                 None,
                 Some(0),
                 Some(0),
-                MessageChain::new(&diagnostics::Cannot_find_global_type_0, &[name.to_owned()]),
+                MessageChain::new(
+                    &diagnostics::Cannot_find_global_type_0,
+                    &missing_global_args(name)
+                        .iter()
+                        .map(|arg| (*arg).to_owned())
+                        .collect::<Vec<_>>(),
+                ),
             )
         })
         .collect::<Vec<_>>();
@@ -186,11 +204,7 @@ impl<'a> CheckerState<'a> {
                 // locationless diagnostic — never a per-file sink — so
                 // only the emission is observable.
                 let diagnostics_before = self.diagnostics.len();
-                self.error_at(
-                    None,
-                    message,
-                    &[tsc_syntax::unescape_leading_underscores(name)],
-                );
+                self.error_at(None, message, &missing_global_args(name));
                 // Every global the checker fails to find on demand is a
                 // global diagnostic in tsc and tsgo (`Awaited` for the
                 // missing-await probe of a call's argument, the iteration
@@ -299,7 +313,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(
                     None,
                     &diagnostics::Cannot_find_global_type_0,
-                    &[tsc_syntax::unescape_leading_underscores(name)],
+                    &missing_global_args(name),
                 );
                 Ok(None)
             }

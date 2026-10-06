@@ -7,6 +7,8 @@ fn chain(code: u32, text: &str, next: Vec<MessageChain>) -> MessageChain {
         code,
         category: DiagnosticCategory::Error,
         text: text.into(),
+        key: None,
+        args: Vec::new(),
         next_present: !next.is_empty(),
         next,
     }

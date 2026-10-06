@@ -17,6 +17,7 @@ use crate::module_requests::{
     is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
     PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
+use crate::module_resolution::PackageJsonProbe;
 use crate::module_resolution::{
     make_program_path, HostModuleResolution, HostResolvedTypeReferenceDirective, ModuleResolver,
 };
@@ -936,7 +937,7 @@ fn load_program_worker(
             );
         }
     }
-    let staged = graph.finish();
+    let mut staged = graph.finish();
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
     // Before the package table is collected: the prelude's resolutions read
@@ -981,6 +982,14 @@ fn load_program_worker(
         }
     }
     let packages = packages_by_path.into_values().collect::<Vec<_>>();
+    staged
+        .package_json_probes
+        .extend(resolver.take_package_json_probes());
+    if let Some(library_resolver) = library_resolver.as_mut() {
+        staged
+            .package_json_probes
+            .extend(library_resolver.take_package_json_probes());
+    }
     drop(resolver);
     drop(library_resolver);
     tsc_types::trace::mark("load: dependency symlinks and packages", phase_started);
@@ -1610,6 +1619,8 @@ enum ReadAheadOutcome {
         path: ProgramPath,
         read: Option<PrefetchedRead>,
     },
+    /// A worker's resolver is done: the package.json files it probed.
+    Probes(Vec<PackageJsonProbe>),
 }
 
 struct ReadAheadQueue {
@@ -1803,6 +1814,9 @@ struct CompleteGraph {
     program_diagnostics: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
     project_reference_redirects: Vec<(ProgramPath, usize)>,
+    /// The package.json files the read-ahead workers' and the referenced
+    /// projects' resolvers probed.
+    package_json_probes: Vec<PackageJsonProbe>,
 }
 
 struct StagedGraph<'host, 'options, 'resolver> {
@@ -1868,6 +1882,9 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// output resolve with its project's options), by the project's
     /// canonical config path.
     project_resolvers: BTreeMap<CanonicalPath, ModuleResolver<'options>>,
+    /// The package.json files the read-ahead workers' resolvers probed (their
+    /// resolvers are dropped with the workers).
+    read_ahead_package_json_probes: Vec<PackageJsonProbe>,
     /// The sources of referenced projects loaded as their outputs: the
     /// source's path and the output's staged source.
     project_reference_redirects: Vec<(ProgramPath, usize)>,
@@ -1924,6 +1941,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             directory_resolutions: rustc_hash::FxHashMap::default(),
             directory_resolution_hits: 0,
             project_resolvers: BTreeMap::new(),
+            read_ahead_package_json_probes: Vec::new(),
             project_reference_redirects: Vec::new(),
             reserved_sources: 0,
             reserved_bytes: 0,
@@ -2502,6 +2520,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     break;
                 }
             }
+            if let Some(resolver) = resolver.as_mut() {
+                let _ = sender.send(ReadAheadOutcome::Probes(
+                    resolver.take_package_json_probes(),
+                ));
+            }
         };
         let threads = workers.max_workers();
         let mut state = ReadAheadState::default();
@@ -2528,26 +2551,38 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 let Ok(outcome) = receiver.recv() else {
                     break;
                 };
-                state.outstanding -= 1;
                 match outcome {
                     ReadAheadOutcome::Resolved {
                         key,
                         loads_source,
                         host,
-                    } => self.pipeline_apply_resolution(
-                        key,
-                        loads_source,
-                        host.map(|host| *host),
-                        &pipeline,
-                        &mut state,
-                    ),
+                    } => {
+                        state.outstanding -= 1;
+                        self.pipeline_apply_resolution(
+                            key,
+                            loads_source,
+                            host.map(|host| *host),
+                            &pipeline,
+                            &mut state,
+                        );
+                    }
                     ReadAheadOutcome::Read { path, read } => {
+                        state.outstanding -= 1;
                         self.pipeline_retain_read(path, read, &pipeline, &mut state);
+                    }
+                    ReadAheadOutcome::Probes(probes) => {
+                        self.read_ahead_package_json_probes.extend(probes);
                     }
                 }
             }
             pipeline.close();
         });
+        // The workers sent their probes after the pipeline closed.
+        while let Ok(outcome) = receiver.try_recv() {
+            if let ReadAheadOutcome::Probes(probes) = outcome {
+                self.read_ahead_package_json_probes.extend(probes);
+            }
+        }
         tsc_types::trace::mark(
             &format!(
                 "load: read-ahead of dependencies (pipelined on {threads} threads: {} resolutions, {} directory reuses, {} reads, {} pre-resolved)",
@@ -3004,7 +3039,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 let host: &dyn CompilerHost = host;
                 let mut resolver =
                     ModuleResolver::new_with_program_options(host, options, program_options).ok();
-                chunk
+                let resolved = chunk
                     .iter()
                     .map(|(containing_file, key, loads_source)| {
                         let result = resolver.as_mut().and_then(|resolver| {
@@ -3014,7 +3049,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         });
                         (key.clone(), *loads_source, result)
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>();
+                let probes = resolver
+                    .as_mut()
+                    .map(ModuleResolver::take_package_json_probes)
+                    .unwrap_or_default();
+                (resolved, probes)
             };
             let results = std::thread::scope(|scope| {
                 let handles = requests
@@ -3042,7 +3082,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 ),
                 resolve_started,
             );
-            return results.into_iter().flatten().collect();
+            let mut resolved = Vec::with_capacity(request_count);
+            for (chunk, probes) in results {
+                resolved.extend(chunk);
+                self.read_ahead_package_json_probes.extend(probes);
+            }
+            return resolved;
         }
         let resolve_started = std::time::Instant::now();
         let request_count = requests.len();
@@ -3633,6 +3678,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .copied()
             .filter(|&source| self.sources[source].library_priority.is_none())
             .collect();
+        let mut package_json_probes = self.read_ahead_package_json_probes;
+        for resolver in self.project_resolvers.values_mut() {
+            package_json_probes.extend(resolver.take_package_json_probes());
+        }
         CompleteGraph {
             sources: self.sources,
             library_postorder,
@@ -3643,6 +3692,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             program_diagnostics: self.program_diagnostics,
             option_diagnostics,
             project_reference_redirects: self.project_reference_redirects,
+            package_json_probes,
         }
     }
 
@@ -5459,6 +5509,17 @@ fn publish_program(
         }
     };
     builder = builder.with_dependency_symlink_resolutions(dependency_symlink_resolutions);
+    // The package.json files every resolver of the load probed, each once.
+    let mut package_json_probes = BTreeMap::new();
+    for probe in staged.package_json_probes.iter().cloned() {
+        package_json_probes
+            .entry(crate::js_path::file_name_key(
+                probe.path.as_js(),
+                case_sensitive_file_names,
+            ))
+            .or_insert(probe);
+    }
+    builder = builder.with_package_json_probes(package_json_probes.into_values().collect());
     let config_file = program_options.config_file().cloned();
     let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
     let mut auxiliary_paths = HashSet::default();

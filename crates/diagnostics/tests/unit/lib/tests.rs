@@ -9,6 +9,8 @@ fn chain(code: u32, text: &str) -> MessageChain {
         code,
         category: DiagnosticCategory::Error,
         text: text.into(),
+        key: None,
+        args: Vec::new(),
         next_present: false,
         next: Vec::new(),
     }

@@ -29,6 +29,7 @@ tsc-checker.workspace = true
 tsc-diagnostics.workspace = true
 tsc-emitter.workspace = true
 tsc-host.workspace = true
+tsc-incremental.workspace = true
 tsc-program.workspace = true
 tsc-types.workspace = true
 

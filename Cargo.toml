@@ -7,6 +7,7 @@ members = [
     "crates/program",
     "crates/emitter",
     "crates/compiler",
+    "crates/incremental",
     "crates/checker",
     "crates/diagnostics",
     "crates/harness",
@@ -35,6 +36,7 @@ tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" 
 tsc-emitter = { package = "tsc-rs-emitter", path = "crates/emitter" }
 tsc-harness = { package = "tsc-rs-harness", path = "crates/harness" }
 tsc-host = { package = "tsc-rs-host", path = "crates/host" }
+tsc-incremental = { package = "tsc-rs-incremental", path = "crates/incremental" }
 tsc-program = { package = "tsc-rs-program", path = "crates/program" }
 tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
 tsc-types = { package = "tsc-rs-types", path = "crates/types" }

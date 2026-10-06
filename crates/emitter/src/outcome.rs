@@ -69,11 +69,6 @@ impl EmitOutcome {
         if options.no_emit != Some(true) {
             return Err(crate::EmitFailure::UnsupportedCompilerOption { option: "noEmit" });
         }
-        if options.incremental == Some(true) || options.composite == Some(true) {
-            return Err(crate::EmitFailure::Unsupported(
-                crate::UnsupportedEmitFeature::BuildInfo,
-            ));
-        }
         let maps = options.source_map == Some(true)
             || options.inline_source_map == Some(true)
             || options.declaration_map == Some(true) && options.declaration == Some(true);
@@ -99,5 +94,22 @@ impl EmitOutcome {
 
     pub fn source_maps(&self) -> Option<&[SourceMapObservation]> {
         self.source_maps.as_deref()
+    }
+
+    /// The build info write that followed this emit (tsgo
+    /// `emitBuildInfo`): its file joins the emitted files, or the failure
+    /// to write it (TS5033) joins the diagnostics.
+    pub fn with_build_info(mut self, path: JsString, failure: Option<Diagnostic>) -> Self {
+        match failure {
+            Some(diagnostic) => self.diagnostics.push(diagnostic),
+            None => {
+                if let Some(files) = self.emitted_files.take() {
+                    let mut files = files.into_vec();
+                    files.push(path);
+                    self.emitted_files = Some(files.into_boxed_slice());
+                }
+            }
+        }
+        self
     }
 }

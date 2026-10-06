@@ -1305,6 +1305,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
             crate::LibraryPrefixCompletion::Complete,
             crate::DiagnosticSchedule::Eager,
             tsc_program::WorkerBudget::serial(),
+            false,
         )
     };
 
@@ -1383,6 +1384,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
         crate::LibraryPrefixCompletion::Complete,
         crate::DiagnosticSchedule::Eager,
         tsc_program::WorkerBudget::serial(),
+        false,
     )
     .expect("authoritative alternate-result miss");
 
@@ -7047,6 +7049,7 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
             tsc_program::WorkerBudget::serial(),
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap()),
             None,
+            false,
         )
         .expect("authoritative result")
     };
@@ -7064,6 +7067,7 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
         crate::LibraryPrefixCompletion::Complete,
         crate::DiagnosticSchedule::Eager,
         tsc_program::WorkerBudget::serial(),
+        false,
     )
     .expect("shared-provider serial result");
     let serial = run(1);
@@ -7229,6 +7233,7 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
                 .with_order_replay(order_replay),
             None,
+            false,
         )
         .expect("authoritative result")
     };
@@ -7485,6 +7490,7 @@ fn assert_order_guard_shape(
             CheckerBudget::new(std::num::NonZeroUsize::new(checkers).unwrap())
                 .with_order_replay(true),
             None,
+            false,
         )
         .expect("authoritative result")
     };

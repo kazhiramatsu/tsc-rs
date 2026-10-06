@@ -106,6 +106,8 @@ pub mod facts;
 pub mod flow;
 pub mod functions;
 pub mod globals;
+pub mod incremental;
+pub use incremental::{IncrementalCheckFacts, IncrementalFileFacts};
 pub mod indexed;
 pub mod inference;
 pub mod instantiate;
@@ -583,6 +585,9 @@ impl std::error::Error for AuthoritativeModuleFailure {}
 #[derive(Clone, Debug, Default)]
 pub struct CheckResult {
     pub diagnostics: DiagnosticList,
+    /// The per-file facts of an incremental program (see
+    /// [`IncrementalCheckFacts`]), when the run asked for them.
+    pub incremental: Option<IncrementalCheckFacts>,
     /// `program.getSyntacticDiagnostics(sourceFile)`, flattened in
     /// fixture-file ordinal order.
     pub syntactic_diagnostics: DiagnosticList,
@@ -1713,6 +1718,9 @@ struct AuthoritativeRun<'a> {
     file_metadata: Vec<AuthoritativeSourceMetadata>,
     library_prefix: LibraryPrefixCompletion,
     diagnostic_schedule: DiagnosticSchedule,
+    /// Collect every file's [`IncrementalFileFacts`] (an incremental
+    /// program's build info).
+    incremental_facts: bool,
 }
 
 struct CheckExecution {
@@ -1779,6 +1787,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers<'cwd>(
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
         workers,
+        false,
     )
 }
 
@@ -1806,6 +1815,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(
         current_directory,
         provider,
         WorkerBudget::serial(),
+        false,
         operation,
     )
 }
@@ -1823,6 +1833,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     workers: WorkerBudget,
+    incremental_facts: bool,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
@@ -1840,6 +1851,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
         workers,
+        incremental_facts,
     )
 }
 
@@ -1882,6 +1894,7 @@ pub fn check_program_with_authoritative_modules_at_emit_first_with_workers<'cwd>
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::EagerAfterEmit,
         workers,
+        false,
     )
 }
 
@@ -1918,6 +1931,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
         WorkerBudget::serial(),
+        false,
     )
 }
 
@@ -1959,6 +1973,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
         library_prefix,
         gate.schedule(),
         WorkerBudget::serial(),
+        false,
     )
 }
 
@@ -1976,6 +1991,7 @@ pub fn with_authoritative_modules_at_for_declarations<'cwd>(
     options: &CompilerOptions,
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
+    incremental_facts: bool,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
@@ -1993,6 +2009,7 @@ pub fn with_authoritative_modules_at_for_declarations<'cwd>(
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::OnDemand,
         WorkerBudget::serial(),
+        incremental_facts,
     )
 }
 
@@ -2037,6 +2054,7 @@ pub fn check_program_with_authoritative_modules_at_with_checkers<'cwd>(
         workers,
         checkers,
         None,
+        false,
     )
 }
 
@@ -2084,6 +2102,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
     provider: &dyn AuthoritativeModuleProvider,
     workers: WorkerBudget,
     gate: SyntacticDiagnosticsGate,
+    incremental_facts: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
@@ -2100,6 +2119,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
         LibraryPrefixCompletion::Complete,
         gate.schedule(),
         workers,
+        incremental_facts,
     )
 }
 
@@ -2118,6 +2138,7 @@ pub fn check_program_with_authoritative_modules_at_with_checkers_gated<'cwd>(
     workers: WorkerBudget,
     checkers: CheckerBudget,
     gate: SyntacticDiagnosticsGate,
+    incremental_facts: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode_with_source(
@@ -2136,6 +2157,7 @@ pub fn check_program_with_authoritative_modules_at_with_checkers_gated<'cwd>(
         workers,
         checkers,
         None,
+        incremental_facts,
     )
 }
 
@@ -2158,6 +2180,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
     workers: WorkerBudget,
     checkers: CheckerBudget,
     sharded_emit: &mut ShardedEmit<'_>,
+    incremental_facts: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode_with_source(
@@ -2176,6 +2199,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
         workers,
         checkers,
         Some(sharded_emit),
+        incremental_facts,
     )
 }
 
@@ -2194,6 +2218,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
     library_prefix: LibraryPrefixCompletion,
     diagnostic_schedule: DiagnosticSchedule,
     workers: WorkerBudget,
+    incremental_facts: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     check_program_with_authoritative_modules_at_cache_mode_with_source(
         libs,
@@ -2211,6 +2236,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
         workers,
         CheckerBudget::serial(),
         None,
+        incremental_facts,
     )
 }
 
@@ -2231,6 +2257,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     workers: WorkerBudget,
     checkers: CheckerBudget,
     sharded_emit: Option<&mut ShardedEmit<'_>>,
+    incremental_facts: bool,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     perf::add(
@@ -2270,6 +2297,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         file_metadata: file_metadata.to_vec(),
         library_prefix,
         diagnostic_schedule,
+        incremental_facts,
     };
     let mut observe_phase = |_| {};
     let execution = if cache_enabled {
@@ -3043,6 +3071,8 @@ struct ShardOutput {
     /// evidence for the debug assertion in the merge (debug builds only).
     #[cfg(debug_assertions)]
     checked_files: Vec<usize>,
+    /// The incremental facts (without rows) of the files this shard checked.
+    incremental: Vec<(usize, incremental::IncrementalFileFacts)>,
 }
 
 const _: () = {
@@ -3298,6 +3328,7 @@ fn run_checker_shard<'a>(
     replay_on_order: bool,
     eager: Option<ShardEagerClosure<'_>>,
     checking: &std::sync::atomic::AtomicUsize,
+    incremental_facts: bool,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
@@ -3391,6 +3422,16 @@ fn run_checker_shard<'a>(
         .collect();
     let failure = state.take_authoritative_module_failure();
     let complete = LedgerSnapshot::take(&state, &globals_by_file);
+    // The module facts of the files this shard checked; the merge adds the
+    // cached rows from every shard's ledger.
+    let incremental = if incremental_facts {
+        files
+            .iter()
+            .map(|&file| (file, incremental::file_facts_without_rows(&mut state, file)))
+            .collect()
+    } else {
+        Vec::new()
+    };
     if tsc_types::trace::enabled() {
         tsc_types::trace::mark(
             &format!(
@@ -3417,6 +3458,7 @@ fn run_checker_shard<'a>(
         files,
         #[cfg(debug_assertions)]
         checked_files,
+        incremental,
     };
     if keep_state {
         let state = match eager {
@@ -3461,8 +3503,13 @@ fn merge_shard_outputs(
     collect_global_diagnostics: bool,
     work_counters: CheckWorkCounters,
     replay_on_display_marks: bool,
+    incremental_facts: bool,
 ) -> Result<CheckExecution, u32> {
     let authoritative_failure = outputs.iter_mut().find_map(|output| output.failure.take());
+    let shard_incremental_facts = outputs
+        .iter_mut()
+        .map(|output| std::mem::take(&mut output.incremental))
+        .collect::<Vec<_>>();
     debug_assert!(
         outputs
             .iter()
@@ -3604,13 +3651,64 @@ fn merge_shard_outputs(
         .iter()
         .flat_map(|output| output.partial_check_records.iter().cloned())
         .collect::<Vec<_>>();
+    // The incremental facts: each shard's module facts for the files it
+    // checked, with the rows every shard's completed ledger holds for the
+    // file (as `assemble` above, without the include processor's rows).
+    let incremental = incremental_facts.then(|| {
+        let mut files: Vec<Option<incremental::IncrementalFileFacts>> = vec![None; file_count];
+        for (file, facts) in shard_incremental_facts.into_iter().flatten() {
+            files[file] = Some(facts);
+        }
+        let files = files
+            .into_iter()
+            .enumerate()
+            .map(|(file, facts)| {
+                let mut facts = facts.unwrap_or_default();
+                facts.semantic_rows = Some(if skip(file) {
+                    Vec::new()
+                } else {
+                    let document = snapshot.document(file);
+                    let source = document.source();
+                    let empty = Vec::new();
+                    let checker_for_file = complete_rows.get(&source.file_name).unwrap_or(&empty);
+                    let globals = outputs
+                        .iter()
+                        .flat_map(|output| output.complete.globals_by_file[file].iter().cloned())
+                        .collect::<Vec<_>>();
+                    let ranges = outputs
+                        .iter()
+                        .flat_map(|output| {
+                            output
+                                .complete
+                                .partially_checked_ranges
+                                .get(&file)
+                                .into_iter()
+                                .flatten()
+                                .copied()
+                        })
+                        .collect::<Vec<_>>();
+                    cached_semantic_rows(
+                        source,
+                        &document.data.bind_diagnostics,
+                        checker_for_file,
+                        (!ranges.is_empty()).then_some(ranges.as_slice()),
+                        &globals,
+                        options,
+                    )
+                });
+                facts
+            })
+            .collect();
+        IncrementalCheckFacts { files }
+    });
     Ok(CheckExecution {
-        result: assemble_check_result(
+        result: assemble_check_result_with_facts(
             &file_diagnostics,
             Some(&diagnostics),
             &global_diagnostics,
             &partial_checks,
             work_counters,
+            incremental,
         ),
         authoritative_failure,
     })
@@ -3675,6 +3773,26 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         options,
         &work_counters,
     ) {
+        if run.incremental_facts {
+            // The serial driver binds, initializes one checker for the module
+            // facts of the build info and checks no source.
+            drop(program_sources);
+            return check_program_with_prebound_libs_at_observed(
+                libs,
+                files,
+                options,
+                current_directory,
+                lib_documents,
+                identity_domain,
+                work_counters,
+                collect_global_diagnostics,
+                observe_phase,
+                Some(run),
+                None,
+                lib_facts,
+                workers,
+            );
+        }
         return CheckExecution {
             result,
             authoritative_failure: None,
@@ -3939,6 +4057,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             checkers.order_replay(),
             eager_closure,
             &checking,
+            run.incremental_facts,
         )
     };
     #[allow(clippy::large_enum_variant)]
@@ -4054,6 +4173,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             collect_global_diagnostics,
             work_counters,
             replay_on_order,
+            run.incremental_facts,
         ) {
             Ok(execution) => execution,
             Err(marked_reasons) => {
@@ -4158,6 +4278,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         work_counters,
         sharded_emit,
         checkers.leaks_states(),
+        run.incremental_facts,
     );
     drop(provider);
     if checkers.leaks_states() {
@@ -4193,6 +4314,7 @@ fn check_snapshot_serially(
     work_counters: CheckWorkCounters,
     sharded_emit: Option<&mut ShardedEmit<'_>>,
     leak_state: bool,
+    incremental_facts: bool,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, authoritative, host);
@@ -4220,12 +4342,17 @@ fn check_snapshot_serially(
         let partial_checks = state.partial_check_records.clone();
         let authoritative_failure = state.take_authoritative_module_failure();
         state.line_profile.flush();
-        let result = assemble_check_result(
+        let incremental = incremental_facts.then(|| {
+            let none_by_file = vec![Vec::new(); state.binder.file_count()];
+            incremental_facts_after_check(&mut state, &none_by_file, options, false)
+        });
+        let result = assemble_check_result_with_facts(
             &file_diagnostics,
             Some(&[]),
             &global_diagnostics,
             &partial_checks,
             work_counters,
+            incremental,
         );
         if leak_state {
             std::mem::forget(state);
@@ -4306,12 +4433,21 @@ fn check_snapshot_serially(
     let partial_checks = state.partial_check_records.clone();
     let authoritative_failure = state.take_authoritative_module_failure();
     state.line_profile.flush();
-    let result = assemble_check_result(
+    let incremental = incremental_facts.then(|| {
+        incremental_facts_after_check(
+            &mut state,
+            &global_checker_diagnostics_by_file,
+            options,
+            true,
+        )
+    });
+    let result = assemble_check_result_with_facts(
         &file_diagnostics,
         Some(&diagnostics),
         &global_diagnostics,
         &partial_checks,
         work_counters,
+        incremental,
     );
     let state = match sharded_emit {
         Some(sharded_emit) if authoritative_failure.is_none() => {
@@ -4373,6 +4509,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     let mut partial_checks = Vec::new();
     let mut global_diagnostics = Vec::new();
     let mut authoritative_failure = None;
+    let mut incremental: Option<IncrementalCheckFacts> = None;
     let ParsedProgramInputs {
         program_sources,
         authoritative_program_metadata,
@@ -4397,11 +4534,26 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             &work_counters,
         )
     }) {
-        return CheckExecution {
-            result,
-            authoritative_failure: None,
-        };
+        // An incremental program still binds and initializes the checker
+        // for the module facts of its build info (tsgo computes them when
+        // the incremental program is created); no source is checked.
+        if !authoritative_run.is_some_and(|run| run.incremental_facts) {
+            return CheckExecution {
+                result,
+                authoritative_failure: None,
+            };
+        }
     }
+    let syntactic_closed = authoritative_run.is_some_and(|run| {
+        run.incremental_facts
+            && syntactic_diagnostics_close_the_check(
+                run.diagnostic_schedule,
+                &program_sources,
+                options,
+                &work_counters,
+            )
+            .is_some()
+    });
 
     // The production H0 path publishes through a direct, session-owned store.
     // Library documents may already come from the separately authorized
@@ -4495,12 +4647,13 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                         .expect("authoritative metadata assembled above"),
                 )),
                 host,
-                collect_global_diagnostics,
+                collect_global_diagnostics && !syntactic_closed,
                 run.library_prefix == LibraryPrefixCompletion::Complete,
-                run.diagnostic_schedule.checks_sources(),
+                run.diagnostic_schedule.checks_sources() && !syntactic_closed,
                 work_counters,
                 None,
                 false,
+                run.incremental_facts,
             );
         }
         let mut state = init_checker_state(
@@ -4689,14 +4842,23 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         }
         partial_checks = state.partial_check_records.clone();
         authoritative_failure = state.take_authoritative_module_failure();
+        if authoritative_run.is_some_and(|run| run.incremental_facts) {
+            incremental = Some(incremental_facts_after_check(
+                &mut state,
+                &global_checker_diagnostics_by_file,
+                options,
+                true,
+            ));
+        }
         if authoritative_failure.is_none() {
             if let Some(operation) = emit_operation {
-                let checked = assemble_check_result(
+                let checked = assemble_check_result_with_facts(
                     &file_diagnostics,
                     program_semantic_diagnostics.as_deref(),
                     &global_diagnostics,
                     &partial_checks,
                     work_counters,
+                    incremental.clone(),
                 );
                 let session = CheckerSession::from_checked_state(state).with_program_diagnostics(
                     program_diagnostics.clone(),
@@ -4708,12 +4870,13 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     }
 
     CheckExecution {
-        result: assemble_check_result(
+        result: assemble_check_result_with_facts(
             &file_diagnostics,
             program_semantic_diagnostics.as_deref(),
             &global_diagnostics,
             &partial_checks,
             work_counters,
+            incremental,
         ),
         authoritative_failure,
     }
@@ -4768,6 +4931,132 @@ fn semantic_diagnostics_for_file_rows(
     program_diagnostics: &[Diagnostic],
     options: &CompilerOptions,
 ) -> DiagnosticList {
+    let mut bind_and_check = bind_and_check_rows(
+        source,
+        bind_diagnostics,
+        checker_for_file,
+        partial_ranges,
+        global_checker_diagnostics,
+        options,
+    );
+
+    // filterSemanticDiagnostics applies only to the bind/check half, before
+    // getProgramDiagnostics is concatenated.
+    filter_semantic_diagnostics(&mut bind_and_check, options);
+
+    let mut program_for_file = program_diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if !source.comment_directives.is_empty() {
+        // getProgramDiagnostics owns a fresh directive map; use in
+        // bind/check does not consume this one.
+        program_for_file =
+            filter_by_comment_directives_and_mark_used(source, program_for_file.into_iter(), None);
+    }
+    bind_and_check.extend(program_for_file);
+
+    // program.getSemanticDiagnostics(sourceFile) uses getDiagnosticsHelper.
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut bind_and_check);
+    bind_and_check
+}
+
+/// The rows an incremental program caches for a file (tsgo
+/// `GetSemanticDiagnosticsForIncremental`: `getBindAndCheckDiagnosticsWithChecker`
+/// then `filterAndSortDiagnostics`): the bind/check half of
+/// [`semantic_diagnostics_for_file_rows`] before the `noEmit` filter and
+/// without the include processor's rows, sorted and deduplicated.
+fn cached_semantic_rows(
+    source: &tsc_syntax::SourceFile,
+    bind_diagnostics: &[Diagnostic],
+    checker_for_file: &[&Diagnostic],
+    partial_ranges: Option<&[(u32, u32)]>,
+    global_checker_diagnostics: &[Diagnostic],
+    options: &CompilerOptions,
+) -> DiagnosticList {
+    let mut rows = bind_and_check_rows(
+        source,
+        bind_diagnostics,
+        checker_for_file,
+        partial_ranges,
+        global_checker_diagnostics,
+        options,
+    );
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut rows);
+    rows
+}
+
+/// [`cached_semantic_rows`] over one checker state's ledger.
+fn cached_semantic_rows_for_program_file(
+    state: &state::CheckerState<'_>,
+    source_index: usize,
+    global_checker_diagnostics: &[Diagnostic],
+    options: &CompilerOptions,
+) -> DiagnosticList {
+    let source = state.binder.source(source_index);
+    let checker_for_file = state
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
+        })
+        .collect::<Vec<_>>();
+    cached_semantic_rows(
+        source,
+        &state.binder.file(source_index).bind_diagnostics,
+        &checker_for_file,
+        state
+            .partially_checked_ranges
+            .get(&source_index)
+            .map(Vec::as_slice),
+        global_checker_diagnostics,
+        options,
+    )
+}
+
+/// The facts of every Program file after a serial check: the rows the
+/// program caches (empty for a skipped file) and the module facts.
+fn incremental_facts_after_check(
+    state: &mut state::CheckerState<'_>,
+    global_checker_diagnostics_by_file: &[Vec<Diagnostic>],
+    options: &CompilerOptions,
+    checked: bool,
+) -> IncrementalCheckFacts {
+    let files = (0..state.binder.file_count())
+        .map(|file| {
+            let mut facts = incremental::file_facts_without_rows(state, file);
+            if checked {
+                facts.semantic_rows = Some(if facts.skipped {
+                    Vec::new()
+                } else {
+                    cached_semantic_rows_for_program_file(
+                        state,
+                        file,
+                        &global_checker_diagnostics_by_file[file],
+                        options,
+                    )
+                });
+            }
+            facts
+        })
+        .collect();
+    IncrementalCheckFacts { files }
+}
+
+/// getBindAndCheckDiagnosticsForFileNoCache: bind -> check (new globals
+/// first) -> checked-JS JSDoc, then the plain-JS filter or the comment
+/// directives and the unused `@ts-expect-error` rows.
+fn bind_and_check_rows(
+    source: &tsc_syntax::SourceFile,
+    bind_diagnostics: &[Diagnostic],
+    checker_for_file: &[&Diagnostic],
+    partial_ranges: Option<&[(u32, u32)]>,
+    global_checker_diagnostics: &[Diagnostic],
+    options: &CompilerOptions,
+) -> DiagnosticList {
     let javascript_file = is_js_file_name(&source.file_name);
     let directive = check_directive(source.text());
     let plain_js = is_plain_js_file(javascript_file, directive, options);
@@ -4813,28 +5102,6 @@ fn semantic_diagnostics_for_file_rows(
             &used_directive_lines,
         ));
     }
-
-    // filterSemanticDiagnostics applies only to the bind/check half, before
-    // getProgramDiagnostics is concatenated.
-    filter_semantic_diagnostics(&mut bind_and_check, options);
-
-    let mut program_for_file = program_diagnostics
-        .iter()
-        .filter(|diagnostic| {
-            diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    if !source.comment_directives.is_empty() {
-        // getProgramDiagnostics owns a fresh directive map; use in
-        // bind/check does not consume this one.
-        program_for_file =
-            filter_by_comment_directives_and_mark_used(source, program_for_file.into_iter(), None);
-    }
-    bind_and_check.extend(program_for_file);
-
-    // program.getSemanticDiagnostics(sourceFile) uses getDiagnosticsHelper.
-    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut bind_and_check);
     bind_and_check
 }
 
@@ -4844,6 +5111,24 @@ fn assemble_check_result(
     global_diagnostics: &[Diagnostic],
     partial_checks: &[PartialCheck],
     work_counters: CheckWorkCounters,
+) -> CheckResult {
+    assemble_check_result_with_facts(
+        file_diagnostics,
+        program_semantic_diagnostics,
+        global_diagnostics,
+        partial_checks,
+        work_counters,
+        None,
+    )
+}
+
+fn assemble_check_result_with_facts(
+    file_diagnostics: &[FileDiagnosticPasses],
+    program_semantic_diagnostics: Option<&[Diagnostic]>,
+    global_diagnostics: &[Diagnostic],
+    partial_checks: &[PartialCheck],
+    work_counters: CheckWorkCounters,
+    incremental: Option<IncrementalCheckFacts>,
 ) -> CheckResult {
     let syntactic_diagnostics = file_diagnostics
         .iter()
@@ -4874,6 +5159,7 @@ fn assemble_check_result(
 
     CheckResult {
         diagnostics,
+        incremental,
         syntactic_diagnostics,
         semantic_diagnostics,
         program_semantic_diagnostics: program_semantic_diagnostics.map(|rows| rows.to_vec()),

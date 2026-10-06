@@ -88,6 +88,9 @@ impl ModuleSuffix {
 pub struct CompilerOptions {
     /// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs.
     pub allow_js: bool,
+    /// `allowJs` as written (tsgo's tristate `AllowJs`): the build info
+    /// records the option only when it was set.
+    pub allow_js_specified: Option<bool>,
     /// tsc `forceConsistentCasingInFileNames`: absent/true reports a
     /// file-name diagnostic when two spellings collapse to one host identity;
     /// an explicit false retains the collapsed source without that report.
@@ -98,6 +101,9 @@ pub struct CompilerOptions {
     /// infinities, and programmatic NaN retain TypeScript comparison semantics.
     pub max_node_module_js_depth: Option<CompilerOptionNumber>,
     pub experimental_decorators: bool,
+    /// `experimentalDecorators` as written (tsgo's tristate), recorded in
+    /// the build info only when set.
+    pub experimental_decorators_specified: Option<bool>,
     /// tsc ScriptTarget value; None when the option is absent.
     pub target: Option<i32>,
     /// tsc ModuleKind value; None when the option is absent. Read

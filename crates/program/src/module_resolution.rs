@@ -279,6 +279,16 @@ enum PackageCacheEntry {
     Found(Arc<CachedPackage>),
 }
 
+/// One package.json the resolver looked for (tsgo's package.json info cache
+/// entry): the path it probed — the real path when the file exists and the
+/// options are incremental, as tsgo records it in the build info — and
+/// whether the file exists.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PackageJsonProbe {
+    pub path: JsString,
+    pub exists: bool,
+}
+
 /// A suffix-free hit borrows its canonical query; only an expanded
 /// moduleSuffixes candidate needs a new owner.
 enum ProbedFile<'a> {
@@ -552,6 +562,12 @@ pub struct ModuleResolver<'a> {
     root_dirs: Option<Vec<JsString>>,
     package_cache: BTreeMap<JsString, PackageCacheEntry>,
     package_cache_enabled: bool,
+    /// Every package.json this resolver probed, by canonical path (see
+    /// [`PackageJsonProbe`]).
+    package_json_probes: BTreeMap<JsString, PackageJsonProbe>,
+    /// Record the real path of a found package.json (an incremental program
+    /// writes it to its build info; tsgo `ensurePackageJsonsForState`).
+    record_package_json_realpaths: bool,
     /// The nearest package scope of a directory (canonical text), memoized
     /// while the package cache is enabled: a project's files share a few
     /// directories, and each file's scope was searched up the ancestors
@@ -663,6 +679,9 @@ impl<'a> ModuleResolver<'a> {
             root_dirs,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            package_json_probes: BTreeMap::new(),
+            record_package_json_realpaths: options.incremental == Some(true)
+                || options.composite == Some(true),
             package_scope_by_directory: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -700,6 +719,9 @@ impl<'a> ModuleResolver<'a> {
             root_dirs: None,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            package_json_probes: BTreeMap::new(),
+            record_package_json_realpaths: options.incremental == Some(true)
+                || options.composite == Some(true),
             package_scope_by_directory: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -791,6 +813,19 @@ impl<'a> ModuleResolver<'a> {
             PackageCacheEntry::Missing => None,
             PackageCacheEntry::Found(package) => Some(package.metadata.as_ref()),
         })
+    }
+
+    /// Every package.json this resolver probed, in canonical-path order.
+    pub fn package_json_probes(&self) -> impl Iterator<Item = &PackageJsonProbe> {
+        self.package_json_probes.values()
+    }
+
+    /// Take the probes (see [`Self::package_json_probes`]) out of a resolver
+    /// that is about to be dropped.
+    pub fn take_package_json_probes(&mut self) -> Vec<PackageJsonProbe> {
+        std::mem::take(&mut self.package_json_probes)
+            .into_values()
+            .collect()
     }
 
     /// Observe the nearest package scope used to derive a source file's
@@ -4875,11 +4910,28 @@ impl<'a> ModuleResolver<'a> {
         if !self.host.directory_exists_js(package_directory.as_js())?
             || !self.host.file_exists_js(package_json)?
         {
+            self.package_json_probes
+                .entry(cache_key.clone())
+                .or_insert_with(|| PackageJsonProbe {
+                    path: package_json.to_owned(),
+                    exists: false,
+                });
             if self.package_cache_enabled {
                 self.package_cache
                     .insert(cache_key, PackageCacheEntry::Missing);
             }
             return Ok(None);
+        }
+        if !self.package_json_probes.contains_key(&cache_key) {
+            let path = if self.record_package_json_realpaths {
+                self.host
+                    .realpath_js(package_json)?
+                    .unwrap_or_else(|| package_json.to_owned())
+            } else {
+                package_json.to_owned()
+            };
+            self.package_json_probes
+                .insert(cache_key.clone(), PackageJsonProbe { path, exists: true });
         }
         // TypeScript's readJson treats an absent read after a successful
         // file-existence probe as an empty object. This can occur across a

@@ -49,6 +49,9 @@ impl DiagnosticCategory {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DiagnosticMessage {
     pub code: u32,
+    /// tsgo `Message.Key()`: the message name plus `_code`, recorded in the
+    /// build info for every cached diagnostic.
+    pub key: &'static str,
     pub category: DiagnosticCategory,
     pub text: &'static str,
     pub reports_unnecessary: bool,
@@ -143,16 +146,37 @@ fn format_message_value<A: DiagnosticArgument>(template: &str, args: &[A]) -> Js
     output
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct MessageChain {
     pub code: u32,
     pub category: DiagnosticCategory,
     pub text: JsString,
+    /// tsgo `Diagnostic.MessageKey()`: the catalog message this chain entry
+    /// was formatted from, when it was formatted from one. The build info
+    /// records the key and the arguments instead of the text.
+    pub key: Option<&'static str>,
+    /// tsgo `Diagnostic.MessageArgs()`: the arguments as given, in order,
+    /// including arguments the text does not use.
+    pub args: Vec<JsString>,
     /// Whether tsc's `next` property exists. `undefined` and an empty
     /// array sort differently and are both observable in raw outcomes.
     pub next_present: bool,
     pub next: Vec<MessageChain>,
 }
+
+/// The key and the arguments are a record of how the text was produced;
+/// equality is the observable message (code, category, text, chain).
+impl PartialEq for MessageChain {
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code
+            && self.category == other.category
+            && self.text == other.text
+            && self.next_present == other.next_present
+            && self.next == other.next
+    }
+}
+
+impl Eq for MessageChain {}
 
 impl MessageChain {
     pub fn new(message: &'static DiagnosticMessage, args: &[String]) -> Self {
@@ -160,6 +184,8 @@ impl MessageChain {
             code: message.code,
             category: message.category,
             text: format_message_value(message.text, args),
+            key: Some(message.key),
+            args: args.iter().map(JsString::from).collect(),
             next_present: false,
             next: Vec::new(),
         }
@@ -170,6 +196,8 @@ impl MessageChain {
             code: message.code,
             category: message.category,
             text: format_message_value(message.text, args),
+            key: Some(message.key),
+            args: args.to_vec(),
             next_present: false,
             next: Vec::new(),
         }
@@ -182,6 +210,8 @@ impl MessageChain {
             code: message.code,
             category: message.category,
             text: format_message_value(message.text, args),
+            key: Some(message.key),
+            args: args.iter().map(|arg| JsString::from(*arg)).collect(),
             next_present: false,
             next: Vec::new(),
         }

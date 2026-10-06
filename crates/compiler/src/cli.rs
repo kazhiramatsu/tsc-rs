@@ -1131,6 +1131,7 @@ fn execute_prepared(
         );
     }
     let session_started = std::time::Instant::now();
+    let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
     // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): a --noEmit
     // command with getEmitDeclarations(options) reports the declaration
     // diagnostics after the semantic pass, only while nothing beyond the
@@ -1170,14 +1171,50 @@ fn execute_prepared(
     if diagnostics.len() == outcome.config_diagnostics().len() {
         diagnostics.extend(outcome.declaration_diagnostics().iter().cloned());
     }
+    // tsgo emitBuildInfo: an incremental program's --noEmit command writes
+    // its build info; the file joins the emitted-file listing, a failure to
+    // write it (TS5033) joins the diagnostics.
+    let mut status_writes = Vec::new();
+    if let Some(document) = outcome.build_info() {
+        let mut sink = FsOutputSink::new(route.output_filesystem);
+        match crate::incremental::write_build_info(&mut sink, document) {
+            Some(failure) => {
+                // The command's list is in tsgo's sorted order; a file-less
+                // row sorts before the located rows, by code.
+                let position = diagnostics
+                    .iter()
+                    .position(|diagnostic| {
+                        diagnostic.file_name.is_some() || diagnostic.code() > failure.code()
+                    })
+                    .unwrap_or(diagnostics.len());
+                diagnostics.insert(position, failure);
+            }
+            None if list_emitted_files => {
+                let absolute = tsc_program::canonical_emit_path(
+                    document.file_name.as_js(),
+                    current_directory
+                        .to_str()
+                        .expect("prepared CLI cwd is Unicode")
+                        .into(),
+                    true,
+                );
+                let mut status = JsString::from("TSFILE: ");
+                status.push_js(absolute.as_js());
+                status_writes.push(status);
+            }
+            None => {}
+        }
+    }
     let work_counters = outcome.work_counters();
     let render_started = std::time::Instant::now();
-    let rendered = rendered_diagnostics_with_work(
+    let rendered = rendered_diagnostics_with_exit_work_and_status(
         current_directory,
         &source_texts,
         &diagnostics,
         route.pretty,
+        EXIT_DIAGNOSTIC,
         work_counters,
+        &status_writes,
     );
     tsc_types::trace::mark("cli: render diagnostics", render_started);
     rendered

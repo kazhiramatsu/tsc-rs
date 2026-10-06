@@ -574,9 +574,15 @@ fn assign_option(
         "moduleDetection" => options.module_detection = i32_value()?,
         "jsx" => options.jsx = i32_value()?,
         "newLine" => options.new_line = i32_value()?,
-        "allowJs" => options.allow_js = bool_value()?.unwrap_or(false),
+        "allowJs" => {
+            let value = bool_value()?;
+            options.allow_js = value.unwrap_or(false);
+            options.allow_js_specified = value;
+        }
         "experimentalDecorators" => {
-            options.experimental_decorators = bool_value()?.unwrap_or(false);
+            let value = bool_value()?;
+            options.experimental_decorators = value.unwrap_or(false);
+            options.experimental_decorators_specified = value;
         }
         "emitDecoratorMetadata" => options.emit_decorator_metadata = bool_value()?,
         "useDefineForClassFields" => options.use_define_for_class_fields = bool_value()?,

@@ -34,6 +34,8 @@ fn emit_diagnostic_assembly_uses_the_whole_program_semantic_stream() {
                 code,
                 category: tsc_diagnostics::DiagnosticCategory::Error,
                 text: text.into(),
+                key: None,
+                args: Vec::new(),
                 next_present: false,
                 next: Vec::new(),
             },
