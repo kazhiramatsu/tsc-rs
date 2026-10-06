@@ -3811,3 +3811,26 @@ tsgo 7.1が違う所だった：
     distを作る方法をユーザーに提案する）。
   - harness error 15（`runExternalCode`。content mapperの機能）。
   - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。
+
+### P3-5bkのhostedの記録、対照、計測、merge（2026-10-06）
+
+- hosted：PR #689 run 37438322299（head `9459d824a`：`plan` 28s、`rust` 7m07s、`conformance (TypeScript 7.1)`
+  19m17s、`gates` 14s。全て成功）。merge → `d286575ea`（merge commit）。
+- conformanceの全体実行のbinaryは、`38b7240aa`になるtreeの、最後のcommentの編集（`crates/checker/src/engine.rs`の
+  fast pathの説明）の前のbuild。codeは同じ。
+- 並列対照（`--checkers 4`、6 filter、同じbinary）：`lass` 1,946・`eclaration` 2,426・`omputed` 361構成が一致。
+  `apped` 140（＋2）、`nfer` 356（＋1）、`ecursive` 132（＋3）の違いは全て、P3-5bhが記録した「emitが先」の
+  partition依存の構成（`incorrectRecursiveMappedTypeConstraint`、`recursiveMappedTypes`、`mutuallyRecursiveInference`）
+  で、P3-5bjの対照と同じ結果。
+- corpusの診断（`--noEmit`、既定のchecker数。`9459d824a`のtreeの最終build vs tsgo 7.1.0-dev）：hono、Playwright、
+  TypeScript `src/compiler`、Next.js、Effect、Vue.js、VS Codeはbyte一致。zodはP3-5beの記録の、partitionに依存する
+  TS5115の1行だけ違う（37 vs 36。変わらず）。
+- 性能（ユーザーの指示で小さく分けて計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝
+  `136d1d512`のbuild）：`--noEmit`のwallはこのslice/main 0.925〜1.002（hono 123 vs 133 ms、zod 484 vs 490、
+  Playwright 341 vs 346、TypeScript compiler 312 vs 313、Next.js 702 vs 720、Effect 491 vs 497、Vue.js 318 vs 317、
+  VS Code 3,305 vs 3,310）、peak RSS 0.963〜0.998。bench-full（emitあり）は0.969〜1.037（honoの149 vs 143 msは
+  10 roundのA/Bで144 vs 145＝0.994。zod 588 vs 598、Playwright 455 vs 464、TypeScript compiler 484 vs 484、
+  Next.js 962 vs 953、Effect 713 vs 735、Vue.js 386 vs 388）、peak RSS 0.955〜0.998。tsgoに対してはwall
+  0.57〜0.93（`--noEmit`）、0.61〜0.78（bench-full）、peak memory 0.66〜0.91。劣化なし。
+- DefinitelyTyped 9,067 projectの最終buildでの再実行（`dt-compare.py`、`--singleThreaded`／`TSRS_CHECKERS=1`、
+  `taskpolicy -c maintenance nice -n 20`、2 job）は実行中。結果は次の記録に書く。
