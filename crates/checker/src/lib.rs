@@ -1630,12 +1630,26 @@ pub enum LibraryPrefixCompletion {
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum DiagnosticSchedule {
     Eager,
+    /// The eager schedule of the command's no-emit check, closed by the
+    /// syntactic diagnostics: tsc's emitFilesAndReportErrors (tsgo
+    /// execute.go compileAndEmit) asks for the options, global and semantic
+    /// diagnostics only when the config and syntactic diagnostics are empty,
+    /// so a Program with a parse error in any file is never bound or
+    /// checked. The result then carries the syntactic rows alone.
+    EagerUnlessSyntacticDiagnostics,
     OnDemand,
     /// The eager schedule after one call of the scoped operation over the
     /// initialized checker, before any source is checked: the order of the
     /// native compiler runner's second Program, which emits and then asks
     /// for the diagnostics.
     EagerAfterEmit,
+}
+
+impl DiagnosticSchedule {
+    /// Whether every source is checked eagerly once the check runs.
+    fn is_eager(self) -> bool {
+        matches!(self, Self::Eager | Self::EagerUnlessSyntacticDiagnostics)
+    }
 }
 
 /// Constructs one [`AuthoritativeModuleProvider`] per checker state.
@@ -1990,6 +2004,96 @@ pub fn check_program_with_authoritative_modules_at_with_checkers<'cwd>(
     )
 }
 
+/// Whether the command's no-emit check is closed by the syntactic
+/// diagnostics, as tsc's emitFilesAndReportErrors closes it: a Program with
+/// a parse error in any source is neither bound nor checked, and the result
+/// carries the syntactic rows alone. The native harness and the API check
+/// every Program (`CheckEverySource`).
+/// tsrs-native: the command driver's choice; tsgo execute.go compileAndEmit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SyntacticDiagnosticsGate {
+    CheckEverySource,
+    CloseTheCheck,
+}
+
+impl SyntacticDiagnosticsGate {
+    fn schedule(self) -> DiagnosticSchedule {
+        match self {
+            Self::CheckEverySource => DiagnosticSchedule::Eager,
+            Self::CloseTheCheck => DiagnosticSchedule::EagerUnlessSyntacticDiagnostics,
+        }
+    }
+}
+
+/// [`check_program_with_authoritative_modules_at_with_workers`] with the
+/// command's syntactic gate.
+/// tsrs-native: the command's no-emit check (serial budget).
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    provider: &dyn AuthoritativeModuleProvider,
+    workers: WorkerBudget,
+    gate: SyntacticDiagnosticsGate,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
+    check_program_with_authoritative_modules_at_cache_mode(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        false,
+        None,
+        None,
+        LibraryPrefixCompletion::Complete,
+        gate.schedule(),
+        workers,
+    )
+}
+
+/// [`check_program_with_authoritative_modules_at_with_checkers`] with the
+/// command's syntactic gate.
+/// tsrs-native: the command's no-emit check (sharded budget).
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_with_checkers_gated<'cwd>(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: impl Into<JsStr<'cwd>>,
+    factory: &dyn AuthoritativeModuleProviderFactory,
+    workers: WorkerBudget,
+    checkers: CheckerBudget,
+    gate: SyntacticDiagnosticsGate,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
+    check_program_with_authoritative_modules_at_cache_mode_with_source(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        AuthoritativeProviderSource::PerChecker(factory),
+        false,
+        None,
+        None,
+        LibraryPrefixCompletion::Complete,
+        gate.schedule(),
+        workers,
+        checkers,
+        None,
+    )
+}
+
 /// [`check_program_with_authoritative_modules_at_with_checkers`] for an
 /// emitting session: every shard emits the files it checked with its own
 /// checker once the coordinator has gated the merged diagnostics; the caller
@@ -2182,7 +2286,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         let sharded_factory = match run.provider {
             AuthoritativeProviderSource::PerChecker(factory)
                 if checkers.is_sharded()
-                    && diagnostic_schedule == DiagnosticSchedule::Eager
+                    && diagnostic_schedule.is_eager()
                     && emit_operation.is_none() =>
             {
                 Some(factory)
@@ -2742,6 +2846,42 @@ fn program_file_id(file: usize) -> ProgramFileId {
     ProgramFileId::from_raw(u32::try_from(file).expect("program file index"))
 }
 
+/// tsc emitFilesAndReportErrors (tsgo execute.go compileAndEmit): when the
+/// schedule is closed by the syntactic diagnostics and some source has one,
+/// the result is those rows and nothing is bound or checked. The
+/// whole-Program semantic getter exists and is empty, as for an empty
+/// Program.
+fn syntactic_diagnostics_close_the_check(
+    schedule: DiagnosticSchedule,
+    program_sources: &[Arc<tsc_syntax::SourceFile>],
+    options: &CompilerOptions,
+    work_counters: &CheckWorkCounters,
+) -> Option<CheckResult> {
+    if schedule != DiagnosticSchedule::EagerUnlessSyntacticDiagnostics {
+        return None;
+    }
+    let started = std::time::Instant::now();
+    let file_diagnostics =
+        syntactic_rows_of_sources(program_sources.iter().map(|source| &**source), options);
+    if file_diagnostics
+        .iter()
+        .all(|file| file.syntactic.is_empty())
+    {
+        return None;
+    }
+    tsc_types::trace::mark(
+        "checker: syntactic diagnostics close the check (no bind, no check)",
+        started,
+    );
+    Some(assemble_check_result(
+        &file_diagnostics,
+        Some(&[]),
+        &[],
+        &[],
+        *work_counters,
+    ))
+}
+
 /// Syntactic rows for every fixture file of a snapshot, in Program order.
 /// tsc getSyntacticDiagnosticsForFile: JS files prepend the
 /// TypeScript-only-syntax walker output to parser diagnostics.
@@ -2750,12 +2890,25 @@ fn syntactic_file_rows(
     lib_count: usize,
     options: &CompilerOptions,
 ) -> Vec<FileDiagnosticPasses> {
-    snapshot
-        .documents()
-        .iter()
-        .skip(lib_count)
-        .map(|document| {
-            let source = document.source();
+    syntactic_rows_of_sources(
+        snapshot
+            .documents()
+            .iter()
+            .skip(lib_count)
+            .map(|document| document.source()),
+        options,
+    )
+}
+
+/// [`syntactic_file_rows`] over parsed sources, before they are bound: the
+/// gate of [`DiagnosticSchedule::EagerUnlessSyntacticDiagnostics`] reads them
+/// here.
+fn syntactic_rows_of_sources<'s>(
+    sources: impl Iterator<Item = &'s tsc_syntax::SourceFile>,
+    options: &CompilerOptions,
+) -> Vec<FileDiagnosticPasses> {
+    sources
+        .map(|source| {
             let mut syntactic = if is_js_file_name(&source.file_name) {
                 let mut rows = js_grammar::get_js_syntactic_diagnostics(source);
                 // tsgo GetSyntacticDiagnostics (compiler/program.go:743-754):
@@ -3468,6 +3621,17 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         workers,
     );
     tsc_types::trace::mark("checker: parse/adopt program sources", phase_started);
+    if let Some(result) = syntactic_diagnostics_close_the_check(
+        run.diagnostic_schedule,
+        &program_sources,
+        options,
+        &work_counters,
+    ) {
+        return CheckExecution {
+            result,
+            authoritative_failure: None,
+        };
+    }
 
     let lib_count = lib_documents.len();
     let mut document_store = EphemeralDocumentStore::with_documents(
@@ -4141,6 +4305,20 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         workers,
     );
 
+    if let Some(result) = authoritative_run.and_then(|run| {
+        syntactic_diagnostics_close_the_check(
+            run.diagnostic_schedule,
+            &program_sources,
+            options,
+            &work_counters,
+        )
+    }) {
+        return CheckExecution {
+            result,
+            authoritative_failure: None,
+        };
+    }
+
     // The production H0 path publishes through a direct, session-owned store.
     // Library documents may already come from the separately authorized
     // harness cache, but fixture documents are never inserted into a global
@@ -4208,9 +4386,9 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             });
         // The authoritative eager no-emit path (the CLI's noEmit check and
         // the sharded driver's serial replay) shares one implementation.
-        if let Some(run) = authoritative_run.filter(|run| {
-            run.diagnostic_schedule == DiagnosticSchedule::Eager && emit_operation.is_none()
-        }) {
+        if let Some(run) = authoritative_run
+            .filter(|run| run.diagnostic_schedule.is_eager() && emit_operation.is_none())
+        {
             let provider: &dyn AuthoritativeModuleProvider = match run.provider {
                 AuthoritativeProviderSource::Shared(provider) => provider,
                 AuthoritativeProviderSource::PerChecker(_) => checker_provider
