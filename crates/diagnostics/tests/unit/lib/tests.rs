@@ -163,6 +163,49 @@ fn sorts_and_deduplicates_adjacent_diagnostics() {
 }
 
 #[test]
+fn diagnostics_that_differ_only_in_their_chains_are_both_kept() {
+    // tsgo's EqualDiagnosticsNoRelatedInfo compares the message chain:
+    // checkInheritedPropertiesAreIdentical reports one TS2320 per property
+    // that is not identical, at one position with one head text.
+    let head = "Interface 'A' cannot simultaneously extend types 'B' and 'C'.";
+    let mut first = diagnostic(Some("a.ts"), Some(3), 2320, head);
+    first.message = first.message.with_next(vec![chain(
+        2319,
+        "Named property 'x' of types 'B' and 'C' are not identical.",
+    )]);
+    let mut second = diagnostic(Some("a.ts"), Some(3), 2320, head);
+    second.message = second.message.with_next(vec![chain(
+        2319,
+        "Named property 'y' of types 'B' and 'C' are not identical.",
+    )]);
+    let same_as_first = first.clone();
+
+    let mut diagnostics = vec![second.clone(), first.clone(), same_as_first];
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+
+    assert_eq!(diagnostics, vec![first, second]);
+}
+
+#[test]
+fn a_did_you_mean_diagnostic_sorts_by_its_own_code_and_text() {
+    // tsgo has no canonical diagnostic: a TS2552 at the same span as a TS2304
+    // is a different diagnostic, ordered by code, and both are kept. tsc 6.0
+    // sorted and deduplicated the 2552 through its plain 2304 form.
+    let plain = diagnostic(Some("a.ts"), Some(7), 2304, "Cannot find name 'foo'.");
+    let suggestion = diagnostic(
+        Some("a.ts"),
+        Some(7),
+        2552,
+        "Cannot find name 'foo'. Did you mean 'for'?",
+    );
+
+    let mut diagnostics = vec![suggestion.clone(), plain.clone()];
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+
+    assert_eq!(diagnostics, vec![plain, suggestion]);
+}
+
+#[test]
 fn present_empty_related_information_sorts_before_absent_and_wins_dedupe() {
     let absent = diagnostic(Some("a.ts"), Some(0), 1005, "';' expected.");
     let mut present_empty = absent.clone();
@@ -194,21 +237,6 @@ fn diagnostic_sort_uses_javascript_utf16_code_unit_order() {
     let private_use_file = diagnostic(Some(private_use), Some(0), 1000, "same");
     assert_eq!(
         compare_diagnostics(&astral_file, &private_use_file),
-        Ordering::Less
-    );
-
-    let mut astral_head = diagnostic(None, None, 2000, "same raw head");
-    astral_head.canonical_head = Some(CanonicalHead {
-        code: 1000,
-        text: astral.into(),
-    });
-    let mut private_use_head = diagnostic(None, None, 2000, "same raw head");
-    private_use_head.canonical_head = Some(CanonicalHead {
-        code: 1000,
-        text: private_use.into(),
-    });
-    assert_eq!(
-        compare_diagnostics(&astral_head, &private_use_head),
         Ordering::Less
     );
 

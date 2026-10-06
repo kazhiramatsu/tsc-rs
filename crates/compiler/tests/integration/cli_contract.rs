@@ -9925,3 +9925,642 @@ fn a_thousand_deep_object_literal_compiles_like_tsgo() {
         declaration
     );
 }
+
+/// The `tsconfig.json` of the real-project tests: one checker (the sharded
+/// resolution order differs), no libraries beyond `lib`, no emit.
+fn no_emit_config(lib: &str, module: &str, files: &str) -> String {
+    format!(
+        r#"{{"compilerOptions":{{"types":[],"lib":[{lib}],"module":"{module}","noEmit":true,"strict":true}},"files":[{files}]}}"#
+    )
+}
+
+#[test]
+fn an_augmentation_of_a_module_that_is_not_imported_does_not_load_it_like_tsgo() {
+    // tsgo resolves the name of a module augmentation but adds a file to the
+    // program only for an import (compiler/fileloader.go:915-923): `./b`
+    // exists and is not in the program, so the augmentation reports TS2664
+    // and the error inside `b.ts` is never seen. The command used to fail
+    // the program construction ("resolved non-JavaScript target ... has no
+    // independent program membership"). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "export {};\n",
+            "declare module \"./b\" {\n",
+            "    export const extra: number;\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(tree.path("b.ts"), "export const original: string = 1;\n").expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "a.ts(2,16): error TS2664: Invalid module name in augmentation, module './b' cannot be found.\n"
+    );
+}
+
+#[test]
+fn an_ambient_module_imported_by_a_base_of_a_global_type_is_not_found_like_tsgo() {
+    // tsgo's initializeChecker resolves the global types (`Function`) before
+    // it merges the ambient modules of the files: `getDeclaredTypeOfSymbol`
+    // of `Function` walks its base `N.I`, which resolves the import of the
+    // ambient module `foo` while that module is not yet in the globals, so
+    // TS2307 is reported for an import whose module is declared. The
+    // expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("index.d.ts"),
+        "declare module \"foo\" { namespace N { interface I { p(): any; } } export default N; }\n",
+    )
+    .expect("write index.d.ts");
+    fs::write(
+        tree.path("test.ts"),
+        concat!(
+            "import N from \"foo\";\n",
+            "declare global { interface Function extends N.I {} }\n",
+        ),
+    )
+    .expect("write test.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es6","dom"],"module":"node16","target":"es6","noEmit":true,"strict":true},"files":["index.d.ts","test.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "test.ts(1,15): error TS2307: Cannot find module 'foo' or its corresponding type declarations.\n"
+    );
+}
+
+#[test]
+fn the_bundled_library_files_are_named_and_ordered_like_tsgo() {
+    // A diagnostic in a library file names the file `bundled:///libs/<lib>`
+    // (tsgo's embedded library path, internal/bundled), which is not made
+    // relative to the current directory, and the diagnostics sort by that
+    // file name after the files of the project (`/...` sorts before
+    // `bundled:`). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const Infinity: number;\n",
+            "declare const NaN: number;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "a.ts(1,15): error TS2451: Cannot redeclare block-scoped variable 'Infinity'.\n",
+            "a.ts(2,15): error TS2451: Cannot redeclare block-scoped variable 'NaN'.\n",
+            "bundled:///libs/lib.es5.d.ts(24,13): error TS2451: Cannot redeclare block-scoped variable 'NaN'.\n",
+            "bundled:///libs/lib.es5.d.ts(25,13): error TS2451: Cannot redeclare block-scoped variable 'Infinity'.\n",
+        )
+    );
+}
+
+#[test]
+fn missing_properties_name_two_alike_types_with_their_qualifiers_like_tsgo() {
+    // Every missing-property message names its types through
+    // getTypeNamesForErrorDisplay (relater.go:1270-1292): two types that
+    // print alike are written fully qualified, for one missing property and
+    // for several (TS2739), at the top of a chain and inside one. The port
+    // qualified the one-property message only. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "namespace N1 { export interface A { x: number; y: number; } }\n",
+            "namespace N2 { export interface A { z: number; } }\n",
+            "declare const a2: N2.A;\n",
+            "const a1: N1.A = a2;\n",
+            "declare function f(a: N1.A): void;\n",
+            "f(a2);\n",
+            "declare const b2: { inner: N2.A };\n",
+            "const b1: { inner: N1.A } = b2;\n",
+            "export {};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "a.ts(4,7): error TS2739: Type 'N2.A' is missing the following properties from type 'N1.A': x, y\n",
+            "a.ts(6,3): error TS2739: Type 'N2.A' is missing the following properties from type 'N1.A': x, y\n",
+            "a.ts(8,7): error TS2322: Type '{ inner: N2.A; }' is not assignable to type '{ inner: N1.A; }'.\n",
+            "  Types of property 'inner' are incompatible.\n",
+            "    Type 'N2.A' is missing the following properties from type 'N1.A': x, y\n",
+        )
+    );
+}
+
+#[test]
+fn a_this_property_tested_in_its_condition_body_is_not_always_defined_like_tsgo() {
+    // isSymbolUsedInConditionBody compares the symbol of `this.q` in the
+    // condition with the symbol of each `this.q` in the body: a use of the
+    // same property in the body means the test is deliberate, so TS2774 is
+    // not reported for `if (this.q) { this.q(); }` in an object literal typed
+    // through ThisType. The expected bytes are tsgo's: no diagnostics.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare const o: { a(): void } & { b: number };\n",
+            "if (o.a) { o.a(); }\n",
+            "declare const p: { a(): void };\n",
+            "if (p.a) { p.a(); }\n",
+            "class C { m() {} n() { if (this.m) { this.m(); } } }\n",
+            "declare function withThis<T>(o: T & ThisType<T & { z: number }>): void;\n",
+            "withThis({ q() {}, r() { if (this.q) { this.q(); } } });\n",
+            "declare function withThis2<T>(o: T & ThisType<T>): void;\n",
+            "withThis2({ q() {}, r() { if (this.q) { this.q(); } } });\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn an_inherited_static_member_replaces_an_alias_member_like_tsgo() {
+    // addInheritedMembers (checker.go:19935-19947) lets a base member replace
+    // an own member that is not a value: the alias `export import Strategy =
+    // Derived` of the namespace the class merges with yields to the base
+    // class's static `Strategy`, so `Derived.Strategy` has the base's type.
+    // tsc 6.0 replaced only a JavaScript expando assignment. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare class Base {\n",
+            "    static Strategy: { kind: \"base\" };\n",
+            "    constructor(name: string);\n",
+            "}\n",
+            "declare class Derived extends Base {\n",
+            "    constructor(name: string, extra: number);\n",
+            "}\n",
+            "declare namespace Derived {\n",
+            "    export import Strategy = Derived;\n",
+            "    interface Options { verify: boolean; }\n",
+            "}\n",
+            "const value: { kind: \"derived\" } = Derived.Strategy;\n",
+            "export {};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "a.ts(12,7): error TS2322: Type '{ kind: \"base\"; }' is not assignable to type '{ kind: \"derived\"; }'.\n",
+            "  Types of property 'kind' are incompatible.\n",
+            "    Type '\"base\"' is not assignable to type '\"derived\"'.\n",
+        )
+    );
+}
+
+#[test]
+fn the_export_target_of_a_file_is_named_by_the_file_like_tsgo() {
+    // getSpecifierForModuleSymbol (nodebuilderimpl.go:1249-1336) names the
+    // module of `typeof import(...)` by its file: the namespace `P` that
+    // `index.d.ts` exports with `export =` has that file
+    // (getFileSymbolIfFileSymbolExportEqualsContainer) although its own
+    // declarations are the namespace and the augmentation `declare module
+    // "pkg"`, whose quoted name the port used to print. With no declaration in
+    // scope the file name is written in full. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/pkg")).expect("create node_modules/pkg");
+    fs::write(
+        tree.path("node_modules/pkg/package.json"),
+        "{ \"name\": \"pkg\", \"version\": \"1.0.0\", \"types\": \"index.d.ts\" }\n",
+    )
+    .expect("write package.json");
+    fs::write(
+        tree.path("node_modules/pkg/index.d.ts"),
+        concat!(
+            "export = P;\n",
+            "declare namespace P {\n",
+            "    const version: string;\n",
+            "}\n",
+        ),
+    )
+    .expect("write index.d.ts");
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "import * as P from \"pkg\";\n",
+            "declare module \"pkg\" {\n",
+            "    const extra: number;\n",
+            "}\n",
+            "export const m = P;\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        concat!("import { m } from \"./a\";\n", "const s: string = m;\n"),
+    )
+    .expect("write b.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "node16", "\"a.ts\",\"b.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    let root = compiler_current_directory(&tree);
+    let root = root.to_string_lossy().replace('\\', "/");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            "b.ts(2,7): error TS2322: Type 'typeof import(\"{root}/node_modules/pkg/index.d.ts\")' is not assignable to type 'string'.\n"
+        )
+    );
+}
+
+#[test]
+fn the_length_estimate_of_methods_elides_members_like_tsgo() {
+    // The node builder's length estimate decides where a long type is
+    // truncated: a signature adds 3 (signatureToSignatureDeclarationHelper)
+    // and each parameter its name plus 3 (symbolToParameterDeclaration), so
+    // the estimate of an object type with eight long methods passes the
+    // budget inside the member list and the members are elided (`... 5 more
+    // ...`); the port's smaller estimate let the whole string be cut at its
+    // end instead. The expected bytes are tsgo's.
+    let members = (0..8)
+        .map(|i| {
+            format!(
+                "method{i}(alphaParameter{i}: string, betaParameter{i}: number, gammaParameter{i}: boolean): void"
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        format!("declare const big: {{ {members} }};\nconst s: string = big;\nexport {{}};\n"),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "a.ts(2,7): error TS2322: Type '{ method0(alphaParameter0: string, betaParameter0: number, gammaParameter0: boolean): void; method1(alphaParameter1: string, betaParameter1: number, gammaParameter1: boolean): void; ... 5 more ...; method7(alphaParameter7: string, betaParameter7: number, gammaParameter7: boolean): void; }' is not assignable to type 'string'.\n"
+    );
+}
+
+#[test]
+fn one_diagnostic_per_non_identical_inherited_property_like_tsgo() {
+    // checkInheritedPropertiesAreIdentical reports one TS2320 per property
+    // that two base types declare differently, and the diagnostics differ
+    // only in their chains: tsgo's deduplication compares the whole chain
+    // (EqualDiagnosticsNoRelatedInfo), so all three are kept, where tsc 6.0
+    // compared the head text and kept the first. The expected bytes are
+    // tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.d.ts"),
+        concat!(
+            "export {};\n",
+            "interface Event { readonly type: string; }\n",
+            "interface EventListener { (evt: Event): void; }\n",
+            "interface EventListenerObject { handleEvent(object: Event): void; }\n",
+            "interface EventListenerOptions { capture?: boolean; }\n",
+            "interface AddEventListenerOptions extends EventListenerOptions { once?: boolean; }\n",
+            "interface EventTarget {\n",
+            "    addEventListener(type: string, listener: EventListener | EventListenerObject, options?: AddEventListenerOptions | boolean): void;\n",
+            "    dispatchEvent(event: Event): boolean;\n",
+            "    removeEventListener(type: string, listener: EventListener | EventListenerObject, options?: EventListenerOptions | boolean): void;\n",
+            "}\n",
+            "interface AbortSignalEventMap { \"abort\": Event; }\n",
+            "type InternalEventTargetEventProperties<T> = { [K in keyof T & string as `on${K}`]: ((ev: T[K]) => void) | null; };\n",
+            "type _AbortSignal = typeof globalThis extends { onmessage: any } ? {} : AbortSignal;\n",
+            "interface AbortSignal extends EventTarget, InternalEventTargetEventProperties<AbortSignalEventMap> {\n",
+            "    readonly aborted: boolean;\n",
+            "    readonly reason: any;\n",
+            "    throwIfAborted(): void;\n",
+            "    addEventListener<K extends keyof AbortSignalEventMap>(type: K, listener: (ev: AbortSignalEventMap[K]) => void, options?: AddEventListenerOptions | boolean): void;\n",
+            "    addEventListener(type: string, listener: EventListener | EventListenerObject, options?: AddEventListenerOptions | boolean): void;\n",
+            "    removeEventListener<K extends keyof AbortSignalEventMap>(type: K, listener: (ev: AbortSignalEventMap[K]) => void, options?: EventListenerOptions | boolean): void;\n",
+            "    removeEventListener(type: string, listener: EventListener | EventListenerObject, options?: EventListenerOptions | boolean): void;\n",
+            "}\n",
+            "declare global {\n",
+            "    interface AbortSignal extends _AbortSignal {}\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.d.ts");
+    fs::write(
+        tree.path("b.d.ts"),
+        concat!(
+            "export {};\n",
+            "interface Event { readonly type: string; }\n",
+            "interface EventListener { (evt: Event): void; }\n",
+            "interface EventListenerObject { handleEvent(object: Event): void; }\n",
+            "interface EventListenerOptions { capture?: boolean; }\n",
+            "interface AddEventListenerOptions extends EventListenerOptions { once?: boolean; }\n",
+            "interface EventTarget {\n",
+            "    addEventListener(type: string, listener: EventListener | EventListenerObject, options?: AddEventListenerOptions | boolean): void;\n",
+            "    dispatchEvent(event: Event): boolean;\n",
+            "    removeEventListener(type: string, listener: EventListener | EventListenerObject, options?: EventListenerOptions | boolean): void;\n",
+            "}\n",
+            "type _AbortSignal = typeof globalThis extends { onmessage: any } ? {} : AbortSignal;\n",
+            "interface AbortSignal extends EventTarget {\n",
+            "    readonly aborted: boolean;\n",
+            "    onabort: ((this: AbortSignal, ev: Event) => any) | null;\n",
+            "    readonly reason: any;\n",
+            "    throwIfAborted(): void;\n",
+            "}\n",
+            "declare global {\n",
+            "    interface AbortSignal extends _AbortSignal {}\n",
+            "}\n",
+        ),
+    )
+    .expect("write b.d.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es6"],"module":"node16","target":"es6","noEmit":true,"strict":true},"files":["a.d.ts","b.d.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "a.d.ts(25,15): error TS2320: Interface 'AbortSignal' cannot simultaneously extend types 'AbortSignal' and 'AbortSignal'.\n",
+            "  Named property 'addEventListener' of types 'AbortSignal' and 'AbortSignal' are not identical.\n",
+            "a.d.ts(25,15): error TS2320: Interface 'AbortSignal' cannot simultaneously extend types 'AbortSignal' and 'AbortSignal'.\n",
+            "  Named property 'onabort' of types 'AbortSignal' and 'AbortSignal' are not identical.\n",
+            "a.d.ts(25,15): error TS2320: Interface 'AbortSignal' cannot simultaneously extend types 'AbortSignal' and 'AbortSignal'.\n",
+            "  Named property 'removeEventListener' of types 'AbortSignal' and 'AbortSignal' are not identical.\n",
+        )
+    );
+}
+
+#[test]
+fn a_value_used_as_the_base_of_an_interface_suggests_typeof_like_tsgo() {
+    // tsgo's parser turns the entity name of an interface `extends` element
+    // into a qualified name (parser.go parseTypeHeritageClauseElement), so
+    // resolveQualifiedName's `typeof` suggestion applies to it: `q.v` is a
+    // value, and TS2749 is reported on the whole name, as for the type
+    // annotation. The port kept the property access expression and reported
+    // TS2694 on `v`. The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "declare namespace q { const v: { p: number }; }\n",
+            "interface I extends q.v {}\n",
+            "declare const x: q.v;\n",
+            "export {};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "a.ts(2,21): error TS2749: 'q.v' refers to a value, but is being used as a type here. Did you mean 'typeof q.v'?\n",
+            "a.ts(3,18): error TS2749: 'q.v' refers to a value, but is being used as a type here. Did you mean 'typeof q.v'?\n",
+        )
+    );
+}
+
+#[test]
+fn a_global_interface_whose_base_is_the_type_of_its_own_variable_follows_tsgo() {
+    // DefinitelyTyped's `@types/node` web globals: `interface Console extends
+    // console.Console {}` with `var console: Console` in the same global
+    // block, where `console` is also the namespace import of a module whose
+    // `export =` is `globalThis.console`. Resolving the base reaches the
+    // declared type of `Console` while it is being computed — tsgo publishes
+    // the shell of a class or interface type before its type parameters
+    // (getDeclaredTypeOfClassOrInterface), where the port asserted — and
+    // the `typeof` suggestion walks the value `console.Console` through the
+    // global variable (tryGetQualifiedNameAsValue), which re-enters the base
+    // types and reports the circularity at both declarations. The expected
+    // bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("b.d.ts"),
+        concat!(
+            "declare module \"node:console\" {\n",
+            "    global {\n",
+            "        interface Console {\n",
+            "            Console: console.ConsoleConstructor;\n",
+            "            log(...data: any[]): void;\n",
+            "        }\n",
+            "        namespace console {\n",
+            "            interface ConsoleConstructor {\n",
+            "                prototype: Console;\n",
+            "                new(): Console;\n",
+            "            }\n",
+            "        }\n",
+            "        var console: Console;\n",
+            "    }\n",
+            "    export = globalThis.console;\n",
+            "}\n",
+        ),
+    )
+    .expect("write b.d.ts");
+    fs::write(
+        tree.path("c.d.ts"),
+        concat!(
+            "export {};\n",
+            "\n",
+            "import * as console from \"node:console\";\n",
+            "\n",
+            "declare global {\n",
+            "    interface Console extends console.Console {}\n",
+            "\n",
+            "    var console: Console;\n",
+            "}\n",
+        ),
+    )
+    .expect("write c.d.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es6"],"module":"node16","target":"es6","noEmit":true,"strict":true},"files":["b.d.ts","c.d.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "b.d.ts(3,19): error TS2310: Type 'Console' recursively references itself as a base type.\n",
+            "c.d.ts(6,15): error TS2310: Type 'Console' recursively references itself as a base type.\n",
+            "c.d.ts(6,31): error TS2749: 'console.Console' refers to a value, but is being used as a type here. Did you mean 'typeof console.Console'?\n",
+        )
+    );
+}
+
+#[test]
+fn two_copies_of_a_module_with_export_assignments_resolve_a_qualified_value_like_tsgo() {
+    // Two `@types/node` versions in one program declare `node:console` twice,
+    // each with an `export =`: tsgo reports the duplicate assignments and,
+    // resolving the base `console.Console` of the global `Console`, follows
+    // the last assignment to the global variable (getDeclarationOfAliasSymbol
+    // is the last alias declaration) and suggests `typeof console.Console`.
+    // The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.d.ts"),
+        concat!(
+            "declare module \"node:console\" {\n",
+            "    namespace console {\n",
+            "        interface Console {\n",
+            "            readonly Console: {\n",
+            "                prototype: Console;\n",
+            "                new(): Console;\n",
+            "            };\n",
+            "            log(...data: any[]): void;\n",
+            "        }\n",
+            "    }\n",
+            "    var console: console.Console;\n",
+            "    export = console;\n",
+            "}\n",
+        ),
+    )
+    .expect("write a.d.ts");
+    fs::write(
+        tree.path("b.d.ts"),
+        concat!(
+            "declare module \"node:console\" {\n",
+            "    global {\n",
+            "        interface Console {\n",
+            "            Console: console.ConsoleConstructor;\n",
+            "            log(...data: any[]): void;\n",
+            "        }\n",
+            "        namespace console {\n",
+            "            interface ConsoleConstructor {\n",
+            "                prototype: Console;\n",
+            "                new(): Console;\n",
+            "            }\n",
+            "        }\n",
+            "        var console: Console;\n",
+            "    }\n",
+            "    export = globalThis.console;\n",
+            "}\n",
+        ),
+    )
+    .expect("write b.d.ts");
+    fs::write(
+        tree.path("c.d.ts"),
+        concat!(
+            "export {};\n",
+            "\n",
+            "import * as console from \"node:console\";\n",
+            "\n",
+            "declare global {\n",
+            "    interface Console extends console.Console {}\n",
+            "\n",
+            "    var console: Console;\n",
+            "}\n",
+        ),
+    )
+    .expect("write c.d.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"types":[],"lib":["es6"],"module":"node16","target":"es6","noEmit":true,"strict":true},"files":["a.d.ts","b.d.ts","c.d.ts"]}"#,
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "a.d.ts(12,14): error TS2300: Duplicate identifier 'export='.\n",
+            "b.d.ts(3,19): error TS2310: Type 'Console' recursively references itself as a base type.\n",
+            "b.d.ts(15,5): error TS2300: Duplicate identifier 'export='.\n",
+            "c.d.ts(6,15): error TS2310: Type 'Console' recursively references itself as a base type.\n",
+            "c.d.ts(6,31): error TS2749: 'console.Console' refers to a value, but is being used as a type here. Did you mean 'typeof console.Console'?\n",
+        )
+    );
+}
+
+#[test]
+fn a_re_entered_base_constraint_is_circular_every_time_like_tsgo() {
+    // While the constraint of `infer P` is inferred from
+    // `DefineComponent<infer P>`, the distributive conditional
+    // `ExtractDefaultPropTypes<P>` compares `P` with `object` (its
+    // substitution `P & object`) several times, and each comparison asks for
+    // the base constraint of `P`, whose resolution is in progress. tsgo's
+    // getResolvedBaseConstraint returns the circular sentinel for a
+    // re-entered resolution without caching it, so every request finds the
+    // cycle again and the conditional type's constraint resolves to the
+    // sentinel; its mapped type's parameter `K` is never asked for its own
+    // constraint. tsc 6.0 cached the first sentinel, answered the later
+    // requests from the cache, and so did the port, which went on to resolve
+    // `K` inside the cycle and reported TS2313 on it (DefinitelyTyped's
+    // `vue-writer`, `vue-draggable-resizable` and `vue3-carousel-3d` through
+    // `@vue/runtime-core`). The expected bytes are tsgo's: no diagnostics.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.ts"),
+        concat!(
+            "type DefaultKeys<T> = { [K in keyof T]: T[K] extends { default: any } ? T[K] extends { required: true } ? never : K : never }[keyof T];\n",
+            "type ExtractDefaultPropTypes<O> = O extends object ? { [K in keyof Pick<O, DefaultKeys<O>>]: O[K] } : {};\n",
+            "type EnsureNonVoid<T> = T extends void ? never : T;\n",
+            "type DefineComponent<Props = {}, Mixin = unknown, Defaults = ExtractDefaultPropTypes<Props>> = Readonly<{ base: number } & EnsureNonVoid<Defaults>>;\n",
+            "declare function define<T>(options: T): T extends DefineComponent<infer P> ? P : unknown;\n",
+            "export {};\n",
+        ),
+    )
+    .expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        no_emit_config("\"es2020\"", "esnext", "\"a.ts\""),
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+}
