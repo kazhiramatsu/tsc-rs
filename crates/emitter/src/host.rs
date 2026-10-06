@@ -187,6 +187,18 @@ pub trait EmitHost {
         Vec::new()
     }
 
+    /// The file names of the copies of a package that the program redirected
+    /// to the source at `canonical_path` (tsgo's `redirectTargetsMap`,
+    /// filesparser.go:462; consumed by module specifier generation as
+    /// further names of the imported file, `forEachFileNameOfModule`). A
+    /// workspace package linked into `node_modules` and the same version of
+    /// it under `node_modules/.pnpm` are one package: the declaration
+    /// emitter names its types through whichever copy the importing file can
+    /// reach. Hosts without a program expose none.
+    fn redirect_targets(&self, _canonical_path: JsStr<'_>) -> Vec<JsString> {
+        Vec::new()
+    }
+
     /// Canonicalize one output spelling with the same case policy used for
     /// source identities. Implementations may override this when their path
     /// model is richer than the frozen POSIX H1 profile.

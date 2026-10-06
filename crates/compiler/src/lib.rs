@@ -587,6 +587,22 @@ impl EmitHost for PreparedEmitHost<'_> {
         self.symlinks.directories.clone()
     }
 
+    fn redirect_targets(&self, canonical_path: JsStr<'_>) -> Vec<JsString> {
+        // The copies of a package the loader redirected to this source by
+        // their exact package identity (`PreparedSourceFile::
+        // package_redirect_paths`): tsgo's redirectTargetsMap.
+        self.source_file_by_canonical_path(canonical_path)
+            .and_then(|id| self.prepared.source_file(id))
+            .map(|source| {
+                source
+                    .package_redirect_paths()
+                    .iter()
+                    .map(|path| path.display().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     fn current_directory(&self) -> JsStr<'_> {
         self.prepared.current_directory().display()
     }
@@ -687,6 +703,10 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
 
     fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
         self.prepared.symlinked_directories()
+    }
+
+    fn redirect_targets(&self, canonical_path: JsStr<'_>) -> Vec<JsString> {
+        self.prepared.redirect_targets(canonical_path)
     }
 
     fn current_directory(&self) -> JsStr<'_> {

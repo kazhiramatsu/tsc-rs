@@ -363,6 +363,23 @@ impl PackageId {
     pub fn peer_dependencies(&self) -> Option<JsStr<'_>> {
         self.peer_dependencies.as_ref().map(JsString::as_js)
     }
+
+    /// The identity's text in diagnostics (`packageIdToString`; tsgo
+    /// module/types.go PackageId.String): `name[/subModuleName]@version`
+    /// followed by the peer dependency suffix.
+    pub fn display_text(&self) -> JsString {
+        let mut text = self.name.clone();
+        if !self.submodule_name.is_empty() {
+            text.push_str("/");
+            text.push_js(self.submodule_name.as_js());
+        }
+        text.push_str("@");
+        text.push_js(self.version.as_js());
+        if let Some(peer_dependencies) = &self.peer_dependencies {
+            text.push_js(peer_dependencies.as_js());
+        }
+        text
+    }
 }
 
 /// A module target either participates in the owned source program or is a

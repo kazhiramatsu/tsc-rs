@@ -1322,6 +1322,10 @@ enum SourceInclusionReason {
         reference_text: String,
         pos: u32,
         end: u32,
+        /// The resolution's package identity text, when it has one: the
+        /// explanation then reads "... with packageId '...'" (tsgo
+        /// fileInclude.go computeReferenceFileDiagnostic).
+        package_id: Option<JsString>,
     },
     PathReference {
         parent: JsString,
@@ -1334,9 +1338,15 @@ enum SourceInclusionReason {
         specifier: JsString,
         pos: u32,
         end: u32,
+        package_id: Option<JsString>,
     },
     AutomaticType {
         name: JsString,
+        package_id: Option<JsString>,
+        /// `types` names `*` (tsgo CompilerOptions.UsesWildcardTypes): the
+        /// entry point is then explained as that of an implicit type
+        /// library.
+        implicit: bool,
     },
     Synthetic,
     Library,
@@ -1345,6 +1355,19 @@ enum SourceInclusionReason {
 impl SourceInclusionReason {
     const fn is_referenced(&self) -> bool {
         !matches!(self, Self::Root(_))
+    }
+
+    /// Records the resolution's package identity on the reasons whose
+    /// explanation names it.
+    fn with_package_id(mut self, package_id: Option<&PackageId>) -> Self {
+        let text = package_id.map(PackageId::display_text);
+        match &mut self {
+            Self::Import { package_id, .. }
+            | Self::TypeReference { package_id, .. }
+            | Self::AutomaticType { package_id, .. } => *package_id = text,
+            Self::Root(_) | Self::PathReference { .. } | Self::Synthetic | Self::Library => {}
+        }
+        self
     }
 }
 
@@ -1372,15 +1395,20 @@ impl DiscoveryReason {
         }
     }
 
-    fn automatic_type(is_external_library_import: bool, name: JsString) -> Self {
+    fn automatic_type(is_external_library_import: bool, name: JsString, implicit: bool) -> Self {
         Self {
             seeds_non_external_reachability: !is_external_library_import,
-            inclusion: SourceInclusionReason::AutomaticType { name },
+            inclusion: SourceInclusionReason::AutomaticType {
+                name,
+                package_id: None,
+                implicit,
+            },
             package_id: None,
         }
     }
 
     fn with_package_id(mut self, package_id: Option<PackageId>) -> Self {
+        self.inclusion = self.inclusion.with_package_id(package_id.as_ref());
         self.package_id = package_id;
         self
     }
@@ -3296,7 +3324,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     target.clone(),
                     0,
                     usize::from(external),
-                    DiscoveryReason::automatic_type(external, name.clone())
+                    DiscoveryReason::automatic_type(external, name.clone(), uses_wildcard)
                         .with_package_id(package_id),
                     SourceClass::Ordinary,
                 )?
@@ -4773,6 +4801,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 specifier: type_key.specifier().to_owned(),
                 pos: directive.map_or(0, PlannedTypeReferenceDirective::pos),
                 end: directive.map_or(0, PlannedTypeReferenceDirective::end),
+                package_id: None,
             };
             let loaded = self.visit_source(
                 target.clone(),
@@ -4834,6 +4863,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                                     .to_owned(),
                                 pos,
                                 end,
+                                package_id: None,
                             }
                         })
                         .collect::<Vec<_>>()
@@ -6267,11 +6297,22 @@ fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<Mes
         SourceInclusionReason::Import {
             parent,
             reference_text,
+            package_id,
             ..
-        } => Some(MessageChain::new_js(
-            &gen::Imported_via_0_from_file_1,
-            &[reference_text.clone().into(), parent.clone()],
-        )),
+        } => Some(match package_id {
+            Some(package_id) => MessageChain::new_js(
+                &gen::Imported_via_0_from_file_1_with_packageId_2,
+                &[
+                    reference_text.clone().into(),
+                    parent.clone(),
+                    package_id.clone(),
+                ],
+            ),
+            None => MessageChain::new_js(
+                &gen::Imported_via_0_from_file_1,
+                &[reference_text.clone().into(), parent.clone()],
+            ),
+        }),
         SourceInclusionReason::PathReference {
             parent, specifier, ..
         } => Some(MessageChain::new_js(
@@ -6279,15 +6320,42 @@ fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<Mes
             &[specifier.clone(), parent.clone()],
         )),
         SourceInclusionReason::TypeReference {
-            parent, specifier, ..
-        } => Some(MessageChain::new_js(
-            &gen::Type_library_referenced_via_0_from_file_1,
-            &[specifier.clone(), parent.clone()],
-        )),
-        SourceInclusionReason::AutomaticType { name } => Some(MessageChain::new_js(
-            &gen::Entry_point_of_type_library_0_specified_in_compilerOptions,
-            std::slice::from_ref(name),
-        )),
+            parent,
+            specifier,
+            package_id,
+            ..
+        } => Some(match package_id {
+            Some(package_id) => MessageChain::new_js(
+                &gen::Type_library_referenced_via_0_from_file_1_with_packageId_2,
+                &[specifier.clone(), parent.clone(), package_id.clone()],
+            ),
+            None => MessageChain::new_js(
+                &gen::Type_library_referenced_via_0_from_file_1,
+                &[specifier.clone(), parent.clone()],
+            ),
+        }),
+        SourceInclusionReason::AutomaticType {
+            name,
+            package_id,
+            implicit,
+        } => Some(match (implicit, package_id) {
+            (false, Some(package_id)) => MessageChain::new_js(
+                &gen::Entry_point_of_type_library_0_specified_in_compilerOptions_with_packageId_1,
+                &[name.clone(), package_id.clone()],
+            ),
+            (false, None) => MessageChain::new_js(
+                &gen::Entry_point_of_type_library_0_specified_in_compilerOptions,
+                std::slice::from_ref(name),
+            ),
+            (true, Some(package_id)) => MessageChain::new_js(
+                &gen::Entry_point_for_implicit_type_library_0_with_packageId_1,
+                &[name.clone(), package_id.clone()],
+            ),
+            (true, None) => MessageChain::new_js(
+                &gen::Entry_point_for_implicit_type_library_0,
+                std::slice::from_ref(name),
+            ),
+        }),
         SourceInclusionReason::Library => {
             Some(MessageChain::new(&gen::File_is_library_specified_here, &[]))
         }
