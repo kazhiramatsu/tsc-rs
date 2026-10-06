@@ -940,6 +940,14 @@ fn load_program_worker(
     let mut staged = graph.finish();
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
+    // The package.json files the walk probed, taken before the dependency
+    // prelude below: tsgo's symlink walk (program.go GetSymlinkCache →
+    // ResolvePackageDirectory) tests package directories without reading a
+    // package.json, so the build info's package.json lists never carry the
+    // prelude's probes.
+    staged
+        .package_json_probes
+        .extend(resolver.take_package_json_probes());
     // Before the package table is collected: the prelude's resolutions read
     // package.json files under their symlink spellings, and module-specifier
     // generation later reads those spellings back (upstream shares one
@@ -982,9 +990,6 @@ fn load_program_worker(
         }
     }
     let packages = packages_by_path.into_values().collect::<Vec<_>>();
-    staged
-        .package_json_probes
-        .extend(resolver.take_package_json_probes());
     if let Some(library_resolver) = library_resolver.as_mut() {
         staged
             .package_json_probes

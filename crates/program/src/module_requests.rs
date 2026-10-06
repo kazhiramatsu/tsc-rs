@@ -463,19 +463,17 @@ fn plan_module_requests_worker(
     // `forEachDynamicImportOrRequireCall` is a separate whole-file walk in
     // tsc. In particular, module-declaration boundaries affect the static
     // collector above but do not hide import types or dynamic import calls.
-    let mut contains_jsx = false;
     // tsc walks the whole file only when the parser saw a dynamic import
     // or import type (PossiblyContainsDynamicImport) or the file is
     // JavaScript (require calls, JSDoc `@import`). This walk reacts to
-    // exactly those nodes plus JSX elements (JSX language variant only),
-    // JSDoc import tags (a `/**` comment) and `require(...)` calls in any
-    // file (the static plan fails closed on them), so a file with none of
-    // those markers has nothing for it to find.
+    // exactly those nodes plus JSDoc import tags (a `/**` comment) and
+    // `require(...)` calls in any file (the static plan fails closed on
+    // them), so a file with none of those markers has nothing for it to
+    // find.
     let root_flags = NodeFlags::from_bits(parsed.arena.node(parsed.root).flags);
     let text = source.text();
     let dynamic_walk = root_flags.contains(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT)
         || javascript_file
-        || parsed.language_variant == LanguageVariant::Jsx
         || memchr::memmem::find(text.as_bytes(), b"/**").is_some()
         || memchr::memmem::find(text.as_bytes(), b"require").is_some();
     let mut stack = if dynamic_walk {
@@ -485,13 +483,6 @@ fn plan_module_requests_worker(
     };
     while let Some(node_id) = stack.pop() {
         let node = parsed.arena.node(node_id);
-        contains_jsx |= matches!(
-            &node.data,
-            NodeData::JsxElement(_)
-                | NodeData::JsxFragment(_)
-                | NodeData::JsxOpeningElement(_)
-                | NodeData::JsxSelfClosingElement(_)
-        );
         match &node.data {
             NodeData::ImportType(import_type) => {
                 if !expanded {
@@ -726,17 +717,16 @@ fn plan_module_requests_worker(
         && (javascript_file
             || (!parsed.is_declaration_file
                 && (computed_isolated_modules || parsed.external_module_indicator.is_some())));
-    // `collectExternalModuleReferences` inserts the JSX runtime import next to
-    // the synthetic `tslib` import. The checker addresses it by this stable
-    // source-file import index, so it must participate in the authoritative
-    // resolution table even though no source-text literal exists.
+    // tsgo resolveImportsAndModuleAugmentations (fileloader.go:849-859)
+    // synthesizes the JSX runtime import after the `tslib` one for a
+    // JavaScript or `.tsx` file (its script kind, not its module-ness: a
+    // `.ts` file never gets one, an `isolatedModules` `.tsx` script does).
+    // The checker addresses it by this stable source-file import index, so
+    // it must participate in the authoritative resolution table even though
+    // no source-text literal exists.
     let jsx_runtime_import = jsx_runtime_import_specifier(&parsed, options);
     let has_synthetic_jsx_runtime = jsx_runtime_import.is_some()
-        && !parsed.is_declaration_file
-        && (javascript_file
-            || contains_jsx
-            || computed_isolated_modules
-            || parsed.external_module_indicator.is_some());
+        && (javascript_file || source.path().display().ends_with(".tsx"));
     let observed_request_occurrence_count = path_references
         .len()
         .saturating_add(type_reference_directives.len())

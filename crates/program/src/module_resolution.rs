@@ -3772,11 +3772,15 @@ impl<'a> ModuleResolver<'a> {
             }
         }
 
+        // tsgo loadNodeModuleFromDirectory asks the package.json cache for
+        // the candidate of every existing type root (getPackageJsonInfo
+        // records the miss), before the candidate directory decides anything.
+        let package_json = join_normalized(&candidate, "package.json");
+        let package = self.load_package(&package_json)?;
         if !self.host.directory_exists_js(JsStr::from(&candidate))? {
             return Ok(ResolutionOutcome::NotFound);
         }
-        let package_json = join_normalized(&candidate, "package.json");
-        if let Some(package) = self.load_package(&package_json)? {
+        if let Some(package) = package {
             return self.resolve_legacy_package(
                 &package,
                 ".",
@@ -4910,29 +4914,14 @@ impl<'a> ModuleResolver<'a> {
         if !self.host.directory_exists_js(package_directory.as_js())?
             || !self.host.file_exists_js(package_json)?
         {
-            self.package_json_probes
-                .entry(cache_key.clone())
-                .or_insert_with(|| PackageJsonProbe {
-                    path: package_json.to_owned(),
-                    exists: false,
-                });
+            self.record_package_json_probe(&cache_key, package_json, false)?;
             if self.package_cache_enabled {
                 self.package_cache
                     .insert(cache_key, PackageCacheEntry::Missing);
             }
             return Ok(None);
         }
-        if !self.package_json_probes.contains_key(&cache_key) {
-            let path = if self.record_package_json_realpaths {
-                self.host
-                    .realpath_js(package_json)?
-                    .unwrap_or_else(|| package_json.to_owned())
-            } else {
-                package_json.to_owned()
-            };
-            self.package_json_probes
-                .insert(cache_key.clone(), PackageJsonProbe { path, exists: true });
-        }
+        self.record_package_json_probe(&cache_key, package_json, true)?;
         // TypeScript's readJson treats an absent read after a successful
         // file-existence probe as an empty object. This can occur across a
         // filesystem race; it remains a present cached package boundary.
@@ -4992,6 +4981,30 @@ impl<'a> ModuleResolver<'a> {
         Ok(Some(package))
     }
 
+    /// tsgo packagejson.InfoCache: a package.json a lookup asked for, under
+    /// the spelling it asked (its real path when the program records them
+    /// and the file exists), recorded once; the build info lists them.
+    fn record_package_json_probe(
+        &mut self,
+        cache_key: &JsString,
+        package_json: JsStr<'_>,
+        exists: bool,
+    ) -> Result<(), ResolutionError> {
+        if self.package_json_probes.contains_key(cache_key) {
+            return Ok(());
+        }
+        let path = if exists && self.record_package_json_realpaths {
+            self.host
+                .realpath_js(package_json)?
+                .unwrap_or_else(|| package_json.to_owned())
+        } else {
+            package_json.to_owned()
+        };
+        self.package_json_probes
+            .insert(cache_key.clone(), PackageJsonProbe { path, exists });
+        Ok(())
+    }
+
     /// The peer dependency suffix of a package identity (tsgo
     /// module/resolver.go readPackageJsonPeerDependencies): for a
     /// `peerDependencies` object whose values are all strings, each name in
@@ -5000,9 +5013,10 @@ impl<'a> ModuleResolver<'a> {
     /// contributes `+name@version`. Two copies of one version of a package
     /// with different peers are then different packages. The peers are read
     /// from the host directly: they are not loaded as packages here, so a
-    /// peer cycle cannot recurse.
+    /// peer cycle cannot recurse; each is still a package.json the lookup
+    /// asked for (tsgo getPackageJsonInfo), so it is recorded as probed.
     fn package_json_peer_dependencies(
-        &self,
+        &mut self,
         object: &Map,
         package_directory: JsStr<'_>,
     ) -> Result<Option<JsString>, ResolutionError> {
@@ -5034,7 +5048,13 @@ impl<'a> ModuleResolver<'a> {
         for name in names {
             let peer_package_json =
                 join_normalized(&join_normalized(&node_modules, &name), "package.json");
-            if !self.host.file_exists_js(peer_package_json.as_js())? {
+            let exists = self.host.file_exists_js(peer_package_json.as_js())?;
+            let cache_key = canonical_text(
+                peer_package_json.as_js(),
+                self.path_context.use_case_sensitive_file_names(),
+            );
+            self.record_package_json_probe(&cache_key, peer_package_json.as_js(), exists)?;
+            if !exists {
                 continue;
             }
             let bytes = self

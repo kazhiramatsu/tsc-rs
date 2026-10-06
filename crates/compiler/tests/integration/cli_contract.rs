@@ -11710,3 +11710,68 @@ src/index.ts(6,22): error TS2307: Cannot find module 'missing-pkg' or its corres
         r#"{"version":"7.1.0-dev","errors":true,"root":[[4,6]],"packageJsons":["../node_modules/@types/bar/package.json","../node_modules/foo/package.json","../package.json"],"missingPackageJsons":["../node_modules/@types/missing-pkg/package.json","../node_modules/bar/package.json","../node_modules/missing-pkg/package.json"],"fileNames":["../node_modules/@types/bar/index.d.ts","../node_modules/foo/index.d.ts","../src/data.json","../src/util.js","../src/index.ts","../lib/min.d.ts"],"fileInfos":["02dc0b3741533d5791997fac6925437c","7da1e387031388497f1d4acda99b514e",{"version":"d4d8740308e96445c373a723f45c398e"},{"version":"9f5482dcef3f06ca67ce8ce764af4db3","signature":"063a3b05e06513c13dd0881a5413fff4","impliedNodeFormat":1},{"version":"2e08dbcc8e95ea02275277a890a695fa","signature":"39ceb66ec7a773d3c9d4940b8a901149","impliedNodeFormat":1},{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1],[1,2,3,4],[1,3]],"options":{"allowJs":true,"composite":true,"module":99,"outDir":"./","strict":true,"target":9,"esModuleInterop":true},"referencedMap":[[6,1],[2,1],[3,1],[5,2],[4,3]],"semanticDiagnosticsPerFile":[[5,[{"pos":169,"end":182,"code":2307,"category":1,"messageKey":"Cannot_find_module_0_or_its_corresponding_type_declarations_2307","messageArgs":["missing-pkg"]}]]],"latestChangedDtsFile":"./src/index.d.ts"}"#
     );
 }
+
+#[test]
+fn build_info_of_an_empty_solution_config_matches_tsgo() {
+    // A solution-style config (`files: []` with references) compiles an
+    // incremental program without files; tsgo still writes its build info
+    // (scratchpad fixtures p36b/fx5/empty, empty2): `fileInfos` is a non-nil
+    // empty slice, so it is written as `[]` while `fileNames`, `root` and
+    // the per-file lists stay absent, and `options` is absent when no
+    // serialized option is set (`incremental` is not one). The listing
+    // names the build info alone, with exit status 0.
+    for (options, expected, args) in [
+        (
+            r#"{"composite":true,"listEmittedFiles":true,"noEmit":true}"#,
+            r#"{"version":"7.1.0-dev","fileInfos":[],"options":{"composite":true}}"#,
+            vec!["--pretty", "false"],
+        ),
+        (
+            r#"{"composite":true,"listEmittedFiles":true}"#,
+            r#"{"version":"7.1.0-dev","fileInfos":[],"options":{"composite":true}}"#,
+            vec!["--pretty", "false"],
+        ),
+        (
+            r#"{"incremental":true,"listEmittedFiles":true}"#,
+            r#"{"version":"7.1.0-dev","fileInfos":[]}"#,
+            vec!["--pretty", "false"],
+        ),
+    ] {
+        let tree = TempTree::new();
+        write_fixture_files(
+            &tree,
+            &[
+                (
+                    "tsconfig.json",
+                    &format!(
+                        r#"{{"compilerOptions":{options},"files":[],"references":[{{"path":"./sub"}}]}}"#
+                    ),
+                ),
+                (
+                    "sub/tsconfig.json",
+                    r#"{"compilerOptions":{"composite":true,"noLib":true,"types":[],"outDir":"dist"},"files":["a.ts"]}"#,
+                ),
+                ("sub/a.ts", "export const a = 1;\n"),
+            ],
+        );
+        let output = run(&tree, &args);
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{options}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let project = compiler_current_directory(&tree);
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            format!("TSFILE: {}/tsconfig.tsbuildinfo\n", project.display()),
+            "{options}"
+        );
+        assert_eq!(
+            build_info_bytes(&tree, "tsconfig.tsbuildinfo"),
+            expected,
+            "{options}"
+        );
+        assert!(!tree.path("sub/dist").exists());
+    }
+}

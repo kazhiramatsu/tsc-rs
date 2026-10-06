@@ -3819,14 +3819,22 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
 
     if lib_documents.is_empty() && program_sources.is_empty() {
         // Same observable result as the serial driver for an empty Program:
-        // the whole-Program getter exists and is empty.
+        // the whole-Program getter exists and is empty, and the build info
+        // of an incremental program has no file facts.
         let global_diagnostics = if collect_global_diagnostics {
             globals::missing_init_global_type_diagnostics(options)
         } else {
             Vec::new()
         };
         return CheckExecution {
-            result: assemble_check_result(&[], Some(&[]), &global_diagnostics, &[], work_counters),
+            result: assemble_check_result_with_facts(
+                &[],
+                Some(&[]),
+                &global_diagnostics,
+                &[],
+                work_counters,
+                run.incremental_facts.then(IncrementalCheckFacts::default),
+            ),
             authoritative_failure: None,
         };
     }
@@ -4867,6 +4875,10 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 operation(&snapshot, &session, &checked);
             }
         }
+    } else if authoritative_run.is_some_and(|run| run.incremental_facts) {
+        // tsgo writes the build info of an incremental program without
+        // files (a solution-style `files: []` config): no file facts.
+        incremental = Some(IncrementalCheckFacts::default());
     }
 
     CheckExecution {

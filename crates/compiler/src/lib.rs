@@ -1952,15 +1952,36 @@ impl ProgramSession {
             .map_err(DriverError::Emit);
         };
         let preflight_diagnostics = preflight.diagnostics().to_vec();
+        let mut recording = incremental::SignatureRecordingSink::new(sink);
         emit_files(
             &UnavailableEmitResolver,
             &emit_host,
             preflight,
             selection,
             &diagnostic_gate,
-            sink,
+            &mut recording,
         )
-        .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
+        .map(|emit| {
+            // tsgo emitBuildInfo of an incremental program without files.
+            let command = incremental::CommandDiagnosticFacts::of(&diagnostics, false);
+            let emit = match checked.incremental.as_ref().and_then(|facts| {
+                incremental::emit_build_info(
+                    &prepared,
+                    facts,
+                    command,
+                    &emit,
+                    &recording.records(),
+                    recording.wrote_anything(),
+                )
+            }) {
+                Some(document) => {
+                    let failure = recording.write_build_info(&document);
+                    emit.with_build_info(document.file_name, failure)
+                }
+                None => emit,
+            };
+            diagnostics.with_emit(&preflight_diagnostics, emit, work_counters)
+        })
         .map_err(DriverError::Emit)
     }
 
@@ -2590,7 +2611,10 @@ impl ProgramSession {
                     &diagnostic_gate,
                     sink,
                 )
-                .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
+                .map(|emit| {
+                    let emit = finish_build_info(emit, &diagnostics, &mut recording);
+                    diagnostics.with_emit(&preflight_diagnostics, emit, work_counters)
+                })
                 .map_err(DriverError::Emit)
             }
         };

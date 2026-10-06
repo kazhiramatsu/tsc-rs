@@ -42,6 +42,36 @@ fn components(path: JsStr<'_>) -> Vec<JsString> {
         .collect()
 }
 
+/// tspath.reducePathComponents (tsgo): empty and `.` components are dropped
+/// and `..` climbs the preceding component unless it is the root or another
+/// `..` (GetPathComponentsRelativeTo reduces both sides, so the relative
+/// path of `node_modules/@types/./css/package.json` names `@types/css`).
+fn reduce_path_components(components: Vec<JsString>) -> Vec<JsString> {
+    let mut reduced: Vec<JsString> = Vec::with_capacity(components.len());
+    let mut components = components.into_iter();
+    let Some(root) = components.next() else {
+        return reduced;
+    };
+    reduced.push(root);
+    for component in components {
+        if component.is_empty() || component.as_str() == Some(".") {
+            continue;
+        }
+        if component.as_str() == Some("..") {
+            if reduced.len() > 1 {
+                if reduced[reduced.len() - 1].as_str() != Some("..") {
+                    reduced.pop();
+                    continue;
+                }
+            } else if !reduced[0].is_empty() {
+                continue;
+            }
+        }
+        reduced.push(component);
+    }
+    reduced
+}
+
 fn from_components(parts: &[JsString]) -> JsString {
     let Some(root) = parts.first() else {
         return JsString::new();
@@ -176,8 +206,8 @@ pub fn relative_path_from_directory(
     to: JsStr<'_>,
     case_sensitive: bool,
 ) -> JsString {
-    let from = components(from_directory);
-    let to = components(to);
+    let from = reduce_path_components(components(from_directory));
+    let to = reduce_path_components(components(to));
     let shared = from
         .iter()
         .zip(&to)

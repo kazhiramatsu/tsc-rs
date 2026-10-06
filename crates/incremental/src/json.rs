@@ -96,11 +96,22 @@ impl<'o> ObjectWriter<'o> {
         &mut self,
         name: &str,
         values: &[T],
-        mut element: impl FnMut(&mut String, &T),
+        element: impl FnMut(&mut String, &T),
     ) {
         if values.is_empty() {
             return;
         }
+        self.list(name, values, element);
+    }
+
+    /// A list field written even when empty (a non-nil Go slice under
+    /// `omitzero`), each element written by `element`.
+    pub(crate) fn list<T>(
+        &mut self,
+        name: &str,
+        values: &[T],
+        mut element: impl FnMut(&mut String, &T),
+    ) {
         self.key(name);
         self.out.push('[');
         for (index, value) in values.iter().enumerate() {
@@ -164,5 +175,22 @@ mod tests {
             out,
             r#"{"version":"7.1.0-dev","checkPending":true,"end":3}"#
         );
+    }
+
+    #[test]
+    fn writes_an_empty_list_only_without_omitzero() {
+        let mut out = String::new();
+        let mut object = ObjectWriter::begin(&mut out);
+        object.list_omitzero("absent", &[] as &[u32], |out, value| {
+            super::write_number(out, *value)
+        });
+        object.list("present", &[] as &[u32], |out, value| {
+            super::write_number(out, *value)
+        });
+        object.list("items", &[1, 2], |out, value| {
+            super::write_number(out, *value)
+        });
+        object.end();
+        assert_eq!(out, r#"{"present":[],"items":[1,2]}"#);
     }
 }

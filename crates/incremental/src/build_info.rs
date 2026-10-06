@@ -273,7 +273,11 @@ impl BuildInfo {
         object.strings_omitzero("missingPackageJsons", &self.missing_package_jsons);
         object.strings_omitzero("contentMapperIdentities", &self.content_mapper_identities);
         object.strings_omitzero("fileNames", &self.file_names);
-        object.list_omitzero("fileInfos", &self.file_infos, |out, info| info.write(out));
+        // tsgo maps the program's files into a non-nil slice
+        // (snapshottobuildinfo.go setFileInfoAndEmitSignatures), so a
+        // program without files writes `"fileInfos":[]` while its other
+        // lists stay absent.
+        object.list("fileInfos", &self.file_infos, |out, info| info.write(out));
         object.list_omitzero("fileIdsList", &self.file_ids_list, |out, ids| {
             write_numbers(out, ids)
         });
