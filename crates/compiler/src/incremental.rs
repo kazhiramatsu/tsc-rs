@@ -381,6 +381,7 @@ impl<'p> Assembly<'p> {
     /// file and location are the diagnostic's.
     fn chain_entry(
         &self,
+        owner: usize,
         chain: &MessageChain,
         file: Option<u32>,
         no_file: bool,
@@ -404,7 +405,14 @@ impl<'p> Assembly<'p> {
             message_chain: chain
                 .next
                 .iter()
-                .map(|next| self.chain_entry(next, file, no_file, pos, end))
+                .map(|next| self.chain_entry(owner, next, file, no_file, pos, end))
+                .collect(),
+            // A nested entry's own related information (the head's is set by
+            // `cached`).
+            related_information: chain
+                .related
+                .iter()
+                .map(|related| self.related(owner, related))
                 .collect(),
             reports_unnecessary: metadata.is_some_and(|message| message.reports_unnecessary),
             reports_deprecated: metadata.is_some_and(|message| message.reports_deprecated),
@@ -439,7 +447,7 @@ impl<'p> Assembly<'p> {
             related.start,
             related.length,
         );
-        self.chain_entry(&related.message, file, no_file, pos, end)
+        self.chain_entry(owner, &related.message, file, no_file, pos, end)
     }
 
     /// tsgo `toBuildInfoDiagnosticsFromDiagnostics` of one diagnostic
@@ -451,7 +459,7 @@ impl<'p> Assembly<'p> {
             diagnostic.start,
             diagnostic.length,
         );
-        let mut entry = self.chain_entry(&diagnostic.message, file, no_file, pos, end);
+        let mut entry = self.chain_entry(owner, &diagnostic.message, file, no_file, pos, end);
         entry.related_information = diagnostic
             .related
             .iter()

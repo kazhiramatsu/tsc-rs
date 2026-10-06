@@ -11,6 +11,7 @@ fn chain(code: u32, text: &str, next: Vec<MessageChain>) -> MessageChain {
         args: Vec::new(),
         next_present: !next.is_empty(),
         next,
+        related: Vec::new(),
     }
 }
 

@@ -43,6 +43,7 @@ fn diagnostic(code: u32) -> Diagnostic {
             args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     )
 }
@@ -60,6 +61,7 @@ fn located_diagnostic(code: u32, file_name: &str) -> Diagnostic {
             args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     )
 }
@@ -2004,6 +2006,7 @@ fn every_located_preparation_diagnostic_keeps_owned_source_text() {
             args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     });
     complete_builder.set_diagnostics(PreparationDiagnostics::new(
@@ -2062,6 +2065,7 @@ fn every_located_preparation_diagnostic_keeps_owned_source_text() {
             args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     });
     missing_related.set_diagnostics(PreparationDiagnostics::new(

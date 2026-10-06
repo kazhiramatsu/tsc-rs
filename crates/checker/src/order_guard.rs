@@ -399,6 +399,7 @@ mod tests {
             args: Vec::new(),
             next_present: !next.is_empty(),
             next,
+            related: Vec::new(),
         }
     }
 

@@ -13,6 +13,7 @@ fn chain(code: u32, text: &str) -> MessageChain {
         args: Vec::new(),
         next_present: false,
         next: Vec::new(),
+        related: Vec::new(),
     }
 }
 

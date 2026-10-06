@@ -162,6 +162,13 @@ pub struct MessageChain {
     /// array sort differently and are both observable in raw outcomes.
     pub next_present: bool,
     pub next: Vec<MessageChain>,
+    /// The related information a nested entry carries (tsgo
+    /// NewDiagnosticChain: a chain built over a diagnostic takes that
+    /// diagnostic's related information, so the relater's related
+    /// information sits on every level of its chain). The head's lives on
+    /// the [`Diagnostic`]; equality ignores this, as tsgo's
+    /// equalMessageChain does.
+    pub related: Vec<RelatedInfo>,
 }
 
 /// The key and the arguments are a record of how the text was produced;
@@ -188,6 +195,7 @@ impl MessageChain {
             args: args.iter().map(JsString::from).collect(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         }
     }
 
@@ -200,6 +208,7 @@ impl MessageChain {
             args: args.to_vec(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         }
     }
 
@@ -214,6 +223,7 @@ impl MessageChain {
             args: args.iter().map(|arg| JsString::from(*arg)).collect(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         }
     }
 

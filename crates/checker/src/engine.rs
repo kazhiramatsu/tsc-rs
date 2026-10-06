@@ -1021,11 +1021,27 @@ impl<'a> CheckerState<'a> {
                 used_containing_message_chain = true;
             }
         }
+        // tsgo createDiagnosticChainFromErrorChain: the leaf diagnostic takes
+        // the relater's related information and every chain built over it
+        // (NewDiagnosticChain) takes it too, so each nested entry carries
+        // it; the head's copy is the diagnostic's own.
+        let related_info = std::mem::take(&mut checker.error_state.related_info);
+        fn carry_related(chain: &mut MessageChain, related: &[tsc_diagnostics::RelatedInfo]) {
+            for next in &mut chain.next {
+                next.related = related.to_vec();
+                carry_related(next, related);
+            }
+        }
+        if let Some(message) = message.as_mut() {
+            if !related_info.is_empty() {
+                carry_related(message, &related_info);
+            }
+        }
         Ok((
             related,
             message.map(|message| RelationErrorOutput {
                 message,
-                related: std::mem::take(&mut checker.error_state.related_info),
+                related: related_info,
                 error_node: checker.error_state.error_node,
                 used_containing_message_chain,
             }),

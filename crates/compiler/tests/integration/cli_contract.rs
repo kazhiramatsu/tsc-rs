@@ -11775,3 +11775,64 @@ fn build_info_of_an_empty_solution_config_matches_tsgo() {
         assert!(!tree.path("sub/dist").exists());
     }
 }
+
+#[test]
+fn build_info_of_chain_related_noemit_matches_tsgo() {
+    // tsgo createDiagnosticChainFromErrorChain gives the relater's related
+    // information to the leaf diagnostic of an elaboration chain, and
+    // NewDiagnosticChain to every chain built over it: the cached row
+    // carries `relatedInformation` on each of its four levels (fixture
+    // p36b/fx5/related; bytes are tsgo's).
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/main.ts",
+                r#"interface Managed { type: "managed"; securityScheme: string; }
+interface Anonymous { type: "anonymous"; }
+type AuthUnion = Managed | Anonymous;
+interface Tool { name: string; auth: AuthUnion; }
+declare function use(tool: Tool): void;
+const tool = { name: "t", auth: { type: "managed" } };
+use(tool);
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","noLib":true,"types":[],"incremental":true,"noEmit":true},"files":["lib/min.d.ts","src/main.ts"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "src/main.ts(7,5): error TS2345: Argument of type '{ name: string; auth: { type: string; }; }' is not assignable to parameter of type 'Tool'.\n  Types of property 'auth' are incompatible.\n    Type '{ type: string; }' is not assignable to type 'AuthUnion'.\n      Property 'securityScheme' is missing in type '{ type: string; }' but required in type 'Managed'.\n"
+    );
+    assert_eq!(
+        build_info_bytes(&tree, "tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./lib/min.d.ts","./src/main.ts"],"fileInfos":[{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"0d45d9dc06ff3d477aa4b6076d827fa7","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"module":99,"target":9},"semanticDiagnosticsPerFile":[[2,[{"pos":293,"end":297,"code":2345,"category":1,"messageKey":"Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_2345","messageArgs":["{ name: string; auth: { type: string; }; }","Tool"],"messageChain":[{"pos":293,"end":297,"code":2326,"category":1,"messageKey":"Types_of_property_0_are_incompatible_2326","messageArgs":["auth"],"messageChain":[{"pos":293,"end":297,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["{ type: string; }","AuthUnion"],"messageChain":[{"pos":293,"end":297,"code":2741,"category":1,"messageKey":"Property_0_is_missing_in_type_1_but_required_in_type_2_2741","messageArgs":["securityScheme","{ type: string; }","Managed"],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}]]],"affectedFilesPendingEmit":[2]}"#
+    );
+}

@@ -876,8 +876,13 @@ fn load_program_worker(
     let phase_started = std::time::Instant::now();
     // What the walk loads after the roots (the selected libraries and the
     // automatic type directives' targets) reads ahead with them, so those
-    // parses overlap the largest root's instead of following it.
-    prefetch_roots.extend(graph.read_ahead_seeds());
+    // parses overlap the largest root's instead of following it. A program
+    // without roots loads neither (tsgo processAllProgramFiles adds the lib
+    // and automatic type directive tasks only with root files), so nothing
+    // is read ahead or resolved for it.
+    if root_names.len() != 0 {
+        prefetch_roots.extend(graph.read_ahead_seeds());
+    }
     graph.prefetch_roots(&prefetch_roots);
     drop(prefetch_roots);
     tsc_types::trace::mark("load: read-ahead parse of roots", phase_started);
