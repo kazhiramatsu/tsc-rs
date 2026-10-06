@@ -389,7 +389,15 @@ The API has four parts:
   collects the files in memory, and `FsOutputSink` writes them through an
   `EmitFileSystem` implementation. `CheckerBudget` and `WorkerBudget` set
   the parallelism; the API defaults are serial, and the command uses
-  `CheckerBudget::automatic()` and `WorkerBudget::automatic()`.
+  `CheckerBudget::automatic()` and `WorkerBudget::automatic()`. The
+  compiler recurses on the native stack in proportion to the nesting depth
+  of a source. The command runs its work, and every worker and checker
+  thread, on a stack reservation of 1 GiB (`tsc_program::WORKER_STACK_BYTES`;
+  virtual, committed only as the recursion uses it), which takes a source
+  as deep as tsgo compiles. With the serial defaults the API runs on the
+  calling thread, whose stack the embedding chooses; to compile sources of
+  unusual depth, run the session on a thread built with
+  `std::thread::Builder::new().stack_size(tsc_program::WORKER_STACK_BYTES)`.
 - `tsc-rs-diagnostics` (`tsc_diagnostics`): `Diagnostic`, with its code,
   category, message chain and UTF-16 location, and `TextSnapshot` for line
   and column lookup.

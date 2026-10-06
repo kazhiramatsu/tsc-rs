@@ -60,7 +60,26 @@ fn main() {
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
     prefer_interactive_scheduling();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    let output = tsc_compiler::run_cli(&arguments);
+    // The command's work runs on a thread with the compiler's stack
+    // reservation (`WORKER_STACK_BYTES`, the same as every worker and
+    // checker shard). The compiler recurses in proportion to the nesting
+    // depth of a source, and the main thread's stack (8 MiB on macOS and
+    // Linux) is the one size the process cannot choose. A refused thread
+    // leaves the work on the main thread.
+    let output = std::thread::scope(|scope| {
+        match std::thread::Builder::new()
+            .name("tsc-rs-main".to_owned())
+            .stack_size(tsc_program::WORKER_STACK_BYTES)
+            .spawn_scoped(scope, || {
+                tsc_program::run_thread_start_hook();
+                tsc_compiler::run_cli(&arguments)
+            }) {
+            Ok(handle) => handle
+                .join()
+                .unwrap_or_else(|payload| std::panic::resume_unwind(payload)),
+            Err(_) => tsc_compiler::run_cli(&arguments),
+        }
+    });
     {
         use std::io::Write;
         let mut stdout = std::io::stdout().lock();

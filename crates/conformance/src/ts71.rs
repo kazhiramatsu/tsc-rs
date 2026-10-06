@@ -426,10 +426,12 @@ pub struct RunOptions {
     pub dump: Option<PathBuf>,
 }
 
-/// A stack overflow aborts the process, so the threads that run cases reserve
-/// far more than the CLI's checker threads: the corpus includes deeply nested
-/// stress cases. The reservation is virtual.
-const CASE_STACK_BYTES: usize = 256 << 20;
+/// The threads that run cases reserve the compiler's stack
+/// (`WORKER_STACK_BYTES`, 1 GiB, virtual): a case runs its first checker
+/// shard on the case thread, and the corpus includes deeply nested stress
+/// cases (`binderBinaryExpressionStress`). A stack overflow would abort the
+/// whole worker process.
+const CASE_STACK_BYTES: usize = tsc_program::WORKER_STACK_BYTES;
 
 fn limits() -> ProgramLoadLimits {
     ProgramLoadLimits::new(512, 8_192, 64, 64 * 1024 * 1024, 256 * 1024 * 1024)

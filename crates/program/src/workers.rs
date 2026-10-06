@@ -24,18 +24,22 @@ use std::sync::{Condvar, Mutex};
 /// with explicit budgets; revisit the cap from that evidence.
 pub const MAX_WORKERS: usize = 16;
 
-/// Stack reserved for every worker thread.
+/// Stack reserved for every thread the compiler starts: the workers, the
+/// checker shards and the thread the `tsc-rs` command runs its work on.
 ///
-/// The parser and binder recurse on the native stack without a universal
-/// depth bound, so a worker's stack decides how deep an input it can
-/// process. 16 MiB is twice the default main-thread stack of macOS and
-/// Linux processes; it is an explicit budget with more headroom than the
-/// common calling thread, not a proof that every input accepted by every
-/// caller thread (whose stack depends on the embedding and platform
-/// configuration) also fits a worker. Deep-input controls are part of the
-/// focused read-ahead/bind tests. The reservation is virtual; pages are
-/// committed only as used.
-pub const WORKER_STACK_BYTES: usize = 16 << 20;
+/// The parser, binder, checker and emitter recurse on the native stack in
+/// proportion to the nesting depth of the source, without a depth bound of
+/// their own: a source is as deep as the stack allows. tsgo runs on Go
+/// stacks that grow to 1 GB, so a source that tsgo compiles fits this
+/// reservation too (the emit of the deepest shapes measured, nested object
+/// literals and method chains, uses about 16 KiB of stack per level; the
+/// 4,950-operator `binderBinaryExpressionStress` case needs about 80 MiB).
+/// The reservation is virtual: pages are committed only as the recursion
+/// touches them, so an ordinary source costs a thread no more than before.
+/// A caller that runs the compiler on a thread of its own (the Rust API's
+/// serial default runs on the calling thread) chooses that thread's stack;
+/// the README's API section says so.
+pub const WORKER_STACK_BYTES: usize = 1 << 30;
 
 /// The hook every worker thread and checker shard runs first, installed at
 /// most once per process by the embedding (the CLI asks the OS for
