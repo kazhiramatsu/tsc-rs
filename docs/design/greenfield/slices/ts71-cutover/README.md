@@ -3952,3 +3952,46 @@ tsgoの挙動をcommandが持っていなかったもので、修正した。
   （`--noEmit`）で432 vs 439 ms＝0.984、最小値は390 vs 390で同じ：noise。tsgoに対してはwall 0.57〜0.93
   （`--noEmit`）、0.61〜0.82（bench-full）、peak memory 0.64〜0.87。劣化なし。
 - bench corpusとmaterial-uiのcloneに、この実行が残したfileは無い（bench configと以前からの`out/`だけ）。
+
+## P3-5bn azure-sdk-for-jsの第1回：redirectされたpackageの命名、packageIdの説明、peerDependencies（2026-10-06）
+
+azure-sdk-for-js（467 workspace package）は、packageをまたぐ型をpackage.jsonの`exports`が指す`dist/<target>/index.d.ts`
+で参照するので、比較の前にtsgoで依存順にdistを作った（ユーザーの決定(a)。`~/dev/real-projects.noindex/az-build-dist.py`：
+warpのtargetごとに`-p`を1回、repo rootの`tsconfig.src.*.json`はwarpと同じくpackage rootに置いた仮想configで`extends`
+して`${configDir}`をpackageに向ける。1,465 target、199秒。distはgitignoreされた本来のビルド出力先）。次に各packageの
+`tsconfig.json`の`references`が指す2,756のleaf configを両compilerで実行した（`compare-projects.py`、`--noEmit`、tsgo
+`--singleThreaded`／`TSRS_CHECKERS=1`、1 job、250 configずつ12回、`az-results-*.jsonl`）：**2,671が一致**。違う85の
+うち78は古いlayoutの`tsconfig.test.json`がproject referencesを使うもの（未対応、roadmapの次の段階）、残る7件が
+tsgoの挙動の欠落3つで、修正した。
+- **redirectされたpackageは全てのコピーを通して命名される**（`crates/emitter/src/host.rs`、
+  `declarations/tracker.rs`、`crates/compiler/src/lib.rs`）：宣言emitのmodule specifierは、programがそのfileに
+  redirectしたpackageのコピーを、そのfileの別名として候補に加える（tsgo `redirectTargetsMap`、filesparser.go:462、
+  `forEachFileNameOfModule`が消費）。pnpmはworkspace packageをstoreの同じversionのコピーと並べてinstallする：store
+  のコピーが別の依存（`@azure/identity`）経由で先に読まれ、workspaceのlinkはそれにredirectし、portableなspecifierは
+  linkだけが与える。portの`forEachFileNameOfModule`はhostにredirect targetsを尋ねていたが、全てのhostが空を返して
+  いた：6 configで`@azure/logger`にTS2883。`EmitHost::redirect_targets`がprepared programの`package_redirect_paths`
+  を返す。
+- **inclusion reasonは解決のpackage identityを持ち、説明は「… with packageId '…'」になる**
+  （`crates/program/src/loader.rs`。fileInclude.go computeReferenceFileDiagnostic：import、type reference、
+  automatic type directive。`types`が`*`を含むときは「implicit type library」の文言）。packageの`imports`で解決した
+  fileがそれ無しで説明されていた（`@azure/ai-projects`のTS6307）。
+- **package identityはpeer dependencyのsuffixを含む**（`crates/program/src/module_resolution.rs`、`resolution.rs`。
+  tsgo readPackageJsonPeerDependencies）：`peerDependencies` object（値は全てstring）の名前をsort順に、packageの
+  directoryのreal pathの最も近い`node_modules`にpackage.jsonがあるものだけ`+name@version`を足す。同じversionの
+  2つのコピーでもpeerが違えば別のpackage。identityの文字列（`PackageId::display_text`）はtsgoのPackageId.String
+  （azureの説明では`openai/core/resource.d.mts@6.49.0+ws@8.22.0+zod@4.6.5`）。peerは`load_package`の中でhostから
+  直接読む（packageとしては読まないので、peerの循環で再帰しない）。
+- test：pnpmのlayout（workspaceのlinkとstoreのコピー）をsymlinkで作りtsgoの空出力で固定するcommandの契約、
+  packageの`imports`で解決したfileのTS6307の「with packageId」をtsgoのbyteで固定するcommandの契約、peer suffixの
+  resolverの契約（sort順、無いpeer、versionの無いpeer、無効なfield）。
+- 残る制限：`--explainFiles`は未実装（inclusion reasonはfileを説明する診断でだけ観測できる）。distの生成は
+  warpの`commonjs` targetの仮想`{"type":"commonjs"}` package.jsonを再現しない（emitされるJSの形だけが違い、比較が
+  読む宣言は同じ）。合成importのinclusion reasonはP3-5bmのまま。
+- conformance（このsliceの1回の全体実行。macOS、`nice -n 20`、2 worker）：`a540e7bda`のbuildで15,228 configuration、full 13,451、不一致0、emit full 13,443、harness error 15、ratchet 0 regression（462秒）。P3-5bmのreportと行ごとに同一。
+  `--filter`のduplicatePackage（11構成）、symlinkedWorkspace（4）、packageId（1）、peerDep（1）、
+  moduleResolutionWithSymlinks（5）、typeReferenceDirectives（11）は全てFull。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、6 crate（emitter、program、compiler、checker、
+  conformance、harness）の`cargo clippy --all-targets -- -D warnings`、4 crate（emitter、program、compiler、checker）
+  の`cargo test --no-fail-fast`（3,359 passed）。
+- azure-sdk-for-js（最終build）：2,756 leaf configのうち2,678が一致（12回に分けて実行、両compilerの壁時計の合計はtsgo 278秒／tsc-rs 219秒）。違う78は全てproject references（の古いlayout）。tsgoはのconfigではでもを書く（の。338件）ので、実行後に列挙して消した。cloneに残るのはdistだけ。
+- DefinitelyTyped（package identityがpeerを含むようになったので再実行）：9,067 project全てで一致（、1 job、、1,184秒。壁時計の合計はtsgo 700秒／tsc-rs 483秒。エラーのあるprojectは279で変わらず）。
