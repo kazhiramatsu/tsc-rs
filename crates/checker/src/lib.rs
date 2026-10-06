@@ -2693,13 +2693,15 @@ fn init_checker_state<'a>(
     state.initialize_deferred_program_globals();
     // initializeTypeChecker's augmentation passes (88769/88874)
     // run here — AFTER the resolver's host view exists (pass 2
-    // resolves module names), BEFORE any file checks.
-    state.merge_module_augmentations();
-    // Type construction is unconditional in tsc. In particular, the
-    // eager array singleton roots establish the type-id order consumed by
-    // getUnionType when stableTypeOrdering is off. Requesting the public
-    // global-diagnostics bucket controls only observation of the rows.
-    state.materialize_init_global_diagnostics();
+    // resolves module names), BEFORE any file checks. The global types are
+    // constructed between the global augmentations and the deferred
+    // ambient modules, in tsgo's order (initializeChecker,
+    // checker.go:1352-1382). Type construction is unconditional in tsc. In
+    // particular, the eager array singleton roots establish the type-id
+    // order consumed by getUnionType when stableTypeOrdering is off.
+    // Requesting the public global-diagnostics bucket controls only
+    // observation of the rows.
+    state.merge_module_augmentations_around(|state| state.materialize_init_global_diagnostics());
     state
 }
 

@@ -1539,28 +1539,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 recursion_flags,
             );
         }
-        // Type-parameter-equals-constraint fast path (65181).
-        // KNOWN-GAP since M4 (m4-review R12, same root as the FIXED
-        // A1): the inline TypeData constraint belongs to
-        // tables-synthesized tuple parameters only — DECLARED
-        // parameters keep theirs in the lazy links slot, so this fast
-        // path never fires for them (the old "M3 type parameters are
-        // tuple synthetics" justification lapsed). Verdict-equivalent:
-        // the structural path decides identically, only slower. The
-        // fix is relate.rs's forcing read
-        // (get_constraint_of_type_parameter, fallible) — take it
-        // together with reordering the fallible call out of this
-        // non-`?` context.
-        if self.flags(source).intersects(TypeFlags::TYPE_PARAMETER) {
-            if let TypeData::TypeParameter {
-                constraint: Some(constraint),
-                ..
-            } = &self.st.tables.type_of(source).data
-            {
-                if *constraint == target {
-                    return Ok(Ternary::TRUE);
-                }
-            }
+        // Type-parameter-equals-constraint fast path (tsgo
+        // relater.go:2668-2675): `getConstraintOfType` resolves the
+        // parameter's base constraint, and that resolution has an effect
+        // of its own — a parameter whose constraint is being computed
+        // higher on the resolution stack marks that computation circular
+        // (the substitution `P & object` of a distributive conditional
+        // type instantiated with an `infer P` compares `P` with `object`
+        // while `P`'s constraint is being inferred). The port read only
+        // the inline constraint of tables-synthesized parameters here, so
+        // the path never fired for a declared parameter.
+        if self.flags(source).intersects(TypeFlags::TYPE_PARAMETER)
+            && self.st.get_constraint_of_type(source)? == Some(target)
+        {
+            return Ok(Ternary::TRUE);
         }
         if self
             .flags(source)

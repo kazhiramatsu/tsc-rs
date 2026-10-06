@@ -540,11 +540,6 @@ pub struct CheckerState<'a> {
     /// tsc totalInstantiationCount (46450).
     pub total_instantiation_count: u64,
     /// Symbols whose class/interface declared type is mid-computation.
-    /// tsc writes the shell into the links eagerly (57387) so cyclic
-    /// heritage observes "no thisType yet"; the success-only slot write
-    /// keeps Err unwinds re-queryable, and this set reproduces the
-    /// mid-cycle observable for isThislessInterface's base walk.
-    pub(crate) class_interface_declared_in_progress: Vec<SymbolId>,
     /// Type parameters whose default is mid-resolution — tsc's
     /// resolvingDefaultType sentinel (getResolvedTypeParameterDefault
     /// 59049), as a set so Err unwinds leave the links slot Vacant.
@@ -1542,7 +1537,6 @@ impl<'a> CheckerState<'a> {
             instantiation_stack: Vec::new(),
             instantiation_count: 0,
             total_instantiation_count: 0,
-            class_interface_declared_in_progress: Vec::new(),
             type_parameter_defaults_in_progress: Vec::new(),
             mapped_types_in_progress: Vec::new(),
             flow_analysis_disabled: false,
@@ -2167,7 +2161,7 @@ impl<'a> CheckerState<'a> {
                 let ResolutionTarget::Type(ty) = target else {
                     unreachable!("ImmediateBaseConstraint resolution targets are types");
                 };
-                self.links.read_ty(ty, |links| links.immediate_base_constraint.resolved())
+                self.links.read_ty(ty, |links| links.resolved_base_constraint.resolved())
                     .is_some()
             }
             TypeSystemPropertyName::RESOLVED_TYPE_ARGUMENTS => {

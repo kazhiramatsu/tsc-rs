@@ -133,7 +133,6 @@ pub struct SpeculationCheckpoint {
     active_type_mappers: usize,
     active_type_mappers_caches: usize,
     reliability_flags: tsc_types::RelationComparisonResult,
-    class_interface_declared_in_progress: usize,
     type_parameter_defaults_in_progress: usize,
     mapped_types_in_progress: usize,
     flow_loop_stack: usize,
@@ -375,7 +374,6 @@ impl CheckerState<'_> {
             active_type_mappers: self.active_type_mappers.len(),
             active_type_mappers_caches: self.active_type_mappers_caches.len(),
             reliability_flags: self.reliability_flags,
-            class_interface_declared_in_progress: self.class_interface_declared_in_progress.len(),
             type_parameter_defaults_in_progress: self.type_parameter_defaults_in_progress.len(),
             mapped_types_in_progress: self.mapped_types_in_progress.len(),
             flow_loop_stack: self.flow_loop_stack.len(),
@@ -484,10 +482,6 @@ impl CheckerState<'_> {
                 (
                     self.active_type_mappers_caches.len(),
                     checkpoint.active_type_mappers_caches,
-                ),
-                (
-                    self.class_interface_declared_in_progress.len(),
-                    checkpoint.class_interface_declared_in_progress,
                 ),
                 (
                     self.type_parameter_defaults_in_progress.len(),
@@ -625,8 +619,6 @@ impl CheckerState<'_> {
         self.active_type_mappers_caches
             .truncate(checkpoint.active_type_mappers_caches);
         self.reliability_flags = checkpoint.reliability_flags;
-        self.class_interface_declared_in_progress
-            .truncate(checkpoint.class_interface_declared_in_progress);
         self.type_parameter_defaults_in_progress
             .truncate(checkpoint.type_parameter_defaults_in_progress);
         self.mapped_types_in_progress

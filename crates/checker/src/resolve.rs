@@ -1439,16 +1439,6 @@ impl<'a> CheckerState<'a> {
                     did_you_mean,
                     &[display.as_js(), suggestion_name.as_js()],
                 );
-                // getCanonicalDiagnostic(nameNotFoundMessage, name):
-                // sort/dedupe compare through the PLAIN form.
-                diagnostic.canonical_head = Some(tsc_diagnostics::CanonicalHead {
-                    code: message.code,
-                    text: tsc_diagnostics::MessageChain::new_js(
-                        message,
-                        std::slice::from_ref(&display),
-                    )
-                    .text,
-                });
                 if is_unchecked_js {
                     diagnostic.message.category = DiagnosticCategory::Suggestion;
                 }
@@ -2462,8 +2452,8 @@ impl<'a> CheckerState<'a> {
                         // `Color.Red.toString`: `toString` belongs to the
                         // enum member's value type rather than to the enum
                         // member symbol's exports.
-                        let containing =
-                            (self.kind_of(name) == SyntaxKind::QualifiedName).then(|| {
+                        let containing = match self.kind_of(name) {
+                            SyntaxKind::QualifiedName => {
                                 let mut containing = name;
                                 while let Some(parent) = self.parent_of(containing) {
                                     let NodeData::QualifiedName(parent_data) = self.data_of(parent)
@@ -2475,14 +2465,20 @@ impl<'a> CheckerState<'a> {
                                     }
                                     containing = parent;
                                 }
-                                containing
-                            });
-                        let in_type_query = containing.is_some_and(|containing| {
-                            self.parent_of(containing)
-                                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::TypeQuery)
+                                Some(containing)
+                            }
+                            SyntaxKind::PropertyAccessExpression => {
+                                self.type_heritage_qualified_name_root(name)
+                            }
+                            _ => None,
+                        };
+                        let in_typeof_expression = containing.is_some_and(|containing| {
+                            self.parent_of(containing).is_some_and(|parent| {
+                                self.kind_of(parent) == SyntaxKind::TypeOfExpression
+                            })
                         });
                         let can_suggest_typeof = if meaning.intersects(SymbolFlags::TYPE)
-                            && !in_type_query
+                            && !in_typeof_expression
                             && self.globals.get("Object").is_some()
                         {
                             match containing {
@@ -2506,8 +2502,24 @@ impl<'a> CheckerState<'a> {
                         }
                         if meaning.intersects(SymbolFlags::NAMESPACE) {
                             if let Some(parent) = self.parent_of(name) {
-                                if let NodeData::QualifiedName(parent_data) = self.data_of(parent) {
-                                    if parent_data.left == Some(name) {
+                                let qualified_parent = match self.data_of(parent) {
+                                    NodeData::QualifiedName(parent_data)
+                                        if parent_data.left == Some(name) =>
+                                    {
+                                        Some(parent_data.right)
+                                    }
+                                    NodeData::PropertyAccessExpression(parent_data)
+                                        if parent_data.expression == Some(name)
+                                            && self
+                                                .type_heritage_qualified_name_root(parent)
+                                                .is_some() =>
+                                    {
+                                        Some(parent_data.name)
+                                    }
+                                    _ => None,
+                                };
+                                if let Some(property) = qualified_parent {
+                                    {
                                         let exported_type = self
                                             .get_symbol_in_table(
                                                 &exports,
@@ -2516,7 +2528,7 @@ impl<'a> CheckerState<'a> {
                                             )?
                                             .map(|symbol| self.get_merged_symbol(symbol));
                                         if let (Some(exported_type), Some(property)) =
-                                            (exported_type, parent_data.right)
+                                            (exported_type, property)
                                         {
                                             let symbol_name =
                                                 self.symbol_display_name(exported_type);
@@ -2598,11 +2610,20 @@ impl<'a> CheckerState<'a> {
     /// Resolve the root under value meaning, then follow each qualified
     /// segment through the preceding symbol's value type. Entity-name
     /// resolution cannot substitute for this walk because ordinary value
-    /// properties are not namespace exports.
+    /// properties are not namespace exports. The chain is walked from its
+    /// first identifier (tsgo `ast.GetFirstIdentifier`) through qualified
+    /// names or, for the entity name of a type heritage element that tsgo's
+    /// parser would have made a qualified name (see
+    /// `type_heritage_qualified_name_root`), property accesses.
     fn try_get_qualified_name_as_value(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         let mut left = node;
-        while let NodeData::QualifiedName(data) = self.data_of(left) {
-            let Some(next) = data.left else {
+        loop {
+            let next = match self.data_of(left) {
+                NodeData::QualifiedName(data) => data.left,
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                _ => break,
+            };
+            let Some(next) = next else {
                 return Ok(None);
             };
             left = next;
@@ -2623,13 +2644,15 @@ impl<'a> CheckerState<'a> {
         };
 
         while let Some(parent) = self.parent_of(left) {
-            let NodeData::QualifiedName(data) = self.data_of(parent) else {
-                break;
+            let (parent_left, right) = match self.data_of(parent) {
+                NodeData::QualifiedName(data) => (data.left, data.right),
+                NodeData::PropertyAccessExpression(data) => (data.expression, data.name),
+                _ => break,
             };
-            if data.left != Some(left) {
+            if parent_left != Some(left) {
                 break;
             }
-            let Some(right) = data.right else {
+            let Some(right) = right else {
                 return Ok(None);
             };
             let Some(property_name) = self.identifier_text_of(right).map(str::to_owned) else {
@@ -2814,6 +2837,74 @@ impl<'a> CheckerState<'a> {
             self.kind_of(member) == SyntaxKind::Constructor
                 && body_of(self.binder.source_of_node(member), member).is_some()
         })
+    }
+
+    /// tsgo's parser turns the entity name of an interface `extends`
+    /// element or a class `implements` element into a type reference with a
+    /// qualified name (parser.go parseTypeHeritageClauseElement,
+    /// convertEntityNameExpressionToEntityName); tsc 6.0 kept the property
+    /// access expression, and so does this parser. The error paths of
+    /// resolveQualifiedName that read QualifiedName nodes — the `typeof`
+    /// suggestion for a value used as a type (TS2749) and the
+    /// type-not-namespace diagnostic (TS2713) — therefore apply to such a
+    /// chain. Returns the outermost access of the chain `name` belongs to
+    /// when that chain is the whole entity name of a type heritage element
+    /// (identifiers and property accesses only, no optional chain), the
+    /// node tsgo's qualified name would occupy.
+    fn type_heritage_qualified_name_root(&self, name: NodeId) -> Option<NodeId> {
+        let mut root = name;
+        while let Some(parent) = self.parent_of(root) {
+            let NodeData::PropertyAccessExpression(data) = self.data_of(parent) else {
+                break;
+            };
+            if data.expression != Some(root) {
+                break;
+            }
+            root = parent;
+        }
+        let element = self.parent_of(root)?;
+        let NodeData::ExpressionWithTypeArguments(element_data) = self.data_of(element) else {
+            return None;
+        };
+        if element_data.expression != Some(root) {
+            return None;
+        }
+        let clause = self.parent_of(element)?;
+        let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
+            return None;
+        };
+        let owner = self.parent_of(clause)?;
+        let is_type_heritage = match self.kind_of(owner) {
+            SyntaxKind::InterfaceDeclaration => clause_data.token == SyntaxKind::ExtendsKeyword,
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
+                clause_data.token == SyntaxKind::ImplementsKeyword
+            }
+            _ => false,
+        };
+        if !is_type_heritage {
+            return None;
+        }
+        // isValidHeritageTypeReferenceExpression: identifiers and property
+        // accesses with present names and no optional chain.
+        let mut current = root;
+        loop {
+            match self.data_of(current) {
+                NodeData::PropertyAccessExpression(data) => {
+                    let source = self.binder.source_of_node(current);
+                    if node_util::is_optional_chain(source, current)
+                        || !matches!(data.name, Some(name) if self.kind_of(name) == SyntaxKind::Identifier)
+                    {
+                        return None;
+                    }
+                    current = data.expression?;
+                }
+                _ => {
+                    return (self.kind_of(current) == SyntaxKind::Identifier
+                        && self.pos_of(current) != self.end_of(current))
+                    .then_some(root);
+                }
+            }
+        }
     }
 
     /// tsrs-native: typed HeritageClause projection for tsc's direct

@@ -202,17 +202,6 @@ pub struct RelatedInfo {
     pub message: MessageChain,
 }
 
-/// tsc CanonicalDiagnostic (getCanonicalDiagnostic 13977-13982): the
-/// "plain form" a Did-you-mean diagnostic stands in for. Sort and
-/// dedupe compare through it (getDiagnosticCode/getDiagnosticMessage
-/// 17948-17954), so a 2552 with canonicalHead (2304, plain text)
-/// occupies the plain 2304's slot and wins the keep-first dedupe.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CanonicalHead {
-    pub code: u32,
-    pub text: JsString,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic {
     /// The SourceFile's `FileName()`, which also orders diagnostics
@@ -227,7 +216,6 @@ pub struct Diagnostic {
     /// marker false.
     pub related_information_present: bool,
     pub related: Vec<RelatedInfo>,
-    pub canonical_head: Option<CanonicalHead>,
     /// Optional diagnostic properties propagated by
     /// createFileDiagnostic/createCompilerDiagnostic.
     pub reports_unnecessary: Option<bool>,
@@ -266,7 +254,6 @@ impl Diagnostic {
             message,
             related_information_present: false,
             related: Vec::new(),
-            canonical_head: None,
             reports_unnecessary: metadata
                 .is_some_and(|message| message.reports_unnecessary)
                 .then_some(true),
@@ -303,20 +290,6 @@ impl Diagnostic {
 
     pub fn message_text(&self) -> &JsString {
         &self.message.text
-    }
-
-    /// tsc getDiagnosticCode (17948-17950): canonicalHead code wins.
-    fn comparison_code(&self) -> u32 {
-        self.canonical_head
-            .as_ref()
-            .map_or_else(|| self.code(), |head| head.code)
-    }
-
-    /// tsc getDiagnosticMessage (17951-17954): canonicalHead text wins.
-    fn comparison_text(&self) -> &JsString {
-        self.canonical_head
-            .as_ref()
-            .map_or_else(|| self.message_text(), |head| &head.text)
     }
 }
 
@@ -366,7 +339,11 @@ pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
 
 /// tsgo's CompareDiagnostics (ast/diagnostic.go:482-520) orders by the
 /// file name (`getDiagnosticPath` is `File().FileName()`), where tsc 6.0
-/// used `SourceFile.path`, which was empty for a parsed config file.
+/// used `SourceFile.path`, which was empty for a parsed config file. The
+/// code, the category and the source precede the message text. tsgo has
+/// no canonical diagnostic: a "Did you mean" diagnostic sorts and
+/// deduplicates by its own code and text, not by the plain form tsc 6.0
+/// attached to it (getCanonicalDiagnostic).
 fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Ordering {
     compare_optional_strings_case_sensitive(
         left.file_name.as_ref().map(JsString::as_js),
@@ -374,8 +351,10 @@ fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Or
     )
     .then_with(|| left.start.cmp(&right.start))
     .then_with(|| left.length.cmp(&right.length))
-    .then_with(|| left.comparison_code().cmp(&right.comparison_code()))
-    .then_with(|| compare_diagnostic_message_text(left, right))
+    .then_with(|| left.code().cmp(&right.code()))
+    .then_with(|| (left.category() as u8).cmp(&(right.category() as u8)))
+    .then_with(|| left.source.cmp(&right.source))
+    .then_with(|| compare_message_text(&left.message, &right.message))
 }
 
 /// JavaScript relational string comparison is lexicographic over UTF-16
@@ -399,32 +378,6 @@ fn compare_optional_strings_case_sensitive(
         (Some(_), None) => Ordering::Greater,
         (Some(left), Some(right)) => compare_strings_case_sensitive(left, right),
     }
-}
-
-/// tsc compareMessageText (17863-17888): head text through the
-/// canonical head, chains from the RAW message, then the
-/// canonical-bearing-sorts-first tiebreaker.
-fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    left.comparison_text()
-        .cmp_utf16(right.comparison_text().as_js())
-        .then_with(|| {
-            compare_message_chain(
-                left.message.next_present,
-                &left.message.next,
-                right.message.next_present,
-                &right.message.next,
-            )
-        })
-        .then_with(|| {
-            match (
-                left.canonical_head.is_some(),
-                right.canonical_head.is_some(),
-            ) {
-                (true, false) => Ordering::Less,
-                (false, true) => Ordering::Greater,
-                _ => Ordering::Equal,
-            }
-        })
 }
 
 fn compare_related_information(
@@ -527,16 +480,33 @@ fn compare_message_chain_content(left: &[MessageChain], right: &[MessageChain]) 
         .unwrap_or(Ordering::Equal)
 }
 
-/// tsc diagnosticsEqualityComparer (17941-17947): file/span plus code
-/// and HEAD TEXT compared through the canonical head — chains and
-/// related information are ignored, which is what lets a canonical
-/// 2552 swallow its plain 2304 twin.
+/// tsgo's EqualDiagnosticsNoRelatedInfo (ast/diagnostic.go:405-417):
+/// file, span, code, category, source, message text and the whole
+/// message chain. Two diagnostics at one location whose chains differ
+/// are both kept: `checkInheritedPropertiesAreIdentical` reports one
+/// TS2320 per property that is not identical. tsc 6.0 compared the head
+/// text only (diagnosticsEqualityComparer) and kept the first.
 fn diagnostics_equal(left: &Diagnostic, right: &Diagnostic) -> bool {
     left.file_name == right.file_name
         && left.start == right.start
         && left.length == right.length
-        && left.comparison_code() == right.comparison_code()
-        && left.comparison_text() == right.comparison_text()
+        && left.code() == right.code()
+        && left.category() == right.category()
+        && left.source == right.source
+        && message_chains_equal(&left.message, &right.message)
+}
+
+/// tsgo's equalMessageChain (ast/diagnostic.go:429-436): code, text and
+/// the chain below, recursively.
+fn message_chains_equal(left: &MessageChain, right: &MessageChain) -> bool {
+    left.code == right.code
+        && left.text == right.text
+        && left.next.len() == right.next.len()
+        && left
+            .next
+            .iter()
+            .zip(right.next.iter())
+            .all(|(left, right)| message_chains_equal(left, right))
 }
 
 #[cfg(test)]

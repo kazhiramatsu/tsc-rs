@@ -4951,6 +4951,14 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             }
             if !loads_source {
+                // A name that does not load a source (a module augmentation's)
+                // is resolved and recorded, but its target joins the program
+                // only when an import of some file loads it
+                // (processImportedModules adds a file for the names of
+                // imports alone; tsgo fileloader.go:915-923). The checker
+                // then finds the resolution without a source file.
+                self.module_resolutions[index].unloaded_reason =
+                    Some(UnloadedModuleReason::ResolutionOnly);
                 continue;
             }
             // Resolver-owned external symlink handling has already replaced

@@ -3380,7 +3380,13 @@ fn json_probe_requires_both_an_explicit_json_suffix_and_effective_option() {
 }
 
 #[test]
-fn augmentation_only_typescript_target_is_rejected_without_program_membership() {
+fn augmentation_only_typescript_target_is_resolved_but_not_loaded() {
+    // tsgo adds a file to the program for the names of imports alone
+    // (compiler/fileloader.go:915-923): the name of a module augmentation is
+    // resolved and recorded, and its TypeScript target stays out of the
+    // program unless some import loads it. The checker finds the resolution
+    // without a source file and treats the augmentation's target as not
+    // found (TS2664 in a module file).
     let augment = "export {};\ndeclare module './target' { export const x: 1; }\n";
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/augment.ts", augment.as_bytes().to_vec())
@@ -3388,18 +3394,28 @@ fn augmentation_only_typescript_target_is_rejected_without_program_membership() 
         .build()
         .expect("build memory host");
 
-    let error = load(&host, &["/work/augment.ts"], generous_limits())
-        .expect_err("an augmentation-only TypeScript target has no source membership");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Resolution);
-    assert_eq!(error.operation(), ProgramLoadOperation::BindResolutions);
-    let ProgramLoadError::Resolution { source, .. } = error else {
-        unreachable!("kind identifies the resolution variant");
+    let program = load(&host, &["/work/augment.ts"], generous_limits())
+        .expect("an augmentation-only TypeScript target is resolved, not loaded");
+    assert_eq!(source_paths(&program), [Path::new("/work/augment.ts")]);
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/work/augment.ts", "./target"))
+        .expect("augmentation has an authoritative module row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("augmentation target must resolve");
     };
-    assert!(matches!(
-        *source,
-        ResolutionError::Unsupported { ref feature, .. }
-            if feature == "resolution-only-source-target"
-    ));
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file,
+        reason,
+    } = resolved.target()
+    else {
+        panic!("augmentation-only TypeScript remains unloaded");
+    };
+    assert_eq!(
+        resolved_file.display().scalar_test_path(),
+        Path::new("/work/target.ts")
+    );
+    assert_eq!(*reason, UnloadedModuleReason::ResolutionOnly);
 }
 
 #[test]

@@ -1792,7 +1792,7 @@ impl<'a> CheckerState<'a> {
     /// (UseFullyQualifiedType, 50757-50764) and the retried texts are
     /// used EVEN IF STILL EQUAL — same-type operands print
     /// `'null' and 'null'` (oracle-probed); tsc has no third fallback.
-    fn get_type_names_for_error_display(
+    pub(crate) fn get_type_names_for_error_display(
         &mut self,
         left: TypeId,
         right: TypeId,
@@ -4275,16 +4275,17 @@ impl<'a> CheckerState<'a> {
                             || (tested_kind == SyntaxKind::ThisKeyword
                                 && child_kind == SyntaxKind::ThisKeyword)
                         {
+                            // `getSymbolAtLocation(testedExpression) ===
+                            // getSymbolAtLocation(childExpression)`
+                            // (checker.go isSymbolUsedInConditionBody): two
+                            // `this` expressions whose type has no symbol (an
+                            // intersection `T & { … }` from `ThisType`) are
+                            // the same reference, as two undefineds are equal.
                             let tested_symbol_here =
                                 self.get_symbol_at_location_for_condition_walker(tested)?;
                             let child_symbol_here =
                                 self.get_symbol_at_location_for_condition_walker(child_expr)?;
-                            if tested_symbol_here.is_some()
-                                && tested_symbol_here == child_symbol_here
-                            {
-                                return Ok(true);
-                            }
-                            break;
+                            return Ok(tested_symbol_here == child_symbol_here);
                         } else if tested_kind == SyntaxKind::PropertyAccessExpression
                             && child_kind == SyntaxKind::PropertyAccessExpression
                         {

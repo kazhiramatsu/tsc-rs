@@ -3714,3 +3714,100 @@ stack overflowする（文字列連結1,800は通る＝1段約8 KiB、method cha
   は変わらず。P3-5bi→P3-5bjは全fileが同一（stackの予約は出力を変えない）。
 - **この時点で、errorsを比べる13,451構成とemitを比べる13,443構成は全てFull。** 残りはcontent mapperの
   harness error 15、JS baselineの無い8構成、tsgoのskip list 42。
+
+## P3-5bk 実プロジェクトの第1回：DefinitelyTypedの全projectでtsgoと同じ出力にする（2026-10-06）
+
+roadmapのstep 2（2026-10-05）：conformanceの完全一致の後、実プロジェクトの診断をtsgoと比べ、違いを直す。
+最初のcorpusはDefinitelyTyped（`fbd2f560`、`types/<pkg>/tsconfig.json`と`types/<pkg>/<version>/tsconfig.json`の
+9,067 project）。各projectのtestは自分自身を`node_modules/@types/<pkg>`経由でimportするので、rootで
+`pnpm install --ignore-scripts`を1回行い（ユーザー承認2026-10-06）、各projectで`-p tsconfig.json --pretty false`を
+両compilerで走らせてstdoutとexit codeを比べた（`~/dev/real-projects.noindex/dt-compare.py`）。
+
+**参照はtsgoの`--singleThreaded`**：tsgoの既定の4 checkerは、1つの宣言を2つのcheckerが検査すると
+interfaceの両立性の診断（TS2320・TS2430）を2回出す（checkerごとの`interfaceChecked`の印）。これはpartitionの
+artifactで、追う対象ではない。tsc-rsは1 checker（`TSRS_CHECKERS=1`）で比べた。
+
+第1回の全体比較で53 projectの出力が違った。原因は全て、tsc-rsがtsc 6.0.3か自分の以前の作りに従っていて
+tsgo 7.1が違う所だった：
+- **module augmentationの名前はfileを読み込まない**（`crates/program/src/loader.rs`、`crates/compiler/src/lib.rs`）：
+  tsgoはimportの名前にだけfileを足す（compiler/fileloader.go:915-923）。augmentationの対象でどのimportも
+  読み込まないfileは、解決されるがprogramに入らず、checkerは「見つからない」として扱う（moduleのfileならTS2664、
+  ambient contextでは何も出さない。checker.go resolveExternalModule、mergeModuleAugmentationはambientのaugmentationに
+  errorを渡さない）。tsc-rsはprogramの構築で失敗していた（「resolved non-JavaScript target … has no independent
+  program membership」。DefinitelyTypedの`ember`の`declare module "htmlbars-inline-precompile"`）。
+- **global型の構築は、遅延したambient moduleのmergeより前**（`crates/checker/src/merge.rs`、`lib.rs`。tsgo
+  initializeChecker、checker.go:1352-1382）：`Function`の宣言型を作るとき`isThislessInterface`が全ての`Function`宣言の
+  基底名を解決し、importしたinterfaceを継承するglobal augmentationはそのimportを解決する。ambient moduleの宣言だけが
+  与える名前のimportはこの時点では見つからず、TS2307になる（`ember/v2`）。`merge_module_augmentations_around`で
+  programの経路だけがこの位置で構築し、unit testは遅延のまま。
+- **内蔵libraryは`bundled:///libs/<lib>`**（`crates/compiler/src/cli.rs`、`crates/diagnostics/src/render.rs`。tsgo
+  internal/bundled）：libraryのfileに出る診断はその名前で出て、URLはschemeがrootなので相対化されず、`/`で始まる全ての
+  fileの後ろに並ぶ。
+- **missing propertyの文は全て`getTypeNamesForErrorDisplay`で型を名付ける**（relater.go:1270-1292。
+  `crates/checker/src/check.rs`、`structural.rs`、`operators.rs`）：同じ表示になる2つの型は完全限定名で書く。
+  TS2739と鎖の中の文も含む（tsc-rsは1 propertyのTS2741だけだった）。
+- **`this.q`を自分の条件の本体で使う**のは意図した判定（`isSymbolUsedInConditionBody`はsymbolを比べる。
+  `crates/checker/src/operators.rs`）：`ThisType`で型の付くobject literalの`if (this.q) { this.q(); }`にTS2774を
+  出さない（`wechat-miniprogram`）。
+- **基底classのstaticは、派生classのnamespaceの値でないmemberを置き換える**（`addInheritedMembers`、
+  checker.go:19935-19947。`crates/checker/src/annotate.rs`）：passportのstrategyの`export import Strategy = …`は
+  基底の`Strategy`に譲る。tsc 6.0.3はJavaScriptのexpando代入だけを置き換えていた。
+- **fileの`export =`の対象はfileで名付ける**（`getSpecifierForModuleSymbol`、nodebuilderimpl.go:1249-1336。
+  `crates/checker/src/check.rs`）：`typeof import("…/index.d.ts")`。そのsymbolにmergeした`declare module "react"`の
+  引用名では名付けない。
+- **node builderの長さの見積もり**（`crates/checker/src/check.rs`）：signatureは＋3、parameterは名前の長さ＋3、
+  型parameterはparameterの前に書く、再利用した型nodeは中の加算を捨てて元のspanを足す（`tryReuseExistingNodeHelper`、
+  nodecopy.go:197-231）。予算に届く位置がtsgoと同じになり、省くmember（`... N more ...`）が一致する
+  （`tuya-panel-kit`）。
+- **診断の重複はmessage chain全体で判定する**（`EqualDiagnosticsNoRelatedInfo`、ast/diagnostic.go:405-417。
+  `crates/diagnostics/src/lib.rs`）：`checkInheritedPropertiesAreIdentical`はpropertyごとにTS2320を出し、鎖だけが
+  違うそれらは全て残る。tsgoにcanonical diagnosticは無いので、「Did you mean」の診断は自分のcodeと文で並び、
+  重複判定される（tsc 6.0の`getCanonicalDiagnostic`相当を削除）。
+- **再入した基底制約の解決はcircularの印を返し、cacheしない**（`getResolvedBaseConstraint`、
+  checker.go:27912-27953。`crates/checker/src/constraints.rs`、`links.rs`）：tsgoは1つの関数と1つのcacheで
+  top-levelと入れ子の解決を行い、解決中の型への要求は印を返すだけなので、その解決の間の要求は毎回循環を見つけて
+  間の解決をcircularにする。tsc 6.0（`getResolvedBaseConstraint`と`getImmediateBaseConstraint`の2段）は最初の再入の
+  印を`resolvedBaseConstraint`にcacheして後の要求に答えていて、tsc-rsも同じだった。`infer P`の制約を
+  `DefineComponent<infer P>`から推論する間、分配的なconditional `ExtractDefaultPropTypes<P>`はsubstitution `P & object`
+  の`P`を`object`と何度も比べ、tsgoはそのたびに循環を見つけてconditional型の制約を印にするので、mapped型の
+  parameter `K`の制約を求めることが無い。tsc-rsは2回目以降の比較でcacheを返し、循環の中で`K`の制約を解決して
+  TS2313を報告していた（`@vue/runtime-core`。`vue-writer`、`vue-draggable-resizable`、`vue3-carousel-3d`）。
+  `isRelatedTo`の「型parameter＝制約」のfast path（relater.go:2668-2675）も、inlineの制約を読むのではなく
+  `getConstraintOfType`で制約を解決するようにした（M4以来のKNOWN-GAP）。
+- **classとinterfaceの宣言型は、型parameterを計算する前に公開する**（`getDeclaredTypeOfClassOrInterface`。
+  `crates/checker/src/annotate.rs`）：継承を通って再入した読みはshell（型parameterもthisTypeも無い）を見る。tsc-rsは
+  成功時にだけslotを書き、再入をassertで止めていた（「re-entrant declared-type computation must route through the
+  in-progress set」）。`@types/node`のweb globalsの`interface Console extends console.Console {}`と`var console: Console`
+  が同じglobal blockにあると、`console.Console`の値の探索が`Console`の型を求めて再入する。in-progressの集合は
+  不要になり削除した。
+- **interfaceの`extends`とclassの`implements`の要素の名前は、tsgoのparserではqualified name**
+  （parser.go parseTypeHeritageClauseElement、convertEntityNameExpressionToEntityName。tsc 6.0はproperty access
+  expressionのまま）：`resolveQualifiedName`のQualifiedNameを読むerror pathのうち、値を型に使ったときの`typeof`の
+  提案（TS2749）と「型であってnamespaceでない」（TS2713）が、そのproperty accessの鎖に当たるようにし、
+  `tryGetQualifiedNameAsValue`も鎖を辿るようにした（`crates/checker/src/resolve.rs`
+  `type_heritage_qualified_name_root`）。parserはproperty accessのままにしている（emitterと宣言emitの形に影響する
+  ので、ここでは必要な観測だけを合わせた）。`dockerode-compose`（`@types/node`の2 version）。
+- test：CLI 13件（原因ごとに1件。DefinitelyTypedの形を縮約したもの。期待値はtsgoのbytes）、diagnosticsのunit
+  test 2件、program loaderのcontract test 1件の更新（augmentationの対象は解決されるが読み込まれない）。
+
+- conformance（このsliceの1回の全体実行。macOS、`taskpolicy -c maintenance nice -n 20`、2 worker、2,400秒）：
+  `38b7240aa`のbuild（testは`1b947c265`）で15,228 configuration、lane A 13,466、full 13,451、text 0、不一致0、
+  emit full 13,443、emitの不一致0、emit未評価8、harness error 15、skipped 1,720。ratchetは0 regression、
+  上がった行も0。P3-5bjの最終report（`9c4a7c8ae`）と行ごとに比べて、tier・digest（errors、emit、map）の変化は
+  0行：conformanceの範囲ではこのsliceは何も変えず、実プロジェクトだけが当たる違いだった。
+- local（macOS、`taskpolicy -c maintenance nice -n 20`、2 job）：`cargo fmt --all -- --check`、6 crate（checker、
+  compiler、diagnostics、program、conformance、harness）の`cargo clippy --all-targets -- -D warnings`、同じ6 crateの
+  `cargo test --no-fail-fast`（24 target、2,813 passed）と`contracts -- cli_contract`（188 passed。最後のCLI test
+  1件はその後に追加）。workspace全体はhostedの`rust` job。
+- DefinitelyTyped：第1回の全体比較（修正前のbuild、tsgoは既定のchecker数）で53 projectが違い、`--singleThreaded`で
+  53を再実行して49が一致、残る4（`vue-writer`、`vue-draggable-resizable`、`vue3-carousel-3d`、`dockerode-compose`）が
+  上のbase constraintとqualified nameの修正で一致した。原因ごとの縮約repro 15件と、以前に違った`ember/v2`、
+  `wechat-miniprogram`、`passport-github`、`tuya-panel-kit`も最終buildでtsgoとbyte一致。**9,067 project全体の
+  再実行は最終buildで行い、hostedの記録に書く。**
+- **この記録の時点で未実行のもの**：`--checkers 4`の対照（6 filter。実行中）、8 corpusの`--noEmit`診断のtsgoとの比較、
+  corpusの速度・peak memoryの比較（ユーザーの指示で小さく分けて回す）、DefinitelyTyped全体の再実行。
+- 次：
+  - material-ui（`packages/*/tsconfig.json`）とazure-sdk-for-js（packageをまたぐ型が`dist/*.d.ts`なので、比較の前に
+    distを作る方法をユーザーに提案する）。
+  - harness error 15（`runExternalCode`。content mapperの機能）。
+  - 既定のchecker数での診断の再現性（zod。P3-5beの記録の通り未決）。

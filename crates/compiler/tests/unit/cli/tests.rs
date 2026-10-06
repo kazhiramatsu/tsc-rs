@@ -97,11 +97,15 @@ fn version_is_available_without_a_filesystem_host() {
 #[test]
 fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
     let filesystem = FsCompilerHost::from_process().expect("construct filesystem host");
-    let current_directory = filesystem
-        .current_directory()
-        .expect("read current directory");
-    let host = CliCompilerHost::new(filesystem, &current_directory);
+    let host = CliCompilerHost::new(filesystem);
     assert_eq!(embedded_libraries::EMBEDDED_LIBRARIES.len(), 113);
+    // tsgo's embedded library path (internal/bundled): the diagnostics name
+    // a library file `bundled:///libs/<lib>`.
+    assert_eq!(
+        host.library_directory(),
+        Path::new("bundled:///libs"),
+        "the embedded library directory is tsgo's bundled path"
+    );
 
     let embedded_path = host.library_directory().join("lib.es5.d.ts");
     let embedded = host

@@ -3798,12 +3798,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b159a970fade450a929f147df283c2d536e3a3459c66ac6b6e9b9675173ef57c
     /// tsc-span: _tsc.js:57375-57403
     ///
-    /// tsc writes the shell into the links BEFORE computing type
-    /// parameters and thisless-ness, so cyclic heritage reads a
-    /// thisType-less shell mid-computation; here the slot is written on
-    /// success only (Err unwinds stay re-queryable) and the in-progress
-    /// set reproduces the same mid-cycle observable for the ONLY
-    /// mid-cycle reader, isThislessInterface's base walk.
+    /// The shell (an object type of the class or interface kind) is
+    /// published in the links BEFORE the type parameters and the
+    /// thisless-ness are computed (tsgo checker.go
+    /// getDeclaredTypeOfClassOrInterface), so a read that re-enters
+    /// through the heritage — the base `console.Console` of a global
+    /// `Console` whose resolution types the variable `console: Console`
+    /// — sees a shell without type parameters or thisType, as in tsgo.
+    /// The shell becomes the generic type in place when the symbol is
+    /// generic.
     pub(crate) fn get_declared_type_of_class_or_interface(
         &mut self,
         symbol: SymbolId,
@@ -3815,35 +3818,17 @@ impl<'a> CheckerState<'a> {
             perf::bump(PerfCounter::DeclaredTypeHits);
             return Ok(cached);
         }
-        assert!(
-            !self.class_interface_declared_in_progress.contains(&symbol),
-            "re-entrant declared-type computation must route through the in-progress set"
-        );
-        self.class_interface_declared_in_progress.push(symbol);
-        let computed = self.compute_declared_type_of_class_or_interface(symbol);
-        self.class_interface_declared_in_progress.pop();
-        let (id, effective_symbol) = computed?;
-        self.links
-            .set_declaration_owned_symbol_declared_type(symbol, LinkSlot::Resolved(id));
-        if effective_symbol != symbol {
-            self.links.set_declaration_owned_symbol_declared_type(
-                effective_symbol,
-                LinkSlot::Resolved(id),
-            );
-        }
-        Ok(id)
-    }
-
-    fn compute_declared_type_of_class_or_interface(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult<(TypeId, SymbolId)> {
         let is_class = self.symbol_flags(symbol).intersects(SymbolFlags::CLASS);
         let kind = if is_class {
             ObjectFlags::CLASS
         } else {
             ObjectFlags::INTERFACE
         };
+        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        self.tables.type_mut(id).object_flags = kind;
+        self.tables.type_mut(id).symbol = Some(symbol);
+        self.links
+            .set_declaration_owned_symbol_declared_type(symbol, LinkSlot::Resolved(id));
         // tsgo getDeclaredTypeOfClassOrInterface (TypeScript 7.1) merges no
         // `X.prototype = { ... }` object literal into the class: tsc 6.0's
         // mergeJSSymbols(symbol, getAssignedClassSymbol(...)) is gone.
@@ -3856,9 +3841,6 @@ impl<'a> CheckerState<'a> {
             || !local_type_parameters.is_empty()
             || is_class
             || !self.is_thisless_interface(symbol)?;
-        let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
-        self.tables.type_mut(id).object_flags = kind;
-        self.tables.type_mut(id).symbol = Some(symbol);
         if generic {
             let outer_count = outer_type_parameters.len();
             let mut type_parameters = outer_type_parameters;
@@ -3889,7 +3871,7 @@ impl<'a> CheckerState<'a> {
                 this_type,
             };
         }
-        Ok((id, symbol))
+        Ok(id)
     }
 
     /// tsc-port: getOuterTypeParametersOfClassOrInterface @6.0.3
@@ -3962,8 +3944,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e55eea0f7b249c2868dbb9574c61319f21bc708bb79efac5e44adbe8cf2a3221
     /// tsc-span: _tsc.js:57346-57374
     ///
-    /// An in-progress base (cyclic heritage) reads as tsc's eagerly
-    /// written shell: no thisType yet — the check passes.
+    /// A base whose declared type is being computed (cyclic heritage)
+    /// reads as its published shell: no thisType yet — the check passes.
     fn is_thisless_interface(&mut self, symbol: SymbolId) -> CheckResult<bool> {
         let declarations = self.binder.symbol(symbol).declarations.clone();
         for declaration in declarations {
@@ -3997,14 +3979,6 @@ impl<'a> CheckerState<'a> {
                     .intersects(SymbolFlags::INTERFACE)
                 {
                     return Ok(false);
-                }
-                if self
-                    .class_interface_declared_in_progress
-                    .contains(&base_symbol)
-                {
-                    // Mid-cycle: the base's (eager) shell carries no
-                    // thisType yet.
-                    continue;
                 }
                 let base_declared = self.get_declared_type_of_class_or_interface(base_symbol)?;
                 if matches!(
@@ -6890,45 +6864,22 @@ impl<'a> CheckerState<'a> {
             if self.is_static_private_identifier_property(base) {
                 continue;
             }
+            // tsgo addInheritedMembers (checker.go:19935-19947): the base
+            // member replaces an own member that is not a value — an alias
+            // such as `export import Strategy = github` in the namespace a
+            // class merges with (DefinitelyTyped's passport strategies), so
+            // the static `Strategy` of such a class is the base's. tsc 6.0.3
+            // replaced only a JavaScript expando assignment.
             let derived = symbols.get(&self.binder, self.binder.symbol(base).escaped_name);
             let replace = match derived {
                 None => true,
-                Some(derived) => {
-                    let value_declaration = self.binder.symbol(derived).value_declaration;
-                    value_declaration.is_some_and(|declaration| {
-                        self.kind_of(declaration) == SyntaxKind::BinaryExpression
-                    }) && !self.is_constructor_declared_property(derived)?
-                        && value_declaration.is_some_and(|declaration| {
-                            self.containing_class_static_block(declaration).is_none()
-                        })
-                }
+                Some(derived) => !self.symbol_flags(derived).intersects(SymbolFlags::VALUE),
             };
             if replace {
                 symbols.insert(&self.binder, base);
             }
         }
         Ok(())
-    }
-
-    /// tsc getContainingClassStaticBlock (14444-14451): stop at a
-    /// nested class or function before accepting a static block.
-    fn containing_class_static_block(&self, node: NodeId) -> Option<NodeId> {
-        let mut current = self.parent_of(node);
-        while let Some(candidate) = current {
-            let kind = self.kind_of(candidate);
-            if matches!(
-                kind,
-                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-            ) || node_util::is_function_like_kind(kind)
-            {
-                return None;
-            }
-            if kind == SyntaxKind::ClassStaticBlockDeclaration {
-                return Some(candidate);
-            }
-            current = self.parent_of(candidate);
-        }
-        None
     }
 
     /// tsc-port: isStaticPrivateIdentifierProperty @6.0.3

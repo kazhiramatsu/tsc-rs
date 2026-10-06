@@ -2750,12 +2750,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             // tsgo's single-property face is plain symbolToString
             // (relater.go:4394); tsc 6.0 asked for WriteComputedProps.
             let name = self.st.missing_property_display_name(unmatched_property)?;
-            let mut source_text = self.st.type_to_string_with_error_enclosing(source)?;
-            let mut target_text = self.st.type_to_string_with_error_enclosing(target)?;
-            if source_text == target_text {
-                source_text = self.st.get_type_name_for_error_display(source)?;
-                target_text = self.st.get_type_name_for_error_display(target)?;
-            }
+            let (source_text, target_text) =
+                self.st.get_type_names_for_error_display(source, target)?;
             self.report_error_js(
                 &tsc_diagnostics::gen::Property_0_is_missing_in_type_1_but_required_in_type_2,
                 vec![(name.clone()), (source_text), (target_text)],
@@ -2785,8 +2781,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             return Ok(());
         }
 
-        let source_text = self.st.type_to_string(source)?;
-        let target_text = self.st.type_to_string(target)?;
+        // tsgo names the types of the multi-property messages through
+        // getTypeNamesForErrorDisplay as well (relater.go:4400): two types
+        // that print alike are written fully qualified.
+        let (source_text, target_text) =
+            self.st.get_type_names_for_error_display(source, target)?;
         // 66757/66759: multi-property lists use the default
         // symbolToString face (no WriteComputedProps).
         let displayed_property_count = if properties.len() > 5 {
