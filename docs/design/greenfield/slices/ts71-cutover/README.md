@@ -3870,3 +3870,25 @@ tsgoは検査する）。診断の違いは無い。ただしroot `tsconfig.json
   azure-sdk-for-js（467 project）は、packageをまたぐ型が`dist/*/index.d.ts`（package.jsonの`exports`）なので、比較の前に
   distを作る必要がある。ユーザーに方法を提案する：(a) tsgoで依存順にdistの宣言をemitする、(b) `pnpm build`（turbo、時間と
   失敗の可能性が大きい）、(c) `@azure/*`に依存しないpackageだけ先に比べる。
+
+### P3-5blのhostedの記録、material-uiの再実行、merge（2026-10-06）
+
+- hosted：PR #690 run 37456149036（head `ab991836e`：`plan` 28s、`rust` 8m42s、`conformance (TypeScript 7.1)`
+  19m28s、`gates` 13s。全て成功）。merge → `0f7955f3a`（merge commit）。
+- material-uiの38 projectの再実行（`compare-projects.py`、tsgo `--singleThreaded`／tsc-rs `TSRS_CHECKERS=1`、
+  `nice -n 20`、1 job）：第1回はconfigのまま（emitあり）で573秒、26 projectが一致。第2回は両compilerに`--noEmit`を
+  足して234秒、25 projectが一致。違いの12 projectは未対応のoption（`incremental` 5、project references 5、
+  `composite` 2）で変わらず、残る1件が新しい診断の違い：`scripts/buildLlmsDocs/tsconfig.json`（両方36 error）の
+  TS6059の「The file is in the program because:」に、tsgoは`Imported via './utils/createTypeScriptProject' from file
+  '…/packages-internal/api-docs-builder/src/index.ts'`を2行（値のre-exportと型のre-export）、tsc-rsは1行。
+  第1回でこのprojectが一致していたのは、emitの有無で出力が違うため（第1回はtsgo 2 1／rs 2 1）。原因と修正はP3-5bm。
+- 時間（第2回、2 compilerを順に、他の処理と同時）：root `tsconfig.json`はtsc-rs 9.3秒 vs tsgo 14.8秒（第1回の336秒は
+  P3-5blの前のbuild）、`test/tsconfig.json` 7.4 vs 9.3秒。小さいprojectで遅く見えた2件（`scripts/buildLlmsDocs` 3.3 vs
+  3.4秒、`examples/material-ui-remix-ts` 0.79 vs 0.14秒）はP3-5bmで機械が空いているときに再計測した：前者は3回で0.28
+  vs 0.35秒（tsc-rsが速い）、後者は本当に遅く（0.08 vs 0.02秒）、原因（options診断があるときtsgoはfileを検査しない）と
+  修正はP3-5bmに記す。
+- **corpusを汚さない**：第1回はconfigのまま実行したので、emitするprojectの`.js`出力と、tsgoの`incremental`が書く
+  `tsconfig.tsbuildinfo`がcloneに残った。`git status --short --ignored | grep -v node_modules`で列挙して消した。
+  `compare-projects.py`は既定で`--noEmit`を足すようにしたが、`incremental`のprojectではtsgoが`tsconfig.tsbuildinfo`
+  （`tsBuildInfoFile`の指定があればその場所、`packages-internal/scripts/build/`）を書くので、実行のたびに同じ列挙で
+  確認して消す。
