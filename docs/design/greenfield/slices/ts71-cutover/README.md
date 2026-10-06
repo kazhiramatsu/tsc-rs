@@ -3832,5 +3832,8 @@ tsgo 7.1が違う所だった：
   10 roundのA/Bで144 vs 145＝0.994。zod 588 vs 598、Playwright 455 vs 464、TypeScript compiler 484 vs 484、
   Next.js 962 vs 953、Effect 713 vs 735、Vue.js 386 vs 388）、peak RSS 0.955〜0.998。tsgoに対してはwall
   0.57〜0.93（`--noEmit`）、0.61〜0.78（bench-full）、peak memory 0.66〜0.91。劣化なし。
-- DefinitelyTyped 9,067 projectの最終buildでの再実行（`dt-compare.py`、`--singleThreaded`／`TSRS_CHECKERS=1`、
-  `taskpolicy -c maintenance nice -n 20`、2 job）は実行中。結果は次の記録に書く。
+- **DefinitelyTyped 9,067 projectの最終buildでの再実行（`dt-compare.py`、tsgo `--singleThreaded`／tsc-rs
+  `TSRS_CHECKERS=1`、`taskpolicy -c maintenance nice -n 20`、2 job、3,483秒）：9,067 project全てでstdoutとexit codeが
+  一致した**（エラーのあるprojectは279、診断行は4,370。両compilerが同じ行を出す）。同じ条件で測った壁時計の合計は
+  tsgo 4,023秒、tsc-rs 2,939秒（projectの中央値 534 ms vs 362 ms。低優先度クラスで2 job同時なので、READMEの
+  計測とは比べない）。
