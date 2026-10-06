@@ -1039,10 +1039,10 @@ compiler/commonjsShorthandDestructuringDefaultImportExport	full	js
 compiler/comparabilityTypeParametersRelatedByUnion	full	js
 compiler/comparableRelationBidirectional	full	js
 compiler/compareTypeParameterConstrainedByLiteralToLiteral	full	js
-compiler/comparisonAnonymousMappedTypes	full	none
+compiler/comparisonAnonymousMappedTypes	full	js
 compiler/comparisonBigIntLiterals	full	js
 compiler/comparisonOfPartialDeepAndIndexedAccessTerminatesWithoutError	full	js
-compiler/comparisonReverseMappedTypes	full	none
+compiler/comparisonReverseMappedTypes	full	js
 compiler/comparisonSameNamedAliases	full	js
 compiler/compilerOptionsDeclarationAndNoEmit	full	js
 compiler/compilerOptionsOutDirAndNoEmit	full	js
@@ -1891,6 +1891,8 @@ compiler/decoratorWithNegativeLiteralTypeNoCrash(target=es2015)	full	js
 compiler/decoratorWithUnderscoreMethod	full	js
 compiler/decoratorsOnComputedProperties	full	js
 compiler/decrementAndIncrementOperators	full	js
+compiler/deduplicatePackages(deduplicatepackages=false)	full	js
+compiler/deduplicatePackages(deduplicatepackages=true)	full	js
 compiler/deepComparisons	full	js
 compiler/deepElaborationsIntoArrowExpressions	full	js
 compiler/deepExcessPropertyCheckingWhenTargetIsIntersection	full	js
@@ -8055,7 +8057,7 @@ conformance/computedPropertyNames50_ES5	full	js
 conformance/computedPropertyNames50_ES6	full	js
 conformance/computedPropertyNames51_ES5	full	js
 conformance/computedPropertyNames51_ES6	full	js
-conformance/computedPropertyNames52(target=es2015)	full	none
+conformance/computedPropertyNames52(target=es2015)	full	js
 conformance/computedPropertyNames5_ES5(target=es2015)	full	js
 conformance/computedPropertyNames5_ES6	full	js
 conformance/computedPropertyNames6_ES5(target=es2015)	full	js
@@ -10787,7 +10789,7 @@ conformance/objectTypesIdentityWithPublics	full	js
 conformance/objectTypesIdentityWithStringIndexers	full	js
 conformance/objectTypesIdentityWithStringIndexers2	full	js
 conformance/objectTypesWithOptionalProperties	full	js
-conformance/objectTypesWithOptionalProperties2	full	none
+conformance/objectTypesWithOptionalProperties2	full	js
 conformance/objectTypesWithPredefinedTypesAsName	full	js
 conformance/objectTypesWithPredefinedTypesAsName2	full	js
 conformance/octalIntegerLiteral(target=es2015)	full	js
@@ -11845,7 +11847,7 @@ conformance/privateNameStaticFieldNoInitializer(target=es2015)	full	js
 conformance/privateNameStaticFieldNoInitializer(target=es2022)	full	js
 conformance/privateNameStaticFieldNoInitializer(target=esnext)	full	js
 conformance/privateNameStaticFieldUnaryMutation	full	js
-conformance/privateNameStaticMethod	full	none
+conformance/privateNameStaticMethod	full	js
 conformance/privateNameStaticMethodAssignment	full	js
 conformance/privateNameStaticMethodAsync	full	js
 conformance/privateNameStaticMethodCallExpression	full	js
@@ -13038,7 +13040,7 @@ conformance/typeTagCircularReferenceOnConstructorFunction	full	js
 conformance/typeTagForMultipleVariableDeclarations	full	js
 conformance/typeTagModuleExports	full	js
 conformance/typeTagNoErasure	full	js
-conformance/typeTagOnFunctionReferencesGeneric	full	none
+conformance/typeTagOnFunctionReferencesGeneric	full	js
 conformance/typeTagOnPropertyAssignment	full	js
 conformance/typeTagPrototypeAssignment	full	js
 conformance/typeTagWithGenericSignature	full	js
