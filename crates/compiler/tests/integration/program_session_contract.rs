@@ -292,9 +292,55 @@ fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
 
     let work = outcome.work_counters();
     assert_eq!(work.parsed_documents(), 3);
-    assert_eq!(work.bound_documents(), 3);
+    // tsc's emitFilesAndReportErrors (tsgo execute.go compileAndEmit) asks
+    // for the options, global and semantic diagnostics only when the
+    // syntactic diagnostics are empty, so the command binds and checks no
+    // source of a Program with a parse error; only the library prefix is
+    // bound (a prebound library document).
+    assert_eq!(work.bound_documents(), 1);
     assert_eq!(work.full_text_copies(), 0);
     assert_eq!(work.full_text_bytes_copied(), 0);
+}
+
+#[test]
+fn syntactic_diagnostics_close_the_command_check_before_binding() {
+    // A parse error in one file and a type error in another: tsc reports the
+    // parse error alone, and the type error is never looked for. The native
+    // harness (`run_for_native_harness`) collects every kind, as the
+    // conformance baselines do.
+    let files = [
+        ("lib.d.ts", MINIMAL_GLOBALS),
+        ("a.ts", "export const x: number = \"s\";"),
+        ("b.ts", "export let y = ;"),
+    ];
+    let prepared = prepared_program(&files, 1, PreparationDiagnostics::default(), |_| {});
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.syntactic_diagnostics()), [1109]);
+    assert!(outcome.semantic_diagnostics().is_empty());
+    assert!(outcome.global_diagnostics().is_empty());
+    let work = outcome.work_counters();
+    assert_eq!(work.parsed_documents(), 3);
+    assert_eq!(work.bound_documents(), 1);
+
+    let prepared = prepared_program(&files, 1, PreparationDiagnostics::default(), |_| {});
+    let harness = ProgramSession::new(prepared)
+        .run_for_native_harness(NativeHarnessCollection {
+            capture_suggestions: false,
+        })
+        .expect("one-shot session");
+    assert_eq!(codes(harness.syntactic_diagnostics()), [1109]);
+    assert_eq!(
+        codes(
+            &harness
+                .native_harness_diagnostics()
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2322)
+                .cloned()
+                .collect::<Vec<_>>()
+        ),
+        [2322]
+    );
+    assert_eq!(harness.work_counters().bound_documents(), 3);
 }
 
 #[test]

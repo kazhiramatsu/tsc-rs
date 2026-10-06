@@ -3837,3 +3837,36 @@ tsgo 7.1が違う所だった：
   一致した**（エラーのあるprojectは279、診断行は4,370。両compilerが同じ行を出す）。同じ条件で測った壁時計の合計は
   tsgo 4,023秒、tsc-rs 2,939秒（projectの中央値 534 ms vs 362 ms。低優先度クラスで2 job同時なので、READMEの
   計測とは比べない）。
+
+## P3-5bl material-uiの第1回で見えた2つの性能欠陥：構文エラーで検査を省くこと、planのUTF-16変換（2026-10-06）
+
+material-uiの38 tsconfig project（`packages/*`、`packages-internal/*`、`docs`、`test`、`examples/*`、root）をDefinitelyTypedと
+同じ手順で比べた（`compare-projects.py`、tsgo `--singleThreaded`／tsc-rs `TSRS_CHECKERS=1`）。26 projectが一致し、違った
+12 projectは全て未対応のoption（`incremental` 5、project references 5、`composite` 2。tsc-rsはprogramの構築で拒み、
+tsgoは検査する）。診断の違いは無い。ただしroot `tsconfig.json`（32,302 file、`packages/mui-icons-material/templateSvgIcon.js`に
+構文エラー5件）は同じ出力に54.8秒・peak 4.5 GBかかった（tsgo 2.0秒・1.3 GB。`nice -n 20`、1 checker vs `--singleThreaded`）。
+原因は2つ。
+- **構文エラーがあれば検査しない**（`crates/checker/src/lib.rs`、`crates/compiler/src/lib.rs`）：tscの`emitFilesAndReportErrors`
+  （tsgo execute.go `compileAndEmit`）は、configと構文の診断が空のときだけoptions・global・semanticの診断を求める。構文エラーの
+  あるProgramはbindもcheckもされない。tsc-rsは全てを検査してから報告の段で選んでいた（出力は同じ、36秒の検査は無駄）。
+  commandのnoEmitの検査に`SyntacticDiagnosticsGate::CloseTheCheck`（schedule `EagerUnlessSyntacticDiagnostics`）を入れ、
+  parse済みのsourceの構文の行をbindの前に読んで、あれば構文の行だけの結果を返す。native harness（conformance）は全部を
+  集めるので`CheckEverySource`のまま。emitのある実行はtsgoもemitのためにfileごとに検査するので変えていない。
+- **module requestのplanのUTF-16変換**（`crates/program/src/module_requests.rs`）：occurrenceごとにtextの先頭からUTF-16単位を
+  数えていて、fileの長さ×occurrence数の二乗になっていた。`@mui/icons-material/lib/index.js`（2.4 MB、`require`約10,000）の
+  planに13秒。snapshotの位置indexで直接求めるようにした。
+- 結果：root projectは54.8秒→1.88秒（tsgo 1.97秒）、peak RSS 4.48 GB→1.53 GB（tsgo 1.28 GB）、出力は同一。単独の
+  `index.js`は17.0秒→4.1秒（tsgo 5.4秒）。
+- test：`program_session_contract`の作業量counterのtest 1件を新しい挙動に更新し（構文エラーのあるProgramはlibrary prefixだけ
+  bindする）、構文エラーと型エラーが別fileにあるとき構文エラーだけが報告されbindが起きないこと、native harnessの経路は
+  両方を集めることを固定するtest 1件を追加した。
+
+- conformance（このsliceの1回の全体実行。macOS、`nice -n 20`、2 worker、444秒）：`ee0e6a073`のbuild（testは`aaae738da`）で
+  15,228 configuration、full 13,451、不一致0、emit full 13,443、harness error 15、ratchet 0 regression。P3-5bkのreportと
+  行ごとに同一（harnessの経路は変えていない）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、5 crate（checker、compiler、program、conformance、harness）の
+  `cargo clippy --all-targets -- -D warnings`と`cargo test --no-fail-fast`（2,763 passed）。
+- 次：material-uiの残り（`incremental`・`composite`・project references）はroadmapの「未対応のoption」の段階。
+  azure-sdk-for-js（467 project）は、packageをまたぐ型が`dist/*/index.d.ts`（package.jsonの`exports`）なので、比較の前に
+  distを作る必要がある。ユーザーに方法を提案する：(a) tsgoで依存順にdistの宣言をemitする、(b) `pnpm build`（turbo、時間と
+  失敗の可能性が大きい）、(c) `@azure/*`に依存しないpackageだけ先に比べる。

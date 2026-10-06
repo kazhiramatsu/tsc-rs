@@ -22,8 +22,8 @@ use tsc_checker::{
     check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle,
     check_program_with_authoritative_modules_at_for_emit_with_workers,
     check_program_with_authoritative_modules_at_harness_cached,
-    check_program_with_authoritative_modules_at_with_checkers,
-    check_program_with_authoritative_modules_at_with_workers,
+    check_program_with_authoritative_modules_at_with_checkers_gated,
+    check_program_with_authoritative_modules_at_with_workers_gated,
     prepare_authoritative_harness_lib_bundle, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider,
     AuthoritativeModuleProviderFactory, AuthoritativeModuleRequest, AuthoritativeModuleResolution,
@@ -31,7 +31,7 @@ use tsc_checker::{
     AuthoritativeResolutionDiagnosticModule, AuthoritativeResolutionMode,
     AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
     AuthoritativeUntypedModule, CheckResult, InputFile, LibraryPrefixCompletion,
-    OwnedHarnessLibBundle, ProgramSnapshot, ShardEmission, ShardedEmit,
+    OwnedHarnessLibBundle, ProgramSnapshot, ShardEmission, ShardedEmit, SyntacticDiagnosticsGate,
     UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{
@@ -2575,6 +2575,20 @@ impl ProgramSession {
     /// TS5055), which the native runner collects with the options
     /// diagnostics; none for a Program that cannot emit, and none under
     /// `suppressOutputPathCheck`, which verifies no output path.
+    /// tsc's emitFilesAndReportErrors (tsgo execute.go compileAndEmit) asks
+    /// for the options, global and semantic diagnostics only when the
+    /// syntactic diagnostics are empty, so the command's check is closed by
+    /// them: a Program with a parse error is neither bound nor checked. The
+    /// native harness collects every diagnostic kind of the second Program
+    /// and checks every source.
+    fn syntactic_diagnostics_gate(&self) -> SyntacticDiagnosticsGate {
+        if self.native_harness.is_some() {
+            SyntacticDiagnosticsGate::CheckEverySource
+        } else {
+            SyntacticDiagnosticsGate::CloseTheCheck
+        }
+    }
+
     fn native_output_diagnostics(&self) -> Vec<Diagnostic> {
         if self.native_harness.is_none() || self.prepared.mode() != PreparedProgramMode::Emit {
             return Vec::new();
@@ -2869,7 +2883,7 @@ impl ProgramSession {
                 &mut sharded_emit,
             )
         } else if self.checker_budget.is_sharded() {
-            check_program_with_authoritative_modules_at_with_checkers(
+            check_program_with_authoritative_modules_at_with_checkers_gated(
                 &inputs.libs,
                 &inputs.files,
                 &inputs.lib_metadata,
@@ -2881,9 +2895,10 @@ impl ProgramSession {
                 },
                 self.worker_budget,
                 self.checker_budget,
+                self.syntactic_diagnostics_gate(),
             )
         } else {
-            check_program_with_authoritative_modules_at_with_workers(
+            check_program_with_authoritative_modules_at_with_workers_gated(
                 &inputs.libs,
                 &inputs.files,
                 &inputs.lib_metadata,
@@ -2892,6 +2907,7 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 self.worker_budget,
+                self.syntactic_diagnostics_gate(),
             )
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;

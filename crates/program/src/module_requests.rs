@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 use std::sync::Arc;
-use tsc_diagnostics::{JsStr, JsString};
+use tsc_diagnostics::{JsStr, JsString, PositionIndex};
 
 use tsc_syntax::{
     for_each_child, parse_source_file_from_snapshot, skip_trivia, JSDocParsingMode,
@@ -756,6 +756,13 @@ fn plan_module_requests_worker(
         loadable_module_requests.insert(key.clone());
         module_requests.push(key);
     }
+    // The spans are UTF-16 offsets from the snapshot's position index: one
+    // lookup each. Counting the UTF-16 units of the text prefix for every
+    // occurrence made the plan quadratic in the file; a CommonJS index of
+    // 10,000 `require` calls (material-ui's `@mui/icons-material/lib/index.js`,
+    // 2.4 MB) took 13 seconds here where tsgo takes milliseconds.
+    let positions = source.snapshot().positions();
+    let source_text = source.text();
     for occurrence in static_occurrences
         .into_iter()
         .chain(dynamic_occurrences)
@@ -764,12 +771,11 @@ fn plan_module_requests_worker(
         if occurrence.loads_source {
             loadable_module_requests.insert(occurrence.key.clone());
         }
-        let source_text = source.text();
         let span_start =
             skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
         let span = (
-            byte_to_utf16_offset(source_text, span_start),
-            byte_to_utf16_offset(source_text, occurrence.end as usize),
+            byte_to_utf16_offset(positions, source_text, span_start),
+            byte_to_utf16_offset(positions, source_text, occurrence.end as usize),
         );
         module_request_spans
             .entry(occurrence.key.clone())
@@ -847,18 +853,26 @@ fn external_module_error_span(source: &SourceFile, id: NodeId) -> (u32, u32) {
             }
         }
     };
-    let start_utf16 = byte_to_utf16_offset(source.text(), start);
+    let positions = source.positions();
+    let start_utf16 = byte_to_utf16_offset(positions, source.text(), start);
     (
         start_utf16,
-        byte_to_utf16_offset(source.text(), end) - start_utf16,
+        byte_to_utf16_offset(positions, source.text(), end) - start_utf16,
     )
 }
 
-fn byte_to_utf16_offset(text: &str, byte_offset: usize) -> u32 {
-    text.get(..byte_offset.min(text.len()))
-        .unwrap_or(text)
-        .encode_utf16()
-        .count() as u32
+/// The UTF-16 offset of a byte offset: the position index answers a byte
+/// on a character boundary; a byte inside a character (or past the end)
+/// falls back to counting the prefix.
+fn byte_to_utf16_offset(positions: &PositionIndex, text: &str, byte_offset: usize) -> u32 {
+    let clamped = byte_offset.min(text.len());
+    if let Some(offset) = u32::try_from(clamped)
+        .ok()
+        .and_then(|byte| positions.byte_to_utf16(byte))
+    {
+        return offset;
+    }
+    text.get(..clamped).unwrap_or(text).encode_utf16().count() as u32
 }
 
 /// `isDeclarationFileName` includes arbitrary-extension declaration twins
