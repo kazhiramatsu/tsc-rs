@@ -8960,7 +8960,7 @@ impl<'a> CheckerState<'a> {
     /// element access only with a literal argument) is Typed by the last
     /// JSDoc type among them, else Constructor (declared in a class
     /// constructor) or Method.
-    fn this_assignment_declaration_kind(
+    pub(crate) fn this_assignment_declaration_kind(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<(ThisAssignmentDeclarationKind, Option<NodeId>)> {
@@ -9272,6 +9272,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isConstructorDeclaredProperty @6.0.3
     /// tsc-hash: 1534602a35363bf25c5f6498915f516ec81d6df547f51ac5aef025dd535ee2d7
     /// tsc-span: _tsc.js:56142-56158
+    /// tsc 6.0.3's isConstructorDeclaredProperty; tsgo 7.1 answers the
+    /// constructor access rule with `this_assignment_declaration_kind`
+    /// (isConstructorDeclaredThisProperty), so nothing calls this yet.
+    #[allow(dead_code)]
     pub(crate) fn is_constructor_declared_property(
         &mut self,
         symbol: SymbolId,
@@ -10852,7 +10856,7 @@ mod bigint_annotation_tests;
 
 /// tsgo thisAssignmentDeclarationKind (TypeScript 7.1).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ThisAssignmentDeclarationKind {
+pub(crate) enum ThisAssignmentDeclarationKind {
     None,
     Typed,
     Constructor,

@@ -20,6 +20,7 @@ use tsc_types::{
     NodeFlags, SymbolFlags, SymbolId, TypeFacts, TypeFlags, TypeId, UnionReduction,
 };
 
+use crate::annotate::ThisAssignmentDeclarationKind;
 use crate::state::{CheckResult, CheckerState, SignatureId};
 use tsc_binder::NameKey;
 
@@ -1477,17 +1478,25 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         prop: SymbolId,
     ) -> CheckResult<bool> {
-        let is_auto_typed = self.is_auto_typed_property(prop);
-        if !(self.is_constructor_declared_property(prop)?
-            || self.is_this_property(node) && is_auto_typed)
-        {
+        // tsgo isThisPropertyAccessInConstructor (TypeScript 7.1): a
+        // this-property declared in a constructor without a type annotation
+        // (its hosted JSDoc `@type` counts), or an auto-typed this-property,
+        // accessed in that constructor.
+        let (kind, location) = self.this_assignment_declaration_kind(prop)?;
+        let constructor = if kind == ThisAssignmentDeclarationKind::Constructor {
+            location
+        } else if self.is_this_property(node) && self.is_auto_typed_property(prop) {
+            self.get_declaring_constructor(prop)
+        } else {
+            None
+        };
+        let Some(constructor) = constructor else {
             return Ok(false);
-        }
-        // getThisContainer(node, true, false) === getDeclaringConstructor(prop)
+        };
         let source = self.binder.source_of_node(node);
         let this_container =
             node_util::get_this_container(source, node, /*include_arrow_functions*/ true);
-        Ok(this_container == self.get_declaring_constructor(prop))
+        Ok(this_container == Some(constructor))
     }
 
     /// Related-info construction (createDiagnosticForNode on a possibly
@@ -2066,7 +2075,10 @@ impl<'a> CheckerState<'a> {
             }
             if is_any_like {
                 if lexically_scoped_symbol.is_some() {
-                    return Ok(if apparent_type == self.tables.intrinsics.error {
+                    // tsgo isErrorType: the error type and an any type with
+                    // an alias (an unresolved reference) both yield the
+                    // plain error type.
+                    return Ok(if self.tables.is_error_type(apparent_type) {
                         self.tables.intrinsics.error
                     } else {
                         apparent_type
@@ -2135,7 +2147,8 @@ impl<'a> CheckerState<'a> {
         } else {
             if is_any_like {
                 self.mark_property_alias_referenced(node, left, None, left_type)?;
-                return Ok(if apparent_type == self.tables.intrinsics.error {
+                // tsgo isErrorType (see above).
+                return Ok(if self.tables.is_error_type(apparent_type) {
                     self.tables.intrinsics.error
                 } else {
                     apparent_type
