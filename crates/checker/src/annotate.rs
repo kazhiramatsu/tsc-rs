@@ -7652,6 +7652,11 @@ impl<'a> CheckerState<'a> {
     /// Deferred union/intersection properties are forced before every other
     /// synthetic-property flavor, matching tsc's dispatch order.
     pub fn get_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
+        // CommonJS `require` (tsgo getTypeOfVariableOrParameterOrPropertyWorker,
+        // checker.go:16903): the synthetic require symbol is `any`.
+        if symbol == self.require_symbol {
+            return Ok(self.tables.intrinsics.any);
+        }
         perf::bump(PerfCounter::TypeOfSymbolQueries);
         let check_flags = self.links.read_symbol(symbol, |links| links.check_flags);
         if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {

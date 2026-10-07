@@ -313,6 +313,13 @@ pub struct CheckerState<'a> {
     /// built while another is being built (an inaccessible symbol's error
     /// name) must use an arena of its own.
     pub(crate) emit_display_taken: bool,
+    /// tsgo's transient `meta` member of `ImportMetaExpression`
+    /// (getGlobalImportMetaExpressionType), the symbol at `meta` of
+    /// `import.meta`; created on first use.
+    pub(crate) import_meta_expression_meta_symbol: Option<SymbolId>,
+    /// tsgo IndexInfo.indexSymbol (getApplicableIndexSymbol): the synthetic
+    /// `__index` symbol of an index signature, by (object type, key type).
+    pub(crate) index_symbols: rustc_hash::FxHashMap<(TypeId, TypeId), SymbolId>,
     pub(crate) emit_display_sources:
         std::collections::BTreeMap<usize, tsc_emitter::TransformSourceId>,
     /// Scratch child list shared by the per-node check traversals: one
@@ -1474,6 +1481,8 @@ impl<'a> CheckerState<'a> {
             options,
             emit_display: None,
             emit_display_taken: false,
+            import_meta_expression_meta_symbol: None,
+            index_symbols: rustc_hash::FxHashMap::default(),
             emit_display_sources: std::collections::BTreeMap::new(),
             child_scratch: Vec::new(),
             tables,

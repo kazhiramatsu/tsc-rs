@@ -4245,10 +4245,10 @@ pub(super) fn module_name_literals(
             NodeData::CallExpression(data) => {
                 let is_javascript_file = NodeFlags::from_bits(source.arena.node(source.root).flags)
                     .intersects(NodeFlags::JAVA_SCRIPT_FILE);
-                let import_like = data.expression.is_some_and(|expression| {
-                    state.kind_of(expression) == SyntaxKind::ImportKeyword
-                        || is_javascript_file && state.is_require_call(node, true)
-                });
+                // tsgo collectModuleReferences: an import call (`import(...)`
+                // and `import.defer(...)`) or, in JavaScript, a require call.
+                let import_like = state.is_import_call(node)
+                    || is_javascript_file && state.is_require_call(node, true);
                 if import_like {
                     if let Some(literal) = state
                         .nodes_of(data.arguments)

@@ -265,3 +265,34 @@ P4-1a 以降。
   `p41/update_from_report.py`（既存 report から ratchet を更新）、`p41/run3.sh`／`local-checks.sh`（計測と検証の chain）。
 - 次：P4-1a 以降で残る class（`import.meta`、JS の `require`、module specifier／module symbol の名前、`__index` symbol、JS の型、
   package redirect の unit、`SKIPPED_WALK_TESTS` の 4 case）を順に閉じる。
+
+## P4-1a `.types`／`.symbols` の差分 class（第 1 回）（2026-10-08）
+
+P4-1 の計測（types mismatch 233、symbols mismatch 172）の大きい class を tsgo に合わせる。
+
+- **`import.meta`**（types 13、symbols 11）：tsgo の `IsRightSideOfQualifiedNameOrPropertyAccess`（ast/utilities.go:3735-3746）は
+  MetaProperty の name も右辺に数える。港の `is_right_side_of_qualified_name_or_property_access` に MetaProperty の arm を足し、
+  `getRegularTypeOfExpression(meta)` が `import.meta` 全体の型（`ImportMeta`）を返すようにした。`meta` の symbol は tsgo の
+  `getGlobalImportMetaExpressionType().members["meta"]`（transient な `ImportMetaExpression.meta`、型は `ImportMeta`）：
+  `CheckerState::get_import_meta_expression_meta_symbol`（初回に作る）。
+- **JS の `require`**（types 35、symbols ～30）：tsgo binder/nameresolver.go:330-336 は JS file で require call の callee `require` を
+  何も宣言していなければ synthetic な `requireSymbol`（型 `any`、checker.go:16903）に解決する。港は error を抑えるだけで symbol を
+  返していなかった（M2 3.4c の残差）：`resolve_name_full` に fallback を足し、`get_type_of_symbol(require_symbol)` を `any` に、
+  `is_common_js_require` で `require_symbol` を CommonJS require と認める（tsgo checker.go:16002。これで `require("./x")` の型が
+  module の型（`typeof X`）になる）。
+- **index signature の `__index` symbol**（symbols 8）：tsgo `getApplicableIndexSymbol`（checker.go:32571-32601）。港の `IndexInfo`
+  には `indexSymbol` の slot が無いので `(object type, key type)` を key にした `index_symbols` 表で 1 回だけ作る（`__index`、
+  declarations は info の declaration か applicable な info 全部、parent は型の symbol、型は value type）。
+  `getSymbolOfNameOrPropertyAccessExpression` の property access の arm で、`resolvedSymbol` が無ければこれを返す。
+- **`typeof import("./a.js")` の拡張子**（types 5、symbols 9）：module specifier の ending は importing file の既存の import から
+  推定する（`inferPreference`）。港の `module_name_literals` は `import(...)` だけを集めて `import.defer(...)` を落としていた
+  （tsgo `IsImportCall` は defer も含む）→ `is_import_call` で集める。
+- 残る class（P4-1b 以降）：JS の型（`this.arguments : object`、property assignment の `number`、`any` vs `Outer`／`typeof A`、
+  declFile* の `any`）、package redirect の unit（tsgo は redirect file の text と primary の木で walk する：`duplicatePackage`
+  2 configuration）、`SKIPPED_WALK_TESTS` の 4 case、`T_1` vs `T`（shadowed type parameter の名前）。
+- 計測（最終 bytes `aa7bb7399`、macOS、`nice -n 20`、2 worker）：12,748 case／468 s、error／emit 不変（full 13,451、emit_full 13,443、
+  mismatch 0）、**types full 12,593／mismatch 174（P4-1 の 233 から）、symbols full 12,715／mismatch 52（172 から）**、
+  not assessed 684、ratchet 0 regressions・128 configuration 上昇（report から `update_ratchet`）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、checker／compiler／conformance／harness の
+  `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（conformance＋harness＋compiler 464 passed／0 failed、
+  checker 1,797／0）。fix commit `aa7bb7399`。
