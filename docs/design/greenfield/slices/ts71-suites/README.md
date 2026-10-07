@@ -252,3 +252,16 @@ P4-1a 以降。
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、checker／compiler／conformance／harness の
   `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（conformance＋harness＋compiler 464 passed／0 failed、
   checker 1,797／0）。run 3 の後の変更は clippy の指摘（boolean 式の書き換え）だけで挙動は変えていない。fix commit `ee3c8f909`。
+
+### P4-1のhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `9aba21d02`（fix `ee3c8f909` ＋ packet の記録 `b76da68bf` ＋ Cargo.lock）の run 37658154634（`plan` 34s、
+  `rust` 10m3s、`conformance (TypeScript 7.1)` 19m43s、`gates` 15s。全て成功）。merge →
+  `3eb329bec`（merge commit）。
+- 計測（conformance の run 3、crate test）は上の記録のとおり、merge前に行った。実project の比較は行っていない（この slice は
+  conformance runner と checker の query／表示の追加で、command line・config・loader の経路は変えていない）。性能は計測していない
+  （利用者の指示）。
+- scratchpad：`p41/design.md`（tsgo 側の仕様の控え）、`p41/classify.py`（report と dump から差分 class を集計）、
+  `p41/update_from_report.py`（既存 report から ratchet を更新）、`p41/run3.sh`／`local-checks.sh`（計測と検証の chain）。
+- 次：P4-1a 以降で残る class（`import.meta`、JS の `require`、module specifier／module symbol の名前、`__index` symbol、JS の型、
+  package redirect の unit、`SKIPPED_WALK_TESTS` の 4 case）を順に閉じる。
