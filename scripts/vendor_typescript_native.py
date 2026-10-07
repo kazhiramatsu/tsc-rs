@@ -14,6 +14,8 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/baselines/reference/{compiler,conformance}/*.js
   tsc/testdata/baselines/reference/{compiler,conformance}/*.js.map
   tsc/testdata/baselines/reference/{compiler,conformance}/*.sourcemap.txt
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.types
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.symbols
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
 each set's Git tree id (a single file's blob id; a filtered baseline set
@@ -52,10 +54,10 @@ BASELINE_DIRS = [
     "tsc/testdata/baselines/reference/conformance",
 ]
 # The baseline kinds the runner compares: errors, the JavaScript/declaration
-# emit, the raw source maps and the source-map records. A kind's suffix must
-# not end another kind's suffix (`.js` is matched before `.js.map` is ruled
-# out by `baseline_kind`).
-BASELINE_SUFFIXES = (".errors.txt", ".js", ".js.map", ".sourcemap.txt")
+# emit, the raw source maps, the source-map records and the type and symbol
+# baselines. A kind's suffix must not end another kind's suffix (`.js` is
+# matched before `.js.map` is ruled out by `baseline_kind`).
+BASELINE_SUFFIXES = (".errors.txt", ".js", ".js.map", ".sourcemap.txt", ".types", ".symbols")
 
 
 def baseline_kind(name):
