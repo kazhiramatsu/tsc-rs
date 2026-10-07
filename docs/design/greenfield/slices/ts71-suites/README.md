@@ -199,3 +199,56 @@ baseline と byte 一致した件数を ratchet に固定し、0 regressions」�
 - watch と api は roadmap の P5／P6 と同じ計画で扱い、この packet では順序だけ置く。
 - `.types` の `any` 表示は error baseline の有無で変わる（`hasErrorBaseline` は content mapper の診断も数える）。
   runner は既存の診断 session の結果をそのまま使う。
+
+## P4-1 `.types`／`.symbols` baseline の比較（2026-10-08）
+
+tsgo testutil/tsbaseline/type_symbol_baseline.go の `DoTypeAndSymbolBaseline` を conformance runner に足し、compiler／conformance の
+全 configuration で `.types`／`.symbols` を byte 比較する。この slice は計測（runner・初回値・差分 class の整理）で、差分の修正は
+P4-1a 以降。
+
+- **vendoring**：`scripts/vendor_typescript_native.py` の `BASELINE_SUFFIXES` に `.types`／`.symbols` を足し、profile
+  `7.1.0-dev-19dadef8` に 12,779＋12,779 file（81 MB）を取り込んだ（58,238 file、`--check` と harness の
+  `native_vendored_inputs_match_the_manifest`（件数 58,238 に再 pin）が一致）。
+- **checker**（`crates/checker/src/location.rs`、新規）：tsgo の `GetTypeAtLocation`（`getTypeOfNode`、checker.go:32418-32516）と
+  `GetSymbolAtLocation`（`getSymbolAtLocation`／`getSymbolOfNameOrPropertyAccessExpression`、:32069-32417）を移植
+  （`CheckerState::get_type_at_location`／`get_symbol_at_location`）。港の JSDoc reparse は木の外（side table）なので
+  `GetReparsedNodeForNode` に当たるものは無い。`checkMetaPropertyKeyword` は tsgo でも stub（error type）。未移植：
+  `getApplicableIndexSymbol`（index signature で解決した property access の `__index` symbol。IndexInfo に slot が無い）、
+  `import.meta` の `meta` の transient symbol。
+- **checker**（`crates/checker/src/type_writer.rs`、新規、`#[doc(hidden)]`）：walker の移植（`forEachASTNode` の反復 pre-order、
+  候補の filter、型の skip 規則、`any` の intrinsic 名の規則（error baseline の有無は runner が決めるので両方の文を返す）、
+  node builder（`NoTruncation|AllowUniqueESSymbolType|GenerateNamesForShadowedTypeParams|IgnoreErrors`、internal
+  `AllowUnresolvedNames`、alias 名の `InTypeAlias` 再生成）＋ printer（RemoveComments；港の printer は declaration-syntax gate
+  の下で型 node を印字するので `with_declaration_syntax(true)`）、symbol は `SymbolToStringEx(sym, parent, None,
+  AllowAnyNodeKind)` ＋ `Decl(file, line, utf16 col)` ×5）。`GetMeaningFromDeclaration`、`IsLabelName`、
+  `isImportStatementName`／`isExportStatementName`／`isIntrinsicJsxTag` も移植。
+- **session／compiler**：`CheckerSession::with_state_for_harness`（checked state を閉包に貸す）、`ProgramSession::
+  run_for_native_harness_with_walk`／`emit_then_run_for_native_harness_with_walk`（`HarnessWalk` を診断の後、checker を保ったまま
+  呼ぶ。emit-first の branch では declaration getter の後、one-checker の branch では getter と同じ callback で）。
+- **runner**（`crates/conformance/src/ts71.rs`、`ts71/type_symbol_baseline.rs`）：walk は第 2 program（emit → 診断）の checker、
+  emit しない／`noEmitOnError` の configuration は第 1 program の checker で行い（tsgo は第 2 program）、`--checkers 1` のときだけ。
+  `@noTypesAndSymbols` と control run は NotAssessed。layout（`generateBaseline`／`iterateBaseline`：CRLF、bracket 行／空行の
+  規則、`removeTestPathPrefixes`）を移植し unit test で固定。`Outcome::Compared` に `types`／`types_detail`／`symbols`／
+  `symbols_detail`、`--dump` は差分の `.types`／`.symbols` も書く。`scripts/conformance_ts71.py`：summary に
+  `types_full`／`types_mismatch`／`types_not_assessed`（symbols も）、ratchet TSV に第 4・5 列（`none`／`full`；旧行は `none`）。
+- 計測の経過：初回（run 1）は types 11,821／symbols 12,549 一致、error tier に 36 regression（walk が display arena を入れ子で
+  取って panic → harness error）。原因は、型の表示中に node builder が到達不能な symbol のエラー名を作るため
+  `symbol_to_string_via_node_builder` を入れ子で呼び、共有 display arena を二重に取ること。`CheckerState::emit_display_taken`
+  を足し、入れ子の symbol 表示は一時 arena で build・印字するようにした（walk の panic も `catch_unwind` で walk の失敗に
+  閉じ込め、walk は declaration getter の後に動かす）。run 2 で regression は深い再帰の 4 case（stack／memory）だけになり、
+  これらは `SKIPPED_WALK_TESTS`（NotAssessed）。alias 名の再生成（`InTypeAlias`）は tsgo が「build した node が Identifier の
+  とき」だけ行うのに、文字列比較で行っていたため alias が展開されていた（run 2 の types 差分の最大 class）→ 修正。
+- run 3（最終 bytes `ee3c8f909` 相当、macOS、`nice -n 20`、2 worker）：12,748 case／462 s（walk 込み。P3-6g の 482 s と同程度）、error／emit は不変
+  （full 13,451、emit_full 13,443、mismatch 0）、**types full 12,534／mismatch 233／not assessed 684、symbols full 12,595／
+  mismatch 172／not assessed 684**（not assessed = `@noTypesAndSymbols` 680 configuration ＋ `SKIPPED_WALK_TESTS` 4）。ratchet は
+  `--update` 相当（report から `update_ratchet`）で第 4・5 列を記録：types full 12,534／none 917、symbols full 12,595／none 856、
+  0 regressions。
+- 残る差分の class（run 2 の dump から。P4-1a 以降で扱う）：(1) `import.meta`：`meta` の型 `ImportMeta`（港は `any`）と
+  `ImportMetaExpression.meta` の transient symbol；(2) JS の `require`：tsgo は `require : any`／`Symbol(require)`、港は
+  error／symbol 無し；(3) `typeof import("./a.js")` の module specifier（港は `./a`）と module symbol の名前；(4) index
+  signature で解決した access の `__index` symbol（`getApplicableIndexSymbol`）；(5) JS の `this.arguments : object`
+  （港 `any`）、JS の property assignment の型（`number` vs `any`）、`any` vs `typeof A`（declFile*）；(6) package
+  redirect の file（`content not parsed` の unit が program に無い）；(7) `any` vs `error`（JS の未解決名）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、checker／compiler／conformance／harness の
+  `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（conformance＋harness＋compiler 464 passed／0 failed、
+  checker 1,797／0）。run 3 の後の変更は clippy の指摘（boolean 式の書き換え）だけで挙動は変えていない。fix commit `ee3c8f909`。
