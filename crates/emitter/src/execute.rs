@@ -1269,6 +1269,7 @@ fn emit_javascript_unit(
         ))?;
         let map_json = generator.to_json_string();
         emission.map_observations.push(SourceMapObservation::new(
+            javascript_path.to_owned(),
             generator.raw_sources().to_vec(),
             map_json.clone().into_boxed_str(),
         ));

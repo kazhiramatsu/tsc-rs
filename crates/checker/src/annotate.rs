@@ -6541,9 +6541,16 @@ impl<'a> CheckerState<'a> {
         );
         let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
         // 56753: tryCast(..., isAutoAccessorPropertyDeclaration).
+        // tsgo getTypeOfAccessors (TypeScript 7.1) finds the auto-accessor
+        // among all declarations, not only the first property declaration (a
+        // property merged with an `accessor` of the same name).
         let accessor = self
-            .declaration_of_kind(symbol, SyntaxKind::PropertyDeclaration)
-            .filter(|&declaration| {
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| {
                 node_util::is_auto_accessor_property_declaration(
                     self.binder.source_of_node(declaration),
                     declaration,
@@ -7672,6 +7679,12 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_reverse_mapped_symbol(symbol);
         }
         let flags = self.symbol_flags(symbol);
+        // tsgo getTypeOfSymbol (TypeScript 7.1) asks the accessor arm before
+        // the variable/property arm: a symbol merging a property with
+        // accessors (duplicate class elements) types as its accessors.
+        if flags.intersects(SymbolFlags::ACCESSOR) {
+            return self.get_type_of_accessors(symbol);
+        }
         if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
             return self.get_type_of_variable_or_parameter_or_property(symbol);
         }
@@ -7686,9 +7699,6 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(SymbolFlags::ENUM_MEMBER) {
             return self.get_type_of_enum_member(symbol);
-        }
-        if flags.intersects(SymbolFlags::ACCESSOR) {
-            return self.get_type_of_accessors(symbol);
         }
         if flags.intersects(SymbolFlags::ALIAS) {
             return self.get_type_of_alias(symbol);

@@ -165,6 +165,7 @@ fn declaration_emit_resolver_surface_preserves_pinned_values_and_names() {
 #[test]
 fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
     let source_map = SourceMapObservation::new(
+        JsString::from("/project/out.js"),
         vec![JsString::from("/project/input.ts")],
         "{\"version\":3}".into(),
     );
@@ -180,6 +181,14 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
     );
 
     assert!(absent.emit_skipped());
+    assert_eq!(
+        present.source_maps().map(|maps| maps[0]
+            .generated_file()
+            .as_js()
+            .to_string_lossy()
+            .into_owned()),
+        Some("/project/out.js".to_owned())
+    );
     assert_eq!(absent.emitted_files(), None);
     assert_eq!(absent.source_maps(), None);
     assert_eq!(

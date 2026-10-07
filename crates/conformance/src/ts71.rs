@@ -15,6 +15,7 @@
 
 mod emit_baseline;
 mod errors_baseline;
+mod sourcemap_baseline;
 mod type_symbol_baseline;
 
 use std::collections::{BTreeMap, HashSet};
@@ -30,8 +31,8 @@ use tsc_checker::emit::CheckerSession;
 use tsc_checker::program::ProgramSnapshot;
 use tsc_checker::type_writer::{self, TypeWriterLine};
 use tsc_compiler::{
-    CheckerBudget, DriverError, MemoryOutputSink, NativeHarnessCollection, PreparedProgramMode,
-    ProgramSession,
+    CheckerBudget, DriverError, EmitOutcome, MemoryOutputSink, NativeHarnessCollection,
+    PreparedProgramMode, ProgramSession,
 };
 use tsc_diagnostics::{Diagnostic, PositionIndex};
 use tsc_harness::upstream_suites::execution::{
@@ -412,6 +413,11 @@ pub enum Outcome {
         /// The same for the `.symbols` baseline.
         symbols: EmitAgreement,
         symbols_detail: Option<String>,
+        /// Whether the `.sourcemap.txt` baseline (tsgo's source map record:
+        /// every emitted line with its spans against the source text)
+        /// matches byte for byte, and why not.
+        sourcemap: EmitAgreement,
+        sourcemap_detail: Option<String>,
     },
     /// Lane A, but tsc-rs could not build or check the Program.
     HarnessError { reason: String },
@@ -613,6 +619,35 @@ fn absolute(current_directory: &str, path: &str) -> String {
     normalize_compiler_fixture_path(current_directory, path).unwrap_or_else(|_| path.to_owned())
 }
 
+/// tsgo `SourceMapEmitResult`: an emitted source map, its generated file
+/// and its input source files (absolute, as `EmitFacts::source_order`).
+struct SourceMapRecord {
+    generated_file: String,
+    input_source_files: Vec<String>,
+    json: String,
+}
+
+fn source_map_records(outcome: &EmitOutcome, current_directory: &str) -> Vec<SourceMapRecord> {
+    outcome
+        .source_maps()
+        .unwrap_or_default()
+        .iter()
+        .map(|observation| SourceMapRecord {
+            generated_file: observation
+                .generated_file()
+                .as_js()
+                .to_string_lossy()
+                .into_owned(),
+            input_source_files: observation
+                .input_source_files()
+                .iter()
+                .map(|name| absolute(current_directory, &name.as_js().to_string_lossy()))
+                .collect(),
+            json: observation.canonical_json().to_owned(),
+        })
+        .collect()
+}
+
 /// What the native harness's second Program of a configuration produces.
 struct SecondProgram {
     emission: Emission,
@@ -626,6 +661,9 @@ struct SecondProgram {
     diagnostics: Option<Vec<Diagnostic>>,
     /// Why the emit failed, when the diagnostics could still be collected.
     emit_error: Option<String>,
+    /// The emitted source maps (tsgo `EmitResult.SourceMaps`), for the
+    /// `.sourcemap.txt` record.
+    source_maps: Vec<SourceMapRecord>,
     /// The type and symbol walk over this Program's checker, when the
     /// configuration walks the second Program.
     walk: Option<Result<WalkLines, String>>,
@@ -716,6 +754,7 @@ fn emit_outputs(
             facts,
             diagnostics: None,
             emit_error: None,
+            source_maps: Vec::new(),
             walk: None,
         });
     }
@@ -731,21 +770,37 @@ fn emit_outputs(
         }
         None => session.emit_then_run_for_native_harness(collection, &mut sink),
     };
-    let (diagnostics, emit_error) = match run.map_err(|error| format!("emit: {error}"))? {
-        Ok((outcome, emit)) => (
-            Some(outcome.native_harness_diagnostics().to_vec()),
-            emit.and_then(Result::err)
-                .map(|error| format!("emit: {}", DriverError::Emit(error))),
-        ),
-        // The Program's emit asks for the diagnostics first, or the
-        // budget has several checkers: the order of the first Program.
-        Err(session) => {
-            session
-                .emit(&mut sink)
-                .map_err(|error| format!("emit: {error}"))?;
-            (None, None)
-        }
-    };
+    let (diagnostics, emit_error, source_maps) =
+        match run.map_err(|error| format!("emit: {error}"))? {
+            Ok((outcome, emit)) => {
+                let diagnostics = Some(outcome.native_harness_diagnostics().to_vec());
+                match emit {
+                    Some(Ok(emitted)) => (
+                        diagnostics,
+                        None,
+                        source_map_records(&emitted, &facts.current_directory),
+                    ),
+                    Some(Err(error)) => (
+                        diagnostics,
+                        Some(format!("emit: {}", DriverError::Emit(error))),
+                        Vec::new(),
+                    ),
+                    None => (diagnostics, None, Vec::new()),
+                }
+            }
+            // The Program's emit asks for the diagnostics first, or the
+            // budget has several checkers: the order of the first Program.
+            Err(session) => {
+                let emitted = session
+                    .emit(&mut sink)
+                    .map_err(|error| format!("emit: {error}"))?;
+                (
+                    None,
+                    None,
+                    source_map_records(&emitted, &facts.current_directory),
+                )
+            }
+        };
     let emission = if emit_error.is_some() {
         Emission::default()
     } else {
@@ -757,6 +812,7 @@ fn emit_outputs(
         facts,
         diagnostics,
         emit_error,
+        source_maps,
         walk: walk_lines,
     })
 }
@@ -1252,6 +1308,7 @@ fn run_lane_a(
                 facts: EmitFacts::default(),
                 diagnostics: None,
                 emit_error: None,
+                source_maps: Vec::new(),
                 walk: None,
             },
             Some(error),
@@ -1438,6 +1495,49 @@ fn run_lane_a(
         expected_map.as_deref(),
         emit_error.as_deref(),
     );
+    // The `.sourcemap.txt` record (DoSourcemapRecordBaseline): written when
+    // a map option is on, the emit was not held back by noEmitOnError and
+    // the record is not empty.
+    let sourcemap_inputs: Vec<sourcemap_baseline::SourceMapRecordInput<'_>> = second
+        .source_maps
+        .iter()
+        .map(|record| sourcemap_baseline::SourceMapRecordInput {
+            generated_file: &record.generated_file,
+            generated_content: emission
+                .js
+                .iter()
+                .chain(&emission.dts)
+                .find(|file| {
+                    file.path == record.generated_file
+                        || absolute(&facts.current_directory, &file.path)
+                            == absolute(&facts.current_directory, &record.generated_file)
+                })
+                .map(|file| file.content.as_str()),
+            input_source_files: &record.input_source_files,
+            map_json: &record.json,
+        })
+        .collect();
+    let (rendered_sourcemap, sourcemap_error) =
+        if map_options.source_map || map_options.inline_source_map || map_options.declaration_map {
+            match sourcemap_baseline::render(&sourcemap_inputs, &program_inputs) {
+                Ok(record) => {
+                    let held_back = map_options.no_emit_on_error && !diagnostics.is_empty();
+                    let written = !held_back && !record.is_empty();
+                    (written.then_some(record), None)
+                }
+                Err(error) => (None, Some(error)),
+            }
+        } else {
+            (None, None)
+        };
+    let expected_sourcemap = std::fs::read(profile.sourcemap_baseline_path(suite, stem))
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+    let (sourcemap, sourcemap_detail) = emit_agreement(
+        rendered_sourcemap.as_deref(),
+        expected_sourcemap.as_deref(),
+        emit_error.as_deref().or(sourcemap_error.as_deref()),
+    );
     if let Some(directory) = dump {
         if emit == EmitAgreement::None {
             dump_file(
@@ -1453,6 +1553,14 @@ fn run_lane_a(
                 suite,
                 &format!("{stem}.js.map"),
                 rendered_map.as_deref().unwrap_or_default(),
+            );
+        }
+        if sourcemap == EmitAgreement::None {
+            dump_file(
+                directory,
+                suite,
+                &format!("{stem}.sourcemap.txt"),
+                rendered_sourcemap.as_deref().unwrap_or_default(),
             );
         }
     }
@@ -1499,6 +1607,8 @@ fn run_lane_a(
         types_detail,
         symbols,
         symbols_detail,
+        sourcemap,
+        sourcemap_detail,
     }
 }
 
