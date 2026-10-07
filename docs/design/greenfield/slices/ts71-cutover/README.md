@@ -4248,3 +4248,13 @@ program に残った（`docs`：core-docs側の`next`のcopyの`router.d.ts`等4
   scheduling に依存する。次の follow-up の候補（queue 順と「subtask は一度だけ」の再現）。
 - conformance（最終bytes `42653406f`での1回の全体実行。macOS、`nice -n 20`、2 worker）：12,748 case／451 s、full 13,451、emit_full 13,443、mismatch 0、ratchet 0 regressions／0 above tiers（P3-6bと同じ行、ratchetの更新なし）。focused：duplicatePackage 11、library-reference 15、packageJson 16、moduleResolution 130、typeRoots 3、declarationEmit 307、Symlink 11 full、0 regressions。parallel control（`--checkers 4`）は未実行。
 - local（`nice -n 20`、2 job）：`cargo test` program 513＋compiler contracts（build info 17）；program／compiler／checker／conformance／emitter／harness の`cargo clippy --all-targets -- -D warnings`と`cargo fmt --all -- --check`。corpusの診断（8 corpora、`--noEmit`、既定のchecker数）は8/8 tsgoと一致（zodのpartition行はこの実行では出なかった）。
+
+### P3-6b2のhostedの記録、計測、merge（2026-10-07）
+
+- hosted：PR #695 run 37562780818（head `1edb3e911`＝packetの記録を含む最終候補：`plan` 27s、`rust` 10m16s、
+  `conformance (TypeScript 7.1)` 20m07s、`gates` 12s。全て成功）。codeの最終head `42653406f`のrun 37560121323も
+  全て成功（plan 32s、rust 10m51s、conformance 19m09s）。最初のhead `d8e297872`はconformanceが1 regression
+  （rootのredirect、`42653406f`で修正）で失敗。merge → `3817ea436`（merge commit）。
+- corpusの診断（`--noEmit`、既定のchecker数。`42653406f`のbuild vs tsgo 7.1.0-dev）：8 corpora全てbyte一致。
+- 性能（分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝P3-6bの`f774090ce`のbuild）：`--noEmit`のwallはこのbuild/main 0.967〜1.030（hono 135 vs 136 ms、zod 488 vs 490、Playwright 347 vs 355、TypeScript compiler 315 vs 326、Next.js 689 vs 704、Effect 498 vs 484、Vue.js 326 vs 317、VS Code 3,318 vs 3,345）、peak RSS 0.988〜1.095（honoの300 MB台の±30 MB）。bench-full（emitあり）は0.946〜1.045（hono 147 vs 150 ms、zod 609 vs 583、Playwright 461 vs 488、TypeScript compiler 482 vs 483、Next.js 935 vs 963、Effect 742 vs 732、Vue.js 393 vs 397）、peak RSS 0.986〜1.010。1.015を超えた4件を10 roundで再計測：zod/full 595 vs 597 ms（0.997）、Vue.js/noEmit 330 vs 325（1.015）、Effect/noEmit 488 vs 510（0.957）、hono/noEmit 134 vs 132（RSS 312 vs 306 MB）＝noise。tsgoに対してはwall 0.57〜0.87、peak memory 0.66〜0.94。劣化なし（重複copyのsubtreeも読み込むが、bench corpusに重複packageは無い）。
+- cloneの状態：material-ui、azure-sdk-for-js、DefinitelyTyped、bench corpusにこの実行が残したfileは無い。
