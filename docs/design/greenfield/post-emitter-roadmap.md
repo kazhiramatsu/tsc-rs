@@ -4,6 +4,9 @@
 `3b1f5fe87fd31e3b303bb44bd257342735452ed9`（PR #559統合後）。
 状態：**後続の設計計画**。emitter完成を宣言する文書でも、全行をruntime-readyにするpacketでもない。
 最初の実行候補は[移行基盤batchの依頼案](slices/post-emitter-foundation-batch/README.md)。
+2026-10-07の補足：compiler/conformanceの一致（[ts71-cutover](slices/ts71-cutover/README.md)）の後の
+test suite追随（`.types`/`.symbols`、`.sourcemap.txt`、`.trace.json`、transpile、tsoptions/config、
+tsc/tsbuild）は[ts71-suites](slices/ts71-suites/README.md)が持つ。
 
 2026-09-22統合時の補足：emitterは[PR #561の統合記録](slices/emitter-final-batch/integration/delivery.md)
 で完了scopeと残条件を記録済み。18行の歴史的profile資格付けやtranspile/load-failureの

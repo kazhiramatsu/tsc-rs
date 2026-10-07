@@ -83,6 +83,12 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   the replacement gates (conformance-ts71 with emit, Rust checks), the PR
   order and the CLAUDE.md policy text. It continues the
   [conformance-ts71 packet](greenfield/slices/conformance-ts71/README.md).
+- [greenfield/slices/ts71-suites/README.md](greenfield/slices/ts71-suites/README.md):
+  the 2026-10-07 plan for following tsgo's non-compiler test suites
+  (`.types`/`.symbols`, `.sourcemap.txt`, `.trace.json`, transpile,
+  tsoptions/config, tsc/tsbuild baselines) in slices P4-1 to P4-7, with the
+  inventory of each suite's producer, format and prerequisites; LSP and
+  content-mapper suites are excluded for now.
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,
