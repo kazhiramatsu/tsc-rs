@@ -4535,3 +4535,12 @@ reason（alias の先、redirect は output へ、読まれなかった task の
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、program／compiler の
   `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（program 595 passed／0 failed、compiler 409／0、
   checker 1,797／0、incremental 28／0）。
+
+### P3-6fのhostedの記録とmerge（2026-10-07）
+
+- hosted：最終候補 `a0633f164`（fix `6719f4e8b` ＋ packet の記録）の run 37614115877（`plan` 29s、`rust` 10m48s、`conformance (TypeScript 7.1)` 19m48s、`gates` 12s。全て成功）。merge → `58aa555f0`（merge commit）。
+- 計測（scenario oracle、実project、conformance、crate test）は上の記録のとおり、merge前に最終bytes `6719f4e8b` で行った。性能は
+  計測していない（利用者の指示：性能はある程度完成してから制限なしで既存projectで計測する）。実project の比較が corpora に
+  残した `.tsbuildinfo`（`--noEmit` の incremental config の出力、material-ui 3、azure 336、今回の実行時刻のもの）は削除した。
+- scratchpad：`p36f/design.md`（設計）、`p36c/explain_scenarios.py`（explain-schedule-one／two）、`p36f/real-projects.sh`
+  （material-ui → azure → DefinitelyTyped の chain）、`p36b2/verify.sh`（P3-6b2 の検証 chain の再実行）。
