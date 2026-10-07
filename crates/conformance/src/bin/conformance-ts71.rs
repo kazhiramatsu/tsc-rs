@@ -51,8 +51,14 @@ fn main() {
     }
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     if let Some(cases_file) = worker {
-        run_worker(&workspace, &options.profile, &cases_file, options.checkers)
-            .unwrap_or_else(|error| panic!("{error}"));
+        run_worker(
+            &workspace,
+            &options.profile,
+            &cases_file,
+            options.checkers,
+            options.dump.as_deref(),
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
         return;
     }
     if list_only {

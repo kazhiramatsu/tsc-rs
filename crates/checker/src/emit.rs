@@ -213,6 +213,19 @@ impl<'program> CheckerSession<'program> {
             .checked_source_files
     }
 
+    /// Lend the checked state to a harness query (the type and symbol
+    /// baseline writer) while the session is alive; the queries report
+    /// nothing and run after every diagnostic was collected.
+    /// tsrs-native: harness access to the checked session.
+    #[doc(hidden)]
+    pub fn with_state_for_harness<T>(
+        &self,
+        operation: impl FnOnce(&mut CheckerState<'program>) -> T,
+    ) -> T {
+        let mut state = self.state.lock().expect("checker session state");
+        operation(&mut state)
+    }
+
     /// Reclaim checker state after the emitter has released its resolver
     /// borrow so the driver can assemble diagnostics and observations.
     /// tsrs-native: ownership adapter after the H1 checker callback boundary.

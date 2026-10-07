@@ -3181,7 +3181,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkNewTargetMetaProperty @6.0.3
     /// tsc-hash: b7eaa9a363187065d52804e093029188b18cde68a6e5dee0d7bdefeaea290093
     /// tsc-span: _tsc.js:78086-78098
-    fn check_new_target_meta_property(&mut self, node: NodeId) -> CheckResult<TypeId> {
+    pub(crate) fn check_new_target_meta_property(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let source = self.binder.source_of_node(node);
         let container = node_util::get_this_container(source, node, false).filter(|&c| {
             matches!(

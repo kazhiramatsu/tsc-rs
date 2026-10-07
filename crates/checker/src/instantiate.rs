@@ -3464,7 +3464,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isExpressionWithTypeArgumentsInClassExtendsClause @6.0.3
     /// tsc-hash: dd340f3e994ad8dcb7bf28a1f3de22f232fe32c4364e2df5a607fff05a048c84
     /// tsc-span: _tsc.js:17125-17127
-    fn is_expression_with_type_arguments_in_class_extends_clause(&self, node: NodeId) -> bool {
+    pub(crate) fn is_expression_with_type_arguments_in_class_extends_clause(
+        &self,
+        node: NodeId,
+    ) -> bool {
         if self.kind_of(node) != SyntaxKind::ExpressionWithTypeArguments {
             return false;
         }

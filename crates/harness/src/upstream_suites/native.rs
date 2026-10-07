@@ -560,6 +560,18 @@ impl NativeProfile {
         self.baseline_path(suite, &format!("{stem}.sourcemap.txt"))
     }
 
+    /// The type baseline of one configuration (`DoTypeAndSymbolBaseline`):
+    /// the type at every expression and declaration name.
+    pub fn types_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.types"))
+    }
+
+    /// The symbol baseline of one configuration (`DoTypeAndSymbolBaseline`):
+    /// the symbol at every expression and declaration name.
+    pub fn symbols_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.symbols"))
+    }
+
     fn baseline_path(&self, suite: NativeSuite, file_name: &str) -> PathBuf {
         self.upstream_root()
             .join("tsc/testdata/baselines/reference")

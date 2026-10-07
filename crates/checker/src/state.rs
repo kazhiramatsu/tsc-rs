@@ -309,6 +309,10 @@ pub struct CheckerState<'a> {
     /// result for each print by [`Self::with_emit_display`]. Sources are
     /// mounted lazily by [`Self::emit_display_target`].
     pub(crate) emit_display: Option<tsc_emitter::TransformArena>,
+    /// Whether [`Self::take_emit_display`] has lent the arena out: a display
+    /// built while another is being built (an inaccessible symbol's error
+    /// name) must use an arena of its own.
+    pub(crate) emit_display_taken: bool,
     pub(crate) emit_display_sources:
         std::collections::BTreeMap<usize, tsc_emitter::TransformSourceId>,
     /// Scratch child list shared by the per-node check traversals: one
@@ -1378,6 +1382,11 @@ impl<'a> CheckerState<'a> {
     /// the state so a builder can use the arena and the checker together;
     /// [`Self::restore_emit_display`] returns the arena afterwards.
     pub(crate) fn take_emit_display(&mut self) -> tsc_emitter::TransformationResult<'static> {
+        debug_assert!(
+            !self.emit_display_taken,
+            "the display arena is already lent out"
+        );
+        self.emit_display_taken = true;
         let arena = self.emit_display.take().unwrap_or_default();
         tsc_emitter::transform_nodes(arena, Vec::new(), Vec::new(), true)
             .expect("hook-less checker display transform must initialize")
@@ -1388,6 +1397,7 @@ impl<'a> CheckerState<'a> {
         display: tsc_emitter::TransformationResult<'static>,
     ) {
         self.emit_display = Some(display.into_arena());
+        self.emit_display_taken = false;
     }
 
     /// Mount one binder source into the checker display arena on first use.
@@ -1463,6 +1473,7 @@ impl<'a> CheckerState<'a> {
             binder,
             options,
             emit_display: None,
+            emit_display_taken: false,
             emit_display_sources: std::collections::BTreeMap::new(),
             child_scratch: Vec::new(),
             tables,

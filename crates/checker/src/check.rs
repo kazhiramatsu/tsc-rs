@@ -2263,7 +2263,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: resolveJSDocMemberName @6.0.3
     /// tsc-hash: e7e2debbbb67bd344dca35bbc7e3d03f8c89d8fcde7c332878bc880f05c73a51
     /// tsc-span: _tsc.js:87505-87530
-    fn resolve_jsdoc_member_name(
+    pub(crate) fn resolve_jsdoc_member_name(
         &mut self,
         name: NodeId,
         ignore_errors: bool,

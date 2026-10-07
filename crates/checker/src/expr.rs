@@ -513,7 +513,7 @@ impl<'a> CheckerState<'a> {
     /// (getLeftSideOfImportEqualsOrExportAssignment folded in)
     /// tsc-hash: fd9f4f517974459a76ad5fcb8a9489ce11f1e433ef38af8c6911aec2efc24e10
     /// tsc-span: _tsc.js:87252-87266
-    fn is_in_right_side_of_import_or_export_assignment(&self, node: NodeId) -> bool {
+    pub(crate) fn is_in_right_side_of_import_or_export_assignment(&self, node: NodeId) -> bool {
         let mut node = node;
         while let Some(parent) = self.parent_of(node) {
             if self.kind_of(parent) != SyntaxKind::QualifiedName {
