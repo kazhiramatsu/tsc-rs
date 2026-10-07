@@ -1757,7 +1757,7 @@ impl<'a> CheckerState<'a> {
     /// TypeAlias symbol carrying CheckFlags::Unresolved. Qualified
     /// names reproduce the written parent chain, and the full path
     /// interns that symbol across all references in the program.
-    fn get_unresolved_symbol_for_entity_name(&mut self, name: NodeId) -> SymbolId {
+    pub(crate) fn get_unresolved_symbol_for_entity_name(&mut self, name: NodeId) -> SymbolId {
         let (identifier, parent_name) = match self.data_of(name) {
             NodeData::QualifiedName(data) => match (data.right, data.left) {
                 (Some(right), left) => (right, left),

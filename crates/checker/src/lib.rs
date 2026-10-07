@@ -107,6 +107,7 @@ pub mod flow;
 pub mod functions;
 pub mod globals;
 pub mod incremental;
+mod location;
 pub use incremental::{
     IncrementalCheckFacts, IncrementalFileFacts, IncrementalPlan, IncrementalPlanner,
     IncrementalRequest,
@@ -145,6 +146,8 @@ pub mod statements;
 pub mod structural;
 mod syntactic_type_node_builder;
 pub(crate) mod type_order;
+#[doc(hidden)]
+pub mod type_writer;
 pub mod unions;
 mod unused;
 pub mod variance;

@@ -21,12 +21,12 @@ use crate::state::{CheckAbort, CheckResult, CheckerState, OracleCrashKind};
 
 /// SymbolFormatFlags word consumed by checker `symbolToString`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct SymbolFormatFlags(u32);
+pub(crate) struct SymbolFormatFlags(u32);
 
 impl SymbolFormatFlags {
     const WRITE_TYPE_PARAMETERS_OR_ARGUMENTS: Self = Self(1);
     const USE_ONLY_EXTERNAL_ALIASING: Self = Self(2);
-    const ALLOW_ANY_NODE_KIND: Self = Self(4);
+    pub(crate) const ALLOW_ANY_NODE_KIND: Self = Self(4);
     const USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: Self = Self(8);
     const WRITE_COMPUTED_PROPS: Self = Self(16);
     const DO_NOT_INCLUDE_SYMBOL_CHAIN: Self = Self(32);
@@ -1226,7 +1226,7 @@ impl CheckerState<'_> {
     /// tsc-port: symbolToString @6.0.3
     /// tsc-hash: db59b39300442558c3a8f0e1f1d1681dbfaf0fdb3951350b225677ed4851157e
     /// tsc-span: _tsc.js:50649-50681
-    fn symbol_to_string_via_node_builder(
+    pub(crate) fn symbol_to_string_via_node_builder(
         &mut self,
         symbol: SymbolId,
         enclosing: Option<NodeId>,
@@ -1251,22 +1251,83 @@ impl CheckerState<'_> {
             internal_flags |= 1;
         }
 
-        let node = self.emit_build_symbol_display_node(
-            symbol,
-            enclosing,
-            meaning,
-            EmitNodeBuilderFlags(flags),
-            EmitInternalNodeBuilderFlags(internal_flags),
-            format_flags.contains(SymbolFormatFlags::ALLOW_ANY_NODE_KIND),
-        );
-        let node = node.map_err(declaration_emit_symbol_builder_abort)?;
-
         let mut options = PrinterOptions::new(NewLineKind::LineFeed)
             .with_remove_comments(true)
             .with_declaration_syntax(true);
         if enclosing.is_some_and(|node| self.kind_of(node) == SyntaxKind::SourceFile) {
             options = options.with_never_ascii_escape(true);
         }
+        let allow_any_node_kind = format_flags.contains(SymbolFormatFlags::ALLOW_ANY_NODE_KIND);
+        if self.emit_display_taken {
+            // A display built while the session's display arena is lent out
+            // (a builder asking for an inaccessible symbol's error name):
+            // build and print in an arena of this call's own.
+            let mut arena = tsc_emitter::TransformArena::default();
+            let mut files = self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .map(|&node| self.binder.file_index_of_node(node))
+                .collect::<std::collections::BTreeSet<_>>();
+            if let Some(enclosing) = enclosing {
+                files.insert(self.binder.file_index_of_node(enclosing));
+            }
+            let target_file = enclosing
+                .map(|node| self.binder.file_index_of_node(node))
+                .or_else(|| files.iter().next().copied())
+                .unwrap_or(0);
+            files.insert(target_file);
+            let mut targets = std::collections::BTreeMap::new();
+            for file_index in files {
+                let target = arena.add_source(
+                    self.binder.source(file_index),
+                    Some(tsc_program::SourceFileId::from_raw(
+                        u32::try_from(file_index).expect("checker source index exceeds u32"),
+                    )),
+                );
+                targets.insert(file_index, target);
+            }
+            let target = targets[&target_file];
+            let node = crate::node_builder::build_symbol_display_node(
+                self,
+                &mut arena,
+                target,
+                symbol,
+                enclosing,
+                meaning,
+                EmitNodeBuilderFlags(flags),
+                EmitInternalNodeBuilderFlags(internal_flags),
+                allow_any_node_kind,
+            )
+            .map_err(declaration_emit_symbol_builder_abort)?;
+            let mut display = tsc_emitter::transform_nodes(arena, Vec::new(), Vec::new(), true)
+                .expect("hook-less checker display transform must initialize");
+            let printed = create_printer(options)
+                .print(
+                    &mut display,
+                    PrintRequest::StandaloneNode {
+                        node,
+                        writer: StandaloneWriter::SingleLine,
+                    },
+                    None,
+                )
+                .expect("symbolToString standalone printing must succeed");
+            return Ok(tsc_types::JsString::from_code_units(
+                printed.text_utf16().as_ref(),
+            ));
+        }
+
+        let node = self.emit_build_symbol_display_node(
+            symbol,
+            enclosing,
+            meaning,
+            EmitNodeBuilderFlags(flags),
+            EmitInternalNodeBuilderFlags(internal_flags),
+            allow_any_node_kind,
+        );
+        let node = node.map_err(declaration_emit_symbol_builder_abort)?;
+
         let printed = self
             .with_emit_display(|display| {
                 create_printer(options).print(

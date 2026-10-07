@@ -1847,7 +1847,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isTypeReferenceIdentifier (87218).
-    fn is_type_reference_identifier(&self, node: NodeId) -> bool {
+    pub(crate) fn is_type_reference_identifier(&self, node: NodeId) -> bool {
         let mut node = node;
         while let Some(parent) = self.parent_of(node) {
             if self.kind_of(parent) != SyntaxKind::QualifiedName {

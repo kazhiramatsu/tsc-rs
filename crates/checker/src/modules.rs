@@ -8498,7 +8498,7 @@ impl<'a> CheckerState<'a> {
 
     /// isRightSideOfQualifiedNameOrPropertyAccess for the
     /// import-equals RHS walk.
-    fn is_right_side_of_qualified_name_or_property_access(&self, node: NodeId) -> bool {
+    pub(crate) fn is_right_side_of_qualified_name_or_property_access(&self, node: NodeId) -> bool {
         let Some(parent) = self.parent_of(node) else {
             return false;
         };

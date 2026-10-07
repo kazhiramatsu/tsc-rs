@@ -2947,6 +2947,29 @@ impl ProgramSession {
         self.run_no_emit_pass(false, LibraryPrefixCompletion::Complete, false)
     }
 
+    /// [`run_for_native_harness`](Self::run_for_native_harness), then `walk`
+    /// over the checked session before it is released (the native runner's
+    /// type and symbol baselines query the checker after the diagnostics).
+    /// The walk needs the one checker of the comparison; a sharded budget
+    /// skips it.
+    /// tsrs-native: harness execution mode; no tsc counterpart.
+    #[doc(hidden)]
+    pub fn run_for_native_harness_with_walk(
+        mut self,
+        collection: NativeHarnessCollection,
+        walk: &mut HarnessWalk<'_>,
+    ) -> Result<NoEmitOutcome, DriverError> {
+        self.native_harness = Some(collection);
+        self.run_inner_after_emit(
+            false,
+            LibraryPrefixCompletion::Complete,
+            false,
+            None,
+            Some(walk),
+        )
+        .map(|(outcome, _)| outcome)
+    }
+
     /// The native compiler runner's second Program for one configuration
     /// (`compileFilesWithHost`: `program.Emit`, then the diagnostic getters).
     /// The Program emits into `sink` before any of its sources is checked,
@@ -2977,8 +3000,44 @@ impl ProgramSession {
             return Ok(Err(self));
         }
         self.native_harness = Some(collection);
-        self.run_inner_after_emit(false, LibraryPrefixCompletion::Complete, false, Some(sink))
-            .map(Ok)
+        self.run_inner_after_emit(
+            false,
+            LibraryPrefixCompletion::Complete,
+            false,
+            Some(sink),
+            None,
+        )
+        .map(Ok)
+    }
+
+    /// [`emit_then_run_for_native_harness`](Self::emit_then_run_for_native_harness),
+    /// then `walk` over the checked session (see
+    /// [`run_for_native_harness_with_walk`](Self::run_for_native_harness_with_walk)).
+    /// tsrs-native: harness execution order; the command line checks first.
+    #[doc(hidden)]
+    #[allow(clippy::type_complexity)]
+    pub fn emit_then_run_for_native_harness_with_walk(
+        mut self,
+        collection: NativeHarnessCollection,
+        sink: &mut dyn OutputSink,
+        walk: &mut HarnessWalk<'_>,
+    ) -> Result<Result<(NoEmitOutcome, Option<Result<EmitOutcome, EmitFailure>>), Self>, DriverError>
+    {
+        if self.prepared.mode() != PreparedProgramMode::Emit
+            || self.prepared.compiler_options().no_emit_on_error == Some(true)
+            || self.checker_budget.is_sharded()
+        {
+            return Ok(Err(self));
+        }
+        self.native_harness = Some(collection);
+        self.run_inner_after_emit(
+            false,
+            LibraryPrefixCompletion::Complete,
+            false,
+            Some(sink),
+            Some(walk),
+        )
+        .map(Ok)
     }
 
     /// The output-path diagnostics an emitting Program reports before it
@@ -3067,8 +3126,14 @@ impl ProgramSession {
         library_prefix: LibraryPrefixCompletion,
         command_report: bool,
     ) -> Result<NoEmitOutcome, DriverError> {
-        self.run_inner_after_emit(harness_lib_cache, library_prefix, command_report, None)
-            .map(|(outcome, _)| outcome)
+        self.run_inner_after_emit(
+            harness_lib_cache,
+            library_prefix,
+            command_report,
+            None,
+            None,
+        )
+        .map(|(outcome, _)| outcome)
     }
 
     /// [`run_inner`](Self::run_inner), with `emit_first` in the order of the
@@ -3081,6 +3146,7 @@ impl ProgramSession {
         library_prefix: LibraryPrefixCompletion,
         command_report: bool,
         emit_first: Option<&mut dyn OutputSink>,
+        mut walk: Option<&mut HarnessWalk<'_>>,
     ) -> Result<(NoEmitOutcome, Option<Result<EmitOutcome, EmitFailure>>), DriverError> {
         let inputs = project_checker_inputs(&self.prepared, &self.source_api_facts)?;
         let has_roots = !self.prepared.roots().is_empty();
@@ -3195,6 +3261,9 @@ impl ProgramSession {
                         driver.declaration_file_filter().as_deref(),
                     ));
                 }
+                if let Some(walk) = walk.as_deref_mut() {
+                    walk(snapshot, session);
+                }
             };
             check_program_with_authoritative_modules_at_emit_first_with_workers(
                 &inputs.libs,
@@ -3207,15 +3276,17 @@ impl ProgramSession {
                 self.worker_budget,
                 &mut operation,
             )
-        } else if declaration_getter && !self.checker_budget.is_sharded() {
+        } else if (declaration_getter || walk.is_some()) && !self.checker_budget.is_sharded() {
             // One checker: the getter runs in the checked-session callback
-            // over that session, as the shard gate does per shard below.
+            // over that session, as the shard gate does per shard below;
+            // the harness walk runs there too.
             let mut operation = |snapshot: &ProgramSnapshot,
                                  session: &CheckerSession<'_>,
                                  checked: &CheckResult| {
-                if native_harness
-                    || (no_emit_report_is_clean(&self.prepared, checked)
-                        && driver.cached_semantic_diagnostics().is_empty())
+                if declaration_getter
+                    && (native_harness
+                        || (no_emit_report_is_clean(&self.prepared, checked)
+                            && driver.cached_semantic_diagnostics().is_empty()))
                 {
                     let started = std::time::Instant::now();
                     let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
@@ -3235,6 +3306,11 @@ impl ProgramSession {
                         "checker: declaration diagnostics (one checker)",
                         started,
                     );
+                }
+                // tsgo's harness walks the types and symbols after every
+                // diagnostic getter has run.
+                if let Some(walk) = walk.as_deref_mut() {
+                    walk(snapshot, session);
                 }
             };
             check_program_with_authoritative_modules_at_for_emit_with_workers(
@@ -3556,6 +3632,11 @@ impl ProgramSession {
         ))
     }
 }
+
+/// A harness query over the checked session (the native runner's type and
+/// symbol baselines), run after every diagnostic was collected.
+/// tsrs-native: harness callback; no tsc counterpart.
+pub type HarnessWalk<'a> = dyn FnMut(&ProgramSnapshot, &CheckerSession<'_>) + 'a;
 
 /// What [`ProgramSession::run_for_native_harness`] collects besides the
 /// Program's config, options, syntactic, semantic, global and declaration

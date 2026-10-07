@@ -15,6 +15,7 @@
 
 mod emit_baseline;
 mod errors_baseline;
+mod type_symbol_baseline;
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -25,6 +26,9 @@ use emit_baseline::{Emission, EmittedFile, MapOptions};
 use errors_baseline::remove_test_path_prefixes;
 use serde::Serialize;
 use sha2::Digest as _;
+use tsc_checker::emit::CheckerSession;
+use tsc_checker::program::ProgramSnapshot;
+use tsc_checker::type_writer::{self, TypeWriterLine};
 use tsc_compiler::{
     CheckerBudget, DriverError, MemoryOutputSink, NativeHarnessCollection, PreparedProgramMode,
     ProgramSession,
@@ -40,6 +44,7 @@ use tsc_harness::upstream_suites::native::{
 };
 use tsc_harness::upstream_suites::OrderedSetting;
 use tsc_program::ProgramLoadLimits;
+use type_symbol_baseline::{WalkResult, WalkedFile};
 
 /// One diagnostic as the native error baseline's summary line records it.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -278,6 +283,17 @@ pub enum EmitAgreement {
     Full,
 }
 
+/// Cases whose type and symbol walk exhausts the worker (deep recursive
+/// conditional types: the stack or the memory limit while the node builder
+/// prints them without truncation). The walk is not run for them; the
+/// baselines are recorded as not assessed. P4-1 class to resolve.
+const SKIPPED_WALK_TESTS: [&str; 4] = [
+    "recursiveConditionalCrash1.ts",
+    "recursiveConditionalCrash2.ts",
+    "recursiveConditionalCrash3.ts",
+    "symbolToNodeBoundaryNoStackOverflow.ts",
+];
+
 /// `skippedEmitTests` (`compiler_runner.go`): the cases whose JavaScript
 /// baseline the native runner skips.
 const SKIPPED_EMIT_TESTS: [&str; 8] = [
@@ -388,6 +404,14 @@ pub enum Outcome {
         /// The same for the `.js.map` reference (the raw source maps).
         map: EmitAgreement,
         map_detail: Option<String>,
+        /// Whether the `.types` baseline (the type at every expression and
+        /// declaration name, `DoTypeAndSymbolBaseline`) matches byte for
+        /// byte, and why not.
+        types: EmitAgreement,
+        types_detail: Option<String>,
+        /// The same for the `.symbols` baseline.
+        symbols: EmitAgreement,
+        symbols_detail: Option<String>,
     },
     /// Lane A, but tsc-rs could not build or check the Program.
     HarnessError { reason: String },
@@ -602,6 +626,55 @@ struct SecondProgram {
     diagnostics: Option<Vec<Diagnostic>>,
     /// Why the emit failed, when the diagnostics could still be collected.
     emit_error: Option<String>,
+    /// The type and symbol walk over this Program's checker, when the
+    /// configuration walks the second Program.
+    walk: Option<Result<WalkLines, String>>,
+}
+
+/// The walk's lines per unit of the case (absolute unit name, `.types`
+/// lines, `.symbols` lines), in the order of `toBeCompiled` then
+/// `otherFiles`, for the units the Program holds.
+type WalkLines = Vec<(String, Vec<TypeWriterLine>, Vec<TypeWriterLine>)>;
+
+/// The native runner's type and symbol walk (`verifyTypesAndSymbols`): the
+/// units of the case that are files of the Program, each walked over the
+/// checked session.
+fn walk_program(
+    snapshot: &ProgramSnapshot,
+    session: &CheckerSession<'_>,
+    units: &[String],
+) -> Result<WalkLines, String> {
+    let mut lines = Vec::new();
+    for unit in units {
+        let Some(file_index) = snapshot
+            .documents()
+            .iter()
+            .position(|document| document.source().file_name.to_string_lossy() == unit.as_str())
+        else {
+            continue;
+        };
+        // A panic in the walk (a builder or printer invariant) is reported
+        // as the walk's failure, not the case's: the walk is the session's
+        // last use.
+        let walked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            session.with_state_for_harness(|state| {
+                let types = type_writer::write_types(state, file_index)?;
+                let symbols = type_writer::write_symbols(state, file_index)?;
+                Ok::<_, String>((types, symbols))
+            })
+        }))
+        .unwrap_or_else(|panic| {
+            let message = panic
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| panic.downcast_ref::<&str>().map(|s| (*s).to_owned()))
+                .unwrap_or_else(|| "panic".to_owned());
+            Err(format!("walk panicked: {message}"))
+        });
+        let (types, symbols) = walked.map_err(|error| format!("{unit}: {error}"))?;
+        lines.push((unit.clone(), types, symbols));
+    }
+    Ok(lines)
 }
 
 /// Run the configuration as the native harness's second Program does
@@ -620,6 +693,7 @@ fn emit_outputs(
     standard_library: &Path,
     budget: CheckerBudget,
     collection: NativeHarnessCollection,
+    walk_units: Option<&[String]>,
 ) -> Result<SecondProgram, String> {
     let prepared =
         load_native_compiler_program(workspace, plan, limits(), test_library, standard_library)
@@ -642,14 +716,22 @@ fn emit_outputs(
             facts,
             diagnostics: None,
             emit_error: None,
+            walk: None,
         });
     }
     let mut sink = MemoryOutputSink::new();
     let session = ProgramSession::new(prepared).with_checker_budget(budget);
-    let (diagnostics, emit_error) = match session
-        .emit_then_run_for_native_harness(collection, &mut sink)
-        .map_err(|error| format!("emit: {error}"))?
-    {
+    let mut walk_lines = None;
+    let run = match walk_units {
+        Some(units) => {
+            let mut walk = |snapshot: &ProgramSnapshot, session: &CheckerSession<'_>| {
+                walk_lines = Some(walk_program(snapshot, session, units));
+            };
+            session.emit_then_run_for_native_harness_with_walk(collection, &mut sink, &mut walk)
+        }
+        None => session.emit_then_run_for_native_harness(collection, &mut sink),
+    };
+    let (diagnostics, emit_error) = match run.map_err(|error| format!("emit: {error}"))? {
         Ok((outcome, emit)) => (
             Some(outcome.native_harness_diagnostics().to_vec()),
             emit.and_then(Result::err)
@@ -675,6 +757,7 @@ fn emit_outputs(
         facts,
         diagnostics,
         emit_error,
+        walk: walk_lines,
     })
 }
 
@@ -1022,6 +1105,7 @@ fn no_check_comparison(
         standard_library,
         budget,
         NativeHarnessCollection::default(),
+        None,
     )
     .and_then(|second| match second.emit_error {
         Some(error) => Err(error),
@@ -1087,14 +1171,35 @@ fn run_lane_a(
     let budget = || {
         std::num::NonZeroUsize::new(checkers).map_or(CheckerBudget::serial(), CheckerBudget::new)
     };
-    let outcome = match ProgramSession::new(prepared)
-        .with_checker_budget(budget())
-        .run_for_native_harness(collection)
-    {
-        Ok(outcome) => outcome,
-        Err(error) => {
-            return Outcome::HarnessError {
-                reason: format!("check: {error}"),
+    // The type and symbol walk (`verifyTypesAndSymbols`) runs over the
+    // second Program's checker (emit, then diagnostics) when that Program
+    // emits before its diagnostics; otherwise over the first Program's. It
+    // needs the one checker of the comparison.
+    let no_types_and_symbols = flag("notypesandsymbols");
+    let case_file_name = case_path.rsplit('/').next().unwrap_or(case_path);
+    let walk_skipped = SKIPPED_WALK_TESTS.contains(&case_file_name);
+    let walk_allowed = checkers == 1 && !no_types_and_symbols && !walk_skipped;
+    let walk_units = walk_unit_names(plan);
+    let walk_in_second = walk_allowed
+        && prepared.mode() == PreparedProgramMode::Emit
+        && prepared.compiler_options().no_emit_on_error != Some(true);
+    let mut first_walk = None;
+    let outcome = {
+        let session = ProgramSession::new(prepared).with_checker_budget(budget());
+        let run = if walk_allowed && !walk_in_second {
+            let mut walk = |snapshot: &ProgramSnapshot, session: &CheckerSession<'_>| {
+                first_walk = Some(walk_program(snapshot, session, &walk_units));
+            };
+            session.run_for_native_harness_with_walk(collection, &mut walk)
+        } else {
+            session.run_for_native_harness(collection)
+        };
+        match run {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                return Outcome::HarnessError {
+                    reason: format!("check: {error}"),
+                }
             }
         }
     };
@@ -1127,13 +1232,14 @@ fn run_lane_a(
     // and the errors baseline holds the second Program's. Should the two
     // counts differ, the harness keeps the shorter list and adds a row no
     // reference baseline contains.
-    let (second, mut emit_error) = match emit_outputs(
+    let (mut second, mut emit_error) = match emit_outputs(
         workspace,
         plan,
         &test_library,
         &standard_library,
         budget(),
         collection,
+        walk_in_second.then_some(walk_units.as_slice()),
     ) {
         Ok(mut second) => {
             let error = second.emit_error.take();
@@ -1146,6 +1252,7 @@ fn run_lane_a(
                 facts: EmitFacts::default(),
                 diagnostics: None,
                 emit_error: None,
+                walk: None,
             },
             Some(error),
         ),
@@ -1349,6 +1456,33 @@ fn run_lane_a(
             );
         }
     }
+    // The type and symbol baselines of the walk.
+    let had_error_baseline = !diagnostics.is_empty() || counts.is_some();
+    let walk = if walk_in_second {
+        second.walk.take()
+    } else {
+        first_walk
+    };
+    let not_assessed = if no_types_and_symbols {
+        Some("the case asks for no type and symbol baselines (noTypesAndSymbols)")
+    } else if walk_skipped {
+        Some("the walk exhausts the worker on this case (SKIPPED_WALK_TESTS)")
+    } else if checkers != 1 {
+        Some("the walk runs on the one-checker comparison only")
+    } else {
+        None
+    };
+    let (types, types_detail, symbols, symbols_detail) = walk_baselines(
+        profile,
+        suite,
+        stem,
+        &header,
+        &js_baseline_sources_in_walk_order(plan),
+        walk,
+        had_error_baseline,
+        not_assessed,
+        dump,
+    );
     Outcome::Compared {
         agreement,
         expected: expected.len(),
@@ -1361,7 +1495,134 @@ fn run_lane_a(
         emit_sha256,
         map,
         map_detail,
+        types,
+        types_detail,
+        symbols,
+        symbols_detail,
     }
+}
+
+/// The units the native runner walks (`allFiles`: `toBeCompiled` then
+/// `otherFiles`, no config file), by absolute name, with their contents.
+fn js_baseline_sources_in_walk_order(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
+    let (_, roots, others) = plan_units(plan);
+    roots.into_iter().chain(others).collect()
+}
+
+fn walk_unit_names(plan: &CompilerExecutionPlan) -> Vec<String> {
+    js_baseline_sources_in_walk_order(plan)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect()
+}
+
+/// Render the `.types` and `.symbols` baselines of the walk and compare
+/// them with their references; dump the differing ones.
+#[allow(clippy::too_many_arguments)]
+fn walk_baselines(
+    profile: &NativeProfile,
+    suite: NativeSuite,
+    stem: &str,
+    header: &str,
+    units: &[(String, String)],
+    walk: Option<Result<WalkLines, String>>,
+    had_error_baseline: bool,
+    not_assessed: Option<&str>,
+    dump: Option<&Path>,
+) -> (EmitAgreement, Option<String>, EmitAgreement, Option<String>) {
+    if let Some(reason) = not_assessed {
+        return (
+            EmitAgreement::NotAssessed,
+            Some(reason.to_owned()),
+            EmitAgreement::NotAssessed,
+            Some(reason.to_owned()),
+        );
+    }
+    let lines = match walk {
+        Some(Ok(lines)) => lines,
+        Some(Err(error)) => {
+            return (
+                EmitAgreement::None,
+                Some(error.clone()),
+                EmitAgreement::None,
+                Some(error),
+            )
+        }
+        None => {
+            let reason = "the walk did not run".to_owned();
+            return (
+                EmitAgreement::None,
+                Some(reason.clone()),
+                EmitAgreement::None,
+                Some(reason),
+            );
+        }
+    };
+    let convert = |results: &[TypeWriterLine], is_symbols: bool| -> Vec<WalkResult> {
+        results
+            .iter()
+            .map(|result| WalkResult {
+                line: result.line,
+                source_text: result.source_text.clone(),
+                text: match (&result.any_name, is_symbols, had_error_baseline) {
+                    (Some(name), false, false) => name.clone(),
+                    _ => result.text.clone(),
+                },
+            })
+            .collect()
+    };
+    let mut outcome = Vec::new();
+    for is_symbols in [false, true] {
+        let converted: Vec<(String, Vec<WalkResult>)> = lines
+            .iter()
+            .map(|(unit, types, symbols)| {
+                (
+                    unit.clone(),
+                    convert(if is_symbols { symbols } else { types }, is_symbols),
+                )
+            })
+            .collect();
+        let files: Vec<WalkedFile<'_>> = converted
+            .iter()
+            .filter_map(|(unit, results)| {
+                units
+                    .iter()
+                    .find(|(name, _)| name == unit)
+                    .map(|(name, content)| WalkedFile {
+                        unit_name: name,
+                        content,
+                        results,
+                    })
+            })
+            .collect();
+        let (rendered, error) = match type_symbol_baseline::render(header, &files) {
+            Ok(rendered) => (rendered, None),
+            Err(error) => (None, Some(error)),
+        };
+        let extension = if is_symbols { "symbols" } else { "types" };
+        let path = if is_symbols {
+            profile.symbols_baseline_path(suite, stem)
+        } else {
+            profile.types_baseline_path(suite, stem)
+        };
+        let expected = std::fs::read(path)
+            .ok()
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+        let (agreement, detail) =
+            emit_agreement(rendered.as_deref(), expected.as_deref(), error.as_deref());
+        if let (Some(directory), EmitAgreement::None) = (dump, agreement) {
+            dump_file(
+                directory,
+                suite,
+                &format!("{stem}.{extension}"),
+                rendered.as_deref().unwrap_or_default(),
+            );
+        }
+        outcome.push((agreement, detail));
+    }
+    let symbols = outcome.pop().expect("symbols outcome");
+    let types = outcome.pop().expect("types outcome");
+    (types.0, types.1, symbols.0, symbols.1)
 }
 
 fn case_key(case: &NativeCase) -> String {
@@ -1464,6 +1725,7 @@ pub fn run_worker(
     profile: &str,
     cases_file: &Path,
     checkers: usize,
+    dump: Option<&Path>,
 ) -> Result<(), String> {
     let profile = NativeProfile::load(workspace, profile).map_err(|e| e.to_string())?;
     let listed = std::fs::read_to_string(cases_file)
@@ -1484,7 +1746,7 @@ pub fn run_worker(
                         &profile,
                         &case,
                         &leave_out,
-                        None,
+                        dump,
                         checkers,
                         &mut |configuration, stem| {
                             let begin = serde_json::json!({
