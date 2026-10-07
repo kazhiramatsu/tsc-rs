@@ -4202,3 +4202,49 @@ signature、診断の再利用）は次のslice（P3-6c）。
   Playwright 368 vs 366（1.005）＝noise。tsgoに対してはwall 0.59〜0.89（`--noEmit`）、0.60〜0.78（bench-full）、
   peak memory 0.65〜0.91。劣化なし（incrementalでないprogramではfactを集めず文書も書かない）。
 - cloneの状態：material-ui、azure-sdk-for-js、bench corpusにこの実行が残したfileは無い。
+
+## P3-6b2 packageの重複排除をcollect時に決める（2026-10-07）
+
+P3-6bの実projectに残った1件（material-ui `docs`）の原因。tsgoのfile loader（compiler/filesparser.go）はparse taskを
+全て読み込んでから`collectFiles`で program の file を集める：pathごとのtask dataは「そのpathに到達した task のうち
+最初に非空の packageId」を持ち（:293-295）、collectはroot taskのsubtaskを順に辿りながら、入った file の packageId を
+登録し（preorder）、同じ id が既に別の file に登録されていれば redirect にして subtask を辿らず（:448-481）、file は
+subtask の後に並ぶ（postorder）。portは admission 時（最初に読み込む瞬間）に redirect を決めていたので、
+`/// <reference path>`で先に（id無しで）入った copy に後の import の id が伝わる場合、後から入った同 id の copy が
+program に残った（`docs`：core-docs側の`next`のcopyの`router.d.ts`等4 file）。
+- **loader**（`crates/program/src/loader.rs`）：admission 時の redirect（`package_id_to_source`、
+  `VisitState::PackageRedirect`）を外し、全ての copy とその subtree を tsgo と同じく読み込む。`StagedSource::package_id`
+  に最初の id を持つ（admission の reason、無ければ後の `observe_existing_source` の reason）。`top_level_sources`
+  （depth 0 の訪問：root、自動 type directive の対象、library）を起点に、`finish()` が `collect_files()` で tsgo の
+  collect と同じ DFS（`source_edges` の順＝path reference → type reference → lib reference → import）を行い、
+  id の登録／redirect（owner に `remember_package_redirect`、reason を owner へ）／到達しなかった source の除外／
+  program 順（`program_order`、located diagnostic もこれを使う）を決める。root と project reference の redirect の
+  index は owner に付け替える。lib reference は collect の edge として記録する（non-external の到達性には使わない）。
+- **root の redirect**（conformance `compiler/declarationEmitForGlobalishSpecifierSymlink`：harness では全 file が root）：
+  root の file が redirect になると tsgo は root の path が owner を指す（`filesByPath[rootPath] = packageIdFile`）。
+  `PreparedProgram` の root の検証（`try_add_root`）に、owner に登録された redirect path を認めた。
+- **順序の変化**：reprocess（JS depth の昇格）で後から読み込んだ file は、Strada では親の後に追加されたが、tsgo の
+  collect では親の subtask として親の前に並ぶ。no_lib の契約 2 件の期待順序を tsgo（`tsgo --listFiles`、fixture
+  p36b2/fx-reprocess）に合わせた。
+- **ついでに見つかった referencedMap の差**（`docs`の`.cjs` 2 file）：tsgoのgetReferencedFilesはimport literalを
+  GetSymbolAtLocationで解決し、それがmoduleを返すのはimport／export宣言の名前、`import x = require()`、`import()`、
+  import type、そして**variable declarationのinitializerである`require()`**だけ（checker.go getSymbolAtLocationの
+  string literalの分岐）。`module.exports = require("x")`のようなrequireは解決されず参照に入らない。portは
+  JavaScriptの全requireを解決していた。`collect_module_references`に`symbol_imports`（解決される literal だけ）を
+  加え、referencedMapはそれを使う。CLIの契約（fixture p36b2/fx-require：`.cjs`の`module.exports = require`、`.js`の
+  `const d = require`、`.ts`のimport）をtsgoのbyteで固定。
+- test：programの契約（collect fixture：path reference で先に入った copy が id の owner になる、`b.ts` の解決が
+  owner を指す、redirect path の登録）、CLIの契約（同 fixture の tsbuildinfo を tsgo の byte で固定）。
+- 実project（`compare-buildinfo.py`、`--noEmit`、tsgo `--singleThreaded` vs `TSRS_CHECKERS=1`、byte＋stdout＋exit）：material-ui 38 configのうち37件一致（`docs`は下のschedulingの残差＝`affectedFilesPendingEmit`の2 fileだけ。file集合・順序・package.json・referencedMap・診断は一致）。azure-sdk-for-js 2,756/2,756一致。DefinitelyTyped：9,067/9,067一致（`dt-compare.py --jobs 4`、349 s）。
+- 残る差（記録のみ、dedupe とは独立）：**parse task の scheduling**。tsgo の filesParser は task の subtask を
+  「最初に処理された depth」で一度だけ開始し（`startedSubTasks`）、同じ path を後で浅い depth で訪れても自身の
+  `lowestDepth` だけ更新して subtree には伝えない。処理順は work queue（single-threaded なら FIFO＝BFS 的）で決まる。
+  port は Strada の findSourceFile（DFS、depth 0 の再訪で reference を全て再処理、浅い再訪で import を再処理）。
+  現れ方：(1) material-ui `docs` の `TextareaAutosize.tsx`／`.types.ts`：`index.ts` が x-data-grid の
+  augmentation（depth 2）から先に処理され、その子は external のまま＝tsgo は emit 対象外、port は docs 側の
+  depth 0 の import で再処理して emit 対象（`affectedFilesPendingEmit` に 2 file 多い。file 集合、順序、
+  referencedMap、診断は一致）。(2) fixture p36b2/fx-reprocess/two：tsgo は `shared` を depth 1 で先に処理するので
+  path reference 先の import（`reference-leaf.js`）まで読み込むが、port は読み込まない。multi-threaded の tsgo では
+  scheduling に依存する。次の follow-up の候補（queue 順と「subtask は一度だけ」の再現）。
+- conformance（最終bytes `42653406f`での1回の全体実行。macOS、`nice -n 20`、2 worker）：12,748 case／451 s、full 13,451、emit_full 13,443、mismatch 0、ratchet 0 regressions／0 above tiers（P3-6bと同じ行、ratchetの更新なし）。focused：duplicatePackage 11、library-reference 15、packageJson 16、moduleResolution 130、typeRoots 3、declarationEmit 307、Symlink 11 full、0 regressions。parallel control（`--checkers 4`）は未実行。
+- local（`nice -n 20`、2 job）：`cargo test` program 513＋compiler contracts（build info 17）；program／compiler／checker／conformance／emitter／harness の`cargo clippy --all-targets -- -D warnings`と`cargo fmt --all -- --check`。corpusの診断（8 corpora、`--noEmit`、既定のchecker数）は8/8 tsgoと一致（zodのpartition行はこの実行では出なかった）。
