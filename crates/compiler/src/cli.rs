@@ -26,14 +26,13 @@ use tsc_diagnostics::{gen, JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
 use tsc_incremental::{BuildInfo, OldState};
 use tsc_program::{
-    decode_host_text, is_non_fatal_option_diagnostic,
-    load_config_program_with_no_emit_override_and_overrides, load_config_program_with_overrides,
-    load_emitting_config_program_with_no_emit_override_and_overrides,
-    load_emitting_config_program_with_overrides, load_emitting_program, load_program,
-    parse_config_root_plan_with_cache, CompilerConfigHost, CompilerOptions,
-    ConfigEmitOptionOverrides, ConfigExtendedCache, ConfigParseError, ConfigProgramLoadError,
-    ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, PreparedProgramMode, ProgramLoadLimits,
-    ProgramOptions, WorkerBudget,
+    command_line_option_bag, command_line_program_inputs, decode_host_text,
+    is_non_fatal_option_diagnostic, load_config_program, load_config_program_with_no_emit_override,
+    load_emitting_config_program, load_emitting_program, load_program, parse_build_command_line,
+    parse_command_line, parse_config_root_plan_with_command_line, CompilerConfigHost,
+    CompilerOptions, ConfigExtendedCache, ConfigOptionBag, ConfigParseError,
+    ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
+    PreparedProgramMode, ProgramLoadLimits, ProgramOptions, WorkerBudget,
 };
 
 use crate::build::{self, BuildCommand};
@@ -178,22 +177,6 @@ impl fmt::Display for CliError {
 }
 
 impl Error for CliError {}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-struct CommandLine {
-    project: Option<PathBuf>,
-    files: Vec<PathBuf>,
-    compiler_options: CompilerOptions,
-    no_lib: Option<bool>,
-    ignore_config: bool,
-    pretty: Option<bool>,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) struct ConfigCommandLineOverrides {
-    pub(crate) no_emit: Option<bool>,
-    pub(crate) emit: ConfigEmitOptionOverrides,
-}
 
 #[derive(Default)]
 struct NativeEmitFileSystem;
@@ -582,8 +565,44 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         }
     }
     let prologue_started = std::time::Instant::now();
-    let command_line = parse_arguments(args)?;
-    if args.iter().any(|arg| arg == "--version") {
+    let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
+    let current_directory = filesystem.current_directory().map_err(host_error)?;
+    let current_directory_js = JsString::from(
+        current_directory
+            .to_str()
+            .ok_or_else(|| CliError::Host("current directory is not Unicode".to_owned()))?,
+    );
+    let host = CliCompilerHost::new(filesystem);
+    let case_sensitive = host.use_case_sensitive_file_names();
+    // tsgo ParseCommandLine: the options, the file names and the errors.
+    let read_response_file = |path: JsStr<'_>| {
+        host.read_file_js(path)
+            .ok()
+            .flatten()
+            .and_then(|bytes| decode_host_text(bytes).ok())
+    };
+    let parsed = parse_command_line(
+        args,
+        current_directory_js.as_js(),
+        case_sensitive,
+        &read_response_file,
+    );
+    let pretty = parsed.option_bool("pretty").unwrap_or_else(default_pretty);
+    if !parsed.errors.is_empty() {
+        return rendered_diagnostics_with_exit(
+            &current_directory,
+            &BTreeMap::new(),
+            &parsed.errors,
+            pretty,
+            EXIT_COMMAND_LINE,
+        );
+    }
+    if parsed.option_bool("init") == Some(true) {
+        return Err(CliError::Usage(
+            "unsupported option \"--init\" (tsconfig.json generation)".to_owned(),
+        ));
+    }
+    if parsed.option_bool("version") == Some(true) {
         return Ok(CliOutput {
             stdout: format!("Version {TYPESCRIPT_VERSION}\n"),
             stderr: String::new(),
@@ -591,21 +610,90 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             work_counters: NoEmitWorkCounters::default(),
         });
     }
-
-    let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
-    let pretty = command_line.pretty.unwrap_or_else(default_pretty);
+    if parsed.option_bool("help") == Some(true) || parsed.option_bool("all") == Some(true) {
+        return Err(CliError::Usage(
+            "unsupported option \"--help\" (the README describes the options)".to_owned(),
+        ));
+    }
+    if parsed.option_bool("watch") == Some(true)
+        && parsed.option_bool("listFilesOnly") == Some(true)
+    {
+        let diagnostic = Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Options_0_and_1_cannot_be_combined,
+                &["watch".to_owned(), "listFilesOnly".to_owned()],
+            ),
+        );
+        return rendered_diagnostics_with_exit(
+            &current_directory,
+            &BTreeMap::new(),
+            &[diagnostic],
+            pretty,
+            EXIT_COMMAND_LINE,
+        );
+    }
+    if parsed.option_bool("watch") == Some(true) {
+        return Err(CliError::Usage(
+            "unsupported option \"--watch\" (watch mode)".to_owned(),
+        ));
+    }
+    if parsed.option_bool("showConfig") == Some(true) {
+        return Err(CliError::Usage(
+            "unsupported option \"--showConfig\"".to_owned(),
+        ));
+    }
+    if let Some(locale) = parsed.option_string("locale") {
+        if !locale
+            .as_str()
+            .is_some_and(|locale| locale.to_ascii_lowercase().starts_with("en"))
+        {
+            return Err(CliError::Usage(format!(
+                "unsupported option \"--locale {}\" (only English messages exist)",
+                locale.to_string_lossy()
+            )));
+        }
+    }
     let mut output_filesystem = NativeEmitFileSystem;
     let mut route = CliRoute {
         pretty,
         output_filesystem: &mut output_filesystem,
     };
-    let current_directory = filesystem.current_directory().map_err(host_error)?;
-    let host = CliCompilerHost::new(filesystem);
     let catalog = LibraryCatalog::typescript_7_1(host.library_directory());
+    // tsgo wraps the command line's options as `compilerOptions` and merges
+    // them over the config's; explicit files take them as the program's.
+    let command_line = command_line_option_bag(&parsed.options, current_directory_js.as_js());
+    let files = parsed
+        .file_names
+        .iter()
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    let ignore_config = parsed.option_bool("ignoreConfig") == Some(true);
     tsc_types::trace::mark("cli: arguments, host, catalog", prologue_started);
 
-    if let Some(project) = command_line.project.as_ref() {
-        let config_file = match resolve_project_file(&host, &current_directory, project)? {
+    if let Some(project) = parsed.option_string("project") {
+        if !files.is_empty() {
+            let diagnostic = Diagnostic::new(
+                None,
+                None,
+                None,
+                MessageChain::new(
+                    &gen::Option_project_cannot_be_mixed_with_source_files_on_a_command_line,
+                    &[] as &[String],
+                ),
+            );
+            return rendered_diagnostics_with_exit(
+                &current_directory,
+                &BTreeMap::new(),
+                &[diagnostic],
+                pretty,
+                EXIT_COMMAND_LINE,
+            );
+        }
+        let project = PathBuf::from(project.to_string_lossy().into_owned());
+        let config_file = match resolve_project_file(&host, &current_directory, &project)? {
             Ok(config_file) => config_file,
             Err(ProjectFileError::MissingPath(path)) => {
                 let diagnostic = Diagnostic::new(
@@ -642,7 +730,8 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             }
         };
         let config_started = std::time::Instant::now();
-        let (plan, source_texts) = parse_config_file(&host, &current_directory, &config_file)?;
+        let (plan, source_texts) =
+            parse_config_file(&host, &current_directory, &config_file, &command_line)?;
         tsc_types::trace::mark("cli: project config plan", config_started);
         return execute_config(
             &host,
@@ -650,13 +739,12 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             &catalog,
             &plan,
             source_texts,
-            config_command_line_overrides(&command_line),
             &mut route,
         );
     }
 
-    if !command_line.files.is_empty() {
-        if !command_line.ignore_config && find_config_file(&host, &current_directory)?.is_some() {
+    if !files.is_empty() {
+        if !ignore_config && find_config_file(&host, &current_directory)?.is_some() {
             let diagnostic = Diagnostic::new(
                     None,
                     None,
@@ -679,6 +767,12 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                 EXIT_COMMAND_LINE,
             );
         }
+        let (options, program_options) = command_line_program_inputs(
+            &command_line,
+            current_directory_js.as_js(),
+            case_sensitive,
+        )
+        .map_err(config_error)?;
         // Keep the caller's spelling for root-file diagnostics. The program
         // loader normalizes these against the host cwd for identity and I/O,
         // while TypeScript reports a missing explicit root as it was written
@@ -688,483 +782,93 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             &host,
             &current_directory,
             &catalog,
-            &command_line.files,
-            &command_line.compiler_options,
-            command_line.no_lib,
+            &files,
+            options,
+            program_options,
             &mut route,
         );
     }
 
-    if command_line.ignore_config {
-        return Err(CliError::Usage(
-            "--ignoreConfig requires explicit source files or -p".to_owned(),
-        ));
-    }
-
+    // tsgo searches tsconfig.json upward from the current directory (even
+    // under --ignoreConfig when no file is named) and prints its version and
+    // help when there is none.
     let config_file = find_config_file(&host, &current_directory)?.ok_or_else(|| {
         CliError::Usage(format!(
             "cannot find {CONFIG_FILE_NAME} from {}",
             current_directory.display()
         ))
     })?;
-    let (plan, source_texts) = parse_config_file(&host, &current_directory, &config_file)?;
+    let (plan, source_texts) =
+        parse_config_file(&host, &current_directory, &config_file, &command_line)?;
     execute_config(
         &host,
         &current_directory,
         &catalog,
         &plan,
         source_texts,
-        config_command_line_overrides(&command_line),
         &mut route,
     )
 }
 
-/// tsgo `tscBuildCompilation`: the build command line, then the
-/// orchestrator over its projects.
 fn execute_build(args: &[String]) -> Result<CliOutput, CliError> {
-    let (command_line, build) = parse_build_arguments(args)?;
     let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
-    let pretty = command_line.pretty.unwrap_or_else(default_pretty);
     let current_directory = filesystem.current_directory().map_err(host_error)?;
-    // tsgo ParseBuildCommandLine's nonsensical combinations (TS5053).
-    let mut combined = Vec::new();
-    if build.clean && build.force {
-        combined.push(("clean", "force"));
-    }
-    if build.clean && build.verbose {
-        combined.push(("clean", "verbose"));
-    }
-    if !combined.is_empty() {
-        let diagnostics = combined
-            .into_iter()
-            .map(|(left, right)| {
-                Diagnostic::new(
-                    None,
-                    None,
-                    None,
-                    MessageChain::new(
-                        &gen::Options_0_and_1_cannot_be_combined,
-                        &[left.to_owned(), right.to_owned()],
-                    ),
-                )
-            })
-            .collect::<Vec<_>>();
+    let current_directory_js = JsString::from(
+        current_directory
+            .to_str()
+            .ok_or_else(|| CliError::Host("current directory is not Unicode".to_owned()))?,
+    );
+    let host = CliCompilerHost::new(filesystem);
+    let read_response_file = |path: JsStr<'_>| {
+        host.read_file_js(path)
+            .ok()
+            .flatten()
+            .and_then(|bytes| decode_host_text(bytes).ok())
+    };
+    // tsgo ParseBuildCommandLine: the build options, the common compiler
+    // options (applied to every project), the projects and the errors.
+    let parsed = parse_build_command_line(
+        args,
+        current_directory_js.as_js(),
+        host.use_case_sensitive_file_names(),
+        &read_response_file,
+    );
+    let pretty = parsed.option_bool("pretty").unwrap_or_else(default_pretty);
+    if !parsed.errors.is_empty() {
         return rendered_diagnostics_with_exit(
             &current_directory,
             &BTreeMap::new(),
-            &diagnostics,
+            &parsed.errors,
             pretty,
             EXIT_COMMAND_LINE,
         );
+    }
+    if parsed.option_bool("help") == Some(true) {
+        return Err(CliError::Usage(
+            "unsupported option \"--help\" (the README describes the options)".to_owned(),
+        ));
+    }
+    if parsed.option_bool("watch") == Some(true) {
+        return Err(CliError::Usage(
+            "unsupported option \"--watch\" (watch mode)".to_owned(),
+        ));
     }
     let mut output_filesystem = NativeEmitFileSystem;
     let mut route = CliRoute {
         pretty,
         output_filesystem: &mut output_filesystem,
     };
-    let host = CliCompilerHost::new(filesystem);
     let catalog = LibraryCatalog::typescript_7_1(host.library_directory());
     let command = BuildCommand {
-        overrides: config_command_line_overrides(&command_line),
-        ..build
+        projects: parsed.projects.clone(),
+        verbose: parsed.build_bool("verbose"),
+        dry: parsed.build_bool("dry"),
+        force: parsed.build_bool("force"),
+        clean: parsed.build_bool("clean"),
+        stop_build_on_errors: parsed.build_bool("stopBuildOnErrors"),
+        command_line: command_line_option_bag(&parsed.options, current_directory_js.as_js()),
     };
     build::run_build(&host, &current_directory, &catalog, &command, &mut route)
-}
-
-/// tsgo `ParseBuildCommandLine`: the build options, the common options
-/// (applied to every project) and the projects (`.` when none is named).
-fn parse_build_arguments(args: &[String]) -> Result<(CommandLine, BuildCommand), CliError> {
-    let mut command_line = CommandLine {
-        pretty: None,
-        ..CommandLine::default()
-    };
-    let mut build = BuildCommand::default();
-    let mut index = 0usize;
-    while index < args.len() {
-        let argument = &args[index];
-        match argument.as_str() {
-            "--verbose" | "-v" => {
-                let (value, next_index) = consume_boolean_value(args, index, true);
-                build.verbose = value;
-                index = next_index;
-            }
-            "--dry" | "-d" => {
-                let (value, next_index) = consume_boolean_value(args, index, true);
-                build.dry = value;
-                index = next_index;
-            }
-            "--force" | "-f" => {
-                let (value, next_index) = consume_boolean_value(args, index, true);
-                build.force = value;
-                index = next_index;
-            }
-            "--clean" => {
-                let (value, next_index) = consume_boolean_value(args, index, true);
-                build.clean = value;
-                index = next_index;
-            }
-            "--stopBuildOnErrors" => {
-                let (value, next_index) = consume_boolean_value(args, index, true);
-                build.stop_build_on_errors = value;
-                index = next_index;
-            }
-            "--builders" => {
-                // Accepted as tsgo does; the projects are built one after
-                // the other, in the order tsgo reports them.
-                let (_, next_index) = required_option_value(args, index)?;
-                index = next_index;
-            }
-            value if value == "--listFilesOnly" || value.starts_with("--listFilesOnly=") => {
-                // Not a build option (tsgo TS5094: Compiler option
-                // '--listFilesOnly' may not be used with '--build').
-                return Err(CliError::Usage(format!(
-                    "unsupported build option {value:?}"
-                )));
-            }
-            _ => {
-                if let Some(next_index) = parse_common_option(args, index, &mut command_line)? {
-                    index = next_index;
-                } else if argument.starts_with('-') {
-                    return Err(CliError::Usage(format!("unsupported option {argument:?}")));
-                } else {
-                    build.projects.push(argument.clone());
-                    index += 1;
-                }
-            }
-        }
-    }
-    if build.projects.is_empty() {
-        // tsc -b invoked with no extra arguments; act as if invoked with
-        // "tsc -b ."
-        build.projects.push(".".to_owned());
-    }
-    Ok((command_line, build))
-}
-
-fn config_command_line_overrides(command_line: &CommandLine) -> ConfigCommandLineOverrides {
-    let options = &command_line.compiler_options;
-    ConfigCommandLineOverrides {
-        no_emit: options.no_emit,
-        emit: ConfigEmitOptionOverrides {
-            stable_type_ordering: options.stable_type_ordering,
-            target: options.target,
-            module: options.module,
-            use_define_for_class_fields: options.use_define_for_class_fields,
-            no_emit_on_error: options.no_emit_on_error,
-            emit_bom: options.emit_bom,
-            new_line: options.new_line,
-            list_emitted_files: options.list_emitted_files,
-            list_files: options.list_files,
-            explain_files: options.explain_files,
-            list_files_only: options.list_files_only,
-            no_lib: command_line.no_lib,
-        },
-    }
-}
-
-fn parse_arguments(args: &[String]) -> Result<CommandLine, CliError> {
-    let mut command_line = CommandLine {
-        pretty: None,
-        ..CommandLine::default()
-    };
-    let mut index = 0usize;
-    let mut end_options = false;
-    while index < args.len() {
-        let argument = &args[index];
-        if end_options {
-            command_line.files.push(PathBuf::from(argument));
-            index += 1;
-            continue;
-        }
-        match argument.as_str() {
-            "--" => {
-                end_options = true;
-                index += 1;
-            }
-            "--version" | "-v" => {
-                index += 1;
-            }
-            "-p" | "--project" => {
-                let value = args.get(index + 1).ok_or_else(|| {
-                    CliError::Usage(format!("{argument} expects a config file or directory"))
-                })?;
-                if value.starts_with('-') {
-                    return Err(CliError::Usage(format!(
-                        "{argument} expects a config file or directory, got {value:?}"
-                    )));
-                }
-                if command_line.project.replace(PathBuf::from(value)).is_some() {
-                    return Err(CliError::Usage(
-                        "the project option may be specified only once".to_owned(),
-                    ));
-                }
-                index += 2;
-            }
-            value if value.starts_with("-p=") || value.starts_with("--project=") => {
-                let (_, value) = value.split_once('=').expect("project option has an equals");
-                if value.is_empty() {
-                    return Err(CliError::Usage(
-                        "the project option requires a config file or directory".to_owned(),
-                    ));
-                }
-                if command_line.project.replace(PathBuf::from(value)).is_some() {
-                    return Err(CliError::Usage(
-                        "the project option may be specified only once".to_owned(),
-                    ));
-                }
-                index += 1;
-            }
-            value => {
-                if let Some(next_index) = parse_common_option(args, index, &mut command_line)? {
-                    index = next_index;
-                } else if value.starts_with('-') {
-                    return Err(CliError::Usage(format!("unsupported option {value:?}")));
-                } else {
-                    command_line.files.push(PathBuf::from(value));
-                    index += 1;
-                }
-            }
-        }
-    }
-    if command_line.project.is_some() && !command_line.files.is_empty() {
-        return Err(CliError::Usage(
-            "project selection cannot be combined with explicit source files".to_owned(),
-        ));
-    }
-    Ok(command_line)
-}
-
-/// The options both command lines accept (tsgo's `commonOptionsWithBuild`
-/// as far as the port supports them): the index after the option when it
-/// is one, `None` otherwise.
-fn parse_common_option(
-    args: &[String],
-    index: usize,
-    command_line: &mut CommandLine,
-) -> Result<Option<usize>, CliError> {
-    let argument = &args[index];
-    let next = match argument.as_str() {
-        "--noEmit" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.no_emit = Some(value);
-            next_index
-        }
-        value if value.starts_with("--noEmit=") => {
-            command_line.compiler_options.no_emit = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--stableTypeOrdering" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.stable_type_ordering = Some(value);
-            next_index
-        }
-        value if value.starts_with("--stableTypeOrdering=") => {
-            command_line.compiler_options.stable_type_ordering = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--target" => {
-            let (value, next_index) = required_option_value(args, index)?;
-            command_line.compiler_options.target = Some(parse_target(value)?);
-            next_index
-        }
-        value if value.starts_with("--target=") => {
-            command_line.compiler_options.target =
-                Some(parse_target(inline_value(value, "--target")?)?);
-            index + 1
-        }
-        "--module" => {
-            let (value, next_index) = required_option_value(args, index)?;
-            command_line.compiler_options.module = Some(parse_module(value)?);
-            next_index
-        }
-        value if value.starts_with("--module=") => {
-            command_line.compiler_options.module =
-                Some(parse_module(inline_value(value, "--module")?)?);
-            index + 1
-        }
-        "--newLine" => {
-            let (value, next_index) = required_option_value(args, index)?;
-            command_line.compiler_options.new_line = Some(parse_new_line(value)?);
-            next_index
-        }
-        value if value.starts_with("--newLine=") => {
-            command_line.compiler_options.new_line =
-                Some(parse_new_line(inline_value(value, "--newLine")?)?);
-            index + 1
-        }
-        "--listEmittedFiles" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.list_emitted_files = Some(value);
-            next_index
-        }
-        value if value.starts_with("--listEmittedFiles=") => {
-            command_line.compiler_options.list_emitted_files = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--listFiles" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.list_files = Some(value);
-            next_index
-        }
-        value if value.starts_with("--listFiles=") => {
-            command_line.compiler_options.list_files = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--explainFiles" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.explain_files = Some(value);
-            next_index
-        }
-        value if value.starts_with("--explainFiles=") => {
-            command_line.compiler_options.explain_files = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--listFilesOnly" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.list_files_only = Some(value);
-            next_index
-        }
-        value if value.starts_with("--listFilesOnly=") => {
-            command_line.compiler_options.list_files_only = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--emitBOM" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.emit_bom = Some(value);
-            next_index
-        }
-        value if value.starts_with("--emitBOM=") => {
-            command_line.compiler_options.emit_bom = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--noEmitOnError" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.no_emit_on_error = Some(value);
-            next_index
-        }
-        value if value.starts_with("--noEmitOnError=") => {
-            command_line.compiler_options.no_emit_on_error = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--useDefineForClassFields" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.compiler_options.use_define_for_class_fields = Some(value);
-            next_index
-        }
-        value if value.starts_with("--useDefineForClassFields=") => {
-            command_line.compiler_options.use_define_for_class_fields =
-                Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--noLib" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.no_lib = Some(value);
-            next_index
-        }
-        value if value.starts_with("--noLib=") => {
-            command_line.no_lib = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        "--ignoreConfig" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.ignore_config = value;
-            next_index
-        }
-        value if value.starts_with("--ignoreConfig=") => {
-            command_line.ignore_config = parse_inline_boolean(value)?;
-            index + 1
-        }
-        "--pretty" => {
-            let (value, next_index) = consume_boolean_value(args, index, true);
-            command_line.pretty = Some(value);
-            next_index
-        }
-        value if value.starts_with("--pretty=") => {
-            command_line.pretty = Some(parse_inline_boolean(value)?);
-            index + 1
-        }
-        _ => return Ok(None),
-    };
-    Ok(Some(next))
-}
-
-/// TypeScript's command-line parser consumes a separate `true`/`false` token
-/// for boolean switches. Keep the no-emit surface compatible while leaving
-/// arbitrary following paths available as explicit roots.
-fn consume_boolean_value(args: &[String], index: usize, default: bool) -> (bool, usize) {
-    match args.get(index + 1).map(String::as_str) {
-        Some("true") => (true, index + 2),
-        Some("false") => (false, index + 2),
-        _ => (default, index + 1),
-    }
-}
-
-fn required_option_value(args: &[String], index: usize) -> Result<(&str, usize), CliError> {
-    let option = &args[index];
-    let value = args
-        .get(index + 1)
-        .ok_or_else(|| CliError::Usage(format!("{option} expects a value")))?;
-    if value.starts_with('-') {
-        return Err(CliError::Usage(format!(
-            "{option} expects a value, got {value:?}"
-        )));
-    }
-    Ok((value, index + 2))
-}
-
-fn inline_value<'a>(argument: &'a str, option: &str) -> Result<&'a str, CliError> {
-    let (_, value) = argument
-        .split_once('=')
-        .expect("caller selected an equals-form option");
-    if value.is_empty() {
-        Err(CliError::Usage(format!("{option} expects a value")))
-    } else {
-        Ok(value)
-    }
-}
-
-fn parse_inline_boolean(argument: &str) -> Result<bool, CliError> {
-    let (option, value) = argument
-        .split_once('=')
-        .expect("caller selected an equals-form boolean option");
-    match value {
-        "true" => Ok(true),
-        "false" => Ok(false),
-        _ => Err(CliError::Usage(format!(
-            "{option} expects 'true' or 'false', got {value:?}"
-        ))),
-    }
-}
-
-fn parse_target(value: &str) -> Result<i32, CliError> {
-    // Retain the existing CLI alias; all TypeScript spellings come from the
-    // same catalog as tsconfig conversion.
-    if value.eq_ignore_ascii_case("latest") {
-        return Ok(99);
-    }
-    parse_named_emit_option("target", value)
-}
-
-fn parse_module(value: &str) -> Result<i32, CliError> {
-    parse_named_emit_option("module", value)
-}
-
-fn parse_named_emit_option(name: &str, value: &str) -> Result<i32, CliError> {
-    tsc_program::compiler_option_declaration(name)
-        .and_then(|option| option.value_kind().named_value(value))
-        .ok_or_else(|| CliError::Usage(format!("--{name} has an unknown value {value:?}")))
-}
-
-fn parse_new_line(value: &str) -> Result<i32, CliError> {
-    if value.eq_ignore_ascii_case("crlf") {
-        Ok(0)
-    } else if value.eq_ignore_ascii_case("lf") {
-        Ok(1)
-    } else {
-        Err(CliError::Usage(format!(
-            "--newLine expects 'crlf' or 'lf', got {value:?}"
-        )))
-    }
 }
 
 /// What one project's run produced, for the command (`-p`) and for a
@@ -1213,7 +917,6 @@ pub(crate) fn run_config_for_build(
     current_directory: &Path,
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
-    overrides: ConfigCommandLineOverrides,
     old: Option<&BuildInfo>,
     route: &mut CliRoute<'_>,
 ) -> Result<BuildProjectRun, CliError> {
@@ -1228,7 +931,6 @@ pub(crate) fn run_config_for_build(
         catalog,
         plan,
         source_texts,
-        overrides,
         route,
         ProjectRunMode::BUILD,
         OldBuildInfoSource::Given(old),
@@ -1241,7 +943,6 @@ fn execute_config(
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
     source_texts: DiagnosticSourceMap,
-    overrides: ConfigCommandLineOverrides,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     run_config(
@@ -1250,7 +951,6 @@ fn execute_config(
         catalog,
         plan,
         source_texts,
-        overrides,
         route,
         ProjectRunMode::COMMAND,
         OldBuildInfoSource::Read,
@@ -1265,7 +965,6 @@ fn run_config(
     catalog: &LibraryCatalog,
     plan: &ConfigRootPlan,
     mut source_texts: DiagnosticSourceMap,
-    overrides: ConfigCommandLineOverrides,
     route: &mut CliRoute<'_>,
     mode: ProjectRunMode,
     old_source: OldBuildInfoSource<'_>,
@@ -1277,43 +976,16 @@ fn run_config(
         plan.source().file_name.clone(),
         Arc::clone(plan.source().snapshot()),
     );
-    // tsgo runs no emit under --listFilesOnly: the no-emit route.
-    let no_emit_override = if overrides.emit.list_files_only == Some(true) {
-        Some(true)
-    } else {
-        overrides.no_emit
-    };
-    let effective_no_emit =
-        no_emit_override.unwrap_or_else(|| plan.compiler_options().no_emit == Some(true));
-    if effective_no_emit && !overrides.emit.is_empty() {
-        return Err(CliError::Usage(
-            "emit-profile command-line overrides are unavailable on the preserved --noEmit route"
-                .to_owned(),
-        ));
-    }
+    // The plan's options are the config's with the command line's merged
+    // over them. tsgo runs no emit under --listFilesOnly: the no-emit route.
     let limits = cli_limits();
     let load_started = std::time::Instant::now();
-    let prepared = match no_emit_override {
-        Some(true) => load_config_program_with_no_emit_override_and_overrides(
-            host,
-            plan,
-            catalog,
-            limits,
-            overrides.emit,
-        ),
-        Some(false) => load_emitting_config_program_with_no_emit_override_and_overrides(
-            host,
-            plan,
-            catalog,
-            limits,
-            overrides.emit,
-        ),
-        None if plan.compiler_options().no_emit == Some(true) => {
-            load_config_program_with_overrides(host, plan, catalog, limits, overrides.emit)
-        }
-        None => {
-            load_emitting_config_program_with_overrides(host, plan, catalog, limits, overrides.emit)
-        }
+    let prepared = if plan.compiler_options().list_files_only == Some(true) {
+        load_config_program_with_no_emit_override(host, plan, catalog, limits)
+    } else if plan.compiler_options().no_emit == Some(true) {
+        load_config_program(host, plan, catalog, limits)
+    } else {
+        load_emitting_config_program(host, plan, catalog, limits)
     };
     tsc_types::trace::mark("load program", load_started);
     let prepared = match prepared {
@@ -1403,16 +1075,16 @@ fn execute_explicit_files(
     current_directory: &Path,
     catalog: &LibraryCatalog,
     roots: &[PathBuf],
-    compiler_options: &CompilerOptions,
-    no_lib: Option<bool>,
+    options: CompilerOptions,
+    program_options: ProgramOptions,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
-    let options = compiler_options.clone();
-    let program_options = no_lib
-        .map(|value| ProgramOptions::default().with_no_lib(value))
-        .unwrap_or_default();
     let limits = cli_limits();
-    let prepared = if options.no_emit == Some(true) {
+    // tsgo runs no emit under --listFilesOnly: the no-emit route (whose
+    // loader requires an explicit noEmit).
+    let prepared = if options.no_emit == Some(true) || options.list_files_only == Some(true) {
+        let mut options = options;
+        options.no_emit = Some(true);
         load_program(host, roots, options, program_options, catalog, limits)
     } else {
         load_emitting_program(host, roots, options, program_options, catalog, limits)
@@ -2110,10 +1782,13 @@ fn normalize_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
 /// tsgo names the config by its normalized absolute path
 /// (GetParsedCommandLineOfConfigFile, tsoptions/tsconfigparsing.go:2071), and
 /// diagnostics print it relative to the current directory.
+/// The config's plan with the command line's options merged over its own
+/// (tsgo GetParsedCommandLineOfConfigFile).
 fn parse_config_file(
     host: &dyn CompilerHost,
     current_directory: &Path,
     config_file: &Path,
+    command_line: &ConfigOptionBag,
 ) -> Result<(ConfigRootPlan, DiagnosticSourceMap), CliError> {
     let bytes = host
         .read_file(config_file)
@@ -2134,13 +1809,14 @@ fn parse_config_file(
         .to_str()
         .ok_or_else(|| CliError::Config("current directory is not Unicode".to_owned()))?;
     let adapter = CompilerConfigHost::new(host);
-    let plan = parse_config_root_plan_with_cache(
+    let plan = parse_config_root_plan_with_command_line(
         &adapter,
         ConfigRootPlanRequest {
             file_name: display_file_name.clone(),
             text,
             base_path: base_path.into(),
         },
+        command_line,
         &mut ConfigExtendedCache::default(),
     )
     .map_err(config_error)?;

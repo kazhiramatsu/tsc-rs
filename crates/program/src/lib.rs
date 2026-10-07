@@ -84,6 +84,7 @@
 //! [`ConfigParseHost`] adapter used by both filesystem and memory-backed
 //! config discovery.
 
+mod command_line;
 mod config;
 mod config_host;
 mod config_matcher;
@@ -111,21 +112,22 @@ mod symlinks;
 mod text;
 mod workers;
 
+pub use command_line::{
+    command_line_option_bag, command_line_program_inputs, parse_build_command_line,
+    parse_command_line, ParsedBuildCommandLine, ParsedCommandLine, ResponseFileReader,
+};
 pub use config::{
     compiler_option_named_choices, is_non_fatal_option_diagnostic, load_config_program,
-    load_config_program_with_no_emit_override,
-    load_config_program_with_no_emit_override_and_overrides, load_config_program_with_overrides,
-    load_emitting_config_program, load_emitting_config_program_with_no_emit_override,
-    load_emitting_config_program_with_no_emit_override_and_overrides,
-    load_emitting_config_program_with_overrides, parse_config_root_plan,
-    parse_config_root_plan_with_cache, removed_base_url_paths_suggestion, validate_config_plan,
-    ConfigDiscoveryOptions, ConfigEmitOptionOverrides, ConfigExtendedCache, ConfigHostError,
-    ConfigHostOperation, ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag,
-    ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind, ConfigParseHost,
-    ConfigProgramLoadError, ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest,
-    ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement, ConfigTypedObjectProperty,
-    ConfigTypedObjectShape, ConfigTypedObjectValue, ConfigWildcardDirectory,
-    H0_SUPPORTED_CONFIG_OPTIONS,
+    load_config_program_with_no_emit_override, load_emitting_config_program,
+    load_emitting_config_program_with_no_emit_override, parse_config_root_plan,
+    parse_config_root_plan_with_cache, parse_config_root_plan_with_command_line,
+    removed_base_url_paths_suggestion, validate_config_plan, ConfigDiscoveryOptions,
+    ConfigExtendedCache, ConfigHostError, ConfigHostOperation, ConfigModuleResolutionOptions,
+    ConfigOption, ConfigOptionBag, ConfigOptionValueState, ConfigParseError, ConfigParseErrorKind,
+    ConfigParseHost, ConfigProgramLoadError, ConfigProjectReference, ConfigRootPlan,
+    ConfigRootPlanRequest, ConfigSourceText, ConfigTypedJsonValue, ConfigTypedListElement,
+    ConfigTypedObjectProperty, ConfigTypedObjectShape, ConfigTypedObjectValue,
+    ConfigWildcardDirectory, H0_SUPPORTED_CONFIG_OPTIONS,
 };
 pub use config_host::CompilerConfigHost;
 pub use config_matcher::ConfigFilePattern;

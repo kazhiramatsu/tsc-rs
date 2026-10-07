@@ -19,14 +19,14 @@ use tsc_host::CompilerHost;
 use tsc_incremental::{compute_hash, is_default_library_name, BuildInfo};
 use tsc_program::{
     build_info_file_name_in_build_mode, canonical_emit_path, decode_host_text, output_file_names,
-    parse_config_root_plan_with_cache, resolve_config_file_name_of_project_reference,
-    CompilerConfigHost, CompilerOptions, ConfigExtendedCache, ConfigRootPlan,
+    parse_config_root_plan_with_command_line, resolve_config_file_name_of_project_reference,
+    CompilerConfigHost, CompilerOptions, ConfigExtendedCache, ConfigOptionBag, ConfigRootPlan,
     ConfigRootPlanRequest, LibraryCatalog,
 };
 
 use crate::cli::{
     relative_file_name, render_diagnostics, run_config_for_build, BuildProjectRun, CliError,
-    CliOutput, CliRoute, ConfigCommandLineOverrides,
+    CliOutput, CliRoute,
 };
 
 /// The parsed `tsc -b` command line (tsgo `ParsedBuildCommandLine`).
@@ -39,8 +39,9 @@ pub(crate) struct BuildCommand {
     pub(crate) force: bool,
     pub(crate) clean: bool,
     pub(crate) stop_build_on_errors: bool,
-    /// The compiler options of the command line, applied to every project.
-    pub(crate) overrides: ConfigCommandLineOverrides,
+    /// The compiler options of the command line, merged over every
+    /// project's (tsgo parses every project with them as the existing ones).
+    pub(crate) command_line: ConfigOptionBag,
 }
 
 /// tsgo `ExitStatusProjectReferenceCycle_OutputsSkipped`.
@@ -360,9 +361,7 @@ impl<'a> Orchestrator<'a> {
                 continue;
             }
             let plan = self.parse_config(config);
-            let options = plan
-                .as_ref()
-                .map(|plan| effective_options(plan, &self.command.overrides));
+            let options = plan.as_ref().map(|plan| plan.compiler_options().clone());
             let references = plan
                 .as_ref()
                 .map(resolved_reference_paths)
@@ -391,13 +390,14 @@ impl<'a> Orchestrator<'a> {
         let bytes = self.host.read_file_js(config.into()).ok()??;
         let text = decode_host_text(bytes).ok()?;
         let adapter = CompilerConfigHost::new(self.host);
-        parse_config_root_plan_with_cache(
+        parse_config_root_plan_with_command_line(
             &adapter,
             ConfigRootPlanRequest {
                 file_name: JsString::from(config),
                 text,
                 base_path: JsString::from(self.current_directory.as_str()),
             },
+            &self.command.command_line,
             &mut self.config_cache,
         )
         .ok()
@@ -723,7 +723,6 @@ impl<'a> Orchestrator<'a> {
             self.current_directory_path,
             self.catalog,
             &plan,
-            self.command.overrides,
             old_info.as_deref(),
             route,
         )?;
@@ -1464,45 +1463,6 @@ pub(crate) fn run_build(
     let orchestrator =
         Orchestrator::new(host, &fs, catalog, command, current_directory, route.pretty);
     orchestrator.run(route)
-}
-
-/// The config's compiler options with the command line's applied (tsgo
-/// parses every project of a build with the command's options as the
-/// existing ones).
-fn effective_options(
-    plan: &ConfigRootPlan,
-    overrides: &ConfigCommandLineOverrides,
-) -> CompilerOptions {
-    let mut options = plan.compiler_options().clone();
-    if let Some(no_emit) = overrides.no_emit {
-        options.no_emit = Some(no_emit);
-    }
-    let emit = &overrides.emit;
-    if let Some(value) = emit.target {
-        options.target = Some(value);
-    }
-    if let Some(value) = emit.module {
-        options.module = Some(value);
-    }
-    if let Some(value) = emit.use_define_for_class_fields {
-        options.use_define_for_class_fields = Some(value);
-    }
-    if let Some(value) = emit.no_emit_on_error {
-        options.no_emit_on_error = Some(value);
-    }
-    if let Some(value) = emit.emit_bom {
-        options.emit_bom = Some(value);
-    }
-    if let Some(value) = emit.new_line {
-        options.new_line = Some(value);
-    }
-    if let Some(value) = emit.list_emitted_files {
-        options.list_emitted_files = Some(value);
-    }
-    if let Some(value) = emit.stable_type_ordering {
-        options.stable_type_ordering = Some(value);
-    }
-    options
 }
 
 /// tsgo `ResolvedProjectReferencePaths`: the config file of every

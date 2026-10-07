@@ -1067,6 +1067,12 @@ pub static COMPILER_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
         CompilerOptionValueKind::Boolean,
     ),
     command_line_option("locale", CompilerOptionValueKind::String),
+    // tsgo's own options (tsoptions/declscompiler.go commonOptionsWithBuild).
+    option("quiet", CompilerOptionValueKind::Boolean),
+    option("singleThreaded", CompilerOptionValueKind::Boolean),
+    file_option("pprofDir", CompilerOptionValueKind::String),
+    option("checkers", CompilerOptionValueKind::Number),
+    command_line_option("runExternalCode", CompilerOptionValueKind::Boolean),
     option("all", CompilerOptionValueKind::Boolean),
     option("version", CompilerOptionValueKind::Boolean),
     option("init", CompilerOptionValueKind::Boolean),
@@ -1270,6 +1276,62 @@ pub fn compiler_option_declaration<'n>(
     COMPILER_OPTION_DECLARATIONS
         .iter()
         .rfind(|declaration| name == declaration.name)
+}
+
+/// tsgo's command-line lookup (`optionsNames` keyed by the lowercased
+/// name; a later declaration of a name wins).
+pub fn compiler_option_declaration_ignore_case(
+    name: &str,
+) -> Option<&'static CompilerOptionDeclaration> {
+    COMPILER_OPTION_DECLARATIONS
+        .iter()
+        .rfind(|declaration| declaration.name.eq_ignore_ascii_case(name))
+}
+
+/// tsgo `OptionsForBuild` with `TscBuildOption` (tsoptions/declsbuild.go).
+pub static BUILD_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
+    command_line_option("build", CompilerOptionValueKind::Boolean),
+    command_line_option("verbose", CompilerOptionValueKind::Boolean),
+    command_line_option("dry", CompilerOptionValueKind::Boolean),
+    command_line_option("force", CompilerOptionValueKind::Boolean),
+    command_line_option("clean", CompilerOptionValueKind::Boolean),
+    command_line_option("builders", CompilerOptionValueKind::Number),
+    command_line_option("stopBuildOnErrors", CompilerOptionValueKind::Boolean),
+];
+
+/// Whether a compiler option is common with the build command line (tsgo
+/// `commonOptionsWithBuild`: the declarations before `all`).
+pub fn is_common_with_build(declaration: &CompilerOptionDeclaration) -> bool {
+    !is_command_option_without_build(declaration.name)
+}
+
+/// tsgo `BuildNameMap` lookup (lowercased name): a compiler option common
+/// with the build, or a build option.
+pub fn build_option_declaration_ignore_case(
+    name: &str,
+) -> Option<&'static CompilerOptionDeclaration> {
+    BUILD_OPTION_DECLARATIONS
+        .iter()
+        .rfind(|declaration| declaration.name.eq_ignore_ascii_case(name))
+        .or_else(|| {
+            COMPILER_OPTION_DECLARATIONS.iter().rfind(|declaration| {
+                is_common_with_build(declaration) && declaration.name.eq_ignore_ascii_case(name)
+            })
+        })
+}
+
+/// tsgo `minValue` of a number option (`builders`, `checkers`: 1).
+pub fn option_min_value(name: &str) -> i64 {
+    match name {
+        "builders" | "checkers" => 1,
+        _ => 0,
+    }
+}
+
+/// tsgo's `watchInterval` watch option (a number), which the config's watch
+/// group does not declare.
+pub const fn watch_interval_declaration() -> CompilerOptionDeclaration {
+    option("watchInterval", CompilerOptionValueKind::Number)
 }
 
 /// Whether a root property participates in TypeScript's misplaced compiler

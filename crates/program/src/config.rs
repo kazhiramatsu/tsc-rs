@@ -328,7 +328,7 @@ struct ConfigTypedOption {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum ConfigTypedOptionValue {
+pub(crate) enum ConfigTypedOptionValue {
     Json(Value),
     List(Vec<ConfigTypedListElement>),
     Object(Arc<ConfigTypedObjectValue>),
@@ -707,7 +707,7 @@ impl ConfigOptionBag {
         }
     }
 
-    fn insert(&mut self, option: ConfigOption) {
+    pub(crate) fn insert(&mut self, option: ConfigOption) {
         self.observe_raw_name(&option.name);
         self.removed_names.remove(&option.name);
         if let Some(index) = self.entry_indices.get(&option.name).copied() {
@@ -720,7 +720,7 @@ impl ConfigOptionBag {
         }
     }
 
-    fn remove<'n>(&mut self, name: impl Into<JsStr<'n>>) {
+    pub(crate) fn remove<'n>(&mut self, name: impl Into<JsStr<'n>>) {
         let name = name.into();
         self.observe_raw_name(name);
         if let Some(index) = self.entry_indices.remove(name.as_bytes()) {
@@ -743,7 +743,11 @@ impl ConfigOptionBag {
         self.raw_indices.insert(name, index);
     }
 
-    fn insert_typed(&mut self, name: impl Into<String>, value: Option<ConfigTypedOptionValue>) {
+    pub(crate) fn insert_typed(
+        &mut self,
+        name: impl Into<String>,
+        value: Option<ConfigTypedOptionValue>,
+    ) {
         let name = name.into();
         if let Some(index) = self.typed_indices.get(&name).copied() {
             self.typed_entries[index].value = value;
@@ -757,7 +761,17 @@ impl ConfigOptionBag {
         }
     }
 
-    fn extend_from(&mut self, other: &Self) {
+    pub(crate) fn option_bool(&self, name: &str) -> Option<bool> {
+        config_option_bool(self, name)
+    }
+
+    pub(crate) fn option_string_list(&self, name: &str) -> Option<Vec<JsString>> {
+        config_option_string_list(self, name)
+    }
+
+    /// tsgo `mergeCompilerOptions`: the other bag's values replace these
+    /// (its explicit `null`s remove the option).
+    pub(crate) fn extend_from(&mut self, other: &Self) {
         for name in &other.raw_order {
             if other.removed_names.contains(name) {
                 self.remove(name);
@@ -1149,81 +1163,6 @@ pub enum ConfigProgramLoadError {
     Program(ProgramLoadError),
 }
 
-/// Admitted command-line values which override a config-backed emitting
-/// invocation. Optional fields preserve absence, so a caller cannot erase a
-/// config value merely by constructing the override object.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct ConfigEmitOptionOverrides {
-    /// `--stableTypeOrdering`: a checker option, so it is not an emit-profile
-    /// override (`is_empty` ignores it) and the no-emit route accepts it.
-    pub stable_type_ordering: Option<bool>,
-    // `--listEmittedFiles` is a listing option (`is_empty` ignores it too):
-    // tsgo's --noEmit command accepts it and lists the build info it writes.
-    pub target: Option<i32>,
-    pub module: Option<i32>,
-    pub use_define_for_class_fields: Option<bool>,
-    pub no_emit_on_error: Option<bool>,
-    pub emit_bom: Option<bool>,
-    pub new_line: Option<i32>,
-    pub list_emitted_files: Option<bool>,
-    /// The listing options (`is_empty` ignores them too).
-    pub list_files: Option<bool>,
-    pub explain_files: Option<bool>,
-    pub list_files_only: Option<bool>,
-    pub no_lib: Option<bool>,
-}
-
-impl ConfigEmitOptionOverrides {
-    pub const fn is_empty(self) -> bool {
-        self.target.is_none()
-            && self.module.is_none()
-            && self.use_define_for_class_fields.is_none()
-            && self.no_emit_on_error.is_none()
-            && self.emit_bom.is_none()
-            && self.new_line.is_none()
-            && self.no_lib.is_none()
-    }
-
-    fn apply(self, compiler_options: &mut CompilerOptions, program_options: &mut ProgramOptions) {
-        if let Some(value) = self.stable_type_ordering {
-            compiler_options.stable_type_ordering = Some(value);
-        }
-        if let Some(value) = self.target {
-            compiler_options.target = Some(value);
-        }
-        if let Some(value) = self.module {
-            compiler_options.module = Some(value);
-        }
-        if let Some(value) = self.use_define_for_class_fields {
-            compiler_options.use_define_for_class_fields = Some(value);
-        }
-        if let Some(value) = self.no_emit_on_error {
-            compiler_options.no_emit_on_error = Some(value);
-        }
-        if let Some(value) = self.emit_bom {
-            compiler_options.emit_bom = Some(value);
-        }
-        if let Some(value) = self.new_line {
-            compiler_options.new_line = Some(value);
-        }
-        if let Some(value) = self.list_emitted_files {
-            compiler_options.list_emitted_files = Some(value);
-        }
-        if let Some(value) = self.list_files {
-            compiler_options.list_files = Some(value);
-        }
-        if let Some(value) = self.explain_files {
-            compiler_options.explain_files = Some(value);
-        }
-        if let Some(value) = self.list_files_only {
-            compiler_options.list_files_only = Some(value);
-        }
-        if let Some(value) = self.no_lib {
-            *program_options = program_options.clone().with_no_lib(value);
-        }
-    }
-}
-
 impl ConfigProgramLoadError {
     pub fn config_diagnostics(&self) -> &[Diagnostic] {
         match self {
@@ -1305,39 +1244,16 @@ pub fn load_config_program(
         library_catalog,
         limits,
         ConfigProgramMode::NoEmit { force: false },
-        ConfigEmitOptionOverrides::default(),
     )
 }
 
-/// Load a config plan while applying the command-line `--noEmit` override.
-///
-/// TypeScript gives an explicit command-line value precedence over the config
-/// file. The override is deliberately limited to `noEmit`; config and fatal
-/// option diagnostics remain a gate and no other option is silently mutated.
+/// The no-emit program of a config whatever its `noEmit` (tsgo's --noEmit
+/// command, --listFilesOnly).
 pub fn load_config_program_with_no_emit_override(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
-) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    load_config_program_with_no_emit_override_and_overrides(
-        host,
-        plan,
-        library_catalog,
-        limits,
-        ConfigEmitOptionOverrides::default(),
-    )
-}
-
-/// The `--noEmit` route with the checker overrides a command line may carry
-/// (`--stableTypeOrdering`); emit-profile overrides are the caller's to
-/// reject on this route.
-pub fn load_config_program_with_no_emit_override_and_overrides(
-    host: &dyn CompilerHost,
-    plan: &ConfigRootPlan,
-    library_catalog: &LibraryCatalog,
-    limits: ProgramLoadLimits,
-    overrides: ConfigEmitOptionOverrides,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
     load_config_program_inner(
         host,
@@ -1345,54 +1261,14 @@ pub fn load_config_program_with_no_emit_override_and_overrides(
         library_catalog,
         limits,
         ConfigProgramMode::NoEmit { force: true },
-        overrides,
     )
 }
 
-/// `load_config_program` with the checker overrides a command line may carry.
-pub fn load_config_program_with_overrides(
-    host: &dyn CompilerHost,
-    plan: &ConfigRootPlan,
-    library_catalog: &LibraryCatalog,
-    limits: ProgramLoadLimits,
-    overrides: ConfigEmitOptionOverrides,
-) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    load_config_program_inner(
-        host,
-        plan,
-        library_catalog,
-        limits,
-        ConfigProgramMode::NoEmit { force: false },
-        overrides,
-    )
-}
-
-/// Turn a parsed config plan into the distinct H1 emitting program without
-/// weakening the H0 loader. An effective `noEmit=true` is rejected before
-/// source discovery.
 pub fn load_emitting_config_program(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
-) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    load_emitting_config_program_with_overrides(
-        host,
-        plan,
-        library_catalog,
-        limits,
-        ConfigEmitOptionOverrides::default(),
-    )
-}
-
-/// Load an emitting config while applying the admitted scalar command-line
-/// projection after config conversion and before source discovery.
-pub fn load_emitting_config_program_with_overrides(
-    host: &dyn CompilerHost,
-    plan: &ConfigRootPlan,
-    library_catalog: &LibraryCatalog,
-    limits: ProgramLoadLimits,
-    overrides: ConfigEmitOptionOverrides,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
     load_config_program_inner(
         host,
@@ -1400,34 +1276,15 @@ pub fn load_emitting_config_program_with_overrides(
         library_catalog,
         limits,
         ConfigProgramMode::Emit { force: false },
-        overrides,
     )
 }
 
-/// Load the emitting config route while applying an explicit command-line
-/// `--noEmit=false` override.
+/// The emitting program of a config whatever its `noEmit` (`--noEmit false`).
 pub fn load_emitting_config_program_with_no_emit_override(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
-) -> Result<PreparedProgram, ConfigProgramLoadError> {
-    load_emitting_config_program_with_no_emit_override_and_overrides(
-        host,
-        plan,
-        library_catalog,
-        limits,
-        ConfigEmitOptionOverrides::default(),
-    )
-}
-
-/// Apply both `--noEmit=false` and the admitted emitting scalar overrides.
-pub fn load_emitting_config_program_with_no_emit_override_and_overrides(
-    host: &dyn CompilerHost,
-    plan: &ConfigRootPlan,
-    library_catalog: &LibraryCatalog,
-    limits: ProgramLoadLimits,
-    overrides: ConfigEmitOptionOverrides,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
     load_config_program_inner(
         host,
@@ -1435,17 +1292,9 @@ pub fn load_emitting_config_program_with_no_emit_override_and_overrides(
         library_catalog,
         limits,
         ConfigProgramMode::Emit { force: true },
-        overrides,
     )
 }
 
-/// Validate the config-facing gates without starting source discovery.
-///
-/// Embedding runners such as the upstream project harness may need to apply
-/// their own `existingOptions` projection before calling `load_program`.  The
-/// validation must nevertheless remain owned by this crate so those runners
-/// cannot accidentally bypass config diagnostics or the H0 fail-closed
-/// option/root-scope boundary.
 pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
     let options = plan
@@ -1504,7 +1353,6 @@ fn load_config_program_inner(
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
     mode: ConfigProgramMode,
-    overrides: ConfigEmitOptionOverrides,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
     validate_config_plan_for_mode(plan, matches!(mode, ConfigProgramMode::Emit { .. }))?;
 
@@ -1567,11 +1415,9 @@ fn load_config_program_inner(
         ConfigProgramMode::Emit { force: true } => compiler_options.no_emit = Some(false),
         ConfigProgramMode::NoEmit { force: false } | ConfigProgramMode::Emit { force: false } => {}
     }
-    overrides.apply(&mut compiler_options, &mut program_options);
     if matches!(mode, ConfigProgramMode::Emit { .. }) {
         // Emit must see effective option diagnostics before noEmitOnError
         // decides whether to run declaration transforms or write output.
-        // Preserve config syntax for locations while applying CLI overrides.
         program_options = program_options.with_program_owned_config_option_diagnostics();
     }
     let loaded = match mode {
@@ -1722,7 +1568,7 @@ pub fn parse_config_root_plan(
     host: &dyn ConfigParseHost,
     request: ConfigRootPlanRequest,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
-    parse_config_root_plan_inner(host, request, None)
+    parse_config_root_plan_inner(host, request, None, None)
 }
 
 /// Parse with the caller's extended-config cache. The root is always parsed
@@ -1732,13 +1578,26 @@ pub fn parse_config_root_plan_with_cache(
     request: ConfigRootPlanRequest,
     cache: &mut ConfigExtendedCache,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
-    parse_config_root_plan_inner(host, request, Some(cache))
+    parse_config_root_plan_inner(host, request, Some(cache), None)
+}
+
+/// tsgo `GetParsedCommandLineOfConfigFile` with the command line's options
+/// (`mergeCompilerOptions`): they replace the config's after the extends
+/// chain, and everything derived from the config reads the merged options.
+pub fn parse_config_root_plan_with_command_line(
+    host: &dyn ConfigParseHost,
+    request: ConfigRootPlanRequest,
+    command_line_options: &ConfigOptionBag,
+    cache: &mut ConfigExtendedCache,
+) -> Result<ConfigRootPlan, ConfigParseError> {
+    parse_config_root_plan_inner(host, request, Some(cache), Some(command_line_options))
 }
 
 fn parse_config_root_plan_inner(
     host: &dyn ConfigParseHost,
     request: ConfigRootPlanRequest,
     extended_cache: Option<&mut ConfigExtendedCache>,
+    command_line_options: Option<&ConfigOptionBag>,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
     let config_file_name = normalized_path(&request.file_name, &request.base_path)?;
     let config_base = js_directory_name(&config_file_name);
@@ -1759,6 +1618,9 @@ fn parse_config_root_plan_inner(
         )?
         .expect("the primary config cannot be a recursive child of itself");
     tsc_types::trace::mark("config: parse and options", phase_started);
+    if let Some(command_line_options) = command_line_options {
+        node.options.extend_from(command_line_options);
+    }
     node.options.finalize_config_dir_templates(&config_base)?;
     if let Some(watch) = &mut node.watch_options {
         watch.finalize_group_config_dir_templates(&config_base, ConfigOptionGroup::Watch)?;
@@ -2252,6 +2114,7 @@ const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
     "listEmittedFiles",
     "listFiles",
     "explainFiles",
+    "listFilesOnly",
     "pretty",
     // The incremental options change what a command writes, not what it
     // reports; the build info file is not written yet (the roadmap's
@@ -2321,6 +2184,7 @@ const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
     "listEmittedFiles",
     "listFiles",
     "explainFiles",
+    "listFilesOnly",
     "emitBOM",
     "noEmitOnError",
     "noCheck",
@@ -4685,7 +4549,7 @@ fn javascript_array_index<'n>(name: impl Into<JsStr<'n>>) -> Option<u32> {
     (index != u32::MAX && index.to_string() == name).then_some(index)
 }
 
-fn effective_discovery_options<'j0>(
+pub(crate) fn effective_discovery_options<'j0>(
     options: &ConfigOptionBag,
     config_base_path: impl Into<JsStr<'j0>>,
 ) -> Result<ConfigDiscoveryOptions, ConfigParseError> {
@@ -4711,24 +4575,13 @@ fn effective_discovery_options<'j0>(
     })
 }
 
-/// Project the converted config values needed by the production resolver.
-/// Paths retain their declaring directory independently from `baseUrl`: the
-/// latter also enables bare-specifier fallback and suppresses TS5090, while
-/// `pathsBasePath` only anchors mapping substitutions.
-///
-/// tsc-port: getPathsBasePath @6.0.3
-/// tsc-hash: c569002f6d6a8e7d3b4e2718964fae18fd77125393b0193997bf4cc1f38c494a
-/// tsc-span: _tsc.js:16595-16599
-fn config_module_resolution_options<'j0>(
+/// The compiler options a config's (or the command line's) option bag
+/// names, with the discovery options already derived from it.
+pub(crate) fn bag_compiler_options(
     options: &ConfigOptionBag,
     discovery: &ConfigDiscoveryOptions,
-    config_file_name: impl Into<JsStr<'j0>>,
-    config_source: &ConfigSourceText,
-    case_sensitive: bool,
-    paths_option_validation: PathsOptionValidationPlan,
-) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
-    let config_file_name = config_file_name.into();
-    let compiler_options = CompilerOptions {
+) -> CompilerOptions {
+    CompilerOptions {
         allow_js: discovery.allow_js,
         allow_js_specified: config_option_bool(options, "allowJs"),
         force_consistent_casing_in_file_names: config_option_bool(
@@ -4787,7 +4640,7 @@ fn config_module_resolution_options<'j0>(
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
         list_files: config_option_bool(options, "listFiles"),
         explain_files: config_option_bool(options, "explainFiles"),
-        list_files_only: None, // command line only
+        list_files_only: config_option_bool(options, "listFilesOnly"),
         emit_bom: config_option_bool(options, "emitBOM"),
         no_emit_on_error: config_option_bool(options, "noEmitOnError"),
         no_check: config_option_bool(options, "noCheck"),
@@ -4857,7 +4710,27 @@ fn config_module_resolution_options<'j0>(
         jsx_import_source: config_option_string(options, "jsxImportSource"),
         react_namespace: config_option_string(options, "reactNamespace"),
         ignore_deprecations: config_option_string(options, "ignoreDeprecations"),
-    };
+    }
+}
+
+/// Project the converted config values needed by the production resolver.
+/// Paths retain their declaring directory independently from `baseUrl`: the
+/// latter also enables bare-specifier fallback and suppresses TS5090, while
+/// `pathsBasePath` only anchors mapping substitutions.
+///
+/// tsc-port: getPathsBasePath @6.0.3
+/// tsc-hash: c569002f6d6a8e7d3b4e2718964fae18fd77125393b0193997bf4cc1f38c494a
+/// tsc-span: _tsc.js:16595-16599
+fn config_module_resolution_options<'j0>(
+    options: &ConfigOptionBag,
+    discovery: &ConfigDiscoveryOptions,
+    config_file_name: impl Into<JsStr<'j0>>,
+    config_source: &ConfigSourceText,
+    case_sensitive: bool,
+    paths_option_validation: PathsOptionValidationPlan,
+) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
+    let config_file_name = config_file_name.into();
+    let compiler_options = bag_compiler_options(options, discovery);
 
     let config_path = config_program_path(config_file_name, case_sensitive)?;
     let config_file = program_config_file(config_path, config_source);
@@ -5103,7 +4976,7 @@ fn config_root_reasons<'j0, 'j1>(
         .collect())
 }
 
-fn config_program_path<'p>(
+pub(crate) fn config_program_path<'p>(
     path: impl Into<JsStr<'p>>,
     case_sensitive: bool,
 ) -> Result<ProgramPath, ConfigParseError> {
@@ -5945,7 +5818,9 @@ fn config_typed_list_element_is_truthy(element: &ConfigTypedListElement) -> bool
     }
 }
 
-fn config_named_string_option_choices(descriptor: CompilerOptionListDescriptor) -> String {
+pub(crate) fn config_named_string_option_choices(
+    descriptor: CompilerOptionListDescriptor,
+) -> String {
     descriptor
         .named_string_choices()
         .expect("named-string list descriptors carry their choices")
@@ -5970,7 +5845,7 @@ pub fn compiler_option_named_choices(name: &str) -> Option<String> {
 
 /// TypeScript 7.1 (`tsoptions/errors.go` `formatEnumTypeKeys`) omits the
 /// `DeprecatedKeys` and lists `es2026`.
-fn config_named_option_choices(
+pub(crate) fn config_named_option_choices(
     name: &str,
     values: &[crate::config_options::CompilerOptionNamedValue],
 ) -> String {
