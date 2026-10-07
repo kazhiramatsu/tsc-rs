@@ -4404,3 +4404,75 @@ tsgo execute/build（`orchestrator.go`、`buildtask.go`、`uptodatestatus.go`、
 - scratchpad：`p36c/build_scenarios.py`（12 scenario）、`p36c/steps.py`（tsgo は `-b` の直後に `--singleThreaded`、
   stdout は byte で読み CR LF を保つ、status 行の時刻を正規化、削除 file を記録）、`p36c/gen-steps-tests.py`
   （`deleted`、時刻の正規化、CR を含む literal は escape 形）。
+## P3-6e `--explainFiles`、`--listFiles`、`--listFilesOnly`（2026-10-07）
+
+tsgo execute/tsc/emit.go `listFiles`：診断と `TSFILE:` の後、error summary の前に、`explainFiles` なら
+`Program.ExplainFiles`、そうでなければ `listFiles`／`listFilesOnly` で program の file 名（`FileName()`、絶対）を並べる。
+`ExplainFiles`（compiler/program.go）は program の file を順に（package の重複排除で落とした copy は collect 時の
+index の位置に挟んで）、current directory からの相対名、`   `（3 space）+ include reason の文（file 名は相対）、
+`explainRedirectAndImpliedFormat`（「File is output of project reference source」「File redirects to file」、
+external／CommonJS module の implied format の行）を出す。`listFilesOnly` は `EmitFilesAndReportErrors` が emit を
+呼ばず（build info も書かない）、`GetDiagnosticsOfAnyProgram` は syntactic と program（options）の診断だけ
+（global／semantic／declaration は求めない）。`-b` でも project ごとに同じ。
+- **option**（`tsc_types::CompilerOptions`、config の変換、`ConfigEmitOptionOverrides`）：`listFiles`／`explainFiles`
+  （tsconfig でも可）、`listFilesOnly`（command line のみ。`-b` では受け付けない）。listing option は `is_empty`
+  が無視する（`--noEmit` と併用可）。
+- **include reason の公開**（`crates/program`）：`SourceInclusionReason`（Root／Import／PathReference／TypeReference／
+  AutomaticType／LibraryRoot／LibraryReference／Synthetic）と `RootFileReason`／`LibraryRootReason` を public にし、
+  `PreparedSourceFile::inclusion_reasons`（出現ごと）に載せる。library の reason は placeholder だった `Library` を
+  `LibraryRoot(Default{target}／Explicit{file})`（「Default library for target 'ES2020'」「Library 'lib.es2020.d.ts'
+  specified in compilerOptions」）と `LibraryReference{parent, specifier}`（「Library referenced via 'es5' from file
+  '...'」）に分けた。target 名は tsgo `ScriptTarget.String()`（`ES2020`、`ESNext`）。
+- **重複排除された copy**：tsgo の `addIncludeReason` は loaded task の path（copy 自身）に reason を付けるので、copy
+  の reason は owner に移さず copy に残す（P3-6b2 は owner に移していた。diagnostics の「The file is in the program
+  because」は owner 自身の reason だけ）。`CollectWalk` が tsgo `redirectsFile.index`（それまでに集めた file 数＋
+  redirect 数）を記録し、`PreparedProgram::package_redirect_files`（path、owner、index、reason）に公開。
+- **renderer**：`source_inclusion_reason_message`／`root_file_reason_message`／`root_module_format_detail` が
+  file 名の変換（diagnostics は identity、explain は相対）を取る。`root_module_format_detail` は tsgo
+  `explainRedirectAndImpliedFormat` を `loadSourceFileMetaData` の事実で書き直した：package scope の文字列 `type` は
+  fixed extension（`.mts/.cts/.mjs/.cjs`）以外の file が node16/nodenext のとき、または `node_modules` 配下の file
+  で数える（`PackageJsonType`）、scope の存在（`PackageJsonDirectory`）は常に数える。従って `.cts` は「File is
+  CommonJS module because 'package.json' does not have field "type"」（`type` があっても）、`.mts` は行なし、
+  `--noEmit` 等の diagnostics の「The file is in the program because」の末尾も同じ規則になる。
+- **type root の packageId**（`module_resolution.rs` `resolve_type_reference_from_root`）：tsgo
+  `loadNodeModuleFromDirectory` は packageId を付けない（TS 6 は `withPackageId` で付けていた）ので、`types`／
+  `<reference types>`／automatic types が type root で見つけた type library の reason に packageId は出ず、import が
+  到達した同 version の copy（`node_modules/wrap/node_modules/@types/typed`）とも重複排除されない（両方が program に
+  入り TS2451 が 2 件出る。tsgo で確認）。port は 6.0.3 どおり付けていたので外した。さらに tsgo
+  `getReferencedLocation` は `<reference types>` の location に packageId を持たないので、「Type library referenced
+  via ... with packageId」は secondary lookup（`node_modules/secondary`）でも出ない（tsgo で確認）。renderer から外し、
+  program の 3 つの unit test（custom typeRoots の packageId）と 2 つの lib 名（`'es5'` → `'ES5'`）を tsgo に
+  再固定、resolution-cache contract は 6.0.3 record の primary の packageId を projection で落とす（test 内に記録）。
+  既定 library が無いときの TS6053 の related information（「File is default library for target specified here」）
+  も外した：tsgo `toRelatedInformation` は `GetCallbackForFindingPropertyAssignmentByValue` で探すが、これは配列要素
+  しか照合しないので文字列の `target` には決して付かない。
+- **`PreparedProgram::explain_files(current_directory)`**（`loader.rs`）：program 順＋redirect の挟み込み、reason
+  の文、「File is output of project reference source」（`project_reference_source_paths`）、「File redirects to file」、
+  module format（package scope の `PackageMetadata`）。
+- **checker**：`SyntacticDiagnosticsGate::SyntacticDiagnosticsOnly` → `DiagnosticSchedule::SyntacticDiagnosticsOnly`
+  （構文診断の有無に関わらず bind も check もしない）。**compiler**：`ProgramSession::with_list_files_only`（gate、
+  declaration getter 無し）。**CLI**：3 option の解析（`-p`／`-b` 共通の `parse_common_option`）、`listing_lines`
+  （explain の行は名前＋`   `＋文、list は `path().display()`）を `TSFILE:` の後に `status_writes` へ；`listFilesOnly`
+  は no-emit 経路で build info を書かず、診断があれば exit 1（tsgo は `EmitSkipped: true` の結果を使う。`--noEmit`
+  は 2 のまま）。tsconfig の `listFiles`／`explainFiles` は option 検証の no-emit／emit の許容表に加えた。
+- test：scenario oracle に 7 scenario（explain-basic：listFiles／両方／型 error／構文 error／listFilesOnly／tsconfig
+  の listFiles・explainFiles；explain-roots：files／default include／include pattern／explicit files；
+  explain-packages：packageId 付き import、`types`、`<reference types>`（`@types` と node_modules の package）、
+  `types: ["*"]`、type library の入れ子 copy（同 version／別 version）；explain-formats：nodenext
+  の ESM／CJS／`.mts`／`.cts`／package.json 無し；explain-references：`-b --explainFiles`、`-p` の output of project
+  reference、`--listFiles`；explain-dedupe：重複 package の redirect と別 version；explain-default-lib：既定 lib と
+  lib option の chain）、生成 CLI test。
+- P3-6b2 の fixture（p36b2/fx-require、fx-reprocess）を `--explainFiles --noEmit` で比較：fx-require と fx-reprocess/one の
+  file 集合は一致、fx-reprocess/one は port が `Referenced via './reference.js' from file 'node_modules/a/index.js'` を
+  2 回出す（root.ts の import で depth 1 に入った index.js を `files` の root として depth 0 で Strada 流に再処理する
+  ため。tsgo は root task を先に FIFO で処理し subtask は一度だけ始めるので 1 回）、fx-reprocess/two は tsgo だけが
+  reference-leaf.js を読む——どちらも P3-6b2 が記録した scheduling の残差（KNOWN RESIDUAL #2）で、本 slice の対象外。
+- 残る制限：合成 import（importHelpers／jsx runtime）の reason（P3-5bm から）、content mapper の supplemental、上の
+  scheduling 残差（explainFiles では重複した「Referenced via」として見える）。
+
+- scenario oracle（`steps.py`、tsgo `--singleThreaded` vs この binary）：explain の 7 scenario／36 step と P3-6c／P3-6d の
+  35 scenario が全 step 一致（stdout、exit、書かれた file、build info の byte）。生成 CLI test 42。
+- conformance（最終bytes `00414fd00` での1回の全体実行。macOS、`nice -n 20`、2 worker）：12,748 case／465 s、full 13,451、emit_full 13,443、mismatch 0、ratchet 0 regressions／0 above tiers（P3-6c／P3-6d と同じ行、ratchet の更新なし）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、types／program／checker／compiler の
+  `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（program 595 passed／0 failed、compiler 407／0、
+  checker 1,797／0）。
