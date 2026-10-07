@@ -224,6 +224,16 @@ pub struct CompilerOptions {
     /// write callback keeps its own ordering and must never be reconstructed
     /// from this list.
     pub list_emitted_files: Option<bool>,
+    /// `--listFiles`: the command lists the program's files after its
+    /// diagnostics (tsgo execute/tsc/emit.go listFiles).
+    pub list_files: Option<bool>,
+    /// `--explainFiles`: the command explains why each file is in the
+    /// program (tsgo `Program.ExplainFiles`).
+    pub explain_files: Option<bool>,
+    /// `--listFilesOnly` (command line only): the files are listed and the
+    /// command neither emits nor asks for the global and semantic
+    /// diagnostics.
+    pub list_files_only: Option<bool>,
     /// Pass the UTF-8 BOM decision separately to the output callback. The
     /// callback text itself never contains the BOM.
     pub emit_bom: Option<bool>,

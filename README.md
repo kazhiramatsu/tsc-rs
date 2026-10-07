@@ -628,6 +628,9 @@ declaration diagnostics of this configuration without writing any files.
 | `--module <format>` | Set the module format, such as `CommonJS`, `ESNext`, or `Preserve`. |
 | `--noEmitOnError` | Prevent output when diagnostics are present. |
 | `--listEmittedFiles` | Print the paths of generated files. |
+| `--listFiles` | Print the names of the files in the program after the diagnostics. |
+| `--explainFiles` | Print why each file is in the program (its include reasons, redirects and module format), as `tsgo --explainFiles` does. |
+| `--listFilesOnly` | Print the names of the files without emitting or type-checking (syntactic and option diagnostics only); not accepted with `-b`. |
 | `--pretty false` | Use plain diagnostic output. |
 | `--ignoreConfig` | Compile explicit files without loading a discovered configuration. |
 | `--newLine lf` | Use LF line endings in generated output; `crlf` is also accepted. |

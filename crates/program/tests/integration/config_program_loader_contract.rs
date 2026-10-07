@@ -547,7 +547,7 @@ fn missing_configured_type_retains_ts1419_config_related_information() {
 }
 
 #[test]
-fn missing_default_library_retains_ts1426_target_related_information() {
+fn missing_default_library_has_no_target_related_information_like_tsgo() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
     let text = r#"{"note":"😀","compilerOptions":{"noEmit":true,"target":"es5","types":[]},"files":["main.ts"]}"#;
@@ -568,24 +568,12 @@ fn missing_default_library_retains_ts1426_target_related_information() {
         .expect("missing default library publishes TS6053");
     assert_eq!(
         diagnostic.message.next[0].next[0].text,
-        "Default library for target 'es5'"
+        "Default library for target 'ES5'"
     );
-    assert!(diagnostic.related_information_present);
-    let [related] = diagnostic.related.as_slice() else {
-        panic!("missing default library must point back to compilerOptions.target");
-    };
-    assert_eq!(related.message.code, 1426);
-    assert_eq!(
-        related
-            .file_name
-            .as_ref()
-            .map(|value| value.as_str().expect("scalar legacy option observation")),
-        Some("/project/tsconfig.json")
-    );
-    let literal_byte = text.find("\"es5\"").expect("target literal span");
-    let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
-    assert_eq!(related.start, Some(literal_utf16));
-    assert_eq!(related.length, Some("\"es5\"".len() as u32));
+    // tsgo's lib-file related information matches array elements only, so a
+    // string `target` points nowhere.
+    assert!(!diagnostic.related_information_present);
+    assert!(diagnostic.related.is_empty());
 }
 
 #[test]

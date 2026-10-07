@@ -124,6 +124,10 @@ pub struct ProgramSession {
     /// project writes a build info and a declaration file that differs only
     /// in its map is reported for its timestamp.
     build_mode: bool,
+    /// `--listFilesOnly`: the command reports the syntactic and options
+    /// diagnostics alone and lists the files (tsgo GetDiagnosticsOfAnyProgram
+    /// with ListFilesOnly), without the declaration getter.
+    list_files_only: bool,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -1266,6 +1270,7 @@ impl ProgramSession {
             command_options_diagnostics: false,
             old_build_info: None,
             build_mode: false,
+            list_files_only: false,
         }
     }
 
@@ -1375,6 +1380,13 @@ impl ProgramSession {
         self
     }
 
+    /// The session runs for `--listFilesOnly`: the syntactic and options
+    /// diagnostics alone, no declaration getter.
+    pub fn with_list_files_only(mut self, list_files_only: bool) -> Self {
+        self.list_files_only = list_files_only;
+        self
+    }
+
     pub fn with_old_build_info(mut self, old: Option<OldState>) -> Self {
         self.old_build_info = old.map(Arc::new);
         self
@@ -1441,6 +1453,7 @@ impl ProgramSession {
             command_options_diagnostics: _,
             old_build_info: _,
             build_mode: _,
+            list_files_only: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1672,6 +1685,7 @@ impl ProgramSession {
             command_options_diagnostics: _,
             old_build_info: _,
             build_mode: _,
+            list_files_only: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1797,6 +1811,7 @@ impl ProgramSession {
             command_options_diagnostics: _,
             old_build_info: _,
             build_mode: _,
+            list_files_only: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1902,6 +1917,7 @@ impl ProgramSession {
             command_options_diagnostics: _,
             old_build_info,
             build_mode,
+            list_files_only: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
             .with_collected_emitted_files(build_mode);
@@ -2165,6 +2181,7 @@ impl ProgramSession {
             command_options_diagnostics: _,
             old_build_info,
             build_mode,
+            list_files_only: _,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
@@ -2986,6 +3003,8 @@ impl ProgramSession {
     ) -> SyntacticDiagnosticsGate {
         if self.native_harness.is_some() {
             SyntacticDiagnosticsGate::CheckEverySource
+        } else if self.list_files_only {
+            SyntacticDiagnosticsGate::SyntacticDiagnosticsOnly
         } else if available_options.is_empty() && !self.command_options_diagnostics {
             SyntacticDiagnosticsGate::CloseTheCheck
         } else {
@@ -3074,6 +3093,7 @@ impl ProgramSession {
         // when the options ask for declarations.
         let native_harness = self.native_harness.is_some();
         let declaration_getter = !harness_lib_cache
+            && !self.list_files_only
             && get_emit_declarations(self.prepared.compiler_options())
             && (native_harness
                 || command_report && self.prepared.compiler_options().no_emit == Some(true));

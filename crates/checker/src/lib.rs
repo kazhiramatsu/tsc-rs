@@ -1681,6 +1681,11 @@ enum DiagnosticSchedule {
     /// checked. The result carries the syntactic rows (empty) and the global
     /// rows of the initialized checker.
     GlobalDiagnosticsUnlessSyntacticDiagnostics,
+    /// The schedule of `--listFilesOnly` (tsgo GetDiagnosticsOfAnyProgram
+    /// with ListFilesOnly): the syntactic rows are the whole result, whether
+    /// or not there are any; nothing is bound or checked and no checker is
+    /// initialized.
+    SyntacticDiagnosticsOnly,
     OnDemand,
     /// The eager schedule after one call of the scoped operation over the
     /// initialized checker, before any source is checked: the order of the
@@ -1698,6 +1703,7 @@ impl DiagnosticSchedule {
             Self::Eager
                 | Self::EagerUnlessSyntacticDiagnostics
                 | Self::GlobalDiagnosticsUnlessSyntacticDiagnostics
+                | Self::SyntacticDiagnosticsOnly
         )
     }
 
@@ -1708,6 +1714,7 @@ impl DiagnosticSchedule {
             self,
             Self::EagerUnlessSyntacticDiagnostics
                 | Self::GlobalDiagnosticsUnlessSyntacticDiagnostics
+                | Self::SyntacticDiagnosticsOnly
         )
     }
 
@@ -2101,6 +2108,9 @@ pub enum SyntacticDiagnosticsGate {
     /// diagnostics only when the options and global diagnostics are empty),
     /// so no source is checked.
     GlobalDiagnosticsOnly,
+    /// `--listFilesOnly`: the syntactic rows are the whole result; tsgo
+    /// asks for neither the global nor the semantic diagnostics.
+    SyntacticDiagnosticsOnly,
 }
 
 impl SyntacticDiagnosticsGate {
@@ -2108,6 +2118,7 @@ impl SyntacticDiagnosticsGate {
         match self {
             Self::CheckEverySource => DiagnosticSchedule::Eager,
             Self::CloseTheCheck => DiagnosticSchedule::EagerUnlessSyntacticDiagnostics,
+            Self::SyntacticDiagnosticsOnly => DiagnosticSchedule::SyntacticDiagnosticsOnly,
             Self::GlobalDiagnosticsOnly => {
                 DiagnosticSchedule::GlobalDiagnosticsUnlessSyntacticDiagnostics
             }
@@ -2974,9 +2985,10 @@ fn syntactic_diagnostics_close_the_check(
     let started = std::time::Instant::now();
     let file_diagnostics =
         syntactic_rows_of_sources(program_sources.iter().map(|source| &**source), options);
-    if file_diagnostics
-        .iter()
-        .all(|file| file.syntactic.is_empty())
+    if !matches!(schedule, DiagnosticSchedule::SyntacticDiagnosticsOnly)
+        && file_diagnostics
+            .iter()
+            .all(|file| file.syntactic.is_empty())
     {
         return None;
     }

@@ -688,7 +688,7 @@ pub fn load_emitting_program(
 /// preserving it here keeps the loader independent of the config parser while
 /// allowing `files` roots to differ from explicit command-line roots.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum RootFileReason {
+pub enum RootFileReason {
     Explicit,
     FilesList {
         spec: Arc<JsString>,
@@ -1343,8 +1343,10 @@ impl VisitState {
     }
 }
 
+/// Why a file is in the program (tsgo `FileIncludeReason`), as the loader
+/// recorded it: one entry per occurrence of the reference.
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum SourceInclusionReason {
+pub enum SourceInclusionReason {
     Root(RootFileReason),
     Import {
         parent: JsString,
@@ -1378,12 +1380,19 @@ enum SourceInclusionReason {
         implicit: bool,
     },
     Synthetic,
-    Library,
+    /// A library root (tsgo `fileIncludeKindLibFile`).
+    LibraryRoot(LibraryRootReason),
+    /// A `/// <reference lib="..." />` directive (tsgo
+    /// `fileIncludeKindLibReferenceDirective`).
+    LibraryReference {
+        parent: JsString,
+        specifier: JsString,
+    },
 }
 
 impl SourceInclusionReason {
     const fn is_referenced(&self) -> bool {
-        !matches!(self, Self::Root(_))
+        !matches!(self, Self::Root(_) | Self::LibraryRoot(_))
     }
 
     /// Records the resolution's package identity on the reasons whose
@@ -1394,7 +1403,11 @@ impl SourceInclusionReason {
             Self::Import { package_id, .. }
             | Self::TypeReference { package_id, .. }
             | Self::AutomaticType { package_id, .. } => *package_id = text,
-            Self::Root(_) | Self::PathReference { .. } | Self::Synthetic | Self::Library => {}
+            Self::Root(_)
+            | Self::PathReference { .. }
+            | Self::Synthetic
+            | Self::LibraryRoot(_)
+            | Self::LibraryReference { .. } => {}
         }
         self
     }
@@ -1555,7 +1568,8 @@ struct CollectWalk {
     seen: Vec<bool>,
     registered: BTreeMap<PackageId, usize>,
     order: Vec<usize>,
-    redirects: Vec<(usize, usize)>,
+    /// `(source, owner, index)`; see [`CollectedFiles::redirects`].
+    redirects: Vec<(usize, usize, usize)>,
     /// The entered sources with the index of their next edge to walk.
     stack: Vec<(usize, usize)>,
 }
@@ -1568,7 +1582,10 @@ impl CollectWalk {
         if self.deduplicate_packages {
             if let Some(package_id) = sources[source].package_id.as_ref() {
                 if let Some(&owner) = self.registered.get(package_id) {
-                    self.redirects.push((source, owner));
+                    // tsgo redirectsFile.index: the files collected so far
+                    // plus the redirects so far.
+                    let index = self.order.len() + self.redirects.len();
+                    self.redirects.push((source, owner, index));
                     return;
                 }
                 self.registered.insert(package_id.clone(), source);
@@ -1582,9 +1599,11 @@ impl CollectWalk {
 struct CollectedFiles {
     /// The kept sources in program order (each after its subtasks).
     order: Vec<usize>,
-    /// `(source, owner)`: the source's package identity belongs to `owner`,
-    /// which was entered earlier; the source is dropped as a redirect.
-    redirects: Vec<(usize, usize)>,
+    /// `(source, owner, index)`: the source's package identity belongs to
+    /// `owner`, which was entered earlier; the source is dropped as a
+    /// redirect, listed at `index` of the program's file order (tsgo
+    /// `redirectsFile.index`).
+    redirects: Vec<(usize, usize, usize)>,
 }
 
 /// A root source read ahead of its sequential visit; see
@@ -1832,7 +1851,10 @@ fn parse_root_ahead(
     PrefetchedRead::Parsed { byte_len, decoded }
 }
 
-enum LibraryRootReason {
+/// Why a library root is in the program (tsgo `fileIncludeKindLibFile`):
+/// the default library of the target, or an entry of `lib`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LibraryRootReason {
     Default { target: String },
     Explicit { file_name: String },
 }
@@ -1863,6 +1885,9 @@ struct CompleteGraph {
     /// The package.json files the read-ahead workers' and the referenced
     /// projects' resolvers probed.
     package_json_probes: Vec<PackageJsonProbe>,
+    /// The deduplicated package copies: path, owner, program index and the
+    /// copy's own include reasons (see `PackageRedirectFile`).
+    package_redirect_files: Vec<(ProgramPath, usize, usize, Vec<SourceInclusionReason>)>,
 }
 
 struct StagedGraph<'host, 'options, 'resolver> {
@@ -3607,7 +3632,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     path.clone(),
                     0,
                     0,
-                    DiscoveryReason::dependency(SourceInclusionReason::Library),
+                    DiscoveryReason::dependency(SourceInclusionReason::LibraryRoot(reason.clone())),
                     SourceClass::Library {
                         priority: catalog.source_file_priority(
                             &path,
@@ -3621,11 +3646,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     .diagnosed_missing_library_roots
                     .insert(path.display().to_owned())
             {
-                let diagnostic = missing_library_root_diagnostic(
-                    &path,
-                    &reason,
-                    self.program_options.config_file(),
-                );
+                let diagnostic = missing_library_root_diagnostic(&path, &reason);
                 let replaced_root_diagnostics = self
                     .roots
                     .iter_mut()
@@ -3650,18 +3671,21 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             kept[source] = true;
         }
         // A redirected copy's path names the owner of its package identity
-        // and its reasons are the owner's (tsgo filesByPath[task.path] =
-        // packageIdFile, redirectTargetsMap); its own subtree was not walked.
+        // (tsgo filesByPath[task.path] = packageIdFile, redirectTargetsMap);
+        // its own subtree was not walked. The copy keeps its include reasons
+        // (filesparser.go addIncludeReason records them on the loaded task):
+        // explainFiles lists them with the copy.
         let mut redirect_targets: FxHashMap<usize, usize> = FxHashMap::default();
-        for &(source, target) in &collected.redirects {
+        let mut package_redirect_files = Vec::new();
+        for &(source, target, index) in &collected.redirects {
             redirect_targets.insert(source, target);
             let reasons = std::mem::take(&mut self.sources[source].inclusion_reasons);
             let has_non_external_reason = self.sources[source].has_non_external_reason;
             let path = self.sources[source].prepared.path().clone();
             let owner = &mut self.sources[target];
-            owner.prepared.remember_package_redirect(path);
-            owner.inclusion_reasons.extend(reasons);
+            owner.prepared.remember_package_redirect(path.clone());
             owner.has_non_external_reason |= has_non_external_reason;
+            package_redirect_files.push((path, target, index, reasons));
         }
         for root in &mut self.roots {
             if let Some(source) = root.source {
@@ -3802,6 +3826,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             option_diagnostics,
             project_reference_redirects: self.project_reference_redirects,
             package_json_probes,
+            package_redirect_files,
         }
     }
 
@@ -4057,6 +4082,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         source,
                         root.as_js(),
                         self.program_options.config_file(),
+                        self.compiler_options,
                         source
                             .prepared
                             .package_scope()
@@ -4082,6 +4108,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         source,
                         project,
                         self.program_options.config_file(),
+                        self.compiler_options,
                         source
                             .prepared
                             .package_scope()
@@ -4867,11 +4894,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             };
             let target = self.resolved_library_path(file_name)?;
             let catalog_path = self.catalog_library_path(file_name)?;
+            let reference = SourceInclusionReason::LibraryReference {
+                parent: self.sources[source].prepared.path().display().to_owned(),
+                specifier: directive.file_name().to_owned(),
+            };
             match self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
                 node_modules_depth,
-                DiscoveryReason::dependency(SourceInclusionReason::Library),
+                DiscoveryReason::dependency(reference),
                 SourceClass::Library {
                     priority: catalog.source_file_priority(
                         &target,
@@ -5646,7 +5677,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
 
 fn publish_program(
     mode: PreparedProgramMode,
-    staged: CompleteGraph,
+    mut staged: CompleteGraph,
     packages: Vec<PackageMetadata>,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     path_context: PathContext,
@@ -5747,7 +5778,8 @@ fn publish_program(
             .with_may_emit_forced_declaration(
                 staged_source.prepared.may_emit_forced_declaration()
                     && staged_source.has_non_external_reason,
-            );
+            )
+            .with_inclusion_reasons(staged_source.inclusion_reasons.clone());
         let source_id = builder.add_source_file(prepared.clone()).map_err(|error| {
             ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
         })?;
@@ -5777,6 +5809,19 @@ fn publish_program(
             }
         }
     }
+
+    let package_redirect_files = std::mem::take(&mut staged.package_redirect_files)
+        .into_iter()
+        .map(
+            |(path, target, index, reasons)| crate::PackageRedirectFile {
+                path,
+                target: published_ids[target].expect("postorder publishes every staged source"),
+                index,
+                reasons,
+            },
+        )
+        .collect();
+    builder = builder.with_package_redirect_files(package_redirect_files);
 
     for root in staged.roots {
         let prepared_root = match root.source {
@@ -6296,7 +6341,7 @@ fn unsupported_root_extension_diagnostic(
             ],
         )
     };
-    let root_reason = root_file_reason_message(&root_reason);
+    let root_reason = root_file_reason_message(&root_reason, &same_file_name);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -6308,7 +6353,7 @@ fn unsupported_root_extension_diagnostic(
 }
 
 fn missing_root_diagnostic(path: JsStr<'_>, root_file_reason: RootFileReason) -> Diagnostic {
-    let root_reason = root_file_reason_message(&root_file_reason);
+    let root_reason = root_file_reason_message(&root_file_reason, &same_file_name);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Diagnostic::new(
@@ -6324,7 +6369,7 @@ fn unresolved_extensionless_root_diagnostic(
     allow_js: bool,
     root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
-    let root_reason = root_file_reason_message(&root_reason);
+    let root_reason = root_file_reason_message(&root_reason, &same_file_name);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
     Ok(Diagnostic::new(
@@ -6342,7 +6387,16 @@ fn unresolved_extensionless_root_diagnostic(
 /// tsc-port: fileIncludeReasonToDiagnostics @6.0.3 (RootFile)
 /// tsc-hash: 30e07b28f72a81d3eb29d0ab7e49d8d2a65a20dedc61205c00e488973787233a
 /// tsc-span: _tsc.js:129341-129369
-fn root_file_reason_message(reason: &RootFileReason) -> MessageChain {
+/// The identity file-name conversion of the diagnostics (tsgo
+/// `toDiagnostic(program, false)`); explainFiles passes a relative one.
+fn same_file_name(name: JsStr<'_>) -> JsString {
+    name.to_owned()
+}
+
+fn root_file_reason_message(
+    reason: &RootFileReason,
+    to_file_name: &dyn Fn(JsStr<'_>) -> JsString,
+) -> MessageChain {
     match reason {
         RootFileReason::Explicit => {
             MessageChain::new(&gen::Root_file_specified_for_compilation, &[])
@@ -6352,7 +6406,7 @@ fn root_file_reason_message(reason: &RootFileReason) -> MessageChain {
         }
         RootFileReason::IncludePattern { spec, config_file } => MessageChain::new_js(
             &gen::Matched_by_include_pattern_0_in_1,
-            &[spec.as_ref().clone(), config_file.as_ref().clone()],
+            &[spec.as_ref().clone(), to_file_name(config_file.as_js())],
         ),
         RootFileReason::DefaultInclude => {
             MessageChain::new(&gen::Matched_by_default_include_pattern, &[])
@@ -6360,11 +6414,7 @@ fn root_file_reason_message(reason: &RootFileReason) -> MessageChain {
     }
 }
 
-fn missing_library_root_diagnostic(
-    path: &ProgramPath,
-    reason: &LibraryRootReason,
-    config_file: Option<&ProgramConfigFile>,
-) -> Diagnostic {
+fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReason) -> Diagnostic {
     let inclusion_reason = match reason {
         LibraryRootReason::Default { target } => MessageChain::new(
             &gen::Default_library_for_target_0,
@@ -6377,31 +6427,17 @@ fn missing_library_root_diagnostic(
     };
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![inclusion_reason]);
-    let mut diagnostic = Diagnostic::new(
+    let diagnostic = Diagnostic::new(
         None,
         None,
         None,
         MessageChain::new_js_parts(&gen::File_0_not_found, &[path.display()])
             .with_next(vec![inclusion]),
     );
-    if let LibraryRootReason::Default { target } = reason {
-        if let Some((config_file, location)) = config_file.and_then(|config_file| {
-            config_file
-                .compiler_option_string_location("target", target)
-                .map(|location| (config_file, location))
-        }) {
-            diagnostic.related_information_present = true;
-            diagnostic.related.push(RelatedInfo {
-                file_name: Some(config_file.path().display().to_owned()),
-                start: Some(location.start()),
-                length: Some(location.length()),
-                message: MessageChain::new(
-                    &gen::File_is_default_library_for_target_specified_here,
-                    &[],
-                ),
-            });
-        }
-    }
+    // tsgo toRelatedInformation (fileIncludeKindLibFile) looks the target up
+    // with GetCallbackForFindingPropertyAssignmentByValue, which matches
+    // array elements only, so a string `target` never yields "File is
+    // default library for target specified here".
     diagnostic
 }
 
@@ -6450,24 +6486,26 @@ fn automatic_type_reference_diagnostic(
     diagnostic
 }
 
+/// tsgo `core.ScriptTarget.String()`: the target's display name
+/// (`Default library for target 'ES2020'`).
 fn script_target_name(options: &CompilerOptions) -> &'static str {
     match options.emit_script_target().bits() {
-        0 => "es3",
-        1 => "es5",
-        2 => "es2015",
-        3 => "es2016",
-        4 => "es2017",
-        5 => "es2018",
-        6 => "es2019",
-        7 => "es2020",
-        8 => "es2021",
-        9 => "es2022",
-        10 => "es2023",
-        11 => "es2024",
-        12 => "es2025",
-        13 => "es2026",
-        99 => "esnext",
-        100 => "json",
+        0 => "None",
+        1 => "ES5",
+        2 => "ES2015",
+        3 => "ES2016",
+        4 => "ES2017",
+        5 => "ES2018",
+        6 => "ES2019",
+        7 => "ES2020",
+        8 => "ES2021",
+        9 => "ES2022",
+        10 => "ES2023",
+        11 => "ES2024",
+        12 => "ES2025",
+        13 => "ES2026",
+        99 => "ESNext",
+        100 => "JSON",
         _ => "unknown",
     }
 }
@@ -6580,6 +6618,7 @@ fn root_directory_diagnostic(
     source: &StagedSource,
     root: JsStr<'_>,
     config: Option<&ProgramConfigFile>,
+    options: &CompilerOptions,
     package: Option<&PackageMetadata>,
 ) -> Diagnostic {
     explaining_file_diagnostic(
@@ -6589,6 +6628,7 @@ fn root_directory_diagnostic(
             &[source.prepared.path().display(), root],
         ),
         config,
+        options,
         package,
     )
 }
@@ -6599,6 +6639,7 @@ fn file_list_diagnostic(
     source: &StagedSource,
     project: JsStr<'_>,
     config: Option<&ProgramConfigFile>,
+    options: &CompilerOptions,
     package: Option<&PackageMetadata>,
 ) -> Diagnostic {
     explaining_file_diagnostic(
@@ -6608,6 +6649,7 @@ fn file_list_diagnostic(
             &[source.prepared.path().display(), project],
         ),
         config,
+        options,
         package,
     )
 }
@@ -6619,6 +6661,7 @@ fn explaining_file_diagnostic(
     source: &StagedSource,
     mut message: MessageChain,
     config: Option<&ProgramConfigFile>,
+    options: &CompilerOptions,
     package: Option<&PackageMetadata>,
 ) -> Diagnostic {
     let reasons = &source.inclusion_reasons;
@@ -6633,11 +6676,13 @@ fn explaining_file_diagnostic(
         .with_next(
             reasons
                 .iter()
-                .filter_map(source_inclusion_reason_message)
+                .filter_map(|reason| source_inclusion_reason_message(reason, &same_file_name))
                 .collect(),
         )]);
     }
-    if let Some(detail) = root_module_format_detail(&source.prepared, package) {
+    if let Some(detail) =
+        root_module_format_detail(&source.prepared, package, options, &same_file_name)
+    {
         message.next_present = true;
         message.next.push(detail);
     }
@@ -6687,40 +6732,52 @@ fn explaining_file_diagnostic(
 /// tsc-port: explainIfFileIsRedirectAndImpliedFormat @6.0.3 (module-format branch)
 /// tsc-hash: 4bd1d72257a11fc0d58f2ff3b8609170d5f225f9a8b5d801b67751dfbf9e001a
 /// tsc-span: _tsc.js:129225-129275
+/// The module-format line of tsgo `explainRedirectAndImpliedFormat`, read
+/// through `loadSourceFileMetaData`'s facts: the package scope's string
+/// `type` counts for a file of a non-fixed extension under node16/nodenext
+/// resolution, or for any file under `node_modules`; the scope's existence
+/// (`PackageJsonDirectory`) counts always. The port keeps no string value
+/// for a non-string `type` field, which tsgo reads as absent as well.
 fn root_module_format_detail(
     source: &PreparedSourceFile,
     package: Option<&PackageMetadata>,
+    options: &CompilerOptions,
+    to_file_name: &dyn Fn(JsStr<'_>) -> JsString,
 ) -> Option<MessageChain> {
     if source.is_external_module() != Some(true) {
         return None;
     }
     let name = source.path().display();
-    // The TS implied-format worker returns a bare format for fixed module
-    // extensions, with no packageJsonScope or packageJsonLocations fields.
-    if [".mts", ".mjs", ".cts", ".cjs"]
+    let fixed_extension = [".mts", ".mjs", ".cts", ".cjs"]
         .iter()
-        .any(|extension| name.ends_with(extension))
-    {
-        return None;
-    }
+        .any(|extension| name.ends_with(extension));
+    let type_counts = (!fixed_extension && matches!(options.emit_module_resolution_kind(), 3..=99))
+        || name
+            .split_ascii(b'/')
+            .any(|segment| segment == "node_modules");
+    let package_json_type = package
+        .filter(|_| type_counts)
+        .map(PackageMetadata::module_type)
+        .filter(|module_type| *module_type != PackageJsonType::Unspecified);
+    let package_json = |package: &PackageMetadata| to_file_name(package.package_json().display());
     match source.implied_node_format_for_emit()? {
-        ResolutionMode::EsNext => package.map(|package| {
-            MessageChain::new_js(
-                &gen::File_is_ECMAScript_module_because_0_has_field_type_with_value_module,
-                &[package.package_json().display().to_owned()],
-            )
-        }),
+        ResolutionMode::EsNext => match package {
+            Some(package) if package_json_type == Some(PackageJsonType::Module) => {
+                Some(MessageChain::new_js(
+                    &gen::File_is_ECMAScript_module_because_0_has_field_type_with_value_module,
+                    &[package_json(package)],
+                ))
+            }
+            _ => None,
+        },
         ResolutionMode::CommonJs => Some(match package {
+            Some(package) if package_json_type.is_some() => MessageChain::new_js(
+                &gen::File_is_CommonJS_module_because_0_has_field_type_whose_value_is_not_module,
+                &[package_json(package)],
+            ),
             Some(package) => MessageChain::new_js(
-                if package
-                    .type_field_truthiness()
-                    .expect("loader package parser supplies type truthiness")
-                {
-                    &gen::File_is_CommonJS_module_because_0_has_field_type_whose_value_is_not_module
-                } else {
-                    &gen::File_is_CommonJS_module_because_0_does_not_have_field_type
-                },
-                &[package.package_json().display().to_owned()],
+                &gen::File_is_CommonJS_module_because_0_does_not_have_field_type,
+                &[package_json(package)],
             ),
             None => MessageChain::new(
                 &gen::File_is_CommonJS_module_because_package_json_was_not_found,
@@ -6794,7 +6851,7 @@ fn casing_diagnostic(
     }
     let mut reasons = all_reasons
         .iter()
-        .filter_map(|reason| source_inclusion_reason_message(reason))
+        .filter_map(|reason| source_inclusion_reason_message(reason, &same_file_name))
         .collect::<Vec<_>>();
     // Root aliases retain one reason per explicit root occurrence (the
     // program-preprocessing contract exposes that multiplicity).  A root
@@ -6831,9 +6888,12 @@ fn casing_diagnostic(
     diagnostic
 }
 
-fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<MessageChain> {
+fn source_inclusion_reason_message(
+    reason: &SourceInclusionReason,
+    to_file_name: &dyn Fn(JsStr<'_>) -> JsString,
+) -> Option<MessageChain> {
     match reason {
-        SourceInclusionReason::Root(root) => Some(root_file_reason_message(root)),
+        SourceInclusionReason::Root(root) => Some(root_file_reason_message(root, to_file_name)),
         SourceInclusionReason::Import {
             parent,
             reference_text,
@@ -6844,36 +6904,30 @@ fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<Mes
                 &gen::Imported_via_0_from_file_1_with_packageId_2,
                 &[
                     reference_text.clone().into(),
-                    parent.clone(),
+                    to_file_name(parent.as_js()),
                     package_id.clone(),
                 ],
             ),
             None => MessageChain::new_js(
                 &gen::Imported_via_0_from_file_1,
-                &[reference_text.clone().into(), parent.clone()],
+                &[reference_text.clone().into(), to_file_name(parent.as_js())],
             ),
         }),
         SourceInclusionReason::PathReference {
             parent, specifier, ..
         } => Some(MessageChain::new_js(
             &gen::Referenced_via_0_from_file_1,
-            &[specifier.clone(), parent.clone()],
+            &[specifier.clone(), to_file_name(parent.as_js())],
         )),
+        // tsgo getReferencedLocation gives a type reference directive no
+        // package id (only an import's location has one), so the reason
+        // never says "with packageId" whatever the resolution attached.
         SourceInclusionReason::TypeReference {
-            parent,
-            specifier,
-            package_id,
-            ..
-        } => Some(match package_id {
-            Some(package_id) => MessageChain::new_js(
-                &gen::Type_library_referenced_via_0_from_file_1_with_packageId_2,
-                &[specifier.clone(), parent.clone(), package_id.clone()],
-            ),
-            None => MessageChain::new_js(
-                &gen::Type_library_referenced_via_0_from_file_1,
-                &[specifier.clone(), parent.clone()],
-            ),
-        }),
+            parent, specifier, ..
+        } => Some(MessageChain::new_js(
+            &gen::Type_library_referenced_via_0_from_file_1,
+            &[specifier.clone(), to_file_name(parent.as_js())],
+        )),
         SourceInclusionReason::AutomaticType {
             name,
             package_id,
@@ -6896,10 +6950,108 @@ fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<Mes
                 std::slice::from_ref(name),
             ),
         }),
-        SourceInclusionReason::Library => {
-            Some(MessageChain::new(&gen::File_is_library_specified_here, &[]))
+        SourceInclusionReason::LibraryRoot(LibraryRootReason::Default { target }) => {
+            Some(MessageChain::new(
+                &gen::Default_library_for_target_0,
+                std::slice::from_ref(target),
+            ))
+        }
+        SourceInclusionReason::LibraryRoot(LibraryRootReason::Explicit { file_name }) => {
+            Some(MessageChain::new(
+                &gen::Library_0_specified_in_compilerOptions,
+                std::slice::from_ref(file_name),
+            ))
+        }
+        SourceInclusionReason::LibraryReference { parent, specifier } => {
+            Some(MessageChain::new_js(
+                &gen::Library_referenced_via_0_from_file_1,
+                &[specifier.clone(), to_file_name(parent.as_js())],
+            ))
         }
         SourceInclusionReason::Synthetic => None,
+    }
+}
+
+impl PreparedProgram {
+    /// tsgo `Program.ExplainFiles`: every file of the program in order (a
+    /// deduplicated package copy at the place it was collected), each as its
+    /// name relative to `current_directory` with the lines explaining why it
+    /// is in the program, what it redirects to, or which module format it
+    /// has (`explainRedirectAndImpliedFormat`).
+    pub fn explain_files(&self, current_directory: JsStr<'_>) -> Vec<(JsString, Vec<JsString>)> {
+        let case_sensitive = self.path_context().use_case_sensitive_file_names();
+        let to_file_name = |name: JsStr<'_>| -> JsString {
+            crate::output_directories::relative_path_from_directory(
+                current_directory,
+                name,
+                case_sensitive,
+            )
+        };
+        let packages: FxHashMap<&CanonicalPath, &PackageMetadata> = self
+            .packages()
+            .map(|package| (package.package_json().canonical(), package))
+            .collect();
+        let sources = self.source_files();
+        let mut redirects = self.package_redirect_files().to_vec();
+        redirects.sort_by_key(|redirect| redirect.index);
+        let mut explained: Vec<(JsString, Vec<JsString>)> = Vec::new();
+        let explain_source = |source: &PreparedSourceFile| -> (JsString, Vec<JsString>) {
+            let mut lines: Vec<JsString> = source
+                .inclusion_reasons()
+                .iter()
+                .filter_map(|reason| source_inclusion_reason_message(reason, &to_file_name))
+                .map(|chain| chain.text)
+                .collect();
+            if let Some(origin) = source.project_reference_source_paths().last() {
+                lines.push(
+                    MessageChain::new_js(
+                        &gen::File_is_output_of_project_reference_source_0,
+                        &[to_file_name(origin.display())],
+                    )
+                    .text,
+                );
+            }
+            let package = source
+                .package_scope()
+                .and_then(|scope| packages.get(scope).copied());
+            if let Some(detail) =
+                root_module_format_detail(source, package, self.compiler_options(), &to_file_name)
+            {
+                lines.push(detail.text);
+            }
+            (to_file_name(source.path().display()), lines)
+        };
+        let explain_redirect =
+            |redirect: &crate::PackageRedirectFile| -> (JsString, Vec<JsString>) {
+                let mut lines: Vec<JsString> = redirect
+                    .reasons
+                    .iter()
+                    .filter_map(|reason| source_inclusion_reason_message(reason, &to_file_name))
+                    .map(|chain| chain.text)
+                    .collect();
+                let target = &sources[redirect.target.index()];
+                lines.push(
+                    MessageChain::new_js(
+                        &gen::File_redirects_to_file_0,
+                        &[to_file_name(target.path().display())],
+                    )
+                    .text,
+                );
+                (to_file_name(redirect.path.display()), lines)
+            };
+        let mut next_source = 0usize;
+        for redirect in &redirects {
+            while explained.len() < redirect.index && next_source < sources.len() {
+                explained.push(explain_source(&sources[next_source]));
+                next_source += 1;
+            }
+            explained.push(explain_redirect(redirect));
+        }
+        while next_source < sources.len() {
+            explained.push(explain_source(&sources[next_source]));
+            next_source += 1;
+        }
+        explained
     }
 }
 

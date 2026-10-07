@@ -814,6 +814,13 @@ fn parse_build_arguments(args: &[String]) -> Result<(CommandLine, BuildCommand),
                 let (_, next_index) = required_option_value(args, index)?;
                 index = next_index;
             }
+            value if value == "--listFilesOnly" || value.starts_with("--listFilesOnly=") => {
+                // Not a build option (tsgo TS5094: Compiler option
+                // '--listFilesOnly' may not be used with '--build').
+                return Err(CliError::Usage(format!(
+                    "unsupported build option {value:?}"
+                )));
+            }
             _ => {
                 if let Some(next_index) = parse_common_option(args, index, &mut command_line)? {
                     index = next_index;
@@ -847,6 +854,9 @@ fn config_command_line_overrides(command_line: &CommandLine) -> ConfigCommandLin
             emit_bom: options.emit_bom,
             new_line: options.new_line,
             list_emitted_files: options.list_emitted_files,
+            list_files: options.list_files,
+            explain_files: options.explain_files,
+            list_files_only: options.list_files_only,
             no_lib: command_line.no_lib,
         },
     }
@@ -989,6 +999,33 @@ fn parse_common_option(
         }
         value if value.starts_with("--listEmittedFiles=") => {
             command_line.compiler_options.list_emitted_files = Some(parse_inline_boolean(value)?);
+            index + 1
+        }
+        "--listFiles" => {
+            let (value, next_index) = consume_boolean_value(args, index, true);
+            command_line.compiler_options.list_files = Some(value);
+            next_index
+        }
+        value if value.starts_with("--listFiles=") => {
+            command_line.compiler_options.list_files = Some(parse_inline_boolean(value)?);
+            index + 1
+        }
+        "--explainFiles" => {
+            let (value, next_index) = consume_boolean_value(args, index, true);
+            command_line.compiler_options.explain_files = Some(value);
+            next_index
+        }
+        value if value.starts_with("--explainFiles=") => {
+            command_line.compiler_options.explain_files = Some(parse_inline_boolean(value)?);
+            index + 1
+        }
+        "--listFilesOnly" => {
+            let (value, next_index) = consume_boolean_value(args, index, true);
+            command_line.compiler_options.list_files_only = Some(value);
+            next_index
+        }
+        value if value.starts_with("--listFilesOnly=") => {
+            command_line.compiler_options.list_files_only = Some(parse_inline_boolean(value)?);
             index + 1
         }
         "--emitBOM" => {
@@ -1240,9 +1277,14 @@ fn run_config(
         plan.source().file_name.clone(),
         Arc::clone(plan.source().snapshot()),
     );
-    let effective_no_emit = overrides
-        .no_emit
-        .unwrap_or_else(|| plan.compiler_options().no_emit == Some(true));
+    // tsgo runs no emit under --listFilesOnly: the no-emit route.
+    let no_emit_override = if overrides.emit.list_files_only == Some(true) {
+        Some(true)
+    } else {
+        overrides.no_emit
+    };
+    let effective_no_emit =
+        no_emit_override.unwrap_or_else(|| plan.compiler_options().no_emit == Some(true));
     if effective_no_emit && !overrides.emit.is_empty() {
         return Err(CliError::Usage(
             "emit-profile command-line overrides are unavailable on the preserved --noEmit route"
@@ -1251,7 +1293,7 @@ fn run_config(
     }
     let limits = cli_limits();
     let load_started = std::time::Instant::now();
-    let prepared = match overrides.no_emit {
+    let prepared = match no_emit_override {
         Some(true) => load_config_program_with_no_emit_override_and_overrides(
             host,
             plan,
@@ -1422,20 +1464,29 @@ fn execute_prepared(
     }
     let session_started = std::time::Instant::now();
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
+    let list_files_only = prepared.compiler_options().list_files_only == Some(true);
+    let listing = listing_lines(&prepared, current_directory);
     // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): a --noEmit
     // command with getEmitDeclarations(options) reports the declaration
     // diagnostics after the semantic pass, only while nothing beyond the
     // config-file parsing diagnostics was reported. The command session runs
     // that getter over its own checker sessions
     // (`ProgramSession::run_no_emit_command`).
-    let outcome = ProgramSession::new(prepared)
+    let session = ProgramSession::new(prepared)
         .with_worker_budget(cli_worker_budget())
         .with_checker_budget(cli_checker_budget())
         .with_leaked_program(true)
         .with_command_options_diagnostics(!additional_diagnostics.is_empty())
-        .with_command_build_info()
         .with_build_mode(mode.build)
-        .with_old_build_info(old_build_info)
+        .with_old_build_info(old_build_info);
+    // tsgo EmitFilesAndReportErrors runs no emit under --listFilesOnly, so no
+    // build info is written either.
+    let session = if list_files_only {
+        session.with_list_files_only(true)
+    } else {
+        session.with_command_build_info()
+    };
+    let outcome = session
         .run_no_emit_pass(false, tsc_checker::LibraryPrefixCompletion::Complete, true)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check session", session_started);
@@ -1501,6 +1552,7 @@ fn execute_prepared(
             }
         }
     }
+    status_writes.extend(listing);
     let work_counters = outcome.work_counters();
     let render_started = std::time::Instant::now();
     let rendered = rendered_diagnostics_with_exit_work_status_and_summary(
@@ -1508,7 +1560,13 @@ fn execute_prepared(
         &source_texts,
         &diagnostics,
         route.pretty,
-        EXIT_DIAGNOSTIC,
+        // tsgo EmitFilesAndReportErrors: --listFilesOnly skips the emit, so
+        // its diagnostics report the outputs as skipped.
+        if list_files_only {
+            EXIT_COMMAND_LINE
+        } else {
+            EXIT_DIAGNOSTIC
+        },
         work_counters,
         &status_writes,
         mode.summary,
@@ -1523,6 +1581,42 @@ fn execute_prepared(
         has_changed_dts_file: false,
         declarations_differing_only_in_map: Vec::new(),
     })
+}
+
+/// tsgo execute/tsc/emit.go `listFiles`: after the `TSFILE:` lines,
+/// `--explainFiles` explains every file of the program (`Program.ExplainFiles`:
+/// the name relative to the current directory, then three spaces and each
+/// explanation), else `--listFiles`/`--listFilesOnly` lists every file's name.
+fn listing_lines(
+    prepared: &tsc_program::PreparedProgram,
+    current_directory: &Path,
+) -> Vec<JsString> {
+    let options = prepared.compiler_options();
+    if options.explain_files == Some(true) {
+        let cwd: JsStr<'_> = current_directory
+            .to_str()
+            .expect("prepared CLI cwd is Unicode")
+            .into();
+        prepared
+            .explain_files(cwd)
+            .into_iter()
+            .flat_map(|(name, lines)| {
+                std::iter::once(name).chain(lines.into_iter().map(|line| {
+                    let mut indented = JsString::from("   ");
+                    indented.push_js(line.as_js());
+                    indented
+                }))
+            })
+            .collect()
+    } else if options.list_files == Some(true) || options.list_files_only == Some(true) {
+        prepared
+            .source_files()
+            .iter()
+            .map(|source| source.path().display().to_owned())
+            .collect()
+    } else {
+        Vec::new()
+    }
 }
 
 /// Shared command producer for real CLI execution and scoped Program emits.
@@ -1585,6 +1679,7 @@ fn execute_emitting_prepared(
             &mut ordered_sink
         };
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
+    let listing = listing_lines(&prepared, current_directory);
     let session_started = std::time::Instant::now();
     let outcome = ProgramSession::new(prepared)
         .with_worker_budget(cli_worker_budget())
@@ -1604,8 +1699,9 @@ fn execute_emitting_prepared(
         .to_str()
         .expect("prepared CLI cwd is Unicode")
         .into();
-    let (status_writes, exit_code) =
+    let (mut status_writes, exit_code) =
         emit_command_status(cwd, &emit, &diagnostics, list_emitted_files);
+    status_writes.extend(listing);
     let emitted_files = emit
         .emitted_files()
         .unwrap_or_default()

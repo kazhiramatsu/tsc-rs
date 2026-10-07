@@ -208,6 +208,9 @@ pub struct PreparedSourceFile {
     implied_node_format_for_emit: Option<ResolutionMode>,
     is_external_module: Option<bool>,
     package_scope: Option<CanonicalPath>,
+    /// Why the file is in the program, one entry per occurrence (tsgo
+    /// `fileIncludeReasons`), in the order the loader recorded them.
+    inclusion_reasons: Vec<crate::SourceInclusionReason>,
     /// The loader's request-planning parse, available for adoption by the
     /// first session that proves it used identical parse options. Always
     /// present (empty when nothing was retained) and excluded from content
@@ -241,6 +244,7 @@ impl PreparedSourceFile {
             package_redirect_paths: Vec::new(),
             project_reference_source_paths: Vec::new(),
             real_path: None,
+            inclusion_reasons: Vec::new(),
             snapshot,
             // A prepared source is normally a direct program input. Loaders
             // that admit an external-library dependency retain that distinct
@@ -335,6 +339,17 @@ impl PreparedSourceFile {
     pub fn with_package_scope(mut self, package_json: CanonicalPath) -> Self {
         self.package_scope = Some(package_json);
         self
+    }
+
+    pub fn with_inclusion_reasons(mut self, reasons: Vec<crate::SourceInclusionReason>) -> Self {
+        self.inclusion_reasons = reasons;
+        self
+    }
+
+    /// Why the file is in the program (tsgo `fileIncludeReasons`), one
+    /// entry per occurrence.
+    pub fn inclusion_reasons(&self) -> &[crate::SourceInclusionReason] {
+        &self.inclusion_reasons
     }
 
     pub fn path(&self) -> &ProgramPath {
@@ -685,10 +700,6 @@ impl PackageMetadata {
     pub(crate) fn with_type_field_truthiness(mut self, value: bool) -> Self {
         self.type_field_truthiness = Some(value);
         self
-    }
-
-    pub(crate) const fn type_field_truthiness(&self) -> Option<bool> {
-        self.type_field_truthiness
     }
 
     fn compatible_with(&self, other: &Self) -> bool {
@@ -1534,9 +1545,25 @@ pub struct PreparedProgram {
     /// Every package.json the load's resolvers probed (see
     /// [`PreparedProgram::package_json_probes`]).
     package_json_probes: Vec<crate::PackageJsonProbe>,
+    /// The deduplicated package copies the load dropped (see
+    /// [`PreparedProgram::package_redirect_files`]).
+    package_redirect_files: Vec<PackageRedirectFile>,
     resolutions: ResolutionTable,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     diagnostics: PreparationDiagnostics,
+}
+
+/// A file of a package the load deduplicated (tsgo `redirectsFile`): it
+/// was parsed, its package identity belonged to `target`, and the program
+/// names its path for that file. `index` is its place in the program's
+/// file order (tsgo's explainFiles lists it there); `reasons` are its own
+/// include reasons.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PackageRedirectFile {
+    pub path: ProgramPath,
+    pub target: SourceFileId,
+    pub index: usize,
+    pub reasons: Vec<crate::SourceInclusionReason>,
 }
 
 impl PreparedProgram {
@@ -1603,6 +1630,12 @@ impl PreparedProgram {
     /// an incremental program's build info records as `packageJsons` (the
     /// found ones, by real path) and `missingPackageJsons` (the ones under
     /// `node_modules` it did not find).
+    /// The deduplicated package copies the load dropped, in collect order
+    /// (tsgo `redirectFilesByPath`).
+    pub fn package_redirect_files(&self) -> &[PackageRedirectFile] {
+        &self.package_redirect_files
+    }
+
     pub fn package_json_probes(&self) -> &[crate::PackageJsonProbe] {
         &self.package_json_probes
     }
@@ -1665,6 +1698,7 @@ pub struct PreparedProgramBuilder {
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
     package_json_probes: Vec<crate::PackageJsonProbe>,
+    package_redirect_files: Vec<PackageRedirectFile>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
@@ -1677,6 +1711,13 @@ impl PreparedProgramBuilder {
     /// [`PreparedProgram::package_json_probes`]).
     pub fn with_package_json_probes(mut self, probes: Vec<crate::PackageJsonProbe>) -> Self {
         self.package_json_probes = probes;
+        self
+    }
+
+    /// Record the deduplicated package copies the load dropped (see
+    /// [`PreparedProgram::package_redirect_files`]).
+    pub fn with_package_redirect_files(mut self, files: Vec<PackageRedirectFile>) -> Self {
+        self.package_redirect_files = files;
         self
     }
 
@@ -1714,6 +1755,7 @@ impl PreparedProgramBuilder {
             auxiliary_files: BTreeMap::new(),
             packages: BTreeMap::new(),
             package_json_probes: Vec::new(),
+            package_redirect_files: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
             dependency_symlink_resolutions: Vec::new(),
@@ -2223,6 +2265,7 @@ impl PreparedProgramBuilder {
             auxiliary_files: self.auxiliary_files,
             packages: self.packages,
             package_json_probes: self.package_json_probes,
+            package_redirect_files: self.package_redirect_files,
             resolutions: self.resolutions,
             dependency_symlink_resolutions: self.dependency_symlink_resolutions,
             diagnostics: self.diagnostics,
