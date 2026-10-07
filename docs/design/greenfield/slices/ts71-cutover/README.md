@@ -4476,3 +4476,11 @@ external／CommonJS module の implied format の行）を出す。`listFilesOnl
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、types／program／checker／compiler の
   `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（program 595 passed／0 failed、compiler 407／0、
   checker 1,797／0）。
+
+### P3-6eのhostedの記録とmerge（2026-10-07）
+
+- hosted：最終候補 `fa8631790`（feat `00414fd00` ＋ packet の記録）の run 37602850255（`plan` 30s、`rust` 10m36s、`conformance (TypeScript 7.1)` 12m37s、`gates` 11s。全て成功）。merge → `058a1bd9b`（merge commit）。
+- 計測（scenario oracle、conformance、crate test）は上の記録のとおり、merge前に最終bytes `00414fd00` で行った。性能は
+  計測していない（利用者の指示：性能はある程度完成してから制限なしで既存projectで計測する）。
+- scratchpad：`p36c/explain_scenarios.py`（7 scenario、`scenarios.py` が `SCENARIOS.update` で取り込む）、`p36e/probe-typeroots`
+  （typeRoots の packageId の tsgo probe）、`p36e/run3`（最終記録）。
