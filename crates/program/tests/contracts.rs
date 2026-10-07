@@ -35,6 +35,8 @@ mod module_suffixes_arbitrary_extension_contract;
 mod module_suffixes_contract;
 #[path = "integration/no_lib_program_loader_contract.rs"]
 mod no_lib_program_loader_contract;
+#[path = "integration/package_dedupe_contract.rs"]
+mod package_dedupe_contract;
 #[path = "integration/package_json_probes_contract.rs"]
 mod package_json_probes_contract;
 #[path = "integration/path_identity_contract.rs"]

@@ -11836,3 +11836,114 @@ use(tool);
         r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./lib/min.d.ts","./src/main.ts"],"fileInfos":[{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"0d45d9dc06ff3d477aa4b6076d827fa7","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"module":99,"target":9},"semanticDiagnosticsPerFile":[[2,[{"pos":293,"end":297,"code":2345,"category":1,"messageKey":"Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_2345","messageArgs":["{ name: string; auth: { type: string; }; }","Tool"],"messageChain":[{"pos":293,"end":297,"code":2326,"category":1,"messageKey":"Types_of_property_0_are_incompatible_2326","messageArgs":["auth"],"messageChain":[{"pos":293,"end":297,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["{ type: string; }","AuthUnion"],"messageChain":[{"pos":293,"end":297,"code":2741,"category":1,"messageKey":"Property_0_is_missing_in_type_1_but_required_in_type_2_2741","messageArgs":["securityScheme","{ type: string; }","Managed"],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}]]],"affectedFilesPendingEmit":[2]}"#
     );
 }
+
+#[test]
+fn build_info_of_collect_time_redirect_noemit_matches_tsgo() {
+    // tsgo filesparser.go: a path's package identity is the first one any
+    // task reaching it carried (:293-295) and package deduplication is
+    // decided when the files are collected, in program order (:448-481).
+    // Copy A's `sub.d.ts` enters through a path reference (no identity) and
+    // later takes `pkg@1.0.0/sub.d.ts` from `a2.ts`'s import, so copy B's
+    // `sub.d.ts` (reached first with that identity, but later in program
+    // order) is a redirect: tsgo's build info lists five files and `b.ts`
+    // references copy A's (fixture p36b/fx6/collect; bytes are tsgo's, with
+    // the TS2318 rows of a `noLib` program).
+    let tree = TempTree::new();
+    let mut files: Vec<(String, String)> = Vec::new();
+    for copy in ["a", "b"] {
+        files.push((
+            format!("{copy}/node_modules/pkg/package.json"),
+            r#"{"name":"pkg","version":"1.0.0"}"#.to_owned(),
+        ));
+        files.push((
+            format!("{copy}/node_modules/pkg/index.d.ts"),
+            "/// <reference path=\"./sub.d.ts\" />\nexport declare const main: number;\n"
+                .to_owned(),
+        ));
+        files.push((
+            format!("{copy}/node_modules/pkg/sub.d.ts"),
+            "export declare const sub: number;\n".to_owned(),
+        ));
+    }
+    files.push((
+        "a/src/a.ts".to_owned(),
+        "import { main } from \"pkg\";\nexport const a = main;\n".to_owned(),
+    ));
+    files.push((
+        "b/src/b.ts".to_owned(),
+        "import { sub } from \"pkg/sub\";\nexport const b = sub;\n".to_owned(),
+    ));
+    files.push((
+        "a/src/a2.ts".to_owned(),
+        "import { sub } from \"pkg/sub\";\nexport const a2 = sub;\n".to_owned(),
+    ));
+    files.push((
+        "tsconfig.json".to_owned(),
+        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","noLib":true,"types":[],"noEmit":true,"incremental":true},"files":["a/src/a.ts","b/src/b.ts","a/src/a2.ts"]}"#.to_owned(),
+    ));
+    let borrowed: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str()))
+        .collect();
+    write_fixture_files(&tree, &borrowed);
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        build_info_bytes(&tree, "tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[3,5]],"packageJsons":["./a/node_modules/pkg/package.json","./b/node_modules/pkg/package.json"],"missingPackageJsons":["./a/node_modules/pkg/sub/package.json","./b/node_modules/pkg/sub/package.json"],"fileNames":["./a/node_modules/pkg/sub.d.ts","./a/node_modules/pkg/index.d.ts","./a/src/a.ts","./b/src/b.ts","./a/src/a2.ts"],"fileInfos":["9744c3d8357dc6de5c7ce00592a6a601","3804f47b2facdaf212eb4e74c38ea536","ce0023f1da7d9c60eb0378d2be9ac03e","502b4f024ad6ff1d7a87a639ca218964","9df311128a38e5f81baf6040a66e0cf6"],"fileIdsList":[[1],[2]],"options":{"module":99,"target":9},"referencedMap":[[2,1],[3,2],[5,1],[4,1]],"semanticDiagnosticsPerFile":[1,2,3,4,5],"affectedFilesPendingEmit":[3,5,4]}"#
+    );
+}
+
+#[test]
+fn build_info_of_require_forms_noemit_matches_tsgo() {
+    // tsgo getReferencedFiles resolves an import literal through
+    // GetSymbolAtLocation, which names a module only for import/export
+    // declarations, `import()`, import types and a `require()` that
+    // initializes a variable declaration: `module.exports = require("dep")`
+    // in `a.cjs` references nothing, `const d = require("dep")` in `b.js`
+    // and the import in `c.ts` reference `dep` (fixture p36b2/fx-require;
+    // bytes are tsgo's, with the TS2318 rows of a `noLib` program).
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "node_modules/dep/package.json",
+                r#"{"name":"dep","version":"1.0.0","types":"index.d.ts"}"#,
+            ),
+            (
+                "node_modules/dep/index.d.ts",
+                "export declare const dep: number;\n",
+            ),
+            ("src/a.cjs", "module.exports = require('dep');\n"),
+            (
+                "src/b.js",
+                "const d = require('dep');\nmodule.exports = { d };\n",
+            ),
+            (
+                "src/c.ts",
+                "import { dep } from 'dep';\nexport const c = dep;\n",
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","allowJs":true,"noLib":true,"types":[],"noEmit":true,"incremental":true},"files":["src/a.cjs","src/b.js","src/c.ts"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        build_info_bytes(&tree, "tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[2,4]],"packageJsons":["./node_modules/dep/package.json"],"fileNames":["./node_modules/dep/index.d.ts","./src/a.cjs","./src/b.js","./src/c.ts"],"fileInfos":["2dabdee10acebf96189b37fe3be1315a","88028b575175d18570e57d94c08153fe","73291afeb6c98085791ba6774ecb2b64","d130ff0f75e433b1ddf0fec80ce6195e"],"fileIdsList":[[1]],"options":{"allowJs":true,"module":99,"target":9},"referencedMap":[[3,1],[4,1]],"semanticDiagnosticsPerFile":[1,2,3,4],"affectedFilesPendingEmit":[2,3,4]}"#
+    );
+}

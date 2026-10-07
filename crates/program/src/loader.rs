@@ -1321,9 +1321,6 @@ fn reject_unowned_drive_relative_path(
 enum VisitState {
     Visiting(usize),
     Complete(usize),
-    /// A distinct resolved path whose exact package identity redirects to the
-    /// first source admitted for that `PackageId`.
-    PackageRedirect(usize),
     /// A source file of a referenced project, loaded as its output
     /// declaration file (tsgo getParseFileRedirect): the source path names
     /// that output's staged source.
@@ -1336,17 +1333,13 @@ impl VisitState {
         match self {
             Self::Visiting(source)
             | Self::Complete(source)
-            | Self::PackageRedirect(source)
             | Self::ProjectReferenceRedirect(source) => Some(source),
             Self::Missing => None,
         }
     }
 
     const fn is_redirect(self) -> bool {
-        matches!(
-            self,
-            Self::PackageRedirect(_) | Self::ProjectReferenceRedirect(_)
-        )
+        matches!(self, Self::ProjectReferenceRedirect(_))
     }
 }
 
@@ -1509,6 +1502,11 @@ struct StagedSource {
     modules_with_elided_imports: bool,
     processing_references: bool,
     pending_reprocesses: VecDeque<SourceReprocess>,
+    /// The package identity of the first reason that carried one, whichever
+    /// reason admitted the source (tsgo filesparser.go:293-295: a path's task
+    /// data takes the first non-empty packageId of its tasks). Package
+    /// deduplication reads it when the files are collected.
+    package_id: Option<PackageId>,
 }
 
 impl StagedSource {
@@ -1549,6 +1547,44 @@ struct StagedRoot {
     path: ProgramPath,
     source: Option<usize>,
     missing_diagnostic: Option<Diagnostic>,
+}
+
+/// The state of the collect walk (see `StagedGraph::collect_files`).
+struct CollectWalk {
+    deduplicate_packages: bool,
+    seen: Vec<bool>,
+    registered: BTreeMap<PackageId, usize>,
+    order: Vec<usize>,
+    redirects: Vec<(usize, usize)>,
+    /// The entered sources with the index of their next edge to walk.
+    stack: Vec<(usize, usize)>,
+}
+
+impl CollectWalk {
+    /// tsgo collectFiles for one task: register its package identity or
+    /// redirect it to the identity's owner (then its subtasks are not walked).
+    fn enter(&mut self, sources: &[StagedSource], source: usize) {
+        self.seen[source] = true;
+        if self.deduplicate_packages {
+            if let Some(package_id) = sources[source].package_id.as_ref() {
+                if let Some(&owner) = self.registered.get(package_id) {
+                    self.redirects.push((source, owner));
+                    return;
+                }
+                self.registered.insert(package_id.clone(), source);
+            }
+        }
+        self.stack.push((source, 0));
+    }
+}
+
+/// What the collect walk decided (see `StagedGraph::collect_files`).
+struct CollectedFiles {
+    /// The kept sources in program order (each after its subtasks).
+    order: Vec<usize>,
+    /// `(source, owner)`: the source's package identity belongs to `owner`,
+    /// which was entered earlier; the source is dropped as a redirect.
+    redirects: Vec<(usize, usize)>,
 }
 
 /// A root source read ahead of its sequential visit; see
@@ -1840,12 +1876,17 @@ struct StagedGraph<'host, 'options, 'resolver> {
     library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
     resolved_library_paths: BTreeMap<String, ProgramPath>,
     states: FxHashMap<CanonicalPath, VisitState>,
-    package_id_to_source: BTreeMap<PackageId, usize>,
+    /// The sources the walk started at the top level, in order (tsgo's root
+    /// tasks: root files, then the libraries and the automatic type
+    /// directives' targets): the collect walk starts from them.
+    top_level_sources: Vec<usize>,
     files_by_name_ignore_case: FxHashMap<JsString, usize>,
     case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
     source_edges: Vec<Vec<(usize, bool)>>,
-    postorder: Vec<usize>,
+    /// The kept sources in program order, once the files are collected
+    /// (`finish`); the diagnostics located by program order read it.
+    program_order: Vec<usize>,
     roots: Vec<StagedRoot>,
     module_resolution_by_key: rustc_hash::FxHashMap<ResolutionKey, usize>,
     module_resolutions: Vec<StagedModuleResolution>,
@@ -1927,12 +1968,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             library_resolver: config.library_resolver,
             resolved_library_paths: BTreeMap::new(),
             states: FxHashMap::default(),
-            package_id_to_source: BTreeMap::new(),
+            top_level_sources: Vec::new(),
             files_by_name_ignore_case: FxHashMap::default(),
             case_sensitive_casing_conflicts: Vec::new(),
             sources: Vec::new(),
             source_edges: Vec::new(),
-            postorder: Vec::new(),
+            program_order: Vec::new(),
             roots: Vec::new(),
             module_resolution_by_key: rustc_hash::FxHashMap::default(),
             module_resolutions: Vec::new(),
@@ -3602,6 +3643,62 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     }
 
     fn finish(mut self) -> CompleteGraph {
+        let collected = self.collect_files();
+        self.program_order = collected.order.clone();
+        let mut kept = vec![false; self.sources.len()];
+        for &source in &collected.order {
+            kept[source] = true;
+        }
+        // A redirected copy's path names the owner of its package identity
+        // and its reasons are the owner's (tsgo filesByPath[task.path] =
+        // packageIdFile, redirectTargetsMap); its own subtree was not walked.
+        let mut redirect_targets: FxHashMap<usize, usize> = FxHashMap::default();
+        for &(source, target) in &collected.redirects {
+            redirect_targets.insert(source, target);
+            let reasons = std::mem::take(&mut self.sources[source].inclusion_reasons);
+            let has_non_external_reason = self.sources[source].has_non_external_reason;
+            let path = self.sources[source].prepared.path().clone();
+            let owner = &mut self.sources[target];
+            owner.prepared.remember_package_redirect(path);
+            owner.inclusion_reasons.extend(reasons);
+            owner.has_non_external_reason |= has_non_external_reason;
+        }
+        for root in &mut self.roots {
+            if let Some(source) = root.source {
+                if let Some(&target) = redirect_targets.get(&source) {
+                    root.source = Some(target);
+                }
+            }
+        }
+        self.project_reference_redirects = std::mem::take(&mut self.project_reference_redirects)
+            .into_iter()
+            .filter_map(|(path, source)| match redirect_targets.get(&source) {
+                Some(&target) => Some((path, target)),
+                None => kept[source].then_some((path, source)),
+            })
+            .collect();
+        // Only a collected file's resolutions are the program's (tsgo
+        // resolvedModules[path] = task.resolutionsInFile inside the collect
+        // walk): the rows of a redirected copy and of a source reached only
+        // through one are dropped with it.
+        let dropped_paths = self
+            .sources
+            .iter()
+            .enumerate()
+            .filter(|(source, _)| !kept[*source])
+            .map(|(_, source)| source.prepared.path().canonical().clone())
+            .collect::<rustc_hash::FxHashSet<_>>();
+        if !dropped_paths.is_empty() {
+            self.module_resolutions
+                .retain(|resolution| !dropped_paths.contains(resolution.key.source()));
+            self.type_resolutions
+                .retain(|resolution| match resolution.key.origin() {
+                    crate::resolution::TypeReferenceResolutionOrigin::Source(source) => {
+                        !dropped_paths.contains(source)
+                    }
+                    crate::resolution::TypeReferenceResolutionOrigin::Automatic(_) => true,
+                });
+        }
         if self
             .compiler_options
             .force_consistent_casing_in_file_names_effective()
@@ -3609,7 +3706,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let casing_diagnostics = self
                 .sources
                 .iter()
-                .flat_map(|source| {
+                .enumerate()
+                .filter(|(source, _)| kept[*source])
+                .flat_map(|(_, source)| {
                     source
                         .alternate_inclusion_reasons
                         .iter()
@@ -3658,8 +3757,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.program_diagnostics
             .extend(self.project_reference_diagnostics());
         self.program_diagnostics.extend(root_diagnostics);
-        let mut library_postorder = self
-            .postorder
+        let mut library_postorder = collected
+            .order
             .iter()
             .copied()
             .filter(|&source| self.sources[source].library_priority.is_some())
@@ -3682,8 +3781,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 )
             });
         }
-        let ordinary_postorder = self
-            .postorder
+        let ordinary_postorder = collected
+            .order
             .iter()
             .copied()
             .filter(|&source| self.sources[source].library_priority.is_none())
@@ -3835,7 +3934,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         } else {
             return Vec::new();
         };
-        self.postorder
+        self.program_order
             .iter()
             .find_map(|&index| {
                 let source = &self.sources[index];
@@ -3893,7 +3992,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let current_directory = context.current_directory().display();
         let case_sensitive = context.use_case_sensitive_file_names();
         let emitted = self
-            .postorder
+            .program_order
             .iter()
             .map(|&index| &self.sources[index])
             .filter(|source| {
@@ -4116,6 +4215,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         reason: DiscoveryReason,
         class: SourceClass,
     ) -> Result<Option<usize>, ProgramLoadError> {
+        let source = self.visit_source_inner(path, depth, node_modules_depth, reason, class)?;
+        if depth == 0 {
+            if let Some(source) = source {
+                self.top_level_sources.push(source);
+            }
+        }
+        Ok(source)
+    }
+
+    fn visit_source_inner(
+        &mut self,
+        path: ProgramPath,
+        depth: usize,
+        node_modules_depth: usize,
+        reason: DiscoveryReason,
+        class: SourceClass,
+    ) -> Result<Option<usize>, ProgramLoadError> {
         if let Some(state) = self.states.get(path.canonical()).copied() {
             if let Some(source) = state.source() {
                 self.observe_existing_source(
@@ -4225,35 +4341,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 source,
             )
         })?;
-        // tsgo keeps the package-id map only while `deduplicatePackages` is
-        // not `false` (compiler/filesparser.go:362-368).
-        let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
-        if let Some(package_id) = reason.package_id.as_ref().filter(|_| deduplicate_packages) {
-            if let Some(source) = self.package_id_to_source.get(package_id).copied() {
-                // TypeScript calls host.getSourceFile before consulting the
-                // package-id map, so retain read/decode failure precedence and
-                // byte accounting even though this second AST is not admitted
-                // to the Rust parser/binder program.
-                self.total_source_bytes = total_source_bytes;
-                self.sources[source]
-                    .prepared
-                    .remember_package_redirect(path.clone());
-                self.states.insert(
-                    path.canonical().clone(),
-                    VisitState::PackageRedirect(source),
-                );
-                self.observe_existing_source(
-                    source,
-                    &path,
-                    depth,
-                    node_modules_depth,
-                    &reason,
-                    class,
-                    true,
-                )?;
-                return Ok(Some(source));
-            }
-        }
+        // Package deduplication is decided when the files are collected
+        // (`collect_files`), as tsgo's parse tasks load every copy and its
+        // subtasks and the collect walk redirects the later copies.
         let package_scope = self
             .resolver
             .package_scope_for_file(path.display())
@@ -4397,6 +4487,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             modules_with_elided_imports: false,
             processing_references: false,
             pending_reprocesses: VecDeque::new(),
+            package_id: reason.package_id.clone(),
         });
         // The joint bound over admitted sources and retained read-ahead
         // payloads holds after every admission (see prefetch_roots).
@@ -4408,9 +4499,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.total_source_bytes + self.reserved_bytes <= self.limits.max_total_source_bytes,
             "retained read-ahead payloads exceed the total-byte limit"
         );
-        if let Some(package_id) = reason.package_id.clone().filter(|_| deduplicate_packages) {
-            self.package_id_to_source.insert(package_id, source);
-        }
         if self.resolver.path_context().use_case_sensitive_file_names() {
             let path_lower_case = crate::js_path::file_name_lower_case(path.canonical().as_js());
             if let Some(&existing_source) = self.files_by_name_ignore_case.get(&path_lower_case) {
@@ -4450,7 +4538,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
 
         self.states
             .insert(path.canonical().clone(), VisitState::Complete(source));
-        self.postorder.push(source);
         Ok(Some(source))
     }
 
@@ -4513,6 +4600,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let staged = &mut self.sources[source];
             staged.inclusion_reasons.push(reason.inclusion.clone());
             staged.has_non_external_reason |= reason.seeds_non_external_reachability;
+            if staged.package_id.is_none() {
+                staged.package_id = reason.package_id.clone();
+            }
             if staged.found_searching_node_modules && node_modules_depth == 0 {
                 // tsc clears both latches before recursively processing the
                 // source again. A cycle can therefore observe the promoted
@@ -4790,7 +4880,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         &[] as &[String],
                     )?);
                 }
-                Some(_) => {}
+                // A library reference is a subtask of the file (tsgo
+                // parseTask.load): the collect walk reaches the library
+                // through it. It is not an edge of non-external reachability.
+                Some(target_source) => self.record_source_edge(source, target_source, true),
                 None => {
                     self.program_diagnostics.push(located_diagnostic(
                         &self.sources[source].prepared,
@@ -5478,6 +5571,48 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         crosses_external_library_boundary: bool,
     ) {
         self.source_edges[source].push((target, crosses_external_library_boundary));
+    }
+
+    /// tsgo filesParser.getProcessedFiles collectFiles
+    /// (compiler/filesparser.go:380-491): the walk over the root tasks'
+    /// subtasks that orders the program's files (each after its subtasks) and
+    /// decides package deduplication on the way — the first source entered
+    /// with a package identity owns it, a later source with the same
+    /// identity becomes a redirect to the owner and its subtasks are not
+    /// walked through it. Each source is entered once (tsgo's `seen`).
+    fn collect_files(&self) -> CollectedFiles {
+        // tsgo keeps the package-id map only while `deduplicatePackages` is
+        // not `false` (compiler/filesparser.go:362-368).
+        let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
+        let mut walk = CollectWalk {
+            deduplicate_packages,
+            seen: vec![false; self.sources.len()],
+            registered: BTreeMap::new(),
+            order: Vec::with_capacity(self.sources.len()),
+            redirects: Vec::new(),
+            stack: Vec::new(),
+        };
+        for &root in &self.top_level_sources {
+            if walk.seen[root] {
+                continue;
+            }
+            walk.enter(&self.sources, root);
+            while let Some(&mut (source, ref mut next)) = walk.stack.last_mut() {
+                if let Some(&(child, _)) = self.source_edges[source].get(*next) {
+                    *next += 1;
+                    if !walk.seen[child] {
+                        walk.enter(&self.sources, child);
+                    }
+                } else {
+                    walk.stack.pop();
+                    walk.order.push(source);
+                }
+            }
+        }
+        CollectedFiles {
+            order: walk.order,
+            redirects: walk.redirects,
+        }
     }
 
     fn propagate_non_external_reachability(&mut self) {

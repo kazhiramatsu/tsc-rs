@@ -47,6 +47,14 @@ pub struct IncrementalCheckFacts {
 #[derive(Default)]
 struct ModuleReferences {
     imports: Vec<NodeId>,
+    /// The imports whose literal tsgo's GetSymbolAtLocation resolves as a
+    /// module (checker.go getSymbolAtLocation, the string-literal case):
+    /// the module names of import/export declarations and of
+    /// `import x = require()`, `import()` calls, import types, and a
+    /// `require()` that initializes a variable declaration. A `require()`
+    /// elsewhere (`module.exports = require("x")`) resolves no symbol, so
+    /// the build info's referencedMap does not record it.
+    symbol_imports: Vec<NodeId>,
     /// The `declare module "x"` / `declare global` declarations of an
     /// external module file (and the non-relative ones nested in an
     /// ambient module).
@@ -124,6 +132,31 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                         && is_string_literal_like(source, argument)
                     {
                         references.imports.push(argument);
+                        // tsgo IsVariableDeclarationInitializedToRequire: the
+                        // call initializes the variable declaration above it.
+                        let initializes_variable = node.parent.is_some_and(|parent| match &source
+                            .arena
+                            .node(parent)
+                            .data
+                        {
+                            NodeData::VariableDeclaration(declaration) => {
+                                declaration.initializer.is_some_and(|initializer| {
+                                    match &source.arena.node(initializer).data {
+                                        NodeData::CallExpression(initializer_call) => {
+                                            initializer_call.arguments.is_some_and(|arguments| {
+                                                source.arena.node_array(arguments).nodes.first()
+                                                    == Some(&argument)
+                                            })
+                                        }
+                                        _ => false,
+                                    }
+                                })
+                            }
+                            _ => false,
+                        });
+                        if !require_call || initializes_variable {
+                            references.symbol_imports.push(argument);
+                        }
                     }
                 }
                 NodeData::ImportType(import_type) => {
@@ -134,6 +167,7 @@ fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleRef
                         if let Some(literal) = literal_type.literal {
                             if source.arena.node(literal).kind == SyntaxKind::StringLiteral {
                                 references.imports.push(literal);
+                                references.symbol_imports.push(literal);
                             }
                         }
                     }
@@ -175,6 +209,7 @@ fn collect_module_reference(
                         || !CheckerState::is_external_module_name_relative(literal.text.as_js()))
                 {
                     references.imports.push(name);
+                    references.symbol_imports.push(name);
                 }
             }
         }
@@ -264,7 +299,7 @@ fn referenced_files(
             }
         }
     };
-    for &import in &references.imports {
+    for &import in &references.symbol_imports {
         // GetSymbolAtLocation of a module specifier: resolveExternalModuleName
         // with errors ignored.
         if let Ok(Some(symbol)) = state.resolve_external_module_name(import, import, true) {
