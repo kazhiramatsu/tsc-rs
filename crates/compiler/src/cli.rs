@@ -24,6 +24,7 @@ use tsc_diagnostics::{
 };
 use tsc_diagnostics::{gen, JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
+use tsc_incremental::OldState;
 use tsc_program::{
     decode_host_text, is_non_fatal_option_diagnostic,
     load_config_program_with_no_emit_override_and_overrides, load_config_program_with_overrides,
@@ -1075,12 +1076,20 @@ fn execute_config(
         .filter(|diagnostic| is_non_fatal_option_diagnostic(diagnostic))
         .cloned()
         .collect::<Vec<_>>();
+    // tsgo ReadBuildInfoProgram: the command reads the old build info of an
+    // incremental program before it compiles.
+    let old_build_info = crate::incremental::read_old_build_info(
+        host,
+        &prepared,
+        &catalog.directory().to_string_lossy(),
+    );
     execute_prepared(
         current_directory,
         source_texts,
         prepared,
         &option_diagnostics,
         route,
+        old_build_info,
     )
 }
 
@@ -1111,7 +1120,19 @@ fn execute_explicit_files(
             Arc::clone(source.snapshot()),
         );
     }
-    execute_prepared(current_directory, source_texts, prepared, &[], route)
+    let old_build_info = crate::incremental::read_old_build_info(
+        host,
+        &prepared,
+        &catalog.directory().to_string_lossy(),
+    );
+    execute_prepared(
+        current_directory,
+        source_texts,
+        prepared,
+        &[],
+        route,
+        old_build_info,
+    )
 }
 
 fn execute_prepared(
@@ -1120,6 +1141,7 @@ fn execute_prepared(
     prepared: tsc_program::PreparedProgram,
     additional_diagnostics: &[Diagnostic],
     route: &mut CliRoute<'_>,
+    old_build_info: Option<OldState>,
 ) -> Result<CliOutput, CliError> {
     if prepared.mode() == PreparedProgramMode::Emit {
         return execute_emitting_prepared(
@@ -1128,6 +1150,7 @@ fn execute_prepared(
             prepared,
             additional_diagnostics,
             route,
+            old_build_info,
         );
     }
     let session_started = std::time::Instant::now();
@@ -1144,6 +1167,7 @@ fn execute_prepared(
         .with_leaked_program(true)
         .with_command_options_diagnostics(!additional_diagnostics.is_empty())
         .with_command_build_info()
+        .with_old_build_info(old_build_info)
         .run_no_emit_pass(false, tsc_checker::LibraryPrefixCompletion::Complete, true)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check session", session_started);
@@ -1260,6 +1284,7 @@ fn execute_emitting_prepared(
     prepared: tsc_program::PreparedProgram,
     additional_diagnostics: &[Diagnostic],
     route: &mut CliRoute<'_>,
+    old_build_info: Option<OldState>,
 ) -> Result<CliOutput, CliError> {
     // The real filesystem is stateless: its artifacts are written on the
     // worker budget; an injected (observing) filesystem keeps ordered writes.
@@ -1279,6 +1304,7 @@ fn execute_emitting_prepared(
         .with_worker_budget(cli_worker_budget())
         .with_checker_budget(cli_checker_budget())
         .with_leaked_program(true)
+        .with_old_build_info(old_build_info)
         .emit_for_cli(sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check + emit session", session_started);

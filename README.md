@@ -82,15 +82,15 @@ type-checks it. Two differences matter when you switch:
   `compilerOptions`. The accepted flags are listed under
   [common command-line options](#common-command-line-options).
 - `--noEmit` cannot be combined with the emit flags `--target`, `--module`,
-  `--newLine`, `--emitBOM`, `--listEmittedFiles` and `--noEmitOnError`;
-  keep those settings in `tsconfig.json` as well. The type check reads the
-  whole file, including `rootDir` and `declaration`, and writes nothing.
+  `--newLine`, `--emitBOM` and `--noEmitOnError`; keep those settings in
+  `tsconfig.json` as well. The type check reads the whole file, including
+  `rootDir` and `declaration`, and writes nothing but the build info of an
+  `incremental` project (`--listEmittedFiles` lists it).
 
 Watch mode and `--build` are not supported; a project with `references`
 compiles against the built outputs of the referenced projects, and an
-`incremental` or `composite` project writes its `.tsbuildinfo` as `tsgo`
-does but does not reuse it yet; see the
-[current limitations](#current-limitations).
+`incremental` or `composite` project writes and reuses its `.tsbuildinfo`
+as `tsgo` does; see the [current limitations](#current-limitations).
 
 To switch an npm project:
 
@@ -284,12 +284,13 @@ Remove the added line from `main.ts` before continuing with the examples.
 The `--noEmit` project command reads the same configuration file as a
 build, including output settings such as `outDir`, `rootDir`, `sourceMap`
 and `declaration`. As with `tsc --noEmit`, declaration settings still
-produce declaration diagnostics; no files are written.
+produce declaration diagnostics; no files are written apart from an
+`incremental` project's build info.
 
 Emit settings cannot be overridden on the command line together with
 `--noEmit -p`: flags such as `--target`, `--module`, `--newLine`,
-`--emitBOM`, `--listEmittedFiles` and `--noEmitOnError` are rejected with
-an error on that route. Put those settings in `tsconfig.json`. The example
+`--emitBOM` and `--noEmitOnError` are rejected with an error on that
+route. Put those settings in `tsconfig.json`. The example
 project can be checked at any point with `tsc-rs --noEmit -p .`, including
 after adding the source map and [declaration](#declaration-files) settings
 below.
@@ -876,9 +877,9 @@ The measurements above are a quick interleaved run on one machine, not the
 project's formal protocol. For repeatable measurements with recorded
 provenance, exact output verification before timing, several sessions and
 confidence intervals, see [docs/benchmarking.md](docs/benchmarking.md) and
-`scripts/benchmark-cli.py`. Watch mode and `--build` are not supported, an
-incremental build does not yet reuse its previous build info, and
-cold-cache, Linux and Windows timings were not measured.
+`scripts/benchmark-cli.py`. Watch mode and `--build` are not supported,
+incremental rebuilds were not timed, and cold-cache, Linux and Windows
+timings were not measured.
 
 ## Run CI
 
@@ -958,9 +959,11 @@ runs are listed under the repository's Actions tab.
 - The command runs one compilation at a time. Watch mode and `--build` are
   not supported. A project with `references` reads the referenced projects'
   built outputs (it does not build them), and an `incremental` or
-  `composite` project writes the same `.tsbuildinfo` as `tsgo` but every
-  compilation is a first build: the previous build info is not read, so
-  nothing is skipped.
+  `composite` project writes the same `.tsbuildinfo` as `tsgo` and reuses
+  it on the next compilation as `tsgo` does: files the build info still
+  covers are not checked again, only the files whose output may have
+  changed are emitted, and the build info is rewritten only when it
+  changed.
 - `--noEmit -p` does not accept command-line emit overrides such as
   `--target` or `--module`; see the
   [configuration for type checks](#configuration-for-type-checks).

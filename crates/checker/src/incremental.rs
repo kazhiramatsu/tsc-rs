@@ -7,11 +7,12 @@
 use std::collections::BTreeSet;
 
 use tsc_binder::node_util;
-use tsc_diagnostics::DiagnosticList;
+use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{JsString, ModifierFlags, NodeFlags};
+use tsc_types::{JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::program::ProgramFileId;
+use crate::emit::CheckerSession;
+use crate::program::{ProgramFileId, ProgramSnapshot};
 use crate::state::CheckerState;
 
 /// What the build info records for one Program file.
@@ -33,6 +34,53 @@ pub struct IncrementalFileFacts {
     pub affects_global_scope: bool,
     /// tsgo `SkipTypeChecking(file, false)`.
     pub skipped: bool,
+    /// The include-processor rows located in the file (the program's
+    /// file-located diagnostics after its comment directives), which the
+    /// program appends to a file's semantic rows (tsgo
+    /// `GetIncludeProcessorDiagnostics`; empty for a skipped file).
+    pub program_rows: Vec<Diagnostic>,
+    /// The file's module symbol exports a const enum, directly or through an
+    /// alias declared in the file (tsgo affectedfileshandler.go's
+    /// `invalidateJsFiles`).
+    pub exports_const_enum: bool,
+}
+
+/// The plan an incremental program's planner returns before the check: the
+/// files the check covers, per snapshot document (the library prefix
+/// included); empty means every file.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct IncrementalPlan {
+    pub check: Vec<bool>,
+}
+
+/// The incremental program's planner (tsgo `programToSnapshot` and
+/// `collectAllAffectedFiles`): runs over the initialized checker session
+/// before any source is checked, with every file's module facts and whether
+/// tsgo's semantic getter runs (the syntactic, options and global gates are
+/// open), and restricts the checked files.
+pub type IncrementalPlanner<'p> = dyn FnMut(&ProgramSnapshot, &CheckerSession<'_>, &[IncrementalFileFacts], bool) -> IncrementalPlan
+    + 'p;
+
+/// What an incremental program asks of the check.
+pub struct IncrementalRequest<'p> {
+    /// Collect every file's [`IncrementalFileFacts`].
+    pub facts: bool,
+    pub planner: Option<&'p mut IncrementalPlanner<'p>>,
+}
+
+impl<'p> IncrementalRequest<'p> {
+    /// Nothing: not an incremental program.
+    pub const NONE: IncrementalRequest<'static> = IncrementalRequest {
+        facts: false,
+        planner: None,
+    };
+
+    pub fn facts_only(facts: bool) -> Self {
+        Self {
+            facts,
+            planner: None,
+        }
+    }
 }
 
 /// The facts of every Program file, in Program order.
@@ -343,7 +391,59 @@ fn referenced_files(
     referenced.into_iter().collect()
 }
 
-/// The facts of one file except its semantic rows.
+/// tsgo affectedfileshandler.go `handleDtsMayChangeOfAffectedFile`'s const
+/// enum test: the file's module symbol exports a const enum, or an alias
+/// (`SkipAlias`) of one declared in the file.
+fn exports_const_enum(state: &mut CheckerState<'_>, file: usize) -> bool {
+    let root = state.binder.source(file).root;
+    let Some(symbol) = state.binder.node_symbol(root) else {
+        return false;
+    };
+    let exported = state
+        .binder
+        .symbol(symbol)
+        .exports()
+        .values()
+        .copied()
+        .collect::<Vec<_>>();
+    for export in exported {
+        if state
+            .binder
+            .symbol(export)
+            .flags
+            .contains(SymbolFlags::CONST_ENUM)
+        {
+            return true;
+        }
+        // tsgo SkipAlias: only an alias is resolved.
+        if !state
+            .binder
+            .symbol(export)
+            .flags
+            .contains(SymbolFlags::ALIAS)
+        {
+            continue;
+        }
+        let Ok(aliased) = state.resolve_alias(export) else {
+            continue;
+        };
+        if aliased == export {
+            continue;
+        }
+        let aliased_symbol = state.binder.symbol(aliased);
+        if aliased_symbol.flags.contains(SymbolFlags::CONST_ENUM)
+            && aliased_symbol
+                .declarations
+                .iter()
+                .any(|&declaration| state.binder.file_index_of_node(declaration) == file)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// The facts of one file except its semantic rows and its program rows.
 pub(crate) fn file_facts_without_rows(
     state: &mut CheckerState<'_>,
     file: usize,
@@ -361,11 +461,30 @@ pub(crate) fn file_facts_without_rows(
         u32::try_from(file).expect("program file index"),
     ));
     let referenced_files = referenced_files(state, file, &references);
+    let exports_const_enum = exports_const_enum(state, file);
     IncrementalFileFacts {
         semantic_rows: None,
         referenced_files,
         path_references,
         affects_global_scope,
         skipped,
+        program_rows: Vec::new(),
+        exports_const_enum,
     }
+}
+
+/// The facts the planner receives: every file's module facts and program
+/// rows, before any source is checked.
+pub(crate) fn planner_facts(
+    state: &mut CheckerState<'_>,
+    program_diagnostics: &[Diagnostic],
+) -> Vec<IncrementalFileFacts> {
+    (0..state.binder.file_count())
+        .map(|file| {
+            let mut facts = file_facts_without_rows(state, file);
+            facts.program_rows =
+                crate::program_rows_for_file(state.binder.source(file), program_diagnostics);
+            facts
+        })
+        .collect()
 }

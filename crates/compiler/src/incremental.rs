@@ -1,30 +1,39 @@
 //! The build info of an incremental program (tsgo `execute/incremental`):
-//! the Program's facts, the checker's per-file facts and the emit's
-//! declaration outputs assembled into the document `tsc_incremental`
-//! serializes, and the sink wrapper that hashes the declaration files as
-//! they are written (tsgo's emit signatures).
+//! the old build info read back, the Program's facts, the checker's per-file
+//! facts and the emit's declaration outputs driven through the snapshot
+//! `tsc_incremental` keeps (`IncrementalDriver`), and the sink wrapper that
+//! hashes the declaration files as they are written (tsgo's emit
+//! signatures, and the skipped write of a composite project's unchanged
+//! declaration file).
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-use tsc_checker::{IncrementalCheckFacts, IncrementalFileFacts};
+use tsc_checker::emit::CheckerSession;
+use tsc_checker::{IncrementalCheckFacts, IncrementalFileFacts, IncrementalPlan, ProgramSnapshot};
 use tsc_diagnostics::{
     by_code, Diagnostic, DiagnosticCategory, JsStr, JsString, MessageChain, RelatedInfo,
 };
 use tsc_emitter::{
-    EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitIoError, EmitOutcome,
-    EmitWriteDisposition, EmitWriteMetadata, OutputSink, SharedOutputSink,
+    EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitIoError, EmitOutcome, EmitPreflight,
+    EmitWriteDisposition, EmitWriteMetadata, ForcedDeclarationEmitter, ForcedDeclarationOutput,
+    OutputSink, SharedOutputSink, UnitEmitRequest,
 };
+use tsc_host::CompilerHost;
+use tsc_incremental::options::{emit_declarations, is_incremental};
 use tsc_incremental::{
-    build_fresh_build_info, compute_hash, BuildInfoDiagnostic, DeclarationEmitFacts,
-    DeclarationOutput, FileState, FreshSnapshotInput, ProgramFileFacts, ProgramState,
+    compute_hash, declaration_write_decision, ensure_path_is_non_module_name, fresh_emit_updates,
+    BuildInfo, BuildInfoDiagnostic, CachedDiagnostic, CachedRows, DeclarationEmit,
+    DeclarationEmitFacts, DeclarationOutput, EmitUpdate, FileEmitKind, FileState, OldState,
+    OldStatePaths, ProgramFileFacts, ProgramState, Snapshot,
 };
 use tsc_program::{
-    PackageJsonType, PreparedProgram, ResolutionOutcome, TypeReferenceResolutionOrigin,
+    PackageJsonType, PreparedProgram, ResolutionOutcome, SourceFileId,
+    TypeReferenceResolutionOrigin,
 };
 
-use crate::ProgramDiagnostics;
+use crate::{CheckedEmitHost, EmitRouteKind, PreparedEmitHost, ProgramDiagnostics, SourceApiFacts};
 
 /// A build info document ready to be written: tsgo `emitBuildInfo`'s file
 /// name and `json.Marshal` bytes.
@@ -57,19 +66,36 @@ impl CommandDiagnosticFacts {
 
     /// tsgo asks for the semantic diagnostics (and so caches them) only
     /// when the syntactic, options and global diagnostics are empty.
-    fn semantic_cached(self) -> bool {
+    pub(crate) fn semantic_cached(self) -> bool {
         !self.syntactic && !self.options && !self.global
     }
 }
 
-/// One declaration file the emit wrote: the source it was emitted from, the
-/// output file and the signature (the hash of the text up to its source map
-/// comment).
+/// One declaration file the emit produced: the source it was emitted from,
+/// the output file and the signature (the hash of the text up to its
+/// source map comment).
 #[derive(Clone, Debug)]
 pub(crate) struct DeclarationRecord {
     source: JsString,
     output: JsString,
     signature: String,
+}
+
+/// The byte length of `text` up to a UTF-16 position (tsgo
+/// `getTextHandlingSourceMapForSignature`: the text before its
+/// `sourceMappingURL` comment).
+fn byte_cut(text: &str, utf16_position: Option<u32>) -> usize {
+    let Some(position) = utf16_position else {
+        return text.len();
+    };
+    let mut units = 0u32;
+    for (offset, ch) in text.char_indices() {
+        if units >= position {
+            return offset;
+        }
+        units += ch.len_utf16() as u32;
+    }
+    text.len()
 }
 
 fn record_of(artifact: &EmitArtifact) -> Option<DeclarationRecord> {
@@ -78,19 +104,13 @@ fn record_of(artifact: &EmitArtifact) -> Option<DeclarationRecord> {
     }
     let source = artifact.source_files()?.first()?.clone();
     let text = artifact.callback_text();
-    let mut cut = text.len();
-    if let Some(EmitWriteMetadata::Text(metadata)) = artifact.metadata() {
-        if let Some(position) = metadata.source_map_url_position() {
-            let mut units = 0u32;
-            for (offset, ch) in text.char_indices() {
-                if units >= position.value() {
-                    cut = offset;
-                    break;
-                }
-                units += ch.len_utf16() as u32;
-            }
-        }
-    }
+    let position = match artifact.metadata() {
+        Some(EmitWriteMetadata::Text(metadata)) => metadata
+            .source_map_url_position()
+            .map(|position| position.value()),
+        _ => None,
+    };
+    let cut = byte_cut(text, position);
     Some(DeclarationRecord {
         source,
         output: artifact.path().to_owned(),
@@ -98,9 +118,28 @@ fn record_of(artifact: &EmitArtifact) -> Option<DeclarationRecord> {
     })
 }
 
+/// The old emit signatures of a composite project's files, by the source's
+/// name as the emit names it: the hash and whether it is in the plain form
+/// (tsgo `skipDtsOutputOfComposite` reads them in the write hook).
+pub(crate) type CompositeSignatures = HashMap<JsString, (String, bool)>;
+
+fn skip_declaration_write(
+    composite: Option<&CompositeSignatures>,
+    record: &DeclarationRecord,
+) -> bool {
+    let Some(composite) = composite else {
+        return false;
+    };
+    let old = composite
+        .get(&record.source)
+        .map(|(signature, plain)| (signature.as_str(), *plain));
+    declaration_write_decision(true, old, &record.signature).skip
+}
+
 /// The shared half of [`SignatureRecordingSink`].
 pub(crate) struct RecordingSharedSink<'s> {
     inner: &'s dyn SharedOutputSink,
+    composite: Option<Arc<CompositeSignatures>>,
     records: Mutex<Vec<DeclarationRecord>>,
     writes: AtomicUsize,
 }
@@ -109,21 +148,27 @@ impl SharedOutputSink for RecordingSharedSink<'_> {
     fn write_shared(&self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
         self.writes.fetch_add(1, Ordering::Relaxed);
         if let Some(record) = record_of(&artifact) {
+            let skip = skip_declaration_write(self.composite.as_deref(), &record);
             self.records
                 .lock()
                 .expect("declaration records are never poisoned")
                 .push(record);
+            if skip {
+                return Ok(EmitWriteDisposition::SkippedUnchanged);
+            }
         }
         self.inner.write_shared(artifact)
     }
 }
 
 /// An output sink that records the signature of every declaration file
-/// written through it (tsgo `emitFilesHandler.getEmitOptions`' write hook)
-/// and forwards the write.
+/// written through it (tsgo `emitFilesHandler.getEmitOptions`' write hook),
+/// skips the write of a composite project's unchanged declaration file
+/// (`skipDtsOutputOfComposite`) and forwards the other writes.
 pub(crate) struct SignatureRecordingSink<'s> {
     ordered: Option<&'s mut dyn OutputSink>,
     shared: Option<RecordingSharedSink<'s>>,
+    composite: Option<Arc<CompositeSignatures>>,
     eager_source_roots: bool,
     records: Vec<DeclarationRecord>,
     writes: usize,
@@ -131,6 +176,14 @@ pub(crate) struct SignatureRecordingSink<'s> {
 
 impl<'s> SignatureRecordingSink<'s> {
     pub(crate) fn new(sink: &'s mut dyn OutputSink) -> Self {
+        Self::with_composite_signatures(sink, None)
+    }
+
+    pub(crate) fn with_composite_signatures(
+        sink: &'s mut dyn OutputSink,
+        composite: Option<CompositeSignatures>,
+    ) -> Self {
+        let composite = composite.map(Arc::new);
         let eager_source_roots = sink.writes_source_roots_eagerly();
         if sink.shared().is_some() {
             let shared = sink
@@ -140,9 +193,11 @@ impl<'s> SignatureRecordingSink<'s> {
                 ordered: None,
                 shared: Some(RecordingSharedSink {
                     inner: shared,
+                    composite: composite.clone(),
                     records: Mutex::new(Vec::new()),
                     writes: AtomicUsize::new(0),
                 }),
+                composite,
                 eager_source_roots,
                 records: Vec::new(),
                 writes: 0,
@@ -151,6 +206,7 @@ impl<'s> SignatureRecordingSink<'s> {
             Self {
                 ordered: Some(sink),
                 shared: None,
+                composite,
                 eager_source_roots,
                 records: Vec::new(),
                 writes: 0,
@@ -158,7 +214,8 @@ impl<'s> SignatureRecordingSink<'s> {
         }
     }
 
-    /// Every declaration file written so far, in write order.
+    /// Every declaration file produced so far (written or skipped as
+    /// unchanged), in write order.
     pub(crate) fn records(&self) -> Vec<DeclarationRecord> {
         let mut records = self.records.clone();
         if let Some(shared) = &self.shared {
@@ -207,7 +264,11 @@ impl OutputSink for SignatureRecordingSink<'_> {
         }
         self.writes += 1;
         if let Some(record) = record_of(&artifact) {
+            let skip = skip_declaration_write(self.composite.as_deref(), &record);
             self.records.push(record);
+            if skip {
+                return Ok(EmitWriteDisposition::SkippedUnchanged);
+            }
         }
         self.ordered
             .as_mut()
@@ -268,55 +329,582 @@ pub(crate) fn build_info_file_name(prepared: &PreparedProgram) -> Option<JsStrin
     )
 }
 
-/// The document of a `--noEmit` command.
-pub(crate) fn no_emit_build_info(
-    prepared: &PreparedProgram,
-    facts: &IncrementalCheckFacts,
-    command: CommandDiagnosticFacts,
-    declaration_diagnostics: Option<&[Diagnostic]>,
-) -> Option<BuildInfoDocument> {
-    let file_name = build_info_file_name(prepared)?;
-    let assembly = Assembly::new(prepared, facts, &file_name);
-    let declaration_rows = declaration_diagnostics.map(|rows| assembly.rows_by_file(rows));
-    let state = FileState::NoEmit {
-        declaration_diagnostics: declaration_rows.as_deref(),
-    };
-    Some(assembly.document(file_name, command, state))
+fn directory_of(path: &str) -> String {
+    match path.rfind('/') {
+        Some(0) => "/".to_owned(),
+        Some(index) => path[..index].to_owned(),
+        None => String::new(),
+    }
 }
 
-/// The document of an emitting command, after its emit.
-pub(crate) fn emit_build_info(
+/// tsgo `ReadBuildInfoProgram` (execute/incremental/incremental.go): the
+/// state of the program's old build info, when the file exists, parses, is
+/// of this version and holds an incremental program. `default_library_
+/// directory` names the default libraries the document records by their
+/// bare names.
+pub fn read_old_build_info(
+    host: &dyn CompilerHost,
     prepared: &PreparedProgram,
-    facts: &IncrementalCheckFacts,
-    command: CommandDiagnosticFacts,
-    emit: &EmitOutcome,
-    records: &[DeclarationRecord],
-    wrote_anything: bool,
-) -> Option<BuildInfoDocument> {
+    default_library_directory: &str,
+) -> Option<OldState> {
+    if !is_incremental(prepared.compiler_options()) {
+        return None;
+    }
     let file_name = build_info_file_name(prepared)?;
-    let assembly = Assembly::new(prepared, facts, &file_name);
-    let mut declaration_outputs = vec![None; assembly.file_count()];
-    for record in records {
-        if let Some(index) = assembly.index_of(record.source.as_js()) {
-            declaration_outputs[index] = Some(DeclarationOutput {
-                signature: record.signature.clone(),
-                output_file_name: record.output.to_string_lossy().into_owned(),
-            });
+    let bytes = host.read_file_js(file_name.as_js()).ok()??;
+    let text = String::from_utf8_lossy(&bytes);
+    let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
+    let info = BuildInfo::from_json(text)?;
+    if !info.is_valid_version() || !info.is_incremental() {
+        return None;
+    }
+    let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
+    let directory = directory_of(&file_name.to_string_lossy());
+    let absolute = |name: &str, directory: &str| {
+        tsc_program::normalize_absolute_js_path_lexical(name.into(), Some(directory.into()))
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| name.to_owned())
+    };
+    let canonical = |name: &str, directory: &str| {
+        let absolute = absolute(name, directory);
+        if case_sensitive {
+            absolute
+        } else {
+            tsc_host::to_file_name_lower_case_js(absolute.as_str().into())
+                .to_string_lossy()
+                .into_owned()
+        }
+    };
+    Some(OldState::from_build_info(
+        &info,
+        &OldStatePaths {
+            build_info_directory: &directory,
+            default_library_directory,
+            canonical: &canonical,
+            absolute: &absolute,
+        },
+    ))
+}
+
+/// When tsgo runs `collectAllAffectedFiles` in this command: in its semantic
+/// getter (when the checker's gates let it run and `noCheck` is off), and in
+/// its emit (unless `noEmitOnError` stops the emit before the files are
+/// emitted).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AffectedPolicy {
+    /// The command emits.
+    pub(crate) emits: bool,
+    /// The command reports program (options) rows, which close tsgo's
+    /// semantic getter (the checker's planner gate sees the syntactic and
+    /// global rows only).
+    pub(crate) options_diagnostics: bool,
+}
+
+struct DriverState {
+    snapshot: Snapshot,
+    /// The planner's facts (every file's module facts and program rows).
+    facts: Vec<IncrementalFileFacts>,
+    /// A global row the check deferred into a file's rows.
+    deferred_global_rows: bool,
+}
+
+/// tsgo `incremental.Program` for one command: the snapshot over the old
+/// state, fed by the checker's planner hook, the check's rows, the
+/// declaration getter and the emit, and the build info they produce.
+pub(crate) struct IncrementalDriver<'p> {
+    prepared: &'p PreparedProgram,
+    old: Option<Arc<OldState>>,
+    /// The host the planner's declaration signatures are computed over;
+    /// `None` without an old state (no signature is computed then).
+    emit_host: Option<PreparedEmitHost<'p>>,
+    build_info_file_name: Option<JsString>,
+    policy: AffectedPolicy,
+    state: Mutex<Option<DriverState>>,
+}
+
+impl<'p> IncrementalDriver<'p> {
+    pub(crate) fn new(
+        prepared: &'p PreparedProgram,
+        old: Option<Arc<OldState>>,
+        emit_route: EmitRouteKind,
+        source_api_facts: &std::collections::BTreeMap<SourceFileId, SourceApiFacts>,
+        policy: AffectedPolicy,
+    ) -> Self {
+        let emit_host = old
+            .is_some()
+            .then(|| PreparedEmitHost::new_for_route(prepared, emit_route, source_api_facts).ok())
+            .flatten();
+        Self {
+            prepared,
+            old,
+            emit_host,
+            build_info_file_name: build_info_file_name(prepared),
+            policy,
+            state: Mutex::new(None),
         }
     }
-    let emit_facts = DeclarationEmitFacts {
-        skipped: emit.emit_skipped() && !wrote_anything,
-        declaration_outputs,
-        emit_diagnostics: assembly.rows_by_file(emit.diagnostics()),
-    };
-    Some(assembly.document(file_name, command, FileState::Emit(&emit_facts)))
+
+    fn state(&self) -> MutexGuard<'_, Option<DriverState>> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The checker's planner hook (tsgo `programToSnapshot` and
+    /// `collectAllAffectedFiles`): the snapshot over the old state, the
+    /// affected files handled with their declaration signatures, and the
+    /// files the check covers.
+    pub(crate) fn planner(
+        &self,
+    ) -> impl FnMut(
+        &ProgramSnapshot,
+        &CheckerSession<'_>,
+        &[IncrementalFileFacts],
+        bool,
+    ) -> IncrementalPlan
+           + '_ {
+        move |snapshot: &ProgramSnapshot,
+              session: &CheckerSession<'_>,
+              facts: &[IncrementalFileFacts],
+              check_runs: bool| {
+            let Some(file_name) = &self.build_info_file_name else {
+                return IncrementalPlan::default();
+            };
+            let assembly = Assembly::new(self.prepared, facts, file_name);
+            let options = self.prepared.compiler_options();
+            let mut snap = Snapshot::new(assembly.program_state(), self.old.as_deref());
+            let check_runs = check_runs && !self.policy.options_diagnostics;
+            let no_check = options.no_check == Some(true);
+            let no_emit_on_error = options.no_emit_on_error == Some(true);
+            // The emit runs unless noEmitOnError meets a gated check.
+            let emit_runs = self.policy.emits && (check_runs || !no_emit_on_error);
+            let run_affected = (check_runs && !no_check) || emit_runs;
+            let trace = std::env::var_os("TSRS_INCREMENTAL_TRACE").is_some();
+            if trace {
+                eprintln!(
+                    "[incremental] old state: {}, check runs: {check_runs}, emits: {}, affected handling: {run_affected}, changed: {}",
+                    self.old.is_some(),
+                    self.policy.emits,
+                    snap.has_changed_files()
+                );
+            }
+            if run_affected && snap.has_changed_files() {
+                let checked_host = self.emit_host.as_ref().map(|host| CheckedEmitHost {
+                    prepared: host,
+                    snapshot,
+                    prepared_sources: None,
+                });
+                let emitter = checked_host
+                    .as_ref()
+                    .and_then(|host| ForcedDeclarationEmitter::new(host).ok());
+                if trace && emitter.is_none() {
+                    eprintln!(
+                        "[incremental] no forced declaration emitter: signatures use the versions"
+                    );
+                }
+                let mut signature_of = |file: usize| -> Option<String> {
+                    let host = checked_host.as_ref()?;
+                    let emitter = emitter.as_ref()?;
+                    let source = self.prepared.source_files().get(file)?;
+                    let id = self.prepared.source_id(source.path().canonical())?;
+                    let output = session
+                        .with_emit_resolver(|resolver| emitter.emit(resolver, host, id))
+                        .ok()??;
+                    let signature = assembly.declaration_signature(file, &output);
+                    if trace {
+                        eprintln!(
+                            "[incremental] signature of {}: {signature} ({} bytes, map url at {:?}, {} diagnostics)",
+                            source.path().display().to_string_lossy(),
+                            output.text.len(),
+                            output.source_map_url_position,
+                            output.diagnostics.len()
+                        );
+                    }
+                    Some(signature)
+                };
+                let mut exports_const_enum = |file: usize| {
+                    facts
+                        .get(file)
+                        .is_some_and(|facts| facts.exports_const_enum)
+                };
+                snap.collect_all_affected_files(&mut signature_of, &mut exports_const_enum);
+            }
+            let check = snap.files_without_rows();
+            if trace {
+                for (index, source) in self.prepared.source_files().iter().enumerate() {
+                    let pending = snap.pending_emit_kind(index);
+                    if check[index] || pending != FileEmitKind::NONE {
+                        eprintln!(
+                            "[incremental] {}: check {}, pending emit {pending}",
+                            source.path().display().to_string_lossy(),
+                            check[index]
+                        );
+                    }
+                }
+            }
+            *self.state() = Some(DriverState {
+                snapshot: snap,
+                facts: facts.to_vec(),
+                deferred_global_rows: false,
+            });
+            IncrementalPlan { check }
+        }
+    }
+
+    /// tsgo's commit of the semantic getter: the rows the check produced
+    /// for the files it covered, when the command asked for the semantic
+    /// diagnostics (`rows_cached`; nothing is cached under `noCheck` or
+    /// when an earlier gate closed the getter).
+    pub(crate) fn store_check(&self, facts: &IncrementalCheckFacts, rows_cached: bool) {
+        let Some(file_name) = &self.build_info_file_name else {
+            return;
+        };
+        let mut guard = self.state();
+        let state = guard.get_or_insert_with(|| {
+            let assembly = Assembly::new(self.prepared, &facts.files, file_name);
+            DriverState {
+                snapshot: Snapshot::new(assembly.program_state(), self.old.as_deref()),
+                facts: facts.files.clone(),
+                deferred_global_rows: false,
+            }
+        });
+        if rows_cached {
+            let assembly = Assembly::new(self.prepared, &facts.files, file_name);
+            for (index, file) in facts.files.iter().enumerate() {
+                let Some(rows) = &file.semantic_rows else {
+                    continue;
+                };
+                if rows.iter().any(|row| row.file_name.is_none()) {
+                    state.deferred_global_rows = true;
+                }
+                state.snapshot.store_fresh_rows(
+                    index,
+                    rows.iter().map(|row| assembly.cached(index, row)).collect(),
+                );
+            }
+        }
+        state.snapshot.finish_check();
+    }
+
+    /// The semantic diagnostics of the files the check did not cover, from
+    /// the old state (tsgo `getSemanticDiagnosticsOfFile` from the cache:
+    /// the rows after the `noEmit` filter, then the file's include-processor
+    /// rows); none under `noCheck` (tsgo's getter returns nothing then).
+    pub(crate) fn cached_semantic_diagnostics(&self) -> Vec<Diagnostic> {
+        if self.prepared.compiler_options().no_check == Some(true) {
+            return Vec::new();
+        }
+        let guard = self.state();
+        let (Some(state), Some(file_name)) = (guard.as_ref(), &self.build_info_file_name) else {
+            return Vec::new();
+        };
+        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        let no_emit = self.prepared.compiler_options().no_emit == Some(true);
+        let mut diagnostics = Vec::new();
+        for index in 0..self.prepared.source_files().len() {
+            let Some(rows) = state.snapshot.cached_rows(index) else {
+                continue;
+            };
+            diagnostics.extend(
+                rows.iter()
+                    .filter(|row| !(no_emit && row.skipped_on_no_emit))
+                    .map(|row| assembly.to_diagnostic(index, row)),
+            );
+            if let Some(facts) = state.facts.get(index) {
+                if !facts.skipped {
+                    diagnostics.extend(facts.program_rows.iter().cloned());
+                }
+            }
+        }
+        diagnostics
+    }
+
+    /// The files whose declaration diagnostics the command computes (tsgo
+    /// `emitFilesIncremental(isForDtsErrors)`: the pending ones with the
+    /// errors bit), per Program file; `None` without an old state (every
+    /// file).
+    pub(crate) fn declaration_file_filter(&self) -> Option<Vec<bool>> {
+        self.old.as_ref()?;
+        let guard = self.state();
+        let state = guard.as_ref()?;
+        Some(
+            state
+                .snapshot
+                .program()
+                .files
+                .iter()
+                .enumerate()
+                .map(|(index, file)| {
+                    file.may_be_emitted
+                        && state.snapshot.pending_emit_kind(index) & FileEmitKind::DTS_ERRORS != 0
+                })
+                .collect(),
+        )
+    }
+
+    /// The declaration getter's results committed (tsgo
+    /// `emitFilesIncremental(isForDtsErrors)`): the rows of the files it
+    /// covered are cached; the rows cached for the other files are returned
+    /// for the report.
+    pub(crate) fn record_declaration_diagnostics(&self, rows: &[Diagnostic]) -> Vec<Diagnostic> {
+        let mut guard = self.state();
+        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
+            return Vec::new();
+        };
+        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        let by_file = assembly.rows_by_file(rows);
+        if self.old.is_none() {
+            let (updates, deleted) = fresh_emit_updates(
+                &state.snapshot,
+                FileState::NoEmit {
+                    declaration_diagnostics: Some(&by_file),
+                },
+            );
+            state.snapshot.record_emit(updates, &deleted);
+            return Vec::new();
+        }
+        let files = &state.snapshot.program().files;
+        let mut updates = Vec::new();
+        let mut deleted = Vec::new();
+        let mut updated = BTreeSet::new();
+        for (index, file) in files.iter().enumerate() {
+            let pending = state.snapshot.pending_emit_kind(index);
+            if pending == FileEmitKind::NONE {
+                continue;
+            }
+            if !file.may_be_emitted {
+                deleted.push(index);
+                continue;
+            }
+            if pending & FileEmitKind::DTS_ERRORS != 0 {
+                updated.insert(index);
+                updates.push(EmitUpdate {
+                    file: index,
+                    emitted_kind: FileEmitKind::DTS_ERRORS,
+                    from_cache: false,
+                    diagnostics: by_file.get(index).cloned().unwrap_or_default(),
+                    declaration: None,
+                });
+            }
+        }
+        // Get updated errors that were not included in affected files emit
+        let mut from_cache = Vec::new();
+        for (index, file) in files.iter().enumerate() {
+            if updated.contains(&index) {
+                continue;
+            }
+            let Some(rows) = state.snapshot.emit_rows(index) else {
+                continue;
+            };
+            if !file.may_be_emitted {
+                deleted.push(index);
+                continue;
+            }
+            match rows {
+                CachedRows::Old(rows) => {
+                    from_cache.extend(rows.iter().map(|row| assembly.to_diagnostic(index, row)))
+                }
+                CachedRows::New(_) => {}
+            }
+        }
+        state.snapshot.record_emit(updates, &deleted);
+        from_cache
+    }
+
+    /// The units the emit covers and which of their members (tsgo
+    /// `emitFilesIncremental` over the pending files); `None` without an
+    /// old state (the whole plan).
+    pub(crate) fn unit_requests(&self, preflight: &EmitPreflight) -> Option<Vec<UnitEmitRequest>> {
+        self.old.as_ref()?;
+        let guard = self.state();
+        let state = guard.as_ref()?;
+        let declarations = emit_declarations(self.prepared.compiler_options());
+        let files = &state.snapshot.program().files;
+        let mut requests = Vec::new();
+        for (unit_index, unit) in preflight.plan().units().iter().enumerate() {
+            let mut javascript = false;
+            let mut declaration = false;
+            for &id in unit.root().source_files() {
+                let index = id.index();
+                if !files.get(index).is_some_and(|file| file.may_be_emitted) {
+                    continue;
+                }
+                let kind = state.snapshot.pending_emit_kind(index);
+                javascript |= kind & FileEmitKind::ALL_JS != 0;
+                declaration |= declarations && kind & FileEmitKind::ALL_DTS != 0;
+            }
+            if javascript || declaration {
+                requests.push(UnitEmitRequest {
+                    unit: unit_index,
+                    javascript,
+                    declaration,
+                });
+            }
+        }
+        Some(requests)
+    }
+
+    /// The old emit signatures of a composite project's files for the
+    /// recording sink (tsgo `computeProgramFileChanges`' copy of the old
+    /// emit signatures, as `skipDtsOutputOfComposite` reads them); `None`
+    /// for other programs.
+    pub(crate) fn composite_signatures(&self) -> Option<CompositeSignatures> {
+        let old = self.old.as_deref()?;
+        let options = self.prepared.compiler_options();
+        if options.composite != Some(true)
+            || tsc_incremental::options::affects_declaration_path(&old.options, options)
+        {
+            return None;
+        }
+        let old_map = old.options.declaration_map == Some(true);
+        let new_map = options.declaration_map == Some(true);
+        let mut signatures = HashMap::new();
+        for source in self.prepared.source_files() {
+            let canonical = source.path().canonical().as_js().to_string_lossy();
+            if let Some(signature) = old.emit_signatures.get(canonical.as_ref()) {
+                let signature = signature.for_new_options(old_map, new_map);
+                signatures.insert(
+                    source.path().display().to_owned(),
+                    (signature.value().to_owned(), signature.is_plain()),
+                );
+            }
+        }
+        Some(signatures)
+    }
+
+    /// The emit committed (tsgo `emitFilesHandler.updateSnapshot`):
+    /// `requests` and `preflight` name the units emitted (the whole plan
+    /// without an old state).
+    pub(crate) fn record_emit(
+        &self,
+        emit: &EmitOutcome,
+        records: &[DeclarationRecord],
+        wrote_anything: bool,
+        requests: Option<(&[UnitEmitRequest], &EmitPreflight)>,
+    ) {
+        let mut guard = self.state();
+        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
+            return;
+        };
+        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        let file_count = assembly.file_count();
+        let mut declaration_outputs = vec![None; file_count];
+        for record in records {
+            if let Some(index) = assembly.index_of(record.source.as_js()) {
+                declaration_outputs[index] = Some(DeclarationOutput {
+                    signature: record.signature.clone(),
+                    output_file_name: record.output.to_string_lossy().into_owned(),
+                });
+            }
+        }
+        let emit_rows = assembly.rows_by_file(emit.diagnostics());
+        if self.old.is_none() {
+            let facts = DeclarationEmitFacts {
+                skipped: emit.emit_skipped() && !wrote_anything,
+                declaration_outputs,
+                emit_diagnostics: emit_rows,
+            };
+            let (updates, deleted) = fresh_emit_updates(&state.snapshot, FileState::Emit(&facts));
+            state.snapshot.record_emit(updates, &deleted);
+            return;
+        }
+        if emit.emit_skipped() && !wrote_anything {
+            // HandleNoEmitOptions stopped the emit: nothing changes.
+            return;
+        }
+        let Some((requests, preflight)) = requests else {
+            return;
+        };
+        let files = &state.snapshot.program().files;
+        let mut updates = Vec::new();
+        let mut seen = BTreeSet::new();
+        for request in requests {
+            for &id in preflight.plan().units()[request.unit].root().source_files() {
+                let index = id.index();
+                if !seen.insert(index) || index >= file_count {
+                    continue;
+                }
+                updates.push(EmitUpdate {
+                    file: index,
+                    emitted_kind: state.snapshot.pending_emit_kind(index),
+                    from_cache: false,
+                    diagnostics: emit_rows.get(index).cloned().unwrap_or_default(),
+                    declaration: declaration_outputs[index].as_ref().map(|output| {
+                        DeclarationEmit {
+                            signature: output.signature.clone(),
+                            output_file_name: output.output_file_name.clone(),
+                        }
+                    }),
+                });
+            }
+        }
+        let deleted = files
+            .iter()
+            .enumerate()
+            .filter(|(index, file)| {
+                !file.may_be_emitted
+                    && state.snapshot.pending_emit_kind(*index) != FileEmitKind::NONE
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        state.snapshot.record_emit(updates, &deleted);
+    }
+
+    /// tsgo `ensureHasErrorsForState`'s non-cached errors: the command's
+    /// diagnostics, a global row the check deferred into a file's rows, or
+    /// an include-processor row located in a file that is checked.
+    fn has_errors_outside_cache(
+        &self,
+        state: &DriverState,
+        command: CommandDiagnosticFacts,
+    ) -> bool {
+        if command.config || command.syntactic || command.options || command.global {
+            return true;
+        }
+        if state.deferred_global_rows && command.semantic_cached() {
+            return true;
+        }
+        let Some(file_name) = &self.build_info_file_name else {
+            return false;
+        };
+        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        self.prepared
+            .diagnostics()
+            .program()
+            .iter()
+            .any(|diagnostic| {
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .and_then(|name| assembly.index_of(name.as_js()))
+                    .is_some_and(|index| !state.facts.get(index).is_some_and(|facts| facts.skipped))
+            })
+    }
+
+    /// tsgo `emitBuildInfo` up to the write: the document when the state
+    /// changed since the old build info.
+    pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {
+        let file_name = self.build_info_file_name.clone()?;
+        let mut guard = self.state();
+        let state = guard.as_mut()?;
+        let outside = self.has_errors_outside_cache(state, command);
+        let info = state.snapshot.to_build_info(outside)?;
+        Some(BuildInfoDocument {
+            file_name,
+            text: info.to_json(),
+        })
+    }
 }
 
+/// The Program's facts and the conversions between the compiler's
+/// diagnostics and the build info's rows (tsgo `toBuildInfo` and
+/// `buildInfoDiagnosticWithFileName.toDiagnostic`).
 struct Assembly<'p> {
     prepared: &'p PreparedProgram,
-    facts: &'p IncrementalCheckFacts,
+    facts: &'p [IncrementalFileFacts],
     build_info_file_name: String,
     index_by_name: HashMap<JsString, usize>,
+    index_by_canonical: HashMap<String, usize>,
     /// The `type` of every package.json the program read, by canonical path.
     package_types: HashMap<&'p tsc_program::CanonicalPath, PackageJsonType>,
 }
@@ -324,7 +912,7 @@ struct Assembly<'p> {
 impl<'p> Assembly<'p> {
     fn new(
         prepared: &'p PreparedProgram,
-        facts: &'p IncrementalCheckFacts,
+        facts: &'p [IncrementalFileFacts],
         file_name: &JsString,
     ) -> Self {
         let index_by_name = prepared
@@ -332,6 +920,22 @@ impl<'p> Assembly<'p> {
             .iter()
             .enumerate()
             .map(|(index, source)| (source.path().display().to_owned(), index))
+            .collect();
+        let index_by_canonical = prepared
+            .source_files()
+            .iter()
+            .enumerate()
+            .map(|(index, source)| {
+                (
+                    source
+                        .path()
+                        .canonical()
+                        .as_js()
+                        .to_string_lossy()
+                        .into_owned(),
+                    index,
+                )
+            })
             .collect();
         let package_types = prepared
             .packages()
@@ -342,6 +946,7 @@ impl<'p> Assembly<'p> {
             facts,
             build_info_file_name: file_name.to_string_lossy().into_owned(),
             index_by_name,
+            index_by_canonical,
             package_types,
         }
     }
@@ -355,7 +960,7 @@ impl<'p> Assembly<'p> {
     }
 
     fn file_facts(&self, index: usize) -> Option<&IncrementalFileFacts> {
-        self.facts.files.get(index)
+        self.facts.get(index)
     }
 
     /// The offset of a UTF-16 position in the file's UTF-8 text (tsgo's
@@ -368,12 +973,40 @@ impl<'p> Assembly<'p> {
             .unwrap_or(position)
     }
 
+    /// The UTF-16 position of a byte offset in the file's text.
+    fn utf16_position(&self, file: usize, offset: u32) -> u32 {
+        self.prepared.source_files()[file]
+            .snapshot()
+            .positions()
+            .byte_to_utf16(offset)
+            .unwrap_or(offset)
+    }
+
     fn category(category: DiagnosticCategory) -> u32 {
         match category {
             DiagnosticCategory::Warning => 0,
             DiagnosticCategory::Error => 1,
             DiagnosticCategory::Suggestion => 2,
             DiagnosticCategory::Message => 3,
+        }
+    }
+
+    fn category_of(category: u32) -> DiagnosticCategory {
+        match category {
+            0 => DiagnosticCategory::Warning,
+            1 => DiagnosticCategory::Error,
+            2 => DiagnosticCategory::Suggestion,
+            _ => DiagnosticCategory::Message,
+        }
+    }
+
+    /// tsgo `diagnostics.Category.Name`.
+    fn category_name(category: DiagnosticCategory) -> &'static str {
+        match category {
+            DiagnosticCategory::Warning => "warning",
+            DiagnosticCategory::Error => "error",
+            DiagnosticCategory::Suggestion => "suggestion",
+            DiagnosticCategory::Message => "message",
         }
     }
 
@@ -489,27 +1122,177 @@ impl<'p> Assembly<'p> {
         rows
     }
 
-    /// The rows the program cached per file: the checker's rows when the
-    /// command asked for the semantic diagnostics, nothing otherwise.
-    fn semantic_rows(
-        &self,
-        command: CommandDiagnosticFacts,
-    ) -> Vec<Option<Vec<BuildInfoDiagnostic>>> {
-        // tsgo GetSemanticDiagnostics caches nothing under noCheck.
-        let no_check = self.prepared.compiler_options().no_check == Some(true);
-        (0..self.file_count())
-            .map(|index| {
-                if !command.semantic_cached() || no_check {
-                    return None;
-                }
-                let rows = self.file_facts(index)?.semantic_rows.as_ref()?;
-                Some(
-                    rows.iter()
-                        .map(|diagnostic| self.cached(index, diagnostic))
-                        .collect(),
+    /// tsgo `buildInfoDiagnosticWithFileName.toDiagnostic`: a cached row
+    /// stored under file `owner` as the compiler's diagnostic (its message
+    /// formatted from the catalog message and the recorded arguments).
+    fn to_diagnostic(&self, owner: usize, row: &CachedDiagnostic) -> Diagnostic {
+        let file = if row.no_file {
+            None
+        } else {
+            match &row.file {
+                Some(path) => self.index_by_canonical.get(path).copied(),
+                None => Some(owner),
+            }
+        };
+        let (file_name, start, length) = match file {
+            Some(index) => {
+                let start = self.utf16_position(index, row.pos);
+                let end = self.utf16_position(index, row.end);
+                (
+                    Some(
+                        self.prepared.source_files()[index]
+                            .path()
+                            .display()
+                            .to_owned(),
+                    ),
+                    Some(start),
+                    Some(end.saturating_sub(start)),
                 )
-            })
-            .collect()
+            }
+            None => (None, None, None),
+        };
+        Diagnostic {
+            file_name,
+            start,
+            length,
+            message: self.message_of(owner, row),
+            related_information_present: !row.related_information.is_empty(),
+            related: row
+                .related_information
+                .iter()
+                .map(|related| self.related_of(owner, related))
+                .collect(),
+            reports_unnecessary: row.reports_unnecessary.then_some(true),
+            reports_deprecated: row.reports_deprecated.then_some(true),
+            source: (!row.source.is_empty()).then(|| row.source.clone()),
+            skipped_on_no_emit: row.skipped_on_no_emit,
+        }
+    }
+
+    fn message_of(&self, owner: usize, row: &CachedDiagnostic) -> MessageChain {
+        let category = Self::category_of(row.category);
+        let mut message = match by_code(row.code) {
+            Some(message) if !row.message_key.is_empty() => {
+                MessageChain::new(message, &row.message_args)
+            }
+            _ => MessageChain {
+                code: row.code,
+                category,
+                text: JsString::from(row.message_text.as_str()),
+                key: None,
+                args: row
+                    .message_args
+                    .iter()
+                    .map(|arg| JsString::from(arg.as_str()))
+                    .collect(),
+                next_present: false,
+                next: Vec::new(),
+                related: Vec::new(),
+            },
+        };
+        message.code = row.code;
+        message.category = category;
+        if !row.message_chain.is_empty() {
+            message = message.with_next(
+                row.message_chain
+                    .iter()
+                    .map(|chain| self.message_of(owner, chain))
+                    .collect(),
+            );
+        }
+        message.related = row
+            .related_information
+            .iter()
+            .map(|related| self.related_of(owner, related))
+            .collect();
+        message
+    }
+
+    fn related_of(&self, owner: usize, row: &CachedDiagnostic) -> RelatedInfo {
+        let diagnostic = self.to_diagnostic(owner, row);
+        RelatedInfo {
+            file_name: diagnostic.file_name,
+            start: diagnostic.start,
+            length: diagnostic.length,
+            message: diagnostic.message,
+        }
+    }
+
+    /// tsgo `computeSignatureWithDiagnostics`: the hash of a file's forced
+    /// declaration text (before its source map comment) followed by its
+    /// declaration diagnostics (`diagnosticToStringBuilder`).
+    fn declaration_signature(&self, file: usize, output: &ForcedDeclarationOutput) -> String {
+        let cut = byte_cut(&output.text, output.source_map_url_position);
+        let mut builder = output.text[..cut].to_owned();
+        for diagnostic in &output.diagnostics {
+            self.diagnostic_to_string(file, diagnostic, &mut builder);
+        }
+        compute_hash(builder.as_bytes())
+    }
+
+    fn diagnostic_to_string(&self, file: usize, diagnostic: &Diagnostic, builder: &mut String) {
+        let located = diagnostic
+            .file_name
+            .as_ref()
+            .and_then(|name| self.index_of(name.as_js()))
+            .map(|index| (index, diagnostic.start, diagnostic.length));
+        self.entry_to_string(file, &diagnostic.message, located, builder);
+        for related in &diagnostic.related {
+            let located = related
+                .file_name
+                .as_ref()
+                .and_then(|name| self.index_of(name.as_js()))
+                .map(|index| (index, related.start, related.length));
+            self.entry_to_string(file, &related.message, located, builder);
+        }
+    }
+
+    /// One entry of `diagnosticToStringBuilder`; a chain entry carries its
+    /// head's file and location (tsgo `NewDiagnosticChain`).
+    fn entry_to_string(
+        &self,
+        file: usize,
+        message: &MessageChain,
+        located: Option<(usize, Option<u32>, Option<u32>)>,
+        builder: &mut String,
+    ) {
+        builder.push('\n');
+        if let Some((index, start, length)) = located {
+            if index != file {
+                let sources = self.prepared.source_files();
+                let from =
+                    directory_of(&sources[file].path().canonical().as_js().to_string_lossy());
+                let relative = tsc_program::relative_path_from_directory(
+                    from.as_str().into(),
+                    sources[index].path().canonical().as_js(),
+                    self.prepared.path_context().use_case_sensitive_file_names(),
+                );
+                builder.push_str(&ensure_path_is_non_module_name(&relative.to_string_lossy()));
+            }
+            let start = start.unwrap_or(0);
+            let pos = self.byte_offset(index, start);
+            let end = self.byte_offset(index, start.saturating_add(length.unwrap_or(0)));
+            builder.push_str(&format!("({pos},{}): ", end.saturating_sub(pos)));
+        }
+        builder.push_str(Self::category_name(message.category));
+        builder.push_str(&format!("{}: ", message.code));
+        builder.push_str(message.key.unwrap_or(""));
+        builder.push('\n');
+        for arg in &message.args {
+            builder.push_str(&arg.to_string_lossy());
+            builder.push('\n');
+        }
+        for chain in &message.next {
+            self.entry_to_string(file, chain, located, builder);
+        }
+        for related in &message.related {
+            let located = related
+                .file_name
+                .as_ref()
+                .and_then(|name| self.index_of(name.as_js()))
+                .map(|index| (index, related.start, related.length));
+            self.entry_to_string(file, &related.message, located, builder);
+        }
     }
 
     /// tsgo `SourceFileMetaData.ImpliedNodeFormat` as the program stores
@@ -648,6 +1431,7 @@ impl<'p> Assembly<'p> {
         let prepared = self.prepared;
         let sources = prepared.source_files();
         let library_count = prepared.library_files().len();
+        let options = prepared.compiler_options();
         let files = sources
             .iter()
             .enumerate()
@@ -657,6 +1441,20 @@ impl<'p> Assembly<'p> {
                 let default_library_name =
                     (index < library_count && base.starts_with("lib.") && base.ends_with(".d.ts"))
                         .then_some(base);
+                let lower = display.to_ascii_lowercase();
+                let is_declaration_file = lower.ends_with(".d.ts")
+                    || lower.ends_with(".d.mts")
+                    || lower.ends_with(".d.cts");
+                let is_default_library = default_library_name.is_some();
+                // tsgo SkipTypeChecking(file, ignoreNoCheck=true): the
+                // checker's fact (which honors noCheck) when noCheck is
+                // unset, else the library-check rules alone.
+                let type_checking_skipped_ignoring_no_check = if options.no_check == Some(true) {
+                    (options.skip_lib_check == Some(true) && is_declaration_file)
+                        || (options.skip_default_lib_check == Some(true) && is_default_library)
+                } else {
+                    self.file_facts(index).is_some_and(|facts| facts.skipped)
+                };
                 ProgramFileFacts {
                     path: source
                         .path()
@@ -672,6 +1470,9 @@ impl<'p> Assembly<'p> {
                     implied_node_format: self.stored_implied_node_format(index),
                     may_be_emitted: source.may_be_emitted(),
                     is_json: display.ends_with(".json"),
+                    is_declaration_file,
+                    is_default_library,
+                    type_checking_skipped_ignoring_no_check,
                 }
             })
             .collect();
@@ -709,7 +1510,7 @@ impl<'p> Assembly<'p> {
             files,
             roots,
             referenced_files: self.referenced_files(),
-            options: prepared.compiler_options().clone(),
+            options: options.clone(),
             build_info_file_name: self.build_info_file_name.clone(),
             current_directory: prepared
                 .current_directory()
@@ -720,62 +1521,5 @@ impl<'p> Assembly<'p> {
             package_jsons,
             missing_package_jsons,
         }
-    }
-
-    /// tsgo `ensureHasErrorsForState`'s non-cached errors: the command's
-    /// diagnostics, a global row the check deferred into a file's rows, or
-    /// an include-processor row located in a file that is checked.
-    fn has_errors_outside_cache(&self, command: CommandDiagnosticFacts) -> bool {
-        if command.config || command.syntactic || command.options || command.global {
-            return true;
-        }
-        let deferred_global = self.facts.files.iter().any(|facts| {
-            facts
-                .semantic_rows
-                .as_ref()
-                .is_some_and(|rows| rows.iter().any(|row| row.file_name.is_none()))
-        });
-        if deferred_global && command.semantic_cached() {
-            return true;
-        }
-        self.prepared
-            .diagnostics()
-            .program()
-            .iter()
-            .any(|diagnostic| {
-                diagnostic
-                    .file_name
-                    .as_ref()
-                    .and_then(|name| self.index_of(name.as_js()))
-                    .is_some_and(|index| !self.file_facts(index).is_some_and(|facts| facts.skipped))
-            })
-    }
-
-    fn document(
-        &self,
-        file_name: JsString,
-        command: CommandDiagnosticFacts,
-        state: FileState<'_>,
-    ) -> BuildInfoDocument {
-        let program = self.program_state();
-        let semantic_rows = self.semantic_rows(command);
-        let info = build_fresh_build_info(&FreshSnapshotInput {
-            program: &program,
-            semantic_rows: &semantic_rows,
-            state,
-            has_errors_outside_cache: self.has_errors_outside_cache(command),
-        });
-        BuildInfoDocument {
-            file_name,
-            text: info.to_json(),
-        }
-    }
-}
-
-fn directory_of(path: &str) -> String {
-    match path.rfind('/') {
-        Some(0) => "/".to_owned(),
-        Some(index) => path[..index].to_owned(),
-        None => String::new(),
     }
 }

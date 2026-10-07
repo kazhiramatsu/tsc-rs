@@ -900,14 +900,72 @@ fn file_trace_enabled() -> bool {
     *ENABLED.get_or_init(|| std::env::var_os("TSRS_FILE_TRACE").is_some())
 }
 
+/// One planned unit to emit and which of its members (tsgo `EmitOnly`: an
+/// incremental program re-emits only the JavaScript or only the
+/// declaration of a file whose other member is up to date).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct UnitEmitRequest {
+    pub unit: usize,
+    pub javascript: bool,
+    pub declaration: bool,
+}
+
+impl UnitEmitRequest {
+    pub const fn whole(unit: usize) -> Self {
+        Self {
+            unit,
+            javascript: true,
+            declaration: true,
+        }
+    }
+}
+
 pub fn emit_planned_units(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
     preflight: &EmitPreflight,
     units: &[usize],
+    sink: Option<&mut dyn OutputSink>,
+) -> Result<Vec<UnitEmission>, UnitEmitError> {
+    let requests = units
+        .iter()
+        .map(|&unit| UnitEmitRequest::whole(unit))
+        .collect::<Vec<_>>();
+    emit_planned_units_with_kinds(resolver, host, preflight, &requests, sink)
+}
+
+/// [`emit_files`] over a subset of the plan's units with the members each
+/// request names (tsgo `emitFilesIncremental`: the pending files, each with
+/// its pending kind). The preflight covers the whole program; the listing
+/// and the diagnostics cover the units emitted.
+pub fn emit_planned_files(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: EmitPreflight,
+    selection: EmitSelection,
+    diagnostic_gate: &EmitDiagnosticGate,
+    sink: &mut dyn OutputSink,
+    requests: &[UnitEmitRequest],
+) -> Result<EmitOutcome, EmitFailure> {
+    let session =
+        match begin_emit_files(Some(resolver), host, &preflight, selection, diagnostic_gate)? {
+            EmitFilesStart::Blocked(outcome) => return Ok(*outcome),
+            EmitFilesStart::Ready(session) => session,
+        };
+    let emissions = emit_planned_units_with_kinds(resolver, host, &preflight, requests, Some(sink))
+        .map_err(|error| error.failure)?;
+    finish_emit_files(session, emissions, sink)
+}
+
+/// [`emit_planned_units`] with the members each request names.
+pub fn emit_planned_units_with_kinds(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: &EmitPreflight,
+    requests: &[UnitEmitRequest],
     mut sink: Option<&mut dyn OutputSink>,
 ) -> Result<Vec<UnitEmission>, UnitEmitError> {
-    let mut emissions = Vec::with_capacity(units.len());
+    let mut emissions = Vec::with_capacity(requests.len());
     // An eager worker sink writes ordinary source roots as they are printed
     // (bundle roots always write through a supplied sink).
     let eager_source_roots = sink
@@ -915,7 +973,7 @@ pub fn emit_planned_units(
         .is_some_and(OutputSink::writes_source_roots_eagerly);
     let options = host.compiler_options();
     let attach = |unit: usize| move |failure: EmitFailure| UnitEmitError { unit, failure };
-    let first = units.first().copied().unwrap_or(0);
+    let first = requests.first().map_or(0, |request| request.unit);
     let new_line = new_line_kind(options).map_err(attach(first))?;
     let declaration_paths: &PlanDeclarationPaths = preflight.declaration_paths(host);
     let mut printer = create_printer(
@@ -931,7 +989,8 @@ pub fn emit_planned_units(
     // `TSRS_FILE_TRACE=1` prints one line per emitted unit with its wall
     // time and timeline position (the checker prints the checked files).
     let unit_trace = file_trace_enabled();
-    for &unit_index in units {
+    for request in requests {
+        let unit_index = request.unit;
         let unit = &preflight.plan().units()[unit_index];
         let attach = attach(unit_index);
         let unit_started = unit_trace.then(|| {
@@ -972,9 +1031,22 @@ pub fn emit_planned_units(
         };
         let mut parsed_emit_metadata = None;
         let mut javascript_printed = false;
-        let javascript_path = unit.paths().javascript_path().map(JsStr::to_owned);
-        let javascript_map_path = unit.paths().javascript_map_path().map(JsStr::to_owned);
-        let declaration_path = unit.paths().declaration_path().map(JsStr::to_owned);
+        // A member the request leaves out is neither printed nor listed.
+        let javascript_path = unit
+            .paths()
+            .javascript_path()
+            .filter(|_| request.javascript)
+            .map(JsStr::to_owned);
+        let javascript_map_path = unit
+            .paths()
+            .javascript_map_path()
+            .filter(|_| request.javascript)
+            .map(JsStr::to_owned);
+        let declaration_path = unit
+            .paths()
+            .declaration_path()
+            .filter(|_| request.declaration)
+            .map(JsStr::to_owned);
 
         if let Some(javascript_path) = javascript_path.as_ref().map(JsString::as_js) {
             if preflight.is_emit_blocked(host, javascript_path) {
@@ -1041,7 +1113,7 @@ pub fn emit_planned_units(
             if let Some(artifact) = declaration.artifact {
                 emission.artifacts.push(artifact);
             }
-        } else if options.emit_declaration_only == Some(true) {
+        } else if request.declaration && options.emit_declaration_only == Some(true) {
             // emitDeclarationFileOrBundle also marks a missing declaration
             // path as skipped. An all-.d.ts program has no units to visit.
             emission.emit_skipped = true;
@@ -1279,18 +1351,19 @@ pub fn finish_emit_files(
     let emitted_files = session.emitted_files_enabled.then(|| {
         let mut emitted = Vec::new();
         for (javascript_path, map_path, declaration_path, declaration_map_path) in listing {
-            // emitJsFileOrBundle ignores skippedDtsWrite: after successful
-            // printing both planned JS members are listed. Only declarations
-            // use the write callback's skipped disposition below.
-            emitted.extend(javascript_path);
+            // tsgo printSourceFile (compiler/emitter.go) writes and lists a
+            // source map before its text, for the JavaScript and for the
+            // declaration file; a declaration file whose write the callback
+            // skipped (an unchanged composite output) is not listed.
             emitted.extend(map_path);
+            emitted.extend(javascript_path);
+            if let Some(declaration_map_path) = declaration_map_path {
+                emitted.push(declaration_map_path);
+            }
             if let Some(declaration_path) = declaration_path {
                 if written_paths.contains(&declaration_path) {
                     emitted.push(declaration_path);
                 }
-            }
-            if let Some(declaration_map_path) = declaration_map_path {
-                emitted.push(declaration_map_path);
             }
         }
         emitted
@@ -1343,6 +1416,97 @@ fn write_artifacts(
         }
     }
     written_paths
+}
+
+/// The declaration output of one source as tsgo's builder-signature emit
+/// produces it (`EmitOnlyBuilderSignature`, compiler/emitter.go: forced
+/// declaration emit, no declaration map, not blocked by its diagnostics).
+/// The plan is computed once; each source's output is produced on request.
+pub struct ForcedDeclarationEmitter {
+    preflight: EmitPreflight,
+    paths: PlanDeclarationPaths,
+    /// The plan index of each source's unit, by the source's index.
+    unit_by_source: std::collections::BTreeMap<usize, usize>,
+}
+
+/// One source's forced declaration output: the text, the UTF-16 position
+/// of its `sourceMappingURL` comment when it has one, and the declaration
+/// diagnostics of the transform.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ForcedDeclarationOutput {
+    pub text: String,
+    pub source_map_url_position: Option<u32>,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+impl ForcedDeclarationEmitter {
+    pub fn new(host: &dyn EmitHost) -> Result<Self, EmitFailure> {
+        validate_forced_declaration_request(host)?;
+        let preflight =
+            crate::plan::preflight_forced_declarations(host, EmitSelection::WholeProgram)?;
+        let paths = PlanDeclarationPaths::for_declaration_diagnostics(host)?;
+        let unit_by_source = preflight
+            .plan()
+            .units()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, unit)| match unit.root() {
+                EmitRoot::SourceFile(source) => Some((source.index(), index)),
+                EmitRoot::Bundle(_) => None,
+            })
+            .collect();
+        Ok(Self {
+            preflight,
+            paths,
+            unit_by_source,
+        })
+    }
+
+    /// The forced declaration output of `source`, `None` when the source
+    /// has no declaration output (a declaration file, JSON, a file that is
+    /// not emitted).
+    pub fn emit(
+        &self,
+        resolver: &dyn EmitResolver,
+        host: &dyn EmitHost,
+        source: SourceFileId,
+    ) -> Result<Option<ForcedDeclarationOutput>, EmitFailure> {
+        let Some(&unit_index) = self.unit_by_source.get(&source.index()) else {
+            return Ok(None);
+        };
+        let unit = &self.preflight.plan().units()[unit_index];
+        let Some(path) = unit.paths().declaration_path() else {
+            return Ok(None);
+        };
+        // tsgo's builder-signature emit writes no declaration map; the text
+        // before the `sourceMappingURL` comment is the same either way, and
+        // the caller hashes only that (the map lane needs its path when
+        // `declarationMap` is on).
+        let declaration = emit_declaration_unit(
+            resolver,
+            host,
+            &self.preflight,
+            &self.paths,
+            unit.root(),
+            path,
+            unit.paths().declaration_map_path(),
+            true,
+            None,
+        )?;
+        Ok(declaration.artifact.map(|artifact| {
+            let source_map_url_position = match artifact.metadata() {
+                Some(crate::EmitWriteMetadata::Text(metadata)) => metadata
+                    .source_map_url_position()
+                    .map(|position| position.value()),
+                _ => None,
+            };
+            ForcedDeclarationOutput {
+                text: artifact.callback_text().to_owned(),
+                source_map_url_position,
+                diagnostics: declaration.diagnostics,
+            }
+        }))
+    }
 }
 
 /// The forced declaration-only branch of emitFiles (_tsc.js:116530-116858),

@@ -14,6 +14,9 @@ use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 
+use tsc_checker::{IncrementalPlanner, IncrementalRequest};
+use tsc_incremental::OldState;
+
 use tsc_checker::emit::CheckerSession;
 pub use tsc_checker::CheckerBudget;
 use tsc_checker::{
@@ -38,7 +41,7 @@ use tsc_diagnostics::{
     gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, JsStr, JsString, MessageChain,
 };
 use tsc_emitter::{
-    begin_emit_files, emit_files, emit_planned_units, finish_emit_files, preflight_emit,
+    begin_emit_files, emit_files, finish_emit_files, preflight_emit,
     print_script_units_with_recording_for_harness, validate_emit_request, EmitDiagnosticGate,
     EmitFilesSession, EmitFilesStart, EmitHost, EmitSource, PrintedText, SourceMapRecordingInputs,
     UnavailableEmitResolver, UnitEmitError,
@@ -112,6 +115,10 @@ pub struct ProgramSession {
     /// writes its build info (execute/tsc.go:245); a Program of the harness
     /// or of the API (`compiler.Program`) never writes one.
     command_build_info: bool,
+    /// The state of the program's old build info (tsgo
+    /// `ReadBuildInfoProgram`), when the command found one: the session then
+    /// checks and emits only what that state does not cover.
+    old_build_info: Option<Arc<OldState>>,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -204,6 +211,7 @@ fn sharded_declaration_diagnostics(
     worker_budget: WorkerBudget,
     shard_label_offset: usize,
     partial: bool,
+    selected: Option<&[bool]>,
 ) -> Result<Vec<Diagnostic>, EmitFailure> {
     let mut owner_by_name = std::collections::HashMap::new();
     for (shard, files) in files_by_shard.iter().enumerate() {
@@ -222,6 +230,11 @@ fn sharded_declaration_diagnostics(
     let mut sources_by_shard: Vec<Vec<SourceFileId>> = vec![Vec::new(); sessions.len()];
     for source in tsc_emitter::get_source_files_to_emit(checked_host, EmitSelection::WholeProgram)?
     {
+        // An incremental program computes the declaration diagnostics of
+        // its pending files only (tsgo emitFilesIncremental for dts errors).
+        if selected.is_some_and(|selected| !selected.get(source.index()).copied().unwrap_or(true)) {
+            continue;
+        }
         let name = emit_host
             .expected_source_name(source)
             .ok_or(EmitFailure::Contract(
@@ -328,6 +341,7 @@ fn no_emit_declaration_diagnostics(
     worker_budget: WorkerBudget,
     shard_label_offset: usize,
     partial: bool,
+    selected: Option<&[bool]>,
 ) -> Result<DiagnosticList, DriverError> {
     let emit_host = PreparedEmitHost::new_for_route(prepared, emit_route, source_api_facts)?;
     tsc_emitter::validate_declaration_diagnostics_request(&emit_host).map_err(DriverError::Emit)?;
@@ -347,6 +361,7 @@ fn no_emit_declaration_diagnostics(
         worker_budget,
         shard_label_offset,
         partial,
+        selected,
     )
     .map_err(DriverError::Emit)
 }
@@ -441,6 +456,16 @@ impl ProgramDiagnostics {
 }
 
 impl ProgramDiagnostics {
+    /// The semantic rows an incremental program takes from its old build
+    /// info (the files its check did not cover) join the fresh ones.
+    fn extend_semantic(&mut self, rows: Vec<Diagnostic>) {
+        if rows.is_empty() {
+            return;
+        }
+        self.semantic.extend(rows);
+        sort_and_dedupe_diagnostics(&mut self.semantic);
+    }
+
     fn gate(&self) -> EmitDiagnosticGate {
         EmitDiagnosticGate::new(
             self.options.clone(),
@@ -1212,6 +1237,7 @@ impl ProgramSession {
             command_build_info: false,
             checker_budget: CheckerBudget::serial(),
             command_options_diagnostics: false,
+            old_build_info: None,
         }
     }
 
@@ -1313,6 +1339,13 @@ impl ProgramSession {
         self
     }
 
+    /// The state of the program's old build info (tsgo
+    /// `ReadBuildInfoProgram`), read by the command before the session.
+    pub fn with_old_build_info(mut self, old: Option<OldState>) -> Self {
+        self.old_build_info = old.map(Arc::new);
+        self
+    }
+
     /// Consume this Program for a declaration-only diagnostic getter.
     /// Compiler options, including noEmit and noCheck, remain unchanged.
     pub fn get_declaration_diagnostics(
@@ -1372,6 +1405,7 @@ impl ProgramSession {
             native_harness: _,
             command_build_info: _,
             command_options_diagnostics: _,
+            old_build_info: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1417,7 +1451,7 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 worker_budget,
-                false,
+                IncrementalRequest::NONE,
                 &mut checked_operation,
             )
         } else {
@@ -1429,7 +1463,7 @@ impl ProgramSession {
                 prepared.compiler_options(),
                 &inputs.current_directory,
                 &provider,
-                false,
+                IncrementalRequest::NONE,
                 &mut checked_operation,
             )
         }
@@ -1600,6 +1634,7 @@ impl ProgramSession {
             native_harness: _,
             command_build_info: _,
             command_options_diagnostics: _,
+            old_build_info: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1661,7 +1696,7 @@ impl ProgramSession {
             &inputs.current_directory,
             &provider,
             worker_budget,
-            false,
+            IncrementalRequest::NONE,
             |snapshot, checker, checked| {
                 if let Some(partial) = checked.partial_checks.first() {
                     operation_result = Some(Err(DriverError::IncompleteCheck {
@@ -1723,6 +1758,7 @@ impl ProgramSession {
             native_harness: _,
             command_build_info: _,
             command_options_diagnostics: _,
+            old_build_info: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1773,7 +1809,7 @@ impl ProgramSession {
             &inputs.current_directory,
             &provider,
             worker_budget,
-            false,
+            IncrementalRequest::NONE,
             &mut operation,
         );
         drop(checked);
@@ -1826,6 +1862,7 @@ impl ProgramSession {
             native_harness: _,
             command_build_info,
             command_options_diagnostics: _,
+            old_build_info,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         if forced_declarations {
@@ -1848,82 +1885,131 @@ impl ProgramSession {
         };
         let incremental_facts_requested = command_build_info
             && tsc_incremental::options::is_incremental(prepared.compiler_options());
+        // tsgo's semantic getter is gated by the program (options) rows,
+        // which the planner cannot see from the checker.
+        let options_rows = !prepared.diagnostics().options().is_empty()
+            || !programmatic_option_diagnostics(&prepared).is_empty()
+            || !program_rows_outside_sources(&prepared).is_empty()
+            || preflight
+                .as_ref()
+                .is_some_and(|preflight| !preflight.diagnostics().is_empty());
+        let driver = incremental::IncrementalDriver::new(
+            &prepared,
+            old_build_info.clone(),
+            emit_route,
+            &source_api_facts,
+            incremental::AffectedPolicy {
+                emits: true,
+                options_diagnostics: options_rows,
+            },
+        );
+        let mut planner = driver.planner();
         let mut pending_preflight = preflight;
         let mut emit_result: Option<Result<CliEmitSessionOutcome, DriverError>> = None;
-        let mut operation =
-            |snapshot: &ProgramSnapshot, checker: &CheckerSession<'_>, checked: &CheckResult| {
-                if emit_result.is_some() {
-                    return;
+        let mut operation = |snapshot: &ProgramSnapshot,
+                             checker: &CheckerSession<'_>,
+                             checked: &CheckResult| {
+            if emit_result.is_some() {
+                return;
+            }
+            if let Some(partial) = checked.partial_checks.first() {
+                emit_result = Some(Err(DriverError::IncompleteCheck {
+                    file_name: partial.file_name.clone(),
+                    start: partial.start,
+                    length: partial.length,
+                    reason: partial.reason.clone(),
+                    additional_partial_checks: checked.partial_checks.len().saturating_sub(1),
+                }));
+                return;
+            }
+            let mut diagnostics = emit_session_diagnostics(&prepared, checked);
+            let command = incremental::CommandDiagnosticFacts::of(&diagnostics, false);
+            if let Some(facts) = &checked.incremental {
+                driver.store_check(
+                    facts,
+                    command.semantic_cached() && prepared.compiler_options().no_check != Some(true),
+                );
+                diagnostics.extend_semantic(driver.cached_semantic_diagnostics());
+            }
+            let diagnostic_gate = diagnostics.gate();
+            let work_counters = check_work_counters(checked);
+            let checked_host = CheckedEmitHost {
+                prepared: &emit_host,
+                snapshot,
+                prepared_sources: None,
+            };
+            let preflight = pending_preflight.take();
+            let preflight_diagnostics = preflight
+                .as_ref()
+                .map(|preflight| preflight.diagnostics().to_vec())
+                .unwrap_or_default();
+            emit_result = Some(checker.with_emit_resolver(|resolver| {
+                let mut recording = incremental::SignatureRecordingSink::with_composite_signatures(
+                    &mut *sink,
+                    driver.composite_signatures(),
+                );
+                // The units an incremental program re-emits (tsgo
+                // emitFilesIncremental), with the plan they index.
+                let requests = preflight.as_ref().and_then(|preflight| {
+                    driver
+                        .unit_requests(preflight)
+                        .map(|requests| (requests, preflight.clone()))
+                });
+                match (preflight, &requests) {
+                    (Some(preflight), Some((requests, _))) => tsc_emitter::emit_planned_files(
+                        resolver,
+                        &checked_host,
+                        preflight,
+                        selection,
+                        &diagnostic_gate,
+                        &mut recording,
+                        requests,
+                    ),
+                    (Some(preflight), None) => emit_files(
+                        resolver,
+                        &checked_host,
+                        preflight,
+                        selection,
+                        &diagnostic_gate,
+                        &mut recording,
+                    ),
+                    (None, _) => tsc_emitter::emit_forced_declarations(
+                        resolver,
+                        &checked_host,
+                        selection,
+                        &mut recording,
+                    ),
                 }
-                if let Some(partial) = checked.partial_checks.first() {
-                    emit_result = Some(Err(DriverError::IncompleteCheck {
-                        file_name: partial.file_name.clone(),
-                        start: partial.start,
-                        length: partial.length,
-                        reason: partial.reason.clone(),
-                        additional_partial_checks: checked.partial_checks.len().saturating_sub(1),
-                    }));
-                    return;
-                }
-                let diagnostics = emit_session_diagnostics(&prepared, checked);
-                let diagnostic_gate = diagnostics.gate();
-                let work_counters = check_work_counters(checked);
-                let checked_host = CheckedEmitHost {
-                    prepared: &emit_host,
-                    snapshot,
-                    prepared_sources: None,
-                };
-                let preflight = pending_preflight.take();
-                let preflight_diagnostics = preflight
-                    .as_ref()
-                    .map(|preflight| preflight.diagnostics().to_vec())
-                    .unwrap_or_default();
-                let command = incremental::CommandDiagnosticFacts::of(&diagnostics, false);
-                emit_result = Some(checker.with_emit_resolver(|resolver| {
-                    let mut recording = incremental::SignatureRecordingSink::new(&mut *sink);
-                    match preflight {
-                        Some(preflight) => emit_files(
-                            resolver,
-                            &checked_host,
-                            preflight,
-                            selection,
-                            &diagnostic_gate,
-                            &mut recording,
-                        ),
-                        None => tsc_emitter::emit_forced_declarations(
-                            resolver,
-                            &checked_host,
-                            selection,
-                            &mut recording,
-                        ),
-                    }
-                    .map(|emit| {
-                        // tsgo emitBuildInfo after the emit of an incremental
-                        // program.
-                        let emit = match checked.incremental.as_ref().and_then(|facts| {
-                            incremental::emit_build_info(
-                                &prepared,
-                                facts,
-                                command,
-                                &emit,
-                                &recording.records(),
-                                recording.wrote_anything(),
-                            )
-                        }) {
+                .map(|emit| {
+                    // tsgo emitBuildInfo after the emit of an incremental
+                    // program.
+                    let emit = if checked.incremental.is_some() {
+                        driver.record_emit(
+                            &emit,
+                            &recording.records(),
+                            recording.wrote_anything(),
+                            requests
+                                .as_ref()
+                                .map(|(requests, preflight)| (requests.as_slice(), preflight)),
+                        );
+                        match driver.build_info(command) {
                             Some(document) => {
                                 let failure = recording.write_build_info(&document);
                                 emit.with_build_info(document.file_name, failure)
                             }
                             None => emit,
-                        };
-                        let mut outcome =
-                            diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
-                        outcome.checked_source_files = checker.checked_source_files();
-                        outcome
-                    })
-                    .map_err(DriverError::Emit)
-                }));
-            };
+                        }
+                    } else {
+                        emit
+                    };
+                    let mut outcome =
+                        diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
+                    outcome.checked_source_files = checker.checked_source_files();
+                    outcome
+                })
+                .map_err(DriverError::Emit)
+            }));
+        };
         let checked = if let Some(bundle) = harness_lib_bundle {
             check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle(
                 &inputs.libs,
@@ -1946,7 +2032,11 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 worker_budget,
-                incremental_facts_requested,
+                IncrementalRequest {
+                    facts: incremental_facts_requested,
+                    planner: incremental_facts_requested
+                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                },
                 &mut operation,
             )
         }
@@ -1987,19 +2077,22 @@ impl ProgramSession {
         .map(|emit| {
             // tsgo emitBuildInfo of an incremental program without files.
             let command = incremental::CommandDiagnosticFacts::of(&diagnostics, false);
-            let emit = match checked.incremental.as_ref().and_then(|facts| {
-                incremental::emit_build_info(
-                    &prepared,
-                    facts,
-                    command,
-                    &emit,
-                    &recording.records(),
-                    recording.wrote_anything(),
-                )
-            }) {
-                Some(document) => {
-                    let failure = recording.write_build_info(&document);
-                    emit.with_build_info(document.file_name, failure)
+            let emit = match checked.incremental.as_ref() {
+                Some(facts) => {
+                    driver.store_check(facts, false);
+                    driver.record_emit(
+                        &emit,
+                        &recording.records(),
+                        recording.wrote_anything(),
+                        None,
+                    );
+                    match driver.build_info(command) {
+                        Some(document) => {
+                            let failure = recording.write_build_info(&document);
+                            emit.with_build_info(document.file_name, failure)
+                        }
+                        None => emit,
+                    }
                 }
                 None => emit,
             };
@@ -2024,6 +2117,7 @@ impl ProgramSession {
             native_harness: _,
             command_build_info,
             command_options_diagnostics: _,
+            old_build_info,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
@@ -2031,13 +2125,33 @@ impl ProgramSession {
         tsc_types::trace::mark("emit: host and request validation", setup_started);
         let incremental_facts_requested = command_build_info
             && tsc_incremental::options::is_incremental(prepared.compiler_options());
-        let mut recording = incremental::SignatureRecordingSink::new(sink);
-        let sink: &mut dyn OutputSink = &mut recording;
         let selection = EmitSelection::WholeProgram;
         let preflight_started = std::time::Instant::now();
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
         let preflight_diagnostics = preflight.diagnostics().to_vec();
         tsc_types::trace::mark("emit: preflight (output plan)", preflight_started);
+        // tsgo's semantic getter is gated by the program (options) rows,
+        // which the planner cannot see from the checker.
+        let options_rows = !prepared.diagnostics().options().is_empty()
+            || !programmatic_option_diagnostics(&prepared).is_empty()
+            || !program_rows_outside_sources(&prepared).is_empty()
+            || !preflight_diagnostics.is_empty();
+        let driver = incremental::IncrementalDriver::new(
+            &prepared,
+            old_build_info.clone(),
+            emit_route,
+            &source_api_facts,
+            incremental::AffectedPolicy {
+                emits: true,
+                options_diagnostics: options_rows,
+            },
+        );
+        let mut planner = driver.planner();
+        let mut recording = incremental::SignatureRecordingSink::with_composite_signatures(
+            sink,
+            driver.composite_signatures(),
+        );
+        let sink: &mut dyn OutputSink = &mut recording;
         let inputs_started = std::time::Instant::now();
         // A shard owns the planned units whose source is one of the snapshot
         // documents it checked; the checked host matches them by this name.
@@ -2083,6 +2197,31 @@ impl ProgramSession {
         // output does not depend on that order.
         let declaration_output =
             tsc_checker::declaration_output_requested(prepared.compiler_options());
+        // The units an incremental program re-emits, each with its pending
+        // members (tsgo emitFilesIncremental); every unit, whole, otherwise.
+        let unit_requests: std::sync::OnceLock<
+            Option<std::collections::HashMap<usize, tsc_emitter::UnitEmitRequest>>,
+        > = std::sync::OnceLock::new();
+        let requests_for = |units: &[usize]| -> Vec<tsc_emitter::UnitEmitRequest> {
+            let requests = unit_requests.get_or_init(|| {
+                driver.unit_requests(&preflight).map(|requests| {
+                    requests
+                        .into_iter()
+                        .map(|request| (request.unit, request))
+                        .collect()
+                })
+            });
+            match requests {
+                None => units
+                    .iter()
+                    .map(|&unit| tsc_emitter::UnitEmitRequest::whole(unit))
+                    .collect(),
+                Some(requests) => units
+                    .iter()
+                    .filter_map(|unit| requests.get(unit).copied())
+                    .collect(),
+            }
+        };
         type EagerShardEmission = (
             Vec<usize>,
             Result<Vec<tsc_emitter::UnitEmission>, UnitEmitError>,
@@ -2203,7 +2342,16 @@ impl ProgramSession {
                     return false;
                 }
                 let gate_started = std::time::Instant::now();
-                let diagnostics = emit_session_diagnostics(&prepared, checked);
+                let mut diagnostics = emit_session_diagnostics(&prepared, checked);
+                if let Some(facts) = &checked.incremental {
+                    let command = incremental::CommandDiagnosticFacts::of(&diagnostics, false);
+                    driver.store_check(
+                        facts,
+                        command.semantic_cached()
+                            && prepared.compiler_options().no_check != Some(true),
+                    );
+                    diagnostics.extend_semantic(driver.cached_semantic_diagnostics());
+                }
                 let mut diagnostic_gate = diagnostics.gate();
                 let work_counters = check_work_counters(checked);
                 let checked_host = CheckedEmitHost {
@@ -2231,6 +2379,7 @@ impl ProgramSession {
                         worker_budget,
                         0,
                         false,
+                        driver.declaration_file_filter().as_deref(),
                     ) {
                         Ok(declaration) => {
                             diagnostic_gate =
@@ -2360,11 +2509,11 @@ impl ProgramSession {
                 let results = worker_budget.map_ordered(jobs, weight, |(shard, units)| {
                     let mut eager = eager_sink.map(tsc_emitter::EagerUnitSink);
                     sessions[shard].with_emit_resolver(|resolver| {
-                        emit_planned_units(
+                        tsc_emitter::emit_planned_units_with_kinds(
                             resolver,
                             &checked_host,
                             &preflight,
-                            &units,
+                            &requests_for(&units),
                             eager
                                 .as_mut()
                                 .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
@@ -2494,11 +2643,19 @@ impl ProgramSession {
                             0
                         };
                         let (unit, _) = remaining.remove(index);
-                        match emit_planned_units(
+                        let requests = requests_for(&[unit]);
+                        if requests.is_empty() {
+                            // Not pending in the incremental program.
+                            if owns_tail && !declaration_output {
+                                break;
+                            }
+                            continue;
+                        }
+                        match tsc_emitter::emit_planned_units_with_kinds(
                             resolver,
                             &checked_host,
                             &preflight,
-                            &[unit],
+                            &requests,
                             eager_unit_sink
                                 .as_mut()
                                 .map(|sink| sink as &mut dyn tsc_emitter::OutputSink),
@@ -2563,7 +2720,11 @@ impl ProgramSession {
                 worker_budget,
                 checker_budget,
                 &mut sharded_emit,
-                incremental_facts_requested,
+                IncrementalRequest {
+                    facts: incremental_facts_requested,
+                    planner: incremental_facts_requested
+                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                },
             )
             .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
             (checked, sharded_emit.emissions.take())
@@ -2576,16 +2737,21 @@ impl ProgramSession {
                                  recording: &mut incremental::SignatureRecordingSink<'_>|
          -> EmitOutcome {
             let command = incremental::CommandDiagnosticFacts::of(diagnostics, false);
-            match checked.incremental.as_ref().and_then(|facts| {
-                incremental::emit_build_info(
-                    &prepared,
-                    facts,
-                    command,
-                    &emit,
-                    &recording.records(),
-                    recording.wrote_anything(),
-                )
-            }) {
+            let Some(facts) = checked.incremental.as_ref() else {
+                return emit;
+            };
+            driver.store_check(
+                facts,
+                command.semantic_cached() && prepared.compiler_options().no_check != Some(true),
+            );
+            let requests = driver.unit_requests(&preflight);
+            driver.record_emit(
+                &emit,
+                &recording.records(),
+                recording.wrote_anything(),
+                requests.as_deref().map(|requests| (requests, &preflight)),
+            );
+            match driver.build_info(command) {
                 Some(document) => {
                     let failure = recording.write_build_info(&document);
                     emit.with_build_info(document.file_name, failure)
@@ -2630,7 +2796,7 @@ impl ProgramSession {
                 emit_files(
                     &UnavailableEmitResolver,
                     &emit_host,
-                    preflight,
+                    preflight.clone(),
                     selection,
                     &diagnostic_gate,
                     sink,
@@ -2642,6 +2808,10 @@ impl ProgramSession {
                 .map_err(DriverError::Emit)
             }
         };
+        // The planner and the driver borrow the prepared program; both end
+        // before the leak.
+        drop(planner);
+        drop(driver);
         if leak_program {
             std::mem::forget(prepared);
         }
@@ -2863,6 +3033,18 @@ impl ProgramSession {
         let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(&available_options);
         let incremental_facts_requested = self.command_build_info
             && tsc_incremental::options::is_incremental(self.prepared.compiler_options());
+        let driver = incremental::IncrementalDriver::new(
+            &self.prepared,
+            self.old_build_info.clone(),
+            self.emit_route,
+            &self.source_api_facts,
+            incremental::AffectedPolicy {
+                emits: false,
+                options_diagnostics: !available_options.is_empty()
+                    || self.command_options_diagnostics,
+            },
+        );
+        let mut planner = driver.planner();
         let checked = if harness_lib_cache {
             check_program_with_authoritative_modules_at_harness_cached(
                 &inputs.libs,
@@ -2933,6 +3115,7 @@ impl ProgramSession {
                         self.worker_budget,
                         0,
                         false,
+                        driver.declaration_file_filter().as_deref(),
                     ));
                 }
             };
@@ -2953,7 +3136,10 @@ impl ProgramSession {
             let mut operation = |snapshot: &ProgramSnapshot,
                                  session: &CheckerSession<'_>,
                                  checked: &CheckResult| {
-                if native_harness || no_emit_report_is_clean(&self.prepared, checked) {
+                if native_harness
+                    || (no_emit_report_is_clean(&self.prepared, checked)
+                        && driver.cached_semantic_diagnostics().is_empty())
+                {
                     let started = std::time::Instant::now();
                     let every_file = (0..snapshot.documents().len()).collect::<Vec<_>>();
                     declaration_diagnostics = Some(no_emit_declaration_diagnostics(
@@ -2966,6 +3152,7 @@ impl ProgramSession {
                         self.worker_budget,
                         0,
                         false,
+                        driver.declaration_file_filter().as_deref(),
                     ));
                     tsc_types::trace::mark(
                         "checker: declaration diagnostics (one checker)",
@@ -2982,7 +3169,11 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &provider,
                 self.worker_budget,
-                incremental_facts_requested,
+                IncrementalRequest {
+                    facts: incremental_facts_requested,
+                    planner: incremental_facts_requested
+                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                },
                 &mut operation,
             )
         } else if declaration_getter {
@@ -3009,6 +3200,7 @@ impl ProgramSession {
                     self.worker_budget,
                     shard,
                     true,
+                    driver.declaration_file_filter().as_deref(),
                 );
                 let mut shares = eager_shares
                     .lock()
@@ -3023,7 +3215,10 @@ impl ProgramSession {
                             sessions: &[CheckerSession<'_>],
                             files_by_shard: &[Vec<usize>]|
              -> bool {
-                if native_harness || no_emit_report_is_clean(&self.prepared, checked) {
+                if native_harness
+                    || (no_emit_report_is_clean(&self.prepared, checked)
+                        && driver.cached_semantic_diagnostics().is_empty())
+                {
                     let started = std::time::Instant::now();
                     let mut shares = eager_shares
                         .lock()
@@ -3056,6 +3251,7 @@ impl ProgramSession {
                             self.worker_budget,
                             0,
                             false,
+                            driver.declaration_file_filter().as_deref(),
                         ),
                     });
                     tsc_types::trace::mark("checker: declaration diagnostics (join)", started);
@@ -3086,7 +3282,11 @@ impl ProgramSession {
                 self.worker_budget,
                 self.checker_budget,
                 &mut sharded_emit,
-                incremental_facts_requested,
+                IncrementalRequest {
+                    facts: incremental_facts_requested,
+                    planner: incremental_facts_requested
+                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                },
             )
         } else if self.checker_budget.is_sharded() {
             check_program_with_authoritative_modules_at_with_checkers_gated(
@@ -3102,7 +3302,11 @@ impl ProgramSession {
                 self.worker_budget,
                 self.checker_budget,
                 syntactic_diagnostics_gate,
-                incremental_facts_requested,
+                IncrementalRequest {
+                    facts: incremental_facts_requested,
+                    planner: incremental_facts_requested
+                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                },
             )
         } else {
             check_program_with_authoritative_modules_at_with_workers_gated(
@@ -3115,14 +3319,18 @@ impl ProgramSession {
                 &provider,
                 self.worker_budget,
                 syntactic_diagnostics_gate,
-                incremental_facts_requested,
+                IncrementalRequest {
+                    facts: incremental_facts_requested,
+                    planner: incremental_facts_requested
+                        .then_some(&mut planner as &mut IncrementalPlanner<'_>),
+                },
             )
         }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
         let mut checked = checked;
         let incremental_facts = checked.incremental.take();
         let declaration_requested = declaration_diagnostics.is_some();
-        let declaration_diagnostics = declaration_diagnostics.transpose()?.unwrap_or_default();
+        let mut declaration_diagnostics = declaration_diagnostics.transpose()?.unwrap_or_default();
         let checker_work = checked.work_counters;
         let work_counters = NoEmitWorkCounters {
             parsed_documents: checker_work.parsed_documents(),
@@ -3150,6 +3358,9 @@ impl ProgramSession {
         // program's facts, the rows it cached (only when the command asked
         // for the semantic diagnostics) and the declaration diagnostics it
         // asked for (only when nothing else was reported).
+        let mut available_semantic = checked
+            .program_semantic_diagnostics
+            .expect("authoritative checker sessions publish whole-Program semantic diagnostics");
         let build_info = incremental_facts.as_ref().and_then(|facts| {
             let command = incremental::CommandDiagnosticFacts {
                 config: !config_diagnostics.is_empty(),
@@ -3157,18 +3368,23 @@ impl ProgramSession {
                 options: !available_options.is_empty() || self.command_options_diagnostics,
                 global: has_roots && !checked.global_diagnostics.is_empty(),
             };
-            incremental::no_emit_build_info(
-                &self.prepared,
+            driver.store_check(
                 facts,
-                command,
-                (declaration_requested && !self.command_options_diagnostics)
-                    .then_some(declaration_diagnostics.as_slice()),
-            )
+                command.semantic_cached()
+                    && self.prepared.compiler_options().no_check != Some(true),
+            );
+            // The rows of the files the check did not cover come from the
+            // old state (tsgo getSemanticDiagnosticsOfFile from the cache).
+            available_semantic.extend(driver.cached_semantic_diagnostics());
+            if declaration_requested && !self.command_options_diagnostics {
+                let from_cache = driver.record_declaration_diagnostics(&declaration_diagnostics);
+                if !from_cache.is_empty() {
+                    declaration_diagnostics.extend(from_cache);
+                    sort_and_dedupe_diagnostics(&mut declaration_diagnostics);
+                }
+            }
+            driver.build_info(command)
         });
-
-        let mut available_semantic = checked
-            .program_semantic_diagnostics
-            .expect("authoritative checker sessions publish whole-Program semantic diagnostics");
         sort_and_dedupe_diagnostics(&mut available_semantic);
 
         // emitFilesAndReportErrors compares the aggregate length with the
@@ -3241,6 +3457,8 @@ impl ProgramSession {
         // `checked.suggestion_diagnostics` is deliberately dropped here.
         // Suggestions remain a legacy per-file getter surface and are not
         // part of `tsc --noEmit` command output.
+        drop(planner);
+        drop(driver);
         if self.leak_program {
             std::mem::forget(self);
         }
