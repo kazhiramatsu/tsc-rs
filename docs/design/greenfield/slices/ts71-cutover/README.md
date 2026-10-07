@@ -4544,3 +4544,65 @@ reason（alias の先、redirect は output へ、読まれなかった task の
   残した `.tsbuildinfo`（`--noEmit` の incremental config の出力、material-ui 3、azure 336、今回の実行時刻のもの）は削除した。
 - scratchpad：`p36f/design.md`（設計）、`p36c/explain_scenarios.py`（explain-schedule-one／two）、`p36f/real-projects.sh`
   （material-ui → azure → DefinitelyTyped の chain）、`p36b2/verify.sh`（P3-6b2 の検証 chain の再実行）。
+
+## P3-6g command line の option 診断と残りの flag（2026-10-07）
+
+tsgo tsoptions/commandlineparser.go・execute/tsc.go：最初の引数が `-b|--b|-build|--build`（小文字比較）なら build
+command line、他は compile command line。`parseStrings` は空の引数を飛ばし、`@file` は response file（空白区切り、
+二重引用符の token、読めなければ TS5083、閉じない引用符は TS6045、再帰は path で防ぐ）、`-` で始まる引数は `-` を 2 つまで
+剥がした名前を小文字で catalog（短縮名 h ? w i d q v p t m、build では b v d f が後から勝つ）に引き、無ければ watch
+option、それも無ければ未知の option。未知の option は alternate mode が先（compile で build の名前なら TS5093
+`Compiler option '--verbose' may only be used with '--build'`、`build` は TS6369、build で compiler の名前なら TS5094）、
+次に綴りの提案（TS5025／TS5077）、最後に TS5023／TS5072（引数は書かれたまま `--bogus`）。`--name=value` の形は無い
+（`--listFilesOnly=maybe` は未知の option）。値：tsconfig 専用の option（paths、rootDirs、plugins…）は `null` だけ
+（boolean なら `false` も）受け、他は TS6230／TS6064；次の引数が無ければ boolean は true、他は TS6044（build は
+TS5073、watch は TS5080。list は空、enum はさらに TS6046）；`null` は null；number は整数（`minValue` 未満は TS5002、
+数でなければ TS6044）；boolean は `false`／`true` だけ消費し他は true；string はそのまま（locale は BCP 47）；list は
+`-` で始まれば空で消費せず、`,` で分けて要素ごとに検証（lib の要素は TS6046）；enum は小文字で引き TS6046（deprecated
+な key は候補に出さない）。build の組み合わせ（clean＋force／verbose／watch、watch＋dry）は TS6370。executor：parse の
+error は全て出して exit 1、`--init`／`--version`／`--help`、watch＋listFilesOnly は TS6370、`-p` と file は TS5042、
+`-p dir` に tsconfig.json が無ければ TS5081、path が無ければ TS5058、`-p` 無しなら cwd から上へ探し、file があれば
+TS5112、何も無ければ version＋help で exit 1。command line の option は config の option の上に merge（`mergeCompilerOptions`：
+command line の値が勝ち、`null` は config の値を消す）、file path の option は cwd 基準で絶対化してから。
+- **program**（`crates/program/src/command_line.rs`、新規）：`parse_command_line`／`parse_build_command_line`（上の
+  規則を catalog で駆動。`ParsedCommandLine { options, file_names, errors }`、`ParsedBuildCommandLine`）、
+  `command_line_option_bag`（parse した値を config の option bag に：named は数値に、file path は絶対に、list は typed
+  に、`null` は削除。command 自身が読む option（project／version／help／watch／ignoreConfig／locale…）と tsgo の
+  process option（quiet／singleThreaded／checkers／pprofDir）は bag に入れない）、`command_line_program_inputs`
+  （explicit file 用に bag から `CompilerOptions`／`ProgramOptions`）。`config.rs`：
+  `parse_config_root_plan_with_command_line`（extends の後、`${configDir}` の前に `extend_from` で merge＝tsgo の merge
+  点。以後の discovery／module resolution／option 診断は merge 後の bag を読む）、`bag_compiler_options`（literal を
+  切り出し）、`listFilesOnly` は bag から。`ConfigEmitOptionOverrides` と `*_with_overrides` の loader、no-emit 経路の
+  「emit-profile override は不可」の拒否は削除。catalog に tsgo の `quiet`／`singleThreaded`／`pprofDir`／`checkers`／
+  `runExternalCode` を追加（`commonOptionsWithBuild` の位置）、`BUILD_OPTION_DECLARATIONS`、大文字小文字を無視する
+  lookup、`is_common_with_build`。
+- **compiler**（`cli.rs`、`build.rs`）：手書きの option 表（`parse_arguments`／`parse_common_option`／
+  `parse_build_arguments`、`CommandLine`、`ConfigCommandLineOverrides`）を削除し、tsgo の parser の結果で executor を
+  組み直した：parse error は fileless 診断として stdout に出し exit 1（`pretty` は parse した option から）、
+  `-p`／`-b` の各 project は command line の bag 付きで config を parse、explicit file は bag から program を作る
+  （explicit file の `--listFilesOnly` も no-emit 経路：probe で emit していたのを修正）。
+  未対応のまま usage error（`tsc-rs:`、exit 2）：`--init`、`--help`／`--all`、`--watch`、`--showConfig`、英語以外の
+  `--locale`。watch option は parse して無視。
+- 観測：`-p . --declarationMap` は config の `compilerOptions` property（`tsconfig.json(1,2)`）に TS5069、
+  `--target es5` は config の `target` property に TS5108、`--lib es2022`（config は noLib）は `noLib` property に
+  TS5053、explicit file の `--declarationMap` は fileless TS5069（全て tsgo と一致）。
+- tests：program の parser の unit test（tsgo の probe に固定）、CLI の unit test（TS5023／TS5025／TS6046 の出力と
+  exit 1）、scenario oracle に 3 scenario／38 step（cli-errors：未知／綴り／enum／`=`形／`--build`／build 専用／number／
+  minimum／lib／tsconfig 専用／複数／TS5042／TS5058／TS5081／TS5112／短縮名／watch＋listFilesOnly／`false`・`null`；
+  cli-build-errors：TS5072／5094／5077／6370／短縮名／builders／noEmit；cli-options：declarationMap、declaration＋map の
+  emit、strict／noImplicitAny の off、outDir＋target、lib と noLib、`--noLib false --lib`、config の noEmit を
+  `--noEmit false` で上書き、removed option、explicit file（noEmit／declarationMap／emit）、response file、無い
+  response file、explicit file の listFilesOnly）、生成 CLI test 47。
+- ad-hoc probe（`p36g/probe-x.py`、explicit file と build の command line 64 本、stdout＋exit＋書かれた file）：59/64 一致。
+  残る差は未対応の `--init`／`-b --help`、`--version` の文字列（port は `7.1.0-dev-19dadef8`、tsgo は `7.1.0-dev`）、
+  `--traceResolution`（受け付けるが trace を出さない。config でも同じ）。
+- 既存の差（この slice の対象外）：`target: es5` は port の ES5 downlevel emit が動く（tsgo は TS5108 を出して ES2015 と
+  同じ emit。conformance の指示で残している）。
+- scenario oracle（`steps.py`、tsgo vs この binary）：47 scenario が全 step 一致。生成 CLI test 47。
+- 実project（`--noEmit`、tsgo `--singleThreaded` vs `TSRS_CHECKERS=1`、stdout＋exit＋build info。config の読み込み経路が
+  変わった（command line の bag を merge）ので全 corpus を再比較）：material-ui 38/38 一致（45 s）、azure-sdk-for-js
+  2,756/2,756（276 s、2 job）、DefinitelyTyped 9,067/9,067（617 s、2 job）。
+- conformance（最終bytes `cfd01bfbb` での1回の全体実行。macOS、`nice -n 20`、2 worker）：12,748 case／482 s、full 13,451、emit_full 13,443、
+  mismatch 0、ratchet 0 regressions／0 above tiers（P3-6f と同じ行、ratchet の更新なし）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、workspace の `cargo clippy --all-targets -- -D warnings`、
+  `cargo test --no-fail-fast`（program 598 passed／0 failed、compiler 412／0）。
