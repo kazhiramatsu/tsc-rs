@@ -227,9 +227,13 @@ impl CheckerState<'_> {
                         let ty = self.check_new_target_meta_property(parent)?;
                         return Ok(self.tables.type_of(ty).symbol);
                     }
-                    // tsgo answers `meta` in `import.meta` with the transient
-                    // `meta` member of its ImportMetaExpression type; the port
-                    // has no such symbol yet.
+                    // The `meta` in `import.meta`: the transient `meta` member
+                    // of tsgo's ImportMetaExpression type (#44364, #45031).
+                    if keyword == SyntaxKind::ImportKeyword && text == "meta" {
+                        return Ok(Some(self.get_import_meta_expression_meta_symbol()?));
+                    }
+                    // no other meta properties are valid syntax, thus no others
+                    // should have symbols
                     return Ok(None);
                 }
             }
@@ -496,9 +500,31 @@ impl CheckerState<'_> {
                     }
                     if self.kind_of(name) == SyntaxKind::PropertyAccessExpression {
                         self.check_property_access_expression(name, CheckMode::NORMAL, false)?;
-                        // tsgo falls back to getApplicableIndexSymbol for an
-                        // access answered by an index signature; the port
-                        // has no index symbols yet.
+                        let resolved = self
+                            .links
+                            .read_node(name, |links| links.resolved_symbol.resolved())
+                            .filter(|&s| s != self.unknown_symbol);
+                        if resolved.is_none() {
+                            // An access answered by an index signature names
+                            // the signature's synthetic `__index` symbol.
+                            let NodeData::PropertyAccessExpression(data) = self.data_of(name)
+                            else {
+                                unreachable!("kind/data agree");
+                            };
+                            let (expression, member) = (data.expression, data.name);
+                            if let (Some(expression), Some(member)) = (expression, member) {
+                                if self.kind_of(member) != SyntaxKind::PrivateIdentifier {
+                                    let object = self
+                                        .check_expression_cached(expression, CheckMode::NORMAL)?;
+                                    let key = self.get_literal_type_from_property_name(member)?;
+                                    if let Some(symbol) =
+                                        self.get_applicable_index_symbol(object, key)?
+                                    {
+                                        return Ok(Some(symbol));
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         self.check_qualified_name(name, CheckMode::NORMAL)?;
                     }
@@ -541,6 +567,88 @@ impl CheckerState<'_> {
         } else {
             Ok(None)
         }
+    }
+
+    /// tsgo `getGlobalImportMetaExpressionType` (checker.go:25147-25160):
+    /// the transient `meta` member of the synthetic
+    /// `ImportMetaExpression { meta: ImportMeta }`.
+    fn get_import_meta_expression_meta_symbol(&mut self) -> CheckResult<SymbolId> {
+        if let Some(symbol) = self.import_meta_expression_meta_symbol {
+            return Ok(symbol);
+        }
+        let container = self.binder.create_symbol(
+            SymbolFlags::NONE,
+            tsc_types::EscapedName::from_identifier_escaped_text("ImportMetaExpression"),
+        );
+        let meta = self.binder.create_symbol(
+            SymbolFlags::PROPERTY,
+            tsc_types::EscapedName::from_identifier_escaped_text("meta"),
+        );
+        self.binder.symbol_mut(meta).parent = Some(container);
+        let import_meta = self.get_global_import_meta_type()?;
+        self.links.set_symbol_type(
+            self.speculation_depth,
+            meta,
+            crate::links::LinkSlot::Resolved(import_meta),
+        );
+        self.import_meta_expression_meta_symbol = Some(meta);
+        Ok(meta)
+    }
+
+    /// tsgo `getApplicableIndexSymbol` (checker.go:32571-32601): the
+    /// synthetic `__index` symbol of the index signature that answers
+    /// `key_type` on `ty`, created once per signature (the port keys it by
+    /// the object type and the signature's key type).
+    pub(crate) fn get_applicable_index_symbol(
+        &mut self,
+        ty: TypeId,
+        key_type: TypeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        let Some(info) = self.get_applicable_index_info(ty, key_type)? else {
+            return Ok(None);
+        };
+        if info.is_any_base_type_index_info {
+            return Ok(None);
+        }
+        let cache_key = (ty, info.key_type);
+        if let Some(&symbol) = self.index_symbols.get(&cache_key) {
+            return Ok(Some(symbol));
+        }
+        let declarations = match info.declaration {
+            Some(declaration) => vec![declaration],
+            None => {
+                let mut declarations = Vec::new();
+                for other in self.get_index_infos_of_type(ty)? {
+                    if let Some(declaration) = other.declaration {
+                        if self.is_applicable_index_type(key_type, other.key_type)? {
+                            declarations.push(declaration);
+                        }
+                    }
+                }
+                declarations
+            }
+        };
+        if declarations.is_empty() {
+            return Ok(None);
+        }
+        let parent = self.tables.type_of(ty).symbol;
+        let symbol = self.binder.create_symbol(
+            SymbolFlags::PROPERTY,
+            tsc_types::EscapedName::internal(tsc_types::InternalSymbolName::INDEX),
+        );
+        let record = self.binder.symbol_mut(symbol);
+        for &declaration in &declarations {
+            record.declarations.push(declaration);
+        }
+        record.value_declaration = Some(declarations[0]);
+        record.parent = parent;
+        self.links.set_symbol_type(
+            self.speculation_depth,
+            symbol,
+            crate::links::LinkSlot::Resolved(info.value_type),
+        );
+        self.index_symbols.insert(cache_key, symbol);
+        Ok(Some(symbol))
     }
 
     /// tsgo `getSymbolOfNode` (checker.go:14628-14634): the declaration's

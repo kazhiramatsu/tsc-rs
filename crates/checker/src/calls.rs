@@ -6953,6 +6953,11 @@ impl<'a> CheckerState<'a> {
         let Some(resolved) = resolved else {
             return Ok(true);
         };
+        // tsgo isCommonJSRequire (checker.go:16002): the synthetic require
+        // symbol is the CommonJS require.
+        if resolved == self.require_symbol {
+            return Ok(true);
+        }
         let flags = self.symbol_flags(resolved);
         if flags.intersects(SymbolFlags::ALIAS) {
             return Ok(false);

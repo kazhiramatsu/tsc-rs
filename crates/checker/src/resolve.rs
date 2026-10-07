@@ -830,8 +830,20 @@ impl<'a> CheckerState<'a> {
             let probe = self.lookup_probe(input, name, meaning, true)?;
             result = self.finish_lookup(probe, name, meaning);
         }
-        // (JS `require` fallback elided — requireSymbol, M2 3.4c
-        // residual; plain-JS diagnostics are allowlist-filtered.)
+        // tsgo binder/nameresolver.go:330-336: in a JavaScript file the
+        // callee `require` of a require call resolves to the synthetic
+        // require symbol (typed `any`) when nothing else declares it.
+        if result.is_none() {
+            if let Some(original) = original_location {
+                if self.is_in_js_file(original)
+                    && self
+                        .parent_of(original)
+                        .is_some_and(|parent| self.is_require_call(parent, false))
+                {
+                    return Ok(Some(self.require_symbol));
+                }
+            }
+        }
 
         if let Some(message) = name_not_found_message {
             if let Some(property) = property_with_invalid_initializer {

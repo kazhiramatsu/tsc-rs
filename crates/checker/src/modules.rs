@@ -8505,6 +8505,9 @@ impl<'a> CheckerState<'a> {
         match self.data_of(parent) {
             NodeData::QualifiedName(data) => data.right == Some(node),
             NodeData::PropertyAccessExpression(data) => data.name == Some(node),
+            // tsgo IsRightSideOfQualifiedNameOrPropertyAccess
+            // (ast/utilities.go:3735-3746): the name of a meta property too.
+            NodeData::MetaProperty(data) => data.name == Some(node),
             _ => false,
         }
     }
