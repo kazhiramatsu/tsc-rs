@@ -1157,6 +1157,8 @@ pub struct ConfigEmitOptionOverrides {
     /// `--stableTypeOrdering`: a checker option, so it is not an emit-profile
     /// override (`is_empty` ignores it) and the no-emit route accepts it.
     pub stable_type_ordering: Option<bool>,
+    // `--listEmittedFiles` is a listing option (`is_empty` ignores it too):
+    // tsgo's --noEmit command accepts it and lists the build info it writes.
     pub target: Option<i32>,
     pub module: Option<i32>,
     pub use_define_for_class_fields: Option<bool>,
@@ -1175,7 +1177,6 @@ impl ConfigEmitOptionOverrides {
             && self.no_emit_on_error.is_none()
             && self.emit_bom.is_none()
             && self.new_line.is_none()
-            && self.list_emitted_files.is_none()
             && self.no_lib.is_none()
     }
 

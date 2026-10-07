@@ -107,7 +107,10 @@ pub mod flow;
 pub mod functions;
 pub mod globals;
 pub mod incremental;
-pub use incremental::{IncrementalCheckFacts, IncrementalFileFacts};
+pub use incremental::{
+    IncrementalCheckFacts, IncrementalFileFacts, IncrementalPlan, IncrementalPlanner,
+    IncrementalRequest,
+};
 pub mod indexed;
 pub mod inference;
 pub mod instantiate;
@@ -1003,6 +1006,27 @@ fn preceding_comment_directive_line(
     None
 }
 
+/// tsgo `GetIncludeProcessorDiagnostics`' rows of one file: the program's
+/// diagnostics located in it, after its comment directives (the include
+/// processor's rows an incremental program appends to the file's cached
+/// semantic rows).
+pub(crate) fn program_rows_for_file(
+    source: &tsc_syntax::SourceFile,
+    program_diagnostics: &[Diagnostic],
+) -> Vec<Diagnostic> {
+    let rows = program_diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if source.comment_directives.is_empty() {
+        return rows;
+    }
+    filter_by_comment_directives_and_mark_used(source, rows.into_iter(), None)
+}
+
 fn filter_by_comment_directives_and_mark_used(
     source: &tsc_syntax::SourceFile,
     diagnostics: impl Iterator<Item = tsc_diagnostics::Diagnostic>,
@@ -1521,6 +1545,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
             observe_phase,
             None,
             None,
+            None,
             ProgramFileFacts::ORDINARY,
             WorkerBudget::serial(),
         )
@@ -1551,6 +1576,7 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
         CheckWorkCounters::default(),
         false,
         observe_phase,
+        None,
         None,
         None,
         ProgramFileFacts::ORDINARY,
@@ -1608,6 +1634,7 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         CheckWorkCounters::for_owned_libs(lib_work),
         true,
         &mut observe_phase,
+        None,
         None,
         None,
         ProgramFileFacts::DEFAULT_LIBRARY,
@@ -1787,7 +1814,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers<'cwd>(
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
         workers,
-        false,
+        IncrementalRequest::NONE,
     )
 }
 
@@ -1815,7 +1842,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(
         current_directory,
         provider,
         WorkerBudget::serial(),
-        false,
+        IncrementalRequest::NONE,
         operation,
     )
 }
@@ -1833,7 +1860,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     workers: WorkerBudget,
-    incremental_facts: bool,
+    incremental: IncrementalRequest<'_>,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
@@ -1851,7 +1878,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_workers<'cwd>(
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
         workers,
-        incremental_facts,
+        incremental,
     )
 }
 
@@ -1894,7 +1921,7 @@ pub fn check_program_with_authoritative_modules_at_emit_first_with_workers<'cwd>
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::EagerAfterEmit,
         workers,
-        false,
+        IncrementalRequest::NONE,
     )
 }
 
@@ -1931,7 +1958,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::Eager,
         WorkerBudget::serial(),
-        false,
+        IncrementalRequest::NONE,
     )
 }
 
@@ -1973,7 +2000,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
         library_prefix,
         gate.schedule(),
         WorkerBudget::serial(),
-        false,
+        IncrementalRequest::NONE,
     )
 }
 
@@ -1991,7 +2018,7 @@ pub fn with_authoritative_modules_at_for_declarations<'cwd>(
     options: &CompilerOptions,
     current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
-    incremental_facts: bool,
+    incremental: IncrementalRequest<'_>,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
@@ -2009,7 +2036,7 @@ pub fn with_authoritative_modules_at_for_declarations<'cwd>(
         LibraryPrefixCompletion::Complete,
         DiagnosticSchedule::OnDemand,
         WorkerBudget::serial(),
-        incremental_facts,
+        incremental,
     )
 }
 
@@ -2054,7 +2081,7 @@ pub fn check_program_with_authoritative_modules_at_with_checkers<'cwd>(
         workers,
         checkers,
         None,
-        false,
+        IncrementalRequest::NONE,
     )
 }
 
@@ -2102,7 +2129,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
     provider: &dyn AuthoritativeModuleProvider,
     workers: WorkerBudget,
     gate: SyntacticDiagnosticsGate,
-    incremental_facts: bool,
+    incremental: IncrementalRequest<'_>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
@@ -2119,7 +2146,7 @@ pub fn check_program_with_authoritative_modules_at_with_workers_gated<'cwd>(
         LibraryPrefixCompletion::Complete,
         gate.schedule(),
         workers,
-        incremental_facts,
+        incremental,
     )
 }
 
@@ -2138,7 +2165,7 @@ pub fn check_program_with_authoritative_modules_at_with_checkers_gated<'cwd>(
     workers: WorkerBudget,
     checkers: CheckerBudget,
     gate: SyntacticDiagnosticsGate,
-    incremental_facts: bool,
+    incremental: IncrementalRequest<'_>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode_with_source(
@@ -2157,7 +2184,7 @@ pub fn check_program_with_authoritative_modules_at_with_checkers_gated<'cwd>(
         workers,
         checkers,
         None,
-        incremental_facts,
+        incremental,
     )
 }
 
@@ -2180,7 +2207,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
     workers: WorkerBudget,
     checkers: CheckerBudget,
     sharded_emit: &mut ShardedEmit<'_>,
-    incremental_facts: bool,
+    incremental: IncrementalRequest<'_>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode_with_source(
@@ -2199,7 +2226,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_checkers<'cwd>(
         workers,
         checkers,
         Some(sharded_emit),
-        incremental_facts,
+        incremental,
     )
 }
 
@@ -2218,7 +2245,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
     library_prefix: LibraryPrefixCompletion,
     diagnostic_schedule: DiagnosticSchedule,
     workers: WorkerBudget,
-    incremental_facts: bool,
+    incremental: IncrementalRequest<'_>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     check_program_with_authoritative_modules_at_cache_mode_with_source(
         libs,
@@ -2236,7 +2263,7 @@ fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
         workers,
         CheckerBudget::serial(),
         None,
-        incremental_facts,
+        incremental,
     )
 }
 
@@ -2257,9 +2284,13 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     workers: WorkerBudget,
     checkers: CheckerBudget,
     sharded_emit: Option<&mut ShardedEmit<'_>>,
-    incremental_facts: bool,
+    incremental: IncrementalRequest<'_>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let current_directory = current_directory.into();
+    let IncrementalRequest {
+        facts: incremental_facts,
+        mut planner,
+    } = incremental;
     perf::add(
         PerfCounter::CheckerShardsRequested,
         checkers.checkers() as u64,
@@ -2316,6 +2347,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
                 &mut observe_phase,
                 Some(&run),
                 emit_operation,
+                planner.as_deref_mut(),
                 ProgramFileFacts::DEFAULT_LIBRARY,
                 workers,
             )
@@ -2340,6 +2372,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
                 &mut observe_phase,
                 Some(&run),
                 emit_operation,
+                planner.as_deref_mut(),
                 ProgramFileFacts::DEFAULT_LIBRARY,
                 workers,
             )
@@ -2386,6 +2419,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
                 workers,
                 checkers,
                 sharded_emit,
+                planner.as_deref_mut(),
             )
         } else {
             check_program_with_prebound_libs_at_observed(
@@ -2400,6 +2434,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
                 &mut observe_phase,
                 Some(&run),
                 emit_operation,
+                planner,
                 ProgramFileFacts::DEFAULT_LIBRARY,
                 workers,
             )
@@ -3329,6 +3364,7 @@ fn run_checker_shard<'a>(
     eager: Option<ShardEagerClosure<'_>>,
     checking: &std::sync::atomic::AtomicUsize,
     incremental_facts: bool,
+    selected: Option<&[bool]>,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
@@ -3368,7 +3404,9 @@ fn run_checker_shard<'a>(
             snapshot.document(file).source()
         ));
         let file_started = file_trace.then(std::time::Instant::now);
-        check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+        if selected.is_none_or(|selected| selected[file]) {
+            check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+        }
         if let Some(started) = file_started {
             let document = snapshot.document(file);
             eprintln!(
@@ -3397,7 +3435,9 @@ fn run_checker_shard<'a>(
                 state.binder.source(file),
                 snapshot.document(file).source()
             ));
-            check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+            if selected.is_none_or(|selected| selected[file]) {
+                check_program_file(&mut state, program_file_id(file), &mut globals_by_file);
+            }
             files.push(file);
             if state.order_guard.reasons() != 0 && replay_on_order {
                 queue.abort();
@@ -3504,6 +3544,7 @@ fn merge_shard_outputs(
     work_counters: CheckWorkCounters,
     replay_on_display_marks: bool,
     incremental_facts: bool,
+    selected: Option<&[bool]>,
 ) -> Result<CheckExecution, u32> {
     let authoritative_failure = outputs.iter_mut().find_map(|output| output.failure.take());
     let shard_incremental_facts = outputs
@@ -3555,14 +3596,16 @@ fn merge_shard_outputs(
     let fixture_rows = rows_by_file(outputs.iter().map(|output| &output.fixture));
     let complete_rows = rows_by_file(outputs.iter().map(|output| &output.complete));
     let file_count = snapshot.documents().len();
+    let unselected = |file: usize| selected.is_some_and(|selected| !selected[file]);
     let skip = |file: usize| {
-        should_skip_type_checking_file(
-            snapshot.document(file).source(),
-            snapshot.file_facts(ProgramFileId::from_raw(
-                u32::try_from(file).expect("program file index"),
-            )),
-            options,
-        )
+        unselected(file)
+            || should_skip_type_checking_file(
+                snapshot.document(file).source(),
+                snapshot.file_facts(ProgramFileId::from_raw(
+                    u32::try_from(file).expect("program file index"),
+                )),
+                options,
+            )
     };
     let assemble = |file: usize,
                     rows: &rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>>,
@@ -3664,37 +3707,44 @@ fn merge_shard_outputs(
             .enumerate()
             .map(|(file, facts)| {
                 let mut facts = facts.unwrap_or_default();
-                facts.semantic_rows = Some(if skip(file) {
-                    Vec::new()
-                } else {
-                    let document = snapshot.document(file);
-                    let source = document.source();
-                    let empty = Vec::new();
-                    let checker_for_file = complete_rows.get(&source.file_name).unwrap_or(&empty);
-                    let globals = outputs
-                        .iter()
-                        .flat_map(|output| output.complete.globals_by_file[file].iter().cloned())
-                        .collect::<Vec<_>>();
-                    let ranges = outputs
-                        .iter()
-                        .flat_map(|output| {
-                            output
-                                .complete
-                                .partially_checked_ranges
-                                .get(&file)
-                                .into_iter()
-                                .flatten()
-                                .copied()
-                        })
-                        .collect::<Vec<_>>();
-                    cached_semantic_rows(
-                        source,
-                        &document.data.bind_diagnostics,
-                        checker_for_file,
-                        (!ranges.is_empty()).then_some(ranges.as_slice()),
-                        &globals,
-                        options,
-                    )
+                facts.program_rows =
+                    program_rows_for_file(snapshot.document(file).source(), program_diagnostics);
+                facts.semantic_rows = (!unselected(file)).then(|| {
+                    if skip(file) {
+                        Vec::new()
+                    } else {
+                        let document = snapshot.document(file);
+                        let source = document.source();
+                        let empty = Vec::new();
+                        let checker_for_file =
+                            complete_rows.get(&source.file_name).unwrap_or(&empty);
+                        let globals = outputs
+                            .iter()
+                            .flat_map(|output| {
+                                output.complete.globals_by_file[file].iter().cloned()
+                            })
+                            .collect::<Vec<_>>();
+                        let ranges = outputs
+                            .iter()
+                            .flat_map(|output| {
+                                output
+                                    .complete
+                                    .partially_checked_ranges
+                                    .get(&file)
+                                    .into_iter()
+                                    .flatten()
+                                    .copied()
+                            })
+                            .collect::<Vec<_>>();
+                        cached_semantic_rows(
+                            source,
+                            &document.data.bind_diagnostics,
+                            checker_for_file,
+                            (!ranges.is_empty()).then_some(ranges.as_slice()),
+                            &globals,
+                            options,
+                        )
+                    }
                 });
                 facts
             })
@@ -3748,6 +3798,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     workers: WorkerBudget,
     checkers: CheckerBudget,
     mut sharded_emit: Option<&mut ShardedEmit<'_>>,
+    mut planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let current_directory = current_directory.into();
     let phase_started = std::time::Instant::now();
@@ -3789,6 +3840,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 observe_phase,
                 Some(run),
                 None,
+                planner,
                 lib_facts,
                 workers,
             );
@@ -3854,6 +3906,33 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     metadata.extend(authoritative_program_metadata.iter().cloned());
     let complete_library_prefix = run.library_prefix == LibraryPrefixCompletion::Complete;
 
+    // The incremental program's planner runs over one initialized checker on
+    // the coordinator before the shards check, and restricts the checked
+    // files (see `check_snapshot_serially`).
+    let selected: Option<Vec<bool>> = match planner.as_deref_mut() {
+        Some(planner) if run.incremental_facts => {
+            let provider = factory.provider();
+            let mut state = init_checker_state(
+                &snapshot,
+                options,
+                Some((&*provider, metadata.as_slice())),
+                host.clone(),
+            );
+            reserve_type_tables(&mut state, 0);
+            let facts = incremental::planner_facts(&mut state, &program_diagnostics);
+            let check_runs = !file_diagnostics
+                .iter()
+                .any(|file| !file.syntactic.is_empty())
+                && state.visible_global_diagnostics.is_empty();
+            let session = CheckerSession::from_checked_state(state);
+            let plan = planner(&snapshot, &session, &facts, check_runs);
+            drop(session);
+            drop(provider);
+            (!plan.check.is_empty()).then_some(plan.check)
+        }
+        _ => None,
+    };
+
     // Every Program file (library prefix included) goes through the shard
     // file queue. Shared Program-order pulling (tsgo's checker pool) lets a
     // shard on a slower core take fewer files instead of finishing last; but
@@ -3892,7 +3971,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                     )),
                     options,
                 );
-            if skipped || source.file_name.as_js().ends_with(".json") {
+            if skipped
+                || selected.as_ref().is_some_and(|selected| !selected[index])
+                || source.file_name.as_js().ends_with(".json")
+            {
                 1
             } else {
                 source.arena.len()
@@ -4066,6 +4148,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             eager_closure,
             &checking,
             run.incremental_facts,
+            selected.as_deref(),
         )
     };
     #[allow(clippy::large_enum_variant)]
@@ -4182,6 +4265,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             work_counters,
             replay_on_order,
             run.incremental_facts,
+            selected.as_deref(),
         ) {
             Ok(execution) => execution,
             Err(marked_reasons) => {
@@ -4287,6 +4371,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         sharded_emit,
         checkers.leaks_states(),
         run.incremental_facts,
+        planner,
     );
     drop(provider);
     if checkers.leaks_states() {
@@ -4323,6 +4408,7 @@ fn check_snapshot_serially(
     sharded_emit: Option<&mut ShardedEmit<'_>>,
     leak_state: bool,
     incremental_facts: bool,
+    planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
     let mut state = init_checker_state(snapshot, options, authoritative, host);
@@ -4333,6 +4419,32 @@ fn check_snapshot_serially(
         rows
     } else {
         Vec::new()
+    };
+    // The incremental program's planner (tsgo programToSnapshot and
+    // collectAllAffectedFiles) runs over the initialized checker before any
+    // source is checked and restricts the check to the files whose rows the
+    // old build info does not cover.
+    let selected: Option<Vec<bool>> = match planner {
+        Some(planner) if incremental_facts => {
+            let facts = incremental::planner_facts(&mut state, program_diagnostics);
+            // tsgo's semantic getter runs when the syntactic and global gates
+            // are open (the options gate is the compiler's).
+            let check_runs = check_sources
+                && !file_diagnostics
+                    .iter()
+                    .any(|file| !file.syntactic.is_empty())
+                && state.visible_global_diagnostics.is_empty();
+            let session = CheckerSession::from_checked_state(state);
+            let plan = planner(snapshot, &session, &facts, check_runs);
+            state = session.into_state();
+            (!plan.check.is_empty()).then_some(plan.check)
+        }
+        _ => None,
+    };
+    let is_selected = |file: ProgramFileId| {
+        selected
+            .as_ref()
+            .is_none_or(|selected| selected[file.index()])
     };
     if !check_sources {
         // The command's options diagnostics are non-empty: the checker is
@@ -4352,7 +4464,14 @@ fn check_snapshot_serially(
         state.line_profile.flush();
         let incremental = incremental_facts.then(|| {
             let none_by_file = vec![Vec::new(); state.binder.file_count()];
-            incremental_facts_after_check(&mut state, &none_by_file, options, false)
+            incremental_facts_after_check(
+                &mut state,
+                &none_by_file,
+                options,
+                false,
+                program_diagnostics,
+                None,
+            )
         });
         let result = assemble_check_result_with_facts(
             &file_diagnostics,
@@ -4373,9 +4492,14 @@ fn check_snapshot_serially(
     let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
     let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
     let check_started = std::time::Instant::now();
+    let checked_program_file_ids = program_file_ids
+        .iter()
+        .copied()
+        .filter(|&file| is_selected(file))
+        .collect::<Vec<_>>();
     check_files_in_order(
         &mut state,
-        &program_file_ids,
+        &checked_program_file_ids,
         &mut global_checker_diagnostics_by_file,
     );
     if tsc_types::trace::enabled() {
@@ -4391,7 +4515,7 @@ fn check_snapshot_serially(
     }
     state.report_memory("serial");
     for &file in &program_file_ids {
-        if state.skip_type_checking_file(file) {
+        if state.skip_type_checking_file(file) || !is_selected(file) {
             continue;
         }
         let source_index = file.index();
@@ -4418,15 +4542,20 @@ fn check_snapshot_serially(
     }
     let all_program_file_ids = state.binder.file_ids().collect::<Vec<_>>();
     if complete_library_prefix {
+        let checked_file_ids = all_program_file_ids
+            .iter()
+            .copied()
+            .filter(|&file| is_selected(file))
+            .collect::<Vec<_>>();
         check_files_in_order(
             &mut state,
-            &all_program_file_ids,
+            &checked_file_ids,
             &mut global_checker_diagnostics_by_file,
         );
     }
     let mut diagnostics = Vec::new();
     for &file in &all_program_file_ids {
-        if state.skip_type_checking_file(file) {
+        if state.skip_type_checking_file(file) || !is_selected(file) {
             continue;
         }
         diagnostics.extend(semantic_diagnostics_for_program_file(
@@ -4447,6 +4576,8 @@ fn check_snapshot_serially(
             &global_checker_diagnostics_by_file,
             options,
             true,
+            program_diagnostics,
+            selected.as_deref(),
         )
     });
     let result = assemble_check_result_with_facts(
@@ -4503,6 +4634,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     observe_phase: &mut impl FnMut(CheckPhase),
     authoritative_run: Option<&AuthoritativeRun<'_>>,
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
+    planner: Option<&mut IncrementalPlanner<'_>>,
     lib_facts: ProgramFileFacts,
     workers: WorkerBudget,
 ) -> CheckExecution {
@@ -4662,6 +4794,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 None,
                 false,
                 run.incremental_facts,
+                planner,
             );
         }
         let mut state = init_checker_state(
@@ -4745,6 +4878,32 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             };
         }
 
+        // The incremental program's planner (see `check_snapshot_serially`)
+        // runs over the initialized checker before any source is checked
+        // and restricts the checked files.
+        let selected: Option<Vec<bool>> = match planner {
+            Some(planner) if authoritative_run.is_some_and(|run| run.incremental_facts) => {
+                let check_runs = authoritative_run
+                    .is_some_and(|run| run.diagnostic_schedule.checks_sources())
+                    && !syntactic_closed
+                    && !file_diagnostics
+                        .iter()
+                        .any(|file| !file.syntactic.is_empty())
+                    && state.visible_global_diagnostics.is_empty();
+                let facts = incremental::planner_facts(&mut state, &program_diagnostics);
+                let session = CheckerSession::from_checked_state(state);
+                let plan = planner(&snapshot, &session, &facts, check_runs);
+                state = session.into_state();
+                (!plan.check.is_empty()).then_some(plan.check)
+            }
+            _ => None,
+        };
+        let is_selected = |file: ProgramFileId| {
+            selected
+                .as_ref()
+                .is_none_or(|selected| selected[file.index()])
+        };
+
         // getDiagnosticsWorker snapshots global diagnostics around each
         // requested source. Only newly-published file-less rows are
         // prepended to that source's checker diagnostics. `program_file_ids`
@@ -4754,16 +4913,21 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // ProgramFileId and use the same Program-aware skip policy.
         let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
         let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
+        let checked_program_file_ids = program_file_ids
+            .iter()
+            .copied()
+            .filter(|&file| is_selected(file))
+            .collect::<Vec<_>>();
         check_files_in_order(
             &mut state,
-            &program_file_ids,
+            &checked_program_file_ids,
             &mut global_checker_diagnostics_by_file,
         );
 
         // Public per-file getter assembly. This deliberately does not
         // use a name-sorted map: the outer observation order is Program order.
         for &file in &program_file_ids {
-            if state.skip_type_checking_file(file) {
+            if state.skip_type_checking_file(file) || !is_selected(file) {
                 continue;
             }
             let source_index = file.index();
@@ -4818,9 +4982,14 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             if authoritative_run
                 .is_some_and(|run| run.library_prefix == LibraryPrefixCompletion::Complete)
             {
+                let checked_file_ids = all_program_file_ids
+                    .iter()
+                    .copied()
+                    .filter(|&file| is_selected(file))
+                    .collect::<Vec<_>>();
                 check_files_in_order(
                     &mut state,
-                    &all_program_file_ids,
+                    &checked_file_ids,
                     &mut global_checker_diagnostics_by_file,
                 );
             }
@@ -4832,7 +5001,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             // canonical declaration in an earlier library file (for example,
             // a merged interface's duplicate index signatures).
             for &file in &all_program_file_ids {
-                if state.skip_type_checking_file(file) {
+                if state.skip_type_checking_file(file) || !is_selected(file) {
                     continue;
                 }
                 diagnostics.extend(semantic_diagnostics_for_program_file(
@@ -4856,6 +5025,8 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                 &global_checker_diagnostics_by_file,
                 options,
                 true,
+                &program_diagnostics,
+                selected.as_deref(),
             ));
         }
         if authoritative_failure.is_none() {
@@ -5036,11 +5207,15 @@ fn incremental_facts_after_check(
     global_checker_diagnostics_by_file: &[Vec<Diagnostic>],
     options: &CompilerOptions,
     checked: bool,
+    program_diagnostics: &[Diagnostic],
+    selected: Option<&[bool]>,
 ) -> IncrementalCheckFacts {
     let files = (0..state.binder.file_count())
         .map(|file| {
             let mut facts = incremental::file_facts_without_rows(state, file);
-            if checked {
+            facts.program_rows =
+                program_rows_for_file(state.binder.source(file), program_diagnostics);
+            if checked && selected.is_none_or(|selected| selected[file]) {
                 facts.semantic_rows = Some(if facts.skipped {
                     Vec::new()
                 } else {
