@@ -424,6 +424,18 @@ impl PreparedSourceFile {
             && canonical_of(self.real_path.as_ref()) == canonical_of(other.real_path.as_ref())
     }
 
+    /// The collect walk keeps the spelling of the first collected task of
+    /// the path (tsgo keeps that task's parse): the display spelling changes
+    /// and the former one is remembered as an alias.
+    pub(crate) fn respell(&mut self, display: JsStr<'_>) -> Result<(), PreparationError> {
+        let former = self.path.display().to_owned();
+        self.path = ProgramPath::from_js_parts(display, self.path.canonical().as_js())?;
+        self.alternate_display_paths
+            .retain(|existing| existing.as_js() != display);
+        self.remember_display_alias(former.as_js());
+        Ok(())
+    }
+
     pub(crate) fn remember_display_alias(&mut self, display: JsStr<'_>) {
         if display != self.path.display()
             && !self

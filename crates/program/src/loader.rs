@@ -890,6 +890,9 @@ fn load_program_worker(
     graph.prefetch_dependencies();
     tsc_types::trace::mark("load: read-ahead of dependencies", phase_started);
     let phase_started = std::time::Instant::now();
+    // tsgo processRootFiles: the root tasks are the root files, then the
+    // selected libraries, then the automatic type directives; the
+    // single-threaded work queue then runs them, the last queued first.
     for index in 0..root_names.len() {
         let root_spelling = root_names.name(index)?;
         let root = normalize_root(root_spelling, &path_context)?;
@@ -898,17 +901,14 @@ fn load_program_worker(
             .unwrap_or(RootFileReason::Explicit);
         graph.load_root(root, root_spelling, reason)?;
     }
-    tsc_types::trace::mark("load: root walk (roots only)", phase_started);
     if root_names.len() != 0 {
-        let directives_started = std::time::Instant::now();
-        graph.load_automatic_type_directives()?;
-        tsc_types::trace::mark("load: automatic type directives", directives_started);
         if program_options.no_lib() != Some(true) {
-            let libraries_started = std::time::Instant::now();
             graph.load_selected_libraries()?;
-            tsc_types::trace::mark("load: selected libraries", libraries_started);
         }
+        graph.load_automatic_type_directives()?;
     }
+    graph.run_tasks()?;
+    tsc_types::trace::mark("load: parse tasks", phase_started);
     tsc_types::trace::mark(
         &format!(
             "load: root walk ({} pre-resolved hits, {} directory hits, {} left, {} resolutions)",
@@ -942,7 +942,7 @@ fn load_program_worker(
             );
         }
     }
-    let mut staged = graph.finish();
+    let mut staged = graph.finish()?;
     tsc_types::trace::mark("load: root walk and graph finish", phase_started);
     let phase_started = std::time::Instant::now();
     // The package.json files the walk probed, taken before the dependency
@@ -1317,32 +1317,6 @@ fn reject_unowned_drive_relative_path(
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum VisitState {
-    Visiting(usize),
-    Complete(usize),
-    /// A source file of a referenced project, loaded as its output
-    /// declaration file (tsgo getParseFileRedirect): the source path names
-    /// that output's staged source.
-    ProjectReferenceRedirect(usize),
-    Missing,
-}
-
-impl VisitState {
-    const fn source(self) -> Option<usize> {
-        match self {
-            Self::Visiting(source)
-            | Self::Complete(source)
-            | Self::ProjectReferenceRedirect(source) => Some(source),
-            Self::Missing => None,
-        }
-    }
-
-    const fn is_redirect(self) -> bool {
-        matches!(self, Self::ProjectReferenceRedirect(_))
-    }
-}
-
 /// Why a file is in the program (tsgo `FileIncludeReason`), as the loader
 /// recorded it: one entry per occurrence of the reference.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1415,7 +1389,6 @@ impl SourceInclusionReason {
 
 #[derive(Clone, Debug)]
 struct DiscoveryReason {
-    seeds_non_external_reachability: bool,
     inclusion: SourceInclusionReason,
     package_id: Option<PackageId>,
 }
@@ -1423,7 +1396,6 @@ struct DiscoveryReason {
 impl DiscoveryReason {
     fn root(reason: RootFileReason) -> Self {
         Self {
-            seeds_non_external_reachability: true,
             inclusion: SourceInclusionReason::Root(reason),
             package_id: None,
         }
@@ -1431,15 +1403,13 @@ impl DiscoveryReason {
 
     fn dependency(inclusion: SourceInclusionReason) -> Self {
         Self {
-            seeds_non_external_reachability: false,
             inclusion,
             package_id: None,
         }
     }
 
-    fn automatic_type(is_external_library_import: bool, name: JsString, implicit: bool) -> Self {
+    fn automatic_type(name: JsString, implicit: bool) -> Self {
         Self {
-            seeds_non_external_reachability: !is_external_library_import,
             inclusion: SourceInclusionReason::AutomaticType {
                 name,
                 package_id: None,
@@ -1493,8 +1463,13 @@ struct StagedSource {
     /// program-preprocessing message chain when two root spellings collapse
     /// on a case-insensitive host.
     root_inclusions: Vec<JsString>,
+    /// The include reasons in collect order (tsgo `fileIncludeReasons`),
+    /// attached by the collect walk.
     inclusion_reasons: Vec<SourceInclusionReason>,
     alternate_inclusion_reasons: Vec<(JsString, SourceInclusionReason)>,
+    /// tsgo `!sourceFilesFoundSearchingNodeModules`: the least depth any
+    /// task of the path ran at is zero (`TaskData::lowest_depth`); decided
+    /// by the collect walk.
     has_non_external_reason: bool,
     /// Program-owned default-library membership is independent of how the
     /// source first entered the graph. A replacement declaration may already
@@ -1511,15 +1486,6 @@ struct StagedSource {
     /// The spans of the occurrences of each request that load a source, in
     /// source order; a request without one is synthetic.
     module_request_spans: rustc_hash::FxHashMap<ResolutionKey, Vec<(u32, u32)>>,
-    found_searching_node_modules: bool,
-    modules_with_elided_imports: bool,
-    processing_references: bool,
-    pending_reprocesses: VecDeque<SourceReprocess>,
-    /// The package identity of the first reason that carried one, whichever
-    /// reason admitted the source (tsgo filesparser.go:293-295: a path's task
-    /// data takes the first non-empty packageId of its tasks). Package
-    /// deduplication reads it when the files are collected.
-    package_id: Option<PackageId>,
 }
 
 impl StagedSource {
@@ -1543,56 +1509,84 @@ struct CaseSensitiveCasingConflict {
     incoming_reason: SourceInclusionReason,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SourceReprocessKind {
-    AllReferences,
-    ImportedModules,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct SourceReprocess {
-    kind: SourceReprocessKind,
-    source_depth: usize,
-    node_modules_depth: usize,
-}
-
 struct StagedRoot {
     path: ProgramPath,
     source: Option<usize>,
     missing_diagnostic: Option<Diagnostic>,
+    /// The root's parse task; its source is read after the tasks ran.
+    task: Option<usize>,
 }
 
-/// The state of the collect walk (see `StagedGraph::collect_files`).
-struct CollectWalk {
-    deduplicate_packages: bool,
-    seen: Vec<bool>,
-    registered: BTreeMap<PackageId, usize>,
-    order: Vec<usize>,
-    /// `(source, owner, index)`; see [`CollectedFiles::redirects`].
-    redirects: Vec<(usize, usize, usize)>,
-    /// The entered sources with the index of their next edge to walk.
-    stack: Vec<(usize, usize)>,
+/// Why a parse task exists (the origin of tsgo `parseTask.includeReason`),
+/// with what the diagnostic of a target that loads nothing needs.
+#[derive(Clone, Debug)]
+enum TaskOrigin {
+    /// A root file, spelled as the request wrote it.
+    Root {
+        spelling: JsString,
+        reason: RootFileReason,
+    },
+    LibraryRoot(LibraryRootReason),
+    /// tsgo `isForAutomaticTypeDirective`: the task that resolves the
+    /// automatic type directives; its subtasks are their targets.
+    AutomaticTypes,
+    PathReference {
+        parent: usize,
+        pos: u32,
+        length: u32,
+        reference_text: JsString,
+    },
+    TypeReference,
+    LibReference {
+        parent: usize,
+        pos: u32,
+        length: u32,
+    },
+    Import,
+    /// tsgo `parseTask.redirect`: the output declaration file of a source
+    /// of a referenced project, loaded in the source's place.
+    Redirect,
 }
 
-impl CollectWalk {
-    /// tsgo collectFiles for one task: register its package identity or
-    /// redirect it to the identity's owner (then its subtasks are not walked).
-    fn enter(&mut self, sources: &[StagedSource], source: usize) {
-        self.seen[source] = true;
-        if self.deduplicate_packages {
-            if let Some(package_id) = sources[source].package_id.as_ref() {
-                if let Some(&owner) = self.registered.get(package_id) {
-                    // tsgo redirectsFile.index: the files collected so far
-                    // plus the redirects so far.
-                    let index = self.order.len() + self.redirects.len();
-                    self.redirects.push((source, owner, index));
-                    return;
-                }
-                self.registered.insert(package_id.clone(), source);
-            }
-        }
-        self.stack.push((source, 0));
-    }
+/// tsgo `parseTask` (compiler/filesparser.go): one arrival at a file
+/// through one reference. The tasks of one path share a [`TaskData`]; a
+/// task whose spelling the data already registered when it runs is an alias
+/// of the registered task (`loaded_task`) and loads nothing itself.
+struct ParseTask {
+    path: ProgramPath,
+    origin: TaskOrigin,
+    reason: DiscoveryReason,
+    class: SourceClass,
+    /// tsgo `increaseDepth`: the reference resolved into an external
+    /// library, so the target runs one depth deeper.
+    increase_depth: bool,
+    /// tsgo `elideOnDepth`: a JavaScript file from `node_modules` is not
+    /// loaded at a depth beyond `maxNodeModuleJsDepth`.
+    elide_on_depth: bool,
+    /// The depth in the task tree, for the source-depth limit.
+    tree_depth: usize,
+    data: usize,
+    /// tsgo `loaded` of `taskDataByPath.LoadOrStore`: the data existed when
+    /// the task was queued, so the task registers its spelling (or finds
+    /// it registered) when it runs.
+    queued_with_data: bool,
+    subtasks: Vec<usize>,
+    loaded: bool,
+    started_subtasks: bool,
+    loaded_task: Option<usize>,
+    source: Option<usize>,
+    redirect: Option<usize>,
+}
+
+/// tsgo `parseTaskData`: what the tasks of one path share.
+struct TaskData {
+    /// The task registered for each spelling (tsgo `tasks` by file name).
+    spellings: Vec<(JsString, usize)>,
+    /// tsgo `lowestDepth`: the least depth any task of the path ran at.
+    lowest_depth: usize,
+    started_subtasks: bool,
+    /// The first non-empty package identity of the path's tasks.
+    package_id: Option<PackageId>,
 }
 
 /// What the collect walk decided (see `StagedGraph::collect_files`).
@@ -1610,8 +1604,8 @@ struct CollectedFiles {
 /// [`StagedGraph::prefetch_roots`] for the host contract and the resource
 /// bound that permit it.
 ///
-/// `visit_source` performs every admission, limit, redirect and package-scope
-/// step in its original order. A retained read applies only to a visit under
+/// `admit_source` performs every admission, limit and package-scope step in
+/// its original order. A retained read applies only to a task under
 /// the identical display spelling (another spelling of the same canonical
 /// path is a distinct host query and reads as before). A retained parse is
 /// adopted only when the facts the worker assumed (display spelling and
@@ -1900,15 +1894,21 @@ struct StagedGraph<'host, 'options, 'resolver> {
     resolver: &'resolver mut ModuleResolver<'host>,
     library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
     resolved_library_paths: BTreeMap<String, ProgramPath>,
-    states: FxHashMap<CanonicalPath, VisitState>,
-    /// The sources the walk started at the top level, in order (tsgo's root
-    /// tasks: root files, then the libraries and the automatic type
-    /// directives' targets): the collect walk starts from them.
-    top_level_sources: Vec<usize>,
+    source_by_canonical: FxHashMap<CanonicalPath, usize>,
     files_by_name_ignore_case: FxHashMap<JsString, usize>,
     case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
-    source_edges: Vec<Vec<(usize, bool)>>,
+    /// tsgo filesParser: the parse tasks, their shared data by path, the
+    /// root tasks in tsgo's order and the single-threaded work queue (a
+    /// stack: the last queued task runs first).
+    tasks: Vec<ParseTask>,
+    task_data: Vec<TaskData>,
+    task_data_by_path: FxHashMap<CanonicalPath, usize>,
+    root_tasks: Vec<usize>,
+    stack: Vec<(usize, usize)>,
+    /// The missing-library diagnostics by path: a root of the same path
+    /// reports that diagnostic instead of its own.
+    missing_library_diagnostics: FxHashMap<JsString, Diagnostic>,
     /// The kept sources in program order, once the files are collected
     /// (`finish`); the diagnostics located by program order read it.
     program_order: Vec<usize>,
@@ -1992,12 +1992,16 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             resolver: config.resolver,
             library_resolver: config.library_resolver,
             resolved_library_paths: BTreeMap::new(),
-            states: FxHashMap::default(),
-            top_level_sources: Vec::new(),
+            source_by_canonical: FxHashMap::default(),
             files_by_name_ignore_case: FxHashMap::default(),
             case_sensitive_casing_conflicts: Vec::new(),
             sources: Vec::new(),
-            source_edges: Vec::new(),
+            tasks: Vec::new(),
+            task_data: Vec::new(),
+            task_data_by_path: FxHashMap::default(),
+            root_tasks: Vec::new(),
+            stack: Vec::new(),
+            missing_library_diagnostics: FxHashMap::default(),
             program_order: Vec::new(),
             roots: Vec::new(),
             module_resolution_by_key: rustc_hash::FxHashMap::default(),
@@ -2053,7 +2057,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// drops retained payloads from the tail of root order until it holds;
     /// those roots read fresh at their visit.
     ///
-    /// Roots the walk does not read through `visit_source` (extensionless,
+    /// Roots the tasks do not read through `admit_source` (extensionless,
     /// unsupported extension), JSON roots, roots whose implied module format
     /// needs the package scope, and duplicate or already-visited paths stay
     /// entirely on the sequential path. Hosts that keep the trait default and
@@ -2070,7 +2074,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 || (!is_admitted_source(path.canonical(), self.compiler_options)
                     && self.compiler_options.allow_non_ts_extensions != Some(true))
                 || is_json_source(path.canonical())
-                || self.states.contains_key(path.canonical())
+                || self.source_by_canonical.contains_key(path.canonical())
                 || !seen.insert(path.canonical().clone())
             {
                 continue;
@@ -2813,7 +2817,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             || (!is_admitted_source(path.canonical(), self.compiler_options)
                 && self.compiler_options.allow_non_ts_extensions != Some(true))
             || is_json_source(path.canonical())
-            || self.states.contains_key(path.canonical())
+            || self.source_by_canonical.contains_key(path.canonical())
             || self.prefetched.contains_key(path.canonical())
             || !state.queued.insert(path.canonical().clone())
         {
@@ -2896,7 +2900,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         queued: &mut BTreeSet<CanonicalPath>,
         path: &ProgramPath,
     ) {
-        if !self.states.contains_key(path.canonical())
+        if !self.source_by_canonical.contains_key(path.canonical())
             && !self.prefetched.contains_key(path.canonical())
             && queued.insert(path.canonical().clone())
         {
@@ -3260,40 +3264,47 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 path,
                 source: None,
                 missing_diagnostic: Some(diagnostic),
+                task: None,
             });
             return Ok(());
         }
-        let source = self.visit_source(
-            path.clone(),
-            0,
-            0,
-            DiscoveryReason::root(root_reason.clone()),
-            SourceClass::Ordinary,
-        )?;
-        if let Some(source) = source {
-            self.sources[source]
-                .root_inclusions
-                .push(path.display().to_owned());
-        }
-        let missing_diagnostic = source
-            .is_none()
-            .then(|| missing_root_diagnostic(root_spelling, root_reason));
-        if let Some(diagnostic) = missing_diagnostic.clone() {
-            if self
-                .diagnosed_missing_roots
-                .insert(path.display().to_owned())
-            {
-                self.program_diagnostics.push(diagnostic);
-            }
-        }
+        let task = self.new_root_task(path.clone(), root_spelling, root_reason);
         self.roots.push(StagedRoot {
             path,
-            source,
-            missing_diagnostic,
+            source: None,
+            missing_diagnostic: None,
+            task: Some(task),
         });
         Ok(())
     }
 
+    /// tsgo addRootFileTask: a root task with its spelling and reason; the
+    /// missing-root diagnostic is reported once the tasks ran.
+    fn new_root_task(
+        &mut self,
+        path: ProgramPath,
+        root_spelling: JsStr<'_>,
+        root_reason: RootFileReason,
+    ) -> usize {
+        let task = self.new_task(
+            path,
+            TaskOrigin::Root {
+                spelling: root_spelling.to_owned(),
+                reason: root_reason.clone(),
+            },
+            DiscoveryReason::root(root_reason),
+            SourceClass::Ordinary,
+            false,
+            false,
+            0,
+        );
+        self.root_tasks.push(task);
+        task
+    }
+
+    /// tsgo getSourceFileFromReference for a root without an extension: the
+    /// host is asked whether each candidate exists; the first that does is
+    /// the root's task.
     fn load_extensionless_root(
         &mut self,
         path: ProgramPath,
@@ -3302,24 +3313,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     ) -> Result<(), ProgramLoadError> {
         let requested_text = path.display();
         if self.compiler_options.allow_non_ts_extensions == Some(true) {
-            // tsc getSourceFileFromReferenceWorker (_tsc.js:124200-124205):
-            // under allowNonTsExtensions the exact extensionless name is the
-            // only candidate; no extension probing follows a miss.
-            let source = self.visit_source(
-                path.clone(),
-                0,
-                0,
-                DiscoveryReason::root(root_reason.clone()),
-                SourceClass::Ordinary,
-            )?;
-            if let Some(source) = source {
-                self.sources[source]
-                    .root_inclusions
-                    .push(path.display().to_owned());
+            if self.file_exists(&path)? {
+                let task = self.new_root_task(path.clone(), root_spelling, root_reason);
                 self.roots.push(StagedRoot {
                     path,
-                    source: Some(source),
+                    source: None,
                     missing_diagnostic: None,
+                    task: Some(task),
                 });
                 return Ok(());
             }
@@ -3334,6 +3334,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 path,
                 source: None,
                 missing_diagnostic: Some(diagnostic),
+                task: None,
             });
             return Ok(());
         }
@@ -3352,20 +3353,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     error,
                 )
             })?;
-            if let Some(source) = self.visit_source(
-                candidate,
-                0,
-                0,
-                DiscoveryReason::root(root_reason.clone()),
-                SourceClass::Ordinary,
-            )? {
-                self.sources[source]
-                    .root_inclusions
-                    .push(path.display().to_owned());
+            if self.file_exists(&candidate)? {
+                let task = self.new_root_task(candidate, root_spelling, root_reason);
                 self.roots.push(StagedRoot {
                     path,
-                    source: Some(source),
+                    source: None,
                     missing_diagnostic: None,
+                    task: Some(task),
                 });
                 return Ok(());
             }
@@ -3386,17 +3380,46 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             path,
             source: None,
             missing_diagnostic: Some(diagnostic),
+            task: None,
         });
         Ok(())
     }
 
+    fn file_exists(&self, path: &ProgramPath) -> Result<bool, ProgramLoadError> {
+        self.host.file_exists_js(path.display()).map_err(|error| {
+            ProgramLoadError::host_js(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_owned()),
+                error,
+            )
+        })
+    }
+
+    /// tsgo addAutomaticTypeDirectiveTasks: the last root task; its
+    /// subtasks are the automatic type directives' targets.
     fn load_automatic_type_directives(&mut self) -> Result<(), ProgramLoadError> {
+        let containing_file = self.automatic_types_containing_file()?;
+        let task = self.new_task(
+            containing_file,
+            TaskOrigin::AutomaticTypes,
+            DiscoveryReason::dependency(SourceInclusionReason::Synthetic),
+            SourceClass::Ordinary,
+            false,
+            false,
+            0,
+        );
+        self.root_tasks.push(task);
+        Ok(())
+    }
+
+    /// tsgo parseTask.loadAutomaticTypeDirectives.
+    fn load_automatic_types_task(&mut self, task: usize) -> Result<(), ProgramLoadError> {
         let (names, uses_wildcard) = self.automatic_type_directive_names()?;
         if names.is_empty() {
             return Ok(());
         }
 
-        let containing_file = self.automatic_types_containing_file()?;
+        let containing_file = self.tasks[task].path.clone();
         let request_edges = self.request_edges.saturating_add(names.len());
         self.enforce_limit(
             ProgramLoadOperation::DiscoverAutomaticTypes,
@@ -3451,7 +3474,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // Vendored createProgram resolves the complete batch before it starts
         // processing the first target, then processes names sequentially.
         // Repeated explicit names reuse the same mode-aware cache entry.
-        let mut processed = BTreeSet::new();
         for (name, index) in names.into_iter().zip(resolution_indices) {
             let target = match &self.type_resolutions[index].host {
                 ResolutionOutcome::Resolved(target) => Some((
@@ -3472,9 +3494,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     ));
                 continue;
             };
-            if !processed.insert(index) {
-                continue;
-            }
             if !is_loadable_typescript_extension(&extension) {
                 return Err(ProgramLoadError::invalid_data_js(
                     ProgramLoadOperation::ResolveTypeReference,
@@ -3482,23 +3501,18 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     "a resolved automatic type-reference target is not a TypeScript source file",
                 ));
             }
-            if self
-                .visit_source(
-                    target.clone(),
-                    0,
-                    usize::from(external),
-                    DiscoveryReason::automatic_type(external, name.clone(), uses_wildcard)
-                        .with_package_id(package_id),
-                    SourceClass::Ordinary,
-                )?
-                .is_none()
-            {
-                return Err(ProgramLoadError::invalid_data_js(
-                    ProgramLoadOperation::ReadSource,
-                    Some(target.display().to_owned()),
-                    "resolver reported an automatic type-reference target that the host no longer returns",
-                ));
-            }
+            // One subtask per name (tsgo adds one per resolved directive).
+            let subtask = self.new_task(
+                target,
+                TaskOrigin::TypeReference,
+                DiscoveryReason::automatic_type(name.clone(), uses_wildcard)
+                    .with_package_id(package_id),
+                SourceClass::Ordinary,
+                external,
+                false,
+                1,
+            );
+            self.tasks[task].subtasks.push(subtask);
         }
         Ok(())
     }
@@ -3627,44 +3641,31 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for (file_name, reason) in selected {
             let catalog_path = self.catalog_library_path(file_name)?;
             let path = self.resolved_library_path(file_name)?;
-            if self
-                .visit_source(
-                    path.clone(),
-                    0,
-                    0,
-                    DiscoveryReason::dependency(SourceInclusionReason::LibraryRoot(reason.clone())),
-                    SourceClass::Library {
-                        priority: catalog.source_file_priority(
-                            &path,
-                            self.library_directory.as_ref().expect("library directory"),
-                        ),
-                        replacement: path.canonical() != catalog_path.canonical(),
-                    },
-                )?
-                .is_none()
-                && self
-                    .diagnosed_missing_library_roots
-                    .insert(path.display().to_owned())
-            {
-                let diagnostic = missing_library_root_diagnostic(&path, &reason);
-                let replaced_root_diagnostics = self
-                    .roots
-                    .iter_mut()
-                    .filter(|root| root.source.is_none() && root.path.display() == path.display())
-                    .filter_map(|root| root.missing_diagnostic.replace(diagnostic.clone()))
-                    .collect::<Vec<_>>();
-                for replaced in replaced_root_diagnostics {
-                    self.program_diagnostics
-                        .retain(|existing| existing != &replaced);
-                }
-                self.program_diagnostics.push(diagnostic);
-            }
+            let class = SourceClass::Library {
+                priority: catalog.source_file_priority(
+                    &path,
+                    self.library_directory.as_ref().expect("library directory"),
+                ),
+                replacement: path.canonical() != catalog_path.canonical(),
+            };
+            let task = self.new_task(
+                path,
+                TaskOrigin::LibraryRoot(reason.clone()),
+                DiscoveryReason::dependency(SourceInclusionReason::LibraryRoot(reason)),
+                class,
+                false,
+                false,
+                0,
+            );
+            self.root_tasks.push(task);
         }
         Ok(())
     }
 
-    fn finish(mut self) -> CompleteGraph {
-        let collected = self.collect_files();
+    fn finish(mut self) -> Result<CompleteGraph, ProgramLoadError> {
+        self.resolve_root_sources();
+        self.record_unloaded_targets()?;
+        let collected = self.collect_files()?;
         self.program_order = collected.order.clone();
         let mut kept = vec![false; self.sources.len()];
         for &source in &collected.order {
@@ -3680,11 +3681,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for &(source, target, index) in &collected.redirects {
             redirect_targets.insert(source, target);
             let reasons = std::mem::take(&mut self.sources[source].inclusion_reasons);
-            let has_non_external_reason = self.sources[source].has_non_external_reason;
             let path = self.sources[source].prepared.path().clone();
-            let owner = &mut self.sources[target];
-            owner.prepared.remember_package_redirect(path.clone());
-            owner.has_non_external_reason |= has_non_external_reason;
+            self.sources[target]
+                .prepared
+                .remember_package_redirect(path.clone());
             package_redirect_files.push((path, target, index, reasons));
         }
         for root in &mut self.roots {
@@ -3770,7 +3770,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .collect::<Vec<_>>();
         self.program_diagnostics
             .extend(case_sensitive_casing_diagnostics);
-        self.propagate_non_external_reachability();
         let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
         // getOptionsDiagnostics selects only global/config-file rows from
         // the combined collection (_tsc.js:124024-124036). Source-owned
@@ -3815,7 +3814,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for resolver in self.project_resolvers.values_mut() {
             package_json_probes.extend(resolver.take_package_json_probes());
         }
-        CompleteGraph {
+        Ok(CompleteGraph {
             sources: self.sources,
             library_postorder,
             ordinary_postorder,
@@ -3827,7 +3826,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             project_reference_redirects: self.project_reference_redirects,
             package_json_probes,
             package_redirect_files,
-        }
+        })
     }
 
     /// tsgo verifyProjectReferences: for every reference of the root config
@@ -4243,63 +4242,271 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .resolve_with_facts(containing_file, key.specifier(), key.mode())
     }
 
-    fn visit_source(
+    /// tsgo filesParser: a task for one arrival at `path`. The data of the
+    /// path is created (and the task registered under its spelling) when no
+    /// task of the path was queued before (`taskDataByPath.LoadOrStore`).
+    #[allow(clippy::too_many_arguments)]
+    fn new_task(
         &mut self,
         path: ProgramPath,
-        depth: usize,
-        node_modules_depth: usize,
+        origin: TaskOrigin,
         reason: DiscoveryReason,
         class: SourceClass,
-    ) -> Result<Option<usize>, ProgramLoadError> {
-        let source = self.visit_source_inner(path, depth, node_modules_depth, reason, class)?;
-        if depth == 0 {
-            if let Some(source) = source {
-                self.top_level_sources.push(source);
+        increase_depth: bool,
+        elide_on_depth: bool,
+        tree_depth: usize,
+    ) -> usize {
+        let task = self.tasks.len();
+        let (data, queued_with_data) = match self.task_data_by_path.get(path.canonical()) {
+            Some(&data) => (data, true),
+            None => {
+                let data = self.task_data.len();
+                self.task_data.push(TaskData {
+                    spellings: vec![(path.display().to_owned(), task)],
+                    lowest_depth: usize::MAX,
+                    started_subtasks: false,
+                    package_id: None,
+                });
+                self.task_data_by_path
+                    .insert(path.canonical().clone(), data);
+                (data, false)
             }
-        }
-        Ok(source)
+        };
+        self.tasks.push(ParseTask {
+            path,
+            origin,
+            reason,
+            class,
+            increase_depth,
+            elide_on_depth,
+            tree_depth,
+            data,
+            queued_with_data,
+            subtasks: Vec::new(),
+            loaded: false,
+            started_subtasks: false,
+            loaded_task: None,
+            source: None,
+            redirect: None,
+        });
+        task
     }
 
-    fn visit_source_inner(
-        &mut self,
-        path: ProgramPath,
-        depth: usize,
-        node_modules_depth: usize,
-        reason: DiscoveryReason,
-        class: SourceClass,
-    ) -> Result<Option<usize>, ProgramLoadError> {
-        if let Some(state) = self.states.get(path.canonical()).copied() {
-            if let Some(source) = state.source() {
-                self.observe_existing_source(
-                    source,
-                    &path,
-                    depth,
-                    node_modules_depth,
-                    &reason,
-                    class,
-                    state.is_redirect(),
-                )?;
-            }
-            return Ok(state.source());
+    /// tsgo filesParser.start: queue the tasks in order at `depth`.
+    fn start_tasks(&mut self, tasks: &[usize], depth: usize) {
+        for &task in tasks {
+            self.stack.push((task, depth));
         }
+    }
+
+    /// tsgo filesParser.parse with the single-threaded work group: the root
+    /// tasks are queued in order and the queue runs the last queued task
+    /// first (core/workgroup.go singleThreadedWorkGroup.pop), so a task's
+    /// subtasks run, the last first, before anything queued earlier.
+    fn run_tasks(&mut self) -> Result<(), ProgramLoadError> {
+        let roots = self.root_tasks.clone();
+        self.start_tasks(&roots, 0);
+        while let Some((task, depth)) = self.stack.pop() {
+            self.execute_task(task, depth)?;
+        }
+        Ok(())
+    }
+
+    /// tsgo filesParser.start's queued function for one task
+    /// (compiler/filesparser.go:278-328).
+    fn execute_task(&mut self, task: usize, depth: usize) -> Result<(), ProgramLoadError> {
+        let data = self.tasks[task].data;
+        let mut start_subtasks = false;
+        if self.tasks[task].queued_with_data {
+            let spelling = self.tasks[task].path.display().to_owned();
+            match self.task_data[data]
+                .spellings
+                .iter()
+                .find(|(existing, _)| existing.as_js() == spelling.as_js())
+            {
+                Some(&(_, existing)) => self.tasks[task].loaded_task = Some(existing),
+                None => {
+                    self.task_data[data].spellings.push((spelling, task));
+                    // A new task for the file name: load its subtasks if any
+                    // other spelling's were started.
+                    start_subtasks = self.task_data[data].started_subtasks;
+                }
+            }
+        }
+        if self.task_data[data].package_id.is_none() {
+            if let Some(package_id) = self.tasks[task].reason.package_id.clone() {
+                self.task_data[data].package_id = Some(package_id);
+            }
+        }
+        let current_depth = depth.saturating_add(usize::from(self.tasks[task].increase_depth));
+        if current_depth < self.task_data[data].lowest_depth {
+            self.task_data[data].lowest_depth = current_depth;
+            start_subtasks = true;
+            self.task_data[data].started_subtasks = true;
+        }
+        if self.tasks[task].elide_on_depth
+            && self
+                .compiler_options
+                .node_modules_depth_exceeds_limit(current_depth)
+        {
+            return Ok(());
+        }
+        let registered = self.task_data[data]
+            .spellings
+            .iter()
+            .map(|&(_, task)| task)
+            .collect::<Vec<_>>();
+        for by_name in registered {
+            let mut load_subtasks = start_subtasks;
+            if !self.tasks[by_name].loaded {
+                self.load_task(by_name)?;
+                if self.tasks[by_name].redirect.is_some() {
+                    // A redirected task always loads its redirect.
+                    load_subtasks = true;
+                    self.task_data[data].started_subtasks = true;
+                }
+            }
+            if !self.tasks[by_name].started_subtasks && load_subtasks {
+                self.tasks[by_name].started_subtasks = true;
+                let subtasks = self.tasks[by_name].subtasks.clone();
+                let lowest_depth = self.task_data[data].lowest_depth;
+                self.start_tasks(&subtasks, lowest_depth);
+            }
+        }
+        Ok(())
+    }
+
+    /// tsgo parseTask.load: the automatic directives, a project-reference
+    /// redirect, or the file's admission and its subtasks.
+    fn load_task(&mut self, task: usize) -> Result<(), ProgramLoadError> {
+        self.tasks[task].loaded = true;
+        if matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes) {
+            return self.load_automatic_types_task(task);
+        }
+        let path = self.tasks[task].path.clone();
         if let Some((output, _source_name)) = self.project_reference_redirect(path.canonical())? {
             // tsgo parseTask.redirect: the output declaration file is loaded
             // with this task's reason (increaseDepth and elideOnDepth are not
             // copied), and the source path then names it.
-            let loaded = self.visit_source(output, depth, node_modules_depth, reason, class)?;
-            let state = match loaded {
-                Some(source) => {
-                    self.sources[source]
-                        .prepared
-                        .remember_project_reference_source(path.clone());
-                    self.project_reference_redirects
-                        .push((path.clone(), source));
-                    VisitState::ProjectReferenceRedirect(source)
+            let reason = self.tasks[task].reason.clone();
+            let class = self.tasks[task].class;
+            let tree_depth = self.tasks[task].tree_depth;
+            let redirect = self.new_task(
+                output,
+                TaskOrigin::Redirect,
+                reason,
+                class,
+                false,
+                false,
+                tree_depth,
+            );
+            self.tasks[task].subtasks = vec![redirect];
+            self.tasks[task].redirect = Some(redirect);
+            return Ok(());
+        }
+        let source = self.admit_source(task)?;
+        self.tasks[task].source = source;
+        match source {
+            Some(source) => self.plan_subtasks(task, source),
+            None => self.report_missing_target(task),
+        }
+    }
+
+    /// The registered task of a task's spelling (tsgo `loadedTask`).
+    fn task_target(&self, task: usize) -> usize {
+        let mut current = task;
+        while let Some(alias) = self.tasks[current].loaded_task {
+            current = alias;
+        }
+        current
+    }
+
+    /// The source a task loaded, through its alias and redirect chains.
+    fn task_source(&self, task: usize) -> Option<usize> {
+        let mut current = self.task_target(task);
+        loop {
+            if let Some(redirect) = self.tasks[current].redirect {
+                current = self.task_target(redirect);
+                continue;
+            }
+            return self.tasks[current].source;
+        }
+    }
+
+    /// What a task whose file the host does not return reports: a reference
+    /// its diagnostic (tsgo getSourceFileFromReference File_0_not_found), a
+    /// library root its diagnostic, a resolved target an error (the resolver
+    /// reported a file the host no longer returns); a root is reported once
+    /// the tasks ran, a redirect through the import's unloaded reason.
+    fn report_missing_target(&mut self, task: usize) -> Result<(), ProgramLoadError> {
+        let path = self.tasks[task].path.clone();
+        match self.tasks[task].origin.clone() {
+            TaskOrigin::Root { .. } | TaskOrigin::Redirect | TaskOrigin::AutomaticTypes => Ok(()),
+            TaskOrigin::LibraryRoot(reason) => {
+                if self
+                    .diagnosed_missing_library_roots
+                    .insert(path.display().to_owned())
+                {
+                    let diagnostic = missing_library_root_diagnostic(&path, &reason);
+                    self.missing_library_diagnostics
+                        .insert(path.display().to_owned(), diagnostic.clone());
+                    self.program_diagnostics.push(diagnostic);
                 }
-                None => VisitState::Missing,
-            };
-            self.states.insert(path.canonical().clone(), state);
-            return Ok(loaded);
+                Ok(())
+            }
+            TaskOrigin::PathReference {
+                parent,
+                pos,
+                length,
+                reference_text,
+            } => {
+                self.program_diagnostics.push(located_diagnostic(
+                    &self.sources[parent].prepared,
+                    pos,
+                    length,
+                    &gen::File_0_not_found,
+                    std::slice::from_ref(&reference_text),
+                )?);
+                Ok(())
+            }
+            TaskOrigin::LibReference {
+                parent,
+                pos,
+                length,
+            } => {
+                self.program_diagnostics.push(located_diagnostic(
+                    &self.sources[parent].prepared,
+                    pos,
+                    length,
+                    &gen::File_0_not_found,
+                    &[path.display().to_owned()],
+                )?);
+                Ok(())
+            }
+            TaskOrigin::TypeReference => Err(ProgramLoadError::invalid_data_js(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_owned()),
+                "resolver reported a type-reference target that the host no longer returns",
+            )),
+            TaskOrigin::Import => Err(ProgramLoadError::invalid_data_js(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_owned()),
+                "resolver reported a module target that the host no longer returns",
+            )),
+        }
+    }
+
+    /// Admit the task's file: read (or take the read-ahead result), decode,
+    /// plan and stage it. A path staged under another spelling binds to its
+    /// source instead (tsgo parses each spelling; the port keeps one source
+    /// per path and the collect walk keeps the first collected spelling).
+    fn admit_source(&mut self, task: usize) -> Result<Option<usize>, ProgramLoadError> {
+        let path = self.tasks[task].path.clone();
+        let class = self.tasks[task].class;
+        let tree_depth = self.tasks[task].tree_depth;
+        if let Some(&existing) = self.source_by_canonical.get(path.canonical()) {
+            self.bind_existing_source(existing, task)?;
+            return Ok(Some(existing));
         }
         // A retained read-ahead result stands in for the host call it already
         // made (see `prefetch_roots`); otherwise the host is queried here.
@@ -4322,8 +4529,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             )
         })?;
         let Some(input) = input else {
-            self.states
-                .insert(path.canonical().clone(), VisitState::Missing);
             return Ok(None);
         };
         let byte_len = match &input {
@@ -4336,7 +4541,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             ProgramLoadLimit::SourceDepth,
             Some(path.display().to_owned()),
             self.limits.max_source_depth.min(MAX_RECURSIVE_SOURCE_DEPTH),
-            depth,
+            tree_depth,
         )?;
         let source_count = self.sources.len().saturating_add(1);
         self.enforce_limit(
@@ -4508,9 +4713,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .as_ref()
                 .and_then(|plan| plan.external_module_diagnostic_span()),
             root_inclusions: Vec::new(),
-            inclusion_reasons: vec![reason.inclusion.clone()],
+            inclusion_reasons: Vec::new(),
             alternate_inclusion_reasons: Vec::new(),
-            has_non_external_reason: reason.seeds_non_external_reachability,
+            has_non_external_reason: false,
             library_priority: class.library_priority(),
             library_replacement: class.is_replacement(),
             initially_library: class.is_library(),
@@ -4519,11 +4724,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             lib_reference_directives,
             module_requests,
             module_request_spans,
-            found_searching_node_modules: node_modules_depth > 0,
-            modules_with_elided_imports: false,
-            processing_references: false,
-            pending_reprocesses: VecDeque::new(),
-            package_id: reason.package_id.clone(),
         });
         // The joint bound over admitted sources and retained read-ahead
         // payloads holds after every admission (see prefetch_roots).
@@ -4535,23 +4735,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             self.total_source_bytes + self.reserved_bytes <= self.limits.max_total_source_bytes,
             "retained read-ahead payloads exceed the total-byte limit"
         );
-        if self.resolver.path_context().use_case_sensitive_file_names() {
-            let path_lower_case = crate::js_path::file_name_lower_case(path.canonical().as_js());
-            if let Some(&existing_source) = self.files_by_name_ignore_case.get(&path_lower_case) {
-                self.case_sensitive_casing_conflicts
-                    .push(CaseSensitiveCasingConflict {
-                        existing_source,
-                        incoming_path: path.display().to_owned(),
-                        incoming_reason: reason.inclusion.clone(),
-                    });
-            } else {
-                self.files_by_name_ignore_case
-                    .insert(path_lower_case, source);
-            }
-        }
-        self.source_edges.push(Vec::new());
-        self.states
-            .insert(path.canonical().clone(), VisitState::Visiting(source));
+        self.source_by_canonical
+            .insert(path.canonical().clone(), source);
 
         if self.sources[source].library_priority.is_some()
             && !self.sources[source].path_references.is_empty()
@@ -4563,42 +4748,22 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 "default-library path-reference descendants have processing-prefix order without checker-visible library membership, which the current PreparedProgram prefix cannot represent",
             ));
         }
-        self.schedule_source_reprocess(
-            source,
-            SourceReprocess {
-                kind: SourceReprocessKind::AllReferences,
-                source_depth: depth,
-                node_modules_depth,
-            },
-        )?;
-
-        self.states
-            .insert(path.canonical().clone(), VisitState::Complete(source));
         Ok(Some(source))
     }
 
-    #[allow(clippy::too_many_arguments)] // Mirrors findSourceFileWorker's existing-source branch.
-    fn observe_existing_source(
-        &mut self,
-        source: usize,
-        path: &ProgramPath,
-        depth: usize,
-        node_modules_depth: usize,
-        reason: &DiscoveryReason,
-        class: SourceClass,
-        package_redirect: bool,
-    ) -> Result<(), ProgramLoadError> {
-        let first_path = self.sources[source].prepared.path();
-        if !package_redirect
-            && first_path.display() != path.display()
-            && !self.normalized_display_paths_are_equal(first_path, path)?
+    /// A task of another spelling of a staged path (tsc findSourceFileWorker's
+    /// existing-source branch): the spelling is remembered as an alias and
+    /// the library classification merges.
+    fn bind_existing_source(&mut self, source: usize, task: usize) -> Result<(), ProgramLoadError> {
+        let path = self.tasks[task].path.clone();
+        let class = self.tasks[task].class;
+        let first_path = self.sources[source].prepared.path().clone();
+        if first_path.display() != path.display()
+            && !self.normalized_display_paths_are_equal(&first_path, &path)?
         {
             self.sources[source]
                 .prepared
                 .remember_display_alias(path.display());
-            self.sources[source]
-                .alternate_inclusion_reasons
-                .push((path.display().to_owned(), reason.inclusion.clone()));
         }
         let existing_class = self.sources[source].source_class();
         if existing_class.is_library() != class.is_library()
@@ -4632,130 +4797,32 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             );
             self.sources[source].library_replacement |= class.is_replacement();
         }
-        let reprocess = {
-            let staged = &mut self.sources[source];
-            staged.inclusion_reasons.push(reason.inclusion.clone());
-            staged.has_non_external_reason |= reason.seeds_non_external_reachability;
-            if staged.package_id.is_none() {
-                staged.package_id = reason.package_id.clone();
-            }
-            if staged.found_searching_node_modules && node_modules_depth == 0 {
-                // tsc clears both latches before recursively processing the
-                // source again. A cycle can therefore observe the promoted
-                // state without scheduling duplicate work.
-                staged.found_searching_node_modules = false;
-                staged.modules_with_elided_imports = false;
-                Some(SourceReprocess {
-                    kind: SourceReprocessKind::AllReferences,
-                    source_depth: depth,
-                    node_modules_depth,
-                })
-            } else if staged.modules_with_elided_imports
-                && self
-                    .compiler_options
-                    .node_modules_depth_below_limit(node_modules_depth)
-            {
-                staged.modules_with_elided_imports = false;
-                Some(SourceReprocess {
-                    kind: SourceReprocessKind::ImportedModules,
-                    source_depth: depth,
-                    node_modules_depth,
-                })
-            } else {
-                None
-            }
-        };
-        if let Some(reprocess) = reprocess {
-            self.schedule_source_reprocess(source, reprocess)?;
-        }
+        self.tasks[task].source = Some(source);
         Ok(())
     }
 
-    fn schedule_source_reprocess(
-        &mut self,
-        source: usize,
-        reprocess: SourceReprocess,
-    ) -> Result<(), ProgramLoadError> {
-        self.sources[source]
-            .pending_reprocesses
-            .push_back(reprocess);
-        self.drain_source_reprocesses(source)
-    }
-
-    fn drain_source_reprocesses(&mut self, source: usize) -> Result<(), ProgramLoadError> {
-        if self.sources[source].processing_references {
-            return Ok(());
-        }
-        self.sources[source].processing_references = true;
-        let result = (|| {
-            while let Some(reprocess) = self.sources[source].pending_reprocesses.pop_front() {
-                match reprocess.kind {
-                    SourceReprocessKind::AllReferences => self.process_all_source_references(
-                        source,
-                        reprocess.source_depth,
-                        reprocess.node_modules_depth,
-                    )?,
-                    SourceReprocessKind::ImportedModules => self.process_source_module_requests(
-                        source,
-                        reprocess.source_depth,
-                        reprocess.node_modules_depth,
-                    )?,
-                }
-            }
-            Ok(())
-        })();
-        self.sources[source].processing_references = false;
-        result
-    }
-
-    fn process_all_source_references(
-        &mut self,
-        source: usize,
-        depth: usize,
-        node_modules_depth: usize,
-    ) -> Result<(), ProgramLoadError> {
-        let path_references = self.sources[source].path_references.clone();
-        let type_reference_directives = self.sources[source].type_reference_directives.clone();
-        let lib_reference_directives = self.sources[source].lib_reference_directives.clone();
-
+    /// tsgo parseTask.load's subtasks, in its order: path references, type
+    /// reference directives, lib references, then the imports.
+    fn plan_subtasks(&mut self, task: usize, source: usize) -> Result<(), ProgramLoadError> {
         // `noResolve` only suppresses path/type-reference source discovery.
         // Module requests still go through the resolver below so their
         // authoritative resolution facts and diagnostics remain available.
         if self.compiler_options.no_resolve != Some(true) {
-            for reference in path_references {
-                self.process_path_reference(source, &reference, depth, node_modules_depth)?;
+            let path_references = self.sources[source].path_references.clone();
+            for reference in &path_references {
+                self.plan_path_reference(task, source, reference)?;
             }
-            self.process_type_references(
-                source,
-                type_reference_directives,
-                depth,
-                node_modules_depth,
-            )?;
+            let type_reference_directives = self.sources[source].type_reference_directives.clone();
+            self.plan_type_references(task, source, type_reference_directives)?;
         }
         if self.program_options.no_lib() != Some(true) {
-            self.process_lib_references(
-                source,
-                lib_reference_directives,
-                depth,
-                node_modules_depth,
-            )?;
+            let lib_reference_directives = self.sources[source].lib_reference_directives.clone();
+            self.plan_lib_references(task, source, lib_reference_directives)?;
         }
         // `noLib=true` deliberately performs no host operation for lib
         // directives, although their occurrences were counted above.
-        self.process_source_module_requests(source, depth, node_modules_depth)
-    }
-
-    fn process_source_module_requests(
-        &mut self,
-        source: usize,
-        depth: usize,
-        node_modules_depth: usize,
-    ) -> Result<(), ProgramLoadError> {
-        // tsc clears this latch before every explicit reprocessing attempt;
-        // an over-depth request encountered below sets it again.
-        self.sources[source].modules_with_elided_imports = false;
         let requests = self.sources[source].module_requests.clone();
-        self.process_module_requests(source, requests, depth, node_modules_depth)
+        self.plan_module_requests(task, source, requests)
     }
 
     fn catalog_library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
@@ -4862,16 +4929,19 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         Ok(actual)
     }
 
-    fn process_lib_references(
+    /// tsgo parseTask.load's lib reference subtasks: an unknown name is a
+    /// diagnostic at the directive; a known one a subtask with the library
+    /// class and no depth flags.
+    fn plan_lib_references(
         &mut self,
+        task: usize,
         source: usize,
         directives: Vec<PlannedLibReferenceDirective>,
-        depth: usize,
-        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         let catalog = self
             .library_catalog
             .expect("library-enabled graph has an injected catalog");
+        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
         for directive in directives {
             let lib_name = to_file_name_lower_case_js(directive.file_name());
             let Some(file_name) = catalog.reference_file_name(&lib_name) else {
@@ -4898,54 +4968,31 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 parent: self.sources[source].prepared.path().display().to_owned(),
                 specifier: directive.file_name().to_owned(),
             };
-            match self.visit_source(
-                target.clone(),
-                depth.saturating_add(1),
-                node_modules_depth,
-                DiscoveryReason::dependency(reference),
-                SourceClass::Library {
-                    priority: catalog.source_file_priority(
-                        &target,
-                        self.library_directory.as_ref().expect("library directory"),
-                    ),
-                    replacement: target.canonical() != catalog_path.canonical(),
+            let class = SourceClass::Library {
+                priority: catalog.source_file_priority(
+                    &target,
+                    self.library_directory.as_ref().expect("library directory"),
+                ),
+                replacement: target.canonical() != catalog_path.canonical(),
+            };
+            let subtask = self.new_task(
+                target,
+                TaskOrigin::LibReference {
+                    parent: source,
+                    pos: directive.pos(),
+                    length: directive.length(),
                 },
-            )? {
-                Some(target_source) if target_source == source => {
-                    self.program_diagnostics.push(located_diagnostic(
-                        &self.sources[source].prepared,
-                        directive.pos(),
-                        directive.length(),
-                        &gen::A_file_cannot_have_a_reference_to_itself,
-                        &[] as &[String],
-                    )?);
-                }
-                // A library reference is a subtask of the file (tsgo
-                // parseTask.load): the collect walk reaches the library
-                // through it. It is not an edge of non-external reachability.
-                Some(target_source) => self.record_source_edge(source, target_source, true),
-                None => {
-                    self.program_diagnostics.push(located_diagnostic(
-                        &self.sources[source].prepared,
-                        directive.pos(),
-                        directive.length(),
-                        &gen::File_0_not_found,
-                        &[target.display().to_owned()],
-                    )?);
-                }
-            }
+                DiscoveryReason::dependency(reference),
+                class,
+                false,
+                false,
+                tree_depth,
+            );
+            self.tasks[task].subtasks.push(subtask);
         }
         Ok(())
     }
 
-    /// `findSourceFileWorker` keys every selected display spelling through
-    /// `toPath`. This admits separator/dot-segment aliases created by an
-    /// unvalidated `moduleSuffixes` entry while retaining the existing typed
-    /// boundary for unresolved case-only aliases.
-    ///
-    /// tsc-port: findSourceFileWorker @6.0.3
-    /// tsc-hash: faea3c8c14640ae05ef40c40bd6f0126bf9d59ed7af080a38d14019b93912e1e
-    /// tsc-span: _tsc.js:124274-124277
     fn normalized_display_paths_are_equal(
         &self,
         left: &ProgramPath,
@@ -4980,12 +5027,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-port: processReferencedFiles @6.0.3
     /// tsc-hash: 921ee36a44bea86b4495ac4d7f7046aa22d889a2f712097a273a8fc77cecf386
     /// tsc-span: _tsc.js:124459-124468
-    fn process_path_reference(
+    /// tsgo resolveTripleslashPathReference / getSourceFileFromReference:
+    /// the extension checks, the candidates' existence and a self-reference
+    /// are the parent's diagnostics; an admitted target is a subtask with the
+    /// parent's class and no depth flags.
+    fn plan_path_reference(
         &mut self,
+        task: usize,
         source: usize,
         reference: &PlannedPathReference,
-        depth: usize,
-        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         let source_path = self.sources[source].prepared.path().clone();
         let base = crate::js_path::directory_name(source_path.display());
@@ -5015,7 +5065,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .split_ascii(b'/')
             .next_back()
             .is_some_and(|name| name.contains("."));
-        let child_depth = depth.saturating_add(1);
+        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
+        let class = self.sources[source].source_class();
         if has_extension {
             let target = make_program_path(
                 &normalized,
@@ -5057,41 +5108,75 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 )?);
                 return Ok(());
             }
-            let target_source = self.visit_source(
-                target.clone(),
-                child_depth,
-                node_modules_depth,
-                DiscoveryReason::dependency(SourceInclusionReason::PathReference {
-                    parent: source_path.display().to_owned(),
-                    specifier: reference.file_name().to_owned(),
-                    pos: reference.pos(),
-                    end: reference.end(),
-                }),
-                self.sources[source].source_class(),
-            )?;
-            match target_source {
-                Some(target_source) if target_source == source => {
-                    self.record_source_edge(source, target_source, false);
-                    self.program_diagnostics.push(located_diagnostic(
-                        &self.sources[source].prepared,
-                        reference.pos(),
-                        reference.length(),
-                        &gen::A_file_cannot_have_a_reference_to_itself,
-                        &[] as &[String],
-                    )?)
-                }
-                Some(target_source) => self.record_source_edge(source, target_source, false),
-                None => self.program_diagnostics.push(located_diagnostic(
+            // tsgo getSourceFileFromReference: the host is asked whether the
+            // file exists (File_0_not_found at the directive, no subtask),
+            // then a self-reference is rejected.
+            if !self.file_exists(&target)? {
+                self.program_diagnostics.push(located_diagnostic(
                     &self.sources[source].prepared,
                     reference.pos(),
                     reference.length(),
                     &gen::File_0_not_found,
                     std::slice::from_ref(&reference_path),
-                )?),
+                )?);
+                return Ok(());
             }
+            if target.canonical() == source_path.canonical() {
+                self.program_diagnostics.push(located_diagnostic(
+                    &self.sources[source].prepared,
+                    reference.pos(),
+                    reference.length(),
+                    &gen::A_file_cannot_have_a_reference_to_itself,
+                    &[] as &[String],
+                )?);
+                return Ok(());
+            }
+            self.plan_path_reference_subtask(
+                task,
+                source,
+                reference,
+                reference_path,
+                target,
+                class,
+                tree_depth,
+            );
             return Ok(());
         }
 
+        if self.compiler_options.allow_non_ts_extensions == Some(true) {
+            let target = make_program_path(
+                &normalized,
+                self.resolver.path_context().use_case_sensitive_file_names(),
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::NormalizeReference,
+                    Some(source_path.display().to_owned()),
+                    Some(reference.file_name().to_owned()),
+                    error,
+                )
+            })?;
+            if self.file_exists(&target)? {
+                self.plan_path_reference_subtask(
+                    task,
+                    source,
+                    reference,
+                    reference_path,
+                    target,
+                    class,
+                    tree_depth,
+                );
+                return Ok(());
+            }
+            self.program_diagnostics.push(located_diagnostic(
+                &self.sources[source].prepared,
+                reference.pos(),
+                reference.length(),
+                &gen::File_0_not_found,
+                std::slice::from_ref(&reference_path),
+            )?);
+            return Ok(());
+        }
         for &extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
             let mut target_text = normalized.clone();
             target_text.push_str(extension);
@@ -5107,20 +5192,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     error,
                 )
             })?;
-            if let Some(target_source) = self.visit_source(
-                target,
-                child_depth,
-                node_modules_depth,
-                DiscoveryReason::dependency(SourceInclusionReason::PathReference {
-                    parent: source_path.display().to_owned(),
-                    specifier: reference.file_name().to_owned(),
-                    pos: reference.pos(),
-                    end: reference.end(),
-                }),
-                self.sources[source].source_class(),
-            )? {
-                self.record_source_edge(source, target_source, false);
-                if target_source == source {
+            if self.file_exists(&target)? {
+                if target.canonical() == source_path.canonical() {
                     self.program_diagnostics.push(located_diagnostic(
                         &self.sources[source].prepared,
                         reference.pos(),
@@ -5128,7 +5201,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         &gen::A_file_cannot_have_a_reference_to_itself,
                         &[] as &[String],
                     )?);
+                    return Ok(());
                 }
+                self.plan_path_reference_subtask(
+                    task,
+                    source,
+                    reference,
+                    reference_path,
+                    target,
+                    class,
+                    tree_depth,
+                );
                 return Ok(());
             }
         }
@@ -5147,22 +5230,55 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         Ok(())
     }
 
-    fn process_type_references(
+    #[allow(clippy::too_many_arguments)]
+    fn plan_path_reference_subtask(
         &mut self,
+        task: usize,
+        source: usize,
+        reference: &PlannedPathReference,
+        reference_text: JsString,
+        target: ProgramPath,
+        class: SourceClass,
+        tree_depth: usize,
+    ) {
+        let parent = self.sources[source].prepared.path().display().to_owned();
+        let subtask = self.new_task(
+            target,
+            TaskOrigin::PathReference {
+                parent: source,
+                pos: reference.pos(),
+                length: reference.length(),
+                reference_text,
+            },
+            DiscoveryReason::dependency(SourceInclusionReason::PathReference {
+                parent,
+                specifier: reference.file_name().to_owned(),
+                pos: reference.pos(),
+                end: reference.end(),
+            }),
+            class,
+            false,
+            false,
+            tree_depth,
+        );
+        self.tasks[task].subtasks.push(subtask);
+    }
+
+    /// tsgo resolveTypeReferenceDirectives: every directive is resolved,
+    /// an unresolved one is a diagnostic, and each resolved one is a subtask
+    /// (one per directive; `increaseDepth` when the target is an external
+    /// library).
+    fn plan_type_references(
+        &mut self,
+        task: usize,
         source: usize,
         directives: Vec<PlannedTypeReferenceDirective>,
-        depth: usize,
-        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
-        let mut phase_indices = Vec::new();
-        let mut phase_seen = BTreeSet::new();
         let containing_source = self.sources[source].prepared.path().clone();
         let type_roots = self.program_options.type_roots().map(<[_]>::to_vec);
         for directive in &directives {
             let key = directive.key().clone();
-            let index = if let Some(index) = self.type_resolution_by_key.get(&key).copied() {
-                index
-            } else {
+            if !self.type_resolution_by_key.contains_key(&key) {
                 let host = match self.pre_resolved_types.remove(&key) {
                     Some(host) => host,
                     None => self
@@ -5188,11 +5304,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     host,
                     diagnostics: Vec::new(),
                 });
-                self.type_resolution_by_key.insert(key.clone(), index);
-                index
-            };
-            if phase_seen.insert(index) {
-                phase_indices.push(index);
+                self.type_resolution_by_key.insert(key, index);
             }
         }
 
@@ -5212,7 +5324,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
 
-        for index in phase_indices {
+        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
+        for directive in &directives {
+            let index = self.type_resolution_by_key[directive.key()];
             let target = match &self.type_resolutions[index].host {
                 ResolutionOutcome::Resolved(target) => Some((
                     target.resolved_file().clone(),
@@ -5232,32 +5346,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     "a resolved type-reference target is not a TypeScript source file",
                 ));
             }
-            let type_key = self.type_resolutions[index].key.clone();
-            let directive = directives
-                .iter()
-                .find(|directive| directive.key() == &type_key);
             let type_inclusion = SourceInclusionReason::TypeReference {
                 parent: containing_source.display().to_owned(),
-                specifier: type_key.specifier().to_owned(),
-                pos: directive.map_or(0, PlannedTypeReferenceDirective::pos),
-                end: directive.map_or(0, PlannedTypeReferenceDirective::end),
+                specifier: directive.key().specifier().to_owned(),
+                pos: directive.pos(),
+                end: directive.end(),
                 package_id: None,
             };
-            let loaded = self.visit_source(
-                target.clone(),
-                depth.saturating_add(1),
-                node_modules_depth.saturating_add(usize::from(external)),
+            let subtask = self.new_task(
+                target,
+                TaskOrigin::TypeReference,
                 DiscoveryReason::dependency(type_inclusion).with_package_id(package_id),
                 SourceClass::Ordinary,
-            )?;
-            let Some(target_source) = loaded else {
-                return Err(ProgramLoadError::invalid_data_js(
-                    ProgramLoadOperation::ReadSource,
-                    Some(target.display().to_owned()),
-                    "resolver reported a type-reference target that the host no longer returns",
-                ));
-            };
-            self.record_source_edge(source, target_source, external);
+                external,
+                false,
+                tree_depth,
+            );
+            self.tasks[task].subtasks.push(subtask);
         }
         Ok(())
     }
@@ -5265,13 +5370,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-port: processImportedModules @6.0.3
     /// tsc-hash: 5fb6c5d9e11130467d843f258aeb726b1cbca21cd00923b0f1c7da3097f9cc98
     /// tsc-span: _tsc.js:124595-124635
-    fn process_module_requests(
+    fn plan_module_requests(
         &mut self,
+        task: usize,
         source: usize,
         requests: Vec<(ResolutionKey, bool)>,
-        depth: usize,
-        node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
+        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
         let mut phase_indices = Vec::with_capacity(requests.len());
         let containing_file = self.sources[source].prepared.path().display().to_owned();
         let containing_canonical = self.sources[source].prepared.path().canonical().clone();
@@ -5397,7 +5502,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let Some((target, extension, external, has_original_path, package_id)) = target else {
                 continue;
             };
-            let child_node_modules_depth = node_modules_depth.saturating_add(usize::from(external));
             if let Some(reason) = resolution_diagnostic_unloaded_reason(
                 &extension,
                 self.compiler_options,
@@ -5417,20 +5521,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let redirected = self
                 .project_reference_redirect(target.canonical())?
                 .is_some();
+            // tsgo isJsFileFromNodeModules: the subtask of a JavaScript file
+            // found searching node_modules is elided beyond
+            // maxNodeModuleJsDepth when it runs (`elideOnDepth`).
+            let elide_on_depth = extension.is_javascript()
+                && !redirected
+                && external
+                && path_contains_node_modules(target.canonical().as_js());
             if extension.is_javascript() && !redirected {
-                // tsc records the reprocessing latch from depth elision before
-                // checking whether this occurrence can add a source. That is
-                // observable for JSX errors, augmentation-only resolutions,
-                // and allowJs=false as well as ordinary imports.
-                let elided_by_node_modules_depth = external
-                    && (!has_original_path
-                        || path_contains_node_modules(target.canonical().as_js()))
-                    && self
-                        .compiler_options
-                        .node_modules_depth_exceeds_limit(child_node_modules_depth);
-                if elided_by_node_modules_depth {
-                    self.sources[source].modules_with_elided_imports = true;
-                }
                 let reason = unloaded_javascript_reason(
                     &extension,
                     self.compiler_options,
@@ -5438,7 +5536,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     has_original_path,
                     target.canonical(),
                     loads_source,
-                    child_node_modules_depth,
                 );
                 self.module_resolutions[index].unloaded_reason = reason;
                 if reason.is_some() {
@@ -5474,29 +5571,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         "a JSON target was resolved while resolveJsonModule is disabled",
                     ));
                 }
-                let missing = || {
-                    ProgramLoadError::invalid_data_js(
-                        ProgramLoadOperation::ReadSource,
-                        Some(target.display().to_owned()),
-                        "resolver reported a JSON module target that the host no longer returns",
-                    )
-                };
-                if self
-                    .visit_import_target(
-                        source,
-                        &target,
-                        depth,
-                        child_node_modules_depth,
-                        external,
-                        package_id,
-                        inclusions,
-                        missing,
-                    )?
-                    .is_none()
-                {
-                    self.module_resolutions[index].unloaded_reason =
-                        Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt);
-                }
+                self.plan_import_subtasks(
+                    task,
+                    &target,
+                    external,
+                    elide_on_depth,
+                    package_id,
+                    inclusions,
+                    tree_depth,
+                );
                 continue;
             }
             if !is_loadable_typescript_extension(&extension) && !extension.is_javascript() {
@@ -5510,75 +5593,45 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     ),
                 ));
             }
-            let missing = || {
-                ProgramLoadError::invalid_data_js(
-                    ProgramLoadOperation::ReadSource,
-                    Some(target.display().to_owned()),
-                    "resolver reported a module target that the host no longer returns",
-                )
-            };
-            if self
-                .visit_import_target(
-                    source,
-                    &target,
-                    depth,
-                    child_node_modules_depth,
-                    external,
-                    package_id,
-                    inclusions,
-                    missing,
-                )?
-                .is_none()
-            {
-                self.module_resolutions[index].unloaded_reason =
-                    Some(UnloadedModuleReason::ProjectReferenceOutputNotBuilt);
-            }
+            self.plan_import_subtasks(
+                task,
+                &target,
+                external,
+                elide_on_depth,
+                package_id,
+                inclusions,
+                tree_depth,
+            );
         }
         Ok(())
     }
 
-    /// Visits the target of an import once per occurrence of the import, so
-    /// the target carries one inclusion reason per occurrence, and records
-    /// the edge once.
+    /// One subtask per occurrence of the import (tsgo processImportedModules
+    /// adds the resolved file once per import of it), so the target carries
+    /// one inclusion reason per occurrence.
     #[allow(clippy::too_many_arguments)]
-    fn visit_import_target(
+    fn plan_import_subtasks(
         &mut self,
-        source: usize,
+        task: usize,
         target: &ProgramPath,
-        depth: usize,
-        child_node_modules_depth: usize,
         external: bool,
+        elide_on_depth: bool,
         package_id: Option<PackageId>,
         inclusions: Vec<SourceInclusionReason>,
-        missing: impl Fn() -> ProgramLoadError,
-    ) -> Result<Option<usize>, ProgramLoadError> {
-        let mut target_source = None;
+        tree_depth: usize,
+    ) {
         for inclusion in inclusions {
-            let loaded = self.visit_source(
+            let subtask = self.new_task(
                 target.clone(),
-                depth.saturating_add(1),
-                child_node_modules_depth,
+                TaskOrigin::Import,
                 DiscoveryReason::dependency(inclusion).with_package_id(package_id.clone()),
                 SourceClass::Ordinary,
-            )?;
-            let Some(loaded) = loaded else {
-                // A referenced project's source whose output declaration
-                // file is not built loads nothing; the checker reports
-                // TS6305 for the import.
-                if self
-                    .project_reference_redirect(target.canonical())?
-                    .is_some()
-                {
-                    return Ok(None);
-                }
-                return Err(missing());
-            };
-            target_source = Some(loaded);
+                external,
+                elide_on_depth,
+                tree_depth,
+            );
+            self.tasks[task].subtasks.push(subtask);
         }
-        if let Some(target_source) = target_source {
-            self.record_source_edge(source, target_source, external);
-        }
-        Ok(target_source)
     }
 
     fn enforce_limit(
@@ -5604,74 +5657,322 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         })
     }
 
-    fn record_source_edge(
-        &mut self,
-        source: usize,
-        target: usize,
-        crosses_external_library_boundary: bool,
-    ) {
-        self.source_edges[source].push((target, crosses_external_library_boundary));
-    }
-
     /// tsgo filesParser.getProcessedFiles collectFiles
-    /// (compiler/filesparser.go:380-491): the walk over the root tasks'
-    /// subtasks that orders the program's files (each after its subtasks) and
-    /// decides package deduplication on the way — the first source entered
-    /// with a package identity owns it, a later source with the same
-    /// identity becomes a redirect to the owner and its subtasks are not
-    /// walked through it. Each source is entered once (tsgo's `seen`).
-    fn collect_files(&self) -> CollectedFiles {
+    /// (compiler/filesparser.go:380-491): the walk over the root tasks and
+    /// their subtasks that attaches the include reasons (a task's to the
+    /// task its spelling loaded, a redirect's to its output, none for a
+    /// task that loaded nothing), orders the program's files (each after its
+    /// subtasks), keeps the first collected spelling of a path and reports
+    /// the other spellings as casing aliases, decides package
+    /// deduplication (the first source entered with a package identity owns
+    /// it; a later source with the same identity becomes a redirect to the
+    /// owner and its subtasks are not walked) and marks the files found
+    /// searching node_modules (the path's `lowest_depth` above zero).
+    fn collect_files(&mut self) -> Result<CollectedFiles, ProgramLoadError> {
         // tsgo keeps the package-id map only while `deduplicatePackages` is
         // not `false` (compiler/filesparser.go:362-368).
         let deduplicate_packages = self.compiler_options.deduplicate_packages != Some(false);
-        let mut walk = CollectWalk {
-            deduplicate_packages,
-            seen: vec![false; self.sources.len()],
-            registered: BTreeMap::new(),
-            order: Vec::with_capacity(self.sources.len()),
-            redirects: Vec::new(),
-            stack: Vec::new(),
-        };
-        for &root in &self.top_level_sources {
-            if walk.seen[root] {
+        let case_sensitive = self.resolver.path_context().use_case_sensitive_file_names();
+        let mut seen: Vec<Option<JsString>> = vec![None; self.task_data.len()];
+        let mut registered: BTreeMap<PackageId, usize> = BTreeMap::new();
+        let mut order: Vec<usize> = Vec::with_capacity(self.sources.len());
+        let mut ordinary_count = 0usize;
+        let mut library_count = 0usize;
+        let mut redirects: Vec<(usize, usize, usize)> = Vec::new();
+        let mut recorded_redirects: HashSet<CanonicalPath> = HashSet::default();
+        // The entered tasks with the index of their next subtask.
+        let mut frames: Vec<(usize, usize)> = Vec::new();
+        let roots = self.root_tasks.clone();
+        let mut next_root = 0usize;
+        loop {
+            let next = match frames.last_mut() {
+                Some((task, index)) => {
+                    let subtasks = &self.tasks[*task].subtasks;
+                    if *index < subtasks.len() {
+                        let subtask = subtasks[*index];
+                        *index += 1;
+                        Some(subtask)
+                    } else {
+                        None
+                    }
+                }
+                None => {
+                    if next_root < roots.len() {
+                        next_root += 1;
+                        Some(roots[next_root - 1])
+                    } else {
+                        break;
+                    }
+                }
+            };
+            let Some(task) = next else {
+                let (task, _) = frames.pop().expect("an entered task to leave");
+                self.leave_collected_task(
+                    task,
+                    &mut order,
+                    &mut ordinary_count,
+                    &mut library_count,
+                    &mut recorded_redirects,
+                );
                 continue;
+            };
+            let redirect_index = ordinary_count + redirects.len();
+            if let Some(entered) = self.enter_collected_task(
+                task,
+                &mut seen,
+                &mut registered,
+                deduplicate_packages,
+                case_sensitive,
+                redirect_index,
+                &mut redirects,
+            )? {
+                frames.push((entered, 0));
             }
-            walk.enter(&self.sources, root);
-            while let Some(&mut (source, ref mut next)) = walk.stack.last_mut() {
-                if let Some(&(child, _)) = self.source_edges[source].get(*next) {
-                    *next += 1;
-                    if !walk.seen[child] {
-                        walk.enter(&self.sources, child);
+        }
+        // tsgo lists the library files first: a redirect's index counts them
+        // all (`redirectFile.index += len(libFiles)`).
+        for redirect in &mut redirects {
+            redirect.2 += library_count;
+        }
+        Ok(CollectedFiles { order, redirects })
+    }
+
+    /// tsgo collectFiles for one task before its subtasks: its include
+    /// reason, the alias and casing checks of its spelling, and package
+    /// deduplication. Returns the task whose subtasks are walked.
+    #[allow(clippy::too_many_arguments)]
+    fn enter_collected_task(
+        &mut self,
+        task: usize,
+        seen: &mut [Option<JsString>],
+        registered: &mut BTreeMap<PackageId, usize>,
+        deduplicate_packages: bool,
+        case_sensitive: bool,
+        redirect_index: usize,
+        redirects: &mut Vec<(usize, usize, usize)>,
+    ) -> Result<Option<usize>, ProgramLoadError> {
+        let reason = self.tasks[task].reason.inclusion.clone();
+        // A redirect's reason reaches its output through its subtask; the
+        // automatic type directives' task is an implementation detail.
+        if self.tasks[task].redirect.is_none()
+            && !matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes)
+        {
+            let target = self.task_target(task);
+            self.add_include_reason(target, reason.clone());
+        }
+        let task = self.task_target(task);
+        if !self.tasks[task].loaded {
+            return Ok(None);
+        }
+        let data = self.tasks[task].data;
+        let spelling = self.tasks[task].path.display().to_owned();
+        if let Some(checked) = seen[data].clone() {
+            // Another spelling of a walked path is a casing alias of the
+            // kept file (tsgo addProcessingDiagnosticsForFileCasing).
+            if checked.as_js() != spelling.as_js() {
+                if let Some(source) = self.tasks[task].source {
+                    let first_path = self.sources[source].prepared.path().clone();
+                    let path = self.tasks[task].path.clone();
+                    if !self.normalized_display_paths_are_equal(&first_path, &path)? {
+                        self.sources[source]
+                            .alternate_inclusion_reasons
+                            .push((spelling, reason));
+                    }
+                }
+            }
+            return Ok(None);
+        }
+        seen[data] = Some(spelling.clone());
+        let source = self.tasks[task].source;
+        if let Some(source) = source {
+            // The kept spelling is the first collected (tsgo keeps that
+            // task's parse); the one that admitted the file becomes an alias.
+            if self.sources[source].prepared.path().display() != spelling.as_js() {
+                self.sources[source]
+                    .prepared
+                    .respell(spelling.as_js())
+                    .map_err(|error| {
+                        ProgramLoadError::preparation(ProgramLoadOperation::ReadSource, error)
+                    })?;
+            }
+            // On a case-sensitive host tsc keeps distinct physical spellings
+            // and independently checks them through `filesByNameIgnoreCase`
+            // (tsgo tasksSeenByNameIgnoreCase).
+            if case_sensitive {
+                let path_lower_case =
+                    crate::js_path::file_name_lower_case(self.tasks[task].path.canonical().as_js());
+                if let Some(&existing_source) = self.files_by_name_ignore_case.get(&path_lower_case)
+                {
+                    if existing_source != source {
+                        self.case_sensitive_casing_conflicts
+                            .push(CaseSensitiveCasingConflict {
+                                existing_source,
+                                incoming_path: spelling,
+                                incoming_reason: reason,
+                            });
                     }
                 } else {
-                    walk.stack.pop();
-                    walk.order.push(source);
+                    self.files_by_name_ignore_case
+                        .insert(path_lower_case, source);
                 }
             }
         }
-        CollectedFiles {
-            order: walk.order,
-            redirects: walk.redirects,
+        if deduplicate_packages {
+            if let Some(package_id) = self.task_data[data].package_id.clone() {
+                if let Some(&owner) = registered.get(&package_id) {
+                    if let Some(source) = source {
+                        if owner != source {
+                            redirects.push((source, owner, redirect_index));
+                        }
+                    }
+                    return Ok(None);
+                }
+                if let Some(source) = source {
+                    registered.insert(package_id, source);
+                }
+            }
+        }
+        Ok(Some(task))
+    }
+
+    /// tsgo collectFiles for one task after its subtasks: a redirect records
+    /// its output's source, a file joins the program order and learns
+    /// whether it was found searching node_modules.
+    fn leave_collected_task(
+        &mut self,
+        task: usize,
+        order: &mut Vec<usize>,
+        ordinary_count: &mut usize,
+        library_count: &mut usize,
+        recorded_redirects: &mut HashSet<CanonicalPath>,
+    ) {
+        if let Some(redirect) = self.tasks[task].redirect {
+            if let Some(output) = self.task_source(redirect) {
+                let path = self.tasks[task].path.clone();
+                if recorded_redirects.insert(path.canonical().clone()) {
+                    self.sources[output]
+                        .prepared
+                        .remember_project_reference_source(path.clone());
+                    self.project_reference_redirects.push((path, output));
+                }
+            }
+            return;
+        }
+        if matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes) {
+            return;
+        }
+        let Some(source) = self.tasks[task].source else {
+            return;
+        };
+        let data = self.tasks[task].data;
+        order.push(source);
+        if self.sources[source].library_priority.is_some() {
+            *library_count += 1;
+        } else {
+            *ordinary_count += 1;
+        }
+        self.sources[source].has_non_external_reason = self.task_data[data].lowest_depth == 0;
+    }
+
+    /// tsgo filesParser.addIncludeReason: a redirect's reason goes to its
+    /// redirect task as queued (not to that task's alias), a loaded task's
+    /// to its path.
+    fn add_include_reason(&mut self, task: usize, reason: SourceInclusionReason) {
+        let mut current = task;
+        loop {
+            if let Some(redirect) = self.tasks[current].redirect {
+                current = redirect;
+                continue;
+            }
+            if self.tasks[current].loaded {
+                if let Some(source) = self.tasks[current].source {
+                    self.sources[source].inclusion_reasons.push(reason);
+                }
+            }
+            return;
         }
     }
 
-    fn propagate_non_external_reachability(&mut self) {
-        let mut pending = self
-            .sources
-            .iter()
-            .enumerate()
-            .filter_map(|(source, staged)| staged.has_non_external_reason.then_some(source))
-            .collect::<Vec<_>>();
-        while let Some(source) = pending.pop() {
-            for &(target, crosses_external_library_boundary) in &self.source_edges[source] {
-                if crosses_external_library_boundary || self.sources[target].has_non_external_reason
-                {
-                    continue;
+    /// The roots' sources once the tasks ran, with the missing-root
+    /// diagnostics (a root that is also a missing library reports the
+    /// library's diagnostic in place of its own).
+    fn resolve_root_sources(&mut self) {
+        for index in 0..self.roots.len() {
+            let Some(task) = self.roots[index].task else {
+                continue;
+            };
+            let source = self.task_source(task);
+            self.roots[index].source = source;
+            let path = self.roots[index].path.clone();
+            match source {
+                Some(source) => self.sources[source]
+                    .root_inclusions
+                    .push(path.display().to_owned()),
+                None => {
+                    let diagnostic = match self
+                        .missing_library_diagnostics
+                        .get(&path.display().to_owned())
+                    {
+                        Some(diagnostic) => diagnostic.clone(),
+                        None => {
+                            let TaskOrigin::Root { spelling, reason } =
+                                self.tasks[task].origin.clone()
+                            else {
+                                unreachable!("a root's task has a root origin");
+                            };
+                            let diagnostic = missing_root_diagnostic(spelling.as_js(), reason);
+                            if self
+                                .diagnosed_missing_roots
+                                .insert(path.display().to_owned())
+                            {
+                                self.program_diagnostics.push(diagnostic.clone());
+                            }
+                            diagnostic
+                        }
+                    };
+                    self.roots[index].missing_diagnostic = Some(diagnostic);
                 }
-                self.sources[target].has_non_external_reason = true;
-                pending.push(target);
             }
         }
+    }
+
+    /// tsgo leaves a resolved target out of the program when its task was
+    /// elided (a JavaScript file beyond maxNodeModuleJsDepth) or when the
+    /// output of a referenced project's source is not built; the checker
+    /// reads why from the resolution.
+    fn record_unloaded_targets(&mut self) -> Result<(), ProgramLoadError> {
+        for index in 0..self.module_resolutions.len() {
+            if self.module_resolutions[index].unloaded_reason.is_some()
+                || !self.module_resolutions[index].loads_source
+            {
+                continue;
+            }
+            let (canonical, is_javascript) = match self.module_resolutions[index].host.outcome() {
+                ResolutionOutcome::Resolved(target) => (
+                    target.resolved_file().canonical().clone(),
+                    target.extension().is_javascript(),
+                ),
+                ResolutionOutcome::NotFound => continue,
+            };
+            let loaded = self.task_data_by_path.get(&canonical).is_some_and(|&data| {
+                self.task_data[data]
+                    .spellings
+                    .iter()
+                    .any(|&(_, task)| self.task_source(task).is_some())
+            });
+            if loaded {
+                continue;
+            }
+            let reason = if self.project_reference_redirect(&canonical)?.is_some() {
+                UnloadedModuleReason::ProjectReferenceOutputNotBuilt
+            } else if is_javascript {
+                UnloadedModuleReason::NodeModulesDepth
+            } else {
+                continue;
+            };
+            self.module_resolutions[index].unloaded_reason = Some(reason);
+        }
+        Ok(())
     }
 }
 
@@ -6270,6 +6571,12 @@ fn resolution_diagnostic_unloaded_reason(
     }
 }
 
+/// tsgo shouldAddFile for a JavaScript target: a name that adds no file
+/// (an augmentation's) is resolution only, and JavaScript is admitted only
+/// under `allowJs`. Under `allowJs` the depth elision is the subtask's
+/// (`elideOnDepth`); without it no task exists, and the reason keeps
+/// TypeScript's order at the first external layer (the depth before
+/// `allowJs`), which the checker's provider reads.
 fn unloaded_javascript_reason(
     extension: &ModuleExtension,
     options: &CompilerOptions,
@@ -6277,7 +6584,6 @@ fn unloaded_javascript_reason(
     has_original_path: bool,
     resolved_file: &CanonicalPath,
     loads_source: bool,
-    node_modules_depth: usize,
 ) -> Option<UnloadedModuleReason> {
     if !extension.is_javascript() {
         return None;
@@ -6285,13 +6591,16 @@ fn unloaded_javascript_reason(
     if !loads_source {
         return Some(UnloadedModuleReason::ResolutionOnly);
     }
+    if options.allow_js {
+        return None;
+    }
     if external
         && (!has_original_path || path_contains_node_modules(resolved_file.as_js()))
-        && options.node_modules_depth_exceeds_limit(node_modules_depth)
+        && options.node_modules_depth_exceeds_limit(1)
     {
         return Some(UnloadedModuleReason::NodeModulesDepth);
     }
-    (!options.allow_js).then_some(UnloadedModuleReason::JavaScriptNotAdmitted)
+    Some(UnloadedModuleReason::JavaScriptNotAdmitted)
 }
 
 fn is_arbitrary_declaration_extension(extension: &ModuleExtension) -> bool {
