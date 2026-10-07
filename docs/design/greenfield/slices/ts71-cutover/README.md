@@ -4395,3 +4395,12 @@ tsgo execute/build（`orchestrator.go`、`buildtask.go`、`uptodatestatus.go`、
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、program／incremental／emitter／compiler の
   `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（4 crate 1,658 passed／0 failed、Clippy のみの
   修正の後に最終 bytes `69eedeeee` で program／compiler を再実行：995 passed／0 failed）。
+
+### P3-6dのhostedの記録とmerge（2026-10-07）
+
+- hosted：最初のhead `69eedeeee`（run 37590343750）と記録を含む `cb9628b8a`（run 37591434383）は `rust` が失敗：macOSで記録したtsgoのbuild infoは`fileNames`／`root`をcanonical path（大文字小文字を区別しないFSでは小文字）で持つので`anotherModule.ts`が`anothermodule.ts`になり、Linuxのrunnerでは両compilerとも元の綴りを書く。scenarioのfile名を小文字だけにして記録とtestを作り直した（`c2bbc31cf`、12/12一致、生成test 35/35）。最終候補 `c2bbc31cf` のrun 37591927998（`plan` 28s、`rust` 10m44s、`conformance (TypeScript 7.1)` 20m42s、`gates` 14s。全て成功）。merge → `86a9caffa`（merge commit）。教訓：scenarioのfile名は小文字だけにする（build infoはcanonical pathを記録する）。
+- 計測（scenario oracle、conformance、crate test）は上の記録のとおり、merge前に最終bytes `69eedeeee`で行った。性能は
+  計測していない（利用者の指示：性能はある程度完成してから制限なしで既存projectで計測する）。
+- scratchpad：`p36c/build_scenarios.py`（12 scenario）、`p36c/steps.py`（tsgo は `-b` の直後に `--singleThreaded`、
+  stdout は byte で読み CR LF を保つ、status 行の時刻を正規化、削除 file を記録）、`p36c/gen-steps-tests.py`
+  （`deleted`、時刻の正規化、CR を含む literal は escape 形）。
