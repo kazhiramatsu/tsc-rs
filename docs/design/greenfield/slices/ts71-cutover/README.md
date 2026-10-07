@@ -4185,3 +4185,20 @@ signature、診断の再利用）は次のslice（P3-6c）。
 - hosted：PR #694 run 37542163883（head `3561ee8ad`：`plan` 30s、`rust` 6m46s、`conformance (TypeScript 7.1)` 19m31s、
   `gates` 12s。全て成功）。それ以前のhead `af32c409a`のrun 37521886916も全て成功（rust 8m57s、conformance 18m34s）。
   最初のhead `58c840c17`のrun 37512340686はconformanceが1 regression（上の7.）で失敗。
+
+### P3-6bのhostedの記録、計測、merge（2026-10-07）
+
+- hosted：PR #694 run 37553918032（head `6b238a97c`＝packetの記録を含む最終候補：`plan` 24s、`rust` 10m40s、
+  `conformance (TypeScript 7.1)` 19m16s、`gates` 13s。全て成功）。その前のcodeの最終head `3561ee8ad`のrun 37542163883も
+  全て成功（plan 30s、rust 6m46s、conformance 19m31s、gates 12s）。merge → `f774090ce`（merge commit）。
+- corpusの診断（`--noEmit`、既定のchecker数。`3561ee8ad`のbuild vs tsgo 7.1.0-dev）：8 corpora全てbyte一致（zodのpartitionに
+  依存するTS5115の1行はこの実行では出なかった）。
+- 性能（分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝P3-6aの`4c8efd09e`のbuild）：
+  `--noEmit`のwallはこのbuild/main 0.961〜1.021（hono 138 vs 141 ms、zod 528 vs 549、Playwright 364 vs 359、TypeScript
+  compiler 337 vs 330、Next.js 772 vs 759、Effect 488 vs 493、Vue.js 320 vs 332、VS Code 3,339 vs 3,310）、peak RSS
+  0.988〜1.019。bench-full（emitあり）は0.978〜1.011（hono 145 vs 148 ms、zod 590 vs 585、Playwright 462 vs 457、
+  TypeScript compiler 480 vs 481、Next.js 941 vs 948、Effect 720 vs 719、Vue.js 382 vs 383）、peak RSS 0.995〜1.018。
+  1.015を超えた`--noEmit`の3件を10 roundで再計測：TypeScript compiler 328 vs 327 ms（1.003）、Next.js 720 vs 734（0.981）、
+  Playwright 368 vs 366（1.005）＝noise。tsgoに対してはwall 0.59〜0.89（`--noEmit`）、0.60〜0.78（bench-full）、
+  peak memory 0.65〜0.91。劣化なし（incrementalでないprogramではfactを集めず文書も書かない）。
+- cloneの状態：material-ui、azure-sdk-for-js、bench corpusにこの実行が残したfileは無い。
