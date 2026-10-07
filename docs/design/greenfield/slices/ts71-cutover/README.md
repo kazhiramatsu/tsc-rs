@@ -4075,3 +4075,113 @@ tsoptions ParseInputOutputNames、program.go verifyProjectReferences、checker.g
   `--noEmit`のwallはこのbuild/main 0.929〜1.000（hono 133 vs 143 ms、zod 484 vs 486、Playwright 341 vs 351、TypeScript compiler 313 vs 313、Next.js 692 vs 726、Effect 489 vs 504、Vue.js 316 vs 333、VS Code 3,242 vs 3,455）、peak RSS 0.993〜1.006。bench-full（emitあり）は0.977〜1.013（hono 140 vs 142 ms、zod 584 vs 598、Playwright 452 vs 460、TypeScript compiler 474 vs 474、Next.js 935 vs 951、Effect 710 vs 711、Vue.js 387 vs 382）、peak RSS 0.982〜1.022。tsgoに対してはwall 0.58〜0.91（`--noEmit`）、0.61〜0.79（bench-full）、peak memory 0.63〜0.94。劣化なし（referencesの無いprogramでは参照の表が無く、追加の検索は無い）。
 - cloneの状態：azure-sdk-for-jsにはdistだけ、DefinitelyTypedにはpnpm-lock.yamlだけ（どちらも以前から）。material-uiと
   bench corpusにこの実行が残したfileは無い。
+
+## P3-6b incrementalの第1段：tsbuildinfoを書く（2026-10-07）
+
+P3-6aで`-p`のproject referencesが動いた後の、承認された順序の続き。tsgoは`incremental`か`composite`のprogramを
+incremental program（execute/incremental）として compile し、`--noEmit`でも`.tsbuildinfo`を書く。このsliceは
+**初回build（古いstateが無い）**のその書き出しを byte で一致させる。古いtsbuildinfoの読み込みと再利用（変更file、
+signature、診断の再利用）は次のslice（P3-6c）。
+
+- **文書の形**（新しい`crates/incremental`、tsgo buildInfo.go／snapshottobuildinfo.go）：`version` "7.1.0-dev"、
+  `root`（連続するfile idの範囲）、`fileNames`（buildinfoのdirectoryからの相対path、default libは素の名前）、
+  `fileInfos`（text の XXH3-128、`signature`、`affectsGlobalScope`、`impliedNodeFormat`。signature==versionで
+  CommonJSかつglobalでないfileは文字列だけ）、`fileIdsList`／`referencedMap`、`options`（`AffectsBuildInfo`の
+  67 optionをtsgoのstruct順で。file pathのoptionは相対、tristateのfalseも書く）、`semanticDiagnosticsPerFile`
+  （checkしなかったfileはidだけ、cacheした行は`messageKey`／`messageArgs`／byte offsetの`pos`／`end`／
+  `category`／chain／relatedInformation／`skippedOnNoEmit`）、`emitDiagnosticsPerFile`、
+  `affectedFilesPendingEmit`（emit kind bit、fullは id だけ、dtsは`[id]`）、`latestChangedDtsFile`、
+  `emitSignatures`、`resolvedRoot`、`packageJsons`／`missingPackageJsons`、`errors`／`checkPending`。
+  JSONは`encoding/json/v2`の compact 形（空白無し、omitzero、`<>&`はescapeしない）を自前のwriterで書く。
+- **診断のkeyと引数**（`crates/diagnostics`）：tsgoは cache した診断を`messageKey`（`Name_code`、名前は100 byteまで）
+  と引数で記録する。生成catalogに`key`（tsgo diagnostics/generate.go convertPropertyName）を加え、`MessageChain`に
+  `key`と`args`を保持する（等価性には入れない）。tsgoが文に出さない引数も記録する：global typeが無いTS2318は
+  `getSuggestedLibForNonExistentName`のlib（`["Promise","es2015"]`）を第2引数に持つので、checkerの
+  `get_global_symbol`も同じ引数で作る。
+- **checkerのfact**（`crates/checker/src/incremental.rs`、tsgo programtosnapshot.go）：fileごとに、cacheする行
+  （bind＋check、noEmit filterの前、include processorの行は含めない、sort／dedupe）、`referencedFiles`
+  （import／dynamic import／`require`（JS）／import typeのmodule symbolの宣言file、`declare module "x"`の
+  augmentationの merged symbol、全てのambient module（patternも）の宣言file：tsgoは Strada と違い
+  `declarations.length > 1`で絞らない）、path referenceの名前、`affectsGlobalScope`（global augmentation、
+  module／JSONでないscriptの非ambient-module statement）、`skipped`。serial／sharded 両方の driver で集め、
+  構文errorでcheckが閉じるときも（tsgoはincremental programの生成時にcheckerを作り referencedMap を計算する）
+  bind＋initだけ行って集める。
+- **programのfact**（`crates/program`）：resolverが探した全ての`package.json`（存在するものはincrementalのとき
+  realpath、無いものは`node_modules`下だけが`missingPackageJsons`）を root／library／project／read-ahead worker
+  の resolver から集めて`PreparedProgram::package_json_probes`に持つ。`allowJs`／`experimentalDecorators`の
+  生の値（`*_specified`）を`CompilerOptions`に持つ（tsgoは設定されたときだけ書く）。
+- **compilerの組み立て**（`crates/compiler/src/incremental.rs`）：`--noEmit`のcommandはsessionが文書を作り
+  （`NoEmitOutcome::build_info`）CLIが書く（`--listEmittedFiles`なら`TSFILE:`、失敗はTS5033）。emitのcommand
+  （serial／sharded 両route）はsinkをwrapして書いた`.d.ts`のsignature（source map commentの手前までのhash）を
+  記録し、emitの後に文書を書いてemitted filesに加える。tsgoのgate通り、構文／option／global の診断があれば
+  semantic 行は cache しない（全fileがidだけ）、`noCheck`は`checkPending`。宣言診断は`--noEmit`で
+  requestされたときだけ`emitDiagnosticsPerFile`と pending kind（DtsErrors bitを落とす）に反映。`noEmitOnError`
+  でemitが飛んだときは全fileがpendingのまま。
+- **入口**：emitのcommandの`incremental`／`composite`拒否を外した。`--noEmit`のconfigが`noCheck`を受け入れる。
+- **実projectの比較で直した3件**（material-ui 38 configの最初の比較は33件一致、azureの途中経過は`packageJsons`と
+  未書き出しの2種だけだった）：
+  1. **JSX runtime importの合成規則**：tsgo fileloader.go:849は JavaScript か `.tsx` のfileにだけ
+     `react/jsx-runtime`を合成する（module性や`isolatedModules`には依らない）。portは6.0.3の規則
+     （非宣言fileの`isolatedModules`／external module）で`.ts`にも付けていたので、Next.jsのexampleで
+     `theme.ts`より前に`@types/react`が読まれ、file順（`root`の範囲、id）がtsgoとずれた。
+     `crates/program/src/module_requests.rs`を tsgo の規則にし、契約testで固定。
+  2. **依存symlinkの探索のprobe**：tsgo program.go GetSymlinkCache の依存名の解決（ResolvePackageDirectory）は
+     package directoryの存在だけを見て`package.json`を読まないので、`packageJsons`／`missingPackageJsons`に
+     何も残さない。portはloaderの先行解決（6.0.3のgetAllModulePathsWorkerの前段）のprobeも集めていたため、
+     importされない`dependencies`（`@emotion/cache`、`react-dom`…）が現れていた。先行解決の前にprobeを取り出し、
+     先行解決のものは捨てる。programの契約testで固定。
+  3. **fileの無いincremental program**（`files: []`＋`references`のsolution config。azureに21件）：tsgoは
+     `{"version":"7.1.0-dev","fileInfos":[],"options":{…}}`を書く（`fileInfos`はnon-nilのsliceなので空でも
+     書かれ、`fileNames`等は無い。`incremental`だけなら`options`も無い）。checkerの空programの早期returnが
+     factを返さず文書が作られなかった。serial／sharded両driverの空program経路でfactを返し、emit routeの
+     空program分岐でも文書を書く。CLIの契約test 1件（noEmit composite／composite／incrementalの3構成）。
+  4. **peerDependencyのprobe**（azureの`tsconfig.snippets.json`等）：tsgoのpackage id（resolver.go
+     readPackageJsonPeerDependencies）はpackageの実pathの`node_modules`で各peerの`package.json`を
+     getPackageJsonInfoで探すので、見つかっても見つからなくてもlistに残る（viteやvitestのoptional peer、
+     `@mui/material`等）。portはhostから直接読んでいたので記録されなかった。`load_package`と共通の
+     `record_package_json_probe`で記録する。
+  5. **type referenceのprimary lookupのprobe**（material-ui `docs`）：tsgoは存在するtypeRootごとに
+     `<typeRoot>/<name>/package.json`をcacheに問い合わせる（loadNodeModuleFromDirectory →
+     getPackageJsonInfo。candidateのdirectoryが無くても）。portはdirectoryが無いと先に返していた。
+     programの契約test（fixture fx5/typeroot）で固定。
+  6. **相対pathの`.`の縮約**：tsgoのGetPathComponentsRelativeToは両側をreducePathComponentsで縮約するので、
+     相対のtype reference（`/// <reference types="./css" />`）が`node_modules/@types/./css/package.json`を
+     探しても`@types/css`の綴りで列挙される。portの`relative_path_from_directory`（P3-6aの出力pathにも使う）に
+     縮約を加えた。pathの契約testで固定。
+  7. **commandだけが書く**（hostedの最初の実行で`compiler/incrementalConcurrentSafeAliasFollowing`が
+     regression）：tsgoのtest harnessは`compiler.Program`を作るだけでbuild infoを書かない（書くのは
+     `execute`のincremental program）。portのsessionはharness／APIのemitでも文書を作っていた（harnessの
+     `@outDir: ./res`は相対のままなので相対path計算がpanic）。`ProgramSession::command_build_info`を
+     `run_no_emit_command`／`emit_for_cli`だけが立て、他の経路（`run`、`emit`、harness）は書かない。
+     APIのemitの契約testを`tsBuildInfoFile`ありに広げて固定。
+  8. **rootの無いprogramのread-ahead**（azureの`tsconfig.samples.json`等14件）：tsgoはroot fileがあるときだけ
+     libと automatic type directive のtaskを加える（processAllProgramFiles）。portのread-aheadはrootが無くても
+     それらの対象を先読みし、worker resolverのprobeが`packageJsons`に残っていた。rootがあるときだけ先読みする。
+  9. **peerDependencyのprobeは identity が付くとき**（azure 10件）：tsgoのreadPackageJsonPeerDependenciesは
+     getPackageId、つまりresolutionがpackageの中で終わったときに走る。portは`package.json`を読むたび（`ws`のように
+     `@types/ws`へ落ちる探索の途中でも）peerを探していた。探索結果はcached packageに持ち、identityを付ける3箇所で
+     記録する（probe mapは`RefCell`）。
+  10. **chainの各段のrelatedInformation**（azure `ai-agents` snippets 1件）：tsgoのcreateDiagnosticChainFromErrorChain
+     はrelaterの関連情報をleafに付け、NewDiagnosticChainはその上に積む各段にも同じ関連情報を持たせる（headを含む
+     全段）。portはheadだけだった。`MessageChain::related`（nested用、等価性には入れない＝tsgoのequalMessageChain）
+     を加え、relaterの出力で全段に伝え、build infoで段ごとに書く。text出力（pretty／errors.txt）はheadの関連情報
+     だけ印字するので変わらない。CLI契約test（fixture fx5/related、4段）で固定。
+- **残る実projectの差（material-ui `docs`、38件中1件）**：pnpmの2つの`next@16.3.8`のcopyのうち、docs側のcopy Aの
+  `router.d.ts`／`link.d.ts`／`app.d.ts`／`document.d.ts`は`next/index.d.ts`の`/// <reference path>`で
+  先にprogramに入る（package id無し）。tsgoはその後の`next/router`等のimportのidをfileに伝え
+  （filesparser.go:293）、collect時にprogram順で同じidの後のfile（core-docs側のcopy B）をredirectにする
+  （:448）。portは admission 時にidを判定するので copy B の4 fileがprogramに残り、以降のidと`root`の範囲が
+  ずれる（診断とemitは同じ）。collect時のpackage dedupe（到達性の再計算込み）はloaderの構造変更なので
+  次の follow-up（P3-6bの続き、P3-6cの前）に回す。
+- test：fixture比較（tsgoの実行記録とのbyte比較：noLib＋最小lib 16件＋実lib 15件＋宣言map／emitDeclarationOnly／
+  isolatedDeclarations／宣言診断／非ASCII 8件）、CLIの契約13件（tsgoのbyteで固定）、`tsc-incremental`の
+  unit 11件（hash、JSON、snapshot）、programの契約3件（JSX runtime importの規則、probe、typeRootのprobe）。
+- 実project（このbuild、`compare-buildinfo.py`：tsgo `--singleThreaded` と `TSRS_CHECKERS=1` の`--noEmit`、tsbuildinfoのbyte＋stdout＋exit、1 job）：material-ui 38 configのうち37件一致（buildinfoを書く5件のうち4件。残る1件は上の`docs`）。azure-sdk-for-js 2,756 configは2,756件一致（buildinfoを書く338件を含む。rc6では25件が違い、その原因3種（8〜10）を直したrc7で25/25、最終binaryで全件再実行）。。
+- 残る制限：古いtsbuildinfoは読まない（毎回初回buildとして書く；差分の`changeFileSet`等は次のslice）。
+  `tsc -b`は未対応。`--declarationMap`等のCLI flagは未対応のまま（configでは動く）。JSDoc `@import`は
+  referencedMapに入れない。`contentMapperIdentities`は無い。
+- conformance（最終bytes `3561ee8ad`での全体実行。macOS、maintenance clamp＋`nice -n 20`、1 worker）：12,748 case／4,742 s、full 13,451、emit_full 13,443、mismatch 0、ratchet 0 regressions／0 above tiers（P3-6aと同じ行、ratchetの更新なし）。focused：jsx 344 full、tsx／incremental／composite／uildInfo 0 regressions。parallel control（`--checkers 4`）は未実行。
+- local（maintenance clamp、1 job）：6 crate（checker、compiler、program、incremental、emitter、diagnostics）の`cargo test --no-fail-fast` 3,442 passed／0 failed；触ったcrateの`cargo clippy --all-targets -- -D warnings`と`cargo fmt --all -- --check`；`cargo xtask codegen diagnostics-check`。corpusの診断（8 corpora、`--noEmit`、既定のchecker数）はtsgoと8/8一致（zodのpartitionに依存するTS5115の1行はこの実行では出ず、tsgoと同じ）。
+- hosted：PR #694 run 37542163883（head `3561ee8ad`：`plan` 30s、`rust` 6m46s、`conformance (TypeScript 7.1)` 19m31s、
+  `gates` 12s。全て成功）。それ以前のhead `af32c409a`のrun 37521886916も全て成功（rust 8m57s、conformance 18m34s）。
+  最初のhead `58c840c17`のrun 37512340686はconformanceが1 regression（上の7.）で失敗。
