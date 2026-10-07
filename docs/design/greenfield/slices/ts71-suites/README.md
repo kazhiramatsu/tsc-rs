@@ -308,3 +308,29 @@ P4-1 の計測（types mismatch 233、symbols mismatch 172）の大きい class 
 - 次：P4-1b（JS の `@type` hosting：`this.y = 12` の assignment declaration、`@type` を非 assignment の expression statement に
   当てない；heritage clause の名前の `any`；shadowed type parameter の参照名；module symbol の specifier 名；
   package redirect の unit；`SKIPPED_WALK_TESTS`）。
+
+## P4-1b `.types`／`.symbols` の差分 class（第 2 回：JavaScript の型）（2026-10-08）
+
+- **constructor の this-property のアクセス**（types 11：`argumentsReferenceInConstructor*_Js`、`typeFromPropertyAssignment10`／`10_1`、
+  `jsdocReadonlyDeclarations`…）：tsgo の `isThisPropertyAccessInConstructor`（TypeScript 7.1）は
+  `isConstructorDeclaredThisProperty(prop)` が **Constructor** kind のとき（hosted JSDoc `@type` を含む型注釈が無いとき）だけ
+  `autoType` を使う。港は tsc 6.0.3 の `isConstructorDeclaredProperty`（hosted の `@type` を見ない）で判定していたので
+  `/** @type {number} */ this.y = 12` が auto 型（`any`）になっていた。`is_this_property_access_in_constructor` を
+  `this_assignment_declaration_kind` で判定する形に移植（6.0.3 の述語は未使用のまま残す）。
+- **unresolved な alias 型の property access**（types 8：`typeFromPropertyAssignment`、`2`、`3`、`40`、`14`、`15`、`16`、`24`）：
+  tsgo `checkPropertyAccessExpressionOrQualifiedName` の any-like の arm は `isErrorType(apparentType)`（error type か alias 付きの
+  any）なら素の error type を返す。港は `== intrinsics.error` だけを見て alias 付きの error 型（`@type {Outer}` の TS2749 の型）を
+  そのまま返していたので `si.m : Outer` と出ていた（tsgo は `any`）。`tables.is_error_type` で判定。
+- 残る class（P4-1c 以降）：heritage clause の名前の `any`（declFile*、`declarationEmitNameConflicts`、
+  `genericTypeReferenceWithoutTypeArgument`：tsgo の経路の特定に instrumented tsgo が要る）、shadowed type parameter の参照名
+  （`T_1`：再利用した型 node の中の参照、`controlFlowInstanceofWithSymbolHasInstance`、`unspecializedConstraints`、
+  `declarationsWithRecursiveInternalTypesProduceUniqueTypeParams`、`unionAndIntersectionInference1`）、duplicate な class member
+  の型（`duplicateClassElements`：accessor と property の merge で tsgo は `number`）、module symbol の specifier
+  （`nodeModulesDeclarationEmitDynamicImportWithPackageExports`：`./index.mjs` vs `package/mjs`）、`Clod.x`／escape 名／
+  declaration 列の差（各 1–2）、package redirect の unit、`SKIPPED_WALK_TESTS`。
+- 計測（最終 bytes `c330f3265`、macOS、`nice -n 20`、2 worker）：12,748 case／454 s、error／emit 不変（full 13,451、emit_full 13,443、
+  mismatch 0）、**types full 12,654／mismatch 113（P4-1a の 174 から）**、symbols full 12,715／mismatch 52（不変）、not assessed 684、
+  ratchet 0 regressions・61 configuration 上昇（report から `update_ratchet`）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、checker／compiler／conformance／harness の
+  `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（conformance＋harness＋compiler 464 passed／0 failed、
+  checker 1,797／0）。fix commit `c330f3265`。
