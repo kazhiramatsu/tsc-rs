@@ -271,12 +271,34 @@ struct CachedPackage {
     /// The package identity's peer dependency suffix (`+name@version` per
     /// peer found beside the package), when `peerDependencies` names any.
     peer_dependencies: Option<JsString>,
+    /// The peers' package.json files the suffix looked for, with whether
+    /// each exists: probed when the identity is attached.
+    peer_probes: Vec<(JsString, bool)>,
+}
+
+/// What a package's `peerDependencies` contribute to its identity: the
+/// `+name@version` suffix (absent without a usable field) and the peers'
+/// package.json files looked for, with whether each exists.
+#[derive(Debug, Default)]
+struct PeerDependencyLookup {
+    suffix: Option<JsString>,
+    probes: Vec<(JsString, bool)>,
 }
 
 #[derive(Clone, Debug)]
 enum PackageCacheEntry {
     Missing,
     Found(Arc<CachedPackage>),
+}
+
+/// One package.json the resolver looked for (tsgo's package.json info cache
+/// entry): the path it probed — the real path when the file exists and the
+/// options are incremental, as tsgo records it in the build info — and
+/// whether the file exists.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PackageJsonProbe {
+    pub path: JsString,
+    pub exists: bool,
 }
 
 /// A suffix-free hit borrows its canonical query; only an expanded
@@ -552,6 +574,12 @@ pub struct ModuleResolver<'a> {
     root_dirs: Option<Vec<JsString>>,
     package_cache: BTreeMap<JsString, PackageCacheEntry>,
     package_cache_enabled: bool,
+    /// Every package.json this resolver probed, by canonical path (see
+    /// [`PackageJsonProbe`]).
+    package_json_probes: std::cell::RefCell<BTreeMap<JsString, PackageJsonProbe>>,
+    /// Record the real path of a found package.json (an incremental program
+    /// writes it to its build info; tsgo `ensurePackageJsonsForState`).
+    record_package_json_realpaths: bool,
     /// The nearest package scope of a directory (canonical text), memoized
     /// while the package cache is enabled: a project's files share a few
     /// directories, and each file's scope was searched up the ancestors
@@ -663,6 +691,9 @@ impl<'a> ModuleResolver<'a> {
             root_dirs,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
+            record_package_json_realpaths: options.incremental == Some(true)
+                || options.composite == Some(true),
             package_scope_by_directory: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -700,6 +731,9 @@ impl<'a> ModuleResolver<'a> {
             root_dirs: None,
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
+            package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
+            record_package_json_realpaths: options.incremental == Some(true)
+                || options.composite == Some(true),
             package_scope_by_directory: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
@@ -791,6 +825,23 @@ impl<'a> ModuleResolver<'a> {
             PackageCacheEntry::Missing => None,
             PackageCacheEntry::Found(package) => Some(package.metadata.as_ref()),
         })
+    }
+
+    /// Every package.json this resolver probed, in canonical-path order.
+    pub fn package_json_probes(&self) -> Vec<PackageJsonProbe> {
+        self.package_json_probes
+            .borrow()
+            .values()
+            .cloned()
+            .collect()
+    }
+
+    /// Take the probes (see [`Self::package_json_probes`]) out of a resolver
+    /// that is about to be dropped.
+    pub fn take_package_json_probes(&mut self) -> Vec<PackageJsonProbe> {
+        std::mem::take(&mut *self.package_json_probes.borrow_mut())
+            .into_values()
+            .collect()
     }
 
     /// Observe the nearest package scope used to derive a source file's
@@ -1500,6 +1551,9 @@ impl<'a> ModuleResolver<'a> {
             &lexical_path,
             true,
         )?;
+        if module.package_id.is_some() {
+            self.record_peer_probes(&package)?;
+        }
         module.package_metadata = Some(Arc::clone(&package.metadata));
         Ok(())
     }
@@ -3737,11 +3791,15 @@ impl<'a> ModuleResolver<'a> {
             }
         }
 
+        // tsgo loadNodeModuleFromDirectory asks the package.json cache for
+        // the candidate of every existing type root (getPackageJsonInfo
+        // records the miss), before the candidate directory decides anything.
+        let package_json = join_normalized(&candidate, "package.json");
+        let package = self.load_package(&package_json)?;
         if !self.host.directory_exists_js(JsStr::from(&candidate))? {
             return Ok(ResolutionOutcome::NotFound);
         }
-        let package_json = join_normalized(&candidate, "package.json");
-        if let Some(package) = self.load_package(&package_json)? {
+        if let Some(package) = package {
             return self.resolve_legacy_package(
                 &package,
                 ".",
@@ -4119,6 +4177,9 @@ impl<'a> ModuleResolver<'a> {
             lexical_path,
             true,
         )?;
+        if module.package_id.is_some() {
+            self.record_peer_probes(package)?;
+        }
         Ok(())
     }
 
@@ -4875,12 +4936,14 @@ impl<'a> ModuleResolver<'a> {
         if !self.host.directory_exists_js(package_directory.as_js())?
             || !self.host.file_exists_js(package_json)?
         {
+            self.record_package_json_probe(&cache_key, package_json, false)?;
             if self.package_cache_enabled {
                 self.package_cache
                     .insert(cache_key, PackageCacheEntry::Missing);
             }
             return Ok(None);
         }
+        self.record_package_json_probe(&cache_key, package_json, true)?;
         // TypeScript's readJson treats an absent read after a successful
         // file-existence probe as an empty object. This can occur across a
         // filesystem race; it remains a present cached package boundary.
@@ -4912,8 +4975,10 @@ impl<'a> ModuleResolver<'a> {
                     json_object_get(&object, "type").is_some_and(js_json_value_is_truthy),
                 ),
         );
-        let peer_dependencies =
-            self.package_json_peer_dependencies(&object, package_directory.as_js())?;
+        let PeerDependencyLookup {
+            suffix: peer_dependencies,
+            probes: peer_probes,
+        } = self.package_json_peer_dependencies(&object, package_directory.as_js())?;
         let package = Arc::new(CachedPackage {
             root: package_directory,
             exports: json_object_get(&object, "exports").cloned(),
@@ -4932,12 +4997,53 @@ impl<'a> ModuleResolver<'a> {
             tsconfig: non_empty_string_field(&object, "tsconfig"),
             metadata,
             peer_dependencies,
+            peer_probes,
         });
         if self.package_cache_enabled {
             self.package_cache
                 .insert(cache_key, PackageCacheEntry::Found(Arc::clone(&package)));
         }
         Ok(Some(package))
+    }
+
+    /// tsgo packagejson.InfoCache: a package.json a lookup asked for, under
+    /// the spelling it asked (its real path when the program records them
+    /// and the file exists), recorded once; the build info lists them.
+    fn record_package_json_probe(
+        &self,
+        cache_key: &JsString,
+        package_json: JsStr<'_>,
+        exists: bool,
+    ) -> Result<(), ResolutionError> {
+        if self.package_json_probes.borrow().contains_key(cache_key) {
+            return Ok(());
+        }
+        let path = if exists && self.record_package_json_realpaths {
+            self.host
+                .realpath_js(package_json)?
+                .unwrap_or_else(|| package_json.to_owned())
+        } else {
+            package_json.to_owned()
+        };
+        self.package_json_probes
+            .borrow_mut()
+            .insert(cache_key.clone(), PackageJsonProbe { path, exists });
+        Ok(())
+    }
+
+    /// The peers a package identity looked for (tsgo getPackageId →
+    /// readPackageJsonPeerDependencies → getPackageJsonInfo), recorded as
+    /// probed when the identity is attached to a resolution and not when the
+    /// package.json is merely read.
+    fn record_peer_probes(&self, package: &CachedPackage) -> Result<(), ResolutionError> {
+        for (peer_package_json, exists) in &package.peer_probes {
+            let cache_key = canonical_text(
+                peer_package_json.as_js(),
+                self.path_context.use_case_sensitive_file_names(),
+            );
+            self.record_package_json_probe(&cache_key, peer_package_json.as_js(), *exists)?;
+        }
+        Ok(())
     }
 
     /// The peer dependency suffix of a package identity (tsgo
@@ -4948,20 +5054,22 @@ impl<'a> ModuleResolver<'a> {
     /// contributes `+name@version`. Two copies of one version of a package
     /// with different peers are then different packages. The peers are read
     /// from the host directly: they are not loaded as packages here, so a
-    /// peer cycle cannot recurse.
+    /// peer cycle cannot recurse; each is still a package.json the lookup
+    /// asks for (tsgo getPackageJsonInfo), returned with the suffix so the
+    /// resolution that attaches the identity records it as probed.
     fn package_json_peer_dependencies(
         &self,
         object: &Map,
         package_directory: JsStr<'_>,
-    ) -> Result<Option<JsString>, ResolutionError> {
+    ) -> Result<PeerDependencyLookup, ResolutionError> {
         let Some(peers) = json_object_own_get(object, "peerDependencies") else {
-            return Ok(None);
+            return Ok(PeerDependencyLookup::default());
         };
         let Some(peers) = peers.as_object() else {
-            return Ok(None);
+            return Ok(PeerDependencyLookup::default());
         };
         if peers.is_empty() || !peers.values().all(Value::is_string) {
-            return Ok(None);
+            return Ok(PeerDependencyLookup::default());
         }
         let real_directory = match self.host.realpath_js(package_directory)? {
             Some(real) => {
@@ -4972,17 +5080,20 @@ impl<'a> ModuleResolver<'a> {
         // `strings.LastIndex(packageDirectory, "/node_modules")`: the text up
         // to and including the last `/node_modules`.
         let Some((before, _)) = real_directory.as_js().rsplit_once("/node_modules") else {
-            return Ok(None);
+            return Ok(PeerDependencyLookup::default());
         };
         let mut node_modules = before.to_owned();
         node_modules.push_str("/node_modules");
         let mut names = peers.keys().cloned().collect::<Vec<_>>();
         names.sort();
         let mut suffix = JsString::from("");
+        let mut probes = Vec::with_capacity(names.len());
         for name in names {
             let peer_package_json =
                 join_normalized(&join_normalized(&node_modules, &name), "package.json");
-            if !self.host.file_exists_js(peer_package_json.as_js())? {
+            let exists = self.host.file_exists_js(peer_package_json.as_js())?;
+            probes.push((peer_package_json.clone(), exists));
+            if !exists {
                 continue;
             }
             let bytes = self
@@ -5003,7 +5114,10 @@ impl<'a> ModuleResolver<'a> {
                 suffix.push_js(version);
             }
         }
-        Ok(Some(suffix))
+        Ok(PeerDependencyLookup {
+            suffix: Some(suffix),
+            probes,
+        })
     }
 
     /// tsc-port: loadModuleFromExports @6.0.3
@@ -5708,6 +5822,11 @@ impl<'a> ModuleResolver<'a> {
             })
             .transpose()?
             .flatten();
+        if package_id.is_some() {
+            if let Some(package) = package {
+                self.record_peer_probes(package)?;
+            }
+        }
 
         Ok(ResolutionOutcome::Resolved(HostResolvedModule {
             resolved_file,

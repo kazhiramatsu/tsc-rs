@@ -167,3 +167,28 @@ fn non_unicode_display_and_canonical_paths_fail_closed() {
         assert_eq!(error.path(), Some(invalid.as_path()));
     }
 }
+
+#[test]
+fn a_relative_path_reduces_dot_components_like_tsgo() {
+    // tspath.GetPathComponentsRelativeTo reduces both sides
+    // (reducePathComponents): the build info names the package.json a
+    // relative type reference (`/// <reference types="./css" />`) probed
+    // under `node_modules/@types/./css` as `@types/css`.
+    use tsc_program::relative_path_from_directory;
+    assert_eq!(
+        relative_path_from_directory(
+            "/work/dist".into(),
+            "/work/node_modules/@types/./css/package.json".into(),
+            true
+        ),
+        "../node_modules/@types/css/package.json"
+    );
+    assert_eq!(
+        relative_path_from_directory("/work/dist".into(), "/work/a/../b/c.ts".into(), true),
+        "../b/c.ts"
+    );
+    assert_eq!(
+        relative_path_from_directory("/work/./dist".into(), "/work/dist/x.ts".into(), true),
+        "x.ts"
+    );
+}

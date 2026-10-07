@@ -5529,11 +5529,15 @@ fn jsx_runtime_names_in_commonjs_scripts_keep_their_names_like_tsgo() {
 }
 
 #[test]
-fn the_command_refuses_only_an_emit_that_writes_build_info() {
+fn an_incremental_emit_writes_the_build_info_like_tsgo() {
     // tsgo's command compiles an incremental program for `incremental` or
-    // `composite` (execute/tsc.go:245), whose emit writes the build info this
-    // command cannot write yet; `tsBuildInfoFile` alone selects none
-    // (outputpaths.GetBuildInfoFileName), so tsgo emits the JavaScript alone.
+    // `composite` (execute/tsc.go:245), whose emit writes the build info
+    // after the files (execute/incremental/program.go emitBuildInfo);
+    // `tsBuildInfoFile` alone selects none (outputpaths.GetBuildInfoFileName),
+    // so tsgo emits the JavaScript alone. The expected bytes are tsgo's: the
+    // default libraries of `target` es2020 by their bare names, the file's
+    // XXH3-128 version and, for the composite program, the signature of its
+    // declaration output.
     let tree = TempTree::new();
     fs::write(tree.path("a.ts"), "export const x = 1;\n").expect("write a.ts");
     fs::write(
@@ -5550,7 +5554,10 @@ fn the_command_refuses_only_an_emit_that_writes_build_info() {
     );
     assert!(!tree.path("out/a.tsbuildinfo").exists());
 
-    for option in ["incremental", "composite"] {
+    for (option, expected) in [
+        ("incremental", INCREMENTAL_BUILD_INFO),
+        ("composite", COMPOSITE_BUILD_INFO),
+    ] {
         let tree = TempTree::new();
         fs::write(tree.path("a.ts"), "export const x = 1;\n").expect("write a.ts");
         fs::write(
@@ -5560,15 +5567,35 @@ fn the_command_refuses_only_an_emit_that_writes_build_info() {
             ),
         )
         .expect("write config");
-        let output = run(&tree, &["--pretty", "false"]);
-        assert_eq!(output.status.code(), Some(2));
+        let output = run(&tree, &["--pretty", "false", "--listEmittedFiles"]);
         assert_eq!(
-            String::from_utf8_lossy(&output.stderr),
-            format!("tsc-rs: compiler failure: unsupported emit compiler option: {option}\n")
+            output.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
         );
-        assert!(!tree.path("out").exists());
+        let project = compiler_current_directory(&tree);
+        let project = project.display();
+        let mut listing = format!("TSFILE: {project}/out/a.js\n");
+        if option == "composite" {
+            listing.push_str(&format!("TSFILE: {project}/out/a.d.ts\n"));
+        }
+        listing.push_str(&format!("TSFILE: {project}/out/tsconfig.tsbuildinfo\n"));
+        assert_eq!(String::from_utf8_lossy(&output.stdout), listing);
+        assert_eq!(
+            fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+            "export const x = 1;\n"
+        );
+        assert_eq!(
+            build_info_bytes(&tree, "out/tsconfig.tsbuildinfo"),
+            expected
+        );
     }
 }
+
+const INCREMENTAL_BUILD_INFO: &str = r#"{"version":"7.1.0-dev","root":[52],"fileNames":["lib.es5.d.ts","lib.es2015.d.ts","lib.es2016.d.ts","lib.es2017.d.ts","lib.es2018.d.ts","lib.es2019.d.ts","lib.es2020.d.ts","lib.dom.d.ts","lib.dom.iterable.d.ts","lib.dom.asynciterable.d.ts","lib.webworker.importscripts.d.ts","lib.scripthost.d.ts","lib.es2015.core.d.ts","lib.es2015.collection.d.ts","lib.es2015.generator.d.ts","lib.es2015.iterable.d.ts","lib.es2015.promise.d.ts","lib.es2015.proxy.d.ts","lib.es2015.reflect.d.ts","lib.es2015.symbol.d.ts","lib.es2015.symbol.wellknown.d.ts","lib.es2016.array.include.d.ts","lib.es2016.intl.d.ts","lib.es2017.arraybuffer.d.ts","lib.es2017.date.d.ts","lib.es2017.object.d.ts","lib.es2017.sharedmemory.d.ts","lib.es2017.string.d.ts","lib.es2017.intl.d.ts","lib.es2017.typedarrays.d.ts","lib.es2018.asyncgenerator.d.ts","lib.es2018.asynciterable.d.ts","lib.es2018.intl.d.ts","lib.es2018.promise.d.ts","lib.es2018.regexp.d.ts","lib.es2019.array.d.ts","lib.es2019.object.d.ts","lib.es2019.string.d.ts","lib.es2019.symbol.d.ts","lib.es2019.intl.d.ts","lib.es2020.bigint.d.ts","lib.es2020.date.d.ts","lib.es2020.promise.d.ts","lib.es2020.sharedmemory.d.ts","lib.es2020.string.d.ts","lib.es2020.symbol.wellknown.d.ts","lib.es2020.intl.d.ts","lib.es2020.number.d.ts","lib.decorators.d.ts","lib.decorators.legacy.d.ts","lib.es2020.full.d.ts","../a.ts"],"fileInfos":[{"version":"f67b7193a32cb9c0e44624d29886b63c","affectsGlobalScope":true,"impliedNodeFormat":1},"d4306fb2e47f74835e8674ffac07d76f","e437c5c1302869326c3bb93da85bbbcf","e4324975a566567b21d350615f1fc6ac","333b1b9a2a9ac3b8497dba5c63b5ba50","6cffacd662b6eb5fa7a36aa2ea366bfa","b4c34f9c23304dbef2d23698637ed638",{"version":"aae8996e8b5684814785a42cbbefcd79","affectsGlobalScope":true,"impliedNodeFormat":1},"abad6dd56cc8caf095c165df8124d237","abad6dd56cc8caf095c165df8124d237",{"version":"2a9941db0809c9ad0e8837ed629b1dcc","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"d051b93324f36bcc68d152a5ca0988cd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"926204c28cd3d073865348473ae28d2e","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"f25e42c801b2cb3cf2b39792006a9beb","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"6344b55f26a4e81d9608777dbfb877dd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"3c0ed28e53d3695b363e256ec1c023fd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"4c2761daba7f17141c25baa0821ac5da","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b87656acabd63e69379ff6ffcfe52fc7","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"597469522da047a5af5222cc6989f405","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"1708ea4d34dc37fadadc63ca01127e80","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"55d97a8c6fbf34a30450a7b1e5f7a298","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"0ee05eb59426d33e374226d8dcfa708b","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"e347c14030993906efcfbb88915b6a05","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b0231263857c9b6a03641acdc9280ceb","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"3b15c4a83b598cacb4067676e6f0abed","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b417d97b7934cef63b1889abec0bbfbf","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"09a6cf4032ebba60ce22a501e663f881","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"2b056277dd138e8f5650fc04e20eaa8d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"e22cc07e3f3cc242ba52fa3f8ea1fc58","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"2c45da767a1bfbb220848df1bc4029e4","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b44c3e0fbaf2130cdcf6ac38b120ffa1","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b612fb5cf8e5d964b92063a75207632a","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"2123b4157a6fac8fce09937eade1a12c","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"41025e398be9215d32e4337335da8f0b","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"52684c2b1f353a5538e4f275182a54cd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"6dedb6a4f90d1df3a6fbe5693e44886c","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"ca3f36fe3562c07e0f0d71c2bebd3f6d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"409974d6129befbb8226ddd1c6558568","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"4d9cfde2a1ae1b4925f1f9bc10848e5d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"7e1daecc66dd564144e3bb1a0266b5fd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"a8e1d9bb35fd0637f2f9fd2b2a54f2ec","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"4f168501772a6543182765bfd5f2fbfe","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"a19c80aad1b2162103496f5ba293a732","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b69afa63cd5d059851c78adb2856ee09","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"ae2fc5d954e9b0f5feee3d481b953c27","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"1cfd3091a071d8b6feec15277643bafe","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"5e68b407093924bef76adc68f93f863d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"a0d87491913d843139e0c993650a3235","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"f64453cbf9671f28158677fa5c43967a","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"33f317af5428801f944a478d2c1e38e5","affectsGlobalScope":true,"impliedNodeFormat":1},"cf1c6e0733060fcf160253e4334ffa44","9b054614ae641bfe64afdabef3bca31c"],"options":{"module":99,"outDir":"./","target":7}}"#;
+
+const COMPOSITE_BUILD_INFO: &str = r#"{"version":"7.1.0-dev","root":[52],"fileNames":["lib.es5.d.ts","lib.es2015.d.ts","lib.es2016.d.ts","lib.es2017.d.ts","lib.es2018.d.ts","lib.es2019.d.ts","lib.es2020.d.ts","lib.dom.d.ts","lib.dom.iterable.d.ts","lib.dom.asynciterable.d.ts","lib.webworker.importscripts.d.ts","lib.scripthost.d.ts","lib.es2015.core.d.ts","lib.es2015.collection.d.ts","lib.es2015.generator.d.ts","lib.es2015.iterable.d.ts","lib.es2015.promise.d.ts","lib.es2015.proxy.d.ts","lib.es2015.reflect.d.ts","lib.es2015.symbol.d.ts","lib.es2015.symbol.wellknown.d.ts","lib.es2016.array.include.d.ts","lib.es2016.intl.d.ts","lib.es2017.arraybuffer.d.ts","lib.es2017.date.d.ts","lib.es2017.object.d.ts","lib.es2017.sharedmemory.d.ts","lib.es2017.string.d.ts","lib.es2017.intl.d.ts","lib.es2017.typedarrays.d.ts","lib.es2018.asyncgenerator.d.ts","lib.es2018.asynciterable.d.ts","lib.es2018.intl.d.ts","lib.es2018.promise.d.ts","lib.es2018.regexp.d.ts","lib.es2019.array.d.ts","lib.es2019.object.d.ts","lib.es2019.string.d.ts","lib.es2019.symbol.d.ts","lib.es2019.intl.d.ts","lib.es2020.bigint.d.ts","lib.es2020.date.d.ts","lib.es2020.promise.d.ts","lib.es2020.sharedmemory.d.ts","lib.es2020.string.d.ts","lib.es2020.symbol.wellknown.d.ts","lib.es2020.intl.d.ts","lib.es2020.number.d.ts","lib.decorators.d.ts","lib.decorators.legacy.d.ts","lib.es2020.full.d.ts","../a.ts"],"fileInfos":[{"version":"f67b7193a32cb9c0e44624d29886b63c","affectsGlobalScope":true,"impliedNodeFormat":1},"d4306fb2e47f74835e8674ffac07d76f","e437c5c1302869326c3bb93da85bbbcf","e4324975a566567b21d350615f1fc6ac","333b1b9a2a9ac3b8497dba5c63b5ba50","6cffacd662b6eb5fa7a36aa2ea366bfa","b4c34f9c23304dbef2d23698637ed638",{"version":"aae8996e8b5684814785a42cbbefcd79","affectsGlobalScope":true,"impliedNodeFormat":1},"abad6dd56cc8caf095c165df8124d237","abad6dd56cc8caf095c165df8124d237",{"version":"2a9941db0809c9ad0e8837ed629b1dcc","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"d051b93324f36bcc68d152a5ca0988cd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"926204c28cd3d073865348473ae28d2e","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"f25e42c801b2cb3cf2b39792006a9beb","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"6344b55f26a4e81d9608777dbfb877dd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"3c0ed28e53d3695b363e256ec1c023fd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"4c2761daba7f17141c25baa0821ac5da","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b87656acabd63e69379ff6ffcfe52fc7","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"597469522da047a5af5222cc6989f405","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"1708ea4d34dc37fadadc63ca01127e80","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"55d97a8c6fbf34a30450a7b1e5f7a298","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"0ee05eb59426d33e374226d8dcfa708b","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"e347c14030993906efcfbb88915b6a05","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b0231263857c9b6a03641acdc9280ceb","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"3b15c4a83b598cacb4067676e6f0abed","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b417d97b7934cef63b1889abec0bbfbf","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"09a6cf4032ebba60ce22a501e663f881","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"2b056277dd138e8f5650fc04e20eaa8d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"e22cc07e3f3cc242ba52fa3f8ea1fc58","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"2c45da767a1bfbb220848df1bc4029e4","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b44c3e0fbaf2130cdcf6ac38b120ffa1","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b612fb5cf8e5d964b92063a75207632a","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"2123b4157a6fac8fce09937eade1a12c","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"41025e398be9215d32e4337335da8f0b","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"52684c2b1f353a5538e4f275182a54cd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"6dedb6a4f90d1df3a6fbe5693e44886c","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"ca3f36fe3562c07e0f0d71c2bebd3f6d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"409974d6129befbb8226ddd1c6558568","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"4d9cfde2a1ae1b4925f1f9bc10848e5d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"7e1daecc66dd564144e3bb1a0266b5fd","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"a8e1d9bb35fd0637f2f9fd2b2a54f2ec","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"4f168501772a6543182765bfd5f2fbfe","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"a19c80aad1b2162103496f5ba293a732","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"b69afa63cd5d059851c78adb2856ee09","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"ae2fc5d954e9b0f5feee3d481b953c27","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"1cfd3091a071d8b6feec15277643bafe","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"5e68b407093924bef76adc68f93f863d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"a0d87491913d843139e0c993650a3235","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"f64453cbf9671f28158677fa5c43967a","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"33f317af5428801f944a478d2c1e38e5","affectsGlobalScope":true,"impliedNodeFormat":1},"cf1c6e0733060fcf160253e4334ffa44",{"version":"9b054614ae641bfe64afdabef3bca31c","signature":"48ffdfd2b4eab94253c1366210fd99ce","impliedNodeFormat":1}],"options":{"composite":true,"module":99,"outDir":"./","target":7},"latestChangedDtsFile":"./a.d.ts"}"#;
 
 #[test]
 fn source_maps_follow_tsgo() {
@@ -10983,4 +11010,829 @@ fn project_references_are_verified_at_their_syntax_like_tsgo() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(output.status.code(), Some(2));
+}
+
+// ---------------------------------------------------------------------------
+// P3-6b: the build info of an incremental program (tsgo execute/incremental).
+// Each fixture is a noLib project with a minimal library so the document's
+// bytes do not depend on the standard library files; the expected bytes are
+// tsgo's.
+
+fn write_fixture_files(tree: &TempTree, files: &[(&str, &str)]) {
+    for (relative, text) in files {
+        let path = tree.path(relative);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create fixture directory");
+        }
+        fs::write(&path, text).expect("write fixture file");
+    }
+}
+
+fn build_info_bytes(tree: &TempTree, relative: &str) -> String {
+    fs::read_to_string(tree.path(relative)).expect("the build info was written")
+}
+
+#[test]
+fn build_info_of_refs_emit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/augment.ts",
+                r#"import "./math";
+declare module "./math" { export const extra: number; }
+export {};
+"#,
+            ),
+            (
+                "src/global-aug.ts",
+                r#"export {};
+declare global { interface Window { z: number } }
+"#,
+            ),
+            (
+                "src/globals.d.ts",
+                r#"declare const GLOBAL_X: number;
+declare module "ambient-mod" { export const y: number; }
+"#,
+            ),
+            (
+                "src/index.ts",
+                r#"/// <reference path="./globals.d.ts" />
+import { add } from "./math";
+import type { Pair } from "./types";
+export * from "./reexport";
+import "ambient-mod";
+export const total: number = add(1, 2) + GLOBAL_X;
+export const p: Pair = [1, 2];
+export const lazy = import("./math");
+"#,
+            ),
+            (
+                "src/math.ts",
+                r#"export function add(a: number, b: number): number { return a + b; }
+"#,
+            ),
+            (
+                "src/reexport.ts",
+                r#"export const re = 1;
+"#,
+            ),
+            (
+                "src/types.ts",
+                r#"export type Pair = [number, number];
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist"}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#"error TS2318: Cannot find global type 'Promise'.
+src/index.ts(8,21): error TS2711: A dynamic import call returns a 'Promise'. Make sure you have a declaration for 'Promise' or include 'ES2015' in your '--lib' option.
+"#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[1,8]],"fileNames":["../src/math.ts","../src/augment.ts","../src/global-aug.ts","../src/globals.d.ts","../src/types.ts","../src/reexport.ts","../src/index.ts","../lib/min.d.ts"],"fileInfos":[{"version":"d948eb9f758e7b70ae5eb35555896ac2","signature":"688090965345ef8cab3bfa703dc8d808","impliedNodeFormat":1},{"version":"ec91a154e67cb7adf42cf88b6f5238ad","signature":"e7042ae7d9027c86863c13a3023120c3","impliedNodeFormat":1},{"version":"9bcf55aa2d2a0b81474552c726a68741","signature":"a0d28d57e39a4be304b44b22928bc6f5","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"d78e04d7e6bf186b8c17509052926ac5","affectsGlobalScope":true,"impliedNodeFormat":1},"25c82f394a962346a45c1c0032ee2360",{"version":"92ef0eba79cdd07f61e46d8f5cd40779","signature":"125c0d8a1b1b1d674f776ddce9350311","impliedNodeFormat":1},{"version":"93719fc4495229c046df9609d69c622b","signature":"71e0ba7b02ea8e4f44fae5c7e959ddfe","impliedNodeFormat":1},{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[4],[1,4],[1,2,4,5,6]],"options":{"composite":true,"module":99,"outDir":"./","strict":true,"target":9},"referencedMap":[[8,1],[2,2],[3,1],[7,3],[1,1],[6,1],[5,1]],"semanticDiagnosticsPerFile":[[7,[{"noFile":true,"code":2318,"category":1,"messageKey":"Cannot_find_global_type_0_2318","messageArgs":["Promise","es2015"]},{"pos":259,"end":275,"code":2711,"category":1,"messageKey":"A_dynamic_import_call_returns_a_Promise_Make_sure_you_have_a_declaration_for_Promise_or_include_ES20_2711"}]]],"latestChangedDtsFile":"./src/index.d.ts"}"#
+    );
+}
+
+#[test]
+fn build_info_of_refs_noemit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/augment.ts",
+                r#"import "./math";
+declare module "./math" { export const extra: number; }
+export {};
+"#,
+            ),
+            (
+                "src/global-aug.ts",
+                r#"export {};
+declare global { interface Window { z: number } }
+"#,
+            ),
+            (
+                "src/globals.d.ts",
+                r#"declare const GLOBAL_X: number;
+declare module "ambient-mod" { export const y: number; }
+"#,
+            ),
+            (
+                "src/index.ts",
+                r#"/// <reference path="./globals.d.ts" />
+import { add } from "./math";
+import type { Pair } from "./types";
+export * from "./reexport";
+import "ambient-mod";
+export const total: number = add(1, 2) + GLOBAL_X;
+export const p: Pair = [1, 2];
+export const lazy = import("./math");
+"#,
+            ),
+            (
+                "src/math.ts",
+                r#"export function add(a: number, b: number): number { return a + b; }
+"#,
+            ),
+            (
+                "src/reexport.ts",
+                r#"export const re = 1;
+"#,
+            ),
+            (
+                "src/types.ts",
+                r#"export type Pair = [number, number];
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist"}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false", "--noEmit"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#"error TS2318: Cannot find global type 'Promise'.
+src/index.ts(8,21): error TS2711: A dynamic import call returns a 'Promise'. Make sure you have a declaration for 'Promise' or include 'ES2015' in your '--lib' option.
+"#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[1,8]],"fileNames":["../src/math.ts","../src/augment.ts","../src/global-aug.ts","../src/globals.d.ts","../src/types.ts","../src/reexport.ts","../src/index.ts","../lib/min.d.ts"],"fileInfos":["d948eb9f758e7b70ae5eb35555896ac2","ec91a154e67cb7adf42cf88b6f5238ad",{"version":"9bcf55aa2d2a0b81474552c726a68741","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"d78e04d7e6bf186b8c17509052926ac5","affectsGlobalScope":true,"impliedNodeFormat":1},"25c82f394a962346a45c1c0032ee2360","92ef0eba79cdd07f61e46d8f5cd40779","93719fc4495229c046df9609d69c622b",{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[4],[1,4],[1,2,4,5,6]],"options":{"composite":true,"module":99,"outDir":"./","strict":true,"target":9},"referencedMap":[[8,1],[2,2],[3,1],[7,3],[1,1],[6,1],[5,1]],"semanticDiagnosticsPerFile":[[7,[{"noFile":true,"code":2318,"category":1,"messageKey":"Cannot_find_global_type_0_2318","messageArgs":["Promise","es2015"]},{"pos":259,"end":275,"code":2711,"category":1,"messageKey":"A_dynamic_import_call_returns_a_Promise_Make_sure_you_have_a_declaration_for_Promise_or_include_ES20_2711"}]]],"affectedFilesPendingEmit":[2,3,7,1,6,5],"emitSignatures":[1,2,3,5,6,7]}"#
+    );
+}
+
+#[test]
+fn build_info_of_errors_noemit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/a.ts",
+                r#"export const s: string = 1;
+let a: { x: { y: string } } = { x: { y: "" } };
+let b: { x: { y: number } } = { x: { y: 1 } };
+a = b;
+export const o: { k: { b: string } } = { k: { b: 1 } };
+"#,
+            ),
+            (
+                "src/b.ts",
+                r#"export function dup() {}
+export function dup() {}
+export const u: undefined = 1;
+"#,
+            ),
+            (
+                "src/c.ts",
+                r#"export const fine = 1;
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist"}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false", "--noEmit"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#"src/a.ts(1,14): error TS2322: Type 'number' is not assignable to type 'string'.
+src/a.ts(4,1): error TS2322: Type '{ x: { y: number; }; }' is not assignable to type '{ x: { y: string; }; }'.
+  The types of 'x.y' are incompatible between these types.
+    Type 'number' is not assignable to type 'string'.
+src/a.ts(5,47): error TS2322: Type 'number' is not assignable to type 'string'.
+src/b.ts(1,17): error TS2323: Cannot redeclare exported variable 'dup'.
+src/b.ts(1,17): error TS2393: Duplicate function implementation.
+src/b.ts(2,17): error TS2323: Cannot redeclare exported variable 'dup'.
+src/b.ts(2,17): error TS2393: Duplicate function implementation.
+src/b.ts(3,14): error TS2322: Type '1' is not assignable to type 'undefined'.
+"#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","root":[[1,4]],"fileNames":["../src/a.ts","../src/b.ts","../src/c.ts","../lib/min.d.ts"],"fileInfos":["05f8108665a9ec3586fb8c18355c8c82","1696df0969d7845cdd59c016cb2d0a02","4fb4238480b8f680c2a02a5facd2a260",{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"module":99,"outDir":"./","strict":true,"target":9},"semanticDiagnosticsPerFile":[[1,[{"pos":13,"end":14,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["number","string"]},{"pos":123,"end":124,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["{ x: { y: number; }; }","{ x: { y: string; }; }"],"messageChain":[{"pos":123,"end":124,"code":2200,"category":1,"messageKey":"The_types_of_0_are_incompatible_between_these_types_2200","messageArgs":["x.y"],"messageChain":[{"pos":123,"end":124,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["number","string"]}]}]},{"pos":176,"end":177,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["number","string"],"relatedInformation":[{"pos":153,"end":154,"code":6500,"category":3,"messageKey":"The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1_6500","messageArgs":["b","{ b: string; }"]}]}]],[2,[{"pos":16,"end":19,"code":2323,"category":1,"messageKey":"Cannot_redeclare_exported_variable_0_2323","messageArgs":["dup"]},{"pos":16,"end":19,"code":2393,"category":1,"messageKey":"Duplicate_function_implementation_2393"},{"pos":41,"end":44,"code":2323,"category":1,"messageKey":"Cannot_redeclare_exported_variable_0_2323","messageArgs":["dup"]},{"pos":41,"end":44,"code":2393,"category":1,"messageKey":"Duplicate_function_implementation_2393"},{"pos":63,"end":64,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["1","undefined"]}]]],"affectedFilesPendingEmit":[1,2,3],"emitSignatures":[1,2,3]}"#
+    );
+}
+
+#[test]
+fn build_info_of_errors_emit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/a.ts",
+                r#"export const s: string = 1;
+let a: { x: { y: string } } = { x: { y: "" } };
+let b: { x: { y: number } } = { x: { y: 1 } };
+a = b;
+export const o: { k: { b: string } } = { k: { b: 1 } };
+"#,
+            ),
+            (
+                "src/b.ts",
+                r#"export function dup() {}
+export function dup() {}
+export const u: undefined = 1;
+"#,
+            ),
+            (
+                "src/c.ts",
+                r#"export const fine = 1;
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist"}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#"src/a.ts(1,14): error TS2322: Type 'number' is not assignable to type 'string'.
+src/a.ts(4,1): error TS2322: Type '{ x: { y: number; }; }' is not assignable to type '{ x: { y: string; }; }'.
+  The types of 'x.y' are incompatible between these types.
+    Type 'number' is not assignable to type 'string'.
+src/a.ts(5,47): error TS2322: Type 'number' is not assignable to type 'string'.
+src/b.ts(1,17): error TS2323: Cannot redeclare exported variable 'dup'.
+src/b.ts(1,17): error TS2393: Duplicate function implementation.
+src/b.ts(2,17): error TS2323: Cannot redeclare exported variable 'dup'.
+src/b.ts(2,17): error TS2393: Duplicate function implementation.
+src/b.ts(3,14): error TS2322: Type '1' is not assignable to type 'undefined'.
+"#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","root":[[1,4]],"fileNames":["../src/a.ts","../src/b.ts","../src/c.ts","../lib/min.d.ts"],"fileInfos":[{"version":"05f8108665a9ec3586fb8c18355c8c82","signature":"fde0095a581f8b5ea8fe2595a539f1ec","impliedNodeFormat":1},{"version":"1696df0969d7845cdd59c016cb2d0a02","signature":"35d4772ded3476f7f4bd40257b9d69ec","impliedNodeFormat":1},{"version":"4fb4238480b8f680c2a02a5facd2a260","signature":"74e470344a56e78bbe5aa50ca3e0e8d0","impliedNodeFormat":1},{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"module":99,"outDir":"./","strict":true,"target":9},"semanticDiagnosticsPerFile":[[1,[{"pos":13,"end":14,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["number","string"]},{"pos":123,"end":124,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["{ x: { y: number; }; }","{ x: { y: string; }; }"],"messageChain":[{"pos":123,"end":124,"code":2200,"category":1,"messageKey":"The_types_of_0_are_incompatible_between_these_types_2200","messageArgs":["x.y"],"messageChain":[{"pos":123,"end":124,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["number","string"]}]}]},{"pos":176,"end":177,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["number","string"],"relatedInformation":[{"pos":153,"end":154,"code":6500,"category":3,"messageKey":"The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1_6500","messageArgs":["b","{ b: string; }"]}]}]],[2,[{"pos":16,"end":19,"code":2323,"category":1,"messageKey":"Cannot_redeclare_exported_variable_0_2323","messageArgs":["dup"]},{"pos":16,"end":19,"code":2393,"category":1,"messageKey":"Duplicate_function_implementation_2393"},{"pos":41,"end":44,"code":2323,"category":1,"messageKey":"Cannot_redeclare_exported_variable_0_2323","messageArgs":["dup"]},{"pos":41,"end":44,"code":2393,"category":1,"messageKey":"Duplicate_function_implementation_2393"},{"pos":63,"end":64,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["1","undefined"]}]]],"latestChangedDtsFile":"./src/c.d.ts"}"#
+    );
+}
+
+#[test]
+fn build_info_of_syntax_noemit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/a.ts",
+                r#"export const x: number = ;
+"#,
+            ),
+            (
+                "src/b.ts",
+                r#"export const y = 1;
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist"}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false", "--noEmit"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#"src/a.ts(1,26): error TS1109: Expression expected.
+"#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[1,3]],"fileNames":["../src/a.ts","../src/b.ts","../lib/min.d.ts"],"fileInfos":["311589349c68f5e3807d5fb967c55380","f4c10273d8d214abf45efaa293b7954f",{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"module":99,"outDir":"./","strict":true,"target":9},"semanticDiagnosticsPerFile":[1,2,3],"affectedFilesPendingEmit":[1,2],"emitSignatures":[1,2]}"#
+    );
+}
+
+#[test]
+fn build_info_of_incr_emit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/a.ts",
+                r#"import { b } from "./b";
+export const a = b;
+"#,
+            ),
+            (
+                "src/b.ts",
+                r#"export const b = 1;
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": false, "outDir": "dist", "incremental": true, "rootDir": "."}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#""#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["../src/b.ts","../src/a.ts","../lib/min.d.ts"],"fileInfos":["90312e1cbc42534115cfa9601aa41950","86034ab81c14d0ab6058efd33f7451cd",{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"composite":false,"module":99,"outDir":"./","rootDir":"..","strict":true,"target":9},"referencedMap":[[2,1]]}"#
+    );
+}
+
+#[test]
+fn build_info_of_nocheck_noemit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/a.ts",
+                r#"export const s: string = 1;
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist", "noCheck": true}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false", "--noEmit"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#""#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","checkPending":true,"root":[[1,2]],"fileNames":["../src/a.ts","../lib/min.d.ts"],"fileInfos":["b1af67305094f23f1404adcf47bf8d87",{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"module":99,"outDir":"./","strict":true,"target":9},"semanticDiagnosticsPerFile":[1,2],"affectedFilesPendingEmit":[[1,17]],"emitSignatures":[1]}"#
+    );
+}
+
+#[test]
+fn build_info_of_noemitonerror_emit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/a.ts",
+                r#"export const s: string = 1;
+"#,
+            ),
+            (
+                "src/b.ts",
+                r#"export const b = 1;
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist", "noEmitOnError": true, "declarationMap": true, "sourceMap": true}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#"src/a.ts(1,14): error TS2322: Type 'number' is not assignable to type 'string'.
+"#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["../src/a.ts","../src/b.ts","../lib/min.d.ts"],"fileInfos":["b1af67305094f23f1404adcf47bf8d87","90312e1cbc42534115cfa9601aa41950",{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declarationMap":true,"module":99,"noEmitOnError":true,"outDir":"./","strict":true,"sourceMap":true,"target":9},"semanticDiagnosticsPerFile":[[1,[{"pos":13,"end":14,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["number","string"]}]]],"affectedFilesPendingEmit":[1,2],"emitSignatures":[1,2]}"#
+    );
+}
+
+#[test]
+fn build_info_of_optfalse_emit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/a.ts",
+                r#"export const a = 1;
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "commonjs", "moduleResolution": "bundler", "target": "es5", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist", "checkJs": true, "importHelpers": false, "strictNullChecks": false, "experimentalDecorators": false, "allowUnreachableCode": false, "newLine": "crlf", "jsx": "preserve", "tsBuildInfoFile": "dist/x.tsbuildinfo"}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        r#"tsconfig.json(1,85): error TS5108: Option 'target=ES5' has been removed. Please remove it from your configuration.
+"#,
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/x.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[1,2]],"fileNames":["../src/a.ts","../lib/min.d.ts"],"fileInfos":[{"version":"dcc03016c1e9fa8a9c06f4a9279fde2a","signature":"e413f66deba9fb2df85e3b7c88739f42","impliedNodeFormat":1},{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"allowUnreachableCode":false,"checkJs":true,"composite":true,"experimentalDecorators":false,"importHelpers":false,"jsx":1,"module":1,"newLine":1,"outDir":"./","strict":true,"strictNullChecks":false,"target":1,"tsBuildInfoFile":"./x.tsbuildinfo"},"semanticDiagnosticsPerFile":[1,2],"latestChangedDtsFile":"./src/a.d.ts"}"#
+    );
+}
+
+#[test]
+fn build_info_of_mixed_emit_matches_tsgo() {
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "node_modules/@types/bar/index.d.ts",
+                r#"declare module "bar" { export const bar: number; }
+"#,
+            ),
+            (
+                "node_modules/@types/bar/package.json",
+                r#"{"name":"@types/bar","version":"1.0.0"}
+"#,
+            ),
+            (
+                "node_modules/foo/index.d.ts",
+                r#"export declare const foo: number;
+"#,
+            ),
+            (
+                "node_modules/foo/package.json",
+                r#"{"name":"foo","version":"2.0.0","types":"index.d.ts"}
+"#,
+            ),
+            (
+                "package.json",
+                r#"{"name":"app","version":"1.0.0"}
+"#,
+            ),
+            (
+                "src/data.json",
+                r#"{"n": 1}
+"#,
+            ),
+            (
+                "src/index.ts",
+                r#"/// <reference types="bar" />
+import { foo } from "foo";
+import { bar } from "bar";
+import data from "./data.json";
+import { js } from "./util.js";
+import { nope } from "missing-pkg";
+export const v = foo + bar + data.n + js;
+"#,
+            ),
+            (
+                "src/util.js",
+                r#"export const js = 1;
+const r = require("./data.json");
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions": {"module": "esnext", "moduleResolution": "bundler", "target": "es2022", "strict": true, "noLib": true, "types": [], "composite": true, "outDir": "dist", "allowJs": true, "resolveJsonModule": true, "esModuleInterop": true}, "include": ["src", "lib"]}"#,
+            ),
+        ],
+    );
+    let project = compiler_current_directory(&tree);
+    let project = project.display();
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            r#"src/index.ts(4,18): error TS6307: File '{project}/src/data.json' is not listed within the file list of project '{project}/tsconfig.json'. Projects must list all files or use an 'include' pattern.
+  The file is in the program because:
+    Imported via "./data.json" from file '{project}/src/index.ts'
+    Imported via "./data.json" from file '{project}/src/util.js'
+src/index.ts(6,22): error TS2307: Cannot find module 'missing-pkg' or its corresponding type declarations.
+"#,
+            project = project
+        ),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        build_info_bytes(&tree, "dist/tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[4,6]],"packageJsons":["../node_modules/@types/bar/package.json","../node_modules/foo/package.json","../package.json"],"missingPackageJsons":["../node_modules/@types/missing-pkg/package.json","../node_modules/bar/package.json","../node_modules/missing-pkg/package.json"],"fileNames":["../node_modules/@types/bar/index.d.ts","../node_modules/foo/index.d.ts","../src/data.json","../src/util.js","../src/index.ts","../lib/min.d.ts"],"fileInfos":["02dc0b3741533d5791997fac6925437c","7da1e387031388497f1d4acda99b514e",{"version":"d4d8740308e96445c373a723f45c398e"},{"version":"9f5482dcef3f06ca67ce8ce764af4db3","signature":"063a3b05e06513c13dd0881a5413fff4","impliedNodeFormat":1},{"version":"2e08dbcc8e95ea02275277a890a695fa","signature":"39ceb66ec7a773d3c9d4940b8a901149","impliedNodeFormat":1},{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1],[1,2,3,4],[1,3]],"options":{"allowJs":true,"composite":true,"module":99,"outDir":"./","strict":true,"target":9,"esModuleInterop":true},"referencedMap":[[6,1],[2,1],[3,1],[5,2],[4,3]],"semanticDiagnosticsPerFile":[[5,[{"pos":169,"end":182,"code":2307,"category":1,"messageKey":"Cannot_find_module_0_or_its_corresponding_type_declarations_2307","messageArgs":["missing-pkg"]}]]],"latestChangedDtsFile":"./src/index.d.ts"}"#
+    );
+}
+
+#[test]
+fn build_info_of_an_empty_solution_config_matches_tsgo() {
+    // A solution-style config (`files: []` with references) compiles an
+    // incremental program without files; tsgo still writes its build info
+    // (scratchpad fixtures p36b/fx5/empty, empty2): `fileInfos` is a non-nil
+    // empty slice, so it is written as `[]` while `fileNames`, `root` and
+    // the per-file lists stay absent, and `options` is absent when no
+    // serialized option is set (`incremental` is not one). The listing
+    // names the build info alone, with exit status 0.
+    for (options, expected, args) in [
+        (
+            r#"{"composite":true,"listEmittedFiles":true,"noEmit":true}"#,
+            r#"{"version":"7.1.0-dev","fileInfos":[],"options":{"composite":true}}"#,
+            vec!["--pretty", "false"],
+        ),
+        (
+            r#"{"composite":true,"listEmittedFiles":true}"#,
+            r#"{"version":"7.1.0-dev","fileInfos":[],"options":{"composite":true}}"#,
+            vec!["--pretty", "false"],
+        ),
+        (
+            r#"{"incremental":true,"listEmittedFiles":true}"#,
+            r#"{"version":"7.1.0-dev","fileInfos":[]}"#,
+            vec!["--pretty", "false"],
+        ),
+    ] {
+        let tree = TempTree::new();
+        write_fixture_files(
+            &tree,
+            &[
+                (
+                    "tsconfig.json",
+                    &format!(
+                        r#"{{"compilerOptions":{options},"files":[],"references":[{{"path":"./sub"}}]}}"#
+                    ),
+                ),
+                (
+                    "sub/tsconfig.json",
+                    r#"{"compilerOptions":{"composite":true,"noLib":true,"types":[],"outDir":"dist"},"files":["a.ts"]}"#,
+                ),
+                ("sub/a.ts", "export const a = 1;\n"),
+            ],
+        );
+        let output = run(&tree, &args);
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{options}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let project = compiler_current_directory(&tree);
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            format!("TSFILE: {}/tsconfig.tsbuildinfo\n", project.display()),
+            "{options}"
+        );
+        assert_eq!(
+            build_info_bytes(&tree, "tsconfig.tsbuildinfo"),
+            expected,
+            "{options}"
+        );
+        assert!(!tree.path("sub/dist").exists());
+    }
+}
+
+#[test]
+fn build_info_of_chain_related_noemit_matches_tsgo() {
+    // tsgo createDiagnosticChainFromErrorChain gives the relater's related
+    // information to the leaf diagnostic of an elaboration chain, and
+    // NewDiagnosticChain to every chain built over it: the cached row
+    // carries `relatedInformation` on each of its four levels (fixture
+    // p36b/fx5/related; bytes are tsgo's).
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                "lib/min.d.ts",
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+declare var String: { (value?: any): string; };
+"#,
+            ),
+            (
+                "src/main.ts",
+                r#"interface Managed { type: "managed"; securityScheme: string; }
+interface Anonymous { type: "anonymous"; }
+type AuthUnion = Managed | Anonymous;
+interface Tool { name: string; auth: AuthUnion; }
+declare function use(tool: Tool): void;
+const tool = { name: "t", auth: { type: "managed" } };
+use(tool);
+"#,
+            ),
+            (
+                "tsconfig.json",
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","noLib":true,"types":[],"incremental":true,"noEmit":true},"files":["lib/min.d.ts","src/main.ts"]}"#,
+            ),
+        ],
+    );
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "src/main.ts(7,5): error TS2345: Argument of type '{ name: string; auth: { type: string; }; }' is not assignable to parameter of type 'Tool'.\n  Types of property 'auth' are incompatible.\n    Type '{ type: string; }' is not assignable to type 'AuthUnion'.\n      Property 'securityScheme' is missing in type '{ type: string; }' but required in type 'Managed'.\n"
+    );
+    assert_eq!(
+        build_info_bytes(&tree, "tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./lib/min.d.ts","./src/main.ts"],"fileInfos":[{"version":"bf56fec5f1b6285ebaaa5ce7a4fee55d","affectsGlobalScope":true,"impliedNodeFormat":1},{"version":"0d45d9dc06ff3d477aa4b6076d827fa7","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"module":99,"target":9},"semanticDiagnosticsPerFile":[[2,[{"pos":293,"end":297,"code":2345,"category":1,"messageKey":"Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_2345","messageArgs":["{ name: string; auth: { type: string; }; }","Tool"],"messageChain":[{"pos":293,"end":297,"code":2326,"category":1,"messageKey":"Types_of_property_0_are_incompatible_2326","messageArgs":["auth"],"messageChain":[{"pos":293,"end":297,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["{ type: string; }","AuthUnion"],"messageChain":[{"pos":293,"end":297,"code":2741,"category":1,"messageKey":"Property_0_is_missing_in_type_1_but_required_in_type_2_2741","messageArgs":["securityScheme","{ type: string; }","Managed"],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}],"relatedInformation":[{"pos":37,"end":51,"code":2728,"category":3,"messageKey":"_0_is_declared_here_2728","messageArgs":["securityScheme"]}]}]]],"affectedFilesPendingEmit":[2]}"#
+    );
 }

@@ -337,6 +337,7 @@ dependencies = [
  "tsc-rs-emitter",
  "tsc-rs-harness",
  "tsc-rs-host",
+ "tsc-rs-incremental",
  "tsc-rs-program",
  "tsc-rs-syntax",
  "tsc-rs-types",
@@ -397,6 +398,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-incremental"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tsc-rs-diagnostics",
+ "tsc-rs-program",
+ "tsc-rs-types",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "tsc-rs-program"
 version = "0.1.0"
 dependencies = [
@@ -451,6 +463,12 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "550a2b930b62486a393c52d5c3b84bff264b28aa437ed64694d31e93b1757af7"
 
 [[package]]
 name = "zmij"

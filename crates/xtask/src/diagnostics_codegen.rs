@@ -16,6 +16,9 @@ const GENERATED_PATH: &str = "crates/diagnostics/src/gen.rs";
 #[derive(Clone, Debug)]
 struct DiagnosticEntry {
     name: String,
+    /// tsgo's `Message.Key()` (diagnostics/generate.go convertPropertyName):
+    /// the message text as an identifier, cut to 100 bytes, plus `_code`.
+    key: String,
     code: u32,
     category: String,
     text: String,
@@ -70,6 +73,7 @@ fn parse_diagnostic_catalog(src: &str) -> Result<Vec<DiagnosticEntry>, Box<dyn E
         let fields = parse_diagnostic_entry(&mut json)?;
         entries.push(DiagnosticEntry {
             name: diagnostic_static_name(&text),
+            key: tsgo_message_key(&text, fields.code),
             code: fields.code,
             category: fields.category,
             text,
@@ -164,6 +168,7 @@ fn render_diagnostic_static(
         entry.name
     )?;
     writeln!(out, "    code: {},", entry.code)?;
+    writeln!(out, "    key: {:?},", entry.key)?;
     writeln!(out, "    category: DiagnosticCategory::{},", entry.category)?;
     writeln!(out, "    text: {:?},", entry.text)?;
     writeln!(
@@ -211,6 +216,61 @@ fn render_diagnostics_gen(entries: &[DiagnosticEntry]) -> Result<String, Box<dyn
     writeln!(out, "mod tests;")?;
 
     Ok(out)
+}
+
+/// tsgo diagnostics/generate.go convertPropertyName: the message key that
+/// `ast.Diagnostic.MessageKey()` reports and the build info records. `*`,
+/// `/` and `:` become `_Asterisk`, `_Slash` and `_Colon`; every other
+/// non-letter, non-digit becomes `_`; underscore runs collapse; a leading
+/// underscore goes unless a digit follows; a trailing underscore goes; the
+/// key is the first 100 bytes of that name plus `_` and the code.
+fn tsgo_message_key(message: &str, code: u32) -> String {
+    let mut name = String::with_capacity(message.len() + 8);
+    for ch in message.chars() {
+        match ch {
+            '*' => name.push_str("_Asterisk"),
+            '/' => name.push_str("_Slash"),
+            ':' => name.push_str("_Colon"),
+            _ if ch.is_alphabetic() || ch.is_numeric() => name.push(ch),
+            _ => name.push('_'),
+        }
+    }
+    let mut collapsed = String::with_capacity(name.len());
+    let mut previous_was_underscore = false;
+    for ch in name.chars() {
+        if ch == '_' {
+            if !previous_was_underscore {
+                collapsed.push('_');
+            }
+            previous_was_underscore = true;
+        } else {
+            collapsed.push(ch);
+            previous_was_underscore = false;
+        }
+    }
+    let mut var_name = collapsed;
+    if var_name.starts_with('_')
+        && var_name[1..]
+            .chars()
+            .next()
+            .is_some_and(|next| !next.is_ascii_digit())
+    {
+        var_name.remove(0);
+    }
+    if var_name.ends_with('_') {
+        var_name.pop();
+    }
+    let mut key = var_name;
+    if key.len() > 100 {
+        let mut cut = 100;
+        while !key.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        key.truncate(cut);
+    }
+    key.push('_');
+    key.push_str(&code.to_string());
+    key
 }
 
 fn diagnostic_static_name(message: &str) -> String {

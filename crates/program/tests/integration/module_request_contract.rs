@@ -722,6 +722,65 @@ fn synthetic_helpers_and_jsx_runtime_obey_the_upstream_source_boundary() {
 }
 
 #[test]
+fn the_jsx_runtime_import_follows_the_script_kind_like_tsgo() {
+    // tsgo fileloader.go:849-859: the JSX runtime import is synthesized for
+    // a JavaScript or `.tsx` file and for no other, whatever its module
+    // detection: a `.ts` file under isolatedModules gets only `tslib`, a
+    // `.tsx` script with neither modules nor isolatedModules gets only the
+    // runtime import.
+    let options = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(100),
+        import_helpers: Some(true),
+        jsx: Some(4),
+        ..CompilerOptions::default()
+    };
+    let isolated = CompilerOptions {
+        isolated_modules: Some(true),
+        ..options.clone()
+    };
+    let specifiers = |file_name: &str, text: &str, options: &CompilerOptions| {
+        plan_source_requests(&source_at(file_name, text, None), options)
+            .expect("plan the JSX runtime request")
+            .module_requests()
+            .iter()
+            .map(|request| {
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        specifiers("/isolated.ts", "const value = 1;\n", &isolated),
+        ["tslib"]
+    );
+    assert_eq!(
+        specifiers("/module.ts", "export const value = 1;\n", &options),
+        ["tslib"]
+    );
+    assert_eq!(
+        specifiers("/script.tsx", "const value = 1;\n", &options),
+        ["react/jsx-runtime"]
+    );
+    assert_eq!(
+        specifiers("/module.tsx", "export const value = 1;\n", &options),
+        ["tslib", "react/jsx-runtime"]
+    );
+    assert_eq!(
+        specifiers("/plain.js", "const value = 1;\n", &options),
+        ["tslib", "react/jsx-runtime"]
+    );
+    let preserve = CompilerOptions {
+        jsx: Some(1),
+        ..options
+    };
+    assert!(specifiers("/script.tsx", "const value = 1;\n", &preserve).is_empty());
+}
+
+#[test]
 fn request_modes_follow_node_bundler_and_emit_module_semantics() {
     let requests = concat!(
         "import alias = require(\"required\");\n",

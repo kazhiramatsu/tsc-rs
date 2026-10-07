@@ -39,8 +39,11 @@ fn diagnostic(code: u32) -> Diagnostic {
             code,
             category: DiagnosticCategory::Error,
             text: format!("diagnostic {code}").into(),
+            key: None,
+            args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     )
 }
@@ -54,8 +57,11 @@ fn located_diagnostic(code: u32, file_name: &str) -> Diagnostic {
             code,
             category: DiagnosticCategory::Error,
             text: format!("diagnostic {code}").into(),
+            key: None,
+            args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     )
 }
@@ -1996,8 +2002,11 @@ fn every_located_preparation_diagnostic_keeps_owned_source_text() {
             code: 1002,
             category: DiagnosticCategory::Message,
             text: "package scope".to_owned().into(),
+            key: None,
+            args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     });
     complete_builder.set_diagnostics(PreparationDiagnostics::new(
@@ -2052,8 +2061,11 @@ fn every_located_preparation_diagnostic_keeps_owned_source_text() {
             code: 3002,
             category: DiagnosticCategory::Message,
             text: "missing package".to_owned().into(),
+            key: None,
+            args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     });
     missing_related.set_diagnostics(PreparationDiagnostics::new(

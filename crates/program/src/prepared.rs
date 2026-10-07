@@ -1531,6 +1531,9 @@ pub struct PreparedProgram {
     library_files: Vec<SourceFileId>,
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
+    /// Every package.json the load's resolvers probed (see
+    /// [`PreparedProgram::package_json_probes`]).
+    package_json_probes: Vec<crate::PackageJsonProbe>,
     resolutions: ResolutionTable,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     diagnostics: PreparationDiagnostics,
@@ -1595,6 +1598,15 @@ impl PreparedProgram {
         &self.library_files
     }
 
+    /// Every package.json the load's resolvers looked for, each once, in
+    /// canonical-path order: tsgo's package.json info cache entries, which
+    /// an incremental program's build info records as `packageJsons` (the
+    /// found ones, by real path) and `missingPackageJsons` (the ones under
+    /// `node_modules` it did not find).
+    pub fn package_json_probes(&self) -> &[crate::PackageJsonProbe] {
+        &self.package_json_probes
+    }
+
     pub fn auxiliary_files(&self) -> impl Iterator<Item = &PreparedAuxiliaryFile> {
         self.auxiliary_files.values()
     }
@@ -1652,6 +1664,7 @@ pub struct PreparedProgramBuilder {
     library_files: Vec<SourceFileId>,
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
+    package_json_probes: Vec<crate::PackageJsonProbe>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
@@ -1660,6 +1673,13 @@ pub struct PreparedProgramBuilder {
 }
 
 impl PreparedProgramBuilder {
+    /// Record the package.json files the load's resolvers probed (see
+    /// [`PreparedProgram::package_json_probes`]).
+    pub fn with_package_json_probes(mut self, probes: Vec<crate::PackageJsonProbe>) -> Self {
+        self.package_json_probes = probes;
+        self
+    }
+
     pub fn with_dependency_symlink_resolutions(
         mut self,
         resolutions: Vec<(ProgramPath, ProgramPath)>,
@@ -1693,6 +1713,7 @@ impl PreparedProgramBuilder {
             library_files: Vec::new(),
             auxiliary_files: BTreeMap::new(),
             packages: BTreeMap::new(),
+            package_json_probes: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
             dependency_symlink_resolutions: Vec::new(),
@@ -2185,6 +2206,7 @@ impl PreparedProgramBuilder {
             library_files: self.library_files,
             auxiliary_files: self.auxiliary_files,
             packages: self.packages,
+            package_json_probes: self.package_json_probes,
             resolutions: self.resolutions,
             dependency_symlink_resolutions: self.dependency_symlink_resolutions,
             diagnostics: self.diagnostics,

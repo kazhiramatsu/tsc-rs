@@ -395,8 +395,11 @@ mod tests {
             code,
             category: DiagnosticCategory::Error,
             text: text.to_owned().into(),
+            key: None,
+            args: Vec::new(),
             next_present: !next.is_empty(),
             next,
+            related: Vec::new(),
         }
     }
 

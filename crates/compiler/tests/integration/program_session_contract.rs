@@ -46,8 +46,11 @@ fn diagnostic(code: u32, text: &str) -> Diagnostic {
             code,
             category: DiagnosticCategory::Error,
             text: text.to_owned().into(),
+            key: None,
+            args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     )
 }
@@ -61,8 +64,11 @@ fn located_diagnostic(code: u32, file_name: &str, text: &str) -> Diagnostic {
             code,
             category: DiagnosticCategory::Error,
             text: text.to_owned().into(),
+            key: None,
+            args: Vec::new(),
             next_present: false,
             next: Vec::new(),
+            related: Vec::new(),
         },
     )
 }

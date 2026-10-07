@@ -159,14 +159,15 @@ pub use module_resolution::js_own_property_entries as package_json_own_entries;
 pub use module_resolution::mangle_scoped_package_name;
 pub use module_resolution::{
     normalize_absolute_js_path_lexical, normalize_absolute_path_lexical, HostModuleResolution,
-    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver,
+    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver, PackageJsonProbe,
 };
 pub use option_validation::{
     validate_compiler_options, validate_paths_option_diagnostics, CompilerOptionValidationLocation,
     CompilerOptionViolation,
 };
 pub use output_directories::{
-    canonical_emit_path, common_source_directory, inferred_common_source_directory,
+    build_info_file_name, canonical_emit_path, common_source_directory,
+    inferred_common_source_directory, relative_path_from_directory,
     source_file_may_be_emitted_for_options, source_file_path_in_new_directory,
 };
 pub use path::{CanonicalPath, ProgramPath};

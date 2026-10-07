@@ -2285,6 +2285,9 @@ const H0_NO_EMIT_CHECKER_CONFIG_OPTIONS: &[&str] = &[
     "emitDecoratorMetadata",
     "erasableSyntaxOnly",
     "stableTypeOrdering",
+    // tsgo SkipTypeChecking: no source is checked; the build info of an
+    // incremental program records the check as pending.
+    "noCheck",
 ];
 
 fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
@@ -3406,6 +3409,7 @@ fn option_relationship_diagnostics(
     let projected = CompilerOptions {
         allow_js: config_option_bool(options, "allowJs")
             .unwrap_or_else(|| config_option_bool(options, "checkJs").unwrap_or(false)),
+        allow_js_specified: config_option_bool(options, "allowJs"),
         no_emit: config_option_bool(options, "noEmit"),
         allow_importing_ts_extensions: config_option_bool(options, "allowImportingTsExtensions"),
         rewrite_relative_import_extensions: config_option_bool(
@@ -3423,6 +3427,7 @@ fn option_relationship_diagnostics(
         emit_decorator_metadata: config_option_bool(options, "emitDecoratorMetadata"),
         experimental_decorators: config_option_bool(options, "experimentalDecorators")
             == Some(true),
+        experimental_decorators_specified: config_option_bool(options, "experimentalDecorators"),
         target: config_option_i32(options, "target"),
         module: config_option_i32(options, "module"),
         module_resolution: config_option_i32(options, "moduleResolution"),
@@ -4707,6 +4712,7 @@ fn config_module_resolution_options<'j0>(
     let config_file_name = config_file_name.into();
     let compiler_options = CompilerOptions {
         allow_js: discovery.allow_js,
+        allow_js_specified: config_option_bool(options, "allowJs"),
         force_consistent_casing_in_file_names: config_option_bool(
             options,
             "forceConsistentCasingInFileNames",
@@ -4714,6 +4720,7 @@ fn config_module_resolution_options<'j0>(
         max_node_module_js_depth: config_option_number(options, "maxNodeModuleJsDepth"),
         experimental_decorators: config_option_bool(options, "experimentalDecorators")
             .unwrap_or(false),
+        experimental_decorators_specified: config_option_bool(options, "experimentalDecorators"),
         target: config_option_i32(options, "target"),
         module: config_option_i32(options, "module"),
         module_detection: config_option_i32(options, "moduleDetection"),

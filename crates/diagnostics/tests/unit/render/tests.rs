@@ -6,8 +6,11 @@ fn chain(code: u32, category: DiagnosticCategory, text: &str) -> MessageChain {
         code,
         category,
         text: text.into(),
+        key: None,
+        args: Vec::new(),
         next_present: false,
         next: Vec::new(),
+        related: Vec::new(),
     }
 }
 
