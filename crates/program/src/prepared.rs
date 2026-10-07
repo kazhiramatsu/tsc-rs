@@ -1887,9 +1887,7 @@ impl PreparedProgramBuilder {
     fn try_add_root(&mut self, root: PreparedRoot) -> Result<(), PreparationError> {
         if let Some(source) = root.source() {
             let prepared = self.require_source(source, PreparationOperation::AddRootFile)?;
-            if !self
-                .root_request_selects_source(root.path().canonical(), prepared.path().canonical())?
-            {
+            if !self.root_selects_source_or_its_redirect(root.path().canonical(), prepared)? {
                 return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::AddRootFile,
@@ -1912,6 +1910,24 @@ impl PreparedProgramBuilder {
         }
         self.roots.push(root);
         Ok(())
+    }
+
+    /// Whether `root` selects `source`, or is a package redirect of it: a
+    /// root whose file is a redirect names the identity's owner (tsgo
+    /// filesByPath[rootPath] = packageIdFile).
+    fn root_selects_source_or_its_redirect(
+        &self,
+        root: &CanonicalPath,
+        source: &PreparedSourceFile,
+    ) -> Result<bool, PreparationError> {
+        if source
+            .package_redirect_paths()
+            .iter()
+            .any(|redirect| redirect.canonical() == root)
+        {
+            return Ok(true);
+        }
+        self.root_request_selects_source(root, source.path().canonical())
     }
 
     fn root_request_selects_source(
@@ -2324,10 +2340,7 @@ impl PreparedProgramBuilder {
                 Some(source) => {
                     let source =
                         self.require_source(source, PreparationOperation::BuildPreparedProgram)?;
-                    self.root_request_selects_source(
-                        root.path().canonical(),
-                        source.path().canonical(),
-                    )?
+                    self.root_selects_source_or_its_redirect(root.path().canonical(), source)?
                 }
                 None => !self.root_request_has_source(root.path().canonical())?,
             };

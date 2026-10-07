@@ -2931,13 +2931,18 @@ fn shallower_nonzero_revisit_reprocesses_only_imports() {
     )
     .expect("a shallower nonzero revisit processes only imported modules");
 
+    // The program order is tsgo's collect walk (filesparser.go collectFiles):
+    // a file after its subtasks, whenever they were loaded. (tsgo's parse
+    // tasks also load `reference-leaf.js` here — its single-threaded FIFO
+    // queue meets `shared` at depth 1 first — a JS-depth revisit difference
+    // this contract does not cover.)
     assert_eq!(
         source_paths(&program),
         [
             Path::new("/work/node_modules/shared/reference.js"),
+            Path::new("/work/node_modules/shared/leaf.js"),
             Path::new("/work/node_modules/shared/index.js"),
             Path::new("/work/node_modules/a/index.js"),
-            Path::new("/work/node_modules/shared/leaf.js"),
             Path::new("/work/root.ts"),
         ]
     );
@@ -2993,13 +2998,16 @@ fn depth_zero_root_promotion_reprocesses_path_reference_descendants() {
     )
     .expect("a depth-zero root promotion reprocesses every reference phase");
 
+    // tsgo's program order (filesparser.go collectFiles, verified with
+    // `tsgo --listFiles` on this layout): `leaf.js`, loaded by the
+    // promotion's reprocess, precedes `reference.js` as its subtask.
     assert_eq!(
         source_paths(&program),
         [
+            Path::new("/work/node_modules/a/leaf.js"),
             Path::new("/work/node_modules/a/reference.js"),
             Path::new("/work/node_modules/a/index.js"),
             Path::new("/work/root.ts"),
-            Path::new("/work/node_modules/a/leaf.js"),
         ]
     );
     assert_eq!(
