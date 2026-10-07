@@ -4258,3 +4258,71 @@ program に残った（`docs`：core-docs側の`next`のcopyの`router.d.ts`等4
 - corpusの診断（`--noEmit`、既定のchecker数。`42653406f`のbuild vs tsgo 7.1.0-dev）：8 corpora全てbyte一致。
 - 性能（分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝P3-6bの`f774090ce`のbuild）：`--noEmit`のwallはこのbuild/main 0.967〜1.030（hono 135 vs 136 ms、zod 488 vs 490、Playwright 347 vs 355、TypeScript compiler 315 vs 326、Next.js 689 vs 704、Effect 498 vs 484、Vue.js 326 vs 317、VS Code 3,318 vs 3,345）、peak RSS 0.988〜1.095（honoの300 MB台の±30 MB）。bench-full（emitあり）は0.946〜1.045（hono 147 vs 150 ms、zod 609 vs 583、Playwright 461 vs 488、TypeScript compiler 482 vs 483、Next.js 935 vs 963、Effect 742 vs 732、Vue.js 393 vs 397）、peak RSS 0.986〜1.010。1.015を超えた4件を10 roundで再計測：zod/full 595 vs 597 ms（0.997）、Vue.js/noEmit 330 vs 325（1.015）、Effect/noEmit 488 vs 510（0.957）、hono/noEmit 134 vs 132（RSS 312 vs 306 MB）＝noise。tsgoに対してはwall 0.57〜0.87、peak memory 0.66〜0.94。劣化なし（重複copyのsubtreeも読み込むが、bench corpusに重複packageは無い）。
 - cloneの状態：material-ui、azure-sdk-for-js、DefinitelyTyped、bench corpusにこの実行が残したfileは無い。
+
+## P3-6c incrementalの第2段：古いtsbuildinfoの読み込みと再利用（2026-10-07）
+
+P3-6bが書いたbuild infoを、次の`tsc -p`が読み込んで再利用する（tsgo execute/incremental：
+`ReadBuildInfoProgram`、`programToSnapshot`、`collectAllAffectedFiles`、`emitFilesIncremental`、
+`emitBuildInfo`）。commandは変更の無いfileの検査を省き、pendingのfileだけをemitし、stateが変わらなければ
+build infoを書き直さない。tsgoの各stepの出力（stdout、exit、書かれたfile、build infoのbyte）と一致する。
+- **読み込み**（`crates/incremental/src/reader.rs`、`old_state.rs`）：`BuildInfo::from_json`はbuildInfo.goの
+  `UnmarshalJSON`の形（root／fileInfos／semanticDiagnosticsPerFile／affectedFilesPendingEmit／emitSignaturesの
+  compact形）を読み、tsgoが拒むもの（壊れたJSON、未知のversion、incrementalでない文書）は読み込み無し＝fresh build。
+  `OldState::from_build_info`は`buildInfoToSnapshot`：fileInfos、options（`parse_build_info_options`：
+  `GetCompilerOptions`、pathのoptionはbuild info directoryから絶対化）、referencedMap、changeFileSet、cached rows、
+  pending emit（0は旧optionのfull kind）、emitSignatures（plain／other-options形）、errors／checkPending、packageJsons。
+- **option変更の判定**（`options.rs`）：declscompiler.goの`AffectsSemanticDiagnostics`／`AffectsEmit`／
+  `AffectsDeclarationPath` flagの表（記録される67 optionと同じ集合）と`optionsHaveChanges`（strict系は
+  `GetStrictOptionValue`、allowJsは`GetAllowJS`で比較）。
+- **snapshotの状態機械**（`snapshot.rs`）：`Snapshot::new(program, old)`＝`programToSnapshot`（version／
+  affectsGlobalScope／impliedNodeFormat／referenceの差分でchanged、削除されたreference、新file、unchanged fileの
+  semantic rows／emit rows／emit signatureの引き継ぎ、global fileの削除・global性の消失、option変更によるpending
+  emit、checkPending）。`collect_all_affected_files`＝affectedfileshandler.go（`updateShapeSignature`は
+  d.tsのsignature、宣言file／JSONはversion；globalなfileは全file；isolatedModules；`referencedBy`のBFS；
+  `handleDtsMayChangeOf*`：signatureをversionにしてdts emitをpending、const enumのexportはJSも；lib fileの
+  rowsの除去；`assumeChangesOnlyAffectDirectDependencies`）。`store_fresh_rows`／`finish_check`、
+  `record_emit`＝emitfileshandler.goの`updateSnapshot`（emit時にsignature==versionならd.tsのhash、composite
+  のemitSignatures、`latestChangedDtsFile`、pending kindの更新、emit rows）、`to_build_info`＝
+  `ensureHasErrorsForState`／`ensurePackageJsonsForState`／`buildInfoEmitPending`（falseなら書かない）＋
+  `snapshotToBuildInfo`（cached rowsは新しいfile idで再直列化、changeFileSet）。fresh buildは`old=None`の同じ機械。
+- **checker**（`crates/checker`）：`IncrementalRequest { facts, planner }`。plannerはcheckerの初期化後・検査前に
+  `CheckerSession`と全fileのmodule facts（referenced files、affectsGlobalScope、`program_rows`、const enumの
+  export）を受けて、検査するfileの集合を返す（serial、sharded、emit-callbackの3経路。shardedは
+  coordinatorの計画用checker 1つ）。選ばれないfileは検査されず、whole-program getterと
+  `IncrementalFileFacts.semantic_rows`に現れない。gate：`check_runs`＝syntactic rows無し かつ global rows無し
+  （options rowsはcompiler側）。
+- **compiler**（`crates/compiler/src/incremental.rs` `IncrementalDriver`、`lib.rs`、`cli.rs`）：CLIがbuild info
+  を読む（`read_old_build_info`：default libraryは`lib.*.d.ts`の名前）。plannerはProgramState＋Snapshotを作り、
+  tsgoの`collectAllAffectedFiles`が走る条件（semantic getterが走る＝syntactic／options／global gateが開いていて
+  noCheckでない、またはemitする（noEmitOnErrorでgateが閉じていれば走らない））でaffected filesを扱う。signatureは
+  `ForcedDeclarationEmitter`（tsgoの`EmitOnlyBuilderSignature`：1 fileの強制d.ts emit、mapの手前までのtext＋
+  `diagnosticToStringBuilder`のhash）。検査後：検査しなかったfileのcached rowsをDiagnosticに戻して（byte→UTF-16、
+  keyと引数からmessageを整形、chain／related、noEmit filter）semantic rowsに合流、include-processor rowsを添える；
+  宣言診断getterはpending（DTS_ERRORS）のfileだけ、他はcacheのrowsを印字；emitはpendingのunitだけ
+  （`emit_planned_files`：JS／d.tsの別、`UnitEmitRequest`）、compositeの変わらないd.tsは書かない
+  （`SkippedUnchanged`、listingにも出ない）；build infoは変化があるときだけ書く（`TSFILE:`もそのときだけ）。
+- **emitter**：`emit_planned_files`／`emit_planned_units_with_kinds`（unitの一部のmemberだけをemit）、
+  `ForcedDeclarationEmitter`、listingはtsgoの順（source mapを本文より先：`printSourceFile`）。
+- **CLI**：`--listEmittedFiles`は`--noEmit`の経路でも受け付ける（tsgoはbuild infoを列挙する）。
+- scenarioと実projectで直した3点：(1) `declarationMap`のときsignatureのd.ts emitにmapのpathを渡す（渡さないと
+  `sourceMappingURL`の前のtextが本番のemitと食い違い、変わっていないfileのsignatureが変わる）。(2) const enumの
+  exportの判定はtsgoのSkipAliasの通りaliasだけを解決する（debug buildでは非aliasの`resolve_alias`がpanicする）。
+  (3) `--noEmit`の宣言診断getterのgate（tsgoのemitFilesAndReportErrors：semantic diagnosticsが空のときだけ
+  `GetDeclarationDiagnostics`）は、build infoから引き継いだcached rowsも数える。azure-sdk-for-jsのsnippets
+  configで、2回目に新しい検査が無い（全fileがcache）のにgetterが走り、pending kindの`DtsErrors` bitを落として
+  build infoを書き直していた。
+- `TSRS_INCREMENTAL_TRACE=1`で、plannerの判断（old stateの有無、gate、affected handling、各fileのsignatureと
+  check／pending emit）をstderrに出す。
+- test：`crates/incremental`の28 unit test（reader／old state／options／snapshotの遷移をscenarioのbyteで固定）、
+  `cli_contract.rs`に生成した23 scenario（`scratchpad/p36c/scenarios.py`、`steps.py`でtsgoの各stepを記録、
+  `gen-steps-tests.py`で生成）：chain／composite／option変更／noEmit＋declaration／noCheck／isolatedModules／
+  assumeChanges…／const enum／file削除／壊れたbuild info／JS+JSON／宣言errorのcache／declarationMap／global
+  augmentation／reference変更／error chain／skipLibCheck／types reference／noEmitOnError。
+- 実project（`compare-rerun.py`：各compilerが同じdirectoryで2回走り、2回目のstdout／exit／書き直したbuild infoを比較）：material-ui 38 configのうち37件一致（`docs`はP3-6b2に記録したparse-task schedulingの残差＝`affectedFilesPendingEmit`の2 entryが1回目から持ち越されるだけ。2回目のstdout・exit・書き直す判断は一致）。azure-sdk-for-js 2,756 configのうち2,756件一致（2回目にbuild infoを書き直したのはtsgo 92件、port 92件。1,021 s）。DefinitelyTypedはincrementalでないので対象外。
+- 残る制限：`outFile`はTS 7.1で削除されたoption（TS5102）で、tsgoはbundleせずfileごとにemitするがportはbundle
+  する（incrementalと無関係の既存の差）。noEmitOnErrorの宣言診断gate（emit経路）はcached emit rowsを印字しない。
+  `repopulateInfo`（module解決の診断chainの再計算）は書かない／読まない。tsc -bは次。
+- conformance（最終bytes `409868c87`での1回の全体実行。macOS、`nice -n 20`、2 worker）：12,748 case／452 s、full 13,451、emit_full 13,443、mismatch 0、ratchet 0 regressions／0 above tiers（P3-6b2と同じ行、ratchetの更新なし）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、crate（incremental、checker、emitter、program、
+  compiler）の`cargo clippy --all-targets -- -D warnings`と`cargo test --no-fail-fast`（最終bytes `409868c87`で3,436 passed／0 failed、`--test-threads 2`）。corpusの診断（8 corpora、`--noEmit`、既定のchecker数）：7件がtsgoとbyte一致、zodは既知のpartition依存の1行（P3-6aの出力と同一）。clone（material-ui、azure-sdk-for-js、bench corpus）にこの実行が残したfileは無い。
+- 性能（分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝P3-6b2の`3817ea436`のbuild、このbuild＝`409868c87`）：`--noEmit`のwallはこのbuild/main 0.972〜0.998（hono 134 vs 137 ms、zod 497 vs 501、Playwright 344 vs 344、TypeScript compiler 317 vs 318、Next.js 694 vs 696、Effect 476 vs 480、Vue.js 322 vs 327、VS Code 3,283 vs 3,350）、peak RSS 0.977〜1.069（Playwrightの795 vs 744 MBはmain側の外れ値）。bench-full（emitあり）は0.962〜1.017（hono 145 vs 147 ms、zod 595 vs 593、Playwright 460 vs 452、TypeScript compiler 481 vs 483、Next.js 935 vs 972、Effect 729 vs 743、Vue.js 384 vs 388）、peak RSS 0.980〜1.017。1.015を超えた2件を10 roundで再計測：Playwright/full 455 vs 462 ms（0.986、RSS 1.001）、Playwright/noEmit 344 vs 346（0.993、RSS 789 vs 798 MB）＝noise。tsgoに対してはwall 0.48〜0.93、peak memory 0.63〜0.91。劣化なし（`incremental`でないprojectではplannerは作られず、fresh buildのplannerはsnapshotを作るだけ）。
