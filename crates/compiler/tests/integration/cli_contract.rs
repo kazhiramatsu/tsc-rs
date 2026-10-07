@@ -11947,3 +11947,54 @@ fn build_info_of_require_forms_noemit_matches_tsgo() {
         r#"{"version":"7.1.0-dev","errors":true,"root":[[2,4]],"packageJsons":["./node_modules/dep/package.json"],"fileNames":["./node_modules/dep/index.d.ts","./src/a.cjs","./src/b.js","./src/c.ts"],"fileInfos":["2dabdee10acebf96189b37fe3be1315a","88028b575175d18570e57d94c08153fe","73291afeb6c98085791ba6774ecb2b64","d130ff0f75e433b1ddf0fec80ce6195e"],"fileIdsList":[[1]],"options":{"allowJs":true,"module":99,"target":9},"referencedMap":[[3,1],[4,1]],"semanticDiagnosticsPerFile":[1,2,3,4],"affectedFilesPendingEmit":[2,3,4]}"#
     );
 }
+
+#[test]
+fn build_info_of_redirected_roots_noemit_matches_tsgo() {
+    // Two copies of `typescript-fsa@1.0.0`, every file a root (as in the
+    // conformance harness): the collect walk keeps p1's copy (first in
+    // program order) and p2's copy's roots redirect to it, so tsgo's `root`
+    // covers the four program files and `resolvedRoot` records each
+    // redirected root's own path as a file name without a fileInfos entry
+    // (fixture p36b2/fx-rootredirect; bytes are tsgo's).
+    let tree = TempTree::new();
+    let mut files: Vec<(String, String)> = Vec::new();
+    for copy in ["p1", "p2"] {
+        files.push((
+            format!("{copy}/node_modules/typescript-fsa/src/impl.d.ts"),
+            "export function getA(): A;\nexport enum A {\n    Val\n}\n".to_owned(),
+        ));
+        files.push((
+            format!("{copy}/node_modules/typescript-fsa/index.d.ts"),
+            "export * from \"./src/impl\";\n".to_owned(),
+        ));
+        files.push((
+            format!("{copy}/node_modules/typescript-fsa/package.json"),
+            "{\n    \"name\": \"typescript-fsa\",\n    \"version\": \"1.0.0\"\n}\n".to_owned(),
+        ));
+    }
+    files.push(("p1/index.ts".to_owned(), "import * as _whatever from \"../p2/index\";\nimport { getA } from \"typescript-fsa\";\n\nexport const a = getA();\n".to_owned()));
+    files.push((
+        "p2/index.d.ts".to_owned(),
+        "export const a: import(\"typescript-fsa\").A;\n".to_owned(),
+    ));
+    files.push((
+        "tsconfig.json".to_owned(),
+        r#"{"compilerOptions":{"module":"commonjs","target":"es2015","declaration":true,"noLib":true,"types":[],"noEmit":true,"incremental":true},"files":["p1/node_modules/typescript-fsa/src/impl.d.ts","p1/node_modules/typescript-fsa/index.d.ts","p2/node_modules/typescript-fsa/src/impl.d.ts","p2/node_modules/typescript-fsa/index.d.ts","p1/index.ts","p2/index.d.ts"]}"#.to_owned(),
+    ));
+    let borrowed: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str()))
+        .collect();
+    write_fixture_files(&tree, &borrowed);
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        build_info_bytes(&tree, "tsconfig.tsbuildinfo"),
+        r#"{"version":"7.1.0-dev","errors":true,"root":[[1,4]],"packageJsons":["./p1/node_modules/typescript-fsa/package.json","./p2/node_modules/typescript-fsa/package.json"],"missingPackageJsons":["./p1/node_modules/typescript-fsa/src/package.json","./p2/node_modules/typescript-fsa/src/package.json"],"fileNames":["./p1/node_modules/typescript-fsa/src/impl.d.ts","./p1/node_modules/typescript-fsa/index.d.ts","./p2/index.d.ts","./p1/index.ts","./p2/node_modules/typescript-fsa/src/impl.d.ts","./p2/node_modules/typescript-fsa/index.d.ts"],"fileInfos":["04b716af6c90fc15ed74bd9414007753","1b284c8f0047a7cd0bcc2e5b7a71edc6","312347a2763586b170a63e7674cd02df","52fbc3f0a94b4932021edbbb3791f5d4"],"fileIdsList":[[2,3],[1],[2]],"options":{"declaration":true,"module":1,"target":2},"referencedMap":[[4,1],[2,2],[3,3]],"semanticDiagnosticsPerFile":[1,2,3,4],"affectedFilesPendingEmit":[4],"resolvedRoot":[[1,5],[2,6]]}"#
+    );
+}
