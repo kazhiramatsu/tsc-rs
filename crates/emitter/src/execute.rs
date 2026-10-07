@@ -822,7 +822,7 @@ pub fn begin_emit_files(
         ));
     }
 
-    let emitted_files_enabled = options.list_emitted_files == Some(true);
+    let emitted_files_enabled = host.collects_emitted_files();
     // tsc-port: handleNoEmitOptions @6.0.3
     // tsc-hash: dd8ed6d22974cbe8efc5097db50ffc3bf3aeabd1de0ca9f3a4e0878d3aa87de1
     // tsc-span: _tsc.js:125641-125668
@@ -1577,7 +1577,7 @@ pub fn emit_forced_declarations(
     Ok(EmitOutcome::new(
         diagnostics,
         emit_skipped,
-        (options.list_emitted_files == Some(true)).then_some(listing),
+        host.collects_emitted_files().then_some(listing),
         maps_enabled.then_some(source_maps),
     ))
 }

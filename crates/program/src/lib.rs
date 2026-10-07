@@ -166,9 +166,10 @@ pub use option_validation::{
     CompilerOptionViolation,
 };
 pub use output_directories::{
-    build_info_file_name, canonical_emit_path, common_source_directory,
-    inferred_common_source_directory, relative_path_from_directory,
-    source_file_may_be_emitted_for_options, source_file_path_in_new_directory,
+    build_info_file_name, build_info_file_name_in_build_mode, canonical_emit_path,
+    common_source_directory, inferred_common_source_directory, output_file_names,
+    relative_path_from_directory, source_file_may_be_emitted_for_options,
+    source_file_path_in_new_directory,
 };
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{

@@ -24,7 +24,9 @@ pub use build_info::{
     RepopulateInfo, SemanticDiagnosticEntry, VERSION,
 };
 pub use hash::compute_hash;
-pub use old_state::{CachedDiagnostic, EmitSignature, OldFileInfo, OldState, OldStatePaths};
+pub use old_state::{
+    is_default_library_name, CachedDiagnostic, EmitSignature, OldFileInfo, OldState, OldStatePaths,
+};
 pub use snapshot::{
     build_fresh_build_info, declaration_write_decision, ensure_path_is_non_module_name,
     fresh_emit_updates, CachedRows, DeclarationEmit, DeclarationEmitFacts, DeclarationOutput,

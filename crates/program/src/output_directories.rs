@@ -254,11 +254,8 @@ fn output_path_without_changing_extension(
     )
 }
 
-/// outputpaths.ChangeToDeclarationExtension (tsgo): `.d.mts`/`.d.cts` for
-/// the module-flavored extensions, `.d.json.ts` for JSON, `.d.ts` otherwise.
-fn change_to_declaration_extension(path: JsStr<'_>) -> JsString {
-    let lower: JsString = path
-        .code_units()
+fn lower_ascii(path: JsStr<'_>) -> JsString {
+    path.code_units()
         .map(|unit| {
             if (0x41..=0x5a).contains(&unit) {
                 unit + 0x20
@@ -266,7 +263,162 @@ fn change_to_declaration_extension(path: JsStr<'_>) -> JsString {
                 unit
             }
         })
+        .collect()
+}
+
+/// outputpaths.GetOutputExtension (tsgo): JSON stays JSON, `.jsx`/`.tsx`
+/// keep `.jsx` under `jsx: preserve`, the module-flavored extensions keep
+/// their flavor and everything else emits `.js`.
+pub fn output_extension(file_name: JsStr<'_>, jsx: Option<i32>) -> &'static str {
+    const JSX_PRESERVE: i32 = 1;
+    let lower = lower_ascii(file_name);
+    if lower.ends_with(".json") {
+        ".json"
+    } else if jsx == Some(JSX_PRESERVE) && (lower.ends_with(".jsx") || lower.ends_with(".tsx")) {
+        ".jsx"
+    } else if lower.ends_with(".mts") || lower.ends_with(".mjs") {
+        ".mjs"
+    } else if lower.ends_with(".cts") || lower.ends_with(".cjs") {
+        ".cjs"
+    } else {
+        ".js"
+    }
+}
+
+/// outputpaths.GetOutputJSFileName (tsgo): the JavaScript file a project
+/// emits for `input`; `None` under `emitDeclarationOnly` and for a JSON
+/// file whose output would be the file itself.
+pub fn output_js_file_name(
+    input: JsStr<'_>,
+    options: &CompilerOptions,
+    common: JsStr<'_>,
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+) -> Option<JsString> {
+    if options.emit_declaration_only == Some(true) {
+        return None;
+    }
+    let out_dir = options
+        .out_dir
+        .as_ref()
+        .map(JsString::as_js)
+        .filter(|directory| !directory.is_empty());
+    let mut output = remove_file_extension(
+        output_path_without_changing_extension(
+            input,
+            out_dir,
+            common,
+            current_directory,
+            case_sensitive,
+        )
+        .as_js(),
+    );
+    output.push_str(output_extension(input, options.jsx));
+    if output.ends_with(".json")
+        && canonical_emit_path(input, current_directory, case_sensitive)
+            == canonical_emit_path(output.as_js(), current_directory, case_sensitive)
+    {
+        return None;
+    }
+    Some(output)
+}
+
+/// outputpaths.GetSourceMapFilePath (tsgo): the map of a JavaScript file
+/// under `sourceMap` without `inlineSourceMap`.
+pub fn source_map_file_path(js_file: JsStr<'_>, options: &CompilerOptions) -> Option<JsString> {
+    (options.source_map == Some(true) && options.inline_source_map != Some(true)).then(|| {
+        let mut map = js_file.to_owned();
+        map.push_str(".map");
+        map
+    })
+}
+
+/// tsoptions `ParsedCommandLine.GetOutputFileNames` (tsgo): every output
+/// the project's file names produce, in file order: the JavaScript file and
+/// its source map, then the declaration file and its map. A declaration
+/// file produces nothing; a JSON file produces its copy alone.
+pub fn output_file_names(
+    options: &CompilerOptions,
+    config_file: Option<JsStr<'_>>,
+    file_names: &[JsString],
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+) -> Vec<JsString> {
+    // tsoptions ParsedCommandLine.CommonSourceDirectory: `rootDir`, else
+    // the config's directory, else inferred from the files that are not
+    // declaration files (nor JavaScript files under noEmitForJsFiles).
+    let composite = options.composite == Some(true);
+    let no_emit_for_js = options.no_emit_for_js_files == Some(true);
+    let emitted: Vec<JsStr<'_>> = file_names
+        .iter()
+        .map(JsString::as_js)
+        .filter(|name| {
+            if is_declaration_file_name(*name) {
+                return false;
+            }
+            let lower = lower_ascii(*name);
+            let javascript = [".js", ".jsx", ".mjs", ".cjs"]
+                .iter()
+                .any(|extension| lower.ends_with(extension));
+            !no_emit_for_js || !javascript
+        })
         .collect();
+    let common = common_source_directory(
+        options,
+        config_file,
+        &emitted,
+        current_directory,
+        case_sensitive,
+    );
+    let declarations = options.declaration == Some(true) || composite;
+    let declaration_maps = declarations && options.declaration_map == Some(true);
+    let mut outputs = Vec::new();
+    for file_name in file_names {
+        let file_name = file_name.as_js();
+        if is_declaration_file_name(file_name) {
+            continue;
+        }
+        let is_json = lower_ascii(file_name).ends_with(".json");
+        if let Some(js) = output_js_file_name(
+            file_name,
+            options,
+            common.as_js(),
+            current_directory,
+            case_sensitive,
+        ) {
+            let map = (!is_json)
+                .then(|| source_map_file_path(js.as_js(), options))
+                .flatten();
+            outputs.push(js);
+            outputs.extend(map);
+        }
+        if is_json {
+            continue;
+        }
+        if declarations {
+            let declaration = output_declaration_file_name(
+                file_name,
+                options,
+                common.as_js(),
+                current_directory,
+                case_sensitive,
+            );
+            let map = declaration_maps.then(|| {
+                let mut map = declaration.clone();
+                map.push_str(".map");
+                map
+            });
+            outputs.push(declaration);
+            outputs.extend(map);
+        }
+    }
+    outputs
+}
+
+/// outputpaths.ChangeToDeclarationExtension (tsgo): `.d.mts`/`.d.cts` for
+/// the module-flavored extensions, `.d.json.ts` for JSON, `.d.ts` otherwise.
+fn change_to_declaration_extension(path: JsStr<'_>) -> JsString {
+    let lower = lower_ascii(path);
     let extension = if lower.ends_with(".mts") || lower.ends_with(".mjs") {
         ".d.mts"
     } else if lower.ends_with(".cts") || lower.ends_with(".cjs") {
@@ -352,6 +504,18 @@ pub fn build_info_file_name(
     if options.incremental != Some(true) && options.composite != Some(true) {
         return None;
     }
+    build_info_file_name_in_build_mode(options, config_file_path, current_directory, case_sensitive)
+}
+
+/// outputpaths.GetBuildInfoFileName under `tsc -b` (tsgo
+/// `CompilerOptions.Build`): every project of a build writes a build info,
+/// whether or not it is incremental.
+pub fn build_info_file_name_in_build_mode(
+    options: &CompilerOptions,
+    config_file_path: Option<JsStr<'_>>,
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+) -> Option<JsString> {
     if let Some(file) = options
         .ts_build_info_file
         .as_ref()
@@ -503,5 +667,160 @@ pub(crate) fn directory_relative_to_config(
         let mut path = JsString::from("./");
         path.push_js(relative.as_js());
         path
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn options(set: impl FnOnce(&mut CompilerOptions)) -> CompilerOptions {
+        let mut options = CompilerOptions::default();
+        set(&mut options);
+        options
+    }
+
+    fn names(files: &[&str]) -> Vec<JsString> {
+        files.iter().map(|file| JsString::from(*file)).collect()
+    }
+
+    fn outputs(options: &CompilerOptions, config: &str, files: &[&str]) -> Vec<String> {
+        output_file_names(
+            options,
+            Some(config.into()),
+            &names(files),
+            "/p".into(),
+            true,
+        )
+        .iter()
+        .map(|name| name.to_string_lossy().into_owned())
+        .collect()
+    }
+
+    /// tsgo `GetOutputFileNames` (tsoptions/parsedcommandline.go): the
+    /// JavaScript file and its map, then the declaration file and its map;
+    /// a declaration file produces nothing, a JSON file its copy alone.
+    #[test]
+    fn output_file_names_follow_tsgo() {
+        let composite = options(|options| options.composite = Some(true));
+        assert_eq!(
+            outputs(
+                &composite,
+                "/p/core/tsconfig.json",
+                &[
+                    "/p/core/src/a.ts",
+                    "/p/core/src/b.ts",
+                    "/p/core/lib/lib.d.ts"
+                ]
+            ),
+            [
+                "/p/core/src/a.js",
+                "/p/core/src/a.d.ts",
+                "/p/core/src/b.js",
+                "/p/core/src/b.d.ts"
+            ]
+        );
+        let maps = options(|options| {
+            options.declaration = Some(true);
+            options.declaration_map = Some(true);
+            options.source_map = Some(true);
+            options.out_dir = Some("/p/app/out".into());
+            options.root_dir = Some("/p/app/src".into());
+        });
+        assert_eq!(
+            outputs(&maps, "/p/app/tsconfig.json", &["/p/app/src/main.ts"]),
+            [
+                "/p/app/out/main.js",
+                "/p/app/out/main.js.map",
+                "/p/app/out/main.d.ts",
+                "/p/app/out/main.d.ts.map"
+            ]
+        );
+        let inline = options(|options| {
+            options.source_map = Some(true);
+            options.inline_source_map = Some(true);
+        });
+        assert_eq!(
+            outputs(&inline, "/p/tsconfig.json", &["/p/a.ts"]),
+            ["/p/a.js"]
+        );
+        let declarations_only = options(|options| {
+            options.declaration = Some(true);
+            options.emit_declaration_only = Some(true);
+        });
+        assert_eq!(
+            outputs(&declarations_only, "/p/tsconfig.json", &["/p/a.ts"]),
+            ["/p/a.d.ts"]
+        );
+        // TypeScript 7.1: without `rootDir` the config's directory is the
+        // common source directory.
+        let json = options(|options| {
+            options.declaration = Some(true);
+            options.out_dir = Some("/p/out".into());
+        });
+        assert_eq!(
+            outputs(
+                &json,
+                "/p/tsconfig.json",
+                &["/p/src/a.ts", "/p/src/data.json"]
+            ),
+            [
+                "/p/out/src/a.js",
+                "/p/out/src/a.d.ts",
+                "/p/out/src/data.json"
+            ]
+        );
+        // A JSON file whose output is itself produces nothing.
+        assert_eq!(
+            outputs(
+                &CompilerOptions::default(),
+                "/p/tsconfig.json",
+                &["/p/data.json"]
+            ),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn output_extensions_follow_tsgo() {
+        assert_eq!(output_extension("/p/a.ts".into(), None), ".js");
+        assert_eq!(output_extension("/p/a.tsx".into(), None), ".js");
+        assert_eq!(output_extension("/p/a.tsx".into(), Some(1)), ".jsx");
+        assert_eq!(output_extension("/p/a.jsx".into(), Some(1)), ".jsx");
+        assert_eq!(output_extension("/p/a.mts".into(), None), ".mjs");
+        assert_eq!(output_extension("/p/a.cjs".into(), None), ".cjs");
+        assert_eq!(output_extension("/p/a.json".into(), None), ".json");
+    }
+
+    /// Every project of a build writes a build info; the command's
+    /// (`build_info_file_name`) only an incremental one.
+    #[test]
+    fn build_info_names_in_build_mode() {
+        let plain = CompilerOptions::default();
+        assert_eq!(
+            build_info_file_name(&plain, Some("/p/tsconfig.json".into()), "/p".into(), true),
+            None
+        );
+        assert_eq!(
+            build_info_file_name_in_build_mode(
+                &plain,
+                Some("/p/tsconfig.json".into()),
+                "/p".into(),
+                true
+            )
+            .map(|name| name.to_string_lossy().into_owned()),
+            Some("/p/tsconfig.tsbuildinfo".to_owned())
+        );
+        let out = options(|options| options.out_dir = Some("/p/dist".into()));
+        assert_eq!(
+            build_info_file_name_in_build_mode(
+                &out,
+                Some("/p/tsconfig.json".into()),
+                "/p".into(),
+                true
+            )
+            .map(|name| name.to_string_lossy().into_owned()),
+            Some("/p/dist/tsconfig.tsbuildinfo".to_owned())
+        );
     }
 }

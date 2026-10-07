@@ -226,8 +226,10 @@ impl BuildInfo {
         if !value.is_object() {
             return None;
         }
+        let file_infos = optional(&value, "fileInfos", |value| list(value, file_info))?;
         Some(Self {
             version: optional(&value, "version", string)?.unwrap_or_default(),
+            incremental: file_infos.is_some(),
             errors: optional(&value, "errors", bool)?.unwrap_or(false),
             check_pending: optional(&value, "checkPending", bool)?.unwrap_or(false),
             root: optional(&value, "root", |value| list(value, root))?.unwrap_or_default(),
@@ -237,8 +239,7 @@ impl BuildInfo {
             content_mapper_identities: optional(&value, "contentMapperIdentities", strings)?
                 .unwrap_or_default(),
             file_names: optional(&value, "fileNames", strings)?.unwrap_or_default(),
-            file_infos: optional(&value, "fileInfos", |value| list(value, file_info))?
-                .unwrap_or_default(),
+            file_infos: file_infos.unwrap_or_default(),
             file_ids_list: optional(&value, "fileIdsList", |value| list(value, numbers))?
                 .unwrap_or_default(),
             options: optional(&value, "options", options)?.unwrap_or_default(),

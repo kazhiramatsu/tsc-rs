@@ -12012,7 +12012,51 @@ struct IncrementalStep {
     stdout: &'static str,
     exit: i32,
     written: &'static [&'static str],
+    deleted: &'static [&'static str],
     build_info: &'static [(&'static str, Option<&'static str>)],
+}
+
+/// tsc -b's status lines carry the local time: `HH:MM:SS AM - ` (plain) or
+/// the grey bracketed form (pretty), normalized before comparison.
+fn normalize_status_times(text: &str) -> String {
+    fn is_time(bytes: &[u8]) -> bool {
+        bytes.len() >= 11
+            && bytes[..11]
+                .iter()
+                .enumerate()
+                .all(|(index, byte)| match index {
+                    2 | 5 => *byte == b':',
+                    8 => *byte == b' ',
+                    9 => *byte == b'A' || *byte == b'P',
+                    10 => *byte == b'M',
+                    _ => byte.is_ascii_digit(),
+                })
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while !rest.is_empty() {
+        let bytes = rest.as_bytes();
+        if (out.is_empty() || out.ends_with('\n'))
+            && is_time(bytes)
+            && rest[11..].starts_with(" - ")
+        {
+            out.push_str("HH:MM:SS AM");
+            rest = &rest[11..];
+            continue;
+        }
+        if rest.starts_with("[\x1b[90m")
+            && is_time(&bytes[6..])
+            && rest[17..].starts_with("\x1b[0m] ")
+        {
+            out.push_str("[\x1b[90mHH:MM:SS AM");
+            rest = &rest[17..];
+            continue;
+        }
+        let ch = rest.chars().next().expect("non-empty");
+        out.push(ch);
+        rest = &rest[ch.len_utf8()..];
+    }
+    out
 }
 
 fn incremental_tree_state(
@@ -12077,7 +12121,14 @@ fn run_incremental_steps(tree: &TempTree, steps: &[IncrementalStep]) {
             .filter(|(relative, state)| before.get(*relative) != Some(state))
             .map(|(relative, _)| relative.as_str())
             .collect::<Vec<_>>();
-        let stdout = String::from_utf8_lossy(&output.stdout).replace(root.as_str(), "<ROOT>/");
+        let deleted = before
+            .keys()
+            .filter(|relative| !after.contains_key(*relative))
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let stdout = normalize_status_times(
+            &String::from_utf8_lossy(&output.stdout).replace(root.as_str(), "<ROOT>/"),
+        );
         assert_eq!(
             stdout,
             step.stdout,
@@ -12094,6 +12145,11 @@ fn run_incremental_steps(tree: &TempTree, steps: &[IncrementalStep]) {
         assert_eq!(
             written, step.written,
             "step {index} ({}) written files",
+            step.caption
+        );
+        assert_eq!(
+            deleted, step.deleted,
+            "step {index} ({}) deleted files",
             step.caption
         );
         for (relative, text) in step.build_info {
@@ -12191,6 +12247,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12211,6 +12268,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -12240,6 +12298,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12281,6 +12340,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12301,6 +12361,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -12331,6 +12392,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/a.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12352,6 +12414,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -12381,6 +12444,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/a.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12449,6 +12513,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -12470,6 +12535,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -12493,6 +12559,7 @@ export const a: number = b;
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -12521,6 +12588,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -12549,6 +12617,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -12570,6 +12639,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -12587,6 +12657,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -12615,6 +12686,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -12636,6 +12708,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -12659,6 +12732,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -12737,6 +12811,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12757,6 +12832,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -12781,6 +12857,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 0,
                 written: &[r#"dist/src/b.js"#, r#"dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12818,6 +12895,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12853,6 +12931,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/a.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12873,6 +12952,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -12940,6 +13020,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -12976,6 +13057,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js.map"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13008,6 +13090,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13040,6 +13123,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.d.ts"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13060,6 +13144,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -13091,6 +13176,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.d.ts.map"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13116,6 +13202,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -13143,6 +13230,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.d.ts"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13163,6 +13251,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -13227,6 +13316,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -13247,6 +13337,7 @@ interface Symbol {}
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -13269,6 +13360,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -13296,6 +13388,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -13357,6 +13450,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -13377,6 +13471,7 @@ interface Symbol {}
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -13399,6 +13494,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -13420,6 +13516,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -13440,6 +13537,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -13512,6 +13610,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13548,6 +13647,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13568,6 +13668,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -13650,6 +13751,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13688,6 +13790,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13708,6 +13811,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -13785,6 +13889,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13820,6 +13925,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13856,6 +13962,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/c.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13933,6 +14040,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13954,6 +14062,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 0,
                 written: &[r#"dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -13974,6 +14083,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -13990,6 +14100,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 0,
                 written: &[r#"dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14023,6 +14134,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14085,6 +14197,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -14110,6 +14223,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -14130,6 +14244,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -14146,6 +14261,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -14222,6 +14338,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/j.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14255,6 +14372,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/data.json"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14288,6 +14406,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/j.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14308,6 +14427,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -14370,6 +14490,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -14390,6 +14511,7 @@ interface Symbol {}
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -14412,6 +14534,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -14440,6 +14563,7 @@ export const make = () => new Hidden();
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -14460,6 +14584,7 @@ export const make = () => new Hidden();
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -14532,6 +14657,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14552,6 +14678,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -14580,6 +14707,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14614,6 +14742,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/a.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14693,6 +14822,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14715,6 +14845,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -14745,6 +14876,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14785,6 +14917,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14853,6 +14986,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 1,
                 written: &[r#"dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14874,6 +15008,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 1,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -14903,6 +15038,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14931,6 +15067,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
 "#,
                 exit: 1,
                 written: &[r#"dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -14965,6 +15102,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -15032,6 +15170,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15053,6 +15192,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -15076,6 +15216,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15097,6 +15238,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -15119,6 +15261,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15139,6 +15282,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -15211,6 +15355,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -15247,6 +15392,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.d.ts.map"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -15267,6 +15413,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -15295,6 +15442,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.js"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -15327,6 +15475,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                     r#"dist/src/b.d.ts"#,
                     r#"dist/tsconfig.tsbuildinfo"#,
                 ],
+                deleted: &[],
                 build_info: &[(
                     r#"dist/tsconfig.tsbuildinfo"#,
                     Some(
@@ -15347,6 +15496,7 @@ TSFILE: <ROOT>/dist/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"dist/tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -15409,6 +15559,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15436,6 +15587,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15456,6 +15608,7 @@ interface Symbol {}
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -15479,6 +15632,7 @@ declare global { interface W { x: number } }
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15546,6 +15700,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15576,6 +15731,7 @@ interface Symbol {}
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15596,6 +15752,7 @@ interface Symbol {}
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -15613,6 +15770,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15640,6 +15798,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15707,6 +15866,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15728,6 +15888,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -15751,6 +15912,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15772,6 +15934,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
         ],
@@ -15834,6 +15997,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15860,6 +16024,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 0,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15880,6 +16045,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
                 stdout: r#""#,
                 exit: 0,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -15902,6 +16068,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15968,6 +16135,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -15998,6 +16166,7 @@ error TS2318: Cannot find global type 'String'.
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
             },
             IncrementalStep {
@@ -16030,6 +16199,7 @@ TSFILE: <ROOT>/tsconfig.tsbuildinfo
 "#,
                 exit: 2,
                 written: &[r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
                 build_info: &[(
                     r#"tsconfig.tsbuildinfo"#,
                     Some(
@@ -16060,7 +16230,2452 @@ error TS2318: Cannot find global type 'String'.
 "#,
                 exit: 2,
                 written: &[],
+                deleted: &[],
                 build_info: &[(r#"tsconfig.tsbuildinfo"#, None)],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_sample() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-sample`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit leaf"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+const x = 1;
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'tests/src/index.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"882f95e9601a64986e285bbd43353710","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"body-only change upstream"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n + ""; }
+export function multiply(a: number, b: number) { return a * b; }
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"3eeb18f9504a80a0a16d3bf791ee0ff4","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"shape change upstream"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n + ""; }
+export function multiply(a: number, b: number) { return a * b; }
+export const extra = 1;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output 'logic/tsconfig.tsbuildinfo' is older than input 'core/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'core/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"06f1097dac1fe8b354cadd83836b256f","signature":"34e90cc8ffa25abdfc9916de574ba32a","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["34e90cc8ffa25abdfc9916de574ba32a","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["34e90cc8ffa25abdfc9916de574ba32a","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"882f95e9601a64986e285bbd43353710","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"same text of logic rewritten"#,
+                edits: &[
+                    (r#"logic/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date but needs to update timestamps of output files that are older than input files\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"force"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#, r#"--force"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is being forcibly rebuilt\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is being forcibly rebuilt\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is being forcibly rebuilt\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"dry"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#, r#"--dry"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project '<ROOT>/core/tsconfig.json' is up to date\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project '<ROOT>/logic/tsconfig.json' is up to date\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project '<ROOT>/tests/tsconfig.json' is up to date\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit core then dry"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n + ""; }
+export function multiply(a: number, b: number) { return a * b; }
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#, r#"--dry"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - A non-dry build would build project '<ROOT>/core/tsconfig.json'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - A non-dry build would update timestamps for output of project '<ROOT>/logic/tsconfig.json'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - A non-dry build would update timestamps for output of project '<ROOT>/tests/tsconfig.json'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"build without verbose"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--pretty"#, r#"false"#],
+                stdout: r#""#,
+                exit: 0,
+                written: &[r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"3eeb18f9504a80a0a16d3bf791ee0ff4","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"882f95e9601a64986e285bbd43353710","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"clean dry"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--clean"#, r#"--dry"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - A non-dry build would delete the following files: \r\n * <ROOT>/core/src/anotherModule.js\r\n * <ROOT>/core/src/anotherModule.d.ts\r\n * <ROOT>/core/src/index.js\r\n * <ROOT>/core/src/index.d.ts\r\n * <ROOT>/core/tsconfig.tsbuildinfo\r\n * <ROOT>/logic/src/index.js\r\n * <ROOT>/logic/src/index.js.map\r\n * <ROOT>/logic/src/index.d.ts\r\n * <ROOT>/logic/tsconfig.tsbuildinfo\r\n * <ROOT>/tests/src/index.js\r\n * <ROOT>/tests/src/index.d.ts\r\n * <ROOT>/tests/tsconfig.tsbuildinfo\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"clean"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--clean"#, r#"--pretty"#, r#"false"#],
+                stdout: r#""#,
+                exit: 0,
+                written: &[],
+                deleted: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"clean again"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--clean"#, r#"--pretty"#, r#"false"#],
+                stdout: r#""#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"rebuild after clean"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"tsconfig change"#,
+                edits: &[
+                    (r#"tests/tsconfig.json"#, Some(r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"removeComments":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'tests/tsconfig.json'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"882f95e9601a64986e285bbd43353710","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"removeComments":true,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_errors() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-errors`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"type error upstream"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const someString: number = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\ncore/src/index.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output 'logic/tsconfig.tsbuildinfo' is older than input 'core/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'core/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 2,
+                written: &[r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"6b3b5de5ba62f7cd3feb9904b917a638","signature":"c09198c7f89cadb11b32e65c1553009a","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"semanticDiagnosticsPerFile":[[2,[{"pos":13,"end":23,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["string","number"]}]]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["c09198c7f89cadb11b32e65c1553009a","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["c09198c7f89cadb11b32e65c1553009a","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because buildinfo file 'core/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\ncore/src/index.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 2,
+                written: &[r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"stop on errors"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#, r#"--stopBuildOnErrors"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because buildinfo file 'core/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\ncore/src/index.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nHH:MM:SS AM - Project 'logic/tsconfig.json' can't be built because its dependency 'core' has errors\n\nHH:MM:SS AM - Skipping build of project 'logic/tsconfig.json' because its dependency 'core' has errors\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' can't be built because its dependency 'core' has errors\n\nHH:MM:SS AM - Skipping build of project 'tests/tsconfig.json' because its dependency 'core' has errors\n\n",
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"fix"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because buildinfo file 'core/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output 'logic/tsconfig.tsbuildinfo' is older than input 'core/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'core/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"leaf error"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+const n: number = c.someString;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'tests/src/index.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/src/index.ts(2,7): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+                exit: 2,
+                written: &[r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[2,3]],"fileNames":["../core/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c",{"version":"9f4b5e464a8fc67d0d05643202c7f454","signature":"abe7d9981d6018efb6b2b794f40a1607","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[2,1]],"semanticDiagnosticsPerFile":[[2,[{"pos":49,"end":50,"code":2322,"category":1,"messageKey":"Type_0_is_not_assignable_to_type_1_2322","messageArgs":["string","number"]}]]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change with leaf error"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/src/index.ts(2,7): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"leaf syntax error"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+const n: number = ;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/src/index.ts(2,19): error TS1109: Expression expected.\n",
+                exit: 2,
+                written: &[r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","errors":true,"root":[[2,3]],"fileNames":["../core/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c",{"version":"754f80bbb19bbb5f1b842621aefd0c67","signature":"abe7d9981d6018efb6b2b794f40a1607","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[2,1]],"semanticDiagnosticsPerFile":[2],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"fix leaf"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+const n: string = c.someString;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/index.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[2,3]],"fileNames":["../core/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c",{"version":"21ae52a7ec699e04fed8b7a2dc89cde3","signature":"abe7d9981d6018efb6b2b794f40a1607","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[2,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_noemit_root() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-noemit-root`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"noEmit":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":["./src/index.ts","./lib/lib.d.ts"]}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/src/index.js' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit leaf"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+export const n: number = c.multiply(1, 2);
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'tests/src/index.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/src/index.js' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"leaf error"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+export const n: string = c.multiply(1, 2);
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'tests/src/index.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/src/index.ts(2,14): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+                exit: 2,
+                written: &[r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":["./src/index.ts","./lib/lib.d.ts"],"semanticErrors":true}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/src/index.ts(2,14): error TS2322: Type 'number' is not assignable to type 'string'.\n",
+                exit: 2,
+                written: &[r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_non_incremental_root() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-non-incremental-root`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"declaration":true,"outDir":"dist"},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/dist/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","errors":true,"root":["../src/index.ts","../lib/lib.d.ts"]}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit leaf"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+export const n: number = c.multiply(1, 2);
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"delete an output"#,
+                edits: &[
+                    (r#"tests/dist/src/index.js"#, None),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"leaf error"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+export const n: string = c.multiply(1, 2);
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change with error"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"fix"#,
+                edits: &[
+                    (r#"tests/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+export const n: number = c.multiply(1, 2);
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"body-only change upstream"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n + ""; }
+export function multiply(a: number, b: number) { return a * b; }
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/dist/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,143): error TS5011: The common source directory of 'tsconfig.json' is './src'. The 'rootDir' setting must be explicitly set to this or another path to adjust your output's file layout.\n  Visit https://aka.ms/ts6 for migration information.\n",
+                exit: 2,
+                written: &[r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/dist/src/index.d.ts"#, r#"tests/dist/src/index.js"#, r#"tests/dist/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"3eeb18f9504a80a0a16d3bf791ee0ff4","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/dist/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_solution() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-solution`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tsconfig.json"#,
+                r#"{"files":[],"references":[{"path":"./core"},{"path":"./logic"},{"path":"./tests"}]}"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\r\n    * tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\r\n    * tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit logic"#,
+                edits: &[
+                    (r#"logic/src/index.ts"#, Some(r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 16);
+}
+"#)),
+                ],
+                args: &[r#"-b"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\r\n    * tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output 'logic/tsconfig.tsbuildinfo' is older than input 'logic/src/index.ts'\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'logic/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[2,3]],"fileNames":["../core/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c",{"version":"8bbcb65a249f4ed5f72a750b0ed8c93f","signature":"9494e0492bdbb92c8cb1da677326ef0f","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[2,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../logic/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","9494e0492bdbb92c8cb1da677326ef0f","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[4,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"two roots"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"core"#, r#"logic"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"default project"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"--pretty"#, r#"false"#],
+                stdout: r#""#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_missing_config() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-missing-config`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"bogus.json"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS6053: File '<ROOT>/bogus.json' not found.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"verbose"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"bogus.json"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * bogus.json\n\nHH:MM:SS AM - Project 'bogus.json' is out of date because config file does not exist.\n\nerror TS6053: File '<ROOT>/bogus.json' not found.\n",
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"missing reference"#,
+                edits: &[
+                    (r#"tests/tsconfig.json"#, Some(r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../missing"}]}"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * missing/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'missing/tsconfig.json' is out of date because config file does not exist.\n\nerror TS6053: File '<ROOT>/missing/tsconfig.json' not found.\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\ntests/tsconfig.json(1,219): error TS6053: File '<ROOT>/missing' not found.\n",
+                exit: 2,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","errors":true,"root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"semanticDiagnosticsPerFile":[1,2,3,4,5],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"missing reference dry"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#, r#"--dry"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * missing/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project '<ROOT>/core/tsconfig.json' is up to date\n\nHH:MM:SS AM - Project 'missing/tsconfig.json' is out of date because config file does not exist.\n\nerror TS6053: File '<ROOT>/missing/tsconfig.json' not found.\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because buildinfo file 'tests/tsconfig.tsbuildinfo' indicates that program needs to report errors.\n\nHH:MM:SS AM - A non-dry build would build project '<ROOT>/tests/tsconfig.json'\n\n",
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"missing reference clean"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--clean"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS6053: File '<ROOT>/missing/tsconfig.json' not found.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_cycle() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-cycle`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"a/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true},"include":["src", "lib"],"references":[{"path":"../b"}]}"#,
+            ),
+            (
+                r#"a/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"a/src/a.ts"#,
+                r#"export const a = 1;
+"#,
+            ),
+            (
+                r#"b/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true},"include":["src", "lib"],"references":[{"path":"../a"}]}"#,
+            ),
+            (
+                r#"b/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"b/src/b.ts"#,
+                r#"export const b = 2;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"a"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * b/tsconfig.json\r\n    * a/tsconfig.json\n\nerror TS6202: Project references may not form a circular graph. Cycle detected: <ROOT>/a/tsconfig.json\n<ROOT>/b/tsconfig.json\n",
+                exit: 4,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"clean with cycle"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"a"#, r#"--clean"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS6202: Project references may not form a circular graph. Cycle detected: <ROOT>/a/tsconfig.json
+<ROOT>/b/tsconfig.json
+"#,
+                exit: 4,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"circular flag"#,
+                edits: &[
+                    (r#"a/tsconfig.json"#, Some(r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true},"include":["src", "lib"],"references":[{"path":"../b","circular":true}]}"#)),
+                ],
+                args: &[r#"-b"#, r#"a"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * b/tsconfig.json\r\n    * a/tsconfig.json\n\nHH:MM:SS AM - Project 'b/tsconfig.json' is out of date because output file 'b/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'b/tsconfig.json'...\n\nHH:MM:SS AM - Project 'a/tsconfig.json' is out of date because output file 'a/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'a/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"a/src/a.d.ts"#, r#"a/src/a.js"#, r#"a/tsconfig.tsbuildinfo"#, r#"b/src/b.d.ts"#, r#"b/src/b.js"#, r#"b/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"a/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./src/a.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"dcc03016c1e9fa8a9c06f4a9279fde2a","signature":"67cd7ccc14045107336f34154f76a8ca","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/a.d.ts"}"#)),
+                    (r#"b/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./src/b.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"fd1625d5addd2389e2c382f96f76510c","signature":"e1d275f86bf4a4a1f6fd0e8d8709f902","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/b.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"a"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * b/tsconfig.json\r\n    * a/tsconfig.json\n\nHH:MM:SS AM - Project 'b/tsconfig.json' is up to date because newest input 'b/src/b.ts' is older than output 'b/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'a/tsconfig.json' is up to date because newest input 'a/src/a.ts' is older than output 'a/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"a/tsconfig.tsbuildinfo"#, None),
+                    (r#"b/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_declaration_map() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-declaration-map`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"declarationMap on core"#,
+                edits: &[
+                    (r#"core/tsconfig.json"#, Some(r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"declarationMap":true},"include":["src", "lib"]}"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because buildinfo file 'core/tsconfig.tsbuildinfo' indicates there is change in compilerOptions\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.d.ts.map"#, r#"core/src/index.d.ts"#, r#"core/src/index.d.ts.map"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"declarationMap":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"declarationMap off"#,
+                edits: &[
+                    (r#"core/tsconfig.json"#, Some(r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because buildinfo file 'core/tsconfig.tsbuildinfo' indicates there is change in compilerOptions\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/index.d.ts"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_version_mismatch() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-version-mismatch`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"other version"#,
+                edits: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"5.9.0","root":[[2,3]],"fileNames":["./lib/lib.d.ts","./src/anotherModule.ts","./src/index.ts"],"fileInfos":["a","b","c"],"options":{"composite":true}}"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output for it was generated with version '5.9.0' that differs with current version '7.1.0-dev'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output 'logic/tsconfig.tsbuildinfo' is older than input 'core'\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Updating unchanged output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'core'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\nHH:MM:SS AM - Updating unchanged output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"corrupt build info"#,
+                edits: &[
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{not json"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'logic'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\nHH:MM:SS AM - Updating unchanged output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_roots() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-roots`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"add a root to core"#,
+                edits: &[
+                    (r#"core/src/extra.ts"#, Some(r#"export const extra = 3;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/extra.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output 'logic/tsconfig.tsbuildinfo' is older than input 'core'\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Updating unchanged output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'core'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\nHH:MM:SS AM - Updating unchanged output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/extra.d.ts"#, r#"core/src/extra.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,4]],"fileNames":["./src/anothermodule.ts","./src/extra.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"30e0a762133671bb4de43a320e47cf73","signature":"7a264191517eb561ba2dffb689ba7703","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/extra.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/extra.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"delete the root"#,
+                edits: &[
+                    (r#"core/src/extra.ts"#, None),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because buildinfo file 'core/tsconfig.tsbuildinfo' indicates that file 'core/src/extra.ts' was root file of compilation but not any more.\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,4]],"fileNames":["./src/anothermodule.ts","./src/extra.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},"7a264191517eb561ba2dffb689ba7703",{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/extra.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/extra.d.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"delete a referenced input"#,
+                edits: &[
+                    (r#"core/src/anotherModule.ts"#, None),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because buildinfo file 'core/tsconfig.tsbuildinfo' indicates that file 'core/src/anothermodule.ts' was root file of compilation but not any more.\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,4]],"fileNames":["./src/anothermodule.d.ts","./src/extra.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["5aad0de3e7b08bb6e110c7b97361b89e","7a264191517eb561ba2dffb689ba7703",{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/extra.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"restore"#,
+                edits: &[
+                    (r#"core/src/anotherModule.ts"#, Some(r#"export const World = "hello";
+"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/anotherModule.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output 'logic/tsconfig.tsbuildinfo' is older than input 'core'\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Updating unchanged output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output 'tests/tsconfig.tsbuildinfo' is older than input 'core'\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\nHH:MM:SS AM - Updating unchanged output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,4]],"fileNames":["./src/anothermodule.ts","./src/extra.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},"7a264191517eb561ba2dffb689ba7703",{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/anotherModule.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_outdir_rootdir() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-outdir-rootdir`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"outDir":"dist","rootDir":"src"},"include":["src"]}"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const value = 1;
+export function f() { return value; }
+"#,
+            ),
+            (
+                r#"core/src/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"app/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"outDir":"out","rootDir":"src","declaration":true,"sourceMap":true,"declarationMap":true},"include":["src"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"app/src/main.ts"#,
+                r#"import { f } from "../../core/src/index";
+export const r = f();
+"#,
+            ),
+            (
+                r#"app/src/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--listEmittedFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nTSFILE: <ROOT>/core/dist/index.js\nTSFILE: <ROOT>/core/dist/index.d.ts\nTSFILE: <ROOT>/core/tsconfig.tsbuildinfo\nHH:MM:SS AM - Project 'app/tsconfig.json' is out of date because output file 'app/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'app/tsconfig.json'...\n\nTSFILE: <ROOT>/app/out/main.js.map\nTSFILE: <ROOT>/app/out/main.js\nTSFILE: <ROOT>/app/out/main.d.ts.map\nTSFILE: <ROOT>/app/out/main.d.ts\nTSFILE: <ROOT>/app/tsconfig.tsbuildinfo\n",
+                exit: 0,
+                written: &[r#"app/out/main.d.ts"#, r#"app/out/main.d.ts.map"#, r#"app/out/main.js"#, r#"app/out/main.js.map"#, r#"app/tsconfig.tsbuildinfo"#, r#"core/dist/index.d.ts"#, r#"core/dist/index.js"#, r#"core/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[1,3],"fileNames":["./src/lib.d.ts","../core/dist/index.d.ts","./src/main.ts"],"fileInfos":[{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1},"fc979c53df8873a43638687fae2530fb",{"version":"b7f0a3bb74bca84d38bfe46e1f6bc07b","signature":"0d1193a78ab4a6d86101437ca23df4c2","impliedNodeFormat":1}],"fileIdsList":[[2]],"options":{"composite":true,"declaration":true,"declarationMap":true,"module":99,"outDir":"./out","rootDir":"./src","strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./out/main.d.ts"}"#)),
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./src/index.ts","./src/lib.d.ts"],"fileInfos":[{"version":"684adaa9fa44a34575f378d65f77e886","signature":"fc979c53df8873a43638687fae2530fb","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"outDir":"./dist","rootDir":"./src","strict":true,"target":9},"latestChangedDtsFile":"./dist/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--listEmittedFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/lib.d.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'app/tsconfig.json' is up to date because newest input 'app/src/lib.d.ts' is older than output 'app/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, None),
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit core body"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const value = 1;
+export function f() { return value + 1; }
+"#)),
+                ],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--listEmittedFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nTSFILE: <ROOT>/core/dist/index.js\nTSFILE: <ROOT>/core/tsconfig.tsbuildinfo\nHH:MM:SS AM - Project 'app/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'app/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"app/tsconfig.tsbuildinfo"#, r#"core/dist/index.js"#, r#"core/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, None),
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./src/index.ts","./src/lib.d.ts"],"fileInfos":[{"version":"618f9616f6569aa5d37662f61f58f07b","signature":"fc979c53df8873a43638687fae2530fb","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"outDir":"./dist","rootDir":"./src","strict":true,"target":9},"latestChangedDtsFile":"./dist/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit core shape"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const value = 1;
+export function f() { return value + 1; }
+export const g = 2;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--listEmittedFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nTSFILE: <ROOT>/core/dist/index.js\nTSFILE: <ROOT>/core/dist/index.d.ts\nTSFILE: <ROOT>/core/tsconfig.tsbuildinfo\nHH:MM:SS AM - Project 'app/tsconfig.json' is out of date because output 'app/tsconfig.tsbuildinfo' is older than input 'core/dist/index.d.ts'\n\nHH:MM:SS AM - Building project 'app/tsconfig.json'...\n\nTSFILE: <ROOT>/app/out/main.js.map\nTSFILE: <ROOT>/app/out/main.js\nTSFILE: <ROOT>/app/out/main.d.ts.map\nTSFILE: <ROOT>/app/tsconfig.tsbuildinfo\n",
+                exit: 0,
+                written: &[r#"app/out/main.d.ts.map"#, r#"app/out/main.js"#, r#"app/out/main.js.map"#, r#"app/tsconfig.tsbuildinfo"#, r#"core/dist/index.d.ts"#, r#"core/dist/index.js"#, r#"core/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[1,3],"fileNames":["./src/lib.d.ts","../core/dist/index.d.ts","./src/main.ts"],"fileInfos":[{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1},"9a8f2dd7fa8da82619b2f382cef5400e",{"version":"b7f0a3bb74bca84d38bfe46e1f6bc07b","signature":"0d1193a78ab4a6d86101437ca23df4c2","impliedNodeFormat":1}],"fileIdsList":[[2]],"options":{"composite":true,"declaration":true,"declarationMap":true,"module":99,"outDir":"./out","rootDir":"./src","strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./out/main.d.ts"}"#)),
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,2]],"fileNames":["./src/index.ts","./src/lib.d.ts"],"fileInfos":[{"version":"5963ef42f91f823d65fd63449bcb772c","signature":"9a8f2dd7fa8da82619b2f382cef5400e","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"outDir":"./dist","rootDir":"./src","strict":true,"target":9},"latestChangedDtsFile":"./dist/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"clean"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"app"#, r#"--clean"#, r#"--pretty"#, r#"false"#],
+                stdout: r#""#,
+                exit: 0,
+                written: &[],
+                deleted: &[r#"app/out/main.d.ts"#, r#"app/out/main.d.ts.map"#, r#"app/out/main.js"#, r#"app/out/main.js.map"#, r#"app/tsconfig.tsbuildinfo"#, r#"core/dist/index.d.ts"#, r#"core/dist/index.js"#, r#"core/tsconfig.tsbuildinfo"#],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"rebuild"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--listEmittedFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nTSFILE: <ROOT>/core/dist/index.js\nTSFILE: <ROOT>/core/dist/index.d.ts\nTSFILE: <ROOT>/core/tsconfig.tsbuildinfo\nHH:MM:SS AM - Project 'app/tsconfig.json' is out of date because output file 'app/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'app/tsconfig.json'...\n\nTSFILE: <ROOT>/app/out/main.js.map\nTSFILE: <ROOT>/app/out/main.js\nTSFILE: <ROOT>/app/out/main.d.ts.map\nTSFILE: <ROOT>/app/out/main.d.ts\nTSFILE: <ROOT>/app/tsconfig.tsbuildinfo\n",
+                exit: 0,
+                written: &[r#"app/out/main.d.ts"#, r#"app/out/main.d.ts.map"#, r#"app/out/main.js"#, r#"app/out/main.js.map"#, r#"app/tsconfig.tsbuildinfo"#, r#"core/dist/index.d.ts"#, r#"core/dist/index.js"#, r#"core/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, None),
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_build_extends() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `build-extends`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"extends":"../tsconfig.base.json","compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src","lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const someString: string = "HELLO WORLD";
+export function leftPad(s: string, n: number) { return s + n; }
+export function multiply(a: number, b: number) { return a * b; }
+"#,
+            ),
+            (
+                r#"core/src/anotherModule.ts"#,
+                r#"export const World = "hello";
+"#,
+            ),
+            (
+                r#"logic/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true,"sourceMap":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"logic/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"logic/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+export function getSecondsInDay() {
+    return c.multiply(10, 15);
+}
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tests/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"},{"path":"../logic"}]}"#,
+            ),
+            (
+                r#"tests/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"tests/src/index.ts"#,
+                r#"import * as c from "../../core/src/index";
+import * as logic from "../../logic/src/index";
+
+c.leftPad("", 10);
+logic.getSecondsInDay();
+
+import * as mod from "../../core/src/anotherModule";
+export const m = mod;
+"#,
+            ),
+            (
+                r#"tsconfig.base.json"#,
+                r#"{"compilerOptions":{"removeComments":false}}"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is out of date because output file 'logic/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is out of date because output file 'tests/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.d.ts"#, r#"core/src/anotherModule.js"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/src/index.d.ts"#, r#"logic/src/index.js"#, r#"logic/src/index.js.map"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/src/index.d.ts"#, r#"tests/src/index.js"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"removeComments":false,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e",{"version":"fe1a1119c393e6a260b788aeefb91072","signature":"51ed0dd1ec1942d868dcfd3f549325d8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"sourceMap":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"tests/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[4,5]],"fileNames":["../core/src/index.d.ts","../core/src/anothermodule.d.ts","../logic/src/index.d.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":["da642d80443e7ccd327091080a82a43c","5aad0de3e7b08bb6e110c7b97361b89e","51ed0dd1ec1942d868dcfd3f549325d8",{"version":"dc81f039ed3f3f94e7e1f5ea05a25b4d","signature":"e0a33d77363d6679ca0f1794b1336832","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[2],[1,2,3]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1],[4,2]],"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"edit base config"#,
+                edits: &[
+                    (r#"tsconfig.base.json"#, Some(r#"{"compilerOptions":{"removeComments":true}}"#)),
+                ],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'tsconfig.base.json'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'logic/tsconfig.json'...\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date with .d.ts files from its dependencies\n\nHH:MM:SS AM - Updating output timestamps of project 'tests/tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"core/src/anotherModule.js"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#, r#"logic/tsconfig.tsbuildinfo"#, r#"tests/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/anothermodule.ts","./src/index.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"578e589b5b746fde239d398be4ba99cf","signature":"5aad0de3e7b08bb6e110c7b97361b89e","impliedNodeFormat":1},{"version":"a63cf8b34fb9ab4eece8d42bbbcbe290","signature":"da642d80443e7ccd327091080a82a43c","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"removeComments":true,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"tests"#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * logic/tsconfig.json\r\n    * tests/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/anotherModule.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'logic/tsconfig.json' is up to date because newest input 'logic/src/index.ts' is older than output 'logic/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'tests/tsconfig.json' is up to date because newest input 'tests/src/index.ts' is older than output 'tests/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                    (r#"logic/tsconfig.tsbuildinfo"#, None),
+                    (r#"tests/tsconfig.tsbuildinfo"#, None),
+                ],
             },
         ],
     );

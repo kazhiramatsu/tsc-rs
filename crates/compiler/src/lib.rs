@@ -63,6 +63,7 @@ use tsc_program::{
     UnloadedModuleReason,
 };
 
+mod build;
 mod cli;
 mod declaration_diagnostics;
 mod incremental;
@@ -119,6 +120,10 @@ pub struct ProgramSession {
     /// `ReadBuildInfoProgram`), when the command found one: the session then
     /// checks and emits only what that state does not cover.
     old_build_info: Option<Arc<OldState>>,
+    /// The command is `tsc -b` (tsgo `CompilerOptions.Build`): every
+    /// project writes a build info and a declaration file that differs only
+    /// in its map is reported for its timestamp.
+    build_mode: bool,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -150,6 +155,8 @@ pub(crate) struct CliEmitSessionOutcome {
     pub(crate) work_counters: NoEmitWorkCounters,
     /// H2.8c evidence: source files whose checkSourceFileWorker body ran.
     pub(crate) checked_source_files: u32,
+    /// What `tsc -b` learns from the emit.
+    pub(crate) build_emit: incremental::BuildEmitFacts,
 }
 
 impl CliEmitSessionOutcome {
@@ -397,7 +404,7 @@ impl EmitCommandOutcome {
         let checked_source_files = outcome.checked_source_files;
         let (emit, diagnostics, _) = outcome.into_reported(additional_options_diagnostics);
         let (status_writes, exit_code) =
-            cli::emit_command_status(current_directory, &emit, &diagnostics);
+            cli::emit_command_status(current_directory, &emit, &diagnostics, true);
         Self {
             emit,
             diagnostics,
@@ -493,6 +500,7 @@ impl ProgramDiagnostics {
             declaration_diagnostics: DiagnosticList::new(),
             work_counters,
             checked_source_files: 0,
+            build_emit: incremental::BuildEmitFacts::default(),
         }
     }
 }
@@ -521,6 +529,8 @@ impl AuthoritativeModuleProviderFactory for PreparedProviderFactory<'_> {
 
 struct PreparedEmitHost<'program> {
     prepared: &'program PreparedProgram,
+    /// `tsc -b` lists the emitted files whatever `listEmittedFiles` says.
+    collect_emitted_files: bool,
     source_files: Vec<SourceFileId>,
     common_source_directory: JsString,
     symlinks: tsc_program::SymlinkFacts,
@@ -572,6 +582,7 @@ impl<'program> PreparedEmitHost<'program> {
         let symlinks = tsc_program::discover_symlink_facts(prepared);
         let mut host = Self {
             prepared,
+            collect_emitted_files: false,
             source_files,
             common_source_directory: prepared.current_directory().display().to_owned(),
             symlinks,
@@ -602,9 +613,21 @@ impl<'program> PreparedEmitHost<'program> {
     }
 }
 
+impl PreparedEmitHost<'_> {
+    /// Whether the emit lists its files regardless of `listEmittedFiles`.
+    fn with_collected_emitted_files(mut self, collect: bool) -> Self {
+        self.collect_emitted_files = collect;
+        self
+    }
+}
+
 impl EmitHost for PreparedEmitHost<'_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn collects_emitted_files(&self) -> bool {
+        self.collect_emitted_files || self.compiler_options().list_emitted_files == Some(true)
     }
 
     fn emit_route(&self) -> EmitRouteKind {
@@ -710,6 +733,10 @@ struct CheckedEmitHost<'host, 'snapshot> {
 impl EmitHost for CheckedEmitHost<'_, '_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn collects_emitted_files(&self) -> bool {
+        self.prepared.collects_emitted_files()
     }
 
     fn take_prepared_source(&self, id: SourceFileId) -> Option<tsc_emitter::PreparedEmitSource> {
@@ -1238,6 +1265,7 @@ impl ProgramSession {
             checker_budget: CheckerBudget::serial(),
             command_options_diagnostics: false,
             old_build_info: None,
+            build_mode: false,
         }
     }
 
@@ -1341,6 +1369,12 @@ impl ProgramSession {
 
     /// The state of the program's old build info (tsgo
     /// `ReadBuildInfoProgram`), read by the command before the session.
+    /// The session runs for `tsc -b` (tsgo `CompilerOptions.Build`).
+    pub fn with_build_mode(mut self, build: bool) -> Self {
+        self.build_mode = build;
+        self
+    }
+
     pub fn with_old_build_info(mut self, old: Option<OldState>) -> Self {
         self.old_build_info = old.map(Arc::new);
         self
@@ -1406,6 +1440,7 @@ impl ProgramSession {
             command_build_info: _,
             command_options_diagnostics: _,
             old_build_info: _,
+            build_mode: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1567,6 +1602,7 @@ impl ProgramSession {
                 declaration_diagnostics,
                 work_counters: outcome.work_counters,
                 checked_source_files: 0,
+                build_emit: incremental::BuildEmitFacts::default(),
             };
             return Ok(EmitCommandOutcome::with_options_diagnostics(
                 reported,
@@ -1635,6 +1671,7 @@ impl ProgramSession {
             command_build_info: _,
             command_options_diagnostics: _,
             old_build_info: _,
+            build_mode: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1759,6 +1796,7 @@ impl ProgramSession {
             command_build_info: _,
             command_options_diagnostics: _,
             old_build_info: _,
+            build_mode: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1863,8 +1901,10 @@ impl ProgramSession {
             command_build_info,
             command_options_diagnostics: _,
             old_build_info,
+            build_mode,
         } = self;
-        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
+        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
+            .with_collected_emitted_files(build_mode);
         if forced_declarations {
             tsc_emitter::validate_forced_declaration_request(&emit_host)
                 .map_err(DriverError::Emit)?;
@@ -1884,7 +1924,8 @@ impl ProgramSession {
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
         };
         let incremental_facts_requested = command_build_info
-            && tsc_incremental::options::is_incremental(prepared.compiler_options());
+            && (tsc_incremental::options::is_incremental(prepared.compiler_options())
+                || build_mode);
         // tsgo's semantic getter is gated by the program (options) rows,
         // which the planner cannot see from the checker.
         let options_rows = !prepared.diagnostics().options().is_empty()
@@ -1901,6 +1942,7 @@ impl ProgramSession {
             incremental::AffectedPolicy {
                 emits: true,
                 options_diagnostics: options_rows,
+                build: build_mode,
             },
         );
         let mut planner = driver.planner();
@@ -1947,6 +1989,7 @@ impl ProgramSession {
                 let mut recording = incremental::SignatureRecordingSink::with_composite_signatures(
                     &mut *sink,
                     driver.composite_signatures(),
+                    build_mode,
                 );
                 // The units an incremental program re-emits (tsgo
                 // emitFilesIncremental), with the plan they index.
@@ -2005,6 +2048,7 @@ impl ProgramSession {
                     let mut outcome =
                         diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
                     outcome.checked_source_files = checker.checked_source_files();
+                    outcome.build_emit = driver.build_emit_facts();
                     outcome
                 })
                 .map_err(DriverError::Emit)
@@ -2096,7 +2140,9 @@ impl ProgramSession {
                 }
                 None => emit,
             };
-            diagnostics.with_emit(&preflight_diagnostics, emit, work_counters)
+            let mut outcome = diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
+            outcome.build_emit = driver.build_emit_facts();
+            outcome
         })
         .map_err(DriverError::Emit)
     }
@@ -2118,13 +2164,16 @@ impl ProgramSession {
             command_build_info,
             command_options_diagnostics: _,
             old_build_info,
+            build_mode,
         } = self;
         let setup_started = std::time::Instant::now();
-        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
+        let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
+            .with_collected_emitted_files(build_mode);
         validate_emit_request(&emit_host).map_err(DriverError::Emit)?;
         tsc_types::trace::mark("emit: host and request validation", setup_started);
         let incremental_facts_requested = command_build_info
-            && tsc_incremental::options::is_incremental(prepared.compiler_options());
+            && (tsc_incremental::options::is_incremental(prepared.compiler_options())
+                || build_mode);
         let selection = EmitSelection::WholeProgram;
         let preflight_started = std::time::Instant::now();
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
@@ -2144,12 +2193,14 @@ impl ProgramSession {
             incremental::AffectedPolicy {
                 emits: true,
                 options_diagnostics: options_rows,
+                build: build_mode,
             },
         );
         let mut planner = driver.planner();
         let mut recording = incremental::SignatureRecordingSink::with_composite_signatures(
             sink,
             driver.composite_signatures(),
+            build_mode,
         );
         let sink: &mut dyn OutputSink = &mut recording;
         let inputs_started = std::time::Instant::now();
@@ -2808,6 +2859,10 @@ impl ProgramSession {
                 .map_err(DriverError::Emit)
             }
         };
+        let outcome = outcome.map(|mut outcome| {
+            outcome.build_emit = driver.build_emit_facts();
+            outcome
+        });
         // The planner and the driver borrow the prepared program; both end
         // before the leak.
         drop(planner);
@@ -3032,7 +3087,8 @@ impl ProgramSession {
         let available_options = self.available_options_diagnostics();
         let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(&available_options);
         let incremental_facts_requested = self.command_build_info
-            && tsc_incremental::options::is_incremental(self.prepared.compiler_options());
+            && (tsc_incremental::options::is_incremental(self.prepared.compiler_options())
+                || self.build_mode);
         let driver = incremental::IncrementalDriver::new(
             &self.prepared,
             self.old_build_info.clone(),
@@ -3042,6 +3098,7 @@ impl ProgramSession {
                 emits: false,
                 options_diagnostics: !available_options.is_empty()
                     || self.command_options_diagnostics,
+                build: self.build_mode,
             },
         );
         let mut planner = driver.planner();

@@ -124,6 +124,13 @@ pub struct ProgramState {
     pub options: CompilerOptions,
     /// The absolute, normalized build info file name.
     pub build_info_file_name: String,
+    /// `tsc -b` (tsgo `CompilerOptions.Build`): a non-incremental program
+    /// then keeps no incremental state and writes the non-incremental
+    /// build info (`canUseIncrementalState`).
+    pub build: bool,
+    /// The config's file names as canonical paths, in config order (the
+    /// roots of a non-incremental build info).
+    pub root_file_names: Vec<String>,
     pub current_directory: String,
     pub use_case_sensitive_file_names: bool,
     /// The package.json files the resolver read and the ones under
@@ -246,6 +253,9 @@ pub struct Snapshot {
     check_pending: bool,
     package_jsons: Option<(Vec<String>, Vec<String>)>,
     build_info_emit_pending: bool,
+    /// tsgo `hasChangedDtsFile`: this run's emit wrote a declaration file
+    /// whose signature changed.
+    has_changed_dts_file: bool,
     old: Option<OldSummary>,
     global_file_removed: bool,
     /// Per file: the files referencing it (the inverse of
@@ -290,6 +300,7 @@ impl Snapshot {
             check_pending: options.no_check == Some(true),
             package_jsons: None,
             build_info_emit_pending: false,
+            has_changed_dts_file: false,
             old: None,
             global_file_removed: false,
             referenced_by,
@@ -616,6 +627,17 @@ impl Snapshot {
             .unwrap_or(FileEmitKind::NONE)
     }
 
+    /// tsgo `snapshot.canUseIncrementalState`: a non-incremental program
+    /// built by `tsc -b` tracks nothing but its diagnostics.
+    pub fn can_use_incremental_state(&self) -> bool {
+        is_incremental(&self.program.options) || !self.program.build
+    }
+
+    /// tsgo `Program.HasChangedDtsFile`.
+    pub fn has_changed_dts_file(&self) -> bool {
+        self.has_changed_dts_file
+    }
+
     /// The old emit signature of a file as `declaration_write_decision`
     /// reads it: its hash and whether it is in the plain form.
     pub fn old_emit_signature(&self, file: usize) -> Option<(&str, bool)> {
@@ -631,7 +653,9 @@ impl Snapshot {
     /// `deletedPendingKinds`).
     pub fn record_emit(&mut self, updates: Vec<EmitUpdate>, deleted: &[usize]) {
         let options = self.program.options.clone();
-        let declarations = emit_declarations(&options);
+        // tsgo's write hook computes signatures only while the incremental
+        // state is in use.
+        let declarations = emit_declarations(&options) && self.can_use_incremental_state();
         let composite = options.composite == Some(true);
         let mut new_signatures: BTreeMap<usize, String> = BTreeMap::new();
         let mut new_emit_signatures: BTreeMap<usize, EmitSignature> = BTreeMap::new();
@@ -678,6 +702,7 @@ impl Snapshot {
             if let Some(output) = latest_changed.get(&file) {
                 self.latest_changed_dts_file = Some(output.clone());
                 self.build_info_emit_pending = true;
+                self.has_changed_dts_file = true;
             }
             let Some(update) = by_file.remove(&file) else {
                 continue;
@@ -728,12 +753,17 @@ impl Snapshot {
                 self.has_semantic_errors = !incremental;
             }
         }
-        if let Some(old) = &self.old {
-            if self.has_errors != Some(old.has_errors)
-                || self.has_semantic_errors != old.has_semantic_errors
-            {
-                self.build_info_emit_pending = true;
+        match &self.old {
+            Some(old) => {
+                if self.has_errors != Some(old.has_errors)
+                    || self.has_semantic_errors != old.has_semantic_errors
+                {
+                    self.build_info_emit_pending = true;
+                }
             }
+            // tsgo compares with the unknown flags of a missing old state:
+            // they differ.
+            None => self.build_info_emit_pending = true,
         }
     }
 
@@ -782,8 +812,21 @@ impl Snapshot {
         let mut to = ToBuildInfo::new(program);
         let mut info = BuildInfo {
             version: VERSION.to_owned(),
+            incremental: is_incremental(options),
             ..BuildInfo::default()
         };
+        if !is_incremental(options) {
+            // snapshotToBuildInfo of a non-incremental program (tsc -b):
+            // the config's roots by their canonical names, the error flags
+            // and the package.json files.
+            info.root = program
+                .root_file_names
+                .iter()
+                .map(|path| BuildInfoRoot::NonIncremental(to.relative_to_build_info(path)))
+                .collect();
+            self.serialize_errors_and_package_jsons(&mut info, &to);
+            return info;
+        }
 
         // setFileInfoAndEmitSignatures: the ids of the program files, in
         // order.
@@ -925,6 +968,14 @@ impl Snapshot {
         if let Some(latest) = &self.latest_changed_dts_file {
             info.latest_changed_dts_file = to.relative_to_build_info(latest);
         }
+        self.serialize_errors_and_package_jsons(&mut info, &to);
+        info.file_names = to.file_names;
+        info.file_ids_list = to.file_ids_list;
+        info
+    }
+
+    /// The error flags and the package.json files every build info carries.
+    fn serialize_errors_and_package_jsons(&self, info: &mut BuildInfo, to: &ToBuildInfo<'_>) {
         info.errors = self.has_errors.unwrap_or(false);
         info.semantic_errors = self.has_semantic_errors;
         info.check_pending = self.check_pending;
@@ -938,9 +989,6 @@ impl Snapshot {
                 .map(|path| to.relative_to_build_info(path))
                 .collect();
         }
-        info.file_names = to.file_names;
-        info.file_ids_list = to.file_ids_list;
-        info
     }
 }
 
@@ -1617,6 +1665,8 @@ mod tests {
             referenced_files: vec![vec![], vec!["/work/src/b.ts".into()], vec![]],
             options: options(),
             build_info_file_name: "/work/dist/tsconfig.tsbuildinfo".into(),
+            build: false,
+            root_file_names: Vec::new(),
             current_directory: "/work".into(),
             use_case_sensitive_file_names: true,
             package_jsons: Vec::new(),
@@ -1748,6 +1798,8 @@ mod tests {
             referenced_files: vec![vec![], vec!["/work/src/b.ts".into()], vec![]],
             options: noemit_options(),
             build_info_file_name: "/work/tsconfig.tsbuildinfo".into(),
+            build: false,
+            root_file_names: Vec::new(),
             current_directory: "/work".into(),
             use_case_sensitive_file_names: true,
             package_jsons: Vec::new(),
@@ -1978,6 +2030,8 @@ mod tests {
                 ..CompilerOptions::default()
             },
             build_info_file_name: "/work/dist/tsconfig.tsbuildinfo".into(),
+            build: false,
+            root_file_names: Vec::new(),
             current_directory: "/work".into(),
             use_case_sensitive_file_names: true,
             package_jsons: Vec::new(),
