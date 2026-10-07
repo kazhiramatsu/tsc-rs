@@ -4332,3 +4332,66 @@ build infoを書き直さない。tsgoの各stepの出力（stdout、exit、書�
 - hosted：PR #696 run 37573603085（codeの最終head `409868c87`：`plan` 33s、`rust` 11m4s、`conformance (TypeScript 7.1)` 19m21s、`gates` 13s。全て成功）。packetの記録を含む最終候補 `51a93ad21`（docsだけの変更）のrun 37576597729（plannerはPR全体の差分で選ぶので両jobが走った：`plan` 28s、`rust` 9m58s、`conformance (TypeScript 7.1)` 19m16s、`gates` 16s。全て成功）。merge → `615216273`（merge commit）。
 - 計測（性能、corpusの診断、実project、conformance）は上の記録のとおり、merge前に最終bytes `409868c87`で行った。
 - cloneの状態：material-ui、azure-sdk-for-js、bench corpusにこの実行が残したfileは無い。
+
+## P3-6d `tsc -b`（build mode）（2026-10-07）
+
+tsgo execute/build（`orchestrator.go`、`buildtask.go`、`uptodatestatus.go`、`host.go`）の第1段：`-b`／`--build`を
+最初の引数に取る command。命名された project（無ければ `.`）とその参照先を graph にし、参照先から順に、各 project
+を「up to date か」判定してから build／pseudo-build（timestamp の更新）／skip／clean する。watch と並列 builder
+（`--builders` は受け付けて無視、tsgo が報告する順に1つずつ build）は対象外。
+- **command line**（`crates/compiler/src/cli.rs`）：tsgo `ParseBuildCommandLine`。build option は `--verbose/-v`、
+  `--dry/-d`、`--force/-f`、`--clean`、`--stopBuildOnErrors`、`--builders N`；`-p` が受け付ける compiler option は
+  全 project に適用；位置引数が project；`clean`+`force`／`clean`+`verbose` は TS5053（exit 1）。`-p` と共通の
+  option 解析は `parse_common_option` に括り出した。
+- **orchestrator**（`crates/compiler/src/build.rs`）：`createBuildTasks`（config を1回ずつ解析、無ければ task だけ）、
+  `setupBuildTask`（DFS、`completed`／`analyzing`、循環は `circular: true` の文脈でなければ TS6202、post-order が
+  `order`）、`buildProject`（`getUpToDateStatus` → verbose の報告 → `handleStatusThatDoesntRequireBuild`：UpToDate は
+  dry のみ報告、UpstreamErrors は verbose で skip を報告、Solution、ConfigFileNotFound は TS6053、pseudo-build は
+  dry なら報告のみ／それ以外は `updateTimeStamps`、dry なら「would build」→ build しないときは config の解析診断を
+  報告し error があれば exit 1）、`compileAndEmit`（verbose「Building project」、`--force` でなければ task の build
+  info を old state に渡して `-p` と同じ pipeline で build、emit された file 以外の output を touch
+  （`Updating unchanged output timestamps`；incremental／noEmit の project は build info だけ）、status を
+  BuildErrors／UpToDate(最初の emit file) に）、`onBuildInfoEmit`（書かれた build info を読み直して entry に、
+  d.ts が変わっていれば dtsTime=now）、`getLatestChangedDtsMTime`、`hasConflictingBuildInfo`、clean（出力と build
+  info を削除、input と同名は残す、dry は一覧「A non-dry build would delete the following files:」）、報告（task
+  ごとの buffer を order で結合、exit は最大、pretty なら全 project の error summary）。status 行は tsgo の
+  `CreateBuilderStatusReporter`：plain は `HH:MM:SS AM - message` + 空行、pretty は `[`灰色の時刻`] message`。時刻は
+  `TZ`／`/etc/localtime` の TZif から local time を計算（crate は unsafe 禁止なので libc を使わない）。
+- **up-to-date 判定**：`getUpToDateStatus` を 1:1 に移植（build info の有無／version／errors・semanticErrors・
+  checkPending／incremental の emitDiagnosticsPerFile・changeFileSet・semanticDiagnosticsPerFile・
+  affectedFilesPendingEmit・`IsEmitPending`／input の mtime と version（root info reader 経由）／root の増減／
+  build info の非 root file／非 incremental の output の mtime／upstream の build info 衝突と d.ts の変更時刻／config と
+  extends 先／package.json）。mtime は path ごとに1回だけ観測（tsgo `host.mTimes`）。
+- **build mode の pipeline**（tsgo `CompilerOptions.Build`）：`ProgramSession::with_build_mode`、driver の
+  `AffectedPolicy.build`。非 incremental の project も build info を書く（`build_info_file_name_in_build_mode`、
+  `ProgramState.build`／`root_file_names`、`Snapshot::can_use_incremental_state`、`serialize` の非 incremental 形
+  ＝`root` に canonical な名前、errors／semanticErrors／checkPending／packageJsons、`fileInfos` 無し）。`BuildInfo` に
+  `incremental`（tsgo の non-nil `FileInfos`：incremental の形なら空でも `"fileInfos":[]`）。`ensure_has_errors` は
+  old state が無いときも pending にする（tsgo は unknown との比較）。`has_changed_dts_file`。composite の d.ts が
+  signature は同じで map だけ違うとき（old signature が「別 option」形）は書いた後に mtime を戻す
+  （`differsOnlyInMap`：orchestrator が build 前に d.ts の mtime を控えて戻す）。emit の file 一覧は build では
+  `listEmittedFiles` に関わらず集める（`EmitHost::collects_emitted_files`；`TSFILE:` の印字は option で gate）。
+- **program crate**：`output_file_names`（tsgo `GetOutputFileNames`：file ごとに js、map、d.ts、d.ts.map）、
+  `output_js_file_name`／`output_extension`／`source_map_file_path`、`build_info_file_name_in_build_mode`。
+- **参照の検証の修正**（`loader.rs` `project_reference_diagnostics`）：tsgo `rangeResolvedProjectReference` は root の
+  config を `seen` に入れてから辿るので、循環（`circular: true`）で root に戻る参照は検証されない。port は root を
+  参照として再訪し TS6377 を出していた。
+- **incremental crate**：`BuildInfo::root_info_reader`（tsgo `GetBuildInfoRootInfoReader`）、`is_emit_pending`、
+  `file_name_of`／`file_info_of`、`is_default_library_name` を公開。
+- test：`cli_contract.rs` に生成した 12 の build scenario（`scratchpad/p36c/build_scenarios.py`：sample（core／logic／
+  tests：no change、leaf の編集、upstream の本体のみ／形の変更、同じ text の書き直し、force、dry、verbose 無し、
+  clean dry、clean、clean 後の rebuild、tsconfig の変更）、errors（upstream の error、stopBuildOnErrors、leaf の
+  error／構文 error）、noEmit の root、非 incremental の root（output の削除、error）、solution（`files: []`＋references、
+  複数 project、既定の `.`）、missing config（`-b bogus.json`、無い参照、dry、clean）、cycle（TS6202、clean、
+  `circular: true`）、declarationMap の切り替え、version 不一致と壊れた build info、root の追加・削除と参照先 file の
+  削除、outDir/rootDir＋`--listEmittedFiles`、extends 先の変更）。runner は status 行の時刻を正規化し、削除された
+  file も比較する。unit test：時刻の比較、TZif の読み取り、status の書式。
+- 残る制限：`--watch`、並列 builder、`--listFiles`／`--explainFiles`／`--traceResolution`／`--diagnostics`／`--help`／
+  `--locale`（`-p` と同様に未対応）、config に解析診断のある project は報告だけで build しない（tsgo は build する）、
+  content mapper。
+- scenario oracle（`steps.py`、tsgo `-b --singleThreaded` vs この binary）：build の 12 scenario／82 step と P3-6c の
+  23 scenario が全 step 一致（stdout（時刻は正規化）、exit、書かれた file、削除された file、build info の byte）。
+- conformance（最終bytes `69eedeeee`での1回の全体実行。macOS、`nice -n 20`、2 worker）：12,748 case／463 s、full 13,451、emit_full 13,443、mismatch 0、ratchet 0 regressions／0 above tiers（P3-6c と同じ行、ratchet の更新なし）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、program／incremental／emitter／compiler の
+  `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（4 crate 1,658 passed／0 failed、Clippy のみの
+  修正の後に最終 bytes `69eedeeee` で program／compiler を再実行：995 passed／0 failed）。
