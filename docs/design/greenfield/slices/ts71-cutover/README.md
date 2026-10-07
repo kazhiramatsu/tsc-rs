@@ -4484,3 +4484,54 @@ external／CommonJS module の implied format の行）を出す。`listFilesOnl
   計測していない（利用者の指示：性能はある程度完成してから制限なしで既存projectで計測する）。
 - scratchpad：`p36c/explain_scenarios.py`（7 scenario、`scenarios.py` が `SCENARIOS.update` で取り込む）、`p36e/probe-typeroots`
   （typeRoots の packageId の tsgo probe）、`p36e/run3`（最終記録）。
+## P3-6f parse task の scheduling：tsgo の filesParser を loader に写す（2026-10-07）
+
+P3-6b2 が記録した残差（material-ui `docs` の `affectedFilesPendingEmit` 2 file、fixture fx-reprocess）の解消。
+tsgo compiler/filesparser.go：root task（root file の順、次に lib root（既定 lib か `lib` の各項目）、最後に
+automatic type directive の task）を `start` で queue し、single-threaded の work group（core/workgroup.go
+`singleThreadedWorkGroup.pop`）は**最後に queue した task を先に**実行する（LIFO：P3-6b2 の記録の「FIFO＝BFS 的」は
+誤り）。task の実行：path ごとの `parseTaskData` に綴りごとの task を登録（同じ綴りの 2 つ目は `loadedTask` の
+alias で何も読まない）、最初の非空 packageId を data に、`currentDepth = depth + increaseDepth` が `lowestDepth`
+より浅ければ更新して subtask を始める旗を立て、`elideOnDepth && currentDepth > maxNodeModuleJsDepth` なら読まずに
+終わる。読み込んだ task の subtask は **task ごとに一度だけ**、その時点の `data.lowestDepth` で始める：後で浅い depth
+で同じ path を訪れても subtree には伝わらない（Strada の findSourceFile は depth 0 の再訪で reference を全て、
+浅い再訪で import を再処理していた）。subtask の順は path reference → type reference directive → lib reference →
+import（合成の tslib／jsx、import、augmentation は file を加えない）；`increaseDepth` は解決が external library の
+とき、`elideOnDepth` は node_modules の JavaScript のとき。`collectFiles` は root task から task の木を辿り、各 task の
+reason（alias の先、redirect は output へ、読まれなかった task の reason は捨てる）、path ごとに最初に集めた綴り
+（他の綴りは casing の alias）、package の重複排除（最初に入った file が id を持ち、後の同 id は redirect で subtree
+を辿らない。redirect の index は「それまでの通常 file＋redirect」に後から lib の数を足す）、postorder の並び、
+`lowestDepth > 0` の file を `sourceFilesFoundSearchingNodeModules`（emit 対象外）に。
+- **loader**（`crates/program/src/loader.rs`）：`ParseTask`／`TaskData`／`TaskOrigin`、`new_task`（queue 時の
+  `LoadOrStore`）、`run_tasks`（stack）、`execute_task`（上の規則）、`load_task`（automatic task、project reference の
+  redirect subtask、`admit_source`＝旧 `visit_source_inner` の読み込み部、`plan_subtasks`）。旧 `process_*` は
+  解決と診断はそのままに、訪問の代わりに subtask を作る `plan_*` に（type reference は directive ごとに 1 subtask、
+  lib reference の自己参照診断は tsgo に無いので外した、path reference の自己参照は親で診断して subtask を作らない、
+  extension 無しの root／path reference は tsgo の getSourceFileFromReference どおり `file_exists` で候補を探す）。
+  「File not found」は subtask の読み込みが空のときに親の directive に出す（program 診断は tsgo が sort するので
+  順序は観測されない）。`collect_files` は task の木の walk（reason、綴り、casing、重複排除、postorder、external）。
+  root の source と missing 診断、import の未読み込み理由（depth で elide された JavaScript＝`NodeModulesDepth`、
+  未 build の project reference 出力）は task 実行後に決める。Strada の再処理機構（`found_searching_node_modules`、
+  `modules_with_elided_imports`、`pending_reprocesses`、`schedule_source_reprocess`）、`source_edges`、
+  `top_level_sources`、`propagate_non_external_reachability`、`VisitState` を削除。`PreparedSourceFile::respell`
+  （collect で最初に集めた綴りに付け替える）。
+- `allowJs` 無しの JavaScript 解決（task を作らない）の未読み込み理由は従来どおり「最初の external layer の depth が
+  上限を超えていれば `NodeModulesDepth`、さもなければ `JavaScriptNotAdmitted`」（checker の provider がこの順で
+  読む。azure の `@types/node` → `events` package の `.js` で確認：depth を task に委ねた最初の版は
+  `JavaScriptNotAdmitted` だけを返し、provider が `UnloadedTargetAdmission` で失敗した）。
+- 観測できる変化：(1) fx-reprocess/one：`Referenced via './reference.js'` が 1 回（root として depth 0 で再訪しても
+  subtask は再開しない）；(2) fx-reprocess/two：`shared` が depth 1 で先に処理されるので `reference-leaf.js` が
+  program に入る；(3) material-ui docs：`TextareaAutosize.tsx`／`.types.ts` が external のまま。
+- scenario oracle（`steps.py`、tsgo `--singleThreaded` vs この binary）：44 scenario が全 step 一致（explain-schedule-one／two を
+  追加：fx-reprocess の配置で `--explainFiles`／`--listFiles`、`maxNodeModuleJsDepth` 0／1／2、import の順を入れ替えると
+  後の import の subtree が先に読まれ、浅い再訪でも subtask は再開しない）。fx-reprocess/one・two、fx-require は
+  `--explainFiles` で tsgo と一致。生成 CLI test 44。
+- 実project（`--noEmit`、tsgo `--singleThreaded` vs `TSRS_CHECKERS=1`、stdout＋exit＋build info）：material-ui 38/38
+  一致（`docs` の build info は byte 一致＝P3-6b2 の残差解消）、azure-sdk-for-js 2,756/2,756（270 s、2 job）、
+  DefinitelyTyped 9,067/9,067（628 s、2 job）。P3-6b2 の検証 chain：fixture 16/16、8/8、14/15（`composite.dmap` は
+  CLI が `--declarationMap` を受け付けない既存の差）、collect fixture 一致、material-ui の build-info 5 config 5/5、
+  azure spot 25/25。
+- conformance（最終bytes `6719f4e8b` での1回の全体実行。macOS、`nice -n 20`、2 worker）：12,748 case／458 s、full 13,451、emit_full 13,443、mismatch 0、ratchet 0 regressions／0 above tiers（P3-6e と同じ行、ratchet の更新なし）。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、program／compiler の
+  `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（program 595 passed／0 failed、compiler 409／0、
+  checker 1,797／0、incremental 28／0）。
