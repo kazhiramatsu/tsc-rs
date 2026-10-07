@@ -296,3 +296,15 @@ P4-1 の計測（types mismatch 233、symbols mismatch 172）の大きい class 
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、checker／compiler／conformance／harness の
   `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（conformance＋harness＋compiler 464 passed／0 failed、
   checker 1,797／0）。fix commit `aa7bb7399`。
+
+### P4-1aのhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `c7cb15651`（fix `aa7bb7399` ＋ packet の記録）の run 37664836440（`plan` 32s、`rust` 11m30s、
+  `conformance (TypeScript 7.1)` 19m59s、`gates` 16s。全て成功）。merge → `02dc706e4`（merge commit）。
+- 計測（conformance の全体実行、crate test）は上の記録のとおり、merge前に最終bytes `aa7bb7399` で行った。実project の比較は
+  行っていない（JS の `require` の解決と `__index` symbol は checker の挙動を変えるが、conformance の error／emit が不変で、
+  実project（`--noEmit` の診断）に影響する経路は `require` の型（JS file の `require(...)` が module の型になる）だけ。次の
+  checker 変更を含む slice で corpus を再比較する）。性能は計測していない（利用者の指示）。
+- 次：P4-1b（JS の `@type` hosting：`this.y = 12` の assignment declaration、`@type` を非 assignment の expression statement に
+  当てない；heritage clause の名前の `any`；shadowed type parameter の参照名；module symbol の specifier 名；
+  package redirect の unit；`SKIPPED_WALK_TESTS`）。
