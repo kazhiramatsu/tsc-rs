@@ -334,3 +334,14 @@ P4-1 の計測（types mismatch 233、symbols mismatch 172）の大きい class 
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、checker／compiler／conformance／harness の
   `cargo clippy --all-targets -- -D warnings`、`cargo test --no-fail-fast`（conformance＋harness＋compiler 464 passed／0 failed、
   checker 1,797／0）。fix commit `c330f3265`。
+
+### P4-1bのhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `b0b850c53`（fix `c330f3265` ＋ packet の記録）の run 37670779626（`plan` 30s、`rust` 8m49s、
+  `conformance (TypeScript 7.1)` 12m43s、`gates` 15s。全て成功）。merge → `d812a2778`（merge commit）。
+- 計測（conformance の全体実行、crate test）は上の記録のとおり、merge前に最終bytes `c330f3265` で行った。実project の比較は
+  行っていない（JS の checker の変更は conformance の error／emit が不変。P4-1a と合わせて、次に checker を変える slice で
+  corpus を再比較する）。性能は計測していない（利用者の指示）。
+- 次：P4-1c（`getTypeOfSymbol` の accessor 優先順（tsgo は Accessor を Variable|Property より先に見る）、再利用した型 node の中の
+  shadowed type parameter 名、package 自己参照の module specifier、heritage clause 名の `any`（instrumented tsgo）、
+  package redirect の unit、`SKIPPED_WALK_TESTS`）。
