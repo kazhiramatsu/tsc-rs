@@ -162,10 +162,12 @@ fn command_line_emit_options_override_config_values_before_loading() {
     )
     .expect("write config");
 
+    // tsgo's command line: a boolean's `false` is a separate argument.
     let output = run(
         &tree,
         &[
-            "--noEmit=false",
+            "--noEmit",
+            "false",
             "--target",
             "esnext",
             "--module",
@@ -20686,6 +20688,829 @@ root.ts
    Part of 'files' list in tsconfig.json
 "#,
                 exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_cli_errors() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `cli-errors`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[]},"files":["a.ts","lib/min.d.ts"]}"#,
+            ),
+            (
+                r#"a.ts"#,
+                r#"export const a: number = 1;
+"#,
+            ),
+            (
+                r#"sub/b.ts"#,
+                r#"export const b = 1;
+"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--bogus"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5023: Unknown compiler option '--bogus'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"did you mean"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--noEmits"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5025: Unknown compiler option '--noEmits'. Did you mean 'noEmit'?
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"enum value"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--target"#,
+                    r#"es1"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS6046: Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"enum without value"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#, r#"--target"#],
+                stdout: r#"error TS6044: Compiler option 'target' expects an argument.
+error TS6046: Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"equals form"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--listFilesOnly=maybe"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS5025: Unknown compiler option '--listFilesOnly=maybe'. Did you mean 'listFilesOnly'?
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"build not first"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--build"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS6369: Option '--build' must be the first command line argument.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"build-only option"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--verbose"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5093: Compiler option '--verbose' may only be used with '--build'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"number argument"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--maxNodeModuleJsDepth"#,
+                    r#"abc"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS6044: Compiler option 'maxNodeModuleJsDepth' expects an argument.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"number minimum"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--checkers"#,
+                    r#"0"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS5002: Option 'checkers' requires value to be greater than '1'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"lib value"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--lib"#,
+                    r#"bogus"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS6046: Argument for '--lib' option must be: 'es5', 'es6', 'es2015', 'es7', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext', 'dom', 'dom.iterable', 'dom.asynciterable', 'webworker', 'webworker.importscripts', 'webworker.iterable', 'webworker.asynciterable', 'scripthost', 'es2015.core', 'es2015.collection', 'es2015.generator', 'es2015.iterable', 'es2015.promise', 'es2015.proxy', 'es2015.reflect', 'es2015.symbol', 'es2015.symbol.wellknown', 'es2016.array.include', 'es2016.intl', 'es2017.arraybuffer', 'es2017.date', 'es2017.object', 'es2017.sharedmemory', 'es2017.string', 'es2017.intl', 'es2017.typedarrays', 'es2018.asyncgenerator', 'es2018.asynciterable', 'es2018.intl', 'es2018.promise', 'es2018.regexp', 'es2019.array', 'es2019.object', 'es2019.string', 'es2019.symbol', 'es2019.intl', 'es2020.bigint', 'es2020.date', 'es2020.promise', 'es2020.sharedmemory', 'es2020.string', 'es2020.symbol.wellknown', 'es2020.intl', 'es2020.number', 'es2021.promise', 'es2021.string', 'es2021.weakref', 'es2021.intl', 'es2022.array', 'es2022.error', 'es2022.intl', 'es2022.object', 'es2022.string', 'es2022.regexp', 'es2023.array', 'es2023.collection', 'es2023.intl', 'es2024.arraybuffer', 'es2024.collection', 'es2024.object', 'es2024.promise', 'es2024.regexp', 'es2024.sharedmemory', 'es2024.string', 'es2025.collection', 'es2025.float16', 'es2025.intl', 'es2025.iterator', 'es2025.promise', 'es2025.regexp', 'es2026.array', 'es2026.collection', 'es2026.error', 'es2026.iterator', 'es2026.json', 'es2026.math', 'es2026.typedarrays', 'esnext.asynciterable', 'esnext.symbol', 'esnext.bigint', 'esnext.weakref', 'esnext.object', 'esnext.regexp', 'esnext.string', 'esnext.float16', 'esnext.promise', 'esnext.array', 'esnext.collection', 'esnext.error', 'esnext.iterator', 'esnext.typedarrays', 'esnext.date', 'esnext.decorators', 'esnext.disposable', 'esnext.intl', 'esnext.sharedmemory', 'esnext.temporal', 'decorators', 'decorators.legacy'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"tsconfig-only option"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--paths"#,
+                    r#"x"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS6064: Option 'paths' can only be specified in 'tsconfig.json' file or set to 'null' on command line.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"several errors"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--bogus"#,
+                    r#"--noEmits"#,
+                    r#"--target"#,
+                    r#"es1"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS5023: Unknown compiler option '--bogus'.
+error TS5025: Unknown compiler option '--noEmits'. Did you mean 'noEmit'?
+error TS6046: Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'es2026', 'esnext'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"project with files"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"a.ts"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5042: Option 'project' cannot be mixed with source files on a command line.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"missing project path"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"x.json"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5058: The specified path does not exist: '<ROOT>/x.json'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"directory without config"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"sub"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5081: Cannot find a tsconfig.json file at the current directory: <ROOT>/sub/tsconfig.json.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"files with a config present"#,
+                edits: &[],
+                args: &[r#"a.ts"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5112: tsconfig.json is present but will not be loaded if files are specified on commandline. Use '--ignoreConfig' to skip this error.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"short names"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"-t"#,
+                    r#"es2020"#,
+                    r#"-m"#,
+                    r#"commonjs"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listFiles"#,
+                ],
+                stdout: r#"<ROOT>/a.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"watch and listFilesOnly"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--watch"#,
+                    r#"--listFilesOnly"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS6370: Options 'watch' and 'listFilesOnly' cannot be combined.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"boolean false and null"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--strict"#,
+                    r#"false"#,
+                    r#"--noEmit"#,
+                    r#"null"#,
+                    r#"--listEmittedFiles"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"TSFILE: <ROOT>/a.js
+"#,
+                exit: 0,
+                written: &[r#"a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_cli_build_errors() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `cli-build-errors`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[]},"files":["a.ts","lib/min.d.ts"]}"#,
+            ),
+            (
+                r#"a.ts"#,
+                r#"export const a = 1;
+"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"."#, r#"--bogus"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5072: Unknown build option '--bogus'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"compiler option"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"."#, r#"--listFilesOnly"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5094: Compiler option '--listFilesOnly' may not be used with '--build'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"did you mean"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"."#, r#"--verbos"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5077: Unknown build option '--verbos'. Did you mean 'verbose'?
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"clean and force"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"."#, r#"--clean"#, r#"--force"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS6370: Options 'clean' and 'force' cannot be combined.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"build short names"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"."#, r#"-v"#, r#"-f"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * tsconfig.json\n\nHH:MM:SS AM - Project 'tsconfig.json' is being forcibly rebuilt\n\nHH:MM:SS AM - Building project 'tsconfig.json'...\n\n",
+                exit: 0,
+                written: &[r#"a.js"#, r#"tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":["./a.ts","./lib/min.d.ts"]}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"builders minimum"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"."#, r#"--builders"#, r#"0"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"error TS5002: Option 'builders' requires value to be greater than '1'.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"noEmit in a build"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"."#, r#"--noEmit"#, r#"--listFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: r#""#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_cli_options() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `cli-options`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[]},"files":["a.ts","lib/min.d.ts"]}"#,
+            ),
+            (
+                r#"a.ts"#,
+                r#"export function f(x) { return x; }
+export const a: number = 1;
+"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--declarationMap"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"tsconfig.json(1,2): error TS5069: Option 'declarationMap' cannot be specified without specifying option 'declaration' or option 'composite'.
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"declaration and map"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--declaration"#,
+                    r#"--declarationMap"#,
+                    r#"--listEmittedFiles"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"a.ts(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+TSFILE: <ROOT>/a.js
+TSFILE: <ROOT>/a.d.ts.map
+TSFILE: <ROOT>/a.d.ts
+"#,
+                exit: 2,
+                written: &[r#"a.d.ts"#, r#"a.d.ts.map"#, r#"a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"strict off"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--strict"#,
+                    r#"false"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#""#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"noImplicitAny off"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--noImplicitAny"#,
+                    r#"false"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#""#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"outDir and target"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--outDir"#,
+                    r#"out"#,
+                    r#"--target"#,
+                    r#"es2016"#,
+                    r#"--listEmittedFiles"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"a.ts(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+TSFILE: <ROOT>/out/a.js
+"#,
+                exit: 2,
+                written: &[r#"out/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"removed target"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--target"#,
+                    r#"es5"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"tsconfig.json(1,77): error TS5108: Option 'target=ES5' has been removed. Please remove it from your configuration.
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"lib with noLib"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--lib"#,
+                    r#"es2022"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"tsconfig.json(1,100): error TS5053: Option 'lib' cannot be specified with option 'noLib'.
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"lib without noLib"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--noLib"#,
+                    r#"false"#,
+                    r#"--lib"#,
+                    r#"es2022"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"a.ts(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+lib/min.d.ts(1,38): error TS2374: Duplicate index signature for type 'number'.
+lib/min.d.ts(10,20): error TS2687: All declarations of 'length' must have identical modifiers.
+bundled:///libs/lib.es5.d.ts(515,14): error TS2687: All declarations of 'length' must have identical modifiers.
+bundled:///libs/lib.es5.d.ts(1508,5): error TS2374: Duplicate index signature for type 'number'.
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"noEmit false over the config"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"noEmit":true},"files":["a.ts","lib/min.d.ts"]}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--noEmit"#,
+                    r#"false"#,
+                    r#"--listEmittedFiles"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"a.ts(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+TSFILE: <ROOT>/a.js
+"#,
+                exit: 2,
+                written: &[r#"a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"removed option"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--moduleResolution"#,
+                    r#"node10"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"tsconfig.json(1,58): error TS5108: Option 'moduleResolution=node10' has been removed. Please remove it from your configuration.
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"explicit files"#,
+                edits: &[],
+                args: &[
+                    r#"--ignoreConfig"#,
+                    r#"a.ts"#,
+                    r#"lib/min.d.ts"#,
+                    r#"--noLib"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"a.ts(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"explicit files with declarationMap"#,
+                edits: &[],
+                args: &[
+                    r#"--ignoreConfig"#,
+                    r#"a.ts"#,
+                    r#"lib/min.d.ts"#,
+                    r#"--noLib"#,
+                    r#"--declarationMap"#,
+                    r#"--noEmit"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS5069: Option 'declarationMap' cannot be specified without specifying option 'declaration' or option 'composite'.
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"explicit files emit"#,
+                edits: &[],
+                args: &[
+                    r#"--ignoreConfig"#,
+                    r#"a.ts"#,
+                    r#"lib/min.d.ts"#,
+                    r#"--noLib"#,
+                    r#"--outDir"#,
+                    r#"out"#,
+                    r#"--declaration"#,
+                    r#"--listEmittedFiles"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"a.ts(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+TSFILE: <ROOT>/out/a.js
+TSFILE: <ROOT>/out/a.d.ts
+"#,
+                exit: 2,
+                written: &[r#"out/a.d.ts"#, r#"out/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"explicit files listFilesOnly"#,
+                edits: &[],
+                args: &[
+                    r#"--ignoreConfig"#,
+                    r#"a.ts"#,
+                    r#"lib/min.d.ts"#,
+                    r#"--noLib"#,
+                    r#"--listFilesOnly"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"<ROOT>/a.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"response file"#,
+                edits: &[(
+                    r#"args.rsp"#,
+                    Some(
+                        r#"--noEmit "--listFiles"
+--pretty false
+"#,
+                    ),
+                )],
+                args: &[r#"-p"#, r#"."#, r#"@args.rsp"#],
+                stdout: r#"a.ts(1,19): error TS7006: Parameter 'x' implicitly has an 'any' type.
+<ROOT>/a.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"missing response file"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"@missing.rsp"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                ],
+                stdout: r#"error TS5083: Cannot read file '<ROOT>/missing.rsp'.
+"#,
+                exit: 1,
                 written: &[],
                 deleted: &[],
                 build_info: &[],

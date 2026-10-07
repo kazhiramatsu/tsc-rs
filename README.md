@@ -618,12 +618,23 @@ declaration diagnostics of this configuration without writing any files.
 
 ## Common command-line options
 
+The command line is parsed as `tsgo` parses it: every compiler option of
+`tsconfig.json` is accepted as `--name value` (a boolean as `--name` or
+`--name false`, a list as comma-separated values, `--name null` to clear
+the configuration's value; names are case-insensitive and the short names
+`-p`, `-t`, `-m`, `-d`, `-i`, `-w`, `-v`, `-h` exist), and the values given
+replace the configuration's. There is no `--name=value` form. An unknown
+option, a bad value or a conflicting selection is reported as the
+TypeScript diagnostic `tsgo` prints (TS5023, TS5025, TS6046, TS5042, TS5058,
+TS5081, TS5112, …) with exit status 1. `@file` reads further arguments from
+a response file.
+
 | Option | Use |
 | --- | --- |
 | `--version` | Print the TypeScript compatibility version. |
 | `-p`, `--project <path>` | Select a project directory or configuration file. |
 | `--noEmit` | Check the project without writing compiler output. |
-| `--noEmit=false` | Enable output even when the configuration sets `noEmit`. |
+| `--noEmit false` | Enable output even when the configuration sets `noEmit`. |
 | `--target <version>` | Set the JavaScript target for compilation, such as `ES2022`. |
 | `--module <format>` | Set the module format, such as `CommonJS`, `ESNext`, or `Preserve`. |
 | `--noEmitOnError` | Prevent output when diagnostics are present. |
@@ -643,16 +654,18 @@ declaration diagnostics of this configuration without writing any files.
 | `--clean` | With `-b`: delete the outputs of the projects. |
 | `--stopBuildOnErrors` | With `-b`: skip the projects whose dependencies have errors. |
 
-Boolean options accept `true` or `false`, including the equals form, such
-as `--pretty=false`. To see which files a project build writes:
+To see which files a project build writes:
 
 ```sh
 tsc-rs -p . --listEmittedFiles
 ```
 
 Compiler settings such as `strict`, `outDir`, `sourceMap`, and `declaration`
-belong in `tsconfig.json`; they are not currently accepted as CLI flags.
-For `--noEmit`, see [configuration for type checks](#configuration-for-type-checks).
+are accepted on the command line as well as in `tsconfig.json`, within the
+same option support as the configuration file. `--init`, `--help`,
+`--watch`, `--showConfig` and a non-English `--locale` are not supported and
+are reported as a `tsc-rs:` usage error with exit status 2. For `--noEmit`,
+see [configuration for type checks](#configuration-for-type-checks).
 
 ## Build mode
 

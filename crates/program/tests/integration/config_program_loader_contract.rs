@@ -6,12 +6,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use tsc_host::{CompilerHost, FsCompilerHost, MemoryCompilerHost};
 use tsc_program::{
-    decode_host_text, load_config_program, load_config_program_with_no_emit_override,
-    load_emitting_config_program, load_emitting_config_program_with_no_emit_override,
-    load_emitting_config_program_with_overrides, parse_config_root_plan, validate_config_plan,
-    CompilerConfigHost, ConfigEmitOptionOverrides, ConfigHostError, ConfigHostOperation,
-    ConfigParseHost, ConfigProgramLoadError, ConfigRootPlanRequest, LibraryCatalog,
-    PreparedProgramMode, ProgramLoadLimits,
+    command_line_option_bag, decode_host_text, load_config_program,
+    load_config_program_with_no_emit_override, load_emitting_config_program,
+    load_emitting_config_program_with_no_emit_override, parse_config_root_plan,
+    parse_config_root_plan_with_command_line, validate_config_plan, CompilerConfigHost,
+    ConfigExtendedCache, ConfigHostError, ConfigHostOperation, ConfigParseHost,
+    ConfigProgramLoadError, ConfigRootPlanRequest, JsonValue, LibraryCatalog, PreparedProgramMode,
+    ProgramLoadLimits,
 };
 
 const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22);
@@ -1190,26 +1191,32 @@ fn emitting_config_loader_is_distinct_and_rejects_effective_no_emit() {
 fn emitting_config_loader_applies_typed_command_line_precedence() {
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
-    let plan = parse_config_root_plan(
+    // tsgo merges the command line's options over the config's before the
+    // program is created; the plan carries the merged options.
+    let command_line = command_line_option_bag(
+        &[
+            ("target".to_owned(), JsonValue::String("esnext".into())),
+            ("module".to_owned(), JsonValue::String("preserve".into())),
+            ("emitBOM".to_owned(), JsonValue::Bool(true)),
+            ("newLine".to_owned(), JsonValue::String("crlf".into())),
+            ("listEmittedFiles".to_owned(), JsonValue::Bool(true)),
+        ],
+        "/project".into(),
+    );
+    let plan = parse_config_root_plan_with_command_line(
         &adapter,
         request(
             r#"{"compilerOptions":{"target":"es2025","module":"esnext","lib":["es5"]},"files":["main.ts"]}"#,
         ),
+        &command_line,
+        &mut ConfigExtendedCache::default(),
     )
-    .expect("parse overridden emitting plan");
-    let prepared = load_emitting_config_program_with_overrides(
+    .expect("parse the plan with the command line's options");
+    let prepared = load_emitting_config_program(
         &host,
         &plan,
         &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
         LIMITS,
-        ConfigEmitOptionOverrides {
-            target: Some(99),
-            module: Some(200),
-            emit_bom: Some(true),
-            new_line: Some(0),
-            list_emitted_files: Some(true),
-            ..ConfigEmitOptionOverrides::default()
-        },
     )
     .expect("load config with command-line emit overrides");
     let options = prepared.compiler_options();

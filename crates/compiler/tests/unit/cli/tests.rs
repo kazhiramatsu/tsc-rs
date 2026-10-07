@@ -10,61 +10,60 @@ fn run(arguments: &[&str]) -> CliOutput {
 }
 
 #[test]
-fn argument_parser_selects_emit_and_the_admitted_target_ladder() {
+fn command_line_errors_are_tsgo_diagnostics_with_exit_status_one() {
+    // tsgo has no `--name=value` form: the whole token is an unknown option
+    // (too long for a spelling suggestion here).
+    let output = run(&["--noEmit=false", "--pretty", "false"]);
+    assert_eq!(output.exit_code(), EXIT_COMMAND_LINE);
+    assert!(output.stderr().is_empty());
     assert_eq!(
-        parse_arguments(&["--noEmit=false".to_owned()])
-            .expect("explicit false selects emit")
-            .compiler_options
-            .no_emit,
-        Some(false)
+        output.stdout(),
+        "error TS5023: Unknown compiler option '--noEmit=false'.\n"
     );
-    assert!(matches!(
-        parse_arguments(&["--watch".to_owned()]),
-        Err(CliError::Usage(_))
-    ));
+    let output = run(&["--strct", "--pretty", "false"]);
+    assert_eq!(output.exit_code(), EXIT_COMMAND_LINE);
     assert_eq!(
-        parse_arguments(&["--target=es2015".to_owned()])
-            .expect("the current H2 downlevel target is admitted")
-            .compiler_options
-            .target,
-        Some(2)
+        output.stdout(),
+        "error TS5025: Unknown compiler option '--strct'. Did you mean 'strict'?\n"
     );
+    let output = run(&["--target", "unknown-target", "--pretty", "false"]);
+    assert_eq!(output.exit_code(), EXIT_COMMAND_LINE);
+    assert!(output
+        .stdout()
+        .starts_with("error TS6046: Argument for '--target' option must be: "));
+    let output = run(&["--bogus", "--pretty", "false"]);
+    assert_eq!(output.exit_code(), EXIT_COMMAND_LINE);
     assert_eq!(
-        parse_arguments(&["--target=latest".to_owned()])
-            .expect("the tsc latest alias is admitted")
-            .compiler_options
-            .target,
-        Some(99)
+        output.stdout(),
+        "error TS5023: Unknown compiler option '--bogus'.\n"
     );
-    assert_eq!(
-        parse_arguments(&["--target=es5".to_owned()])
-            .expect("the shared target catalog admits ES5")
-            .compiler_options
-            .target,
-        Some(1)
-    );
-    assert!(matches!(
-        parse_arguments(&["--target=unknown-target".to_owned()]),
-        Err(CliError::Usage(message)) if message.contains("--target has an unknown value")
-    ));
+    // Unsupported modes stay usage errors of the port.
+    let output = run(&["--watch"]);
+    assert_eq!(output.exit_code(), EXIT_FAILURE);
+    assert!(output.stderr().contains("unsupported option \"--watch\""));
 }
 
 #[test]
 fn boolean_switches_consume_separate_values_without_turning_them_into_roots() {
-    let parsed = parse_arguments(&[
-        "--noEmit".to_owned(),
-        "true".to_owned(),
-        "--ignoreConfig".to_owned(),
-        "true".to_owned(),
-        "--pretty".to_owned(),
-        "false".to_owned(),
-        "main.ts".to_owned(),
-    ])
-    .expect("separate boolean values are accepted");
-    assert_eq!(parsed.compiler_options.no_emit, Some(true));
-    assert!(parsed.ignore_config);
-    assert_eq!(parsed.pretty, Some(false));
-    assert_eq!(parsed.files, [PathBuf::from("main.ts")]);
+    let parsed = parse_command_line(
+        &[
+            "--noEmit".to_owned(),
+            "true".to_owned(),
+            "--ignoreConfig".to_owned(),
+            "true".to_owned(),
+            "--pretty".to_owned(),
+            "false".to_owned(),
+            "main.ts".to_owned(),
+        ],
+        "/work".into(),
+        true,
+        &|_| None,
+    );
+    assert!(parsed.errors.is_empty());
+    assert_eq!(parsed.option_bool("noEmit"), Some(true));
+    assert_eq!(parsed.option_bool("ignoreConfig"), Some(true));
+    assert_eq!(parsed.option_bool("pretty"), Some(false));
+    assert_eq!(parsed.file_names, ["main.ts"]);
 }
 
 #[test]
