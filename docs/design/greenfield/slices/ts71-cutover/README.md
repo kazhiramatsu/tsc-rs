@@ -4326,3 +4326,9 @@ build infoを書き直さない。tsgoの各stepの出力（stdout、exit、書�
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、crate（incremental、checker、emitter、program、
   compiler）の`cargo clippy --all-targets -- -D warnings`と`cargo test --no-fail-fast`（最終bytes `409868c87`で3,436 passed／0 failed、`--test-threads 2`）。corpusの診断（8 corpora、`--noEmit`、既定のchecker数）：7件がtsgoとbyte一致、zodは既知のpartition依存の1行（P3-6aの出力と同一）。clone（material-ui、azure-sdk-for-js、bench corpus）にこの実行が残したfileは無い。
 - 性能（分割して計測：corpusごとに1回ずつ、3 round、interleaved、`nice -n 20`。main＝P3-6b2の`3817ea436`のbuild、このbuild＝`409868c87`）：`--noEmit`のwallはこのbuild/main 0.972〜0.998（hono 134 vs 137 ms、zod 497 vs 501、Playwright 344 vs 344、TypeScript compiler 317 vs 318、Next.js 694 vs 696、Effect 476 vs 480、Vue.js 322 vs 327、VS Code 3,283 vs 3,350）、peak RSS 0.977〜1.069（Playwrightの795 vs 744 MBはmain側の外れ値）。bench-full（emitあり）は0.962〜1.017（hono 145 vs 147 ms、zod 595 vs 593、Playwright 460 vs 452、TypeScript compiler 481 vs 483、Next.js 935 vs 972、Effect 729 vs 743、Vue.js 384 vs 388）、peak RSS 0.980〜1.017。1.015を超えた2件を10 roundで再計測：Playwright/full 455 vs 462 ms（0.986、RSS 1.001）、Playwright/noEmit 344 vs 346（0.993、RSS 789 vs 798 MB）＝noise。tsgoに対してはwall 0.48〜0.93、peak memory 0.63〜0.91。劣化なし（`incremental`でないprojectではplannerは作られず、fresh buildのplannerはsnapshotを作るだけ）。
+
+### P3-6cのhostedの記録とmerge（2026-10-07）
+
+- hosted：PR #696 run 37573603085（codeの最終head `409868c87`：`plan` 33s、`rust` 11m4s、`conformance (TypeScript 7.1)` 19m21s、`gates` 13s。全て成功）。packetの記録を含む最終候補 `51a93ad21`（docsだけの変更）のrun 37576597729（plannerはPR全体の差分で選ぶので両jobが走った：`plan` 28s、`rust` 9m58s、`conformance (TypeScript 7.1)` 19m16s、`gates` 16s。全て成功）。merge → `615216273`（merge commit）。
+- 計測（性能、corpusの診断、実project、conformance）は上の記録のとおり、merge前に最終bytes `409868c87`で行った。
+- cloneの状態：material-ui、azure-sdk-for-js、bench corpusにこの実行が残したfileは無い。
