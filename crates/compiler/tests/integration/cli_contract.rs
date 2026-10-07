@@ -20330,4 +20330,368 @@ bundled:///libs/lib.decorators.legacy.d.ts
     );
 }
 
+#[test]
+fn incremental_steps_explain_schedule_one() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-schedule-one`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","allowJs":true,"noEmit":true,"noLib":true,"types":[],"maxNodeModuleJsDepth":1},"files":["root.ts","node_modules/a/index.js"]}"#,
+            ),
+            (
+                r#"root.ts"#,
+                r#"import "a";
+export {};
+"#,
+            ),
+            (
+                r#"node_modules/a/package.json"#,
+                r#"{"name":"a","version":"1.0.0","main":"index.js"}"#,
+            ),
+            (
+                r#"node_modules/a/index.js"#,
+                r#"/// <reference path="./reference.js" />
+export {};
+"#,
+            ),
+            (
+                r#"node_modules/a/reference.js"#,
+                r#"import "./leaf.js";
+export {};
+"#,
+            ),
+            (
+                r#"node_modules/a/leaf.js"#,
+                r#"export const leaf = true;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"error TS2318: Cannot find global type 'Array'.
+error TS2318: Cannot find global type 'Boolean'.
+error TS2318: Cannot find global type 'CallableFunction'.
+error TS2318: Cannot find global type 'Function'.
+error TS2318: Cannot find global type 'IArguments'.
+error TS2318: Cannot find global type 'NewableFunction'.
+error TS2318: Cannot find global type 'Number'.
+error TS2318: Cannot find global type 'Object'.
+error TS2318: Cannot find global type 'RegExp'.
+error TS2318: Cannot find global type 'String'.
+node_modules/a/leaf.js
+   Imported via "./leaf.js" from file 'node_modules/a/reference.js' with packageId 'a/leaf.js@1.0.0'
+node_modules/a/reference.js
+   Referenced via './reference.js' from file 'node_modules/a/index.js'
+node_modules/a/index.js
+   Imported via "a" from file 'root.ts' with packageId 'a/index.js@1.0.0'
+   Part of 'files' list in tsconfig.json
+root.ts
+   Part of 'files' list in tsconfig.json
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#, r#"--listFiles"#],
+                stdout: r#"error TS2318: Cannot find global type 'Array'.
+error TS2318: Cannot find global type 'Boolean'.
+error TS2318: Cannot find global type 'CallableFunction'.
+error TS2318: Cannot find global type 'Function'.
+error TS2318: Cannot find global type 'IArguments'.
+error TS2318: Cannot find global type 'NewableFunction'.
+error TS2318: Cannot find global type 'Number'.
+error TS2318: Cannot find global type 'Object'.
+error TS2318: Cannot find global type 'RegExp'.
+error TS2318: Cannot find global type 'String'.
+<ROOT>/node_modules/a/leaf.js
+<ROOT>/node_modules/a/reference.js
+<ROOT>/node_modules/a/index.js
+<ROOT>/root.ts
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"depth 0"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","allowJs":true,"noEmit":true,"noLib":true,"types":[],"maxNodeModuleJsDepth":0},"files":["root.ts","node_modules/a/index.js"]}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"error TS2318: Cannot find global type 'Array'.
+error TS2318: Cannot find global type 'Boolean'.
+error TS2318: Cannot find global type 'CallableFunction'.
+error TS2318: Cannot find global type 'Function'.
+error TS2318: Cannot find global type 'IArguments'.
+error TS2318: Cannot find global type 'NewableFunction'.
+error TS2318: Cannot find global type 'Number'.
+error TS2318: Cannot find global type 'Object'.
+error TS2318: Cannot find global type 'RegExp'.
+error TS2318: Cannot find global type 'String'.
+node_modules/a/reference.js
+   Referenced via './reference.js' from file 'node_modules/a/index.js'
+node_modules/a/index.js
+   Imported via "a" from file 'root.ts' with packageId 'a/index.js@1.0.0'
+   Part of 'files' list in tsconfig.json
+root.ts
+   Part of 'files' list in tsconfig.json
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_explain_schedule_two() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-schedule-two`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","allowJs":true,"noEmit":true,"noLib":true,"types":[],"maxNodeModuleJsDepth":2},"files":["root.ts"]}"#,
+            ),
+            (
+                r#"root.ts"#,
+                r#"import "a";
+import "shared";
+export {};
+"#,
+            ),
+            (
+                r#"node_modules/a/package.json"#,
+                r#"{"name":"a","version":"1.0.0","main":"index.js"}"#,
+            ),
+            (
+                r#"node_modules/a/index.js"#,
+                r#"import "shared";
+export {};
+"#,
+            ),
+            (
+                r#"node_modules/shared/package.json"#,
+                r#"{"name":"shared","version":"1.0.0","main":"index.js"}"#,
+            ),
+            (
+                r#"node_modules/shared/index.js"#,
+                r#"/// <reference path="./reference.js" />
+import "./leaf.js";
+export {};
+"#,
+            ),
+            (
+                r#"node_modules/shared/reference.js"#,
+                r#"import "./reference-leaf.js";
+export {};
+"#,
+            ),
+            (
+                r#"node_modules/shared/reference-leaf.js"#,
+                r#"export const referenceLeaf = true;
+"#,
+            ),
+            (
+                r#"node_modules/shared/leaf.js"#,
+                r#"export const leaf = true;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"error TS2318: Cannot find global type 'Array'.
+error TS2318: Cannot find global type 'Boolean'.
+error TS2318: Cannot find global type 'CallableFunction'.
+error TS2318: Cannot find global type 'Function'.
+error TS2318: Cannot find global type 'IArguments'.
+error TS2318: Cannot find global type 'NewableFunction'.
+error TS2318: Cannot find global type 'Number'.
+error TS2318: Cannot find global type 'Object'.
+error TS2318: Cannot find global type 'RegExp'.
+error TS2318: Cannot find global type 'String'.
+node_modules/shared/reference-leaf.js
+   Imported via "./reference-leaf.js" from file 'node_modules/shared/reference.js' with packageId 'shared/reference-leaf.js@1.0.0'
+node_modules/shared/reference.js
+   Referenced via './reference.js' from file 'node_modules/shared/index.js'
+node_modules/shared/leaf.js
+   Imported via "./leaf.js" from file 'node_modules/shared/index.js' with packageId 'shared/leaf.js@1.0.0'
+node_modules/shared/index.js
+   Imported via "shared" from file 'node_modules/a/index.js' with packageId 'shared/index.js@1.0.0'
+   Imported via "shared" from file 'root.ts' with packageId 'shared/index.js@1.0.0'
+node_modules/a/index.js
+   Imported via "a" from file 'root.ts' with packageId 'a/index.js@1.0.0'
+root.ts
+   Part of 'files' list in tsconfig.json
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#, r#"--listFiles"#],
+                stdout: r#"error TS2318: Cannot find global type 'Array'.
+error TS2318: Cannot find global type 'Boolean'.
+error TS2318: Cannot find global type 'CallableFunction'.
+error TS2318: Cannot find global type 'Function'.
+error TS2318: Cannot find global type 'IArguments'.
+error TS2318: Cannot find global type 'NewableFunction'.
+error TS2318: Cannot find global type 'Number'.
+error TS2318: Cannot find global type 'Object'.
+error TS2318: Cannot find global type 'RegExp'.
+error TS2318: Cannot find global type 'String'.
+<ROOT>/node_modules/shared/reference-leaf.js
+<ROOT>/node_modules/shared/reference.js
+<ROOT>/node_modules/shared/leaf.js
+<ROOT>/node_modules/shared/index.js
+<ROOT>/node_modules/a/index.js
+<ROOT>/root.ts
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"depth 1"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","allowJs":true,"noEmit":true,"noLib":true,"types":[],"maxNodeModuleJsDepth":1},"files":["root.ts"]}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"error TS2318: Cannot find global type 'Array'.
+error TS2318: Cannot find global type 'Boolean'.
+error TS2318: Cannot find global type 'CallableFunction'.
+error TS2318: Cannot find global type 'Function'.
+error TS2318: Cannot find global type 'IArguments'.
+error TS2318: Cannot find global type 'NewableFunction'.
+error TS2318: Cannot find global type 'Number'.
+error TS2318: Cannot find global type 'Object'.
+error TS2318: Cannot find global type 'RegExp'.
+error TS2318: Cannot find global type 'String'.
+node_modules/shared/reference.js
+   Referenced via './reference.js' from file 'node_modules/shared/index.js'
+node_modules/shared/index.js
+   Imported via "shared" from file 'node_modules/a/index.js' with packageId 'shared/index.js@1.0.0'
+   Imported via "shared" from file 'root.ts' with packageId 'shared/index.js@1.0.0'
+node_modules/a/index.js
+   Imported via "a" from file 'root.ts' with packageId 'a/index.js@1.0.0'
+root.ts
+   Part of 'files' list in tsconfig.json
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"shared imported first"#,
+                edits: &[
+                    (
+                        r#"tsconfig.json"#,
+                        Some(
+                            r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","allowJs":true,"noEmit":true,"noLib":true,"types":[],"maxNodeModuleJsDepth":2},"files":["root.ts"]}"#,
+                        ),
+                    ),
+                    (
+                        r#"root.ts"#,
+                        Some(
+                            r#"import "shared";
+import "a";
+export {};
+"#,
+                        ),
+                    ),
+                ],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"error TS2318: Cannot find global type 'Array'.
+error TS2318: Cannot find global type 'Boolean'.
+error TS2318: Cannot find global type 'CallableFunction'.
+error TS2318: Cannot find global type 'Function'.
+error TS2318: Cannot find global type 'IArguments'.
+error TS2318: Cannot find global type 'NewableFunction'.
+error TS2318: Cannot find global type 'Number'.
+error TS2318: Cannot find global type 'Object'.
+error TS2318: Cannot find global type 'RegExp'.
+error TS2318: Cannot find global type 'String'.
+node_modules/shared/reference.js
+   Referenced via './reference.js' from file 'node_modules/shared/index.js'
+node_modules/shared/index.js
+   Imported via "shared" from file 'root.ts' with packageId 'shared/index.js@1.0.0'
+   Imported via "shared" from file 'node_modules/a/index.js' with packageId 'shared/index.js@1.0.0'
+node_modules/a/index.js
+   Imported via "a" from file 'root.ts' with packageId 'a/index.js@1.0.0'
+root.ts
+   Part of 'files' list in tsconfig.json
+"#,
+                exit: 2,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
 // === end of the incremental steps ===

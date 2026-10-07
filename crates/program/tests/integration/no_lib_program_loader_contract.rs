@@ -1348,9 +1348,10 @@ fn extensionless_roots_preserve_requests_probe_first_group_and_report_ts6231() {
             .contains(ALL_ROOT_EXTENSION_LIST)
     }));
 
+    // tsgo getSourceFileFromReference probes each candidate's existence.
     let read_failure = HostError::new(
         HostErrorKind::Other,
-        HostOperation::ReadFile,
+        HostOperation::FileExists,
         Some(PathBuf::from("/work/stop.ts")),
         "first extensionless candidate failed",
     );
@@ -2866,9 +2867,12 @@ fn external_type_reference_source_owns_the_next_node_module_js_depth_layer() {
     }
 }
 
+/// tsgo filesParser: `shared` runs at depth 1 before `a` (the last queued
+/// subtask of the root runs first), so its path reference's import is at
+/// depth 2 and loads; a task's subtasks start once, at its first depth.
 #[test]
-fn shallower_nonzero_revisit_reprocesses_only_imports() {
-    let skipped_reference_leaf = "/work/node_modules/shared/reference-leaf.js";
+fn shared_dependency_runs_at_its_first_depth_like_tsgo() {
+    let reference_leaf = "/work/node_modules/shared/reference-leaf.js";
     let host = MemoryCompilerHost::builder("/work")
         .file(
             "/work/root.ts",
@@ -2901,19 +2905,13 @@ fn shallower_nonzero_revisit_reprocesses_only_imports() {
             b"import './reference-leaf.js';\nexport {};\n".to_vec(),
         )
         .file(
-            skipped_reference_leaf,
+            reference_leaf,
             b"export const referenceLeaf = true;\n".to_vec(),
         )
         .file(
             "/work/node_modules/shared/leaf.js",
             b"export const leaf = true;\n".to_vec(),
         )
-        .failure(HostError::new(
-            HostErrorKind::Other,
-            HostOperation::ReadFile,
-            Some(PathBuf::from(skipped_reference_leaf)),
-            "an imports-only revisit must not revisit path references",
-        ))
         .build()
         .expect("build shallower-revisit host");
     let program = load_with_options(
@@ -2929,16 +2927,15 @@ fn shallower_nonzero_revisit_reprocesses_only_imports() {
         program_options(),
         generous_limits(),
     )
-    .expect("a shallower nonzero revisit processes only imported modules");
+    .expect("the shared package loads at depth 1 with its path reference's import");
 
     // The program order is tsgo's collect walk (filesparser.go collectFiles):
-    // a file after its subtasks, whenever they were loaded. (tsgo's parse
-    // tasks also load `reference-leaf.js` here — its single-threaded FIFO
-    // queue meets `shared` at depth 1 first — a JS-depth revisit difference
-    // this contract does not cover.)
+    // a file after its subtasks (tsgo --listFiles on scratchpad
+    // p36b2/fx-reprocess/two).
     assert_eq!(
         source_paths(&program),
         [
+            Path::new(reference_leaf),
             Path::new("/work/node_modules/shared/reference.js"),
             Path::new("/work/node_modules/shared/leaf.js"),
             Path::new("/work/node_modules/shared/index.js"),
@@ -2952,12 +2949,11 @@ fn shallower_nonzero_revisit_reprocesses_only_imports() {
         "./leaf.js",
         "/work/node_modules/shared/leaf.js",
     );
-    assert_unloaded_module_target(
+    assert_source_module_target(
         &program,
         "/work/node_modules/shared/reference.js",
         "./reference-leaf.js",
-        skipped_reference_leaf,
-        UnloadedModuleReason::NodeModulesDepth,
+        reference_leaf,
     );
 }
 
@@ -4676,18 +4672,21 @@ fn path_phase_traversal_failure_precedes_module_resolution_failure() {
         .file("/work/child.ts", b"export {};".to_vec())
         .file("/work/module.ts", b"export {};".to_vec())
         .failure(child_read.clone())
-        .failure(module_resolution)
+        .failure(module_resolution.clone())
         .build()
         .expect("build phase-precedence host");
 
     let error = load(&host, &["/work/root.ts"], generous_limits())
-        .expect_err("path traversal fails before the module phase");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Host);
-    assert_eq!(error.operation(), ProgramLoadOperation::ReadSource);
-    let ProgramLoadError::Host { source, .. } = error else {
-        unreachable!("kind identifies the host variant");
-    };
-    assert_eq!(*source, child_read);
+        .expect_err("the root's module resolution runs before its path reference is read");
+    // tsgo parseTask.load probes the referenced file's existence and
+    // resolves the imports while creating the subtasks; the referenced
+    // file is read when its task runs.
+    assert_resolution_host_error(
+        error,
+        ProgramLoadOperation::ResolveModule,
+        &module_resolution,
+    );
+    drop(child_read);
 }
 
 #[test]

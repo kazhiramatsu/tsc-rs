@@ -199,8 +199,12 @@ fn read_error(path: &str) -> HostError {
 const A_IMPORTS_DEP: &[u8] = b"import './dep';\nexport const a = 1;\n";
 const DEP: &[u8] = b"export const dep = 1;\n";
 const B: &[u8] = b"export const b = 1;\n";
+const A: &[u8] = b"export const a = 1;\n";
+const B_IMPORTS_DEP: &[u8] = b"import './dep';\nexport const b = 1;\n";
 
-/// `a.ts` imports `dep.ts`; `b.ts` is an independent second root.
+/// `a.ts` imports `dep.ts`; `b.ts` is an independent second root. The
+/// sequential walk is tsgo's single-threaded task order: the last root
+/// first, then a task's subtasks (`b.ts`, `a.ts`, `dep.ts`).
 fn dependency_host() -> MemoryCompilerHost {
     MemoryCompilerHost::builder("/work")
         .file("/work/a.ts", A_IMPORTS_DEP.to_vec())
@@ -208,6 +212,18 @@ fn dependency_host() -> MemoryCompilerHost {
         .file("/work/b.ts", B.to_vec())
         .build()
         .expect("build dependency host")
+}
+
+/// `b.ts` (the last root, visited first) imports `dep.ts`; `a.ts` is an
+/// independent first root whose retained read-ahead payload is still held
+/// when `dep.ts` is admitted.
+fn reverse_dependency_host() -> MemoryCompilerHost {
+    MemoryCompilerHost::builder("/work")
+        .file("/work/a.ts", A.to_vec())
+        .file("/work/dep.ts", DEP.to_vec())
+        .file("/work/b.ts", B_IMPORTS_DEP.to_vec())
+        .build()
+        .expect("build reverse dependency host")
 }
 
 #[test]
@@ -222,13 +238,13 @@ fn order_observing_hosts_keep_the_sequential_read_trace_and_first_error() {
         parallel_limits(),
     )
     .expect("sequential load succeeds");
-    assert_eq!(host.reads(), ["/work/a.ts", "/work/dep.ts", "/work/b.ts"]);
+    assert_eq!(host.reads(), ["/work/b.ts", "/work/a.ts", "/work/dep.ts"]);
     assert_eq!(
         source_paths(&program),
         ["/work/dep.ts", "/work/a.ts", "/work/b.ts"]
     );
 
-    // First error wins and nothing after it is read: b.ts is never touched
+    // First error wins and nothing after it is read: dep.ts is never touched
     // even though a second read of a.ts would have succeeded.
     let host = TracedHost::new(dependency_host(), false)
         .fault_next_read("/work/a.ts", read_error("/work/a.ts"));
@@ -238,8 +254,8 @@ fn order_observing_hosts_keep_the_sequential_read_trace_and_first_error() {
         compiler_options(),
         parallel_limits(),
     )
-    .expect_err("the first root read fails");
-    assert_eq!(host.reads(), ["/work/a.ts"]);
+    .expect_err("the a.ts read fails");
+    assert_eq!(host.reads(), ["/work/b.ts", "/work/a.ts"]);
     assert_eq!(error.path(), Some(Path::new("/work/a.ts")));
     let ProgramLoadError::Host { source, .. } = &error else {
         panic!("expected the host read error, got {error:?}");
@@ -262,7 +278,7 @@ fn serial_budget_keeps_the_sequential_trace_for_read_ahead_hosts() {
     .expect("serial load succeeds");
     assert_eq!(
         serial_host.reads(),
-        ["/work/a.ts", "/work/dep.ts", "/work/b.ts"]
+        ["/work/b.ts", "/work/a.ts", "/work/dep.ts"]
     );
 
     let parallel_host = TracedHost::new(dependency_host(), true);
@@ -307,11 +323,11 @@ fn read_ahead_hosts_retain_the_first_error_instead_of_retrying() {
         parallel_limits(),
     )
     .expect_err("the retained read error is reported at a.ts's visit");
-    // Read-ahead stops at the failed root: b.ts is never read, the failed
-    // read of a.ts is retained and reported at its visit, never repeated, so
-    // the queued second (valid) answer is never consumed and dep.ts is never
-    // requested.
-    assert_eq!(host.reads(), ["/work/a.ts"]);
+    // Read-ahead stops at the failed root: the failed read of a.ts is
+    // retained and reported at its visit (after b.ts's, the last root's),
+    // never repeated, so the queued second (valid) answer is never consumed
+    // and dep.ts is never requested.
+    assert_eq!(host.reads(), ["/work/a.ts", "/work/b.ts"]);
     assert_eq!(error, sequential);
 }
 
@@ -421,7 +437,7 @@ fn read_ahead_root_reached_first_as_a_dependency_is_not_re_read() {
         parallel_limits(),
     )
     .expect("sequential load succeeds");
-    assert_eq!(sequential_host.reads(), ["/work/a.ts", "/work/b.ts"]);
+    assert_eq!(sequential_host.reads(), ["/work/b.ts", "/work/a.ts"]);
 
     let read_ahead_host = TracedHost::new(host, true);
     let program = load(
@@ -471,10 +487,10 @@ fn read_ahead_leaves_skipped_missing_and_json_roots_on_the_sequential_path() {
     assert_eq!(
         sequential_host.reads(),
         [
-            "/work/missing.ts",
-            "/work/data.json",
+            "/work/b.ts",
             "/work/a.ts",
-            "/work/b.ts"
+            "/work/data.json",
+            "/work/missing.ts"
         ]
     );
 
@@ -531,8 +547,9 @@ fn read_ahead_never_retains_a_payload_outside_the_load_limits() {
 
     // Total-byte budget 15: a.ts (10) is retained; b.ts would bring the
     // retained total to 20, so its payload is dropped after the host's
-    // one-call allocation, read-ahead stops, and the visit reads b.ts again
-    // and rejects it with the sequential observed value. c.ts is never read.
+    // one-call allocation and read-ahead stops. The walk runs the last root
+    // first: c.ts is read and admitted, then b.ts is read again and rejected
+    // with the sequential observed value; a.ts's visit is never reached.
     let sequential_host = TracedHost::new(host.clone(), false);
     let sequential = load(
         &sequential_host,
@@ -541,7 +558,7 @@ fn read_ahead_never_retains_a_payload_outside_the_load_limits() {
         limits(GENEROUS_LIMIT, GENEROUS_LIMIT, 15, parallel()),
     )
     .expect_err("total byte limit");
-    assert_eq!(sequential_host.reads(), ["/work/a.ts", "/work/b.ts"]);
+    assert_eq!(sequential_host.reads(), ["/work/c.ts", "/work/b.ts"]);
     let read_ahead_host = TracedHost::new(host.clone(), true);
     let error = load(
         &read_ahead_host,
@@ -552,7 +569,7 @@ fn read_ahead_never_retains_a_payload_outside_the_load_limits() {
     .expect_err("total byte limit");
     assert_eq!(
         read_ahead_host.reads(),
-        ["/work/a.ts", "/work/b.ts", "/work/b.ts"]
+        ["/work/a.ts", "/work/b.ts", "/work/c.ts", "/work/b.ts"]
     );
     assert_eq!(error, sequential);
     let exceeded = error.limit_exceeded().expect("limit evidence");
@@ -561,8 +578,9 @@ fn read_ahead_never_retains_a_payload_outside_the_load_limits() {
     assert_eq!(exceeded.observed(), 20);
 
     // Source-count budget 1: read-ahead retains a.ts and stops before reading
-    // the root that would exceed the joint count; the visit reads b.ts and
-    // rejects it exactly as the sequential walk does.
+    // the root that would exceed the joint count. The walk runs the last root
+    // first: admitting c.ts evicts the retained a.ts payload, and the visit
+    // reads b.ts and rejects it exactly as the sequential walk does.
     let sequential_host = TracedHost::new(host.clone(), false);
     let sequential = load(
         &sequential_host,
@@ -579,16 +597,20 @@ fn read_ahead_never_retains_a_payload_outside_the_load_limits() {
         limits(1, GENEROUS_LIMIT, GENEROUS_LIMIT, parallel()),
     )
     .expect_err("source count limit");
-    assert_eq!(sequential_host.reads(), ["/work/a.ts", "/work/b.ts"]);
-    assert_eq!(read_ahead_host.reads(), ["/work/a.ts", "/work/b.ts"]);
+    assert_eq!(sequential_host.reads(), ["/work/c.ts", "/work/b.ts"]);
+    assert_eq!(
+        read_ahead_host.reads(),
+        ["/work/a.ts", "/work/c.ts", "/work/b.ts"]
+    );
     assert_eq!(error, sequential);
     let exceeded = error.limit_exceeded().expect("limit evidence");
     assert_eq!(exceeded.limit(), ProgramLoadLimit::SourceFiles);
+    assert_eq!(exceeded.path(), Some(Path::new("/work/b.ts")));
     assert_eq!(exceeded.observed(), 2);
 
     // Per-file budget 5: the oversized root's payload is never retained
-    // (its size is unknown until read); read-ahead stops, and the visit
-    // reads a.ts again and reports the sequential limit error.
+    // (its size is unknown until read); read-ahead stops, and the visit of
+    // the last root reads c.ts and reports the sequential limit error.
     let sequential_host = TracedHost::new(host.clone(), false);
     let sequential = load(
         &sequential_host,
@@ -605,24 +627,24 @@ fn read_ahead_never_retains_a_payload_outside_the_load_limits() {
         limits(GENEROUS_LIMIT, 5, GENEROUS_LIMIT, parallel()),
     )
     .expect_err("per-file byte limit");
-    assert_eq!(sequential_host.reads(), ["/work/a.ts"]);
-    assert_eq!(read_ahead_host.reads(), ["/work/a.ts", "/work/a.ts"]);
+    assert_eq!(sequential_host.reads(), ["/work/c.ts"]);
+    assert_eq!(read_ahead_host.reads(), ["/work/a.ts", "/work/c.ts"]);
     assert_eq!(error, sequential);
     let exceeded = error.limit_exceeded().expect("limit evidence");
     assert_eq!(exceeded.limit(), ProgramLoadLimit::SourceFileBytes);
-    assert_eq!(exceeded.path(), Some(Path::new("/work/a.ts")));
+    assert_eq!(exceeded.path(), Some(Path::new("/work/c.ts")));
     assert_eq!(exceeded.observed(), 10);
 }
 
 /// The integrator's F8 counterexample: `max_source_files = 2`, roots `a.ts`
-/// and `b.ts`, `a.ts` imports `dep.ts`. Read-ahead retains both roots (two
-/// of two); when the walk admits `dep.ts` the joint bound would reach three,
-/// so the retained `b.ts` payload is evicted before `dep.ts` is decoded, and
-/// `b.ts` is read again at its visit, where the sequential count limit
-/// rejects it with the sequential observed value.
+/// and `b.ts`, `b.ts` (visited first) imports `dep.ts`. Read-ahead retains
+/// both roots (two of two); when the walk admits `dep.ts` the joint bound
+/// would reach three, so the retained `a.ts` payload is evicted before
+/// `dep.ts` is decoded, and `a.ts` is read again at its visit, where the
+/// sequential count limit rejects it with the sequential observed value.
 #[test]
 fn admitted_dependencies_evict_retained_payloads_under_the_source_count_bound() {
-    let sequential_host = TracedHost::new(dependency_host(), false);
+    let sequential_host = TracedHost::new(reverse_dependency_host(), false);
     let sequential = load(
         &sequential_host,
         &["/work/a.ts", "/work/b.ts"],
@@ -632,10 +654,10 @@ fn admitted_dependencies_evict_retained_payloads_under_the_source_count_bound() 
     .expect_err("three sources under a two-source limit");
     assert_eq!(
         sequential_host.reads(),
-        ["/work/a.ts", "/work/dep.ts", "/work/b.ts"]
+        ["/work/b.ts", "/work/dep.ts", "/work/a.ts"]
     );
 
-    let read_ahead_host = TracedHost::new(dependency_host(), true);
+    let read_ahead_host = TracedHost::new(reverse_dependency_host(), true);
     let error = load(
         &read_ahead_host,
         &["/work/a.ts", "/work/b.ts"],
@@ -645,54 +667,54 @@ fn admitted_dependencies_evict_retained_payloads_under_the_source_count_bound() 
     .expect_err("three sources under a two-source limit");
     assert_eq!(
         read_ahead_host.reads(),
-        ["/work/a.ts", "/work/b.ts", "/work/dep.ts", "/work/b.ts"]
+        ["/work/a.ts", "/work/b.ts", "/work/dep.ts", "/work/a.ts"]
     );
     assert_eq!(error, sequential);
     let exceeded = error.limit_exceeded().expect("limit evidence");
     assert_eq!(exceeded.limit(), ProgramLoadLimit::SourceFiles);
-    assert_eq!(exceeded.path(), Some(Path::new("/work/b.ts")));
+    assert_eq!(exceeded.path(), Some(Path::new("/work/a.ts")));
     assert_eq!(exceeded.observed(), 3);
 }
 
-/// The byte analogue: the total budget admits `a + b` and `a + dep` but not
-/// all three, so the retained `b.ts` payload is evicted when `dep.ts` is
-/// admitted and the walk fails at `b.ts` with the sequential total.
+/// The byte analogue: the total budget admits `a + b` and `b + dep` but not
+/// all three, so the retained `a.ts` payload is evicted when `dep.ts` is
+/// admitted and the walk fails at `a.ts` with the sequential total.
 #[test]
 fn admitted_dependencies_evict_retained_payloads_under_the_byte_bound() {
-    let total = A_IMPORTS_DEP.len() + DEP.len() + B.len();
+    let total = A.len() + DEP.len() + B_IMPORTS_DEP.len();
     let budget = total - 1;
-    assert!(A_IMPORTS_DEP.len() + B.len() <= budget);
-    assert!(A_IMPORTS_DEP.len() + DEP.len() <= budget);
+    assert!(A.len() + B_IMPORTS_DEP.len() <= budget);
+    assert!(B_IMPORTS_DEP.len() + DEP.len() <= budget);
 
-    let sequential_host = TracedHost::new(dependency_host(), false);
+    let sequential_host = TracedHost::new(reverse_dependency_host(), false);
     let sequential = load(
         &sequential_host,
         &["/work/a.ts", "/work/b.ts"],
         compiler_options(),
         limits(GENEROUS_LIMIT, GENEROUS_LIMIT, budget, parallel()),
     )
-    .expect_err("total bytes exceed the budget at b.ts");
+    .expect_err("total bytes exceed the budget at a.ts");
     assert_eq!(
         sequential_host.reads(),
-        ["/work/a.ts", "/work/dep.ts", "/work/b.ts"]
+        ["/work/b.ts", "/work/dep.ts", "/work/a.ts"]
     );
 
-    let read_ahead_host = TracedHost::new(dependency_host(), true);
+    let read_ahead_host = TracedHost::new(reverse_dependency_host(), true);
     let error = load(
         &read_ahead_host,
         &["/work/a.ts", "/work/b.ts"],
         compiler_options(),
         limits(GENEROUS_LIMIT, GENEROUS_LIMIT, budget, parallel()),
     )
-    .expect_err("total bytes exceed the budget at b.ts");
+    .expect_err("total bytes exceed the budget at a.ts");
     assert_eq!(
         read_ahead_host.reads(),
-        ["/work/a.ts", "/work/b.ts", "/work/dep.ts", "/work/b.ts"]
+        ["/work/a.ts", "/work/b.ts", "/work/dep.ts", "/work/a.ts"]
     );
     assert_eq!(error, sequential);
     let exceeded = error.limit_exceeded().expect("limit evidence");
     assert_eq!(exceeded.limit(), ProgramLoadLimit::TotalSourceBytes);
-    assert_eq!(exceeded.path(), Some(Path::new("/work/b.ts")));
+    assert_eq!(exceeded.path(), Some(Path::new("/work/a.ts")));
     assert_eq!(exceeded.observed(), total);
 }
 
@@ -765,7 +787,7 @@ fn deep_inputs_load_identically_through_read_ahead_workers() {
         serial,
     )
     .expect("sequential load succeeds");
-    assert_eq!(sequential_host.reads(), ["/work/deep.ts", "/work/b.ts"]);
+    assert_eq!(sequential_host.reads(), ["/work/b.ts", "/work/deep.ts"]);
 
     let read_ahead_host = TracedHost::new(host, true);
     let program = load(

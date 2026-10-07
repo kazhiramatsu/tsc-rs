@@ -4,7 +4,8 @@ use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryComp
 use tsc_program::{
     load_program, plan_source_requests, CompilerOptions, LibraryCatalog, PreparedProgram,
     ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
-    ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionOutcome,
+    ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionError, ResolutionOutcome,
+    SourceInclusionReason,
 };
 
 const LIBRARY_DIRECTORY: &str = "/typescript/lib";
@@ -338,8 +339,11 @@ fn host_default_library_override_is_validated_only_when_it_is_selected() {
     assert_library_prefix(&explicit, &["/typescript/lib/lib.es5.d.ts"]);
 }
 
+/// tsgo filesParser: the root task registered the replacement's spelling
+/// first, so the lib reference's task is its alias and the file stays an
+/// ordinary (root) file rather than a library file.
 #[test]
-fn lib_replacement_promotes_an_existing_root_to_library_membership() {
+fn lib_replacement_keeps_an_existing_root_ordinary_like_tsgo() {
     let replacement = "/node_modules/@typescript/lib-dom/index.d.ts";
     let host = MemoryCompilerHost::builder("/")
         .file(replacement, b"interface ABC { abc: string }\n".to_vec())
@@ -367,7 +371,7 @@ fn lib_replacement_promotes_an_existing_root_to_library_membership() {
     )
     .expect("resolve the root-owned declaration as the selected DOM library");
 
-    assert_library_prefix(&program, &["/typescript/lib/lib.es6.d.ts", replacement]);
+    assert_library_prefix(&program, &["/typescript/lib/lib.es6.d.ts"]);
     assert_eq!(
         source_paths(&program),
         ["/typescript/lib/lib.es6.d.ts", replacement, "/src/index.ts",]
@@ -599,7 +603,10 @@ fn mapped_missing_lib_reference_is_located_but_missing_selected_roots_are_filele
 
     let program = load(&host, &["/work/root.ts"], options, generous_limits())
         .expect("missing mapped libraries become TS6053 diagnostics");
-    let diagnostics = program.diagnostics().program();
+    // The program bucket is sorted when rendered; the located diagnostic is
+    // ordered first here.
+    let mut diagnostics = program.diagnostics().program().to_vec();
+    diagnostics.sort_by_key(|diagnostic| diagnostic.file_name.is_none());
     assert_eq!(diagnostics.len(), 2);
 
     let reference = &diagnostics[0];
@@ -673,8 +680,11 @@ fn mapped_missing_lib_reference_is_located_but_missing_selected_roots_are_filele
     );
 }
 
+/// tsgo filesParser: the root task registered the path first, so the
+/// selected library's task is its alias; the missing file is reported with
+/// the root's reason.
 #[test]
-fn a_missing_selected_library_replaces_the_same_missing_root_reason() {
+fn a_root_that_is_also_a_missing_selected_library_reports_the_root_reason_like_tsgo() {
     let host = MemoryCompilerHost::builder("/work")
         .build()
         .expect("build missing-root/library overlap host");
@@ -687,20 +697,23 @@ fn a_missing_selected_library_replaces_the_same_missing_root_reason() {
         },
         generous_limits(),
     )
-    .expect("the later selected-library reason replaces the root reason");
+    .expect("the missing file is reported once, with the root reason");
 
     let diagnostics = program.diagnostics().program();
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0].code(), 6053);
-    assert_eq!(diagnostics[0].message.next[0].next[0].code, 1422);
+    assert_eq!(diagnostics[0].message.next[0].next[0].code, 1427);
     assert_eq!(
         program.roots()[0].missing_diagnostic(),
         Some(&diagnostics[0])
     );
 }
 
+/// tsgo parseTask.load adds a lib reference's subtask without the
+/// self-reference check of path references: the library is its own
+/// reference, with no diagnostic.
 #[test]
-fn library_self_reference_produces_a_located_ts1006() {
+fn library_self_reference_is_a_plain_reference_like_tsgo() {
     let lib_text = "/// <reference lib=\"es5\" />\ndeclare const es5: true;\n";
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"export {};\n".to_vec())
@@ -716,27 +729,18 @@ fn library_self_reference_produces_a_located_ts1006() {
         },
         generous_limits(),
     )
-    .expect("a library self-reference is a program diagnostic");
+    .expect("a library self-reference loads nothing more");
 
-    let diagnostics = program.diagnostics().program();
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].code(), 1006);
-    assert_eq!(
-        diagnostics[0]
-            .file_name
-            .as_ref()
-            .map(|value| value.as_str().expect("scalar legacy option observation")),
-        Some("/typescript/lib/lib.es5.d.ts")
-    );
-    assert_eq!(
-        diagnostics[0].start,
-        Some(lib_text.find("es5").unwrap() as u32)
-    );
-    assert_eq!(diagnostics[0].length, Some(3));
-    assert_eq!(
-        diagnostics[0].message_text(),
-        "A file cannot have a reference to itself."
-    );
+    assert!(program.diagnostics().program().is_empty());
+    assert_library_prefix(&program, &["/typescript/lib/lib.es5.d.ts"]);
+    let library = &program.source_files()[0];
+    assert!(matches!(
+        library.inclusion_reasons(),
+        [
+            SourceInclusionReason::LibraryRoot(_),
+            SourceInclusionReason::LibraryReference { .. }
+        ]
+    ));
 }
 
 #[test]
@@ -885,7 +889,7 @@ fn lib_phase_precedes_module_resolution_and_descends_sequentially() {
         .file("/work/module.ts", b"export {};\n".to_vec())
         .failure(nested_lib_read.clone())
         .failure(later_lib_read)
-        .failure(module_resolution)
+        .failure(module_resolution.clone())
         .build()
         .expect("build library-phase precedence host");
     let options = CompilerOptions {
@@ -894,17 +898,19 @@ fn lib_phase_precedes_module_resolution_and_descends_sequentially() {
     };
 
     let error = load(&host, &["/work/root.ts"], options, generous_limits())
-        .expect_err("the nested first-lib read wins before later lib and module operations");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Host);
-    assert_eq!(error.operation(), ProgramLoadOperation::ReadSource);
-    assert_eq!(
-        error.path(),
-        Some(Path::new("/typescript/lib/lib.es2015.d.ts"))
-    );
-    let ProgramLoadError::Host { source, .. } = error else {
-        unreachable!("kind identifies the host variant");
+        .expect_err("the root's module resolution runs before its lib references are read");
+    // tsgo parseTask.load resolves a file's imports while creating its
+    // subtasks; the lib references are read when their tasks run.
+    assert_eq!(error.kind(), ProgramLoadErrorKind::Resolution);
+    assert_eq!(error.operation(), ProgramLoadOperation::ResolveModule);
+    let ProgramLoadError::Resolution { source, .. } = error else {
+        unreachable!("kind identifies the resolution variant");
     };
-    assert_eq!(*source, nested_lib_read);
+    let ResolutionError::Host(actual) = *source else {
+        panic!("expected a nested resolver host failure");
+    };
+    assert_eq!(actual, module_resolution);
+    drop(nested_lib_read);
 }
 
 #[test]
@@ -951,8 +957,11 @@ fn path_references_from_library_order_sources_fail_closed_before_descending() {
     assert_eq!(feature, "default-library-path-references");
 }
 
+/// tsgo filesParser: the selected library's task runs first (the last
+/// queued root task), so the path reference from the root is its alias and
+/// the file is a library file with both reasons.
 #[test]
-fn ordinary_library_identity_collision_fails_closed() {
+fn a_path_reference_to_the_selected_library_keeps_it_a_library_like_tsgo() {
     let host = MemoryCompilerHost::builder("/work")
         .file(
             "/work/root.ts",
@@ -969,23 +978,22 @@ fn ordinary_library_identity_collision_fails_closed() {
         ..compiler_options()
     };
 
-    let error = load(&host, &["/work/root.ts"], options, generous_limits())
-        .expect_err("one canonical source cannot be both ordinary and library input");
-    assert_eq!(error.kind(), ProgramLoadErrorKind::Unsupported);
-    assert_eq!(error.operation(), ProgramLoadOperation::ReadSource);
+    let program = load(&host, &["/work/root.ts"], options, generous_limits())
+        .expect("the path reference joins the library's task");
+    assert!(program.diagnostics().program().is_empty());
+    assert_library_prefix(&program, &["/typescript/lib/lib.es5.d.ts"]);
     assert_eq!(
-        error.path(),
-        Some(Path::new("/typescript/lib/lib.es5.d.ts"))
+        source_paths(&program),
+        ["/typescript/lib/lib.es5.d.ts", "/work/root.ts"]
     );
-    let ProgramLoadError::Unsupported {
-        feature, detail, ..
-    } = error
-    else {
-        unreachable!("kind identifies the unsupported variant");
-    };
-    assert_eq!(feature, "library-source-classification-collision");
-    assert!(detail.contains("Ordinary"));
-    assert!(detail.contains("Library"));
+    let library = &program.source_files()[0];
+    assert!(matches!(
+        library.inclusion_reasons(),
+        [
+            SourceInclusionReason::PathReference { .. },
+            SourceInclusionReason::LibraryRoot(_)
+        ]
+    ));
 }
 
 #[test]
@@ -1060,12 +1068,14 @@ fn library_sources_and_references_count_toward_every_resource_limit() {
             GENEROUS_LIMIT,
         ),
     )
-    .expect_err("the selected library is the second loaded source");
+    .expect_err("the selected library's lib reference is the second loaded source");
+    // The selected library is the last queued root task, so it runs first;
+    // its lib reference is the second source.
     assert_limit_error(
         error,
         ProgramLoadOperation::ReadSource,
         ProgramLoadLimit::SourceFiles,
-        Path::new("/typescript/lib/lib.es5.d.ts"),
+        Path::new("/typescript/lib/lib.dom.d.ts"),
         1,
         2,
     );
