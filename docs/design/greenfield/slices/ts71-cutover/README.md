@@ -4606,3 +4606,12 @@ command line の値が勝ち、`null` は config の値を消す）、file path 
   mismatch 0、ratchet 0 regressions／0 above tiers（P3-6f と同じ行、ratchet の更新なし）。
 - local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`、workspace の `cargo clippy --all-targets -- -D warnings`、
   `cargo test --no-fail-fast`（program 598 passed／0 failed、compiler 412／0）。
+
+### P3-6gのhostedの記録とmerge（2026-10-07）
+
+- hosted：最終候補 `564e12384`（fix `cfd01bfbb` ＋ packet の記録）の run 37625766978（`plan` 33s、`rust` 10m44s、`conformance (TypeScript 7.1)` 19m8s、`gates` 15s。全て成功）。merge → `d4a06bcba`（merge commit）。
+- 計測（scenario oracle、ad-hoc probe、実project、conformance、crate test）は上の記録のとおり、merge前に最終bytes `cfd01bfbb` で行った。性能は
+  計測していない（利用者の指示：性能はある程度完成してから制限なしで既存projectで計測する）。実project の比較が corpora に
+  残した `.tsbuildinfo`（`--noEmit` の incremental config の出力、343 file、今回の実行時刻のもの）は削除した。
+- scratchpad：`p36g/design.md`（設計）、`p36c/cli_scenarios.py`（cli-errors／cli-build-errors／cli-options）、`p36g/probe-x.py`
+  （explicit file と build の command line の ad-hoc probe）、`p36g/final-chain.sh`（program test → conformance → 実project の chain）。
