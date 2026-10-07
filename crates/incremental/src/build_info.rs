@@ -1,7 +1,13 @@
 //! The `.tsbuildinfo` document (tsgo `incremental.BuildInfo`, buildInfo.go)
 //! and its exact JSON form.
 
+use std::collections::HashMap;
+
+use tsc_types::CompilerOptions;
+
 use crate::json::{write_number, write_numbers, write_string, ObjectWriter};
+use crate::options::{emit_declarations, parse_build_info_options};
+use crate::snapshot::FileEmitKind;
 
 /// tsgo `core.Version()`: the only version the reader accepts.
 pub const VERSION: &str = "7.1.0-dev";
@@ -234,6 +240,10 @@ pub enum OptionValue {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BuildInfo {
     pub version: String,
+    /// The incremental form (tsgo's non-nil `FileInfos`): an incremental
+    /// program writes its file infos even when it has no file; the
+    /// non-incremental build info of `tsc -b` writes none.
+    pub incremental: bool,
     pub errors: bool,
     pub check_pending: bool,
     pub root: Vec<BuildInfoRoot>,
@@ -277,7 +287,9 @@ impl BuildInfo {
         // (snapshottobuildinfo.go setFileInfoAndEmitSignatures), so a
         // program without files writes `"fileInfos":[]` while its other
         // lists stay absent.
-        object.list("fileInfos", &self.file_infos, |out, info| info.write(out));
+        if self.incremental {
+            object.list("fileInfos", &self.file_infos, |out, info| info.write(out));
+        }
         object.list_omitzero("fileIdsList", &self.file_ids_list, |out, ids| {
             write_numbers(out, ids)
         });
@@ -368,6 +380,136 @@ impl BuildInfo {
     }
 }
 
+impl BuildInfo {
+    /// The name of a file by its id (ids are 1-based).
+    pub fn file_name_of(&self, id: FileId) -> Option<&str> {
+        self.file_names
+            .get(id.checked_sub(1)? as usize)
+            .map(String::as_str)
+    }
+
+    /// The file info of a file by its id.
+    pub fn file_info_of(&self, id: FileId) -> Option<&FileInfoEntry> {
+        self.file_infos.get(id.checked_sub(1)? as usize)
+    }
+
+    /// tsgo `BuildInfo.IsEmitPending` (`tsc -b`'s up-to-date check):
+    /// whether the options the build info recorded leave an emit pending
+    /// under the current ones; `absolute` resolves a recorded path option.
+    pub fn is_emit_pending(
+        &self,
+        options: &CompilerOptions,
+        absolute: &dyn Fn(&str) -> String,
+    ) -> bool {
+        let no_emit = options.no_emit == Some(true);
+        if no_emit && !emit_declarations(options) {
+            return false;
+        }
+        let old = parse_build_info_options(&self.options, absolute);
+        let mut pending = FileEmitKind::pending(
+            FileEmitKind::of_options(options),
+            FileEmitKind::of_options(&old),
+        );
+        if no_emit {
+            pending &= FileEmitKind::DTS_ERRORS;
+        }
+        pending != FileEmitKind::NONE
+    }
+
+    /// tsgo `GetBuildInfoRootInfoReader`: the roots the build info recorded
+    /// and the file info of each, through the resolved roots.
+    /// `canonical(name, directory)` resolves a recorded name against the
+    /// build info directory to a canonical path.
+    pub fn root_info_reader(
+        &self,
+        build_info_directory: &str,
+        canonical: &dyn Fn(&str, &str) -> String,
+    ) -> RootInfoReader {
+        let to_path = |name: &str| canonical(name, build_info_directory);
+        let mut resolved_to_root: HashMap<String, String> = HashMap::new();
+        for (root, resolved) in &self.resolved_root {
+            if let (Some(resolved), Some(root)) =
+                (self.file_name_of(*resolved), self.file_name_of(*root))
+            {
+                resolved_to_root.insert(to_path(resolved), to_path(root));
+            }
+        }
+        let mut reader = RootInfoReader::default();
+        let mut add_root = |resolved_root: &str, file_info: Option<&FileInfoEntry>| {
+            if resolved_root.is_empty() {
+                return;
+            }
+            let resolved_path = to_path(resolved_root);
+            let root_path = resolved_to_root
+                .get(&resolved_path)
+                .cloned()
+                .unwrap_or_else(|| resolved_path.clone());
+            reader.set_root(root_path, resolved_path.clone());
+            if let Some(file_info) = file_info {
+                reader
+                    .resolved_root_file_infos
+                    .insert(resolved_path, file_info.clone());
+            }
+        };
+        for root in &self.root {
+            match root {
+                BuildInfoRoot::NonIncremental(name) => add_root(name, None),
+                BuildInfoRoot::Single(id) => {
+                    if let Some(name) = self.file_name_of(*id) {
+                        add_root(name, self.file_info_of(*id));
+                    }
+                }
+                BuildInfoRoot::Range(start, end) => {
+                    for id in *start..=*end {
+                        if let Some(name) = self.file_name_of(id) {
+                            add_root(name, self.file_info_of(id));
+                        }
+                    }
+                }
+            }
+        }
+        reader
+    }
+}
+
+/// tsgo `BuildInfoRootInfoReader`.
+#[derive(Clone, Debug, Default)]
+pub struct RootInfoReader {
+    resolved_root_file_infos: HashMap<String, FileInfoEntry>,
+    /// Root path to resolved path, in insertion order (tsgo's ordered map).
+    root_to_resolved: Vec<(String, String)>,
+    root_index: HashMap<String, usize>,
+}
+
+impl RootInfoReader {
+    fn set_root(&mut self, root: String, resolved: String) {
+        match self.root_index.get(&root) {
+            Some(&index) => self.root_to_resolved[index].1 = resolved,
+            None => {
+                self.root_index
+                    .insert(root.clone(), self.root_to_resolved.len());
+                self.root_to_resolved.push((root, resolved));
+            }
+        }
+    }
+
+    /// tsgo `GetBuildInfoFileInfo`: the file info of a root or a resolved
+    /// root (absent for a non-incremental root) and the resolved path.
+    pub fn file_info(&self, path: &str) -> Option<(Option<&FileInfoEntry>, &str)> {
+        if let Some((resolved, info)) = self.resolved_root_file_infos.get_key_value(path) {
+            return Some((Some(info), resolved.as_str()));
+        }
+        let &index = self.root_index.get(path)?;
+        let resolved = self.root_to_resolved[index].1.as_str();
+        Some((self.resolved_root_file_infos.get(resolved), resolved))
+    }
+
+    /// The recorded roots, in order.
+    pub fn roots(&self) -> impl Iterator<Item = &str> {
+        self.root_to_resolved.iter().map(|(root, _)| root.as_str())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -405,6 +547,7 @@ mod tests {
     fn writes_the_document_in_struct_order() {
         let info = BuildInfo {
             version: VERSION.into(),
+            incremental: true,
             errors: true,
             root: vec![BuildInfoRoot::Range(1, 2), BuildInfoRoot::Single(4)],
             file_names: vec!["../src/a.ts".into(), "../src/b.ts".into()],

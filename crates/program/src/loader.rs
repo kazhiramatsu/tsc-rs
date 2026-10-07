@@ -3835,9 +3835,22 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             !self.roots.is_empty(),
             references.root_references(),
         )];
-        let mut seen = HashSet::default();
+        // tsgo rangeResolvedProjectReference: each config once, the root
+        // config never (a reference back to it, in a cycle, is skipped).
+        let mut seen: HashSet<JsString> = HashSet::default();
+        if let Some(config) = root_config {
+            seen.insert(config.path().canonical().as_js().to_owned());
+        }
         while let Some((parent_config, parent_has_files, entries)) = pending.pop() {
             for (index, entry) in entries.iter().enumerate() {
+                let key = crate::output_directories::canonical_emit_path(
+                    entry.config_file_name(),
+                    current_directory,
+                    case_sensitive,
+                );
+                if !seen.insert(key) {
+                    continue;
+                }
                 let location = parent_config.as_ref().and_then(|(file_name, config)| {
                     config
                         .project_reference_location(index)
@@ -3888,19 +3901,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         ));
                     }
                 }
-                if seen.insert(project.canonical().clone()) {
-                    pending.push((
-                        project
-                            .plan()
-                            .program_options()
-                            .config_file()
-                            .map(|config| {
-                                (config.diagnostic_file_name().to_owned(), config.clone())
-                            }),
-                        !project.plan().file_names().is_empty(),
-                        references.references_in_config(project.canonical()),
-                    ));
-                }
+                pending.push((
+                    project
+                        .plan()
+                        .program_options()
+                        .config_file()
+                        .map(|config| (config.diagnostic_file_name().to_owned(), config.clone())),
+                    !project.plan().file_names().is_empty(),
+                    references.references_in_config(project.canonical()),
+                ));
             }
         }
         diagnostics

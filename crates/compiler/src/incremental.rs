@@ -79,6 +79,9 @@ pub(crate) struct DeclarationRecord {
     source: JsString,
     output: JsString,
     signature: String,
+    /// `tsc -b`: written although only its map changed (tsgo
+    /// `differsOnlyInMap`).
+    differs_only_in_map: bool,
 }
 
 /// The byte length of `text` up to a UTF-16 position (tsgo
@@ -115,6 +118,7 @@ fn record_of(artifact: &EmitArtifact) -> Option<DeclarationRecord> {
         source,
         output: artifact.path().to_owned(),
         signature: compute_hash(&text.as_bytes()[..cut]),
+        differs_only_in_map: false,
     })
 }
 
@@ -123,23 +127,28 @@ fn record_of(artifact: &EmitArtifact) -> Option<DeclarationRecord> {
 /// (tsgo `skipDtsOutputOfComposite` reads them in the write hook).
 pub(crate) type CompositeSignatures = HashMap<JsString, (String, bool)>;
 
+/// Whether a declaration file's write is skipped, and whether it is written
+/// although only its map changed (`build` only: tsgo `differsOnlyInMap`).
 fn skip_declaration_write(
     composite: Option<&CompositeSignatures>,
+    build: bool,
     record: &DeclarationRecord,
-) -> bool {
+) -> (bool, bool) {
     let Some(composite) = composite else {
-        return false;
+        return (false, false);
     };
     let old = composite
         .get(&record.source)
         .map(|(signature, plain)| (signature.as_str(), *plain));
-    declaration_write_decision(true, old, &record.signature).skip
+    let decision = declaration_write_decision(true, old, &record.signature);
+    (decision.skip, build && !decision.skip && !decision.changed)
 }
 
 /// The shared half of [`SignatureRecordingSink`].
 pub(crate) struct RecordingSharedSink<'s> {
     inner: &'s dyn SharedOutputSink,
     composite: Option<Arc<CompositeSignatures>>,
+    build: bool,
     records: Mutex<Vec<DeclarationRecord>>,
     writes: AtomicUsize,
 }
@@ -147,8 +156,10 @@ pub(crate) struct RecordingSharedSink<'s> {
 impl SharedOutputSink for RecordingSharedSink<'_> {
     fn write_shared(&self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
         self.writes.fetch_add(1, Ordering::Relaxed);
-        if let Some(record) = record_of(&artifact) {
-            let skip = skip_declaration_write(self.composite.as_deref(), &record);
+        if let Some(mut record) = record_of(&artifact) {
+            let (skip, differs_only_in_map) =
+                skip_declaration_write(self.composite.as_deref(), self.build, &record);
+            record.differs_only_in_map = differs_only_in_map;
             self.records
                 .lock()
                 .expect("declaration records are never poisoned")
@@ -169,6 +180,7 @@ pub(crate) struct SignatureRecordingSink<'s> {
     ordered: Option<&'s mut dyn OutputSink>,
     shared: Option<RecordingSharedSink<'s>>,
     composite: Option<Arc<CompositeSignatures>>,
+    build: bool,
     eager_source_roots: bool,
     records: Vec<DeclarationRecord>,
     writes: usize,
@@ -176,12 +188,15 @@ pub(crate) struct SignatureRecordingSink<'s> {
 
 impl<'s> SignatureRecordingSink<'s> {
     pub(crate) fn new(sink: &'s mut dyn OutputSink) -> Self {
-        Self::with_composite_signatures(sink, None)
+        Self::with_composite_signatures(sink, None, false)
     }
 
+    /// `build`: the command is `tsc -b` (a declaration file that differs
+    /// only in its map is recorded as such).
     pub(crate) fn with_composite_signatures(
         sink: &'s mut dyn OutputSink,
         composite: Option<CompositeSignatures>,
+        build: bool,
     ) -> Self {
         let composite = composite.map(Arc::new);
         let eager_source_roots = sink.writes_source_roots_eagerly();
@@ -194,10 +209,12 @@ impl<'s> SignatureRecordingSink<'s> {
                 shared: Some(RecordingSharedSink {
                     inner: shared,
                     composite: composite.clone(),
+                    build,
                     records: Mutex::new(Vec::new()),
                     writes: AtomicUsize::new(0),
                 }),
                 composite,
+                build,
                 eager_source_roots,
                 records: Vec::new(),
                 writes: 0,
@@ -207,6 +224,7 @@ impl<'s> SignatureRecordingSink<'s> {
                 ordered: Some(sink),
                 shared: None,
                 composite,
+                build,
                 eager_source_roots,
                 records: Vec::new(),
                 writes: 0,
@@ -263,8 +281,10 @@ impl OutputSink for SignatureRecordingSink<'_> {
             return shared.write_shared(artifact);
         }
         self.writes += 1;
-        if let Some(record) = record_of(&artifact) {
-            let skip = skip_declaration_write(self.composite.as_deref(), &record);
+        if let Some(mut record) = record_of(&artifact) {
+            let (skip, differs_only_in_map) =
+                skip_declaration_write(self.composite.as_deref(), self.build, &record);
+            record.differs_only_in_map = differs_only_in_map;
             self.records.push(record);
             if skip {
                 return Ok(EmitWriteDisposition::SkippedUnchanged);
@@ -318,7 +338,21 @@ pub(crate) fn write_build_info(
 /// tsgo `GetBuildInfoFileName`: the build info of an incremental or
 /// composite program.
 pub(crate) fn build_info_file_name(prepared: &PreparedProgram) -> Option<JsString> {
-    tsc_program::build_info_file_name(
+    build_info_file_name_for(prepared, false)
+}
+
+/// The build info a program writes; under `tsc -b` (`build`, tsgo
+/// `CompilerOptions.Build`) every project writes one.
+pub(crate) fn build_info_file_name_for(
+    prepared: &PreparedProgram,
+    build: bool,
+) -> Option<JsString> {
+    let name = if build {
+        tsc_program::build_info_file_name_in_build_mode
+    } else {
+        tsc_program::build_info_file_name
+    };
+    name(
         prepared.compiler_options(),
         prepared
             .program_options()
@@ -355,6 +389,22 @@ pub fn read_old_build_info(
     let text = String::from_utf8_lossy(&bytes);
     let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
     let info = BuildInfo::from_json(text)?;
+    old_state_of(&info, prepared, default_library_directory)
+}
+
+/// The state of a build info a build already read (tsgo
+/// `ReadBuildInfoProgram` with the build's `BuildInfoReader`): `None`
+/// unless the program is incremental and the document is a valid
+/// incremental one of this version.
+pub(crate) fn old_state_of(
+    info: &BuildInfo,
+    prepared: &PreparedProgram,
+    default_library_directory: &str,
+) -> Option<OldState> {
+    if !is_incremental(prepared.compiler_options()) {
+        return None;
+    }
+    let file_name = build_info_file_name_for(prepared, true)?;
     if !info.is_valid_version() || !info.is_incremental() {
         return None;
     }
@@ -376,7 +426,7 @@ pub fn read_old_build_info(
         }
     };
     Some(OldState::from_build_info(
-        &info,
+        info,
         &OldStatePaths {
             build_info_directory: &directory,
             default_library_directory,
@@ -398,6 +448,21 @@ pub(crate) struct AffectedPolicy {
     /// semantic getter (the checker's planner gate sees the syntactic and
     /// global rows only).
     pub(crate) options_diagnostics: bool,
+    /// The command is `tsc -b` (tsgo `CompilerOptions.Build`): every project
+    /// writes a build info, a non-incremental one tracking its errors only.
+    pub(crate) build: bool,
+}
+
+/// What `tsc -b` learns from a project's emit (tsgo
+/// `Program.HasChangedDtsFile` and the write hook's `differsOnlyInMap`).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct BuildEmitFacts {
+    /// A declaration file whose signature changed was written.
+    pub(crate) has_changed_dts_file: bool,
+    /// Declaration files written although only their map changed; `tsc -b`
+    /// restores their modification times so the downstream projects see no
+    /// change.
+    pub(crate) declarations_differing_only_in_map: Vec<JsString>,
 }
 
 struct DriverState {
@@ -406,6 +471,8 @@ struct DriverState {
     facts: Vec<IncrementalFileFacts>,
     /// A global row the check deferred into a file's rows.
     deferred_global_rows: bool,
+    /// The declaration files of this emit that differ only in their map.
+    differing_only_in_map: Vec<JsString>,
 }
 
 /// tsgo `incremental.Program` for one command: the snapshot over the old
@@ -438,7 +505,7 @@ impl<'p> IncrementalDriver<'p> {
             prepared,
             old,
             emit_host,
-            build_info_file_name: build_info_file_name(prepared),
+            build_info_file_name: build_info_file_name_for(prepared, policy.build),
             policy,
             state: Mutex::new(None),
         }
@@ -472,7 +539,10 @@ impl<'p> IncrementalDriver<'p> {
             };
             let assembly = Assembly::new(self.prepared, facts, file_name);
             let options = self.prepared.compiler_options();
-            let mut snap = Snapshot::new(assembly.program_state(), self.old.as_deref());
+            let mut snap = Snapshot::new(
+                assembly.program_state(self.policy.build),
+                self.old.as_deref(),
+            );
             let check_runs = check_runs && !self.policy.options_diagnostics;
             let no_check = options.no_check == Some(true);
             let no_emit_on_error = options.no_emit_on_error == Some(true);
@@ -546,6 +616,7 @@ impl<'p> IncrementalDriver<'p> {
                 snapshot: snap,
                 facts: facts.to_vec(),
                 deferred_global_rows: false,
+                differing_only_in_map: Vec::new(),
             });
             IncrementalPlan { check }
         }
@@ -563,9 +634,13 @@ impl<'p> IncrementalDriver<'p> {
         let state = guard.get_or_insert_with(|| {
             let assembly = Assembly::new(self.prepared, &facts.files, file_name);
             DriverState {
-                snapshot: Snapshot::new(assembly.program_state(), self.old.as_deref()),
+                snapshot: Snapshot::new(
+                    assembly.program_state(self.policy.build),
+                    self.old.as_deref(),
+                ),
                 facts: facts.files.clone(),
                 deferred_global_rows: false,
+                differing_only_in_map: Vec::new(),
             }
         });
         if rows_cached {
@@ -786,6 +861,11 @@ impl<'p> IncrementalDriver<'p> {
         let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
             return;
         };
+        state.differing_only_in_map = records
+            .iter()
+            .filter(|record| record.differs_only_in_map)
+            .map(|record| record.output.clone())
+            .collect();
         let assembly = Assembly::new(self.prepared, &state.facts, file_name);
         let file_count = assembly.file_count();
         let mut declaration_outputs = vec![None; file_count];
@@ -883,6 +963,18 @@ impl<'p> IncrementalDriver<'p> {
 
     /// tsgo `emitBuildInfo` up to the write: the document when the state
     /// changed since the old build info.
+    /// What `tsc -b` learns from this emit.
+    pub(crate) fn build_emit_facts(&self) -> BuildEmitFacts {
+        let guard = self.state();
+        guard
+            .as_ref()
+            .map(|state| BuildEmitFacts {
+                has_changed_dts_file: state.snapshot.has_changed_dts_file(),
+                declarations_differing_only_in_map: state.differing_only_in_map.clone(),
+            })
+            .unwrap_or_default()
+    }
+
     pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {
         let file_name = self.build_info_file_name.clone()?;
         let mut guard = self.state();
@@ -1427,7 +1519,8 @@ impl<'p> Assembly<'p> {
         referenced
     }
 
-    fn program_state(&self) -> ProgramState {
+    /// `build`: the command is `tsc -b`.
+    fn program_state(&self, build: bool) -> ProgramState {
         let prepared = self.prepared;
         let sources = prepared.source_files();
         let library_count = prepared.library_files().len();
@@ -1512,6 +1605,18 @@ impl<'p> Assembly<'p> {
             referenced_files: self.referenced_files(),
             options: options.clone(),
             build_info_file_name: self.build_info_file_name.clone(),
+            build,
+            root_file_names: prepared
+                .roots()
+                .iter()
+                .map(|root| {
+                    root.path()
+                        .canonical()
+                        .as_js()
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .collect(),
             current_directory: prepared
                 .current_directory()
                 .display()

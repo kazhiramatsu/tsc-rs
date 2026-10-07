@@ -132,7 +132,7 @@ pub struct OldState {
 
 /// tsgo `IsBuildInfoFileNameDefaultLibrary`: neither relative nor
 /// absolute.
-fn is_default_library_name(name: &str) -> bool {
+pub fn is_default_library_name(name: &str) -> bool {
     !crate::snapshot::path_is_relative(name) && !crate::snapshot::path_is_absolute(name)
 }
 

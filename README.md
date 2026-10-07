@@ -87,10 +87,12 @@ type-checks it. Two differences matter when you switch:
   `rootDir` and `declaration`, and writes nothing but the build info of an
   `incremental` project (`--listEmittedFiles` lists it).
 
-Watch mode and `--build` are not supported; a project with `references`
-compiles against the built outputs of the referenced projects, and an
-`incremental` or `composite` project writes and reuses its `.tsbuildinfo`
-as `tsgo` does; see the [current limitations](#current-limitations).
+Watch mode is not supported. `tsc-rs -b` builds a project and the
+projects it references in dependency order, as `tsgo --build` does (see
+[build mode](#build-mode)); `-p` compiles one project against the built
+outputs of the projects it references, and an `incremental` or
+`composite` project writes and reuses its `.tsbuildinfo` as `tsgo` does;
+see the [current limitations](#current-limitations).
 
 To switch an npm project:
 
@@ -631,6 +633,12 @@ declaration diagnostics of this configuration without writing any files.
 | `--newLine lf` | Use LF line endings in generated output; `crlf` is also accepted. |
 | `--emitBOM` | Write a byte-order mark to output files. |
 | `--useDefineForClassFields <boolean>` | Select define semantics for class fields. |
+| `-b`, `--build [projects...]` | Build the projects and their references in dependency order (must be the first argument). |
+| `-v`, `--verbose` | With `-b`: print what each project needs and why. |
+| `-d`, `--dry` | With `-b`: print what a build would do without doing it. |
+| `-f`, `--force` | With `-b`: build every project, up to date or not. |
+| `--clean` | With `-b`: delete the outputs of the projects. |
+| `--stopBuildOnErrors` | With `-b`: skip the projects whose dependencies have errors. |
 
 Boolean options accept `true` or `false`, including the equals form, such
 as `--pretty=false`. To see which files a project build writes:
@@ -642,6 +650,39 @@ tsc-rs -p . --listEmittedFiles
 Compiler settings such as `strict`, `outDir`, `sourceMap`, and `declaration`
 belong in `tsconfig.json`; they are not currently accepted as CLI flags.
 For `--noEmit`, see [configuration for type checks](#configuration-for-type-checks).
+
+## Build mode
+
+`tsc-rs -b` (or `--build`) is `tsgo --build`: the projects named on the
+command line (the current directory when none is named) and every project
+they reference are built upstream first.
+
+```sh
+tsc-rs -b tests --verbose
+tsc-rs -b packages/core packages/app --dry
+tsc-rs -b --clean
+```
+
+Each project is compared with its previous build before it is built: the
+build info every project of a build writes (an `incremental` or
+`composite` project's full one; for the other projects a small one that
+records the roots and whether errors were reported), the modification
+times and contents of its inputs, its outputs, its referenced projects'
+declaration files, its config files and the `package.json` files it read.
+A project whose inputs did not change is skipped; one whose upstream
+projects changed only in ways that leave their declaration files alone has
+its outputs' timestamps updated instead of being rebuilt; the others are
+compiled with their old build info exactly as `-p` compiles them. The
+projects are built one after the other in the order `tsgo` reports them
+(`--builders` is accepted and ignored). `--verbose` prints the reasons,
+`--dry` the decisions, `--force` rebuilds everything, `--clean` deletes
+the outputs (`--clean --dry` lists them), and `--stopBuildOnErrors` skips
+the projects whose dependencies failed. The compiler options accepted by
+`-p` apply to every project of the build. The exit status is `tsgo`'s:
+`0`, `1` (diagnostics, outputs skipped), `2` (diagnostics, outputs
+written) or `4` (the references form a cycle). `--watch` is not
+supported, and a project whose configuration file has errors is reported
+without being built.
 
 ## Performance
 
@@ -877,8 +918,8 @@ The measurements above are a quick interleaved run on one machine, not the
 project's formal protocol. For repeatable measurements with recorded
 provenance, exact output verification before timing, several sessions and
 confidence intervals, see [docs/benchmarking.md](docs/benchmarking.md) and
-`scripts/benchmark-cli.py`. Watch mode and `--build` are not supported,
-incremental rebuilds were not timed, and cold-cache, Linux and Windows
+`scripts/benchmark-cli.py`. Watch mode is not supported, incremental
+rebuilds and `--build` were not timed, and cold-cache, Linux and Windows
 timings were not measured.
 
 ## Run CI
@@ -956,14 +997,15 @@ runs are listed under the repository's Actions tab.
 
 - Some TypeScript options and configuration combinations are unsupported
   and return an error.
-- The command runs one compilation at a time. Watch mode and `--build` are
-  not supported. A project with `references` reads the referenced projects'
-  built outputs (it does not build them), and an `incremental` or
-  `composite` project writes the same `.tsbuildinfo` as `tsgo` and reuses
-  it on the next compilation as `tsgo` does: files the build info still
-  covers are not checked again, only the files whose output may have
-  changed are emitted, and the build info is rewritten only when it
-  changed.
+- Watch mode is not supported. `-p` compiles one project and reads the
+  referenced projects' built outputs (it does not build them); `-b` builds
+  the projects one after the other (`--builders` is accepted and ignored)
+  and reports a project whose configuration file has errors without
+  building it. An `incremental` or `composite` project writes the same
+  `.tsbuildinfo` as `tsgo` and reuses it on the next compilation as `tsgo`
+  does: files the build info still covers are not checked again, only the
+  files whose output may have changed are emitted, and the build info is
+  rewritten only when it changed.
 - `--noEmit -p` does not accept command-line emit overrides such as
   `--target` or `--module`; see the
   [configuration for type checks](#configuration-for-type-checks).

@@ -105,6 +105,12 @@ impl<'host> EmitSource<'host> {
 /// immutable parsed tree while its checker session remains alive.
 pub trait EmitHost {
     fn compiler_options(&self) -> &CompilerOptions;
+    /// Whether the emit lists the files it wrote (`listEmittedFiles`); a
+    /// build (`tsc -b`) needs the list whatever the option says (tsgo's
+    /// `EmitResult.EmittedFiles` always exists).
+    fn collects_emitted_files(&self) -> bool {
+        self.compiler_options().list_emitted_files == Some(true)
+    }
     /// Which public entry produced this emit request. The ordinary Program
     /// route is the default; the H2.8c research adapters override it to admit
     /// the no-check / transpile-forced options.
