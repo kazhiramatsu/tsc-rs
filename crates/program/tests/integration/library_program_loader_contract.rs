@@ -669,7 +669,7 @@ fn mapped_missing_lib_reference_is_located_but_missing_selected_roots_are_filele
     assert_eq!(default.message.next[0].next[0].code, 1425);
     assert_eq!(
         default.message.next[0].next[0].text,
-        "Default library for target 'es2026'"
+        "Default library for target 'ES2026'"
     );
 }
 

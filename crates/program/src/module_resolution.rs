@@ -3805,8 +3805,13 @@ impl<'a> ModuleResolver<'a> {
                 ".",
                 ExtensionProbePass::Declaration,
                 mode,
+                // tsgo loadNodeModuleFromDirectory attaches no package id
+                // (TS 6 wrapped it in withPackageId): a type library found
+                // through a type root is not deduplicated against a copy of
+                // the same version that an import reaches, and its include
+                // reason names no package id.
                 LegacyResolutionContext {
-                    attach_package_id: true,
+                    attach_package_id: false,
                     ..context
                 },
                 Some(candidate.as_js()),

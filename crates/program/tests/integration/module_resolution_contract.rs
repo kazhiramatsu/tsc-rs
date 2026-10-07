@@ -4219,10 +4219,9 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
                 .scalar_test_path(),
             Path::new("/work/custom/pkg/legacy.d.ts")
         );
-        assert_eq!(
-            package.package_id().map(PackageId::name),
-            Some(Into::into("custom-pkg"))
-        );
+        // tsgo loadNodeModuleFromDirectory attaches no package id to a
+        // primary (type root) lookup.
+        assert_eq!(package.package_id().map(PackageId::name), None);
         assert!(package.primary());
 
         let ResolutionOutcome::Resolved(linked) = resolver
@@ -4276,10 +4275,9 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
         );
         assert!(defaulted.primary());
         assert!(defaulted.is_external_library_import());
-        assert_eq!(
-            defaulted.package_id().map(PackageId::name),
-            Some(Into::into("@types/defaulted"))
-        );
+        // tsgo loadNodeModuleFromDirectory attaches no package id to a
+        // primary (type root) lookup.
+        assert_eq!(defaulted.package_id().map(PackageId::name), None);
 
         let ResolutionOutcome::Resolved(secondary) = resolver
             .resolve_type_reference(
@@ -4422,10 +4420,9 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
                 Path::new("/work/types/conditional/legacy.d.ts")
             );
             assert_eq!(reference.extension(), &ModuleExtension::Dts);
-            assert_eq!(
-                reference.package_id().map(PackageId::name),
-                Some(Into::into("conditional-types"))
-            );
+            // tsgo loadNodeModuleFromDirectory attaches no package id to a
+            // primary (type root) lookup.
+            assert_eq!(reference.package_id().map(PackageId::name), None);
             assert!(reference.primary());
         }
 
@@ -7694,10 +7691,9 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
         Path::new("/work/types/versioned/v6/index.d.ts")
     );
     assert!(versioned.primary());
-    assert_eq!(
-        versioned.package_id().map(PackageId::name),
-        Some(Into::into("versioned-types"))
-    );
+    // tsgo loadNodeModuleFromDirectory attaches no package id to a primary
+    // (type root) lookup.
+    assert_eq!(versioned.package_id().map(PackageId::name), None);
     let bound_versioned = versioned
         .clone()
         .into_resolved_type_reference_directive(
@@ -7707,10 +7703,7 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
         .expect("bind the primary package-backed type reference");
     assert!(bound_versioned.primary());
     assert_eq!(bound_versioned.source(), SourceFileId::from_raw(7));
-    assert_eq!(
-        bound_versioned.package_id().map(PackageId::name),
-        Some(Into::into("versioned-types"))
-    );
+    assert_eq!(bound_versioned.package_id().map(PackageId::name), None);
 
     let ResolutionOutcome::Resolved(twinned) = resolver
         .resolve_type_reference(

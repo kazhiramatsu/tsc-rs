@@ -1166,6 +1166,10 @@ pub struct ConfigEmitOptionOverrides {
     pub emit_bom: Option<bool>,
     pub new_line: Option<i32>,
     pub list_emitted_files: Option<bool>,
+    /// The listing options (`is_empty` ignores them too).
+    pub list_files: Option<bool>,
+    pub explain_files: Option<bool>,
+    pub list_files_only: Option<bool>,
     pub no_lib: Option<bool>,
 }
 
@@ -1204,6 +1208,15 @@ impl ConfigEmitOptionOverrides {
         }
         if let Some(value) = self.list_emitted_files {
             compiler_options.list_emitted_files = Some(value);
+        }
+        if let Some(value) = self.list_files {
+            compiler_options.list_files = Some(value);
+        }
+        if let Some(value) = self.explain_files {
+            compiler_options.explain_files = Some(value);
+        }
+        if let Some(value) = self.list_files_only {
+            compiler_options.list_files_only = Some(value);
         }
         if let Some(value) = self.no_lib {
             *program_options = program_options.clone().with_no_lib(value);
@@ -2237,6 +2250,8 @@ const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
     "noEmitHelpers",
     "emitBOM",
     "listEmittedFiles",
+    "listFiles",
+    "explainFiles",
     "pretty",
     // The incremental options change what a command writes, not what it
     // reports; the build info file is not written yet (the roadmap's
@@ -2304,6 +2319,8 @@ const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
     // emitting command admits it like the no-emit inventory does.
     "pretty",
     "listEmittedFiles",
+    "listFiles",
+    "explainFiles",
     "emitBOM",
     "noEmitOnError",
     "noCheck",
@@ -4768,6 +4785,9 @@ fn config_module_resolution_options<'j0>(
         allow_non_ts_extensions: None, // internal transpile API option, not a tsconfig setting
         no_emit: config_option_bool(options, "noEmit"),
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
+        list_files: config_option_bool(options, "listFiles"),
+        explain_files: config_option_bool(options, "explainFiles"),
+        list_files_only: None, // command line only
         emit_bom: config_option_bool(options, "emitBOM"),
         no_emit_on_error: config_option_bool(options, "noEmitOnError"),
         no_check: config_option_bool(options, "noCheck"),

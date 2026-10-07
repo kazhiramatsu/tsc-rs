@@ -18681,4 +18681,1653 @@ export const m = mod;
     );
 }
 
+#[test]
+fn incremental_steps_explain_basic() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-basic`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"declaration":true},"include":["src","lib"]}"#,
+            ),
+            (
+                r#"src/a.ts"#,
+                r#"import { b } from "./b";
+/// <reference path="./c.d.ts" />
+export const a: number = b;
+"#,
+            ),
+            (
+                r#"src/b.ts"#,
+                r#"import { b2 } from "./b";
+export const b = 1;
+export const b2 = 2;
+"#,
+            ),
+            (
+                r#"src/c.d.ts"#,
+                r#"declare const c: number;
+"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"src/b.ts(1,10): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts(1,10): error TS2440: Import declaration conflicts with local declaration of 'b2'.
+src/b.ts(3,14): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+   Imported via "./b" from file 'src/b.ts'
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/c.d.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 2,
+                written: &[
+                    r#"src/a.d.ts"#,
+                    r#"src/a.js"#,
+                    r#"src/b.d.ts"#,
+                    r#"src/b.js"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#, r#"--listFiles"#],
+                stdout: r#"src/b.ts(1,10): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts(1,10): error TS2440: Import declaration conflicts with local declaration of 'b2'.
+src/b.ts(3,14): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+<ROOT>/src/b.ts
+<ROOT>/src/a.ts
+<ROOT>/src/c.d.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 2,
+                written: &[
+                    r#"src/a.d.ts"#,
+                    r#"src/a.js"#,
+                    r#"src/b.d.ts"#,
+                    r#"src/b.js"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles and explainFiles"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listFiles"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"src/b.ts(1,10): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts(1,10): error TS2440: Import declaration conflicts with local declaration of 'b2'.
+src/b.ts(3,14): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+   Imported via "./b" from file 'src/b.ts'
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/c.d.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 2,
+                written: &[
+                    r#"src/a.d.ts"#,
+                    r#"src/a.js"#,
+                    r#"src/b.d.ts"#,
+                    r#"src/b.js"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"type error with explainFiles"#,
+                edits: &[(
+                    r#"src/a.ts"#,
+                    Some(
+                        r#"import { b } from "./b";
+export const a: string = b;
+"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"src/a.ts(2,14): error TS2322: Type 'number' is not assignable to type 'string'.
+src/b.ts(1,10): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts(1,10): error TS2440: Import declaration conflicts with local declaration of 'b2'.
+src/b.ts(3,14): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+   Imported via "./b" from file 'src/b.ts'
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/c.d.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 2,
+                written: &[
+                    r#"src/a.d.ts"#,
+                    r#"src/a.js"#,
+                    r#"src/b.d.ts"#,
+                    r#"src/b.js"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFilesOnly with a type error"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listFilesOnly"#,
+                ],
+                stdout: r#"<ROOT>/src/b.ts
+<ROOT>/src/a.ts
+<ROOT>/src/c.d.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"syntax error with explainFiles"#,
+                edits: &[(
+                    r#"src/a.ts"#,
+                    Some(
+                        r#"import { b } from "./b";
+export const a: string = ;
+"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"src/a.ts(2,26): error TS1109: Expression expected.
+src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+   Imported via "./b" from file 'src/b.ts'
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/c.d.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 2,
+                written: &[
+                    r#"src/a.d.ts"#,
+                    r#"src/a.js"#,
+                    r#"src/b.d.ts"#,
+                    r#"src/b.js"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFilesOnly with a syntax error"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listFilesOnly"#,
+                ],
+                stdout: r#"src/a.ts(2,26): error TS1109: Expression expected.
+<ROOT>/src/b.ts
+<ROOT>/src/a.ts
+<ROOT>/src/c.d.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFilesOnly plain"#,
+                edits: &[(
+                    r#"src/a.ts"#,
+                    Some(
+                        r#"import { b } from "./b";
+export const a: number = b;
+"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listFilesOnly"#,
+                ],
+                stdout: r#"<ROOT>/src/b.ts
+<ROOT>/src/a.ts
+<ROOT>/src/c.d.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"explainFiles from tsconfig"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"declaration":true,"explainFiles":true},"include":["src","lib"]}"#,
+                    ),
+                )],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#],
+                stdout: r#"src/b.ts(1,10): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts(1,10): error TS2440: Import declaration conflicts with local declaration of 'b2'.
+src/b.ts(3,14): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+   Imported via "./b" from file 'src/b.ts'
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/c.d.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 2,
+                written: &[
+                    r#"src/a.d.ts"#,
+                    r#"src/a.js"#,
+                    r#"src/b.d.ts"#,
+                    r#"src/b.js"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles from tsconfig"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"declaration":true,"listFiles":true},"include":["src","lib"]}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listEmittedFiles"#,
+                ],
+                stdout: r#"src/b.ts(1,10): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+src/b.ts(1,10): error TS2440: Import declaration conflicts with local declaration of 'b2'.
+src/b.ts(3,14): error TS2395: Individual declarations in merged declaration 'b2' must be all exported or all local.
+TSFILE: <ROOT>/src/b.js
+TSFILE: <ROOT>/src/b.d.ts
+TSFILE: <ROOT>/src/a.js
+TSFILE: <ROOT>/src/a.d.ts
+<ROOT>/src/b.ts
+<ROOT>/src/a.ts
+<ROOT>/src/c.d.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 2,
+                written: &[
+                    r#"src/a.d.ts"#,
+                    r#"src/a.js"#,
+                    r#"src/b.d.ts"#,
+                    r#"src/b.js"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_explain_roots() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-roots`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[]},"files":["src/a.ts","lib/min.d.ts"]}"#,
+            ),
+            (
+                r#"src/a.ts"#,
+                r#"import { b } from "./b";
+export const a = b;
+"#,
+            ),
+            (
+                r#"src/b.ts"#,
+                r#"export const b = 1;
+"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+src/a.ts
+   Part of 'files' list in tsconfig.json
+lib/min.d.ts
+   Part of 'files' list in tsconfig.json
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#, r#"src/b.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"default include"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[]}}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"lib/min.d.ts
+   Matched by default include pattern '**/*'
+src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+   Matched by default include pattern '**/*'
+src/a.ts
+   Matched by default include pattern '**/*'
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#, r#"src/b.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"include patterns"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[]},"include":["src/**/*","lib/*.d.ts"]}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"src/b.ts
+   Imported via "./b" from file 'src/a.ts'
+   Matched by include pattern 'src/**/*' in 'tsconfig.json'
+src/a.ts
+   Matched by include pattern 'src/**/*' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib/*.d.ts' in 'tsconfig.json'
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#, r#"src/b.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"explicit files"#,
+                edits: &[],
+                args: &[
+                    r#"src/a.ts"#,
+                    r#"lib/min.d.ts"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                    r#"--noLib"#,
+                ],
+                stdout: r#"error TS5112: tsconfig.json is present but will not be loaded if files are specified on commandline. Use '--ignoreConfig' to skip this error.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"explicit files listFilesOnly"#,
+                edits: &[],
+                args: &[
+                    r#"src/a.ts"#,
+                    r#"lib/min.d.ts"#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listFilesOnly"#,
+                    r#"--noLib"#,
+                ],
+                stdout: r#"error TS5112: tsconfig.json is present but will not be loaded if files are specified on commandline. Use '--ignoreConfig' to skip this error.
+"#,
+                exit: 1,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_explain_packages() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-packages`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":["typed"]},"include":["src","lib"]}"#,
+            ),
+            (
+                r#"src/a.ts"#,
+                r#"/// <reference types="other" />
+import { dep } from "dep";
+import { util } from "dep/util";
+export const a = dep + util + other;
+"#,
+            ),
+            (
+                r#"node_modules/dep/package.json"#,
+                r#"{"name":"dep","version":"1.2.3","types":"index.d.ts"}"#,
+            ),
+            (
+                r#"node_modules/dep/index.d.ts"#,
+                r#"export declare const dep: number;
+"#,
+            ),
+            (
+                r#"node_modules/dep/util.d.ts"#,
+                r#"export declare const util: number;
+"#,
+            ),
+            (
+                r#"node_modules/@types/typed/package.json"#,
+                r#"{"name":"@types/typed","version":"2.0.0"}"#,
+            ),
+            (
+                r#"node_modules/@types/typed/index.d.ts"#,
+                r#"declare const typed: number;
+"#,
+            ),
+            (
+                r#"node_modules/@types/other/package.json"#,
+                r#"{"name":"@types/other","version":"3.1.0"}"#,
+            ),
+            (
+                r#"node_modules/@types/other/index.d.ts"#,
+                r#"declare const other: number;
+"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"node_modules/@types/other/index.d.ts
+   Type library referenced via 'other' from file 'src/a.ts'
+node_modules/dep/index.d.ts
+   Imported via "dep" from file 'src/a.ts' with packageId 'dep/index.d.ts@1.2.3'
+node_modules/dep/util.d.ts
+   Imported via "dep/util" from file 'src/a.ts' with packageId 'dep/util.d.ts@1.2.3'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+node_modules/@types/typed/index.d.ts
+   Entry point of type library 'typed' specified in compilerOptions
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#, r#"--listFiles"#],
+                stdout: r#"<ROOT>/node_modules/@types/other/index.d.ts
+<ROOT>/node_modules/dep/index.d.ts
+<ROOT>/node_modules/dep/util.d.ts
+<ROOT>/src/a.ts
+<ROOT>/lib/min.d.ts
+<ROOT>/node_modules/@types/typed/index.d.ts
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"wildcard types"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":["*"]},"include":["src","lib"]}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"node_modules/@types/other/index.d.ts
+   Type library referenced via 'other' from file 'src/a.ts'
+   Entry point for implicit type library 'other'
+node_modules/dep/index.d.ts
+   Imported via "dep" from file 'src/a.ts' with packageId 'dep/index.d.ts@1.2.3'
+node_modules/dep/util.d.ts
+   Imported via "dep/util" from file 'src/a.ts' with packageId 'dep/util.d.ts@1.2.3'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+node_modules/@types/typed/index.d.ts
+   Entry point for implicit type library 'typed'
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"nested copy of a type library"#,
+                edits: &[
+                    (
+                        r#"tsconfig.json"#,
+                        Some(
+                            r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":["typed"]},"include":["src","lib"]}"#,
+                        ),
+                    ),
+                    (
+                        r#"src/a.ts"#,
+                        Some(
+                            r#"import { dep } from "dep";
+import { wrap } from "wrap";
+export const a = dep + wrap + typed;
+"#,
+                        ),
+                    ),
+                    (
+                        r#"node_modules/wrap/package.json"#,
+                        Some(r#"{"name":"wrap","version":"1.0.0","types":"index.d.ts"}"#),
+                    ),
+                    (
+                        r#"node_modules/wrap/index.d.ts"#,
+                        Some(
+                            r#"import "typed";
+export declare const wrap: number;
+"#,
+                        ),
+                    ),
+                    (
+                        r#"node_modules/wrap/node_modules/@types/typed/package.json"#,
+                        Some(r#"{"name":"@types/typed","version":"2.0.0"}"#),
+                    ),
+                    (
+                        r#"node_modules/wrap/node_modules/@types/typed/index.d.ts"#,
+                        Some(
+                            r#"declare const typed: number;
+"#,
+                        ),
+                    ),
+                ],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"node_modules/@types/typed/index.d.ts(1,15): error TS2451: Cannot redeclare block-scoped variable 'typed'.
+node_modules/wrap/node_modules/@types/typed/index.d.ts(1,15): error TS2451: Cannot redeclare block-scoped variable 'typed'.
+node_modules/dep/index.d.ts
+   Imported via "dep" from file 'src/a.ts' with packageId 'dep/index.d.ts@1.2.3'
+node_modules/wrap/node_modules/@types/typed/index.d.ts
+   Imported via "typed" from file 'node_modules/wrap/index.d.ts' with packageId '@types/typed/index.d.ts@2.0.0'
+node_modules/wrap/index.d.ts
+   Imported via "wrap" from file 'src/a.ts' with packageId 'wrap/index.d.ts@1.0.0'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+node_modules/@types/typed/index.d.ts
+   Entry point of type library 'typed' specified in compilerOptions
+"#,
+                exit: 2,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"nested copy, other version"#,
+                edits: &[(
+                    r#"node_modules/wrap/node_modules/@types/typed/package.json"#,
+                    Some(r#"{"name":"@types/typed","version":"2.1.0"}"#),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"node_modules/@types/typed/index.d.ts(1,15): error TS2451: Cannot redeclare block-scoped variable 'typed'.
+node_modules/wrap/node_modules/@types/typed/index.d.ts(1,15): error TS2451: Cannot redeclare block-scoped variable 'typed'.
+node_modules/dep/index.d.ts
+   Imported via "dep" from file 'src/a.ts' with packageId 'dep/index.d.ts@1.2.3'
+node_modules/wrap/node_modules/@types/typed/index.d.ts
+   Imported via "typed" from file 'node_modules/wrap/index.d.ts' with packageId '@types/typed/index.d.ts@2.1.0'
+node_modules/wrap/index.d.ts
+   Imported via "wrap" from file 'src/a.ts' with packageId 'wrap/index.d.ts@1.0.0'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+node_modules/@types/typed/index.d.ts
+   Entry point of type library 'typed' specified in compilerOptions
+"#,
+                exit: 2,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"type reference to a node_modules package"#,
+                edits: &[
+                    (
+                        r#"src/a.ts"#,
+                        Some(
+                            r#"/// <reference types="secondary" />
+import { dep } from "dep";
+export const a = dep + secondary;
+"#,
+                        ),
+                    ),
+                    (
+                        r#"node_modules/secondary/package.json"#,
+                        Some(r#"{"name":"secondary","version":"3.0.0","types":"index.d.ts"}"#),
+                    ),
+                    (
+                        r#"node_modules/secondary/index.d.ts"#,
+                        Some(
+                            r#"declare const secondary: number;
+"#,
+                        ),
+                    ),
+                ],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"node_modules/secondary/index.d.ts
+   Type library referenced via 'secondary' from file 'src/a.ts'
+node_modules/dep/index.d.ts
+   Imported via "dep" from file 'src/a.ts' with packageId 'dep/index.d.ts@1.2.3'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+node_modules/@types/typed/index.d.ts
+   Entry point of type library 'typed' specified in compilerOptions
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_explain_formats() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-formats`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","strict":true,"noLib":true,"types":[]},"include":["src","lib","esm","cjs"]}"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (r#"package.json"#, r#"{"name":"root","type":"commonjs"}"#),
+            (
+                r#"src/a.ts"#,
+                r#"import { e } from "../esm/e.js";
+import { c } from "../cjs/c.js";
+export const a = e + c;
+"#,
+            ),
+            (
+                r#"src/b.mts"#,
+                r#"export const b = 1;
+"#,
+            ),
+            (
+                r#"src/d.cts"#,
+                r#"export const d = 1;
+"#,
+            ),
+            (r#"esm/package.json"#, r#"{"type":"module"}"#),
+            (
+                r#"esm/e.ts"#,
+                r#"export const e = 1;
+"#,
+            ),
+            (r#"cjs/package.json"#, r#"{"name":"cjs"}"#),
+            (
+                r#"cjs/c.ts"#,
+                r#"export const c = 1;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"esm/e.ts
+   Imported via "../esm/e.js" from file 'src/a.ts'
+   Matched by include pattern 'esm' in 'tsconfig.json'
+   File is ECMAScript module because 'esm/package.json' has field "type" with value "module"
+cjs/c.ts
+   Imported via "../cjs/c.js" from file 'src/a.ts'
+   Matched by include pattern 'cjs' in 'tsconfig.json'
+   File is CommonJS module because 'cjs/package.json' does not have field "type"
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+   File is CommonJS module because 'package.json' has field "type" whose value is not "module"
+src/b.mts
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/d.cts
+   Matched by include pattern 'src' in 'tsconfig.json'
+   File is CommonJS module because 'package.json' does not have field "type"
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 0,
+                written: &[
+                    r#"cjs/c.js"#,
+                    r#"esm/e.js"#,
+                    r#"src/a.js"#,
+                    r#"src/b.mjs"#,
+                    r#"src/d.cjs"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"no package.json at root"#,
+                edits: &[(r#"package.json"#, None)],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"esm/e.ts
+   Imported via "../esm/e.js" from file 'src/a.ts'
+   Matched by include pattern 'esm' in 'tsconfig.json'
+   File is ECMAScript module because 'esm/package.json' has field "type" with value "module"
+cjs/c.ts
+   Imported via "../cjs/c.js" from file 'src/a.ts'
+   Matched by include pattern 'cjs' in 'tsconfig.json'
+   File is CommonJS module because 'cjs/package.json' does not have field "type"
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+   File is CommonJS module because 'package.json' was not found
+src/b.mts
+   Matched by include pattern 'src' in 'tsconfig.json'
+src/d.cts
+   Matched by include pattern 'src' in 'tsconfig.json'
+   File is CommonJS module because 'package.json' was not found
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 0,
+                written: &[
+                    r#"cjs/c.js"#,
+                    r#"esm/e.js"#,
+                    r#"src/a.js"#,
+                    r#"src/b.mjs"#,
+                    r#"src/d.cjs"#,
+                ],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFilesOnly"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--listFilesOnly"#,
+                ],
+                stdout: r#"<ROOT>/esm/e.ts
+<ROOT>/cjs/c.ts
+<ROOT>/src/a.ts
+<ROOT>/src/b.mts
+<ROOT>/src/d.cts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_explain_references() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-references`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"core/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"]}"#,
+            ),
+            (
+                r#"core/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"core/src/index.ts"#,
+                r#"export const value = 1;
+"#,
+            ),
+            (
+                r#"core/src/other.ts"#,
+                r#"export const other = 2;
+"#,
+            ),
+            (
+                r#"app/tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"composite":true,"declaration":true},"include":["src", "lib"],"references":[{"path":"../core"}]}"#,
+            ),
+            (
+                r#"app/lib/lib.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+            (
+                r#"app/src/main.ts"#,
+                r#"import { value } from "../../core/src/index";
+import { other } from "../../core/src/other";
+export const main = value + other;
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--explainFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output file 'core/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\ncore/src/index.ts\n   Matched by include pattern 'src' in 'core/tsconfig.json'\ncore/src/other.ts\n   Matched by include pattern 'src' in 'core/tsconfig.json'\ncore/lib/lib.d.ts\n   Matched by include pattern 'lib' in 'core/tsconfig.json'\nHH:MM:SS AM - Project 'app/tsconfig.json' is out of date because output file 'app/tsconfig.tsbuildinfo' does not exist\n\nHH:MM:SS AM - Building project 'app/tsconfig.json'...\n\ncore/src/index.d.ts\n   Imported via \"../../core/src/index\" from file 'app/src/main.ts'\n   File is output of project reference source 'core/src/index.ts'\ncore/src/other.d.ts\n   Imported via \"../../core/src/other\" from file 'app/src/main.ts'\n   File is output of project reference source 'core/src/other.ts'\napp/src/main.ts\n   Matched by include pattern 'src' in 'app/tsconfig.json'\napp/lib/lib.d.ts\n   Matched by include pattern 'lib' in 'app/tsconfig.json'\n",
+                exit: 0,
+                written: &[r#"app/src/main.d.ts"#, r#"app/src/main.js"#, r#"app/tsconfig.tsbuildinfo"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/src/other.d.ts"#, r#"core/src/other.js"#, r#"core/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/other.d.ts","./src/main.ts","./lib/lib.d.ts"],"fileInfos":["ba5c8ef2b0978fc944b312728d63c3f1","3f3ba61d8271ac3f38fb21fe6c7f5a55",{"version":"b79979be6b1bfd2d4d27284a7fd59370","signature":"5cdf992e880b2f243dbd4fb6577d4cf8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/main.d.ts"}"#)),
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/index.ts","./src/other.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"0a81f71d8994a4cdac4c37236126b0d2","signature":"ba5c8ef2b0978fc944b312728d63c3f1","impliedNodeFormat":1},{"version":"470daea60399107824a5a4857e8196cc","signature":"3f3ba61d8271ac3f38fb21fe6c7f5a55","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/other.d.ts"}"#)),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"no change"#,
+                edits: &[],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--explainFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is up to date because newest input 'core/src/other.ts' is older than output 'core/tsconfig.tsbuildinfo'\n\nHH:MM:SS AM - Project 'app/tsconfig.json' is up to date because newest input 'app/src/main.ts' is older than output 'app/tsconfig.tsbuildinfo'\n\n",
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, None),
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"-p app explainFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"app"#, r#"--explainFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"core/src/index.d.ts
+   Imported via "../../core/src/index" from file 'app/src/main.ts'
+   File is output of project reference source 'core/src/index.ts'
+core/src/other.d.ts
+   Imported via "../../core/src/other" from file 'app/src/main.ts'
+   File is output of project reference source 'core/src/other.ts'
+app/src/main.ts
+   Matched by include pattern 'src' in 'app/tsconfig.json'
+app/lib/lib.d.ts
+   Matched by include pattern 'lib' in 'app/tsconfig.json'
+"#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, None),
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"-p app listFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"app"#, r#"--listFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: r#"<ROOT>/core/src/index.d.ts
+<ROOT>/core/src/other.d.ts
+<ROOT>/app/src/main.ts
+<ROOT>/app/lib/lib.d.ts
+"#,
+                exit: 0,
+                written: &[],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, None),
+                    (r#"core/tsconfig.tsbuildinfo"#, None),
+                ],
+            },
+            IncrementalStep {
+                caption: r#"-b listFiles"#,
+                edits: &[
+                    (r#"core/src/index.ts"#, Some(r#"export const value = 1;
+export const more = 3;
+"#)),
+                ],
+                args: &[r#"-b"#, r#"app"#, r#"--verbose"#, r#"--listFiles"#, r#"--pretty"#, r#"false"#],
+                stdout: "HH:MM:SS AM - Projects in this build: \r\n    * core/tsconfig.json\r\n    * app/tsconfig.json\n\nHH:MM:SS AM - Project 'core/tsconfig.json' is out of date because output 'core/tsconfig.tsbuildinfo' is older than input 'core/src/index.ts'\n\nHH:MM:SS AM - Building project 'core/tsconfig.json'...\n\n<ROOT>/core/src/index.ts\n<ROOT>/core/src/other.ts\n<ROOT>/core/lib/lib.d.ts\nHH:MM:SS AM - Project 'app/tsconfig.json' is out of date because output 'app/tsconfig.tsbuildinfo' is older than input 'core/src/index.d.ts'\n\nHH:MM:SS AM - Building project 'app/tsconfig.json'...\n\n<ROOT>/core/src/index.d.ts\n<ROOT>/core/src/other.d.ts\n<ROOT>/app/src/main.ts\n<ROOT>/app/lib/lib.d.ts\n",
+                exit: 0,
+                written: &[r#"app/src/main.js"#, r#"app/tsconfig.tsbuildinfo"#, r#"core/src/index.d.ts"#, r#"core/src/index.js"#, r#"core/tsconfig.tsbuildinfo"#],
+                deleted: &[],
+                build_info: &[
+                    (r#"app/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[3,4]],"fileNames":["../core/src/index.d.ts","../core/src/other.d.ts","./src/main.ts","./lib/lib.d.ts"],"fileInfos":["8e57d2188e61526306c322e1be594d7d","3f3ba61d8271ac3f38fb21fe6c7f5a55",{"version":"b79979be6b1bfd2d4d27284a7fd59370","signature":"5cdf992e880b2f243dbd4fb6577d4cf8","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"fileIdsList":[[1,2]],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"referencedMap":[[3,1]],"latestChangedDtsFile":"./src/main.d.ts"}"#)),
+                    (r#"core/tsconfig.tsbuildinfo"#, Some(r#"{"version":"7.1.0-dev","root":[[1,3]],"fileNames":["./src/index.ts","./src/other.ts","./lib/lib.d.ts"],"fileInfos":[{"version":"08fe4d8042fb15adbbe91b164834746f","signature":"8e57d2188e61526306c322e1be594d7d","impliedNodeFormat":1},{"version":"470daea60399107824a5a4857e8196cc","signature":"3f3ba61d8271ac3f38fb21fe6c7f5a55","impliedNodeFormat":1},{"version":"bae41f699edb9c9e3f69cdbea446f1f5","affectsGlobalScope":true,"impliedNodeFormat":1}],"options":{"composite":true,"declaration":true,"module":99,"strict":true,"target":9},"latestChangedDtsFile":"./src/index.d.ts"}"#)),
+                ],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_explain_dedupe() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-dedupe`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2022","strict":true,"noLib":true,"types":[],"declaration":true},"include":["src","lib"]}"#,
+            ),
+            (
+                r#"src/a.ts"#,
+                r#"import { dep } from "dep";
+import { wrap } from "wrap";
+export const a = dep + wrap;
+"#,
+            ),
+            (
+                r#"node_modules/dep/package.json"#,
+                r#"{"name":"dep","version":"1.0.0","types":"index.d.ts"}"#,
+            ),
+            (
+                r#"node_modules/dep/index.d.ts"#,
+                r#"export declare const dep: number;
+"#,
+            ),
+            (
+                r#"node_modules/wrap/package.json"#,
+                r#"{"name":"wrap","version":"1.0.0","types":"index.d.ts"}"#,
+            ),
+            (
+                r#"node_modules/wrap/index.d.ts"#,
+                r#"import { dep } from "dep";
+export declare const wrap: typeof dep;
+"#,
+            ),
+            (
+                r#"node_modules/wrap/node_modules/dep/package.json"#,
+                r#"{"name":"dep","version":"1.0.0","types":"index.d.ts"}"#,
+            ),
+            (
+                r#"node_modules/wrap/node_modules/dep/index.d.ts"#,
+                r#"export declare const dep: number;
+"#,
+            ),
+            (
+                r#"lib/min.d.ts"#,
+                r#"interface Array<T> { length: number; [n: number]: T; }
+interface Boolean {}
+interface CallableFunction extends Function {}
+interface Function { apply(this: Function, thisArg: any, argArray?: any): any; }
+interface IArguments {}
+interface NewableFunction extends Function {}
+interface Number { toFixed(digits?: number): string; }
+interface Object {}
+interface RegExp {}
+interface String { length: number; }
+interface Symbol {}
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"node_modules/dep/index.d.ts
+   Imported via "dep" from file 'src/a.ts' with packageId 'dep/index.d.ts@1.0.0'
+node_modules/wrap/node_modules/dep/index.d.ts
+   Imported via "dep" from file 'node_modules/wrap/index.d.ts' with packageId 'dep/index.d.ts@1.0.0'
+   File redirects to file 'node_modules/dep/index.d.ts'
+node_modules/wrap/index.d.ts
+   Imported via "wrap" from file 'src/a.ts' with packageId 'wrap/index.d.ts@1.0.0'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 0,
+                written: &[r#"src/a.d.ts"#, r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#, r#"--listFiles"#],
+                stdout: r#"<ROOT>/node_modules/dep/index.d.ts
+<ROOT>/node_modules/wrap/index.d.ts
+<ROOT>/src/a.ts
+<ROOT>/lib/min.d.ts
+"#,
+                exit: 0,
+                written: &[r#"src/a.d.ts"#, r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"other version"#,
+                edits: &[(
+                    r#"node_modules/wrap/node_modules/dep/package.json"#,
+                    Some(r#"{"name":"dep","version":"2.0.0","types":"index.d.ts"}"#),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"node_modules/dep/index.d.ts
+   Imported via "dep" from file 'src/a.ts' with packageId 'dep/index.d.ts@1.0.0'
+node_modules/wrap/node_modules/dep/index.d.ts
+   Imported via "dep" from file 'node_modules/wrap/index.d.ts' with packageId 'dep/index.d.ts@2.0.0'
+node_modules/wrap/index.d.ts
+   Imported via "wrap" from file 'src/a.ts' with packageId 'wrap/index.d.ts@1.0.0'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+lib/min.d.ts
+   Matched by include pattern 'lib' in 'tsconfig.json'
+"#,
+                exit: 0,
+                written: &[r#"src/a.d.ts"#, r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
+#[test]
+fn incremental_steps_explain_default_lib() {
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-default-lib`.
+    let tree = TempTree::new();
+    write_fixture_files(
+        &tree,
+        &[
+            (
+                r#"tsconfig.json"#,
+                r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2020","strict":true,"types":[]},"include":["src"]}"#,
+            ),
+            (
+                r#"src/a.ts"#,
+                r#"/// <reference lib="es2015.promise" />
+export const a: Promise<number> = Promise.resolve(1);
+"#,
+            ),
+        ],
+    );
+    run_incremental_steps(
+        &tree,
+        &[
+            IncrementalStep {
+                caption: r#"initial"#,
+                edits: &[],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"bundled:///libs/lib.es5.d.ts
+   Library referenced via 'es5' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.d.ts
+   Library referenced via 'es2015' from file 'bundled:///libs/lib.es2016.d.ts'
+   Library referenced via 'es2015' from file 'bundled:///libs/lib.dom.d.ts'
+bundled:///libs/lib.es2016.d.ts
+   Library referenced via 'es2016' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.d.ts
+   Library referenced via 'es2017' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2018.d.ts
+   Library referenced via 'es2018' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.d.ts
+   Library referenced via 'es2019' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.d.ts
+   Library referenced via 'es2020' from file 'bundled:///libs/lib.es2020.full.d.ts'
+bundled:///libs/lib.dom.d.ts
+   Library referenced via 'dom' from file 'bundled:///libs/lib.es2020.full.d.ts'
+bundled:///libs/lib.dom.iterable.d.ts
+   Library referenced via 'dom.iterable' from file 'bundled:///libs/lib.es2020.full.d.ts'
+bundled:///libs/lib.dom.asynciterable.d.ts
+   Library referenced via 'dom.asynciterable' from file 'bundled:///libs/lib.es2020.full.d.ts'
+bundled:///libs/lib.webworker.importscripts.d.ts
+   Library referenced via 'webworker.importscripts' from file 'bundled:///libs/lib.es2020.full.d.ts'
+bundled:///libs/lib.scripthost.d.ts
+   Library referenced via 'scripthost' from file 'bundled:///libs/lib.es2020.full.d.ts'
+bundled:///libs/lib.es2015.core.d.ts
+   Library referenced via 'es2015.core' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.collection.d.ts
+   Library referenced via 'es2015.collection' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.generator.d.ts
+   Library referenced via 'es2015.generator' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.iterable.d.ts
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2015.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2015.generator.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2018.asynciterable.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2019.object.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2020.string.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2020.symbol.wellknown.d.ts'
+bundled:///libs/lib.es2015.promise.d.ts
+   Library referenced via 'es2015.promise' from file 'src/a.ts'
+   Library referenced via 'es2015.promise' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.proxy.d.ts
+   Library referenced via 'es2015.proxy' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.reflect.d.ts
+   Library referenced via 'es2015.reflect' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.symbol.d.ts
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2015.iterable.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2015.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2015.symbol.wellknown.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2017.sharedmemory.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2018.asynciterable.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2020.symbol.wellknown.d.ts'
+bundled:///libs/lib.es2015.symbol.wellknown.d.ts
+   Library referenced via 'es2015.symbol.wellknown' from file 'bundled:///libs/lib.es2015.d.ts'
+   Library referenced via 'es2015.symbol.wellknown' from file 'bundled:///libs/lib.es2017.sharedmemory.d.ts'
+bundled:///libs/lib.es2016.array.include.d.ts
+   Library referenced via 'es2016.array.include' from file 'bundled:///libs/lib.es2016.d.ts'
+bundled:///libs/lib.es2016.intl.d.ts
+   Library referenced via 'es2016.intl' from file 'bundled:///libs/lib.es2016.d.ts'
+bundled:///libs/lib.es2017.arraybuffer.d.ts
+   Library referenced via 'es2017.arraybuffer' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.date.d.ts
+   Library referenced via 'es2017.date' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.object.d.ts
+   Library referenced via 'es2017.object' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.sharedmemory.d.ts
+   Library referenced via 'es2017.sharedmemory' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.string.d.ts
+   Library referenced via 'es2017.string' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.intl.d.ts
+   Library referenced via 'es2017.intl' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.typedarrays.d.ts
+   Library referenced via 'es2017.typedarrays' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2018.asyncgenerator.d.ts
+   Library referenced via 'es2018.asyncgenerator' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2018.asynciterable.d.ts
+   Library referenced via 'es2018.asynciterable' from file 'bundled:///libs/lib.es2018.d.ts'
+   Library referenced via 'es2018.asynciterable' from file 'bundled:///libs/lib.es2018.asyncgenerator.d.ts'
+   Library referenced via 'es2018.asynciterable' from file 'bundled:///libs/lib.dom.d.ts'
+bundled:///libs/lib.es2018.intl.d.ts
+   Library referenced via 'es2018.intl' from file 'bundled:///libs/lib.es2018.d.ts'
+   Library referenced via 'es2018.intl' from file 'bundled:///libs/lib.es2020.intl.d.ts'
+bundled:///libs/lib.es2018.promise.d.ts
+   Library referenced via 'es2018.promise' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2018.regexp.d.ts
+   Library referenced via 'es2018.regexp' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2019.array.d.ts
+   Library referenced via 'es2019.array' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.object.d.ts
+   Library referenced via 'es2019.object' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.string.d.ts
+   Library referenced via 'es2019.string' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.symbol.d.ts
+   Library referenced via 'es2019.symbol' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.intl.d.ts
+   Library referenced via 'es2019.intl' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2020.bigint.d.ts
+   Library referenced via 'es2020.bigint' from file 'bundled:///libs/lib.es2020.d.ts'
+   Library referenced via 'es2020.bigint' from file 'bundled:///libs/lib.es2020.sharedmemory.d.ts'
+bundled:///libs/lib.es2020.date.d.ts
+   Library referenced via 'es2020.date' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.promise.d.ts
+   Library referenced via 'es2020.promise' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.sharedmemory.d.ts
+   Library referenced via 'es2020.sharedmemory' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.string.d.ts
+   Library referenced via 'es2020.string' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.symbol.wellknown.d.ts
+   Library referenced via 'es2020.symbol.wellknown' from file 'bundled:///libs/lib.es2020.string.d.ts'
+   Library referenced via 'es2020.symbol.wellknown' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.intl.d.ts
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.bigint.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.date.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.number.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.string.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.number.d.ts
+   Library referenced via 'es2020.number' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.decorators.d.ts
+   Library referenced via 'decorators' from file 'bundled:///libs/lib.es5.d.ts'
+bundled:///libs/lib.decorators.legacy.d.ts
+   Library referenced via 'decorators.legacy' from file 'bundled:///libs/lib.es5.d.ts'
+bundled:///libs/lib.es2020.full.d.ts
+   Default library for target 'ES2020'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"lib option"#,
+                edits: &[(
+                    r#"tsconfig.json"#,
+                    Some(
+                        r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","target":"es2020","lib":["es2020","dom"],"strict":true,"types":[]},"include":["src"]}"#,
+                    ),
+                )],
+                args: &[
+                    r#"-p"#,
+                    r#"."#,
+                    r#"--pretty"#,
+                    r#"false"#,
+                    r#"--explainFiles"#,
+                ],
+                stdout: r#"bundled:///libs/lib.es5.d.ts
+   Library referenced via 'es5' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.d.ts
+   Library referenced via 'es2015' from file 'bundled:///libs/lib.es2016.d.ts'
+   Library referenced via 'es2015' from file 'bundled:///libs/lib.dom.d.ts'
+bundled:///libs/lib.es2016.d.ts
+   Library referenced via 'es2016' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.d.ts
+   Library referenced via 'es2017' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2018.d.ts
+   Library referenced via 'es2018' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.d.ts
+   Library referenced via 'es2019' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.d.ts
+   Library 'lib.es2020.d.ts' specified in compilerOptions
+bundled:///libs/lib.dom.d.ts
+   Library 'lib.dom.d.ts' specified in compilerOptions
+bundled:///libs/lib.es2015.core.d.ts
+   Library referenced via 'es2015.core' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.collection.d.ts
+   Library referenced via 'es2015.collection' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.generator.d.ts
+   Library referenced via 'es2015.generator' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.iterable.d.ts
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2015.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2015.generator.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2018.asynciterable.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2019.object.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2020.string.d.ts'
+   Library referenced via 'es2015.iterable' from file 'bundled:///libs/lib.es2020.symbol.wellknown.d.ts'
+bundled:///libs/lib.es2015.promise.d.ts
+   Library referenced via 'es2015.promise' from file 'src/a.ts'
+   Library referenced via 'es2015.promise' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.proxy.d.ts
+   Library referenced via 'es2015.proxy' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.reflect.d.ts
+   Library referenced via 'es2015.reflect' from file 'bundled:///libs/lib.es2015.d.ts'
+bundled:///libs/lib.es2015.symbol.d.ts
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2015.iterable.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2015.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2015.symbol.wellknown.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2017.sharedmemory.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2018.asynciterable.d.ts'
+   Library referenced via 'es2015.symbol' from file 'bundled:///libs/lib.es2020.symbol.wellknown.d.ts'
+bundled:///libs/lib.es2015.symbol.wellknown.d.ts
+   Library referenced via 'es2015.symbol.wellknown' from file 'bundled:///libs/lib.es2015.d.ts'
+   Library referenced via 'es2015.symbol.wellknown' from file 'bundled:///libs/lib.es2017.sharedmemory.d.ts'
+bundled:///libs/lib.es2016.array.include.d.ts
+   Library referenced via 'es2016.array.include' from file 'bundled:///libs/lib.es2016.d.ts'
+bundled:///libs/lib.es2016.intl.d.ts
+   Library referenced via 'es2016.intl' from file 'bundled:///libs/lib.es2016.d.ts'
+bundled:///libs/lib.es2017.arraybuffer.d.ts
+   Library referenced via 'es2017.arraybuffer' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.date.d.ts
+   Library referenced via 'es2017.date' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.object.d.ts
+   Library referenced via 'es2017.object' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.sharedmemory.d.ts
+   Library referenced via 'es2017.sharedmemory' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.string.d.ts
+   Library referenced via 'es2017.string' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.intl.d.ts
+   Library referenced via 'es2017.intl' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2017.typedarrays.d.ts
+   Library referenced via 'es2017.typedarrays' from file 'bundled:///libs/lib.es2017.d.ts'
+bundled:///libs/lib.es2018.asyncgenerator.d.ts
+   Library referenced via 'es2018.asyncgenerator' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2018.asynciterable.d.ts
+   Library referenced via 'es2018.asynciterable' from file 'bundled:///libs/lib.es2018.d.ts'
+   Library referenced via 'es2018.asynciterable' from file 'bundled:///libs/lib.es2018.asyncgenerator.d.ts'
+   Library referenced via 'es2018.asynciterable' from file 'bundled:///libs/lib.dom.d.ts'
+bundled:///libs/lib.es2018.intl.d.ts
+   Library referenced via 'es2018.intl' from file 'bundled:///libs/lib.es2018.d.ts'
+   Library referenced via 'es2018.intl' from file 'bundled:///libs/lib.es2020.intl.d.ts'
+bundled:///libs/lib.es2018.promise.d.ts
+   Library referenced via 'es2018.promise' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2018.regexp.d.ts
+   Library referenced via 'es2018.regexp' from file 'bundled:///libs/lib.es2018.d.ts'
+bundled:///libs/lib.es2019.array.d.ts
+   Library referenced via 'es2019.array' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.object.d.ts
+   Library referenced via 'es2019.object' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.string.d.ts
+   Library referenced via 'es2019.string' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.symbol.d.ts
+   Library referenced via 'es2019.symbol' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2019.intl.d.ts
+   Library referenced via 'es2019.intl' from file 'bundled:///libs/lib.es2019.d.ts'
+bundled:///libs/lib.es2020.bigint.d.ts
+   Library referenced via 'es2020.bigint' from file 'bundled:///libs/lib.es2020.d.ts'
+   Library referenced via 'es2020.bigint' from file 'bundled:///libs/lib.es2020.sharedmemory.d.ts'
+bundled:///libs/lib.es2020.date.d.ts
+   Library referenced via 'es2020.date' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.promise.d.ts
+   Library referenced via 'es2020.promise' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.sharedmemory.d.ts
+   Library referenced via 'es2020.sharedmemory' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.string.d.ts
+   Library referenced via 'es2020.string' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.symbol.wellknown.d.ts
+   Library referenced via 'es2020.symbol.wellknown' from file 'bundled:///libs/lib.es2020.string.d.ts'
+   Library referenced via 'es2020.symbol.wellknown' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.intl.d.ts
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.bigint.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.date.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.number.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.string.d.ts'
+   Library referenced via 'es2020.intl' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.es2020.number.d.ts
+   Library referenced via 'es2020.number' from file 'bundled:///libs/lib.es2020.d.ts'
+bundled:///libs/lib.decorators.d.ts
+   Library referenced via 'decorators' from file 'bundled:///libs/lib.es5.d.ts'
+bundled:///libs/lib.decorators.legacy.d.ts
+   Library referenced via 'decorators.legacy' from file 'bundled:///libs/lib.es5.d.ts'
+src/a.ts
+   Matched by include pattern 'src' in 'tsconfig.json'
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+            IncrementalStep {
+                caption: r#"listFiles"#,
+                edits: &[],
+                args: &[r#"-p"#, r#"."#, r#"--pretty"#, r#"false"#, r#"--listFiles"#],
+                stdout: r#"bundled:///libs/lib.es5.d.ts
+bundled:///libs/lib.es2015.d.ts
+bundled:///libs/lib.es2016.d.ts
+bundled:///libs/lib.es2017.d.ts
+bundled:///libs/lib.es2018.d.ts
+bundled:///libs/lib.es2019.d.ts
+bundled:///libs/lib.es2020.d.ts
+bundled:///libs/lib.dom.d.ts
+bundled:///libs/lib.es2015.core.d.ts
+bundled:///libs/lib.es2015.collection.d.ts
+bundled:///libs/lib.es2015.generator.d.ts
+bundled:///libs/lib.es2015.iterable.d.ts
+bundled:///libs/lib.es2015.promise.d.ts
+bundled:///libs/lib.es2015.proxy.d.ts
+bundled:///libs/lib.es2015.reflect.d.ts
+bundled:///libs/lib.es2015.symbol.d.ts
+bundled:///libs/lib.es2015.symbol.wellknown.d.ts
+bundled:///libs/lib.es2016.array.include.d.ts
+bundled:///libs/lib.es2016.intl.d.ts
+bundled:///libs/lib.es2017.arraybuffer.d.ts
+bundled:///libs/lib.es2017.date.d.ts
+bundled:///libs/lib.es2017.object.d.ts
+bundled:///libs/lib.es2017.sharedmemory.d.ts
+bundled:///libs/lib.es2017.string.d.ts
+bundled:///libs/lib.es2017.intl.d.ts
+bundled:///libs/lib.es2017.typedarrays.d.ts
+bundled:///libs/lib.es2018.asyncgenerator.d.ts
+bundled:///libs/lib.es2018.asynciterable.d.ts
+bundled:///libs/lib.es2018.intl.d.ts
+bundled:///libs/lib.es2018.promise.d.ts
+bundled:///libs/lib.es2018.regexp.d.ts
+bundled:///libs/lib.es2019.array.d.ts
+bundled:///libs/lib.es2019.object.d.ts
+bundled:///libs/lib.es2019.string.d.ts
+bundled:///libs/lib.es2019.symbol.d.ts
+bundled:///libs/lib.es2019.intl.d.ts
+bundled:///libs/lib.es2020.bigint.d.ts
+bundled:///libs/lib.es2020.date.d.ts
+bundled:///libs/lib.es2020.promise.d.ts
+bundled:///libs/lib.es2020.sharedmemory.d.ts
+bundled:///libs/lib.es2020.string.d.ts
+bundled:///libs/lib.es2020.symbol.wellknown.d.ts
+bundled:///libs/lib.es2020.intl.d.ts
+bundled:///libs/lib.es2020.number.d.ts
+bundled:///libs/lib.decorators.d.ts
+bundled:///libs/lib.decorators.legacy.d.ts
+<ROOT>/src/a.ts
+"#,
+                exit: 0,
+                written: &[r#"src/a.js"#],
+                deleted: &[],
+                build_info: &[],
+            },
+        ],
+    );
+}
+
 // === end of the incremental steps ===

@@ -611,6 +611,11 @@ fn value_record(value: &CachedValue) -> Value {
 }
 
 /// Strip the native-only fields, keeping the primary parity surface.
+///
+/// The record is tsc 6.0.3's. TypeScript 7.1 (tsgo `loadNodeModuleFromDirectory`)
+/// attaches no package id to a type reference resolved through a type root,
+/// where 6.0.3's `withPackageId` did; the record's package id of a primary
+/// result is projected out so the surface is the 7.1 one.
 fn native_parity_projection(record: &Value) -> Value {
     let mut projected = Map::new();
     for name in [
@@ -623,6 +628,10 @@ fn native_parity_projection(record: &Value) -> Value {
         if let Some(value) = record.get(name) {
             let value = if name == "kind" && value == "automatic_type_reference" {
                 json!("type_reference")
+            } else if name == "resolved" && value.get("primary") == Some(&json!(true)) {
+                let mut resolved = value.clone();
+                resolved["packageId"] = Value::Null;
+                resolved
             } else {
                 value.clone()
             };

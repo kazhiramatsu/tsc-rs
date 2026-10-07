@@ -145,9 +145,9 @@ pub use json_value::{append_json_quoted, JsonObject, JsonValue};
 pub use library::LibraryCatalog;
 pub use loader::{
     load_emitting_program, load_emitting_program_js, load_no_lib_program, load_program,
-    load_program_js, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
-    ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
-    PARALLEL_READ_AHEAD_MIN_ROOTS,
+    load_program_js, LibraryRootReason, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
+    ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation, RootFileReason,
+    SourceInclusionReason, PARALLEL_READ_AHEAD_MIN_ROOTS,
 };
 pub use module_requests::{
     default_js_doc_parsing_mode, plan_module_requests, plan_source_requests,
@@ -173,10 +173,10 @@ pub use output_directories::{
 };
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{
-    PackageJsonType, PackageMetadata, PathContext, PathMapping, PreparationDiagnostics,
-    PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder, PreparedProgramMode,
-    PreparedRoot, PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax, ProgramConfigFile,
-    ProgramConfigSpan, ProgramOptions, ResolutionTable, SourceFileId,
+    PackageJsonType, PackageMetadata, PackageRedirectFile, PathContext, PathMapping,
+    PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
+    PreparedProgramMode, PreparedRoot, PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax,
+    ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ResolutionTable, SourceFileId,
 };
 pub use project_references::{
     resolve_config_file_name_of_project_reference, resolve_project_references,
