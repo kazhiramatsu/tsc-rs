@@ -418,3 +418,88 @@ decode して span を流し、writer はもう一つの decoder で同じ span 
   checker を変える slice で corpus を再比較する）。性能は計測していない（利用者の指示）。
 - 次：P4-3（`.trace.json` ＋ `--traceResolution`：tsgo resolver.go の tracer（trace 文 61 種）を港の resolver の同じ地点に足し、
   parse task ごとの buffer を決定的な順で再生、harness の `sanitizeTrace`）。
+
+## P4-3 `.trace.json`（`--traceResolution` の trace）（2026-10-08）
+
+tsgo の `DoModuleResolutionBaseline`（tsbaseline/module_resolution_baseline.go）は `@traceResolution: true` の configuration で、
+Program 構築中に `Host.Trace` に渡った行を harness の `TracerForBaselining`（harnessutil.go:536-605）で整形して
+`.trace.json` に書く（行が無ければ baseline なし）。行の出どころは `module/resolver.go` の `tracer`（`ResolveModuleName`／
+`ResolveTypeReferenceDirective` が `(result, traces)` を返す）で、`compiler/fileloader.go` が task ごとに
+`typeResolutionsTrace`／`resolutionsTrace` に溜め、`filesparser.go:440-445` が file の収集順（task ごとに type reference の
+解決 → module の解決、import の出現順）に再生し、最後に lib replacement の解決（`pathForLibFileResolutions`、key 順）を流す。
+harness の整形（`sanitizeTrace`）：最初の `'7.1.0-dev'` を `'FakeTSVersion'` に、`File '…' does not exist.`／
+`Found 'package.json' at '…'.`／`… according to earlier cached lookups.` は path ごとに初出を素の形、2 回目以降を
+「according to earlier cached lookups」の形に揃える（thread の順に依らない）。
+
+- **vendoring**：`.trace.json` を `BASELINE_SUFFIXES` に足して再 vendoring（148 file、compiler 72 ＋ conformance 76；
+  `@traceResolution` の case は 157）。harness の件数 pin は 58,238 → 58,386。
+- **resolver（`crates/program/src/module_resolution.rs`）**：`trace!` macro ＋ `ResolutionTrace`（message ＋ 引数、
+  `text()` で英語の行）。tsgo の 61 種の trace 文を同じ地点に置いた：request の先頭と結果、`moduleResolution` の種類、
+  mode と conditions（`GetConditions`）、相対 path の file／folder の読み込み、親 directory・候補 directory の不在、
+  `node_modules` の walk（preferred／fallback の pass、`@types`、scoped package の mangle）、file の probe
+  （`tryFileLookup`、`moduleSuffixes` も）、package.json の probe（cache の文言も）、拡張子の剥がし、package.json の
+  field（`typings`／`types`／`main`、`typesVersions` の全 trace）、`paths`／`rootDirs`、exports／imports の
+  conditional exports（`Entering`／`Matched`／`Saw non-matching`／`Resolved under`／`Failed`／`Exiting`）、subpath と
+  target、無効な target／`null`、imports の bare target の再解決、type reference directive の全段、realpath、
+  peerDependencies（`getPackageId` の時点）、URI の skip、`import` 条件の retry。結果（`HostModuleResolution`）に
+  `trace` を持たせ、type reference は `take_trace()` で取る。
+- **tsgo に合わせた挙動の修正（trace が露わにした差）**：(1) typeRoots から解決した module の `isExternalLibraryImport` は
+  path が `node_modules` を含むときだけ（港は常に true にして realpath を取っていた）；(2) directory を package.json 経由で
+  解決した結果に package id を付けない（tsgo `loadNodeModuleFromDirectory`；港は strada の `withPackageId` のままで、
+  `paths` の末尾 `/` を含む候補では submodule 名が 1 文字ずれていた）；(3) lib replacement の解決は Program の resolver で
+  CommonJS mode（tsgo `resolveLibrary`；港は Node10 の別 resolver だった）；(4) harness の `customConditions` は要素を
+  trim しない（tsgo `ParseListTypeOption`；`' browser'` が条件になる）；(5) `typesVersions` の照合に使う compiler の
+  version を `7.1.0-dev`（prerelease）に（港は 6.0.3 のままだった）；(6) non-relative の worker の結果は retry の前に
+  完成させる（tsgo `createResolvedModuleHandlingSymlink`：`isExternalLibraryImport` は path が `node_modules` を含むか
+  ——self-name／imports の結果も——、external なら realpath；retry の alternate も同様に realpath）；(7) `exports` の
+  target が `null` なら lookup 全体を打ち切る（tsgo `unresolved()`；strada は `@types` と fallback pass に続いた）、
+  `"."` の main export は値を問わず target loader に渡す（`".": null` は null の trace で打ち切り）、
+  `Export specifier … does not exist` の trace は tsgo が関数末尾に達する経路だけ；(8) `typesVersions` の pattern が
+  一致して全 substitution が失敗したら探索を続ける（tsgo `tryLoadModuleUsingPaths` は `continueSearching`、strada は
+  `{value: undefined}` で打ち切り）；(9) type reference directive の node_modules 探索は realpath を lookup 全体の後
+  （package id の peerDependencies の trace の後）に取り、null mapping の打ち切りも module と同じ；(10) `typesVersions` の
+  substitution は strada の `onlyRecordFailures` の latch 無しに probe する（tsgo に latch は無い：package field の親
+  directory や package root が無くても substitution file は解決する——tsgo 実機で確認、probe A／C）；(11) `typesVersions` を
+  tsgo の `GetVersionPaths`／`GetPaths` に揃えた：entry は package.json の順（ordered map；JS の整数 key 優先ではない、
+  probe E）、値が配列の key だけが mapping、文字列でない要素は空文字、一致した entry の値が object でなければ version
+  paths 無し（probe G／H）。strada の generic `forEach` の模倣（array-like object、`[object Object]`、`Infinity`、JSONC
+  `__proto__`）とその helper 群は削除；(12) `paths`／`typesVersions` の substitution と `exports`／`imports` の target の
+  `*` は literal に置換（tsgo `strings.Replace`／`ReplaceAll`；strada の `$&` 等の置換 token は無効）。`js_string_ops`
+  の予算付き token 置換は削除し、checker が module specifier 名に使う `replace_*_value` は token 意味論のまま残した（残課題）。
+  (1)〜(3) と (6)〜(12) は解決結果にも影響し得る：conformance の errors／emit は下の full run で不変（errors 13,451／mismatch 0、emit 13,443）を確かめた。実 project
+  （DT／azure／material-ui）の再比較はこの slice では行っていない（resolver の変更は file の包含や package の重複解消に
+  効き得るので、次に corpus を比較するときに確かめる）。
+- **test**：strada の挙動を pin していた contract test 26 件（`module_resolution_contract.rs`；うち 13 件は名前も tsgo の
+  挙動に改名）を tsgo の挙動に書き換え、JS の置換 token 展開の予算を pin していた 1 件と `js_string_ops` の token 置換の
+  unit test は置換と一緒に削除した。harness の `customConditions`（trim しない）と vendored manifest（`.trace.json`、
+  pin 58,386）の test、`tsc_types` の version test も追随。判断は tsgo の source により、実 FS で表せる layout は tsgo 実機
+  （7.1.0-dev-19dadef8、scratchpad `p43/probe*`）で確かめた：A＝一致した `typesVersions` mapping の全 substitution が
+  失敗しても `types` → index に進む（`index.d.ts`）；B＝`"exports": {".": null}` は `@types/dep` があっても未解決；
+  C＝package field の親 directory が無くても substitution（`types/good.ts`）に解決；D／F＝`imports` の bare target は
+  primary の realpath → retry → alternate（F は TS7016 の「There are types at …/dep/legacy.d.ts」）；E＝key `"*"` と
+  `"7"` では `*` が勝つ（package.json の順）；G／H＝配列でない値は mapping でない、配列の文字列でない要素は空文字、配列形の
+  `typesVersions` は「Expected type … got 'array'」で paths 無し、`$&` は literal；I＝`paths` の exact key でも
+  substitution の最初の `*` を置換（`value**` → `value*`）、空 capture は `*` を消す（`../literal/.ts`）。
+- **loader（`loader.rs`）**：task の収集順（`enter_collected_task`）で、その file の type reference 解決の trace →
+  module 解決の trace を tsgo の `moduleNames` の順（synthetic（tslib／jsx）→ import の出現順（static → dynamic）→
+  文字列 literal の module augmentation；`SourceRequestPlan::module_request_order`、trace 時だけ作る）に再生。directory ごとの memo を共有した解決は先頭行の
+  containing file をその file に差し替える。automatic types task はその解決の trace。lib replacement の trace は最後に
+  key 順。`PreparedProgram::resolution_trace()` で公開。harness の option 表で `traceResolution` が「受理して無視」の群に
+  入っていたので `CompilerOptions.trace_resolution` に写すよう直した。
+- **runner／script／CLI**：`ts71/trace_baseline.rs`（`sanitizeTrace` の移植、3 test）、report の `trace`／`trace_detail`、
+  `--dump` で `<stem>.trace.json`、ratchet の 7 列目（`trace`）、CLI は `--traceResolution` で trace 行を診断より前に出す
+  （tsgo は Program 構築中に出す）。
+- trace case（dev binary、`@traceResolution` の 157 case ＝ 186 configuration）：**149 configuration が byte 一致**、34 は
+  native runner の既存 skip、3 は `bundlerDirectoryModule(module=node18|node20|nodenext,moduleresolution=bundler)` の
+  条件行（tsgo `require`、港 `import`）——`GetImpliedNodeFormatForFile` が tsgo では全 TS／JS file に format を与えるのに
+  対し港は bundler の file で `None`（checker も consume する）ため。errors／emit は全 configuration で不変。implied
+  format の追随は別 slice に送る（制限として記録）。
+- 計測（最終 bytes、macOS、`taskpolicy -c maintenance nice -n 20`、1 worker）：12,748 case／4,662 s、errors full 13,451（mismatch 0）、emit full 13,443（mismatch 0、not assessed 8）、
+  types full 12,677／mismatch 90（P4-2 の 12,676／91 から：`customConditions(resolvepackagejsonexports=true)` が
+  `customConditions` を trim しなくなって一致——tsgo の trace でも条件は `' browser'`）、symbols full 12,715／mismatch 52（不変）、
+  sourcemap full 13,451／mismatch 0（不変）、**trace full 13,448／mismatch 3／not assessed 0**（baseline も trace 行も無い
+  configuration は一致として数える；mismatch は上の `bundlerDirectoryModule` の 3 件）、harness error 15（不変）。
+  ratchet 0 regressions：7 列目（trace）を全 13,451 行に記録（full 13,448、none 3）、types の 1 行が none → full、下がった行は無い。fix commit `a9465cc4f`。
+- local（maintenance clamp、1 job）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）program／types／
+  emitter／checker／compiler／conformance／harness；test program＋types＋emitter＋conformance＋harness＋compiler 1,748/0、
+  checker 1,797/0（最終 bytes `a9465cc4f`、`taskpolicy -c maintenance nice -n 20`、1 job）。
