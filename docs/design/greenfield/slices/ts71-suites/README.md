@@ -912,3 +912,93 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
   DefinitelyTyped 9,067／9,067（1,159 s）が診断と exit status まで一致。比較で clone に書かれた `.tsbuildinfo`（material-ui 5 件、azure 338 件）は
   消した。性能は計測していない（利用者の指示）。
 - 次：P4-7（watch／api）。`--generateTrace` の 2 件は利用者の判断待ち（types file は tsgo の型の生成順と id を要る）。
+
+## P4-7 計画：generateTrace／watch／api（2026-10-09）
+
+利用者の指示（2026-10-09）：「`--generateTrace` については現在の実装でいいので機能としては用意してください。tsgo と同じで
+なくても同じ機能を搭載して。P4-7（watch／api）にすすんでください」。`--generateTrace` は tsgo と同じ出力（trace・型・legend の
+file）を持つ機能として入れ、型の id と生成順は port の checker のもの（tsgo と byte 一致を求めない）とする。
+
+- **P4-7a `--generateTrace`**（tsgo `internal/tracing`、`execute/tsc.go` の `startTracingIfNeeded`）：`tsc` の compile（`-p`・
+  config・explicit file。tsgo と同じく `-b` と watch では動かさない）で、指定 directory に `trace.json`（Chrome trace event の
+  配列：metadata、`createProgram`・`createSourceFile`・`bindSourceFiles`／`bindSourceFile`・`checkSourceFiles`／
+  `checkSourceFile`・`emit`／file ごとの emit・`emitBuildInfo` の B／E、checker の深さ上限の instant、10 ms の sampling 境界を
+  跨いだ `checkExpression` などの X）、checker ごとの `types_<n>.json`（checker が作った全ての型の descriptor：id、intrinsic 名、
+  symbol 名、recursion identity の token、union／intersection の構成、alias 引数、keyof・indexed access・conditional・
+  substitution・reference・reverse mapped・evolving array の参照、宣言の位置、flag 名、anonymous／literal／union などの表示）と
+  `legend.json` を書く。thread id は tsgo の規則（main 1、checker 2+n、file は `xxh3("file:" + path)`）。test（`CommandLineTesting`）
+  では時刻を 1 ずつ進む counter にし、sampling event を出さない（tsgo の deterministic mode）。`--singleThreaded`（1 checker・
+  serial worker）と `--checkers <n>` も tsgo どおり効かせる。2 件の baseline は型の file が違うので `none` のまま（理由を記録）。
+- **P4-7b `tsc --watch`**（tsgo `execute/watcher.go`、`watchmanager`）：`Watcher`（初回 build、`DoCycle`：event の取り出し、
+  tsconfig の mtime 検査、関係する変更の判定、incremental な再 build、`Found N errors. Watching for file changes.`）、watch status
+  reporter（画面 clear・時刻）、`WatchManager`（望む directory watch の計算：wildcard directory、config の directory、program が
+  触れた file の directory、存在しない directory の祖先への fallback、`CanWatchDirectory`）。backend は trait（test は tsgo の
+  `MockWatchBackend` の移植、process は OS の通知、WebAssembly は embedding が渡す）。前回の program の状態は memory に持つ
+  （build info を書かない project でも incremental に再利用）。runner は `-w` の scenario を `DoCycle` で進め、`Watch Registrations::`
+  を書く。記録器を `TestWatch`（`tscwatch_test.go`、39 scenario）まで広げる。
+- **P4-7c `tsc -b --watch`**（tsgo `build/orchestrator.go` の watch 部分）：project ごとの watch、`checkTasksForEventChanges`、
+  package.json の lookup の監視、再 build の順序。tsbuildWatch 65。
+- **P4-7d api の encoder**（tsgo `api/encoder`）：source file の binary 形式（header、string table、extended data、structured data、
+  node 28 byte）を port の AST から書き、tsgo の `formatEncodedSourceFile` で 2 baseline を比べる。tsgo の `Kind` の番号と名前の表、
+  `ForEachChild` 順の NodeList。decoder と unit test も移す。
+- **API server**（tsgo `api` の session／protocol、`cmd/tsc --api`、TypeScript 側 client `packages/typescript/src/api`）は
+  roadmap の P5（公開 API）と同じ大きさの別作業として、P4-7d の後に計画を立てて着手する（Go の session test 17 file を Rust の
+  test として移すのが一致の基準）。
+- **orphan**：`tsc/commandLine/adds-color-when-FORCE_COLOR-is-set.js` は固定 commit のどの test も書かない（`tsc_test.go` の
+  `colorTest` に無い名前。P4-6b の「watch の test が書く」は誤り）。`config/matchFiles` と同じく対象外として runner から外す。
+
+## P4-7a `--generateTrace`（2026-10-09）
+
+利用者の指示（「現在の実装でいいので機能としては用意してください。tsgo と同じでなくても同じ機能を搭載して」）どおり、tsgo の
+`--generateTrace` と同じ file・event・descriptor を書く機能を入れた。型の id と生成順は port の checker のもの。
+
+- **session**（`tsc_types::tracing`、tsgo `internal/tracing`）：`Tracing` は event を 1 つの lock の下の buffer に書き、`finish` で
+  `trace.json`（Chrome trace event の配列）、checker ごとの `types_<n>.json`、`legend.json`（types file の path 順）を返す。command は
+  それを System の FileSystem に書く（tsgo は 256 KiB ごとに追記するが、port は memory に持って最後に書く。失敗は tsgo と同じく
+  `Warning: Failed to stop tracing: …` を出力に書く）。`Span`（B／E。終わりの event の引数を足せる）、`Sample`（10 ms の sampling
+  境界を跨いだときだけ X）、`instant`（I、`s: "g"`）、`CheckerTracer`（`checkerId` を足し、legend に登録）。thread は tsgo の規則
+  （main 1、checker 2+n、file は `xxh3("file:" + path) % 10⁹ + 10⁶`、衝突は +1、初出で thread_name の metadata）、JSON は tsgo の書式
+  （field の宣言順、省略、引数の key は sort、Go の float 表記、HTML escape なし）。test harness（`CommandLineTesting`）の下では
+  deterministic（時刻は 1 ずつ進む counter、sampled event なし）。
+- **記録点**：command の compile（`-p`・config・explicit file。tsgo と同じく `-b` と watch では記録しない）。`createProgram`（B と E の間に、
+  loader が parse した file の `createSourceFile` を開始順に書く。loader は `PreparsedSyntax` に parse の時刻を残す）、checker の driver の
+  `bindSourceFiles`（library の bind の前から program の file の bind の後まで）と file ごとの `bindSourceFile`、checker が parse し直す
+  file の `createSourceFile`、`checkSourceFiles`（serial と shard の check の周り）、checker の `checkSourceFile`（実際に check した file）、
+  sampled の `checkExpression`／`checkVariableDeclaration`／`checkDeferredNode`／`checkTypeParameterDeferred`／`structuredTypeRelatedTo`、
+  `getVariancesWorker`（終わりの event に variances の文字列）、深さ上限の instant 8 種（`checkTypeRelatedTo_DepthLimit`・
+  `recursiveTypeRelatedTo_DepthLimit`・`typeRelatedToDiscriminatedType_DepthLimit`・`traceUnionsOrIntersectionsTooLarge_DepthLimit`・
+  `getTypeAtFlowNode_DepthLimit`・`instantiateType_DepthLimit`・`removeSubtypes_DepthLimit`・`checkCrossProductUnion_DepthLimit`）、
+  emit の `emit`（program。`--noEmit` でも空の span）と unit ごとの `emit`／`emitJsFileOrBundle`／`emitDeclarationFileOrBundle`、
+  `emitBuildInfo`。checker は module provider（`AuthoritativeModuleProvider::tracing`）から session を受け、state の構築時に shard の
+  index で `CheckerTracer` を持つ（incremental の planner の state は program の checker ではないので持たない）。emitter は
+  `EmitHost::tracing`。
+- **types file**（tsgo `buildTypeDescriptor`）：checker の state が終わるとき（`Drop`）、型の arena の全ての型を書く。id は `TypeId` + 1、
+  intrinsic 名（tsgo の `TypeFlagsIntrinsic`）、alias か symbol の名前（late-bound の接頭辞は `__@`）、recursion identity の token、
+  tuple、union／intersection の構成、alias の型引数、keyof・indexed access・conditional（解決していない枝は -1）・substitution・
+  reference（target と解決済みの型引数、deferred node の位置）・reverse mapped・evolving array（final 型）、destructuring pattern、
+  最初の宣言の位置（小文字の path、1 起点の行と UTF-16 文字）、flag 名、anonymous と literal／template literal／union／intersection の
+  表示（失敗は表示なし）。trace を取る session は checker の state を leak せずに drop する。
+- **`--singleThreaded`／`--checkers <n>`**：tsgo の `newCheckerPool` どおり（1 worker・1 checker／n checker、上限は MAX_CHECKERS）。
+  command line の process option として読む（`-b` でも）。
+- **結果**：generateTrace の 2 件は `legend.json` と `trace.json` の metadata・`createProgram`・`createSourceFile` が tsgo と byte 一致。
+  違うのは bind と check の順序（port は library を program の file より先に bind し、program の file を library より先に check する）と
+  types file（型の id と生成順が port のもの）で、利用者の判断どおり `none` のまま。実 CLI（wall clock）では sampled event、複数 checker
+  の types file、emit の span が出ることを確かめた（JSON として読める）。
+- **orphan**：`tsc/commandLine/adds-color-when-FORCE_COLOR-is-set.js`（固定 commit のどの test も書かない）を runner の比較から外した
+  （`ORPHAN_REFERENCES`）。`scripts/suites_ts71.py --update` は、全体実行が報告しなくなった `none` の行を ratchet から落とす（`none`
+  以外の行は残り、`--check` が失敗する）。
+- tests：types の tracing 4（tsgo の thread id、deterministic な event 列、legend と types file、flag 名）、compiler の system contract 2
+  （deterministic な session の file と event 列・型の descriptor、`-b` は記録しない・tsconfig の option も効く）。
+
+- 計測（code の最終 bytes `d8903ccf3`、macOS、`nice -n 20`、2 worker）：conformance 12,748 case／468 s、errors full 13,451
+  （mismatch 0）、emit full 13,443（not assessed 8）、types full 12,677／mismatch 90、symbols full 12,715／mismatch 52、sourcemap full
+  13,451、trace full 13,448／mismatch 3、harness error 15（P4-6c と同じ）、ratchet 0 regressions。suites（`--update` で orphan の
+  `none` 1 行を落として 623 行 → `--check`）0 regressions、tsc 211／223、tsbuild 182／192、transpile 41・tsoptions 80・config 87 は全て
+  full。並列対照（`--checkers 4`、全件、464 s）：15,224 構成が一致、違う 4 構成は記録済みの「emit が先」の 4 構成
+  （`mutuallyRecursiveInference`、`incorrectRecursiveMappedTypeConstraint`、`typeParameterWithInvalidConstraintType`、
+  `recursiveMappedTypes`）。
+- local（`nice -n 20`、2 job、最終 bytes）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）types／syntax／binder／
+  program／emitter／checker／incremental／compiler／conformance／harness；test types 47、syntax 246、binder 78、program 601、emitter 635、
+  incremental 29、compiler 439、conformance 52、harness 31、checker 1,797（全て 0 失敗）。workspace 全体の test と clippy は hosted の
+  `rust` job に任せた。実 project の比較は行っていない（trace を取らない run での変更は tracer の有無の分岐だけで、checker の意味は変えて
+  いない）。性能は計測していない（利用者の指示）。
