@@ -503,3 +503,14 @@ harness の整形（`sanitizeTrace`）：最初の `'7.1.0-dev'` を `'FakeTSVer
 - local（maintenance clamp、1 job）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）program／types／
   emitter／checker／compiler／conformance／harness；test program＋types＋emitter＋conformance＋harness＋compiler 1,748/0、
   checker 1,797/0（最終 bytes `a9465cc4f`、`taskpolicy -c maintenance nice -n 20`、1 job）。
+
+### P4-3のhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `8ce4f25d2`（fix `a9465cc4f` ＋ packet の記録）の run 37734504815（`plan` 33s、`rust` 10m34s、
+  `conformance (TypeScript 7.1)` 19m59s、`gates` 13s。全て成功）。merge → `f0daa6dce`（merge commit）。
+- 計測（conformance の全体実行、crate test）は上の記録のとおり、merge前に最終bytes `a9465cc4f` で行った。実project の比較は
+  行っていない（resolver の挙動の修正は file の包含や package の重複解消に効き得るので、次に corpus を比較するときに確かめる）。
+  性能は計測していない（利用者の指示）。
+- 次：P4-4（transpile（41）：`internal/transpile` への pin 直し、runner、cases と baseline の vendoring）。P4-3 の残り
+  （bundler の implied node format、CLI の version 文字列、harness の他の list option の trim、checker の `replace_*_value`、
+  exports の条件の列挙順）は別 slice。
