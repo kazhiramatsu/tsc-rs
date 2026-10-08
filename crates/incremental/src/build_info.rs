@@ -427,7 +427,8 @@ impl BuildInfo {
     ) -> RootInfoReader {
         let to_path = |name: &str| canonical(name, build_info_directory);
         let mut resolved_to_root: HashMap<String, String> = HashMap::new();
-        for (root, resolved) in &self.resolved_root {
+        // tsgo `BuildInfoResolvedRoot` is `[resolved, root]`.
+        for (resolved, root) in &self.resolved_root {
             if let (Some(resolved), Some(root)) =
                 (self.file_name_of(*resolved), self.file_name_of(*root))
             {
@@ -610,5 +611,47 @@ mod tests {
                 r#""emitSignatures":[1,[2,"s"],[3,[]],[4,["t"]]],"resolvedRoot":[[3,5]]}"#
             )
         );
+    }
+
+    #[test]
+    fn a_resolved_root_stands_for_its_source() {
+        // A root in a referenced project: the program holds the project's
+        // output (file 2) in its source's place (file 3), and the build
+        // info records `resolvedRoot` as [resolved, root].
+        let info = BuildInfo {
+            root: vec![BuildInfoRoot::Range(1, 2)],
+            file_names: vec![
+                "./src/a.ts".into(),
+                "../shared/dist/b.d.ts".into(),
+                "../shared/src/b.ts".into(),
+            ],
+            file_infos: vec![
+                FileInfoEntry::Signature("aa".into()),
+                FileInfoEntry::Signature("bb".into()),
+                FileInfoEntry::Signature("cc".into()),
+            ],
+            resolved_root: vec![(2, 3)],
+            ..Default::default()
+        };
+        let reader = info.root_info_reader("/p/out", &|name: &str, directory: &str| {
+            let mut parts: Vec<&str> = directory.split('/').collect();
+            for part in name.split('/') {
+                match part {
+                    "." => {}
+                    ".." => {
+                        parts.pop();
+                    }
+                    part => parts.push(part),
+                }
+            }
+            parts.join("/")
+        });
+        assert_eq!(
+            reader.roots().collect::<Vec<_>>(),
+            ["/p/out/src/a.ts", "/p/shared/src/b.ts"]
+        );
+        let (file_info, resolved) = reader.file_info("/p/shared/src/b.ts").unwrap();
+        assert_eq!(resolved, "/p/shared/dist/b.d.ts");
+        assert_eq!(file_info, Some(&FileInfoEntry::Signature("bb".into())));
     }
 }

@@ -13,6 +13,7 @@ mod filesystem;
 mod js_path;
 mod memory;
 mod ordering;
+pub mod vfs;
 
 use std::path::{Path, PathBuf};
 use tsc_diagnostics::{JsStr, JsString};

@@ -23,10 +23,10 @@ use tsc_emitter::{
 use tsc_host::CompilerHost;
 use tsc_incremental::options::{emit_declarations, is_incremental};
 use tsc_incremental::{
-    compute_hash, declaration_write_decision, ensure_path_is_non_module_name, fresh_emit_updates,
-    BuildInfo, BuildInfoDiagnostic, CachedDiagnostic, CachedRows, DeclarationEmit,
-    DeclarationEmitFacts, DeclarationOutput, EmitUpdate, FileEmitKind, FileState, OldState,
-    OldStatePaths, ProgramFileFacts, ProgramState, Snapshot,
+    compute_hash_with_text, declaration_write_decision, ensure_path_is_non_module_name,
+    fresh_emit_updates, BuildInfo, BuildInfoDiagnostic, CachedDiagnostic, CachedRows,
+    DeclarationEmit, DeclarationEmitFacts, DeclarationOutput, EmitUpdate, FileEmitKind, FileState,
+    OldState, OldStatePaths, ProgramFileFacts, ProgramState, Snapshot,
 };
 use tsc_program::{
     PackageJsonType, PreparedProgram, ResolutionOutcome, SourceFileId,
@@ -101,7 +101,7 @@ fn byte_cut(text: &str, utf16_position: Option<u32>) -> usize {
     text.len()
 }
 
-fn record_of(artifact: &EmitArtifact) -> Option<DeclarationRecord> {
+fn record_of(artifact: &EmitArtifact, hash_with_text: bool) -> Option<DeclarationRecord> {
     if artifact.kind() != EmitArtifactKind::Declaration {
         return None;
     }
@@ -117,7 +117,7 @@ fn record_of(artifact: &EmitArtifact) -> Option<DeclarationRecord> {
     Some(DeclarationRecord {
         source,
         output: artifact.path().to_owned(),
-        signature: compute_hash(&text.as_bytes()[..cut]),
+        signature: compute_hash_with_text(&text[..cut], hash_with_text),
         differs_only_in_map: false,
     })
 }
@@ -149,6 +149,7 @@ pub(crate) struct RecordingSharedSink<'s> {
     inner: &'s dyn SharedOutputSink,
     composite: Option<Arc<CompositeSignatures>>,
     build: bool,
+    hash_with_text: bool,
     records: Mutex<Vec<DeclarationRecord>>,
     writes: AtomicUsize,
 }
@@ -156,7 +157,7 @@ pub(crate) struct RecordingSharedSink<'s> {
 impl SharedOutputSink for RecordingSharedSink<'_> {
     fn write_shared(&self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
         self.writes.fetch_add(1, Ordering::Relaxed);
-        if let Some(mut record) = record_of(&artifact) {
+        if let Some(mut record) = record_of(&artifact, self.hash_with_text) {
             let (skip, differs_only_in_map) =
                 skip_declaration_write(self.composite.as_deref(), self.build, &record);
             record.differs_only_in_map = differs_only_in_map;
@@ -181,22 +182,25 @@ pub(crate) struct SignatureRecordingSink<'s> {
     shared: Option<RecordingSharedSink<'s>>,
     composite: Option<Arc<CompositeSignatures>>,
     build: bool,
+    hash_with_text: bool,
     eager_source_roots: bool,
     records: Vec<DeclarationRecord>,
     writes: usize,
 }
 
 impl<'s> SignatureRecordingSink<'s> {
-    pub(crate) fn new(sink: &'s mut dyn OutputSink) -> Self {
-        Self::with_composite_signatures(sink, None, false)
+    pub(crate) fn new(sink: &'s mut dyn OutputSink, hash_with_text: bool) -> Self {
+        Self::with_composite_signatures(sink, None, false, hash_with_text)
     }
 
     /// `build`: the command is `tsc -b` (a declaration file that differs
-    /// only in its map is recorded as such).
+    /// only in its map is recorded as such); `hash_with_text`: the
+    /// signatures carry the declaration text (tsgo `hashWithText`).
     pub(crate) fn with_composite_signatures(
         sink: &'s mut dyn OutputSink,
         composite: Option<CompositeSignatures>,
         build: bool,
+        hash_with_text: bool,
     ) -> Self {
         let composite = composite.map(Arc::new);
         let eager_source_roots = sink.writes_source_roots_eagerly();
@@ -210,11 +214,13 @@ impl<'s> SignatureRecordingSink<'s> {
                     inner: shared,
                     composite: composite.clone(),
                     build,
+                    hash_with_text,
                     records: Mutex::new(Vec::new()),
                     writes: AtomicUsize::new(0),
                 }),
                 composite,
                 build,
+                hash_with_text,
                 eager_source_roots,
                 records: Vec::new(),
                 writes: 0,
@@ -225,6 +231,7 @@ impl<'s> SignatureRecordingSink<'s> {
                 shared: None,
                 composite,
                 build,
+                hash_with_text,
                 eager_source_roots,
                 records: Vec::new(),
                 writes: 0,
@@ -281,7 +288,7 @@ impl OutputSink for SignatureRecordingSink<'_> {
             return shared.write_shared(artifact);
         }
         self.writes += 1;
-        if let Some(mut record) = record_of(&artifact) {
+        if let Some(mut record) = record_of(&artifact, self.hash_with_text) {
             let (skip, differs_only_in_map) =
                 skip_declaration_write(self.composite.as_deref(), self.build, &record);
             record.differs_only_in_map = differs_only_in_map;
@@ -451,6 +458,18 @@ pub(crate) struct AffectedPolicy {
     /// The command is `tsc -b` (tsgo `CompilerOptions.Build`): every project
     /// writes a build info, a non-incremental one tracking its errors only.
     pub(crate) build: bool,
+    /// Versions and signatures carry their text (tsgo `hashWithText`, set
+    /// under its test harness).
+    pub(crate) hash_with_text: bool,
+}
+
+/// One file of an incremental program's run as tsgo's test harness sees it
+/// (`incremental.TestingData` over the program's files).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProgramFileReport {
+    pub file_name: String,
+    pub semantic_diagnostics: tsc_incremental::SemanticDiagnosticsState,
+    pub signature_update: Option<tsc_incremental::SignatureUpdateKind>,
 }
 
 /// What `tsc -b` learns from a project's emit (tsgo
@@ -537,7 +556,8 @@ impl<'p> IncrementalDriver<'p> {
             let Some(file_name) = &self.build_info_file_name else {
                 return IncrementalPlan::default();
             };
-            let assembly = Assembly::new(self.prepared, facts, file_name);
+            let assembly =
+                Assembly::new(self.prepared, facts, file_name, self.policy.hash_with_text);
             let options = self.prepared.compiler_options();
             let mut snap = Snapshot::new(
                 assembly.program_state(self.policy.build),
@@ -632,7 +652,12 @@ impl<'p> IncrementalDriver<'p> {
         };
         let mut guard = self.state();
         let state = guard.get_or_insert_with(|| {
-            let assembly = Assembly::new(self.prepared, &facts.files, file_name);
+            let assembly = Assembly::new(
+                self.prepared,
+                &facts.files,
+                file_name,
+                self.policy.hash_with_text,
+            );
             DriverState {
                 snapshot: Snapshot::new(
                     assembly.program_state(self.policy.build),
@@ -644,7 +669,12 @@ impl<'p> IncrementalDriver<'p> {
             }
         });
         if rows_cached {
-            let assembly = Assembly::new(self.prepared, &facts.files, file_name);
+            let assembly = Assembly::new(
+                self.prepared,
+                &facts.files,
+                file_name,
+                self.policy.hash_with_text,
+            );
             for (index, file) in facts.files.iter().enumerate() {
                 let Some(rows) = &file.semantic_rows else {
                     continue;
@@ -673,7 +703,12 @@ impl<'p> IncrementalDriver<'p> {
         let (Some(state), Some(file_name)) = (guard.as_ref(), &self.build_info_file_name) else {
             return Vec::new();
         };
-        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        let assembly = Assembly::new(
+            self.prepared,
+            &state.facts,
+            file_name,
+            self.policy.hash_with_text,
+        );
         let no_emit = self.prepared.compiler_options().no_emit == Some(true);
         let mut diagnostics = Vec::new();
         for index in 0..self.prepared.source_files().len() {
@@ -726,7 +761,12 @@ impl<'p> IncrementalDriver<'p> {
         let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
             return Vec::new();
         };
-        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        let assembly = Assembly::new(
+            self.prepared,
+            &state.facts,
+            file_name,
+            self.policy.hash_with_text,
+        );
         let by_file = assembly.rows_by_file(rows);
         if self.old.is_none() {
             let (updates, deleted) = fresh_emit_updates(
@@ -866,7 +906,12 @@ impl<'p> IncrementalDriver<'p> {
             .filter(|record| record.differs_only_in_map)
             .map(|record| record.output.clone())
             .collect();
-        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        let assembly = Assembly::new(
+            self.prepared,
+            &state.facts,
+            file_name,
+            self.policy.hash_with_text,
+        );
         let file_count = assembly.file_count();
         let mut declaration_outputs = vec![None; file_count];
         for record in records {
@@ -947,7 +992,12 @@ impl<'p> IncrementalDriver<'p> {
         let Some(file_name) = &self.build_info_file_name else {
             return false;
         };
-        let assembly = Assembly::new(self.prepared, &state.facts, file_name);
+        let assembly = Assembly::new(
+            self.prepared,
+            &state.facts,
+            file_name,
+            self.policy.hash_with_text,
+        );
         self.prepared
             .diagnostics()
             .program()
@@ -975,6 +1025,24 @@ impl<'p> IncrementalDriver<'p> {
             .unwrap_or_default()
     }
 
+    /// The program's files as the run left them (tsgo `GetTestingData`).
+    pub(crate) fn program_report(&self) -> Option<Vec<ProgramFileReport>> {
+        let guard = self.state();
+        let state = guard.as_ref()?;
+        Some(
+            self.prepared
+                .source_files()
+                .iter()
+                .enumerate()
+                .map(|(index, source)| ProgramFileReport {
+                    file_name: source.path().display().to_string_lossy().into_owned(),
+                    semantic_diagnostics: state.snapshot.semantic_diagnostics_state(index),
+                    signature_update: state.snapshot.signature_update(index),
+                })
+                .collect(),
+        )
+    }
+
     pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {
         let file_name = self.build_info_file_name.clone()?;
         let mut guard = self.state();
@@ -994,6 +1062,8 @@ impl<'p> IncrementalDriver<'p> {
 struct Assembly<'p> {
     prepared: &'p PreparedProgram,
     facts: &'p [IncrementalFileFacts],
+    /// Versions and signatures carry their text (tsgo `hashWithText`).
+    hash_with_text: bool,
     build_info_file_name: String,
     index_by_name: HashMap<JsString, usize>,
     index_by_canonical: HashMap<String, usize>,
@@ -1006,6 +1076,7 @@ impl<'p> Assembly<'p> {
         prepared: &'p PreparedProgram,
         facts: &'p [IncrementalFileFacts],
         file_name: &JsString,
+        hash_with_text: bool,
     ) -> Self {
         let index_by_name = prepared
             .source_files()
@@ -1036,6 +1107,7 @@ impl<'p> Assembly<'p> {
         Self {
             prepared,
             facts,
+            hash_with_text,
             build_info_file_name: file_name.to_string_lossy().into_owned(),
             index_by_name,
             index_by_canonical,
@@ -1319,7 +1391,7 @@ impl<'p> Assembly<'p> {
         for diagnostic in &output.diagnostics {
             self.diagnostic_to_string(file, diagnostic, &mut builder);
         }
-        compute_hash(builder.as_bytes())
+        compute_hash_with_text(&builder, self.hash_with_text)
     }
 
     fn diagnostic_to_string(&self, file: usize, diagnostic: &Diagnostic, builder: &mut String) {
@@ -1556,7 +1628,7 @@ impl<'p> Assembly<'p> {
                         .to_string_lossy()
                         .into_owned(),
                     default_library_name,
-                    version: compute_hash(source.text().as_bytes()),
+                    version: compute_hash_with_text(source.text(), self.hash_with_text),
                     affects_global_scope: self
                         .file_facts(index)
                         .is_some_and(|facts| facts.affects_global_scope),

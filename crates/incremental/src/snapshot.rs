@@ -232,6 +232,29 @@ struct OldSummary {
     missing_package_jsons: Vec<String>,
 }
 
+/// How a file's semantic diagnostics stand after a run: tsgo's testing data
+/// compares the run's map with the old program's.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SemanticDiagnosticsState {
+    /// Computed by this run (`*refresh*`).
+    Refreshed,
+    /// Kept from the old state.
+    Kept,
+    /// Not cached (`*not cached*`).
+    NotCached,
+}
+
+/// tsgo `SignatureUpdateKind`: how this run updated a file's signature.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SignatureUpdateKind {
+    /// From the declaration output of the affected-file walk.
+    ComputedDts,
+    /// From the declaration file the emit wrote.
+    StoredAtEmit,
+    /// The file's version stands for its shape.
+    UsedVersion,
+}
+
 /// tsgo `snapshot`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
@@ -263,6 +286,8 @@ pub struct Snapshot {
     referenced_by: Vec<Vec<usize>>,
     /// The semantic check stored rows for some file.
     stored_rows: bool,
+    /// tsgo `TestingData.UpdatedSignatureKinds`.
+    signature_updates: BTreeMap<usize, SignatureUpdateKind>,
 }
 
 impl Snapshot {
@@ -305,6 +330,7 @@ impl Snapshot {
             global_file_removed: false,
             referenced_by,
             stored_rows: false,
+            signature_updates: BTreeMap::new(),
             program,
         };
 
@@ -563,8 +589,9 @@ impl Snapshot {
             ..
         } = handler;
         // updateSnapshot
-        for (file, signature) in updated_signatures {
+        for (file, (signature, kind)) in updated_signatures {
             self.file_infos[file].signature = signature;
+            self.signature_updates.insert(file, kind);
         }
         for file in remove_rows {
             self.semantic[file] = None;
@@ -575,6 +602,21 @@ impl Snapshot {
         }
         self.changed.clear();
         self.build_info_emit_pending = true;
+    }
+
+    /// Where a file's semantic diagnostics came from (tsgo's testing data).
+    pub fn semantic_diagnostics_state(&self, file: usize) -> SemanticDiagnosticsState {
+        match self.semantic.get(file) {
+            Some(Some(CachedRows::New(_))) => SemanticDiagnosticsState::Refreshed,
+            Some(Some(CachedRows::Old(_))) => SemanticDiagnosticsState::Kept,
+            _ => SemanticDiagnosticsState::NotCached,
+        }
+    }
+
+    /// How this run updated a file's signature, if it did (tsgo's testing
+    /// data).
+    pub fn signature_update(&self, file: usize) -> Option<SignatureUpdateKind> {
+        self.signature_updates.get(&file).copied()
     }
 
     /// The files whose semantic rows are not cached: the ones the program
@@ -686,6 +728,8 @@ impl Snapshot {
         }
         for (file, signature) in new_signatures {
             self.file_infos[file].signature = signature;
+            self.signature_updates
+                .insert(file, SignatureUpdateKind::StoredAtEmit);
             self.build_info_emit_pending = true;
         }
         for (file, signature) in new_emit_signatures {
@@ -996,7 +1040,7 @@ impl Snapshot {
 struct AffectedFiles<'s> {
     snapshot: &'s Snapshot,
     /// tsgo `updatedSignatures`: computed once per file.
-    updated_signatures: BTreeMap<usize, String>,
+    updated_signatures: BTreeMap<usize, (String, SignatureUpdateKind)>,
     has_all_files_excluding_default_library: bool,
     remove_rows: BTreeSet<usize>,
     cleaned_library_rows: bool,
@@ -1013,7 +1057,9 @@ impl AffectedFiles<'_> {
     fn is_changed_signature(&self, file: usize) -> bool {
         // This method is called after updating signatures of that path, so
         // signature is present in updatedSignatures
-        self.updated_signatures.get(&file).map(String::as_str)
+        self.updated_signatures
+            .get(&file)
+            .map(|(signature, _)| signature.as_str())
             != Some(self.snapshot.file_infos[file].signature.as_str())
     }
 
@@ -1045,11 +1091,13 @@ impl AffectedFiles<'_> {
             signature = (self.signature_of)(file).unwrap_or_default();
         }
         // Default is to use file version as signature
+        let mut kind = SignatureUpdateKind::ComputedDts;
         if signature.is_empty() {
             signature = info.version.clone();
+            kind = SignatureUpdateKind::UsedVersion;
         }
         let changed = signature != info.signature;
-        self.updated_signatures.insert(file, signature);
+        self.updated_signatures.insert(file, (signature, kind));
         changed
     }
 

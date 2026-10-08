@@ -30,11 +30,12 @@ use super::{declaration_emit_extension, output_extension, panic_text, CASE_STACK
 
 mod go_json;
 mod tables;
+mod tsc;
 mod tsconfig;
 mod tsoptions;
 
 /// The suites [`run`] knows.
-pub const SUITES: [&str; 3] = ["config", "transpile", "tsoptions"];
+pub const SUITES: [&str; 5] = ["config", "transpile", "tsbuild", "tsc", "tsoptions"];
 
 /// How one produced (or expected) baseline compares with its reference.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -107,9 +108,45 @@ pub fn run(workspace: &Path, options: &SuiteRunOptions) -> Result<Vec<SuiteResul
             .collect(),
         options,
     )?);
+    let libraries = std::sync::Arc::new(library_file_names(
+        &profile.upstream_root().join("tsc/internal/bundled/libs"),
+    )?);
+    let scenarios = tsc::cases(workspace, &options.profile)?;
+    for suite in ["tsc", "tsbuild"] {
+        let cases = scenarios
+            .iter()
+            .filter(|scenario| tsc::suite_and_name(scenario).0 == suite)
+            .map(|scenario| {
+                let name = tsc::suite_and_name(scenario).1.to_owned();
+                let scenario = scenario.clone();
+                let libraries = std::sync::Arc::clone(&libraries);
+                (
+                    name,
+                    Box::new(move || tsc::render(&scenario, &libraries)) as Render,
+                )
+            })
+            .collect();
+        results.extend(run_rendered(
+            if suite == "tsc" { "tsc" } else { "tsbuild" },
+            &reference.join(suite),
+            cases,
+            options,
+        )?);
+    }
     results
         .sort_by(|left, right| (left.suite, &left.baseline).cmp(&(right.suite, &right.baseline)));
     Ok(results)
+}
+
+/// The names of the profile's standard library files.
+fn library_file_names(directory: &Path) -> Result<Vec<String>, String> {
+    let mut names = std::fs::read_dir(directory)
+        .map_err(|error| format!("{}: {error}", directory.display()))?
+        .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
+        .filter(|name| name.ends_with(".d.ts"))
+        .collect::<Vec<_>>();
+    names.sort();
+    Ok(names)
 }
 
 /// A baseline's renderer.

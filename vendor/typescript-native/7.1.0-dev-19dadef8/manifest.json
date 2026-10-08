@@ -63,6 +63,20 @@
       "bytes": 48314
     },
     {
+      "path": "tsc/testdata/baselines/reference/tsc",
+      "git_tree_sha1": "407bd772d79abd37a3ddf7bd58d384b7d57733ef",
+      "blob_inventory_sha256": "f560c6921bd4f8de78fc20c1187a4399d2412e00b7a50bb6e2d704ab685d405b",
+      "files": 224,
+      "bytes": 2720460
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/tsbuild",
+      "git_tree_sha1": "289e5c9f58a6dc85daad1d13cf7b9ddab2d8ac0c",
+      "blob_inventory_sha256": "db6589294150accfff1eca0bb647ae4508dbfcd31f1908333d0eacf44bafcc2f",
+      "files": 192,
+      "bytes": 5286938
+    },
+    {
       "path": "tsc/internal/diagnostics/diagnosticMessages.json",
       "git_blob_sha1": "edc52a66cb04a3ee8b2e8b206fd797804080b523",
       "blob_inventory_sha256": "f96b36f1432be1badd98cd75b183c3665ce8b9883cf36876e84f5dade573c47e",

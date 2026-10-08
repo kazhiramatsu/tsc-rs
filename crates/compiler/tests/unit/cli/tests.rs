@@ -95,18 +95,18 @@ fn version_is_available_without_a_filesystem_host() {
 
 #[test]
 fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
-    let filesystem = FsCompilerHost::from_process().expect("construct filesystem host");
-    let host = CliCompilerHost::new(filesystem);
-    assert_eq!(embedded_libraries::EMBEDDED_LIBRARIES.len(), 113);
+    let system = NativeSystem::from_process().expect("the process system");
+    let host = system.compiler_host();
     // tsgo's embedded library path (internal/bundled): the diagnostics name
     // a library file `bundled:///libs/<lib>`.
     assert_eq!(
-        host.library_directory(),
-        Path::new("bundled:///libs"),
+        system.default_library_path(),
+        "bundled:///libs",
         "the embedded library directory is tsgo's bundled path"
     );
+    let library_directory = Path::new(system.default_library_path());
 
-    let embedded_path = host.library_directory().join("lib.es5.d.ts");
+    let embedded_path = library_directory.join("lib.es5.d.ts");
     let embedded = host
         .read_file(&embedded_path)
         .expect("read embedded library")
@@ -116,17 +116,17 @@ fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
     ))
     .expect("read pinned ES5 library");
     assert!(host
-        .file_exists(&host.library_directory().join("lib.es2026.full.d.ts"))
+        .file_exists(&library_directory.join("lib.es2026.full.d.ts"))
         .expect("query embedded ES2026 library"));
     assert_eq!(embedded, vendored);
     assert!(host
         .file_exists(&embedded_path)
         .expect("query embedded library"));
     assert!(!host
-        .file_exists(&host.library_directory().join("lib.unknown.d.ts"))
+        .file_exists(&library_directory.join("lib.unknown.d.ts"))
         .expect("query absent embedded library"));
     assert_eq!(
-        host.read_directory(host.library_directory())
+        host.read_directory(library_directory)
             .expect("list embedded library directory")
             .len(),
         113

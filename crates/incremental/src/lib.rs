@@ -23,7 +23,7 @@ pub use build_info::{
     BuildInfo, BuildInfoDiagnostic, BuildInfoRoot, EmitSignatureEntry, FileInfoEntry,
     RepopulateInfo, SemanticDiagnosticEntry, VERSION,
 };
-pub use hash::compute_hash;
+pub use hash::{compute_hash, compute_hash_with_text};
 pub use old_state::{
     is_default_library_name, CachedDiagnostic, EmitSignature, OldFileInfo, OldState, OldStatePaths,
 };
@@ -31,5 +31,5 @@ pub use snapshot::{
     build_fresh_build_info, declaration_write_decision, ensure_path_is_non_module_name,
     fresh_emit_updates, CachedRows, DeclarationEmit, DeclarationEmitFacts, DeclarationOutput,
     DeclarationWrite, EmitUpdate, FileEmitKind, FileState, FreshSnapshotInput, ProgramFileFacts,
-    ProgramState, SemanticRowsFacts, Snapshot,
+    ProgramState, SemanticDiagnosticsState, SemanticRowsFacts, SignatureUpdateKind, Snapshot,
 };

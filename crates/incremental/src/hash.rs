@@ -6,6 +6,17 @@ pub fn compute_hash(text: &[u8]) -> String {
     format!("{:032x}", xxhash_rust::xxh3::xxh3_128(text))
 }
 
+/// tsgo snapshot.go `ComputeHash(text, hashWithText)`: under tsgo's tests the
+/// hash is followed by `-` and the text, so a baseline shows what changed.
+pub fn compute_hash_with_text(text: &str, with_text: bool) -> String {
+    let mut hash = compute_hash(text.as_bytes());
+    if with_text {
+        hash.push('-');
+        hash.push_str(text);
+    }
+    hash
+}
+
 #[cfg(test)]
 mod tests {
     use super::compute_hash;

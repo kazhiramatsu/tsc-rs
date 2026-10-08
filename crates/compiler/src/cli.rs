@@ -12,9 +12,6 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
-use std::fs;
-use std::io;
-use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -23,7 +20,7 @@ use tsc_diagnostics::{
     write_error_summary_text, Diagnostic, FormatDiagnosticsHost, MessageChain, TextSnapshot,
 };
 use tsc_diagnostics::{gen, JsStr, JsString};
-use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
+use tsc_host::{CompilerHost, HostError};
 use tsc_incremental::{BuildInfo, OldState};
 use tsc_program::{
     command_line_option_bag, command_line_program_inputs, decode_host_text,
@@ -36,11 +33,10 @@ use tsc_program::{
 };
 
 use crate::build::{self, BuildCommand};
+use crate::system::{
+    CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
+};
 use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
-
-mod embedded_libraries {
-    include!(concat!(env!("OUT_DIR"), "/embedded_libraries.rs"));
-}
 
 const EXIT_SUCCESS: i32 = 0;
 const EXIT_COMMAND_LINE: i32 = 1;
@@ -50,8 +46,8 @@ const CONFIG_FILE_NAME: &str = "tsconfig.json";
 /// The vendored TypeScript profile whose standard libraries the executable
 /// embeds and whose behavior it follows; `--version` reports it.
 const EMBEDDED_LIBRARY_PROFILE: &str = "7.1.0-dev-19dadef8";
-pub(crate) const TYPESCRIPT_VERSION: &str = EMBEDDED_LIBRARY_PROFILE;
-type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
+pub const TYPESCRIPT_VERSION: &str = EMBEDDED_LIBRARY_PROFILE;
+pub(crate) type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
     2_000_000,
@@ -68,9 +64,9 @@ const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
 /// only for reproducible serial/worker-count measurements.
 const WORKERS_ENV: &str = "TSRS_WORKERS";
 
-fn cli_worker_budget() -> WorkerBudget {
-    match std::env::var(WORKERS_ENV)
-        .ok()
+fn cli_worker_budget(system: &dyn System) -> WorkerBudget {
+    match system
+        .env_var(WORKERS_ENV)
         .and_then(|value| value.trim().parse::<std::num::NonZeroUsize>().ok())
     {
         Some(workers) => WorkerBudget::new(workers),
@@ -88,9 +84,9 @@ fn cli_worker_budget() -> WorkerBudget {
 /// replay of an order-consuming run (see `CheckerBudget::with_order_replay`).
 const CHECKERS_ENV: &str = "TSRS_CHECKERS";
 
-fn cli_checker_budget() -> CheckerBudget {
-    match std::env::var(CHECKERS_ENV)
-        .ok()
+fn cli_checker_budget(system: &dyn System) -> CheckerBudget {
+    match system
+        .env_var(CHECKERS_ENV)
         .and_then(|value| value.trim().parse::<std::num::NonZeroUsize>().ok())
     {
         Some(checkers) => CheckerBudget::new(checkers),
@@ -103,8 +99,8 @@ fn cli_checker_budget() -> CheckerBudget {
 }
 
 /// The CLI's program load limits with its worker budget.
-fn cli_limits() -> ProgramLoadLimits {
-    DEFAULT_LIMITS.with_workers(cli_worker_budget())
+fn cli_limits(system: &dyn System) -> ProgramLoadLimits {
+    DEFAULT_LIMITS.with_workers(cli_worker_budget(system))
 }
 
 /// Result of one CLI invocation. The binary writes the two streams and exits
@@ -159,8 +155,31 @@ pub(crate) enum CliError {
 }
 
 pub(crate) struct CliRoute<'a> {
+    pub(crate) system: &'a dyn System,
+    pub(crate) testing: Option<&'a dyn CommandLineTesting>,
     pub(crate) pretty: bool,
     pub(crate) output_filesystem: &'a mut dyn EmitFileSystem,
+}
+
+impl CliRoute<'_> {
+    /// How this run writes diagnostics from `current_directory`.
+    fn format<'p>(&self, current_directory: &'p Path) -> Format<'p> {
+        Format {
+            current_directory,
+            case_sensitive: self.system.fs().case_sensitive(),
+            pretty: self.pretty,
+        }
+    }
+}
+
+/// How diagnostics are written (tsgo `getFormatOptsOfSys` with
+/// `shouldBePretty`): relative to the current directory under the file
+/// system's case profile, plainly or with colors and context.
+#[derive(Clone, Copy)]
+pub(crate) struct Format<'a> {
+    pub(crate) current_directory: &'a Path,
+    pub(crate) case_sensitive: bool,
+    pub(crate) pretty: bool,
 }
 
 impl fmt::Display for CliError {
@@ -178,332 +197,48 @@ impl fmt::Display for CliError {
 
 impl Error for CliError {}
 
-#[derive(Default)]
-struct NativeEmitFileSystem;
-
-impl tsc_emitter::SharedEmitFileSystem for NativeEmitFileSystem {
-    fn write_file(&self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString> {
-        // This is the actual filesystem boundary; compiler path keys stay JS.
-        let native = path.to_string_lossy();
-        let native_path = Path::new(native.as_ref());
-        fs::write(native_path, bytes).map_err(|error| stable_io_message(&error, "open", path))
-    }
-
-    fn create_directory(&self, path: JsStr<'_>) -> Result<(), JsString> {
-        // This is the actual filesystem boundary; compiler path keys stay JS.
-        let native = path.to_string_lossy();
-        let native_path = Path::new(native.as_ref());
-        match fs::create_dir(native_path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists && native_path.is_dir() => {
-                Ok(())
-            }
-            Err(error) => Err(stable_io_message(&error, "mkdir", path)),
-        }
-    }
-
-    fn directory_exists(&self, path: JsStr<'_>) -> bool {
-        // This is the actual filesystem boundary; compiler path keys stay JS.
-        let native = path.to_string_lossy();
-        let native_path = Path::new(native.as_ref());
-        native_path.is_dir()
-    }
-}
-
-impl EmitFileSystem for NativeEmitFileSystem {
-    fn shared(&self) -> Option<&dyn tsc_emitter::SharedEmitFileSystem> {
-        Some(self)
-    }
-
-    fn write_file(&mut self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString> {
-        // This is the actual filesystem boundary; compiler path keys stay JS.
-        let native = path.to_string_lossy();
-        let native_path = Path::new(native.as_ref());
-        fs::write(native_path, bytes).map_err(|error| stable_io_message(&error, "open", path))
-    }
-
-    fn create_directory(&mut self, path: JsStr<'_>) -> Result<(), JsString> {
-        // This is the actual filesystem boundary; compiler path keys stay JS.
-        let native = path.to_string_lossy();
-        let native_path = Path::new(native.as_ref());
-        match fs::create_dir(native_path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists && native_path.is_dir() => {
-                Ok(())
-            }
-            Err(error) => Err(stable_io_message(&error, "mkdir", path)),
-        }
-    }
-
-    fn directory_exists(&mut self, path: JsStr<'_>) -> bool {
-        // This is the actual filesystem boundary; compiler path keys stay JS.
-        let native = path.to_string_lossy();
-        let native_path = Path::new(native.as_ref());
-        native_path.is_dir()
-    }
-}
-
-fn stable_io_message(error: &io::Error, operation: &str, path: JsStr<'_>) -> JsString {
-    #[cfg(unix)]
-    let known = match error.raw_os_error() {
-        Some(2) => Some(("ENOENT", "no such file or directory")),
-        Some(13) => Some(("EACCES", "permission denied")),
-        Some(17) => Some(("EEXIST", "file already exists")),
-        Some(20) => Some(("ENOTDIR", "not a directory")),
-        Some(21) => Some(("EISDIR", "illegal operation on a directory")),
-        Some(28) => Some(("ENOSPC", "no space left on device")),
-        Some(30) => Some(("EROFS", "read-only file system")),
-        _ => None,
-    };
-    #[cfg(not(unix))]
-    let known: Option<(&str, &str)> = None;
-
-    if let Some((code, detail)) = known {
-        {
-            let mut message = JsString::from(format!("{code}: {detail}, {operation} '"));
-            message.push_js(path);
-            message.push_str("'");
-            message
-        }
-    } else {
-        error.to_string().into()
-    }
-}
-
-/// The directory of the embedded standard library: tsgo's bundled
-/// library path (`bundled:///libs`, internal/bundled/embed.go), a URL that
-/// no filesystem path equals. Diagnostics and `--listFiles` name a library
-/// file `bundled:///libs/lib.dom.d.ts`, as tsgo does, and such a name sorts
-/// after every absolute path, which orders the diagnostics as tsgo's.
-const EMBEDDED_LIBRARY_DIRECTORY: &str = "bundled:///libs";
-
-/// Production CLI host with an immutable, binary-owned TypeScript 7.1
-/// standard-library directory. User/config/package paths retain ordinary
-/// filesystem semantics; only exact immediate children of this private
-/// directory are intercepted.
-#[derive(Clone, Debug)]
-struct CliCompilerHost {
-    filesystem: FsCompilerHost,
-    library_directory: PathBuf,
-}
-
-impl CliCompilerHost {
-    fn new(filesystem: FsCompilerHost) -> Self {
-        Self {
-            filesystem,
-            library_directory: PathBuf::from(EMBEDDED_LIBRARY_DIRECTORY),
-        }
-    }
-
-    fn library_directory(&self) -> &Path {
-        &self.library_directory
-    }
-
-    fn embedded_file_name<'a>(&self, path: &'a Path) -> Option<&'a str> {
-        (path.parent() == Some(self.library_directory.as_path()))
-            .then(|| path.file_name().and_then(|name| name.to_str()))
-            .flatten()
-    }
-
-    fn embedded_bytes(&self, path: &Path) -> Option<&'static [u8]> {
-        let name = self.embedded_file_name(path)?;
-        embedded_libraries::EMBEDDED_LIBRARIES
-            .binary_search_by_key(&name, |(candidate, _)| *candidate)
-            .ok()
-            .map(|index| embedded_libraries::EMBEDDED_LIBRARIES[index].1)
-    }
-}
-
-impl CompilerHost for CliCompilerHost {
-    fn current_directory_js(&self) -> Result<JsString, HostError> {
-        self.filesystem.current_directory_js()
-    }
-    fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
-        if let Some(path) = path
-            .as_str()
-            .map(Path::new)
-            .filter(|path| self.embedded_file_name(path).is_some())
-        {
-            return Ok(self.embedded_bytes(path).map(<[u8]>::to_vec));
-        }
-        self.filesystem.read_file_js(path)
-    }
-    fn file_size_hint_js(&self, path: JsStr<'_>) -> Result<Option<u64>, HostError> {
-        if let Some(path) = path
-            .as_str()
-            .map(Path::new)
-            .filter(|path| self.embedded_file_name(path).is_some())
-        {
-            return Ok(self.embedded_bytes(path).map(|bytes| bytes.len() as u64));
-        }
-        self.filesystem.file_size_hint_js(path)
-    }
-    fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
-        if let Some(path) = path
-            .as_str()
-            .map(Path::new)
-            .filter(|path| self.embedded_file_name(path).is_some())
-        {
-            return Ok(self.embedded_bytes(path).is_some());
-        }
-        self.filesystem.file_exists_js(path)
-    }
-    fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
-        {
-            return Ok(true);
-        }
-        self.filesystem.directory_exists_js(path)
-    }
-    fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
-        {
-            return Ok(embedded_libraries::EMBEDDED_LIBRARIES
-                .iter()
-                .map(|(name, _)| {
-                    let mut entry = path.to_owned();
-                    entry.push_str("/");
-                    entry.push_str(name);
-                    entry
-                })
-                .collect());
-        }
-        self.filesystem.read_directory_js(path)
-    }
-    fn read_directory_listing_js(
-        &self,
-        path: JsStr<'_>,
-    ) -> Result<Vec<tsc_host::DirectoryListingEntry>, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
-        {
-            return Ok(embedded_libraries::EMBEDDED_LIBRARIES
-                .iter()
-                .map(|(name, _)| {
-                    let mut entry = path.to_owned();
-                    entry.push_str("/");
-                    entry.push_str(name);
-                    tsc_host::DirectoryListingEntry {
-                        path: entry,
-                        kind: tsc_host::DirectoryListingKind::File,
-                        symlink: false,
-                    }
-                })
-                .collect());
-        }
-        self.filesystem.read_directory_listing_js(path)
-    }
-    fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
-        if path
-            .as_str()
-            .is_some_and(|path| Path::new(path) == self.library_directory)
-        {
-            return Ok(Vec::new());
-        }
-        self.filesystem.get_directories_js(path)
-    }
-    fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
-        if let Some(native) = path.as_str().map(Path::new) {
-            if native == self.library_directory || self.embedded_bytes(native).is_some() {
-                return Ok(Some(path.to_owned()));
-            }
-            if self.embedded_file_name(native).is_some() {
-                return Ok(None);
-            }
-        }
-        self.filesystem.realpath_js(path)
-    }
-
-    fn current_directory(&self) -> Result<PathBuf, HostError> {
-        self.filesystem.current_directory()
-    }
-
-    fn use_case_sensitive_file_names(&self) -> bool {
-        self.filesystem.use_case_sensitive_file_names()
-    }
-
-    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
-        if self.embedded_file_name(path).is_some() {
-            return Ok(self.embedded_bytes(path).map(<[u8]>::to_vec));
-        }
-        self.filesystem.read_file(path)
-    }
-
-    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
-        if self.embedded_file_name(path).is_some() {
-            return Ok(self.embedded_bytes(path).is_some());
-        }
-        self.filesystem.file_exists(path)
-    }
-
-    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
-        if path == self.library_directory {
-            return Ok(true);
-        }
-        self.filesystem.directory_exists(path)
-    }
-
-    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
-        if path == self.library_directory {
-            return Ok(embedded_libraries::EMBEDDED_LIBRARIES
-                .iter()
-                .map(|(name, _)| path.join(name))
-                .collect());
-        }
-        self.filesystem.read_directory(path)
-    }
-
-    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
-        if path == self.library_directory {
-            return Ok(Vec::new());
-        }
-        self.filesystem.get_directories(path)
-    }
-
-    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
-        if path == self.library_directory || self.embedded_bytes(path).is_some() {
-            return Ok(Some(path.to_path_buf()));
-        }
-        if self.embedded_file_name(path).is_some() {
-            return Ok(None);
-        }
-        self.filesystem.realpath(path)
-    }
-
-    /// Embedded library bytes are immutable; everything else delegates to the
-    /// filesystem host's own answer.
-    fn permits_source_read_ahead(&self) -> bool {
-        self.filesystem.permits_source_read_ahead()
-    }
-
-    fn parallel_source_reader(&self) -> Option<&(dyn ParallelSourceReader + Sync)> {
-        self.filesystem
-            .parallel_source_reader()
-            .is_some()
-            .then_some(self as &(dyn ParallelSourceReader + Sync))
-    }
-
-    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
-        self.filesystem
-            .parallel_resolution_host()
-            .is_some()
-            .then_some(self as &(dyn CompilerHost + Sync))
-    }
-}
-
-impl ParallelSourceReader for CliCompilerHost {
-    fn read_source_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
-        CompilerHost::read_file_js(self, path)
-    }
-}
-
-/// Execute the bounded H0/H1 command-line surface.
+/// Runs a command line in the process (its current directory, file system
+/// and environment) and returns what it wrote.
 pub fn run_cli(args: &[String]) -> CliOutput {
+    let system = match NativeSystem::from_process() {
+        Ok(system) => system,
+        Err(error) => {
+            return CliOutput {
+                stdout: String::new(),
+                stderr: format!("tsc-rs: {}\n", host_error(error)),
+                exit_code: EXIT_FAILURE,
+                work_counters: NoEmitWorkCounters::default(),
+            }
+        }
+    };
+    let (exit_code, work_counters) = run(&system, args, None);
+    let (stdout, stderr) = system.take_output();
+    CliOutput {
+        stdout,
+        stderr,
+        exit_code,
+        work_counters,
+    }
+}
+
+/// Runs a command line over `system` (tsgo `execute.CommandLine`): the
+/// output goes to the system, and the exit status is returned (tsgo
+/// `ExitStatus`: 0 success, 1 diagnostics with the outputs skipped, 2
+/// diagnostics with the outputs generated, 4 a project reference cycle).
+/// `testing` observes the run as tsgo's test harness does.
+pub fn execute_command_line(
+    system: &dyn System,
+    args: &[String],
+    testing: Option<&dyn CommandLineTesting>,
+) -> i32 {
+    run(system, args, testing).0
+}
+
+fn run(
+    system: &dyn System,
+    args: &[String],
+    testing: Option<&dyn CommandLineTesting>,
+) -> (i32, NoEmitWorkCounters) {
     // tsc's command line never requests suggestion diagnostics, so the
     // unused-identifier suggestion pass (checkUnusedIdentifiers behind
     // getSuggestionDiagnostics) is skipped; noUnusedLocals /
@@ -514,7 +249,7 @@ pub fn run_cli(args: &[String]) -> CliOutput {
     // when they contain @see or @link, JS/JSX comments always.
     tsc_program::set_default_js_doc_parsing_mode(crate::JSDocParsingMode::ParseForTypeErrors);
     let execute_started = std::time::Instant::now();
-    let result = execute(args);
+    let result = execute(system, testing, args);
     tsc_types::trace::mark("cli: execute", execute_started);
     // Measurement builds only (`perf-counters` feature): aggregate counters
     // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
@@ -543,17 +278,23 @@ pub fn run_cli(args: &[String]) -> CliOutput {
         let _ = std::fs::write(sites_path, sites);
     }
     match result {
-        Ok(output) => output,
-        Err(error) => CliOutput {
-            stdout: String::new(),
-            stderr: format!("tsc-rs: {error}\n"),
-            exit_code: EXIT_FAILURE,
-            work_counters: NoEmitWorkCounters::default(),
-        },
+        Ok(output) => {
+            system.write_output(&output.stdout);
+            system.write_error(&output.stderr);
+            (output.exit_code, output.work_counters)
+        }
+        Err(error) => {
+            system.write_error(&format!("tsc-rs: {error}\n"));
+            (EXIT_FAILURE, NoEmitWorkCounters::default())
+        }
     }
 }
 
-fn execute(args: &[String]) -> Result<CliOutput, CliError> {
+fn execute(
+    system: &dyn System,
+    testing: Option<&dyn CommandLineTesting>,
+    args: &[String],
+) -> Result<CliOutput, CliError> {
     // tsgo CommandLine (execute/tsc.go): the build command when the first
     // argument is -b/--b/-build/--build.
     if let Some(first) = args.first() {
@@ -561,18 +302,14 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             first.to_ascii_lowercase().as_str(),
             "-b" | "--b" | "-build" | "--build"
         ) {
-            return execute_build(&args[1..]);
+            return execute_build(system, testing, &args[1..]);
         }
     }
     let prologue_started = std::time::Instant::now();
-    let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
-    let current_directory = filesystem.current_directory().map_err(host_error)?;
-    let current_directory_js = JsString::from(
-        current_directory
-            .to_str()
-            .ok_or_else(|| CliError::Host("current directory is not Unicode".to_owned()))?,
-    );
-    let host = CliCompilerHost::new(filesystem);
+    let host = system.compiler_host();
+    let host = &*host;
+    let current_directory = PathBuf::from(system.current_directory());
+    let current_directory_js = JsString::from(system.current_directory());
     let case_sensitive = host.use_case_sensitive_file_names();
     // tsgo ParseCommandLine: the options, the file names and the errors.
     let read_response_file = |path: JsStr<'_>| {
@@ -587,13 +324,19 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         case_sensitive,
         &read_response_file,
     );
-    let pretty = parsed.option_bool("pretty").unwrap_or_else(default_pretty);
+    let pretty = parsed
+        .option_bool("pretty")
+        .unwrap_or_else(|| default_pretty(system));
+    let format = Format {
+        current_directory: &current_directory,
+        case_sensitive: host.use_case_sensitive_file_names(),
+        pretty,
+    };
     if !parsed.errors.is_empty() {
         return rendered_diagnostics_with_exit(
-            &current_directory,
+            format,
             &BTreeMap::new(),
             &parsed.errors,
-            pretty,
             EXIT_COMMAND_LINE,
         );
     }
@@ -628,10 +371,9 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             ),
         );
         return rendered_diagnostics_with_exit(
-            &current_directory,
+            format,
             &BTreeMap::new(),
             &[diagnostic],
-            pretty,
             EXIT_COMMAND_LINE,
         );
     }
@@ -656,12 +398,15 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             )));
         }
     }
-    let mut output_filesystem = NativeEmitFileSystem;
+    let mut output_filesystem =
+        SystemEmitFileSystem::new(system.fs(), cli_worker_budget(system).max_workers() > 1);
     let mut route = CliRoute {
+        system,
+        testing,
         pretty,
         output_filesystem: &mut output_filesystem,
     };
-    let catalog = LibraryCatalog::typescript_7_1(host.library_directory());
+    let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     // tsgo wraps the command line's options as `compilerOptions` and merges
     // them over the config's; explicit files take them as the program's.
     let command_line = command_line_option_bag(&parsed.options, current_directory_js.as_js());
@@ -685,15 +430,14 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                 ),
             );
             return rendered_diagnostics_with_exit(
-                &current_directory,
+                format,
                 &BTreeMap::new(),
                 &[diagnostic],
-                pretty,
                 EXIT_COMMAND_LINE,
             );
         }
         let project = PathBuf::from(project.to_string_lossy().into_owned());
-        let config_file = match resolve_project_file(&host, &current_directory, &project)? {
+        let config_file = match resolve_project_file(host, &current_directory, &project)? {
             Ok(config_file) => config_file,
             Err(ProjectFileError::MissingPath(path)) => {
                 let diagnostic = Diagnostic::new(
@@ -703,10 +447,9 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                     MessageChain::new(&gen::The_specified_path_does_not_exist_0, &[path]),
                 );
                 return rendered_diagnostics_with_exit(
-                    &current_directory,
+                    format,
                     &BTreeMap::new(),
                     &[diagnostic],
-                    pretty,
                     EXIT_COMMAND_LINE,
                 );
             }
@@ -721,20 +464,19 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
                     ),
                 );
                 return rendered_diagnostics_with_exit(
-                    &current_directory,
+                    format,
                     &BTreeMap::new(),
                     &[diagnostic],
-                    pretty,
                     EXIT_COMMAND_LINE,
                 );
             }
         };
         let config_started = std::time::Instant::now();
         let (plan, source_texts) =
-            parse_config_file(&host, &current_directory, &config_file, &command_line)?;
+            parse_config_file(host, &current_directory, &config_file, &command_line)?;
         tsc_types::trace::mark("cli: project config plan", config_started);
         return execute_config(
-            &host,
+            host,
             &current_directory,
             &catalog,
             &plan,
@@ -744,7 +486,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     }
 
     if !files.is_empty() {
-        if !ignore_config && find_config_file(&host, &current_directory)?.is_some() {
+        if !ignore_config && find_config_file(host, &current_directory)?.is_some() {
             let diagnostic = Diagnostic::new(
                     None,
                     None,
@@ -760,10 +502,9 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
             // a second host read and of source-text ownership.
             let source_texts = BTreeMap::new();
             return rendered_diagnostics_with_exit(
-                &current_directory,
+                format,
                 &source_texts,
                 &[diagnostic],
-                pretty,
                 EXIT_COMMAND_LINE,
             );
         }
@@ -779,7 +520,7 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
         // on the command line (for example `missing.ts`, not its absolute
         // cwd-expanded path).
         return execute_explicit_files(
-            &host,
+            host,
             &current_directory,
             &catalog,
             &files,
@@ -792,16 +533,16 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     // tsgo searches tsconfig.json upward from the current directory (even
     // under --ignoreConfig when no file is named) and prints its version and
     // help when there is none.
-    let config_file = find_config_file(&host, &current_directory)?.ok_or_else(|| {
+    let config_file = find_config_file(host, &current_directory)?.ok_or_else(|| {
         CliError::Usage(format!(
             "cannot find {CONFIG_FILE_NAME} from {}",
             current_directory.display()
         ))
     })?;
     let (plan, source_texts) =
-        parse_config_file(&host, &current_directory, &config_file, &command_line)?;
+        parse_config_file(host, &current_directory, &config_file, &command_line)?;
     execute_config(
-        &host,
+        host,
         &current_directory,
         &catalog,
         &plan,
@@ -810,15 +551,15 @@ fn execute(args: &[String]) -> Result<CliOutput, CliError> {
     )
 }
 
-fn execute_build(args: &[String]) -> Result<CliOutput, CliError> {
-    let filesystem = FsCompilerHost::from_process().map_err(host_error)?;
-    let current_directory = filesystem.current_directory().map_err(host_error)?;
-    let current_directory_js = JsString::from(
-        current_directory
-            .to_str()
-            .ok_or_else(|| CliError::Host("current directory is not Unicode".to_owned()))?,
-    );
-    let host = CliCompilerHost::new(filesystem);
+fn execute_build(
+    system: &dyn System,
+    testing: Option<&dyn CommandLineTesting>,
+    args: &[String],
+) -> Result<CliOutput, CliError> {
+    let host = system.compiler_host();
+    let host = &*host;
+    let current_directory = PathBuf::from(system.current_directory());
+    let current_directory_js = JsString::from(system.current_directory());
     let read_response_file = |path: JsStr<'_>| {
         host.read_file_js(path)
             .ok()
@@ -833,13 +574,19 @@ fn execute_build(args: &[String]) -> Result<CliOutput, CliError> {
         host.use_case_sensitive_file_names(),
         &read_response_file,
     );
-    let pretty = parsed.option_bool("pretty").unwrap_or_else(default_pretty);
+    let pretty = parsed
+        .option_bool("pretty")
+        .unwrap_or_else(|| default_pretty(system));
+    let format = Format {
+        current_directory: &current_directory,
+        case_sensitive: host.use_case_sensitive_file_names(),
+        pretty,
+    };
     if !parsed.errors.is_empty() {
         return rendered_diagnostics_with_exit(
-            &current_directory,
+            format,
             &BTreeMap::new(),
             &parsed.errors,
-            pretty,
             EXIT_COMMAND_LINE,
         );
     }
@@ -853,12 +600,15 @@ fn execute_build(args: &[String]) -> Result<CliOutput, CliError> {
             "unsupported option \"--watch\" (watch mode)".to_owned(),
         ));
     }
-    let mut output_filesystem = NativeEmitFileSystem;
+    let mut output_filesystem =
+        SystemEmitFileSystem::new(system.fs(), cli_worker_budget(system).max_workers() > 1);
     let mut route = CliRoute {
+        system,
+        testing,
         pretty,
         output_filesystem: &mut output_filesystem,
     };
-    let catalog = LibraryCatalog::typescript_7_1(host.library_directory());
+    let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     let command = BuildCommand {
         projects: parsed.projects.clone(),
         verbose: parsed.build_bool("verbose"),
@@ -868,7 +618,7 @@ fn execute_build(args: &[String]) -> Result<CliOutput, CliError> {
         stop_build_on_errors: parsed.build_bool("stopBuildOnErrors"),
         command_line: command_line_option_bag(&parsed.options, current_directory_js.as_js()),
     };
-    build::run_build(&host, &current_directory, &catalog, &command, &mut route)
+    build::run_build(host, &current_directory, &catalog, &command, &mut route)
 }
 
 /// What one project's run produced, for the command (`-p`) and for a
@@ -883,6 +633,14 @@ pub(crate) struct BuildProjectRun {
     pub(crate) emitted_files: Vec<String>,
     pub(crate) has_changed_dts_file: bool,
     pub(crate) declarations_differing_only_in_map: Vec<String>,
+    /// The files a test harness stamped after the emit, with their time
+    /// (tsgo `OnEmittedFiles`).
+    pub(crate) stamped: Vec<(String, std::time::SystemTime)>,
+    /// The texts the diagnostics were rendered from (a build summarizes
+    /// them at its end).
+    pub(crate) sources: DiagnosticSourceMap,
+    /// The incremental program's files for a test harness.
+    pub(crate) program_report: Option<Vec<crate::ProgramFileReport>>,
 }
 
 /// How a project is run: for `tsc -b` the session knows it is a build and
@@ -978,7 +736,7 @@ fn run_config(
     );
     // The plan's options are the config's with the command line's merged
     // over them. tsgo runs no emit under --listFilesOnly: the no-emit route.
-    let limits = cli_limits();
+    let limits = cli_limits(route.system);
     let load_started = std::time::Instant::now();
     let prepared = if plan.compiler_options().list_files_only == Some(true) {
         load_config_program_with_no_emit_override(host, plan, catalog, limits)
@@ -994,10 +752,9 @@ fn run_config(
             let mut diagnostics = config;
             diagnostics.extend(options);
             let stdout = render_diagnostics(
-                current_directory,
+                route.format(current_directory),
                 &source_texts,
                 &diagnostics,
-                route.pretty,
                 mode.summary,
             )?;
             return Ok(BuildProjectRun {
@@ -1011,6 +768,9 @@ fn run_config(
                 emitted_files: Vec::new(),
                 has_changed_dts_file: false,
                 declarations_differing_only_in_map: Vec::new(),
+                stamped: Vec::new(),
+                sources: source_texts,
+                program_report: None,
             });
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
@@ -1059,7 +819,9 @@ fn run_config(
             crate::incremental::old_state_of(info, &prepared, &default_library_directory)
         }),
     };
-    execute_prepared(
+    let config_file = plan.config_file_name().to_string_lossy().into_owned();
+    let resolution_trace = resolution_trace_text(&prepared, route, !mode.build);
+    let mut run = execute_prepared(
         current_directory,
         source_texts,
         prepared,
@@ -1067,7 +829,42 @@ fn run_config(
         route,
         old_build_info,
         mode,
-    )
+    )?;
+    run.stdout.insert_str(0, &resolution_trace);
+    report_program(route, Some(config_file), &run);
+    Ok(run)
+}
+
+/// The `--traceResolution` lines of a program's creation, as tsgo prints
+/// them while it creates the Program; `shared_output` when they go to the
+/// command's own output (a build writes each project's to its buffer).
+fn resolution_trace_text(
+    prepared: &tsc_program::PreparedProgram,
+    route: &CliRoute<'_>,
+    shared_output: bool,
+) -> String {
+    let mut text = String::new();
+    for line in prepared.resolution_trace() {
+        let line = line.to_string();
+        match route.testing {
+            Some(testing) => testing.trace(&line, &mut text, shared_output),
+            None => {
+                text.push_str(&line);
+                text.push('\n');
+            }
+        }
+    }
+    text
+}
+
+/// tsgo `testing.OnProgram` after an incremental program's run.
+fn report_program(route: &CliRoute<'_>, config_file: Option<String>, run: &BuildProjectRun) {
+    if let (Some(testing), Some(files)) = (route.testing, &run.program_report) {
+        testing.on_program(&ProgramReport {
+            config_file,
+            files: files.clone(),
+        });
+    }
 }
 
 fn execute_explicit_files(
@@ -1079,7 +876,7 @@ fn execute_explicit_files(
     program_options: ProgramOptions,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
-    let limits = cli_limits();
+    let limits = cli_limits(route.system);
     // tsgo runs no emit under --listFilesOnly: the no-emit route (whose
     // loader requires an explicit noEmit).
     let prepared = if options.no_emit == Some(true) || options.list_files_only == Some(true) {
@@ -1092,11 +889,7 @@ fn execute_explicit_files(
     .map_err(|error| CliError::Load(error.to_string()))?;
     // tsgo prints the resolution trace while it creates the Program, before
     // any listing or diagnostic.
-    let resolution_trace: String = prepared
-        .resolution_trace()
-        .iter()
-        .map(|line| format!("{line}\n"))
-        .collect();
+    let resolution_trace = resolution_trace_text(&prepared, route, true);
     let mut source_texts = BTreeMap::new();
     for source in prepared.source_files() {
         source_texts.insert(
@@ -1109,7 +902,7 @@ fn execute_explicit_files(
         &prepared,
         &catalog.directory().to_string_lossy(),
     );
-    execute_prepared(
+    let run = execute_prepared(
         current_directory,
         source_texts,
         prepared,
@@ -1117,8 +910,12 @@ fn execute_explicit_files(
         route,
         old_build_info,
         ProjectRunMode::COMMAND,
-    )
-    .map(|run| CliOutput::new(resolution_trace + &run.stdout, run.exit_code))
+    )?;
+    report_program(route, None, &run);
+    Ok(CliOutput::new(
+        resolution_trace + &run.stdout,
+        run.exit_code,
+    ))
 }
 
 fn execute_prepared(
@@ -1152,12 +949,13 @@ fn execute_prepared(
     // that getter over its own checker sessions
     // (`ProgramSession::run_no_emit_command`).
     let session = ProgramSession::new(prepared)
-        .with_worker_budget(cli_worker_budget())
-        .with_checker_budget(cli_checker_budget())
+        .with_worker_budget(cli_worker_budget(route.system))
+        .with_checker_budget(cli_checker_budget(route.system))
         .with_leaked_program(true)
         .with_command_options_diagnostics(!additional_diagnostics.is_empty())
         .with_build_mode(mode.build)
-        .with_old_build_info(old_build_info);
+        .with_old_build_info(old_build_info)
+        .with_testing(route.testing.is_some());
     // tsgo EmitFilesAndReportErrors runs no emit under --listFilesOnly, so no
     // build info is written either.
     let session = if list_files_only {
@@ -1199,6 +997,7 @@ fn execute_prepared(
     // write it (TS5033) joins the diagnostics.
     let mut status_writes = Vec::new();
     let mut emitted_files = Vec::new();
+    let program_report = outcome.program_report().map(<[_]>::to_vec);
     if let Some(document) = outcome.build_info() {
         let mut sink = FsOutputSink::new(route.output_filesystem);
         match crate::incremental::write_build_info(&mut sink, document) {
@@ -1231,14 +1030,17 @@ fn execute_prepared(
             }
         }
     }
+    let stamped = route
+        .testing
+        .map(|testing| testing.on_emitted_files(&emitted_files))
+        .unwrap_or_default();
     status_writes.extend(listing);
     let work_counters = outcome.work_counters();
     let render_started = std::time::Instant::now();
     let rendered = rendered_diagnostics_with_exit_work_status_and_summary(
-        current_directory,
+        route.format(current_directory),
         &source_texts,
         &diagnostics,
-        route.pretty,
         // tsgo EmitFilesAndReportErrors: --listFilesOnly skips the emit, so
         // its diagnostics report the outputs as skipped.
         if list_files_only {
@@ -1259,6 +1061,9 @@ fn execute_prepared(
         emitted_files,
         has_changed_dts_file: false,
         declarations_differing_only_in_map: Vec::new(),
+        stamped,
+        sources: source_texts,
+        program_report,
     })
 }
 
@@ -1346,7 +1151,7 @@ fn execute_emitting_prepared(
 ) -> Result<BuildProjectRun, CliError> {
     // The real filesystem is stateless: its artifacts are written on the
     // worker budget; an injected (observing) filesystem keeps ordered writes.
-    let write_workers = cli_worker_budget().max_workers();
+    let write_workers = cli_worker_budget(route.system).max_workers();
     let mut shared_sink;
     let mut ordered_sink;
     let sink: &mut dyn tsc_emitter::OutputSink =
@@ -1361,17 +1166,19 @@ fn execute_emitting_prepared(
     let listing = listing_lines(&prepared, current_directory);
     let session_started = std::time::Instant::now();
     let outcome = ProgramSession::new(prepared)
-        .with_worker_budget(cli_worker_budget())
-        .with_checker_budget(cli_checker_budget())
+        .with_worker_budget(cli_worker_budget(route.system))
+        .with_checker_budget(cli_checker_budget(route.system))
         .with_leaked_program(true)
         .with_build_mode(mode.build)
         .with_old_build_info(old_build_info)
+        .with_testing(route.testing.is_some())
         .emit_for_cli(sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check + emit session", session_started);
     tsc_checker::line_profile::write_report();
 
     let build_emit = outcome.build_emit.clone();
+    let program_report = outcome.program_report.clone();
     let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
 
     let cwd: JsStr<'_> = current_directory
@@ -1390,12 +1197,15 @@ fn execute_emitting_prepared(
                 .to_string_lossy()
                 .into_owned()
         })
-        .collect();
+        .collect::<Vec<String>>();
+    let stamped = route
+        .testing
+        .map(|testing| testing.on_emitted_files(&emitted_files))
+        .unwrap_or_default();
     let output = rendered_diagnostics_with_exit_work_status_and_summary(
-        current_directory,
+        route.format(current_directory),
         &source_texts,
         &diagnostics,
-        route.pretty,
         exit_code,
         work_counters,
         &status_writes,
@@ -1412,64 +1222,28 @@ fn execute_emitting_prepared(
             .iter()
             .map(|path| path.to_string_lossy().into_owned())
             .collect(),
+        stamped,
+        sources: source_texts,
+        program_report,
     })
 }
 
+/// The command line's own errors (tsgo `tscCompilation` reports each one and
+/// stops; no error summary follows).
 fn rendered_diagnostics_with_exit(
-    current_directory: &Path,
+    format: Format<'_>,
     source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
-    pretty: bool,
     exit_code: i32,
-) -> Result<CliOutput, CliError> {
-    rendered_diagnostics_with_exit_and_work(
-        current_directory,
-        source_texts,
-        diagnostics,
-        pretty,
-        exit_code,
-        NoEmitWorkCounters::default(),
-    )
-}
-
-fn rendered_diagnostics_with_exit_and_work(
-    current_directory: &Path,
-    source_texts: &DiagnosticSourceMap,
-    diagnostics: &[Diagnostic],
-    pretty: bool,
-    exit_code: i32,
-    work_counters: NoEmitWorkCounters,
-) -> Result<CliOutput, CliError> {
-    rendered_diagnostics_with_exit_work_and_status(
-        current_directory,
-        source_texts,
-        diagnostics,
-        pretty,
-        exit_code,
-        work_counters,
-        &[],
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn rendered_diagnostics_with_exit_work_and_status(
-    current_directory: &Path,
-    source_texts: &DiagnosticSourceMap,
-    diagnostics: &[Diagnostic],
-    pretty: bool,
-    exit_code: i32,
-    work_counters: NoEmitWorkCounters,
-    status_writes: &[JsString],
 ) -> Result<CliOutput, CliError> {
     rendered_diagnostics_with_exit_work_status_and_summary(
-        current_directory,
+        format,
         source_texts,
         diagnostics,
-        pretty,
         exit_code,
-        work_counters,
-        status_writes,
-        true,
+        NoEmitWorkCounters::default(),
+        &[],
+        false,
     )
 }
 
@@ -1477,17 +1251,15 @@ fn rendered_diagnostics_with_exit_work_and_status(
 /// or pretty), without the status lines and, when `summary`, with the
 /// pretty error summary.
 pub(crate) fn render_diagnostics(
-    current_directory: &Path,
+    format: Format<'_>,
     source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
-    pretty: bool,
     summary: bool,
 ) -> Result<String, CliError> {
     let output = rendered_diagnostics_with_exit_work_status_and_summary(
-        current_directory,
+        format,
         source_texts,
         diagnostics,
-        pretty,
         EXIT_DIAGNOSTIC,
         NoEmitWorkCounters::default(),
         &[],
@@ -1500,13 +1272,13 @@ pub(crate) fn render_diagnostics(
 /// `Found N errors…`) over the given diagnostics.
 pub(crate) fn render_error_summary_text(
     current_directory: &Path,
+    source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
 ) -> Result<String, CliError> {
     let current_directory = current_directory
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
-    let source_texts = BTreeMap::new();
-    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), &source_texts);
+    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);
     let summarized: Vec<Diagnostic> = diagnostics
         .iter()
         .filter(|diagnostic| !is_command_line_selection_diagnostic(diagnostic.code()))
@@ -1517,12 +1289,10 @@ pub(crate) fn render_error_summary_text(
         .map_err(|error| CliError::Render(error.to_string()))
 }
 
-#[allow(clippy::too_many_arguments)]
 fn rendered_diagnostics_with_exit_work_status_and_summary(
-    current_directory: &Path,
+    format: Format<'_>,
     source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
-    pretty: bool,
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
     status_writes: &[JsString],
@@ -1546,11 +1316,12 @@ fn rendered_diagnostics_with_exit_work_status_and_summary(
             work_counters,
         });
     }
-    let current_directory = current_directory
+    let current_directory = format
+        .current_directory
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
     let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);
-    let text = if pretty {
+    let text = if format.pretty {
         // tsgo's pretty reporter: each diagnostic with its context, then the
         // error summary (CreateDiagnosticReporter, CreateReportErrorSummary).
         let selected: Vec<Diagnostic> =
@@ -1582,9 +1353,14 @@ fn rendered_diagnostics_with_exit_work_status_and_summary(
         }
         text.to_string_lossy().into_owned()
     } else {
-        let mut text =
-            format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
-                .map_err(|error| CliError::Render(error.to_string()))?;
+        let mut text = format_plain_diagnostics(
+            diagnostics,
+            &host,
+            source_texts,
+            current_directory,
+            format.case_sensitive,
+        )
+        .map_err(|error| CliError::Render(error.to_string()))?;
         append_status_writes(&mut text, status_writes);
         text.to_string_lossy().into_owned()
     };
@@ -1609,17 +1385,20 @@ fn is_command_line_selection_diagnostic(code: u32) -> bool {
 
 /// tsgo `defaultIsPretty`: FORCE_COLOR decides, then NO_COLOR and a dumb
 /// terminal turn colors off; otherwise colors follow a terminal stdout.
-fn default_pretty() -> bool {
-    if let Some(force_color) = std::env::var_os("FORCE_COLOR") {
-        return matches!(force_color.to_str(), Some("" | "1" | "2" | "3" | "true"));
+fn default_pretty(system: &dyn System) -> bool {
+    if let Some(force_color) = system.env_var("FORCE_COLOR") {
+        return matches!(force_color.as_str(), "" | "1" | "2" | "3" | "true");
     }
-    if std::env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty()) {
+    if system
+        .env_var("NO_COLOR")
+        .is_some_and(|value| !value.is_empty())
+    {
         return false;
     }
-    if std::env::var_os("TERM").is_some_and(|value| value == "dumb") {
+    if system.env_var("TERM").is_some_and(|value| value == "dumb") {
         return false;
     }
-    std::io::stdout().is_terminal()
+    system.output_is_terminal()
 }
 
 /// Format the command-line's non-contextual reporter.
@@ -1633,6 +1412,7 @@ fn format_plain_diagnostics(
     host: &FormatDiagnosticsHost<'_>,
     source_texts: &DiagnosticSourceMap,
     current_directory: &str,
+    case_sensitive: bool,
 ) -> Result<JsString, String> {
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
     let mut output = JsString::new();
@@ -1665,14 +1445,8 @@ fn format_plain_diagnostics(
                 .positions()
                 .line_and_character_utf16(position)
                 .expect("clamped diagnostic position has a source line");
-            output.push_js(
-                relative_file_name(
-                    file_name,
-                    current_directory,
-                    process_case_sensitive_file_names(),
-                )
-                .as_js(),
-            );
+            output
+                .push_js(relative_file_name(file_name, current_directory, case_sensitive).as_js());
             output.push_str(&format!(
                 "({},{}): ",
                 location.line + 1,
@@ -1698,15 +1472,6 @@ fn append_plain_message(message: &MessageChain, indent: usize, output: &mut JsSt
     for child in &message.next {
         append_plain_message(child, indent + 1, output);
     }
-}
-
-/// The process filesystem's case sensitivity for diagnostic path rendering
-/// (tsc's host.getCanonicalFileName), probed once.
-fn process_case_sensitive_file_names() -> bool {
-    static CASE_SENSITIVE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *CASE_SENSITIVE.get_or_init(|| {
-        FsCompilerHost::from_process().map_or(true, |host| host.use_case_sensitive_file_names())
-    })
 }
 
 /// tsc-port: convertToRelativePath / getPathComponentsRelativeTo @6.0.3

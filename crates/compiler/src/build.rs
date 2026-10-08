@@ -15,8 +15,9 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use tsc_diagnostics::{gen, Diagnostic, JsString, MessageChain};
+use tsc_host::vfs::FileSystem;
 use tsc_host::CompilerHost;
-use tsc_incremental::{compute_hash, is_default_library_name, BuildInfo};
+use tsc_incremental::{compute_hash_with_text, is_default_library_name, BuildInfo};
 use tsc_program::{
     build_info_file_name_in_build_mode, canonical_emit_path, decode_host_text, output_file_names,
     parse_config_root_plan_with_command_line, resolve_config_file_name_of_project_reference,
@@ -26,8 +27,9 @@ use tsc_program::{
 
 use crate::cli::{
     relative_file_name, render_diagnostics, run_config_for_build, BuildProjectRun, CliError,
-    CliOutput, CliRoute,
+    CliOutput, CliRoute, DiagnosticSourceMap,
 };
+use crate::system::{CommandLineTesting, System};
 
 /// The parsed `tsc -b` command line (tsgo `ParsedBuildCommandLine`).
 #[derive(Clone, Debug, Default)]
@@ -56,28 +58,22 @@ pub(crate) trait BuildFileSystem {
     fn file_exists(&self, path: &str) -> bool;
 }
 
-/// The process filesystem.
-pub(crate) struct NativeBuildFileSystem;
-
-impl BuildFileSystem for NativeBuildFileSystem {
+impl BuildFileSystem for dyn FileSystem + '_ {
     fn modified_time(&self, path: &str) -> Option<SystemTime> {
-        fs::metadata(path).ok()?.modified().ok()
+        self.metadata(path).ok().map(|metadata| metadata.modified())
     }
 
     fn set_modified_time(&self, path: &str, time: SystemTime) -> Result<(), String> {
-        fs::OpenOptions::new()
-            .write(true)
-            .open(path)
-            .and_then(|file| file.set_modified(time))
+        self.set_modified(path, time)
             .map_err(|error| error.to_string())
     }
 
     fn remove_file(&self, path: &str) -> Result<(), String> {
-        fs::remove_file(path).map_err(|error| error.to_string())
+        self.remove(path).map_err(|error| error.to_string())
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        Path::new(path).is_file()
+        self.is_file(path)
     }
 }
 
@@ -243,7 +239,9 @@ impl BuildTask {
 /// `tsc -b` over one command line.
 pub(crate) struct Orchestrator<'a> {
     host: &'a dyn CompilerHost,
-    fs: &'a dyn BuildFileSystem,
+    fs: &'a dyn FileSystem,
+    system: &'a dyn System,
+    testing: Option<&'a dyn CommandLineTesting>,
     catalog: &'a LibraryCatalog,
     command: &'a BuildCommand,
     /// Normalized, forward slashes.
@@ -260,12 +258,16 @@ pub(crate) struct Orchestrator<'a> {
     /// tsgo `host.mTimes`: the first observed time of each canonical path.
     mtimes: HashMap<String, Option<SystemTime>>,
     config_cache: ConfigExtendedCache,
+    /// The texts of the configs parsed and the projects' diagnosed files,
+    /// for the reports and the summary.
+    sources: DiagnosticSourceMap,
 }
 
 impl<'a> Orchestrator<'a> {
     pub(crate) fn new(
         host: &'a dyn CompilerHost,
-        fs: &'a dyn BuildFileSystem,
+        system: &'a dyn System,
+        testing: Option<&'a dyn CommandLineTesting>,
         catalog: &'a LibraryCatalog,
         command: &'a BuildCommand,
         current_directory: &'a Path,
@@ -278,7 +280,9 @@ impl<'a> Orchestrator<'a> {
             .to_owned();
         Self {
             host,
-            fs,
+            fs: system.fs(),
+            system,
+            testing,
             catalog,
             command,
             current_directory: if directory.is_empty() {
@@ -295,6 +299,7 @@ impl<'a> Orchestrator<'a> {
             errors: Vec::new(),
             mtimes: HashMap::new(),
             config_cache: ConfigExtendedCache::default(),
+            sources: DiagnosticSourceMap::new(),
         }
     }
 
@@ -390,7 +395,7 @@ impl<'a> Orchestrator<'a> {
         let bytes = self.host.read_file_js(config.into()).ok()??;
         let text = decode_host_text(bytes).ok()?;
         let adapter = CompilerConfigHost::new(self.host);
-        parse_config_root_plan_with_command_line(
+        let plan = parse_config_root_plan_with_command_line(
             &adapter,
             ConfigRootPlanRequest {
                 file_name: JsString::from(config),
@@ -400,7 +405,16 @@ impl<'a> Orchestrator<'a> {
             &self.command.command_line,
             &mut self.config_cache,
         )
-        .ok()
+        .ok()?;
+        for source in plan.extended_sources() {
+            self.sources
+                .insert(source.file_name.clone(), Arc::clone(source.snapshot()));
+        }
+        self.sources.insert(
+            plan.source().file_name.clone(),
+            Arc::clone(plan.source().snapshot()),
+        );
+        Some(plan)
     }
 
     /// tsgo `setupBuildTask`: the dependency order and the cycle check.
@@ -489,21 +503,32 @@ impl<'a> Orchestrator<'a> {
     /// pretty), followed by a blank line.
     fn status_line(&self, message: MessageChain) -> String {
         let text = message.text.to_string_lossy();
-        let time = status_time();
-        if self.pretty {
-            format!("[\x1b[90m{time}\x1b[0m] {text}\n\n")
-        } else {
-            format!("{time} - {text}\n\n")
+        let time = status_time(self.system);
+        let mut line = String::new();
+        if let Some(testing) = self.testing {
+            testing.on_build_status_report_start(&mut line);
         }
+        if self.pretty {
+            line.push_str(&format!("[\x1b[90m{time}\x1b[0m] {text}\n\n"));
+        } else {
+            line.push_str(&format!("{time} - {text}\n\n"));
+        }
+        if let Some(testing) = self.testing {
+            testing.on_build_status_report_end(&mut line);
+        }
+        line
     }
 
     /// tsgo `CreateDiagnosticReporter` for a file-less diagnostic.
     fn diagnostic_text(&self, diagnostic: &Diagnostic) -> Result<String, CliError> {
         render_diagnostics(
-            self.current_directory_path,
-            &BTreeMap::new(),
+            crate::cli::Format {
+                current_directory: self.current_directory_path,
+                case_sensitive: self.case_sensitive,
+                pretty: self.pretty,
+            },
+            &self.sources,
             std::slice::from_ref(diagnostic),
-            self.pretty,
             false,
         )
     }
@@ -571,6 +596,7 @@ impl<'a> Orchestrator<'a> {
         if self.pretty {
             stdout.push_str(&render_error_summary(
                 self.current_directory_path,
+                &self.sources,
                 &all_errors,
             )?);
         }
@@ -726,11 +752,24 @@ impl<'a> Orchestrator<'a> {
             old_info.as_deref(),
             route,
         )?;
+        // tsgo `OnEmittedFiles` updates the build's time cache of the files
+        // a test harness stamped.
+        for (file, time) in &run.stamped {
+            let path = self.to_path(file);
+            if let Some(cached) = self.mtimes.get_mut(&path) {
+                *cached = Some(*time);
+            }
+        }
         for output in &run.declarations_differing_only_in_map {
             if let Some(Some(time)) = declaration_times.get(output) {
                 let _ = self.fs.set_modified_time(output, *time);
             }
         }
+        self.sources.extend(
+            run.sources
+                .iter()
+                .map(|(name, text)| (name.clone(), Arc::clone(text))),
+        );
         let emitted = run.emitted_files.clone();
         let status_kind = self.tasks[task].status().kind;
         {
@@ -770,7 +809,7 @@ impl<'a> Orchestrator<'a> {
 
     /// tsgo `onBuildInfoEmit`: the entry of the build info just written.
     fn on_build_info_emit(&mut self, task: usize, file_name: &str, has_changed_dts_file: bool) {
-        let now = SystemTime::now();
+        let now = self.system.now();
         let info = self
             .host
             .read_file_js(file_name.into())
@@ -809,7 +848,7 @@ impl<'a> Orchestrator<'a> {
         let Some(options) = self.tasks[task].options.clone() else {
             return;
         };
-        let now = SystemTime::now();
+        let now = self.system.now();
         let build_info_name = self.build_info_name(task);
         let mut files = Vec::new();
         if options.no_emit != Some(true) && !tsc_incremental::options::is_incremental(&options) {
@@ -848,6 +887,7 @@ impl<'a> Orchestrator<'a> {
             if self.pretty {
                 stdout.push_str(&render_error_summary(
                     self.current_directory_path,
+                    &self.sources,
                     &self.errors,
                 )?);
             }
@@ -911,7 +951,11 @@ impl<'a> Orchestrator<'a> {
             }
         }
         if self.pretty {
-            stdout.push_str(&render_error_summary(self.current_directory_path, &errors)?);
+            stdout.push_str(&render_error_summary(
+                self.current_directory_path,
+                &self.sources,
+                &errors,
+            )?);
         }
         if self.command.dry && !files_to_delete.is_empty() {
             let listed = files_to_delete
@@ -1016,7 +1060,7 @@ impl<'a> Orchestrator<'a> {
     fn current_version(&self, file_name: &str) -> Option<String> {
         let bytes = self.host.read_file_js(file_name.into()).ok()??;
         let text = decode_host_text(bytes).ok()?;
-        Some(compute_hash(text.as_bytes()))
+        Some(compute_hash_with_text(&text, self.testing.is_some()))
     }
 
     /// tsgo `getUpToDateStatus`.
@@ -1459,9 +1503,15 @@ pub(crate) fn run_build(
     command: &BuildCommand,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
-    let fs = NativeBuildFileSystem;
-    let orchestrator =
-        Orchestrator::new(host, &fs, catalog, command, current_directory, route.pretty);
+    let orchestrator = Orchestrator::new(
+        host,
+        route.system,
+        route.testing,
+        catalog,
+        command,
+        current_directory,
+        route.pretty,
+    );
     orchestrator.run(route)
 }
 
@@ -1510,13 +1560,14 @@ fn before(a: Option<SystemTime>, b: Option<SystemTime>) -> bool {
     }
 }
 
-/// tsgo's status time: the local time as Go's `03:04:05 PM`.
-fn status_time() -> String {
-    let now = SystemTime::now()
+/// tsgo's status time: the system's local time as Go's `03:04:05 PM`.
+fn status_time(system: &dyn System) -> String {
+    let now = system
+        .now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|duration| duration.as_secs() as i64)
         .unwrap_or(0);
-    format_status_time(now + local_time_offset(now))
+    format_status_time(now + local_time_offset(system, now))
 }
 
 /// The seconds of the day as `HH:MM:SS AM`.
@@ -1534,8 +1585,8 @@ fn format_status_time(local_seconds: i64) -> String {
 
 /// The local time zone's offset from UTC at `now`, from the zone database
 /// (`TZ`, else `/etc/localtime`); UTC when it cannot be read.
-fn local_time_offset(now: i64) -> i64 {
-    let zone = std::env::var("TZ").ok().map(|zone| {
+fn local_time_offset(system: &dyn System, now: i64) -> i64 {
+    let zone = system.env_var("TZ").map(|zone| {
         let zone = zone.strip_prefix(':').unwrap_or(&zone).to_owned();
         if zone.starts_with('/') {
             zone
@@ -1641,9 +1692,10 @@ fn tzif_offset(bytes: &[u8], now: i64) -> Option<i64> {
 /// tsgo `CreateReportErrorSummary`'s text for the whole build (pretty only).
 fn render_error_summary(
     current_directory: &Path,
+    sources: &DiagnosticSourceMap,
     errors: &[Diagnostic],
 ) -> Result<String, CliError> {
-    crate::cli::render_error_summary_text(current_directory, errors)
+    crate::cli::render_error_summary_text(current_directory, sources, errors)
 }
 
 #[cfg(test)]
@@ -1667,7 +1719,8 @@ mod tests {
 
     #[test]
     fn status_time_has_gos_shape() {
-        let time = status_time();
+        let system = crate::system::NativeSystem::from_process().expect("the process system");
+        let time = status_time(&system);
         assert_eq!(time.len(), 11, "{time}");
         assert!(time.ends_with(" AM") || time.ends_with(" PM"), "{time}");
         assert_eq!(&time[2..3], ":");
