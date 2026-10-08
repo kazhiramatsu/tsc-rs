@@ -901,3 +901,14 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
   program 601、incremental 29、emitter 635、checker 1,797、compiler 437、conformance 52（全て 0 失敗）。workspace 全体の test と
   clippy は hosted の `rust` job に任せた。実 project の比較（P4-6 の終わり）は下の hosted の記録に書く。性能は計測していない
   （利用者の指示）。
+
+### P4-6cのhostedの記録とmerge（2026-10-09）
+
+- hosted：最終候補 `41157148e`（fix `e89e48082`・`5777f9bfe`、ratchet `2cddf30a7`、main の取り込み `273f4994a`、packet の記録）の
+  run 37808231058（`plan` 27s、`rust` 11m6s、`conformance (TypeScript 7.1)` 20m30s（lane A の後に suites 5 種の `--check`）、
+  `gates` 17s。全て成功）。merge → `e23a8d471`（merge commit）。
+- 実 project の比較（P4-6 の締め。最終 code `5777f9bfe` の release build を凍結して使用、`tsgo --singleThreaded` と
+  `TSRS_CHECKERS=1`、`--noEmit`、`nice -n 20`、1 job）：material-ui 38／38、azure-sdk-for-js 2,756／2,756（505 s）、
+  DefinitelyTyped 9,067／9,067（1,159 s）が診断と exit status まで一致。比較で clone に書かれた `.tsbuildinfo`（material-ui 5 件、azure 338 件）は
+  消した。性能は計測していない（利用者の指示）。
+- 次：P4-7（watch／api）。`--generateTrace` の 2 件は利用者の判断待ち（types file は tsgo の型の生成順と id を要る）。
