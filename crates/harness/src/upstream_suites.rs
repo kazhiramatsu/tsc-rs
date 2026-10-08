@@ -11,6 +11,7 @@ use crate::HarnessError;
 mod compiler;
 pub mod execution;
 pub mod native;
+pub mod transpile;
 
 pub const VIRTUAL_SOURCE_ROOT: &str = "/.src";
 

@@ -514,3 +514,70 @@ harness の整形（`sanitizeTrace`）：最初の `'7.1.0-dev'` を `'FakeTSVer
 - 次：P4-4（transpile（41）：`internal/transpile` への pin 直し、runner、cases と baseline の vendoring）。P4-3 の残り
   （bundler の implied node format、CLI の version 文字列、harness の他の list option の trim、checker の `replace_*_value`、
   exports の条件の列挙順）は別 slice。
+
+## P4-4 transpile（`transpileModule`／`transpileDeclaration`）（2026-10-08）
+
+tsgo の `TranspileBaselineRunner`（testrunner/transpile_runner.go）は `tests/cases/transpile` の case
+（`\.[cm]?[tj]sx?$`、25 file）を compiler runner と同じ規則で unit に分け、`declarationMap`／`sourceMap`／
+`inlineSourceMap` だけで configuration を展開し（名前は `declarationMap=true` の綴り）、空の option に directive を
+`SetOptionsFromTestConfig` で載せる（compiler runner の harness 既定値も skip 規則も無い）。configuration ごとに、
+`emitDeclarationOnly` でなければ `<name>.js`、`declaration` なら `<name>.d.ts` を書く。baseline は unit の入力
+（`//// [unit] ////` ＋本文、本文が `\n` で終わらなければ `\r\n`）、unit ごとの `TranspileModule`／`TranspileDeclaration`
+の出力（`.js`／`.d.ts`、別 file の source map があれば `.map`）、診断があれば `//// [Diagnostics reported]` ＋
+`GetErrorBaseline`（並べ替えてから描き、診断の file 名 `/<unit>` を unit 名に置換）。
+
+- **vendoring**：`scripts/vendor_typescript_native.py` の TREES に `tsc/testdata/tests/cases/transpile`（25 file）と
+  `tsc/testdata/baselines/reference/transpile`（41 file：`.js` 19、`.d.ts` 22）を足し、同じ commit で再 vendoring した
+  （追加のみで既存の file は不変、`--check` 一致、vendored 58,452 file、manifest に 2 set）。
+- **compiler**：`crates/compiler/src/transpile.rs` を 6.0.3 の `transpileWorker`（raw option の fixup、
+  `getDefaultCompilerOptions` の既定値、`moduleName`／`renamedDependencies`／`jsDocParsingMode`、caller の綴りへの
+  file 名の写像、route の evidence）から tsgo の `transpileWorker`（transpile/transpile.go:118-258）に合わせ直した。API は
+  `TranspileOptions { compiler_options: Option<CompilerOptions>, file_name, report_diagnostics }` →
+  `TranspileOutput { output_text, diagnostics, source_map_text }`。option の消去と強制は `transpile_compiler_options`
+  （incremental／declaration／emitDeclarationOnly／noEmit／lib／outFile／composite／tsBuildInfoFile／
+  allowImportingTsExtensions／noEmitOnError／declarationDir を消し、isolatedModules（verbatimModuleSyntax でなければ）／
+  noCheck／noResolve／suppressOutputPathCheck／allowNonTsExtensions を立て、declaration の有無で declaration／
+  emitDeclarationOnly／declarationMap／isolatedDeclarations を決める。paths／rootDirs／types は港では Program option で、
+  worker は空で作る）。入力名は `GetNormalizedAbsolutePath(name, "/")`（既定 `module.ts`、jsx が None でなければ
+  `module.tsx`）、host は大文字小文字を区別する in-memory、declaration は target の既定 lib 名で `/lib` に barebones lib。
+  診断は `reportDiagnostics` のとき syntactic＋config＋program、emit の診断は常に。診断の file 名は tsgo と同じ `/<unit>`。
+- **emitter**（transpile の 2 baseline で見つかった source map の差。tsgo の `Clone` は node の位置を保つが、港の
+  `clone_node` は Strada の `cloneNode` と同じ合成 node を作る）：
+  - `using` の巻き上げ（using.go `hoistInitializedVariable`）：export された top-level の `using d = …` を
+    `d = __addDisposableResource(…)` にするとき、代入先の clone に名前の位置を写した（名前の終端の mapping が出る）。
+  - namespace の `export import inner = internal;`（runtimesyntax.go `visitImportEqualsDeclaration` →
+    `createExportStatement`）：member 名の clone に名前の位置を写し（`GetNamespaceMemberName`）、代入に original と宣言全体の
+    source map range を付けた（`createExportAssignment`：`inner` の mapping と、`;` の直前で宣言の終端への mapping）。
+- **harness**：`upstream_suites/transpile.rs`（case の列挙、unit、`formatTranspileConfigurationName`、空の option への
+  `apply_compiler_settings`、harness option の `reportDiagnostics`、`pretty`）。`native::configurations` は
+  `configurations_varying_by`（`GetFileBasedTestConfigurations` に runner の vary-by を渡す形）の compiler runner 版にした。
+- **runner・script・CI**：`crates/conformance/src/ts71/suites.rs` と binary `suites-ts71`（report
+  `target/suites-ts71/<profile>/report.json`、`--filter`、`--dump`、case は大きな stack の thread で panic を捕まえる）、
+  `scripts/suites_ts71.py`（`--check`／`--update`）、ratchet `ratchets/ts71/suites-7.1.0-dev-19dadef8.tsv`（`transpile/<baseline>`
+  と `full`／`none`、41 行）。hosted は新しい job を足さず、既存の `conformance (TypeScript 7.1)` job で `conformance-ts71`
+  と同じ cargo 呼び出しで `suites-ts71` も build し、lane A の後に `scripts/suites_ts71.py --check` を実行する（release
+  build をもう 1 回しないため。上の「runner・report・ratchet・CI」の hosted job 案から変更）。CLAUDE.md の merge 条件・
+  ratchet の規則・単一 writer の一覧と root README の「Run CI」に suites を足した。
+- 結果：emitter を直す前は 39/41 が byte 一致（`jsWithSourceMapBasic(sourceMap=true).js`、
+  `jsWithInlineSourceMapBasic(inlineSourceMap=true).js` が上の 2 箇所の mapping で不一致）、直した後は **41/41 が byte 一致**。
+- 制限（41 baseline には現れない構造上の差）：tsgo の `SkipModuleResolution`（module／type reference／lib reference を
+  解決せず、implied format を拡張子だけから決める）を港の Program は持たない。`noResolve` の下で import を解決し
+  （in-memory host には入力と lib しか無いので、結果は未解決か入力自身への解決だけ）、declaration では `/// <reference lib>`
+  の library file も探す（host に無く、`reportDiagnostics` でも何も報告されないことを probe で確かめた）。港の
+  `clone_node` は合成 node を作るので、他の transform の clone でも source map／comment が tsgo と異なり得る
+  （conformance の source map baseline には現れていない）。
+- tests：compiler `transpile_contract`（6：option の消去と強制、何も解決しないこと、emit の診断は常に出ること、既定の
+  file 名、namespace alias と `using` の source map。期待値は tsgo の baseline の出力）、harness `transpile_suite_expansion`
+  （2：41 個の baseline 名の予測、configuration と option）と unit 2、conformance の unit 2、manifest の件数の pin を
+  58,386 → 58,452。
+- 計測（最終 bytes、macOS、`nice -n 20`、2 worker、利用者の作業中の負荷を抑えた設定）：transpile suite 41 baseline／full 41
+  （`scripts/suites_ts71.py --check`：0 regressions、ratchet は `--update` で 41 行とも `full`）。conformance 12,748 case／481 s、
+  errors full 13,451（mismatch 0）、emit full 13,443（mismatch 0、not assessed 8）、types full 12,677／mismatch 90、symbols full
+  12,715／mismatch 52、sourcemap full 13,451／mismatch 0、trace full 13,448／mismatch 3、harness error 15（すべて P4-3 と同じ）。
+  ratchet 0 regressions、上がった行は無い（emitter の 2 つの修正は conformance の baseline を変えなかった）。vendoring commit
+  `8f314274e`、fix commit `609a2de2d`。
+- local（`nice -n 20`、2 job）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）emitter／checker／compiler／
+  conformance／harness；test emitter 635、harness 31、conformance 37、compiler 418、checker 1,797（全て 0 失敗）、
+  `.github/ci/test_replay.py` 6。workspace 全体の test と clippy は hosted の `rust` job に任せた。実 project の比較は行っていない
+  （emitter の変更は上の 2 構文の source map range だけ）。parallel control は checker を変えていないので行っていない。
+  性能は計測していない（利用者の指示）。

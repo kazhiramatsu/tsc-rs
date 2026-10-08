@@ -21,6 +21,13 @@
       "bytes": 3829694
     },
     {
+      "path": "tsc/testdata/tests/cases/transpile",
+      "git_tree_sha1": "d0e4420ac210519b709dd5f1a15a7cbeea90dc60",
+      "blob_inventory_sha256": "0554edfaebb7d579b072a4b48acb5a4a2b5760dd4a58d7c3aff80d0c585400c0",
+      "files": 25,
+      "bytes": 13841
+    },
+    {
       "path": "tsc/testdata/tests/lib",
       "git_tree_sha1": "dc0280a0cee5e76a93e1d0f02efe230929823db9",
       "blob_inventory_sha256": "1862fce29dad7d495c4f6df325d89ceaf7203768946c46aa91960444a669b5a1",
@@ -33,6 +40,13 @@
       "blob_inventory_sha256": "e1d6a00d9a5009c0db5c846b8b206b6719231936c08803f7dfe19973e88def40",
       "files": 113,
       "bytes": 3791746
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/transpile",
+      "git_tree_sha1": "8a3dafa300a5f821963f79ec6cea9aee0be14da1",
+      "blob_inventory_sha256": "cab123e429dcde27d24e998636e74607c933884ea1510fdd878a928328c3ec68",
+      "files": 41,
+      "bytes": 90837
     },
     {
       "path": "tsc/internal/diagnostics/diagnosticMessages.json",

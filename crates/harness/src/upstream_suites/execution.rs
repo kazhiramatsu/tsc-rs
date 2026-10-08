@@ -696,7 +696,7 @@ fn project_compiler_options(
 /// is the effective Rust value; retaining whether a lower layer explicitly
 /// supplied `allowJs` here prevents `checkJs` from overriding an explicit
 /// false while still giving an absent `allowJs` the tsc default.
-fn apply_compiler_settings<'setting>(
+pub(super) fn apply_compiler_settings<'setting>(
     compiler_options: &mut CompilerOptions,
     program_options: &mut ProgramOptions,
     current_directory: &str,

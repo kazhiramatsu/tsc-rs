@@ -2309,7 +2309,10 @@ impl<'context> EsNextVisitor<'context> {
         &mut self,
         target: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        // hoistInitializedVariable (using.go:582-600): tsgo's `Clone` keeps
+        // the name's location, so the hoisted target maps its own span.
         let clone = self.context.factory()?.clone_node(target)?;
+        self.context.factory()?.set_text_range(clone, target)?;
         self.project_parsed_assignment_target(
             clone,
             ParsedAssignmentProjection::VariableInitializerClone,

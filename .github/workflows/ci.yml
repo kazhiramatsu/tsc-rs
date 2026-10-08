@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Compare lane A with the vendored TypeScript 7.1 baselines
+      - name: Compare lane A and the other suites with the vendored TypeScript 7.1 baselines
         run: python3 .github/ci/replay.py conformance-ts71
 
   gates:

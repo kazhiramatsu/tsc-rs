@@ -16,6 +16,7 @@
 mod emit_baseline;
 mod errors_baseline;
 mod sourcemap_baseline;
+pub mod suites;
 mod trace_baseline;
 mod type_symbol_baseline;
 
