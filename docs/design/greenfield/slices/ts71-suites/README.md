@@ -194,8 +194,7 @@ baseline と byte 一致した件数を ratchet に固定し、0 regressions」�
 ## 未決事項
 
 - `config/matchFiles`（142）は producer が無いので対象外（この記録で閉じる）。
-- tsc suite の help／init／showConfig／locale（cs など）は、実装して一致させるか ratchet の known に留めるかを
-  P4-6 の初回値で決める。
+- tsc suite の help／init／showConfig／locale（cs など）は実装して一致させる（利用者、2026-10-08。P4-6 計画）。
 - watch と api は roadmap の P5／P6 と同じ計画で扱い、この packet では順序だけ置く。
 - `.types` の `any` 表示は error baseline の有無で変わる（`hasErrorBaseline` は content mapper の診断も数える）。
   runner は既存の診断 session の結果をそのまま使う。
@@ -679,3 +678,92 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
   実project の比較は行っていない。性能は計測していない（利用者の指示）。
 - 次：P4-6（tsc（224）＋ tsbuild（192）：`TestSys`（仮想 FS・時計・差分・sanitizer・readable buildinfo）、Go 表の Rust 化、
   `ExitStatus`、help／init／showConfig／locale の採用判断、vendoring）。大きいので計画を先に決める。
+
+## P4-6 計画：tsc／tsbuild（2026-10-08）
+
+利用者の指示（2026-10-08）：「testing/fstest.MapFS を Rust っぽい形で移植しましょう。そして残りの項目を全て実装して
+ください。設計はおまかせします。Go をまんま移植すると Rust っぽさがなくなるので、そこだけは注意してください」、続けて
+「この機能は wasm 化した時の目玉になる予感がします」。未決事項だった help／init／showConfig／locale は実装して一致
+させる（known に留めない）。
+
+- **System 層（tsgo `tsc.System`）**：command line は `tsc_compiler::system::System`（file system、current directory、
+  標準 library の directory、時計、環境変数、terminal、出力）の上で動く。process は `NativeSystem`、test は in-memory、
+  将来の WebAssembly embedding は自前の System を渡す。driver（CLI・`tsc -b`・emit）は `std::fs`、process の環境変数、
+  wall clock を直接触らない。tsgo の test hook（`CommandLineTesting`）は同じ trait の optional な観測口。
+- **file system 層（tsgo `vfs.FS`）**：`tsc_host::vfs`。`FileSystem` trait（`std::fs` に倣った名前：`read`／`metadata`／
+  `read_dir`／`canonicalize`／`write`／`append`／`create_dir_all`／`remove`／`set_modified`、`io::Result`）、`OsFs`、
+  `VfsCompilerHost`（任意の FileSystem 上の `CompilerHost`）、`MemFs`。`MemFs` は `testing/fstest.MapFS`＋tsgo `vfstest` の
+  意味を **木構造** で持つ（Go の flat map＋canonical key の写しにしない）：directory ごとに canonical 名（case-insensitive なら
+  fold）の `BTreeMap`、node は作成・最終書き込み時の綴りと mtime を持つ。symlink は読み書きで辿り、remove／set_modified／
+  entry は辿らない（tsgo と同じ）。link 越しの write は与えた綴りを保つ。`create_dir_all` は tsgo `mkdirAll` の「link に
+  当たった prefix から link 先の実 directory で walk をやり直す」を写す。時刻は `Clock` から読み、`SteppingClock` は読むたびに
+  一定量進む（tsgo `TestClock`）。`from_entries` は tsgo `FromMapWithClock` の順（`comparePathsByParts` の順に全 entry を
+  stamp、その後に親 directory を作る）。tsgo が「link の下の literal entry」を黙って持つ入力（link を通しては届かない）は
+  error にする。
+- **scenario の記録**：tsc_test.go／tscbuild_test.go の scenario は Go の値と edit の closure なので、Go の表を手で写さない。
+  `scripts/tsctests_scenarios.py` が pinned checkout の tsctests package を `internal/execute/tsrsdump` に複製し、記録器
+  （`scripts/tsctests_dump/tsrs_dump_test.go`）を足して one-shot の test（watch を除く）を走らせ、各 scenario の file・引数・
+  環境・terminal と、各 edit の TestSys 操作（write／append／prepend／replace／replaceAll／remove／rename／touch）を順に
+  `vendor/typescript-native/<profile>/tsctests-scenarios.json` に書く。runner.go と sys.go への差し込みは一意な文字列
+  置換で、合わなければ script が止まる。test は記録中も baseline を reference と比べるので、記録は全 baseline を再現した
+  run からだけ書かれる。incremental correctness の clean system での edit 操作が違う 2 件（`forIncrementalCorrectness`
+  を見る edit）は `nonIncrementalOps` に別記。`--check` は記録し直して byte 比較。
+- **runner**（`ts71/suites/tsc.rs`、`tsc/system.rs`、`tsc/build_info.rs`）：tsgo `TestSys` の移植（library file、
+  build info の `FakeTSVersion` 化と readable 版、written／未読 library の追跡、FSDiffer、出力 sanitizer、edit の再生、
+  incremental correctness の clean build、`OnEmittedFiles`、`OnProgram`）。suite は `tsc` と `tsbuild`。
+- **slice**：P4-6a（土台＋初回値＋incremental の testing data＋見つかった修正）、P4-6b（help／init／showConfig／locale）、
+  P4-6c（残りの class）。content mapper の baseline（tsc 5 種・tsbuild 2 種）は content mapper を後回しにする指示のまま
+  対象外。watch（tscWatch／tsbuildWatch、記録には 68 scenario が入る）は P4-7。
+
+## P4-6a tsc／tsbuild の土台と初回値（2026-10-08）
+
+- **vendoring**：`scripts/vendor_typescript_native.py` の TREES に `reference/tsc`（224）と `reference/tsbuild`（192）。
+  追加のみ、`--check` 一致、vendored 59,035 file（harness の pin 58,619 → 59,035）。記録 `tsctests-scenarios.json`
+  （483 scenario：tsc 223・tsbuild 192・watch 68、890,517 byte）。tsc の 224 のうち 1 件は watch の test が書く。
+- **System 層**：`run_cli` は契約そのまま（`NativeSystem` を作って出力を回収）、`execute_command_line(system, args,
+  testing)` が公開入口。`NativeSystem` の compiler host は従来の cached `FsCompilerHost`＋埋め込み library
+  （`NativeCompilerHost` として system.rs へ移動）。emit は `SystemEmitFileSystem`（System の FileSystem へ書く。並列書き込みは
+  worker budget が 2 以上のとき）、`tsc -b` の時刻・mtime・削除・status の時刻と `TZ` も System 経由。診断の描画は
+  `Format`（current directory・case profile・pretty）を受け、plain reporter が process の case profile を probe していた
+  のを run の FileSystem のものに直した。
+- **testing data**：testing session（`ProgramSession::with_testing`）では file version と signature に本文を付け
+  （tsgo `hashWithText`）、emit した file を常に集める。`OnEmittedFiles` は emit の順に mtime を進め、`tsc -b` の mtime
+  cache も更新する。snapshot は各 file の semantic 診断が「この run で計算」「旧 state から保持」「cache 無し」のどれかと、
+  signature の更新種別（computed .d.ts／stored at emit／used version）を記録し、`OnProgram` で runner が
+  `SemanticDiagnostics::`／`Signatures::` を書く。
+- **初回値**（runner を書いた直後）：tsc 68／224、tsbuild 6／192。主な class：incremental の testing data が無い（190 前後）、
+  version に本文が無い（build info 約 140）、`tsc -b` の pretty 出力が source text 無しで描画に失敗（約 50）、help／init／
+  showConfig／locale、config program の `traceResolution`。
+- **港の修正（tsgo に合わせた）**：
+  1. `tsc -b` は pretty の error summary と project の config 診断を source text 無しで描いて失敗していた。orchestrator が
+     parse した config と各 project の診断 file の text を保持する（実 project でも pretty の `tsc -b` に error があれば
+     起きた）。
+  2. `traceResolution` を config program（emit／no-emit）で受け付け、trace を run の出力の前に出す（explicit file と同じ。
+     `tsc -b` は project の buffer に）。
+  3. 参照 project の source を include する root は、その project の出力 d.ts を選ぶ（tsgo は program に出力を置く）。
+     prepared program が「root が SourceFileId と合わない」で失敗していた。
+  4. build の root reader が `resolvedRoot` の組を逆に読んでいた（tsgo は `[resolved, root]`）。参照 project の source を
+     root に持つ project が毎回 rebuild になっていた。
+  5. command line 自身の error（TS5023 など、`--project` と file の併用、tsconfig の不在）の後に error summary を出さない
+     （tsgo `tscCompilation` は報告して止まる）。
+- **結果**：**tsc 149／224、tsbuild 136／192**（ratchet に 416 行を足し 624 行、うち full 493）。transpile 41、tsoptions 80、
+  config 87 は変わらず全て full。
+- 残る class（131）：help／version 8（tsc 7・tsbuild 1）、`--init` 7、`--showConfig` 16、locale 2、`--generateTrace` 2、
+  content mapper 8（対象外）、その他 88（tsc 36・tsbuild 52）。その他の主なもの：`target: es5` の emit 7（tsgo 7.1 は
+  TS5108 を報告して ES2015 として出力、port は ES5 へ下げる。2026-09-29 の指示で ES5 の実装は残すので扱いを P4-6c で決める）、
+  resolveJsonModule 9、module 解決（package.json scope・pnpm 風の layout・symlink・出力 d.ts からの解決）約 12、
+  project references（参照先の設定・不正な field）6、incremental（大文字小文字を区別しない FS、global 診断、comment だけの
+  edit 後の再計算）8、`--listFilesOnly`＋incremental、`forceConsistentCasingInFileNames` 2、`tsc -b` の status・時刻・
+  rootDir 共有 build info の報告など。
+- tests：host の vfs 18（vfstest_test.go の移植＋adapter）、incremental の resolved root 1、compiler の system contract 4
+  （別 test process：command line は process 全体の checker mode を設定するため）、conformance の runner 単体 6。
+- 計測（最終 bytes `e544587ec`、macOS、`nice -n 20`、2 worker）：conformance 12,748 case／491 s、errors full 13,451
+  （mismatch 0）、emit full 13,443（not assessed 8）、types full 12,677／mismatch 90、symbols full 12,715／mismatch 52、
+  sourcemap full 13,451、trace full 13,448／mismatch 3、harness error 15（P4-5 と同じ）、ratchet 0 regressions。suites
+  （`scripts/suites_ts71.py --update` → `--check`）0 regressions。
+- local（`nice -n 20`、2 job、最終 bytes）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）host／
+  incremental／compiler／conformance／program／harness；test host 46、incremental 29、compiler 422（contracts 401、
+  system 4、unit 13、その他 4）、conformance 48、program 599、harness 31（全て 0 失敗）。workspace 全体の test と clippy は
+  hosted の `rust` job に任せた。実 project の比較と parallel control は行っていない（checker を変えていない。build の
+  root 読みと project 参照の root の修正は実 project にも効くので、P4-6 の終わりに DT／azure／material-ui で比べる）。
+  性能は計測していない（利用者の指示）。
