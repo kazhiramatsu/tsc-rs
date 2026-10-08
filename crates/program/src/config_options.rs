@@ -765,6 +765,16 @@ impl CompilerOptionDeclaration {
     pub const fn jsconfig_default(self) -> Option<JsConfigDefaultValue> {
         self.jsconfig_default
     }
+
+    /// A tsconfig-only declaration outside the catalog, as tsgo's
+    /// command-line tests declare their `optionName`
+    /// (`createVerifyNullForNonNullIncluded`, tsoptions/commandlineparser_test.go).
+    pub const fn tsconfig_only(name: &'static str, value_kind: CompilerOptionValueKind) -> Self {
+        Self {
+            is_tsconfig_only: true,
+            ..option(name, value_kind)
+        }
+    }
 }
 
 const fn option(
@@ -1363,7 +1373,7 @@ pub fn compiler_option_spelling_suggestion<'n>(
 
 pub(crate) fn option_spelling_suggestion<'n>(
     name: impl Into<tsc_diagnostics::JsStr<'n>>,
-    declarations: &'static [CompilerOptionDeclaration],
+    declarations: impl IntoIterator<Item = &'static CompilerOptionDeclaration>,
 ) -> Option<&'static CompilerOptionDeclaration> {
     let name = name.into();
     let name_units = name.to_utf16();
@@ -1464,18 +1474,14 @@ fn levenshtein_with_max(left: &[u16], right: &[u16], maximum: f64) -> Option<f64
     (previous[right.len()] <= maximum).then_some(previous[right.len()])
 }
 
-/// TypeScript's filename-sensitive defaults in object insertion order.
+/// The compiler options a `jsconfig.json` defaults, in tsgo's literal order.
+/// tsgo has no `allowSyntheticDefaultImports` default (the option is always
+/// on).
 ///
-/// tsc-port: getDefaultCompilerOptions @6.0.3
-/// tsc-hash: 34b70a77540f5b4d751fb295bdb7c59a2edb4043e98950027945840ed7646d80
-/// tsc-span: _tsc.js:39507-39510
+/// tsgo-port: getDefaultCompilerOptions @7.1 (tsoptions/tsconfigparsing.go:927-939)
 pub static JSCONFIG_DEFAULTS: &[(&str, JsConfigDefaultValue)] = &[
     ("allowJs", JsConfigDefaultValue::Boolean(true)),
     ("maxNodeModuleJsDepth", JsConfigDefaultValue::Number(2)),
-    (
-        "allowSyntheticDefaultImports",
-        JsConfigDefaultValue::Boolean(true),
-    ),
     ("skipLibCheck", JsConfigDefaultValue::Boolean(true)),
     ("noEmit", JsConfigDefaultValue::Boolean(true)),
 ];

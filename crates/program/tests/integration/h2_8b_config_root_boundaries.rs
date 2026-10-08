@@ -141,7 +141,7 @@ fn config_root_boundaries_matches_fresh_typescript_observations() {
         "../fixtures/h2-8b-config-root-boundaries.json"
     ))
     .expect("frozen config observations");
-    assert_eq!(oracle["typescript"], "6.0.3");
+    assert_eq!(oracle["typescript"], "7.1.0-dev-19dadef8");
     assert_eq!(oracle["repetitions"], 2);
     assert_eq!(oracle["program_executions"], 0);
     let cases = inputs["cases"].as_array().expect("input cases");

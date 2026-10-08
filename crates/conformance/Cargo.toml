@@ -21,6 +21,7 @@ tsc-compiler.workspace = true
 tsc-types.workspace = true
 tsc-diagnostics.workspace = true
 tsc-harness.workspace = true
+tsc-host.workspace = true
 tsc-program.workspace = true
 
 [lints]

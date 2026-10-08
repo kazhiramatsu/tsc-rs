@@ -2229,6 +2229,73 @@ fn config_value_requests_feature(value: &Value) -> bool {
     }
 }
 
+/// tsgo `convertConfigFileToObject` (tsoptions/tsconfigparsing.go:311-337):
+/// the config's object, the empty object for a text without a value. A root
+/// that is not an object is TS5092, unless it is an array holding an object,
+/// which tsgo recovers without reporting the root.
+fn config_file_object(
+    source: &ConfigSourceText,
+    parsed: &SourceFile,
+    errors: &mut Vec<Diagnostic>,
+) -> Result<Value, ConfigParseError> {
+    let mut raw = if json_source_file_is_empty(parsed) {
+        Value::Object(Map::new())
+    } else {
+        convert_recoverable_json_source_file_to_value(parsed).ok_or_else(|| {
+            ConfigParseError::new_js(
+                ConfigParseErrorKind::Unsupported,
+                Some(source.file_name.clone()),
+                "the recovered config syntax tree is outside the currently ported JSONC conversion surface",
+            )
+        })?
+    };
+    let first_object = raw
+        .as_array()
+        .and_then(|values| values.iter().find(|value| value.is_object()))
+        .cloned();
+    if let Some(first_object) = first_object {
+        raw = first_object;
+    }
+    if !raw.is_object() {
+        let config_kind = if source
+            .file_name
+            .as_js()
+            .split_ascii(b'/')
+            .next_back()
+            .and_then(|tail| tail.split_ascii(b'\\').next_back())
+            == Some("jsconfig.json".into())
+        {
+            "jsconfig.json"
+        } else {
+            "tsconfig.json"
+        };
+        errors.push(config_diagnostic(
+            &gen::The_root_value_of_a_0_file_must_be_an_object,
+            &[config_kind.to_owned()],
+            config_root_expression(parsed).and_then(|node| config_location(parsed, node)),
+        ));
+        raw = Value::Object(Map::new());
+    }
+    Ok(raw)
+}
+
+/// tsgo `ParseConfigFileTextToJson` (tsoptions/tsconfigparsing.go:703-713):
+/// the config text's object and its errors, which are the text's first
+/// parse diagnostic when it has any.
+pub fn parse_config_file_text_to_json(
+    file_name: impl Into<JsString>,
+    text: impl Into<String>,
+) -> Result<(Value, Vec<Diagnostic>), ConfigParseError> {
+    let source = ConfigSourceText::new(file_name, text);
+    let parsed = parse_config_source(&source)?;
+    let mut errors = config_json_conversion_diagnostics(&parsed);
+    let raw = config_file_object(&source, &parsed, &mut errors)?;
+    if let Some(first) = parsed.parse_diagnostics.first() {
+        errors = vec![first.clone()];
+    }
+    Ok((config_raw_projection(raw), errors))
+}
+
 fn parse_config_source(source: &ConfigSourceText) -> Result<SourceFile, ConfigParseError> {
     match json_parser_preflight(source.text()) {
         JsonParserPreflight::Safe => {}
@@ -2405,47 +2472,7 @@ impl ParseContext<'_> {
         let base_path = base_path.into();
         let mut own_errors = config_json_conversion_diagnostics(&parsed);
         let json_conversion_error_count = own_errors.len();
-        let mut raw = if json_source_file_is_empty(&parsed) {
-            Value::Object(Map::new())
-        } else {
-            convert_recoverable_json_source_file_to_value(&parsed).ok_or_else(|| {
-                ConfigParseError::new_js(
-                    ConfigParseErrorKind::Unsupported,
-                    Some(source.file_name.clone()),
-                    "the recovered config syntax tree is outside the currently ported JSONC conversion surface",
-                )
-            })?
-        };
-        // tsgo recovers a root array holding an object without reporting the
-        // root value (convertConfigFileToObject, tsoptions/tsconfigparsing.go:
-        // 319-335); only a root without one is TS5092.
-        let first_object = raw
-            .as_array()
-            .and_then(|values| values.iter().find(|value| value.is_object()))
-            .cloned();
-        if let Some(first_object) = first_object {
-            raw = first_object;
-        }
-        if !raw.is_object() {
-            let config_kind = if source
-                .file_name
-                .as_js()
-                .split_ascii(b'/')
-                .next_back()
-                .and_then(|tail| tail.split_ascii(b'\\').next_back())
-                == Some("jsconfig.json".into())
-            {
-                "jsconfig.json"
-            } else {
-                "tsconfig.json"
-            };
-            own_errors.push(config_diagnostic(
-                &gen::The_root_value_of_a_0_file_must_be_an_object,
-                &[config_kind.to_owned()],
-                config_root_expression(&parsed).and_then(|node| config_location(&parsed, node)),
-            ));
-            raw = Value::Object(Map::new());
-        }
+        let mut raw = config_file_object(&source, &parsed, &mut own_errors)?;
         let object = raw
             .as_object()
             .expect("a non-object config was replaced with the empty object");
@@ -4384,7 +4411,7 @@ fn invalid_trailing_recursion_pattern<'s>(spec: impl Into<JsStr<'s>>) -> bool {
     candidate == "**" || candidate.ends_with("/**")
 }
 
-fn invalid_dot_dot_after_recursive_wildcard<'s>(spec: impl Into<JsStr<'s>>) -> bool {
+pub(crate) fn invalid_dot_dot_after_recursive_wildcard<'s>(spec: impl Into<JsStr<'s>>) -> bool {
     let spec = spec.into();
     let bytes = spec.as_bytes();
     let wildcard_index = if spec.starts_with("**/") {
@@ -5165,28 +5192,21 @@ fn typed_option_bag_json(bag: &ConfigOptionBag) -> Value {
     Value::Object(object)
 }
 
+/// The type acquisition a config defaults: `enable` for a `jsconfig.json`,
+/// nothing for a `tsconfig.json`.
+///
+/// tsgo-port: getDefaultTypeAcquisition @7.1 (tsoptions/tsconfigparsing.go:941-947)
 fn default_type_acquisition<'j0>(file_name: impl Into<JsStr<'j0>>) -> ConfigOptionBag {
     let file_name = file_name.into();
     let mut bag = ConfigOptionBag::default();
-    for (name, value) in [
-        (
-            "enable",
-            Value::Bool(file_name.split_ascii(b'/').next_back() == Some("jsconfig.json".into())),
-        ),
-        ("include", Value::Array(Vec::new())),
-        ("exclude", Value::Array(Vec::new())),
-    ] {
-        let typed = if value.is_array() {
-            ConfigTypedOptionValue::List(Vec::new())
-        } else {
-            ConfigTypedOptionValue::Json(value.clone())
-        };
+    if file_name.split_ascii(b'/').next_back() == Some("jsconfig.json".into()) {
+        let value = Value::Bool(true);
         bag.insert(ConfigOption {
-            name: name.into(),
-            value,
+            name: "enable".into(),
+            value: value.clone(),
             base_path: JsString::new(),
         });
-        bag.insert_typed(name, Some(typed));
+        bag.insert_typed("enable", Some(ConfigTypedOptionValue::Json(value)));
     }
     bag
 }
@@ -5747,11 +5767,13 @@ fn convert_compiler_option_list_element<'j0>(
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
             };
+            // tsgo `validateJsonOptionValue` passes the spec message without
+            // its argument, so the text keeps `'{0}'` (tsconfigparsing.go:387-391).
             if descriptor.validate_file_spec() && invalid_dot_dot_after_recursive_wildcard(written)
             {
                 errors.push(config_diagnostic(
                     &gen::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_0,
-                    &[written.to_owned()], location,
+                    &[] as &[String], location,
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
             }

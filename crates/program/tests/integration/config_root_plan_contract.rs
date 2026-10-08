@@ -2538,7 +2538,7 @@ fn root_plan_exposes_effective_file_include_and_exclude_specs() {
 }
 
 #[test]
-fn root_plan_converts_watch_inheritance_and_keeps_acquisition_defaults() {
+fn root_plan_converts_watch_inheritance_and_keeps_tsgo_acquisition_defaults() {
     let host = MemoryConfigHost::default()
         .with_file(
             "/project/base.json",
@@ -2556,12 +2556,31 @@ fn root_plan_converts_watch_inheritance_and_keeps_acquisition_defaults() {
 
     assert!(plan.references().is_none());
     assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4}).into()));
-    assert_eq!(
-        plan.type_acquisition(),
-        Some(&json!({"enable": false, "include": [], "exclude": []}).into())
-    );
+    // Type acquisition is not inherited, and a tsconfig.json has no default
+    // (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947).
+    assert_eq!(plan.type_acquisition(), Some(&json!({}).into()));
     assert_eq!(plan.compile_on_save(), Some(&json!(true).into()));
     assert_eq!(plan.raw()["compileOnSave"], json!(true).into());
+}
+
+// tsgo's tsconfigParsing `… jsonParse.js` baselines (ParseConfigFileTextToJson,
+// tsoptions/tsconfigparsing.go:703-713).
+#[test]
+fn config_text_converts_to_its_object_like_tsgo() {
+    let convert = |text: &str| {
+        let (value, errors) =
+            tsc_program::parse_config_file_text_to_json("/apath/tsconfig.json", text)
+                .expect("bounded config text");
+        (value, errors.iter().map(|d| d.code()).collect::<Vec<_>>())
+    };
+    assert_eq!(convert(" "), (json!({}).into(), vec![]));
+    assert_eq!(convert("// Comment"), (json!({}).into(), vec![]));
+    assert_eq!(
+        convert("{\n  /* c */ \"exclude\": [\"xx//file.d.ts\"]\n}"),
+        (json!({"exclude": ["xx//file.d.ts"]}).into(), vec![])
+    );
+    // A root that is not an object is TS5092 and converts to `{}`.
+    assert_eq!(convert("1"), (json!({}).into(), vec![5092]));
 }
 
 #[test]
@@ -2581,10 +2600,7 @@ fn falsey_root_settings_preserve_watch_inheritance_and_raw_values() {
 
     assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4}).into()));
     assert_eq!(plan.raw()["watchOptions"], json!(false).into());
-    assert_eq!(
-        plan.type_acquisition(),
-        Some(&json!({"enable": false, "include": [], "exclude": []}).into())
-    );
+    assert_eq!(plan.type_acquisition(), Some(&json!({}).into()));
     assert_eq!(plan.raw()["typeAcquisition"], json!(null).into());
     assert_eq!(plan.compile_on_save(), Some(&json!(false).into()));
     assert_eq!(

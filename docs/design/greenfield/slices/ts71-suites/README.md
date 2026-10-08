@@ -592,3 +592,80 @@ tsgo の `TranspileBaselineRunner`（testrunner/transpile_runner.go）は `tests
 - 次：P4-5（tsoptions（80：parseCommandLine 53＋parseBuildOptions 27）＋ config/tsconfigParsing（87）：Go 表の Rust 化、
   `Args::`／`CompilerOptions::`／`FileNames::`／`Errors::` 等の形式の描画、vendoring）。`suites-ts71` と
   `scripts/suites_ts71.py` に suite を足す。P4-4 の残り（`SkipModuleResolution`、clone の位置）は制限として上に記録。
+
+## P4-5 tsoptions／config（command line と tsconfig の parse）（2026-10-08）
+
+tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に baseline を書く。
+
+- `commandlineparser_test.go`：`TestCommandLineParseResult`（33 scenario）と `TestParseCommandLineVerifyNull`（1＋
+  5 種の option × null／非 null／後続 option／末尾 の 18 scenario、string／number の 2 種は test だけの tsconfig 専用
+  宣言 `optionName` を足す）が `tsoptions/commandLineParsing/parseCommandLine/<name>.js`（53）を、
+  `TestParseBuildCommandLine`（22＋5）が `…/parseBuildOptions/<name>.js`（27）を書く。parseCommandLine は
+  `Args::`（引数を `"…"` で囲んで `, ` で連ねる。escape なし）、`CompilerOptions::`（parser の raw OrderedMap を
+  最初の代入順・最後の値で compact JSON。enum は tsgo の数値、lib は library の file 名、`null` はそのまま）、
+  `FileNames::`、`Errors::`（`WriteFormatDiagnostics`、`\n`）。parseBuildOptions は `buildOptions::`（`core.BuildOptions`
+  の field 順）、`compilerOptions::`（build と共通の compiler option を `core.CompilerOptions` の field 順で。watch option は
+  含めない）、`Projects::`（無ければ `.`）、`Errors::`。
+- `tsconfigparsing_test.go`：`parseConfigFileTextToJsonTests`（7）が `config/tsconfigParsing/<title> jsonParse.js`
+  （`Input::`／`Config::`（2 space の indent）／`Errors::`（pretty＋ANSI、`\n`、cwd `/`））を、
+  `parseJsonConfigFileTests`（32）と `TestParseTypeAcquisition`（8）が `<title> with json api.js` と
+  `<title> with jsonSourceFile api.js`（各 40）を書く：`Fs::`（`vfs.WalkDir` の名前順に `//// [path]\r\n内容\r\n\r\n`）、
+  `configFileName::`、任意の `CompilerOptions::`／`TypeAcquisition::`（tsgo struct の field 順、`omitzero`、2 space）、
+  `FileNames::`、`Errors::`（pretty＋ANSI、`\r\n`、cwd ＝ basePath）。
+
+- **vendoring**：`scripts/vendor_typescript_native.py` の TREES に `tsc/testdata/baselines/reference/tsoptions`（80）と
+  `tsc/testdata/baselines/reference/config/tsconfigParsing`（87）を足した（`config/matchFiles` の 142 は producer の無い
+  orphan なので入れない）。追加のみ、`--check` 一致、vendored 58,619 file（harness の pin 58,452 → 58,619）。
+- **入力の表**：Go の表を `crates/conformance/src/ts71/suites/tables.rs` に写した（使い捨ての変換 script で Go の literal を
+  読み、Rust の literal に出力。表ごとに Go の行を記す）。baseline は引数・file・text をそのまま含むので、写し間違いは
+  不一致として現れる。`TestParseCommandLineVerifyNull` の loop と `TestParseTypeAcquisition` の入力（`/apath`、`a.ts`／
+  `b.ts`）は runner が Go と同じ手順で組む。
+- **runner**：`ts71/suites/tsoptions.rs`（command line、`parse_command_line_with_declarations`／`parse_build_command_line`
+  の結果を tsgo の値に写す）、`ts71/suites/tsconfig.rs`（in-memory host で `parse_config_root_plan`、`Fs::` の walk、
+  CompilerOptions／TypeAcquisition の struct 順の JSON、診断の pretty 描画）、`ts71/suites/go_json.rs`（`encoding/json/v2`
+  の compact／indent 出力、`core.CompilerOptions`（135 field）・`core.BuildOptions`・`core.TypeAcquisition` の field 順、
+  tsgo の enum の数値：moduleDetection auto=1、newLine crlf=1、watch 系は Strada より 1 大きい）。`suites-ts71` と
+  `scripts/suites_ts71.py` に suite `tsoptions` と `config` を足した（ratchet 行 `tsoptions/commandLineParsing/…`、
+  `config/tsconfigParsing/…`）。
+- **json api**：tsc-rs は config file を text から parse する（jsonSourceFile api と同じ）。tsgo の json api は同じ text を
+  object に変換してから parse し、同じ診断を位置なしで報告する（vendored の 40 組を比べると、違いはその位置だけ）。runner は
+  同じ parse の診断から位置を外し、root の text 自身の parse 診断を除いて描く（tsgo の json api は
+  `ParseConfigFileTextToJson` の診断を捨てる）。tsc-rs に JSON object から parse する入口は無い（制限）。
+- **港の変更（tsgo に合わせた）**：
+  - `parse_command_line_with_declarations`（tsgo `ParseCommandLineTestWorker`：catalog の宣言の後に test の宣言を足す）と
+    `CompilerOptionDeclaration::tsconfig_only`。unknown option の綴りの提案もその宣言を含める。
+  - watch option の list 要素（`excludeDirectories`／`excludeFiles`）の file spec 検査を command line にも足した。tsgo の
+    `validateJsonOptionValue` は spec の message を引数なしで作るので、文言は `'{0}'` のまま（tsconfig の watchOptions も同じ
+    に直した。6.0.3 では spec が入っていた）。
+  - `parse_config_file_text_to_json`（tsgo `ParseConfigFileTextToJson`：object（値の無い text は `{}`）と、text に parse
+    診断があればその最初の 1 件、無ければ変換の診断）。root の object 化は `config_file_object` として config の parse と共有した。
+  - jsconfig.json の既定 compiler option から `allowSyntheticDefaultImports` を外した（tsgo `getDefaultCompilerOptions`：
+    allowJs／maxNodeModuleJsDepth 2／skipLibCheck／noEmit。7.1 では常に有効なので check には影響しない）。
+  - type acquisition の既定値を tsgo の `getDefaultTypeAcquisition` にした：jsconfig.json は `enable: true` だけ、tsconfig.json
+    は何も無し（6.0.3 は `enable`／`include: []`／`exclude: []`）。
+- **6.0.3 の観測の更新**：`crates/program/tests/fixtures/h2-8b-config-{root-options,root-boundaries,reuse}.json`（6.0.3 の
+  観測）を、7.1 で変わる field だけ記録し直した（P3-5b の diagnostics fixture と同じ扱い：version 2、typescript
+  `7.1.0-dev-19dadef8`、source に根拠）。変更は script で種類を確かめてから書いた：acquisition probe の既定値（enable
+  false → absent 64、include [] → absent 66、exclude [] → absent 68）、`type_acquisition` の既定値の削除（28×3）、TS5065 の
+  文言（8）。他の field は 1 つも変わっていない。`config_option_catalog_contract` の jsconfig 既定値と
+  `config_root_plan_contract` の type acquisition の 2 test も tsgo の値に直した。
+- 結果：初回（描画を書いた直後）は tsoptions 80/80、config 51/87（36 件はすべて CompilerOptions／TypeAcquisition の節：
+  type acquisition の既定値、jsconfig の `allowSyntheticDefaultImports`、`maxNodeModuleJsDepth: 1.0`（Go の数値の書き方））。
+  直した後は **tsoptions 80/80、config 87/87、transpile 41/41（計 208）が byte 一致**。
+- 制限（vendored の baseline には現れない）：tsc-rs は JSON object から config を parse する入口を持たない（json api は
+  同じ text の parse で代える）。tsconfig の watchOptions の数値（`watch_options()` の JSON）はまだ Strada の番号
+  （tsgo の baseline に watchOptions の出力は無い）。
+- tests：program の単体 2（test の宣言、`'{0}'`）と contract 1（`parse_config_file_text_to_json`）、conformance の単体
+  （go_json 2、tsoptions 1、tsconfig 2）。
+- 計測（最終 bytes、macOS、`nice -n 20`、2 worker）：suites（`scripts/suites_ts71.py --update` → `--check`）**config 87／87、
+  tsoptions 80／80、transpile 41／41**、ratchet は 41 → 208 行（全て `full`）、0 regressions。conformance 12,748 case／473 s、
+  errors full 13,451（mismatch 0）、emit full 13,443（mismatch 0、not assessed 8）、types full 12,677／mismatch 90、symbols full
+  12,715／mismatch 52、sourcemap full 13,451／mismatch 0、trace full 13,448／mismatch 3、harness error 15（すべて P4-4 と同じ）、
+  ratchet 0 regressions、上がった行は無い。計測の後に `tables.rs` の 1 つの literal を同じ値の escape 形に直した（Go の text の
+  「tab の前の空白」が git の whitespace 検査にかかるため）ので、suites の release binary を作り直して 208／208 を確かめ直した。
+  vendoring commit `f81ba0ed1`、fix commit `38ea9b1e4`。
+- local（`nice -n 20`、2 job、最終 bytes）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）program／
+  checker／compiler／conformance／emitter／harness／incremental；test program 599、harness 31、conformance 42、emitter 635、
+  incremental 28、compiler 418、checker 1,797（全て 0 失敗）、`.github/ci/test_replay.py` 6。workspace 全体の test と clippy は
+  hosted の `rust` job に任せた。実 project の比較は行っていない（config の既定値の変更は常に有効な `allowSyntheticDefaultImports`
+  と、使われない type acquisition だけ）。parallel control は checker を変えていないので行っていない。性能は計測していない（利用者の指示）。

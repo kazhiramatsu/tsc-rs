@@ -1,5 +1,92 @@
 # TypeScript 7.1 suites outside the compiler runner: every baseline and its tier, `full` when tsc-rs's
 # baseline matches the reference byte for byte (scripts/suites_ts71.py --update). A tier is lowered only by a reviewed edit.
+config/tsconfigParsing/Convert correctly format tsconfig.json to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert correctly format tsconfig.json to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/Convert default jsconfig.json to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert default jsconfig.json to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/Convert default tsconfig.json to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert default tsconfig.json to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/Convert incorrect format jsconfig.json to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert incorrect format jsconfig.json to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/Convert incorrect format tsconfig.json to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert incorrect format tsconfig.json to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/Convert jsconfig.json to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert jsconfig.json to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/Convert jsconfig.json with only enable property to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert jsconfig.json with only enable property to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/Convert tsconfig.json with only enable property to typeAcquisition  with json api.js	full
+config/tsconfigParsing/Convert tsconfig.json with only enable property to typeAcquisition  with jsonSourceFile api.js	full
+config/tsconfigParsing/allow dotted files and folders when explicitly requested with json api.js	full
+config/tsconfigParsing/allow dotted files and folders when explicitly requested with jsonSourceFile api.js	full
+config/tsconfigParsing/does not generate errors for empty files list when one or more references are provided with json api.js	full
+config/tsconfigParsing/does not generate errors for empty files list when one or more references are provided with jsonSourceFile api.js	full
+config/tsconfigParsing/exclude declarationDir unless overridden with json api.js	full
+config/tsconfigParsing/exclude declarationDir unless overridden with jsonSourceFile api.js	full
+config/tsconfigParsing/exclude outDir unless overridden with json api.js	full
+config/tsconfigParsing/exclude outDir unless overridden with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors for directory with no .ts files with json api.js	full
+config/tsconfigParsing/generates errors for directory with no .ts files with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors for empty directory with json api.js	full
+config/tsconfigParsing/generates errors for empty directory with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors for empty files list when no references are provided with json api.js	full
+config/tsconfigParsing/generates errors for empty files list when no references are provided with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors for empty files list with json api.js	full
+config/tsconfigParsing/generates errors for empty files list with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors for empty include with json api.js	full
+config/tsconfigParsing/generates errors for empty include with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors for include with parent directory after recursive wildcard with json api.js	full
+config/tsconfigParsing/generates errors for include with parent directory after recursive wildcard with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors for includes with outDir with json api.js	full
+config/tsconfigParsing/generates errors for includes with outDir with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors when commandline option is in tsconfig with json api.js	full
+config/tsconfigParsing/generates errors when commandline option is in tsconfig with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors when files is not string with json api.js	full
+config/tsconfigParsing/generates errors when files is not string with jsonSourceFile api.js	full
+config/tsconfigParsing/generates errors when include is not string with json api.js	full
+config/tsconfigParsing/generates errors when include is not string with jsonSourceFile api.js	full
+config/tsconfigParsing/handles empty types array with json api.js	full
+config/tsconfigParsing/handles empty types array with jsonSourceFile api.js	full
+config/tsconfigParsing/handles escaped characters in strings correctly jsonParse.js	full
+config/tsconfigParsing/ignore dotted files and folders with json api.js	full
+config/tsconfigParsing/ignore dotted files and folders with jsonSourceFile api.js	full
+config/tsconfigParsing/implicitly exclude common package folders with json api.js	full
+config/tsconfigParsing/implicitly exclude common package folders with jsonSourceFile api.js	full
+config/tsconfigParsing/issue 1267 scenario - extended files not picked up with json api.js	full
+config/tsconfigParsing/issue 1267 scenario - extended files not picked up with jsonSourceFile api.js	full
+config/tsconfigParsing/keeps string content untouched jsonParse.js	full
+config/tsconfigParsing/null overrides in extended tsconfig - array fields with json api.js	full
+config/tsconfigParsing/null overrides in extended tsconfig - array fields with jsonSourceFile api.js	full
+config/tsconfigParsing/null overrides in extended tsconfig - mixed field types with json api.js	full
+config/tsconfigParsing/null overrides in extended tsconfig - mixed field types with jsonSourceFile api.js	full
+config/tsconfigParsing/null overrides in extended tsconfig - string fields with json api.js	full
+config/tsconfigParsing/null overrides in extended tsconfig - string fields with jsonSourceFile api.js	full
+config/tsconfigParsing/null overrides in middle level of extends chain with json api.js	full
+config/tsconfigParsing/null overrides in middle level of extends chain with jsonSourceFile api.js	full
+config/tsconfigParsing/null overrides with multiple extends levels with json api.js	full
+config/tsconfigParsing/null overrides with multiple extends levels with jsonSourceFile api.js	full
+config/tsconfigParsing/parses tsconfig with compilerOptions, files, include, and exclude with json api.js	full
+config/tsconfigParsing/parses tsconfig with compilerOptions, files, include, and exclude with jsonSourceFile api.js	full
+config/tsconfigParsing/parses tsconfig with extends and configDir with json api.js	full
+config/tsconfigParsing/parses tsconfig with extends and configDir with jsonSourceFile api.js	full
+config/tsconfigParsing/parses tsconfig with extends, files, include and other options with json api.js	full
+config/tsconfigParsing/parses tsconfig with extends, files, include and other options with jsonSourceFile api.js	full
+config/tsconfigParsing/reports error for an unknown option with json api.js	full
+config/tsconfigParsing/reports error for an unknown option with jsonSourceFile api.js	full
+config/tsconfigParsing/reports errors for incorrectly cased option names with json api.js	full
+config/tsconfigParsing/reports errors for incorrectly cased option names with jsonSourceFile api.js	full
+config/tsconfigParsing/reports errors for wrong type option and invalid enum value with json api.js	full
+config/tsconfigParsing/reports errors for wrong type option and invalid enum value with jsonSourceFile api.js	full
+config/tsconfigParsing/reports spelling suggestion for an unknown option with json api.js	full
+config/tsconfigParsing/reports spelling suggestion for an unknown option with jsonSourceFile api.js	full
+config/tsconfigParsing/returns config object without comments jsonParse.js	full
+config/tsconfigParsing/returns empty config for file with comments only jsonParse.js	full
+config/tsconfigParsing/returns empty config for file with only whitespaces jsonParse.js	full
+config/tsconfigParsing/returns empty config when config is empty object jsonParse.js	full
+config/tsconfigParsing/returns error when tsconfig have excludes with json api.js	full
+config/tsconfigParsing/returns error when tsconfig have excludes with jsonSourceFile api.js	full
+config/tsconfigParsing/returns object when users correctly specify library jsonParse.js	full
+config/tsconfigParsing/with outDir from base tsconfig with json api.js	full
+config/tsconfigParsing/with outDir from base tsconfig with jsonSourceFile api.js	full
 transpile/declarationAsyncAndGeneratorFunctions.d.ts	full
 transpile/declarationAsyncAndGeneratorFunctions.js	full
 transpile/declarationBasicSyntax(declarationMap=false).d.ts	full
@@ -41,3 +128,83 @@ transpile/noModuleResolution.d.ts	full
 transpile/noModuleResolution.js	full
 transpile/nodeModulesSelfImport.js	full
 transpile/syntheticImports.js	full
+tsoptions/commandLineParsing/parseBuildOptions/--clean and --force together is invalid.js	full
+tsoptions/commandLineParsing/parseBuildOptions/--clean and --verbose together is invalid.js	full
+tsoptions/commandLineParsing/parseBuildOptions/--clean and --watch together is invalid.js	full
+tsoptions/commandLineParsing/parseBuildOptions/--singleThreaded and --builders together.js	full
+tsoptions/commandLineParsing/parseBuildOptions/--watch and --dry together is invalid.js	full
+tsoptions/commandLineParsing/parseBuildOptions/Parse multiple flags with input projects at the end.js	full
+tsoptions/commandLineParsing/parseBuildOptions/Parse multiple flags with input projects in the beginning.js	full
+tsoptions/commandLineParsing/parseBuildOptions/Parse multiple flags with input projects in the middle.js	full
+tsoptions/commandLineParsing/parseBuildOptions/Parse multiple options.js	full
+tsoptions/commandLineParsing/parseBuildOptions/Parse option with invalid option.js	full
+tsoptions/commandLineParsing/parseBuildOptions/errors on invalid excludeDirectories.js	full
+tsoptions/commandLineParsing/parseBuildOptions/errors on invalid excludeFiles.js	full
+tsoptions/commandLineParsing/parseBuildOptions/errors on missing argument.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse --builders.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse --excludeFiles.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse --fallbackPolling.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse --synchronousWatchDirectory.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse --watchDirectory.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse --watchFile.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse build with --incremental.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse build with --locale en-us.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse build with --tsBuildInfoFile.js	full
+tsoptions/commandLineParsing/parseBuildOptions/parse build without any options .js	full
+tsoptions/commandLineParsing/parseBuildOptions/reports error when --builders is 0.js	full
+tsoptions/commandLineParsing/parseBuildOptions/reports error when --builders is invalid type.js	full
+tsoptions/commandLineParsing/parseBuildOptions/reports error when --builders is negative.js	full
+tsoptions/commandLineParsing/parseBuildOptions/reports other common may not be used with --build flags.js	full
+tsoptions/commandLineParsing/parseCommandLine/Handles did you mean for misspelt flags.js	full
+tsoptions/commandLineParsing/parseCommandLine/Handles may only be used with --build flags.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse --lib option with extra comma.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse --lib option with trailing white-space.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse empty options of --jsx.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse empty options of --lib.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse empty options of --module.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse empty options of --moduleResolution.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse empty options of --newLine.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse empty options of --target.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse empty string of --lib.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse explicit boolean flag value.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse immediately following command line argument of --lib.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse implicit boolean flag value.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse invalid option of library flags.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse multiple compiler flags with input files at the end.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse multiple compiler flags with input files in the middle.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse multiple library compiler flags .js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse multiple options of library flags.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse non boolean argument after boolean flag.js	full
+tsoptions/commandLineParsing/parseCommandLine/Parse single option of library flag.js	full
+tsoptions/commandLineParsing/parseCommandLine/allows setting option type boolean to false.js	full
+tsoptions/commandLineParsing/parseCommandLine/allows tsconfig only option to be set to null.js	full
+tsoptions/commandLineParsing/parseCommandLine/errors on invalid excludeDirectories.js	full
+tsoptions/commandLineParsing/parseCommandLine/errors on invalid excludeFiles.js	full
+tsoptions/commandLineParsing/parseCommandLine/errors on missing argument to --fallbackPolling.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type boolean allows setting it to null.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type boolean errors if its followed by another option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type boolean errors if its last option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type boolean errors if non null value is passed.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type list allows setting it to null.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type list errors if its followed by another option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type list errors if its last option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type list errors if non null value is passed.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type number allows setting it to null.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type number errors if its followed by another option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type number errors if its last option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type number errors if non null value is passed.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type object allows setting it to null.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type object errors if its followed by another option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type object errors if its last option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type string allows setting it to null.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type string errors if its followed by another option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type string errors if its last option.js	full
+tsoptions/commandLineParsing/parseCommandLine/option of type string errors if non null value is passed.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --excludeDirectories.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --excludeFiles.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --fallbackPolling.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --incremental.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --synchronousWatchDirectory.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --tsBuildInfoFile.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --watchDirectory.js	full
+tsoptions/commandLineParsing/parseCommandLine/parse --watchFile.js	full

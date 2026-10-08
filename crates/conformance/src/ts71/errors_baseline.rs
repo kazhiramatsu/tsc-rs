@@ -241,16 +241,22 @@ impl Lines {
 /// `FlattenDiagnosticMessage`: the head, then each chained message on its
 /// own line, indented two spaces per level.
 fn flatten(chain: &MessageChain, output: &mut String) {
-    fn children(chain: &MessageChain, output: &mut String, level: usize) {
+    flatten_with(chain, NEW_LINE, output);
+}
+
+/// `WriteFlattenedDiagnosticMessage`: the chain's messages, each nested one
+/// on its own line indented by two spaces per level.
+pub(super) fn flatten_with(chain: &MessageChain, new_line: &str, output: &mut String) {
+    fn children(chain: &MessageChain, new_line: &str, output: &mut String, level: usize) {
         for child in &chain.next {
-            output.push_str(NEW_LINE);
+            output.push_str(new_line);
             output.push_str(&"  ".repeat(level));
             output.push_str(&child.text.to_string_lossy());
-            children(child, output, level + 1);
+            children(child, new_line, output, level + 1);
         }
     }
     output.push_str(&chain.text.to_string_lossy());
-    children(chain, output, 1);
+    children(chain, new_line, output, 1);
 }
 
 /// Each fixture file's position index, by its normalized absolute name.
