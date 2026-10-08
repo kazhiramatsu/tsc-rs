@@ -42,7 +42,8 @@ records the decisions, the retired surfaces and the remaining steps.
   succeeds for the final candidate. It requires the jobs
   `.github/ci/replay.py plan` selected: `rust` (formatting, Clippy and the
   Rust test targets) and `conformance-ts71` (the TypeScript 7.1 error and
-  emit baselines on one checker, checked against `ratchets/ts71/`). A
+  emit baselines on one checker, then the transpile suite, checked against
+  `ratchets/ts71/`). A
   change under `docs/` or to the root `README.md`, `CONTRIBUTING.md` or
   `LICENSE` selects neither; any other change selects both. The PR body
   records the commands, source identity, results and remaining bounded
@@ -92,8 +93,9 @@ records the decisions, the retired surfaces and the remaining steps.
    implementation, focused evidence updates, PR creation, CI fixes and
    successful PR merges do not. Existing user authorization takes priority.
 6. Change `ratchets/ts71/` only through `scripts/conformance_ts71.py
-   --update` at the final bytes, or by a reviewed lowering recorded in the
-   owning packet. The ratchet is never edited merely to obtain a successful
+   --update` (`scripts/suites_ts71.py --update` for the suites ratchet) at
+   the final bytes, or by a reviewed lowering recorded in the owning
+   packet. The ratchet is never edited merely to obtain a successful
    validation result.
 7. **Markdown-only changes:** when all changed paths relative to the trusted
    base end in `.md`, run no local Cargo CI. Review the rendered diff, run
@@ -129,8 +131,8 @@ ritual.
 When independent lanes are used, the integrator is the single writer of
 shared integration files: `ratchets/ts71/`, `vendor/typescript-native/`,
 `.github/workflows/ci.yml`, `.github/ci/replay.py`,
-`scripts/conformance_ts71*.py`, the conformance runner
-(`crates/conformance/src/ts71*`) and integration documentation.
+`scripts/conformance_ts71*.py`, `scripts/suites_ts71.py`, the conformance
+runner (`crates/conformance/src/ts71*`) and integration documentation.
 
 Each lane's ticket fixes its base SHA, case IDs, permitted non-overlapping
 paths, expected results, focused tests, and stop conditions. Verify changed

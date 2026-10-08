@@ -8,9 +8,11 @@ push) and selects the jobs. A change under docs/ or to the root README.md,
 CONTRIBUTING.md or LICENSE selects nothing; any other change, and an unknown
 change range, selects both `rust` (formatting, Clippy and the Rust test
 targets) and `conformance-ts71` (the TypeScript 7.1 conformance comparison:
-the error and emit baselines on one checker, checked against
-ratchets/ts71/). `gate ci` requires every selected job to have succeeded
-and every unselected job to have been skipped.
+the error, emit, type, symbol, source-map and trace baselines on one
+checker, then the suites outside the compiler runner (transpile), each
+checked against its ratchet in ratchets/ts71/). `gate ci` requires every
+selected job to have succeeded and every unselected job to have been
+skipped.
 """
 
 import argparse
@@ -96,9 +98,12 @@ def rust():
 
 
 def conformance_ts71():
-    """Build the release runner and compare lane A with the vendored 7.1 baselines."""
-    run(["cargo", "build", "--release", "-p", "tsc-rs-conformance", "--bin", "conformance-ts71"])
+    """Build the release runners and compare lane A, then the other suites,
+    with the vendored 7.1 baselines."""
+    run(["cargo", "build", "--release", "-p", "tsc-rs-conformance",
+         "--bin", "conformance-ts71", "--bin", "suites-ts71"])
     run([sys.executable, "scripts/conformance_ts71.py", "--workers", CONFORMANCE_TS71_WORKERS, "--check"])
+    run([sys.executable, "scripts/suites_ts71.py", "--check"])
 
 
 def main():

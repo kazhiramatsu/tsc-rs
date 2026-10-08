@@ -16163,7 +16163,13 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .container_name
                 .clone();
             let container = self.create_identifier(&container_name)?;
+            // tsgo's `GetNamespaceMemberName` (printer/factory.go:561-574)
+            // clones the name keeping its location, so the member name maps
+            // its own span.
             let property = self.context.factory()?.clone_node(name_node)?;
+            self.context
+                .factory()?
+                .set_text_range(property, name_node)?;
             let target = self.context.factory()?.create_node(
                 self.source,
                 NodeData::PropertyAccessExpression(
@@ -16181,6 +16187,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .metadata_mut(target)
                 .add_flags(EmitFlags::NO_COMMENTS);
             let assignment = self.create_assignment(target, module_reference)?;
+            // createExportAssignment (runtimesyntax.go:962-968): the
+            // assignment maps the whole declaration.
+            self.context
+                .arena_mut()?
+                .set_original_node(assignment, Some(original))?;
+            self.set_source_map_range_from(assignment, original)?;
             let statement = self.create_expression_statement(assignment)?;
             self.set_original_and_range(statement, original)?;
             return Ok(Some(statement.node()));

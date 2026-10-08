@@ -30,3 +30,5 @@ mod preparsed_adoption_contract;
 mod preserve_symlinks_session_contract;
 #[path = "integration/program_session_contract.rs"]
 mod program_session_contract;
+#[path = "integration/transpile_contract.rs"]
+mod transpile_contract;

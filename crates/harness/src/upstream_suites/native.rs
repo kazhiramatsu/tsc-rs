@@ -671,16 +671,26 @@ pub struct NativeConfiguration {
     pub settings: BTreeMap<String, String>,
 }
 
-/// `GetFileBasedTestConfigurations` (harnessutil.go). No configuration at all
-/// means the case runs once, unnamed, with no settings.
+/// `GetFileBasedTestConfigurations` (harnessutil.go) with the compiler
+/// runner's [`VARY_BY`]. No configuration at all means the case runs once,
+/// unnamed, with no settings.
 pub fn configurations(
     settings: &BTreeMap<String, String>,
+) -> HarnessResult<Vec<NativeConfiguration>> {
+    configurations_varying_by(settings, &VARY_BY)
+}
+
+/// `GetFileBasedTestConfigurations` (harnessutil.go) with a runner's own
+/// `varyByOptions` (lower-cased option names).
+pub fn configurations_varying_by(
+    settings: &BTreeMap<String, String>,
+    vary_by: &[&str],
 ) -> HarnessResult<Vec<NativeConfiguration>> {
     let mut dimensions: Vec<(String, Vec<String>)> = Vec::new();
     let mut variation_count = 1usize;
     let mut fixed = BTreeMap::new();
     for (option, value) in settings {
-        if !VARY_BY.contains(&option.as_str()) {
+        if !vary_by.contains(&option.as_str()) {
             fixed.insert(option.clone(), value.clone());
             continue;
         }
