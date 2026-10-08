@@ -11,6 +11,10 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/tests/lib                            the harness's /.lib files
   tsc/internal/bundled/libs                         the embedded standard libraries
   tsc/internal/diagnostics/diagnosticMessages.json  the diagnostic message catalog
+  tsc/internal/diagnostics/loc/<locale>.json.gz     the localized messages (13 locales)
+  tsc/internal/tsoptions/{declscompiler,declsbuild,declswatch,commandlineoption,enummaps}.go
+  tsc/internal/core/{compileroptions,watchoptions}.go
+                                                    the option declarations and enum values
   tsc/testdata/baselines/reference/{compiler,conformance}/*.errors.txt
   tsc/testdata/baselines/reference/{compiler,conformance}/*.js
   tsc/testdata/baselines/reference/{compiler,conformance}/*.js.map
@@ -59,8 +63,21 @@ TREES = [
     "tsc/testdata/baselines/reference/tsc",
     "tsc/testdata/baselines/reference/tsbuild",
 ]
+LOCALES = ["cs-CZ", "de-DE", "es-ES", "fr-FR", "it-IT", "ja-JP", "ko-KR", "pl-PL", "pt-BR",
+           "ru-RU", "tr-TR", "zh-CN", "zh-TW"]
 FILES = [
     "tsc/internal/diagnostics/diagnosticMessages.json",
+    # The command-line option declarations the help, --init and
+    # --showConfig read (scripts/tsgo_option_declarations.py).
+    "tsc/internal/tsoptions/declscompiler.go",
+    "tsc/internal/tsoptions/declsbuild.go",
+    "tsc/internal/tsoptions/declswatch.go",
+    "tsc/internal/tsoptions/commandlineoption.go",
+    "tsc/internal/tsoptions/enummaps.go",
+    "tsc/internal/core/compileroptions.go",
+    "tsc/internal/core/watchoptions.go",
+    # The localized diagnostic messages tsgo embeds (gzip-compressed JSON).
+    *[f"tsc/internal/diagnostics/loc/{locale}.json.gz" for locale in LOCALES],
 ]
 BASELINE_DIRS = [
     "tsc/testdata/baselines/reference/compiler",

@@ -242,6 +242,7 @@ pub(crate) struct Orchestrator<'a> {
     fs: &'a dyn FileSystem,
     system: &'a dyn System,
     testing: Option<&'a dyn CommandLineTesting>,
+    locale: crate::locale::Locale,
     catalog: &'a LibraryCatalog,
     command: &'a BuildCommand,
     /// Normalized, forward slashes.
@@ -283,6 +284,7 @@ impl<'a> Orchestrator<'a> {
             fs: system.fs(),
             system,
             testing,
+            locale: crate::locale::Locale::English,
             catalog,
             command,
             current_directory: if directory.is_empty() {
@@ -502,7 +504,10 @@ impl<'a> Orchestrator<'a> {
     /// (`HH:MM:SS AM - message` plainly, the time in grey brackets when
     /// pretty), followed by a blank line.
     fn status_line(&self, message: MessageChain) -> String {
-        let text = message.text.to_string_lossy();
+        let text = message
+            .text_in(self.locale.messages())
+            .to_string_lossy()
+            .into_owned();
         let time = status_time(self.system);
         let mut line = String::new();
         if let Some(testing) = self.testing {
@@ -526,6 +531,7 @@ impl<'a> Orchestrator<'a> {
                 current_directory: self.current_directory_path,
                 case_sensitive: self.case_sensitive,
                 pretty: self.pretty,
+                locale: self.locale,
             },
             &self.sources,
             std::slice::from_ref(diagnostic),
@@ -598,6 +604,7 @@ impl<'a> Orchestrator<'a> {
                 self.current_directory_path,
                 &self.sources,
                 &all_errors,
+                self.locale,
             )?);
         }
         Ok(CliOutput::new(stdout, exit_status))
@@ -889,6 +896,7 @@ impl<'a> Orchestrator<'a> {
                     self.current_directory_path,
                     &self.sources,
                     &self.errors,
+                    self.locale,
                 )?);
             }
             return Ok(CliOutput::new(stdout, EXIT_PROJECT_REFERENCE_CYCLE));
@@ -955,6 +963,7 @@ impl<'a> Orchestrator<'a> {
                 self.current_directory_path,
                 &self.sources,
                 &errors,
+                self.locale,
             )?);
         }
         if self.command.dry && !files_to_delete.is_empty() {
@@ -1503,7 +1512,7 @@ pub(crate) fn run_build(
     command: &BuildCommand,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
-    let orchestrator = Orchestrator::new(
+    let mut orchestrator = Orchestrator::new(
         host,
         route.system,
         route.testing,
@@ -1512,6 +1521,7 @@ pub(crate) fn run_build(
         current_directory,
         route.pretty,
     );
+    orchestrator.locale = route.locale;
     orchestrator.run(route)
 }
 
@@ -1694,8 +1704,9 @@ fn render_error_summary(
     current_directory: &Path,
     sources: &DiagnosticSourceMap,
     errors: &[Diagnostic],
+    locale: crate::locale::Locale,
 ) -> Result<String, CliError> {
-    crate::cli::render_error_summary_text(current_directory, sources, errors)
+    crate::cli::render_error_summary_text(current_directory, sources, errors, locale)
 }
 
 #[cfg(test)]

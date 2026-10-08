@@ -977,6 +977,10 @@ pub struct ConfigRootPlan {
     /// distinguish a value inherited from an `extends` source.
     unsupported_root_scopes: BTreeSet<String>,
     file_names: Vec<JsString>,
+    /// tsgo `configFileSpecs.validatedIncludeSpecs` and
+    /// `validatedExcludeSpecs`: the specs the file names were matched with.
+    include_specs: Vec<JsString>,
+    exclude_specs: Option<Vec<JsString>>,
     root_reasons: Vec<RootFileReason>,
     wildcard_directories: Vec<ConfigWildcardDirectory>,
     root_parse_diagnostics: Vec<Diagnostic>,
@@ -1095,6 +1099,20 @@ impl ConfigRootPlan {
     /// The host/program options projected from the merged config.
     pub const fn program_options(&self) -> &ProgramOptions {
         self.module_resolution_options.program_options()
+    }
+
+    /// tsgo `validatedIncludeSpecs`: the valid include specs (`**/*` when
+    /// neither `files` nor `include` is given) with `${configDir}`
+    /// substituted.
+    pub fn include_specs(&self) -> &[JsString] {
+        &self.include_specs
+    }
+
+    /// tsgo `validatedExcludeSpecs`: the valid exclude specs with
+    /// `${configDir}` substituted; without an `exclude` property, the
+    /// output and declaration directories.
+    pub fn exclude_specs(&self) -> Option<&[JsString]> {
+        self.exclude_specs.as_deref()
     }
 
     pub fn file_names(&self) -> &[JsString] {
@@ -1651,7 +1669,11 @@ fn parse_config_root_plan_inner(
     option_diagnostics.extend(option_relationship_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
     let phase_started = std::time::Instant::now();
-    let file_names = derive_file_names(
+    let DerivedFileNames {
+        file_names,
+        include_specs,
+        exclude_specs,
+    } = derive_file_names(
         host,
         &node,
         &config_base,
@@ -1730,6 +1752,8 @@ fn parse_config_root_plan_inner(
         compile_on_save: node.compile_on_save,
         unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
+        include_specs,
+        exclude_specs,
         root_reasons,
         wildcard_directories,
         root_parse_diagnostics: context.root_parse_diagnostics,
@@ -4202,6 +4226,13 @@ fn config_error_from_resolution(error: ResolutionError) -> ConfigParseError {
     }
 }
 
+/// A config's root file names and the specs they were matched with.
+struct DerivedFileNames {
+    file_names: Vec<JsString>,
+    include_specs: Vec<JsString>,
+    exclude_specs: Option<Vec<JsString>>,
+}
+
 fn derive_file_names<'j0, 'j1>(
     host: &dyn ConfigParseHost,
     config: &ParsedConfigNode,
@@ -4209,7 +4240,7 @@ fn derive_file_names<'j0, 'j1>(
     config_file_name: impl Into<JsStr<'j1>>,
     discovery_options: &ConfigDiscoveryOptions,
     errors: &mut Vec<Diagnostic>,
-) -> Result<Vec<JsString>, ConfigParseError> {
+) -> Result<DerivedFileNames, ConfigParseError> {
     let base_path = base_path.into();
     let config_file_name = config_file_name.into();
     let case_sensitive = host.use_case_sensitive_file_names();
@@ -4377,7 +4408,11 @@ fn derive_file_names<'j0, 'j1>(
         exclude_values.as_deref(),
         errors,
     );
-    Ok(file_names)
+    Ok(DerivedFileNames {
+        file_names,
+        include_specs: include_values,
+        exclude_specs: exclude_values,
+    })
 }
 
 fn validate_config_specs(

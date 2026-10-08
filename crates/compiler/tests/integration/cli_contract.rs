@@ -5339,8 +5339,74 @@ fn unsupported_options_are_exit_two_and_version_is_lightweight() {
 
     let version = run(&tree, &["--version"]);
     assert_eq!(version.status.code(), Some(0));
-    assert_eq!(version.stdout, b"Version 7.1.0-dev-19dadef8\n");
+    assert_eq!(version.stdout, b"Version 7.1.0-dev\n");
     assert!(version.stderr.is_empty());
+}
+
+#[test]
+fn help_init_show_config_and_locale_follow_tsgo() {
+    let tree = TempTree::new();
+    // Without a configuration tsgo prints its version and help (exit 1).
+    let bare = run(&tree, &[]);
+    assert_eq!(bare.status.code(), Some(1));
+    let stdout = String::from_utf8_lossy(&bare.stdout);
+    assert!(stdout.starts_with("Version 7.1.0-dev\n"));
+    assert!(stdout.contains("tsc: The TypeScript Compiler - Version 7.1.0-dev"));
+    assert!(stdout.contains("COMMON COMMANDS"));
+
+    let help = run(&tree, &["--help"]);
+    assert_eq!(help.status.code(), Some(0));
+    assert!(String::from_utf8_lossy(&help.stdout).contains("COMMAND LINE FLAGS"));
+    let all = run(&tree, &["--all"]);
+    assert_eq!(all.status.code(), Some(0));
+    let all = String::from_utf8_lossy(&all.stdout);
+    assert!(all.contains("ALL COMPILER OPTIONS"));
+    assert!(all.contains("WATCH OPTIONS"));
+    assert!(all.contains("BUILD OPTIONS"));
+
+    let init = run(&tree, &["--init", "--target", "es2022"]);
+    assert_eq!(init.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8_lossy(&init.stdout),
+        "\nCreated a new tsconfig.json\n\nYou can learn more at https://aka.ms/tsconfig\n"
+    );
+    let config = fs::read_to_string(tree.path("tsconfig.json")).expect("read the new config");
+    assert!(config.contains("    \"target\": \"es2022\",\n"));
+    let again = run(&tree, &["--init", "--pretty", "false"]);
+    assert_eq!(again.status.code(), Some(0));
+    assert!(String::from_utf8_lossy(&again.stdout)
+        .starts_with("error TS5054: A 'tsconfig.json' file is already defined at: '"));
+
+    fs::write(tree.path("a.ts"), "export {};\n").expect("write a source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"module":"nodenext"}}"#,
+    )
+    .expect("write a config");
+    let shown = run(&tree, &["--showConfig"]);
+    assert_eq!(shown.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8_lossy(&shown.stdout),
+        concat!(
+            "{\n",
+            "    \"compilerOptions\": {\n",
+            "        \"module\": \"nodenext\",\n",
+            "        \"moduleResolution\": \"nodenext\",\n",
+            "        \"moduleDetection\": \"force\"\n",
+            "    },\n",
+            "    \"files\": [\n",
+            "        \"./a.ts\"\n",
+            "    ]\n",
+            "}",
+        )
+    );
+
+    let localized = run(&tree, &["--locale", "ja", "--version"]);
+    assert_eq!(localized.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8_lossy(&localized.stdout),
+        "バージョン 7.1.0-dev\n"
+    );
 }
 
 #[test]

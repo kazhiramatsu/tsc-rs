@@ -9,7 +9,8 @@ use std::error::Error;
 use std::fmt;
 
 use crate::{
-    compare_diagnostics, diagnostics_equal, Diagnostic, JsStr, JsString, MessageChain, TextSnapshot,
+    compare_diagnostics, diagnostics_equal, Diagnostic, JsStr, JsString, MessageCatalog,
+    MessageChain, TextSnapshot,
 };
 
 const FILE_APPEARS_TO_BE_BINARY: u32 = 1490;
@@ -23,10 +24,22 @@ const GUTTER_SEPARATOR: &str = " ";
 const RESET: &str = "\u{1b}[0m";
 const ELLIPSIS: &str = "...";
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct FormatDiagnosticsHost<'a> {
     current_directory: JsStr<'a>,
     file_texts: DiagnosticSourceTexts<'a>,
+    catalog: Option<&'a dyn MessageCatalog>,
+}
+
+impl std::fmt::Debug for FormatDiagnosticsHost<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("FormatDiagnosticsHost")
+            .field("current_directory", &self.current_directory)
+            .field("file_texts", &self.file_texts)
+            .field("localized", &self.catalog.is_some())
+            .finish()
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -42,6 +55,7 @@ impl<'a> FormatDiagnosticsHost<'a> {
         Self {
             current_directory: current_directory.into(),
             file_texts: DiagnosticSourceTexts::Owned(file_texts),
+            catalog: None,
         }
     }
 
@@ -52,6 +66,7 @@ impl<'a> FormatDiagnosticsHost<'a> {
         Self {
             current_directory: current_directory.into(),
             file_texts: DiagnosticSourceTexts::Snapshots(file_texts),
+            catalog: None,
         }
     }
 
@@ -62,6 +77,7 @@ impl<'a> FormatDiagnosticsHost<'a> {
         Self {
             current_directory,
             file_texts: DiagnosticSourceTexts::JsOwned(file_texts),
+            catalog: None,
         }
     }
 
@@ -72,7 +88,14 @@ impl<'a> FormatDiagnosticsHost<'a> {
         Self {
             current_directory,
             file_texts: DiagnosticSourceTexts::JsSnapshots(file_texts),
+            catalog: None,
         }
+    }
+
+    /// Messages in a catalog's language (tsgo `FormattingOptions.Locale`).
+    pub fn with_catalog(mut self, catalog: Option<&'a dyn MessageCatalog>) -> Self {
+        self.catalog = catalog;
+        self
     }
 
     fn file_text(&self, file_name: JsStr<'_>) -> Option<&'a str> {
@@ -189,6 +212,10 @@ pub trait PrettyDiagnosticSources {
     fn summary_name(&self, file_name: JsStr<'_>) -> JsString;
     /// The file's text.
     fn text(&self, file_name: JsStr<'_>) -> Option<&str>;
+    /// The language the messages are written in.
+    fn catalog(&self) -> Option<&dyn MessageCatalog> {
+        None
+    }
 }
 
 impl PrettyDiagnosticSources for FormatDiagnosticsHost<'_> {
@@ -198,6 +225,10 @@ impl PrettyDiagnosticSources for FormatDiagnosticsHost<'_> {
 
     fn summary_name(&self, file_name: JsStr<'_>) -> JsString {
         relative_file_name(file_name, self.current_directory)
+    }
+
+    fn catalog(&self) -> Option<&dyn MessageCatalog> {
+        self.catalog
     }
 
     fn text(&self, file_name: JsStr<'_>) -> Option<&str> {
@@ -242,7 +273,7 @@ pub fn format_diagnostic_with_color_and_context(
     output.push_str(GREY);
     output.push_str(&format!(" TS{}: ", diagnostic.code()));
     output.push_str(RESET);
-    write_flattened_message(output, &diagnostic.message, new_line);
+    write_flattened_message(output, &diagnostic.message, new_line, sources.catalog());
 
     if let Some(file_name) = file_name {
         if diagnostic.code() != FILE_APPEARS_TO_BE_BINARY {
@@ -271,7 +302,7 @@ pub fn format_diagnostic_with_color_and_context(
             output.push_str("  ");
             write_location(output, file_name, start, sources)?;
             output.push_str(" - ");
-            write_flattened_message(output, &related.message, new_line);
+            write_flattened_message(output, &related.message, new_line, sources.catalog());
             write_code_snippet(
                 output, file_name, start, length, CYAN, "    ", sources, new_line,
             )?;
@@ -319,33 +350,27 @@ pub fn write_error_summary_text(
         Some((file_name, errors)) => pretty_path_for_file_error(file_name, errors, sources)?,
         None => JsString::new(),
     };
+    let catalog = sources.catalog();
     let message = if total == 1 {
         if global > 0 || first_file_name.is_empty() {
-            crate::gen::Found_1_error.text.to_owned()
+            crate::gen::Found_1_error.format_in::<&str>(catalog, &[])
         } else {
-            crate::format_message(
-                crate::gen::Found_1_error_in_0.text,
-                &[first_file_name.to_string_lossy().into_owned()],
-            )
+            crate::gen::Found_1_error_in_0
+                .format_in(catalog, std::slice::from_ref(&first_file_name))
         }
     } else {
         match files.len() {
-            0 => crate::format_message(crate::gen::Found_0_errors.text, &[total.to_string()]),
-            1 => crate::format_message(
-                crate::gen::Found_0_errors_in_the_same_file_starting_at_1.text,
-                &[
-                    total.to_string(),
-                    first_file_name.to_string_lossy().into_owned(),
-                ],
+            0 => crate::gen::Found_0_errors.format_in(catalog, &[total.to_string()]),
+            1 => crate::gen::Found_0_errors_in_the_same_file_starting_at_1.format_in(
+                catalog,
+                &[JsString::from(total.to_string()), first_file_name.clone()],
             ),
-            count => crate::format_message(
-                crate::gen::Found_0_errors_in_1_files.text,
-                &[total.to_string(), count.to_string()],
-            ),
+            count => crate::gen::Found_0_errors_in_1_files
+                .format_in(catalog, &[total.to_string(), count.to_string()]),
         }
     };
     output.push_str(new_line);
-    output.push_str(&message);
+    output.push_js(message.as_js());
     output.push_str(new_line);
     output.push_str(new_line);
     if files.len() > 1 {
@@ -355,7 +380,7 @@ pub fn write_error_summary_text(
             .map(|(_, errors)| errors.len())
             .max()
             .unwrap_or(0);
-        let header = crate::gen::Errors_Files.text;
+        let header = crate::gen::Errors_Files.template_in(catalog);
         let left_heading_length = header.split(' ').next().map_or(0, str::len);
         let biggest_count_length = max_errors.to_string().len();
         let left_padding_goal = left_heading_length.max(biggest_count_length);
@@ -438,19 +463,30 @@ fn write_location(
 
 /// tsgo `WriteFlattenedDiagnosticMessage`: the head, then each chained
 /// message on its own line, indented two spaces per level.
-fn write_flattened_message(output: &mut JsString, chain: &MessageChain, new_line: &str) {
-    fn children(output: &mut JsString, chain: &MessageChain, new_line: &str, level: usize) {
+fn write_flattened_message(
+    output: &mut JsString,
+    chain: &MessageChain,
+    new_line: &str,
+    catalog: Option<&dyn MessageCatalog>,
+) {
+    fn children(
+        output: &mut JsString,
+        chain: &MessageChain,
+        new_line: &str,
+        level: usize,
+        catalog: Option<&dyn MessageCatalog>,
+    ) {
         for child in &chain.next {
             output.push_str(new_line);
             for _ in 0..level {
                 output.push_str("  ");
             }
-            output.push_js(child.text.as_js());
-            children(output, child, new_line, level + 1);
+            output.push_js(child.text_in(catalog).as_js());
+            children(output, child, new_line, level + 1, catalog);
         }
     }
-    output.push_js(chain.text.as_js());
-    children(output, chain, new_line, 1);
+    output.push_js(chain.text_in(catalog).as_js());
+    children(output, chain, new_line, 1, catalog);
 }
 
 /// tsgo `writeCodeSnippet`: each line of the span under a numbered gutter

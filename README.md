@@ -50,7 +50,7 @@ The executable is `target/release/tsc-rs` (`tsc-rs.exe` on Windows):
 ```
 
 ```text
-Version 7.1.0-dev-19dadef8
+Version 7.1.0-dev
 ```
 
 Node.js and npm are not required to build or run the compiler. TypeScript's
@@ -300,8 +300,9 @@ below.
 ### Reference
 
 tsc-rs follows TypeScript 7.1 at the vendored native profile
-(`vendor/typescript-native/7.1.0-dev-19dadef8`, the commit `--version`
-names), and the TypeScript 7.1 conformance baselines verify its
+(`vendor/typescript-native/7.1.0-dev-19dadef8`, whose name records the
+commit; `--version` prints tsgo's own version), and the TypeScript 7.1
+conformance baselines verify its
 diagnostics and its emitted JavaScript, declaration files and source maps
 (see [Run CI](#run-ci)). In particular:
 
@@ -651,6 +652,10 @@ a response file.
 | Option | Use |
 | --- | --- |
 | `--version` | Print the TypeScript compatibility version. |
+| `-h`, `--help` | Print the common commands and options, as `tsgo --help` does (`--all` for every option, `-b --help` for the build options). |
+| `--init` | Write a `tsconfig.json` with tsgo's recommended settings and the options given on the command line. |
+| `--showConfig` | Print the configuration in effect (the options, with the values they imply, the root files, references and file specs) as JSON. |
+| `--locale <tag>` | Print messages, the help and the build status in one of tsgo's thirteen translations (`cs`, `de`, `es`, `fr`, `it`, `ja`, `ko`, `pl`, `pt-BR`, `ru`, `tr`, `zh-CN`, `zh-TW`). |
 | `-p`, `--project <path>` | Select a project directory or configuration file. |
 | `--noEmit` | Check the project without writing compiler output. |
 | `--noEmit false` | Enable output even when the configuration sets `noEmit`. |
@@ -681,10 +686,11 @@ tsc-rs -p . --listEmittedFiles
 
 Compiler settings such as `strict`, `outDir`, `sourceMap`, and `declaration`
 are accepted on the command line as well as in `tsconfig.json`, within the
-same option support as the configuration file. `--init`, `--help`,
-`--watch`, `--showConfig` and a non-English `--locale` are not supported and
-are reported as a `tsc-rs:` usage error with exit status 2. For `--noEmit`,
-see [configuration for type checks](#configuration-for-type-checks).
+same option support as the configuration file. Without a configuration
+file and without files, `tsc-rs` prints its version and help as `tsgo` does.
+`--watch` is not supported and is reported as a `tsc-rs:` usage error with
+exit status 2. For `--noEmit`, see
+[configuration for type checks](#configuration-for-type-checks).
 
 ## Build mode
 
@@ -1056,8 +1062,11 @@ runs are listed under the repository's Actions tab.
 - `--noEmit -p` does not accept command-line emit overrides such as
   `--target` or `--module`; see the
   [configuration for type checks](#configuration-for-type-checks).
-- `--help`, `--init`, and `--showConfig` are not currently implemented.
-  Create the configuration file using the examples above.
+- `--locale` picks a translation by the tag's language (Chinese by its
+  script or region) after checking the tag's BCP 47 syntax. `tsgo` also
+  rejects a well-formed tag whose subtags are not registered (for example
+  `xx`) and may match a related language or region by CLDR's distances;
+  those cases print English here.
 - The compiler command does not provide a language server or editor service.
 - Peak memory grows with the checker count (eight by default, twelve when
   writing declaration files); see [peak memory](#peak-memory). A lower

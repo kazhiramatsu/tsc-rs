@@ -66,6 +66,34 @@ pub fn by_code(code: u32) -> Option<&'static DiagnosticMessage> {
         .map(|index| gen::ALL_BY_CODE[index].1)
 }
 
+/// Translated message templates by message key: one of the languages
+/// tsgo's messages are translated into (`diagnostics.Localize` reads its
+/// embedded catalogs the same way).
+pub trait MessageCatalog: Sync {
+    /// The translated template of the message with this key, if the
+    /// catalog has one.
+    fn template(&self, key: &str) -> Option<&str>;
+}
+
+impl DiagnosticMessage {
+    /// The message's template in a catalog's language (its English text
+    /// when the catalog has no translation).
+    pub fn template_in<'c>(&'static self, catalog: Option<&'c dyn MessageCatalog>) -> &'c str {
+        catalog
+            .and_then(|catalog| catalog.template(self.key))
+            .unwrap_or(self.text)
+    }
+
+    /// The message formatted with `args` in a catalog's language.
+    pub fn format_in<A: DiagnosticArgument>(
+        &'static self,
+        catalog: Option<&dyn MessageCatalog>,
+        args: &[A],
+    ) -> JsString {
+        format_message_value(self.template_in(catalog), args)
+    }
+}
+
 /// A scalar-only formatting API: its template and arguments are Rust UTF-8.
 pub fn format_message(template: &str, args: &[String]) -> String {
     format_message_value(template, args)
@@ -169,6 +197,20 @@ pub struct MessageChain {
     /// the [`Diagnostic`]; equality ignores this, as tsgo's
     /// equalMessageChain does.
     pub related: Vec<RelatedInfo>,
+}
+
+impl MessageChain {
+    /// This entry's text in a catalog's language: the translated template
+    /// of its message formatted with its arguments, or its text.
+    pub fn text_in(&self, catalog: Option<&dyn MessageCatalog>) -> JsString {
+        match (catalog, self.key) {
+            (Some(catalog), Some(key)) => match catalog.template(key) {
+                Some(template) => format_message_value(template, &self.args),
+                None => self.text.clone(),
+            },
+            _ => self.text.clone(),
+        }
+    }
 }
 
 /// The key and the arguments are a record of how the text was produced;
