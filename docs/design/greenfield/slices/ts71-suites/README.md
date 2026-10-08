@@ -827,3 +827,12 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
   全文、command line の順、同値の最初の key；show_config 3：implied、struct 順、相対 path と lib の key；locale 2）、
   CLI contract 1（version と help、`--all`、`--init` と TS5054、`--showConfig` の JSON、`--locale ja --version`）、
   version の contract を `7.1.0-dev` へ。
+
+### P4-6bのhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `70a485247`（vendoring `b488d6b80`・fix `5f592032b`・ratchet `27688ea5d`・packet の記録と main の取り込み）の
+  run 37786150313（`plan` 26s、`rust` 11m21s、`conformance (TypeScript 7.1)` 19m30s（lane A の後に suites 5 種の `--check`）、
+  `gates` 23s。全て成功）。merge → `28815d545`（merge commit）。
+- 計測（conformance の全体実行、suites、crate test、実 tsgo との比較）は上の記録のとおり、merge 前に最終 bytes `5f592032b` で行った。
+  実 project の比較は P4-6 の終わりに行う。性能は計測していない（利用者の指示）。
+- 次：P4-6c（残りの class）。branch `fix/ts71-tsc-behaviors`（base `70a485247`）。
