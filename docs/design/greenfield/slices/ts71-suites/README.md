@@ -776,6 +776,7 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
 - 計測（conformance の全体実行、suites、crate test）は上の記録のとおり、merge 前に最終 bytes `e544587ec` で行った。
   実 project の比較は P4-6 の終わりに行う。性能は計測していない（利用者の指示）。
 - 次：P4-6b（help／version／init／showConfig／locale）。branch `fix/ts71-tsc-cli-features`（base `a8c0f201b`）。
+
 ## P4-6b help／version／init／showConfig／locale（2026-10-08）
 
 利用者の指示（「残りの項目を全て実装してください」）どおり、P4-6a で known に残した command line の機能を tsgo に合わせて
