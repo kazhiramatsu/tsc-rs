@@ -114,19 +114,15 @@ impl FileSystem for TestFs {
         self.forget_library(path);
         let contents = self.files.read(path)?;
         if path.ends_with(".tsbuildinfo") {
-            let fake = format!(r#"{{"version":"{FAKE_VERSION}""#);
-            if let Ok(text) = std::str::from_utf8(&contents) {
-                if text.starts_with(&fake)
-                    && serde_json::from_str::<serde_json::Value>(text).is_ok()
-                {
-                    return Ok(
-                        format!(r#"{{"version":"{}""#, tsc_types::TYPESCRIPT_VERSION)
-                            .into_bytes()
-                            .into_iter()
-                            .chain(text[fake.len()..].bytes())
-                            .collect(),
-                    );
-                }
+            // tsgo `readFileHandlingBuildInfo`: a build info at
+            // FakeTSVersion reads as the compiler's version, re-marshaled.
+            let parsed = std::str::from_utf8(&contents)
+                .ok()
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok());
+            if let Some(mut info) = parsed.filter(|info| info["version"] == FAKE_VERSION) {
+                info["version"] =
+                    serde_json::Value::String(tsc_types::TYPESCRIPT_VERSION.to_owned());
+                return Ok(info.to_string().into_bytes());
             }
         }
         Ok(contents)

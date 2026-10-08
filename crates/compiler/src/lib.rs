@@ -72,6 +72,7 @@ mod init;
 pub mod locale;
 mod options;
 mod show_config;
+mod statistics;
 pub mod system;
 pub use incremental::{BuildInfoDocument, ProgramFileReport};
 pub use tsc_incremental::{SemanticDiagnosticsState, SignatureUpdateKind};
@@ -2044,13 +2045,64 @@ impl ProgramSession {
                         .unit_requests(preflight)
                         .map(|requests| (requests, preflight.clone()))
                 });
+                // tsgo `HandleNoEmitOnError` asks the incremental program for
+                // the declaration diagnostics: it records each file's and
+                // adds the cached ones of the others.
+                let incremental_declaration = match &preflight {
+                    Some(preflight)
+                        if checked.incremental.is_some()
+                            && diagnostic_gate.wants_declaration_diagnostics(
+                                prepared.compiler_options(),
+                                preflight.diagnostics(),
+                            ) =>
+                    {
+                        let paths = preflight.declaration_paths(&checked_host);
+                        let mut declaration = Vec::new();
+                        let sources = tsc_emitter::get_source_files_to_emit(
+                            &checked_host,
+                            tsc_emitter::EmitSelection::WholeProgram,
+                        );
+                        match sources.and_then(|sources| {
+                            sources.into_iter().try_for_each(|source| {
+                                declaration.extend(tsc_emitter::get_declaration_diagnostics(
+                                    resolver,
+                                    &checked_host,
+                                    paths,
+                                    source,
+                                )?);
+                                Ok(())
+                            })
+                        }) {
+                            Ok(()) => {
+                                sort_and_dedupe_diagnostics(&mut declaration);
+                                declaration
+                                    .extend(driver.record_declaration_diagnostics(&declaration));
+                                sort_and_dedupe_diagnostics(&mut declaration);
+                                Some(Ok(declaration))
+                            }
+                            Err(error) => Some(Err(error)),
+                        }
+                    }
+                    _ => None,
+                };
+                let incremental_gate;
+                let diagnostic_gate = match incremental_declaration {
+                    Some(Ok(declaration)) => {
+                        incremental_gate = diagnostic_gate
+                            .clone()
+                            .with_declaration_diagnostics(declaration);
+                        &incremental_gate
+                    }
+                    Some(Err(error)) => return Err(DriverError::Emit(error)),
+                    None => &diagnostic_gate,
+                };
                 match (preflight, &requests) {
                     (Some(preflight), Some((requests, _))) => tsc_emitter::emit_planned_files(
                         resolver,
                         &checked_host,
                         preflight,
                         selection,
-                        &diagnostic_gate,
+                        diagnostic_gate,
                         &mut recording,
                         requests,
                     ),
@@ -2059,7 +2111,7 @@ impl ProgramSession {
                         &checked_host,
                         preflight,
                         selection,
-                        &diagnostic_gate,
+                        diagnostic_gate,
                         &mut recording,
                     ),
                     (None, _) => tsc_emitter::emit_forced_declarations(
@@ -2073,7 +2125,7 @@ impl ProgramSession {
                     // tsgo emitBuildInfo after the emit of an incremental
                     // program.
                     let emit = if checked.incremental.is_some() {
-                        driver.record_emit(
+                        let cached = driver.record_emit(
                             &emit,
                             &recording.records(),
                             recording.wrote_anything(),
@@ -2081,6 +2133,7 @@ impl ProgramSession {
                                 .as_ref()
                                 .map(|(requests, preflight)| (requests.as_slice(), preflight)),
                         );
+                        let emit = emit.with_cached_diagnostics(cached);
                         match driver.build_info(command) {
                             Some(document) => {
                                 let failure = recording.write_build_info(&document);
@@ -2488,7 +2541,15 @@ impl ProgramSession {
                         false,
                         driver.declaration_file_filter().as_deref(),
                     ) {
-                        Ok(declaration) => {
+                        Ok(mut declaration) => {
+                            // tsgo `HandleNoEmitOnError` asks the incremental
+                            // program, which records each file's declaration
+                            // errors and adds the cached ones of the others.
+                            let from_cache = driver.record_declaration_diagnostics(&declaration);
+                            if !from_cache.is_empty() {
+                                declaration.extend(from_cache);
+                                sort_and_dedupe_diagnostics(&mut declaration);
+                            }
                             diagnostic_gate =
                                 diagnostic_gate.with_declaration_diagnostics(declaration);
                         }
@@ -2852,12 +2913,13 @@ impl ProgramSession {
                 command.semantic_cached() && prepared.compiler_options().no_check != Some(true),
             );
             let requests = driver.unit_requests(&preflight);
-            driver.record_emit(
+            let cached = driver.record_emit(
                 &emit,
                 &recording.records(),
                 recording.wrote_anything(),
                 requests.as_deref().map(|requests| (requests, &preflight)),
             );
+            let emit = emit.with_cached_diagnostics(cached);
             match driver.build_info(command) {
                 Some(document) => {
                     let failure = recording.write_build_info(&document);

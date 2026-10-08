@@ -749,7 +749,10 @@ fn absolute_virtual_path<'a, 'b>(
 
 fn source_file_name(file_name: JsStr<'_>, current_directory: JsStr<'_>) -> JsString {
     let file_name = normalize_slashes(file_name);
-    if file_name.starts_with("/") || has_url_scheme(file_name.as_js()) {
+    if file_name.starts_with("/")
+        || has_drive_root(file_name.as_js())
+        || has_url_scheme(file_name.as_js())
+    {
         // Already-absolute public names retain their leading UNC root. A URL
         // is rooted at its scheme (tspath getEncodedRootLength, `scheme://`):
         // tsgo's bundled libraries are `bundled:///libs/<lib>`, which sorts
@@ -760,6 +763,16 @@ fn source_file_name(file_name: JsStr<'_>, current_directory: JsStr<'_>) -> JsStr
     path.push('/');
     path.push_js(file_name.as_js());
     resolve_posix_path(path.as_js())
+}
+
+/// Whether `path` starts with a disk root (`c:/` or `c:`), the root of a
+/// Windows path in tspath's getEncodedRootLength on every platform.
+fn has_drive_root(path: JsStr<'_>) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() >= 2
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes.len() == 2 || matches!(bytes[2], b'/' | b'\\'))
 }
 
 /// Whether `path` starts with a URL scheme (`scheme://`), the root of a URL
@@ -780,7 +793,7 @@ fn has_url_scheme(path: JsStr<'_>) -> bool {
 /// `normalizeFileName(path.posix.resolve(cwd))` from program-host.mjs.
 /// POSIX reduction precedes backslash normalization, as in the scalar path.
 fn absolute_current_directory(current_directory: JsStr<'_>) -> JsString {
-    let raw_path = if current_directory.starts_with("/") {
+    let raw_path = if current_directory.starts_with("/") || has_drive_root(current_directory) {
         current_directory.to_owned()
     } else {
         // The process directory comes from the native host, not from a JS

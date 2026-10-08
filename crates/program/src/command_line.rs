@@ -750,7 +750,10 @@ pub fn command_line_option_bag(
             continue;
         };
         if value.is_null() {
+            // tsgo `mergeCompilerOptions`: an explicit null clears the
+            // config's value as well.
             bag.remove(name.as_str());
+            bag.insert_typed(name.as_str(), None);
             continue;
         }
         bag.insert(ConfigOption {

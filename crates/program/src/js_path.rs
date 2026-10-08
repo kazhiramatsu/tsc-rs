@@ -77,7 +77,9 @@ fn root_end_byte(path: JsStr<'_>) -> usize {
     authority_end + 1
 }
 
-pub(crate) fn root_parts(path: JsStr<'_>) -> Option<(JsStr<'_>, JsStr<'_>)> {
+/// tspath `GetRootLength` as a split: the path's root (`/`, `c:/`, a UNC
+/// or URL root) and the rest, or `None` for a relative path.
+pub fn root_parts(path: JsStr<'_>) -> Option<(JsStr<'_>, JsStr<'_>)> {
     let end = root_end_byte(path);
     (end != 0).then(|| path.split_at_byte(end).expect("root boundary is canonical"))
 }
@@ -226,7 +228,8 @@ fn remove_trailing_separator_once(mut path: JsString, root_length: usize) -> JsS
 /// byte operations at ASCII boundaries. The normalizedUpTo - 2 operation
 /// below remains explicitly in UTF-16 units. Arbitrary segment values are
 /// copied without scalar projection.
-pub(crate) fn normalized_absolute_path(path: JsStr<'_>, current_directory: JsStr<'_>) -> JsString {
+/// tspath `GetNormalizedAbsolutePath`.
+pub fn normalized_absolute_path(path: JsStr<'_>, current_directory: JsStr<'_>) -> JsString {
     let mut root_length = root_end_byte(path);
     let path = if root_length == 0 && !current_directory.is_empty() {
         let combined = combine_paths(current_directory, path);

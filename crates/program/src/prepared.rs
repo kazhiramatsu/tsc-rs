@@ -1242,9 +1242,21 @@ pub struct ProgramOptions {
     /// command (see [`ResolvedProjectReferences`]); absent for a program
     /// without references.
     project_references: Option<Arc<ResolvedProjectReferences>>,
+    /// The program is a project of `tsc -b` (tsgo `CompilerOptions.Build`):
+    /// it writes a build info whether or not it is incremental.
+    build_mode: bool,
 }
 
 impl ProgramOptions {
+    pub fn with_build_mode(mut self, build_mode: bool) -> Self {
+        self.build_mode = build_mode;
+        self
+    }
+
+    pub const fn build_mode(&self) -> bool {
+        self.build_mode
+    }
+
     pub fn with_project_references(
         mut self,
         project_references: Arc<ResolvedProjectReferences>,
@@ -1560,6 +1572,8 @@ pub struct PreparedProgram {
     /// The `--traceResolution` lines (see
     /// [`PreparedProgram::resolution_trace`]).
     resolution_trace: Vec<String>,
+    /// See [`PreparedProgram::build_info_emit_blocked`].
+    build_info_emit_blocked: bool,
     /// The deduplicated package copies the load dropped (see
     /// [`PreparedProgram::package_redirect_files`]).
     package_redirect_files: Vec<PackageRedirectFile>,
@@ -1661,6 +1675,12 @@ impl PreparedProgram {
         &self.resolution_trace
     }
 
+    /// tsgo `IsEmitBlocked(buildInfoFileName)`: a referenced project writes
+    /// the same build info (TS6377), so this program writes none.
+    pub const fn build_info_emit_blocked(&self) -> bool {
+        self.build_info_emit_blocked
+    }
+
     pub fn auxiliary_files(&self) -> impl Iterator<Item = &PreparedAuxiliaryFile> {
         self.auxiliary_files.values()
     }
@@ -1720,6 +1740,7 @@ pub struct PreparedProgramBuilder {
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
     package_json_probes: Vec<crate::PackageJsonProbe>,
     resolution_trace: Vec<String>,
+    build_info_emit_blocked: bool,
     package_redirect_files: Vec<PackageRedirectFile>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
@@ -1740,6 +1761,12 @@ impl PreparedProgramBuilder {
     /// [`PreparedProgram::resolution_trace`]).
     pub fn with_resolution_trace(mut self, lines: Vec<String>) -> Self {
         self.resolution_trace = lines;
+        self
+    }
+
+    /// tsgo `verifyProjectReferences` blocked the build info (TS6377).
+    pub fn with_build_info_emit_blocked(mut self, blocked: bool) -> Self {
+        self.build_info_emit_blocked = blocked;
         self
     }
 
@@ -1785,6 +1812,7 @@ impl PreparedProgramBuilder {
             packages: BTreeMap::new(),
             package_json_probes: Vec::new(),
             resolution_trace: Vec::new(),
+            build_info_emit_blocked: false,
             package_redirect_files: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
@@ -2300,6 +2328,7 @@ impl PreparedProgramBuilder {
             packages: self.packages,
             package_json_probes: self.package_json_probes,
             resolution_trace: self.resolution_trace,
+            build_info_emit_blocked: self.build_info_emit_blocked,
             package_redirect_files: self.package_redirect_files,
             resolutions: self.resolutions,
             dependency_symlink_resolutions: self.dependency_symlink_resolutions,

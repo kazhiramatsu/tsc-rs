@@ -91,6 +91,7 @@ pub enum ConfigHostOperation {
     FileExists,
     ReadFile,
     ReadDirectory,
+    Realpath,
 }
 
 impl fmt::Display for ConfigHostOperation {
@@ -99,6 +100,7 @@ impl fmt::Display for ConfigHostOperation {
             Self::FileExists => "fileExists",
             Self::ReadFile => "readFile",
             Self::ReadDirectory => "readDirectory",
+            Self::Realpath => "realpath",
         };
         formatter.write_str(name)
     }
@@ -174,6 +176,12 @@ pub trait ConfigParseHost {
         includes: Option<&[JsString]>,
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError>;
+
+    /// The real path of a file (tsgo `FS().Realpath`): a config found in
+    /// `node_modules` resolves to where it really is. `None` keeps the path.
+    fn realpath(&self, _path: JsStr<'_>) -> Result<Option<JsString>, ConfigHostError> {
+        Ok(None)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1101,6 +1109,14 @@ impl ConfigRootPlan {
         self.module_resolution_options.program_options()
     }
 
+    /// The plan of a `tsc -b` project (tsgo merges `Build` into each
+    /// project's options).
+    pub fn into_build_mode(mut self) -> Self {
+        let options = std::mem::take(&mut self.module_resolution_options.program_options);
+        self.module_resolution_options.program_options = options.with_build_mode(true);
+        self
+    }
+
     /// tsgo `validatedIncludeSpecs`: the valid include specs (`**/*` when
     /// neither `files` nor `include` is given) with `${configDir}`
     /// substituted.
@@ -1525,6 +1541,9 @@ struct ParsedConfigNode {
     type_acquisition: ConfigOptionBag,
     compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
+    /// tsgo `getProjectReferences`' errors for the root config's
+    /// `references` (reported after the file names').
+    reference_errors: Vec<Diagnostic>,
     extended_sources: Vec<ConfigSourceText>,
     extended_source_files: Vec<JsString>,
 }
@@ -1682,6 +1701,7 @@ fn parse_config_root_plan_inner(
         &mut context.errors,
     )?;
     tsc_types::trace::mark("config: file names", phase_started);
+    context.errors.append(&mut node.reference_errors);
     let phase_started = std::time::Instant::now();
     let root_reasons = config_root_reasons(
         &file_names,
@@ -1829,12 +1849,19 @@ fn config_project_references<'j0>(
 ) -> Option<Vec<ConfigProjectReference>> {
     let config_base_path = config_base_path.into();
     let values = references?.as_array()?;
+    // tsgo `getProjectReferences`: an array, even an empty one, is a list
+    // of references; an element without a non-empty string path is left
+    // out (`project_reference_diagnostics` reports it).
     let mut result = Vec::new();
     for reference in values {
         let Some(object) = reference.as_object() else {
             continue;
         };
-        let Some(original_path) = object.get("path").and_then(Value::as_js) else {
+        let Some(original_path) = object
+            .get("path")
+            .and_then(Value::as_js)
+            .filter(|path| !path.is_empty())
+        else {
             continue;
         };
         let path = crate::js_path::normalized_absolute_path(original_path, config_base_path);
@@ -1845,7 +1872,60 @@ fn config_project_references<'j0>(
             circular: object.get("circular").and_then(Value::as_bool),
         });
     }
-    (!result.is_empty()).then_some(result)
+    Some(result)
+}
+
+/// tsgo `getProjectReferences`' checks of each reference: a missing or
+/// non-string `path` (TS5024), an empty one (TS18051), a non-boolean
+/// `circular` (TS5024), at the property's value or else the element.
+fn project_reference_diagnostics(source: &SourceFile, references: &[Value]) -> Vec<Diagnostic> {
+    let elements = config_property_initializer(source, "references")
+        .map(|array| config_array_elements(source, array))
+        .unwrap_or_default();
+    let location = |index: usize, property: &str| {
+        let element = *elements.get(index)?;
+        let node = config_object_properties(source, element)
+            .into_iter()
+            .find(|candidate| candidate.name == property)
+            .map_or(element, |candidate| candidate.initializer);
+        config_location(source, node)
+    };
+    let mut diagnostics = Vec::new();
+    for (index, reference) in references.iter().enumerate() {
+        let Some(object) = reference.as_object() else {
+            continue;
+        };
+        match object.get("path") {
+            Some(Value::String(path)) if path.is_empty() => {
+                diagnostics.push(config_diagnostic(
+                    &gen::Compiler_option_0_cannot_be_given_an_empty_string,
+                    &["reference.path"],
+                    location(index, "path"),
+                ));
+                continue;
+            }
+            Some(Value::String(_)) => {}
+            _ => {
+                diagnostics.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &["reference.path", "string"],
+                    location(index, "path"),
+                ));
+                continue;
+            }
+        }
+        if object
+            .get("circular")
+            .is_some_and(|circular| !matches!(circular, Value::Bool(_)))
+        {
+            diagnostics.push(config_diagnostic(
+                &gen::Compiler_option_0_requires_a_value_of_type_1,
+                &["reference.circular", "boolean"],
+                location(index, "circular"),
+            ));
+        }
+    }
+    diagnostics
 }
 
 fn derive_wildcard_directories<'j0>(
@@ -2130,6 +2210,9 @@ const H0_NO_EMIT_SOURCE_MAP_CONFIG_OPTIONS: &[&str] = &[
 /// `stripInternal`) reports exactly what tsc reports. An emitting command
 /// still projects them through the H1 inventory.
 const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
+    // The statistics are printed after the run.
+    "diagnostics",
+    "extendedDiagnostics",
     "stripInternal",
     "newLine",
     "removeComments",
@@ -2203,6 +2286,8 @@ fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
 }
 
 const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
+    "diagnostics",
+    "extendedDiagnostics",
     // `pretty` only selects the diagnostic renderer, which the command line
     // already decides (`--pretty false`); zod's base tsconfig sets it, so an
     // emitting command admits it like the no-emit inventory does.
@@ -2483,7 +2568,8 @@ impl ParseContext<'_> {
             return Ok(None);
         }
         self.stack.push(cache_key.clone());
-        let result = self.parse_node_uncached(source, parsed, normalized_file_name, base_path);
+        let result =
+            self.parse_node_uncached(source, parsed, normalized_file_name, base_path, is_root);
         self.stack.pop();
         result
     }
@@ -2494,6 +2580,7 @@ impl ParseContext<'_> {
         parsed: SourceFile,
         normalized_file_name: impl Into<JsStr<'j0>>,
         base_path: impl Into<JsStr<'j1>>,
+        is_root: bool,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
         let normalized_file_name = normalized_file_name.into();
         let base_path = base_path.into();
@@ -2763,6 +2850,12 @@ impl ParseContext<'_> {
             &parsed,
         );
 
+        let reference_errors = match (&own_references, is_root) {
+            (Some(Value::Array(references)), true) => {
+                project_reference_diagnostics(&parsed, references.as_slice())
+            }
+            _ => Vec::new(),
+        };
         Ok(Some(ParsedConfigNode {
             source,
             raw: config_raw_projection(raw),
@@ -2780,6 +2873,7 @@ impl ParseContext<'_> {
             type_acquisition,
             compile_on_save,
             unsupported_root_scopes,
+            reference_errors,
             extended_sources,
             extended_source_files,
         }))
@@ -4141,10 +4235,18 @@ impl CompilerHost for ConfigCompilerHostAdapter<'_> {
         Ok(Vec::new())
     }
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
-        Ok(Some(path.to_path_buf()))
+        let query = native_config_query(path, HostOperation::Realpath)?;
+        Ok(self
+            .realpath_js(query)?
+            .map(|real| PathBuf::from(real.to_string_lossy().into_owned())))
     }
     fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
-        Ok(Some(path.to_owned()))
+        Ok(Some(
+            self.host
+                .realpath(path)
+                .map_err(config_host_error_for_resolver)?
+                .unwrap_or_else(|| path.to_owned()),
+        ))
     }
 }
 
@@ -4164,6 +4266,7 @@ fn config_host_error_for_resolver(error: ConfigHostError) -> HostError {
         ConfigHostOperation::FileExists => HostOperation::FileExists,
         ConfigHostOperation::ReadFile => HostOperation::ReadFile,
         ConfigHostOperation::ReadDirectory => HostOperation::ReadDirectory,
+        ConfigHostOperation::Realpath => HostOperation::Realpath,
     };
     HostError::new_js(
         HostErrorKind::Other,
@@ -4180,6 +4283,7 @@ fn config_error_from_resolution(error: ResolutionError) -> ConfigParseError {
                 HostOperation::FileExists => Some(ConfigHostOperation::FileExists),
                 HostOperation::ReadFile => Some(ConfigHostOperation::ReadFile),
                 HostOperation::ReadDirectory => Some(ConfigHostOperation::ReadDirectory),
+                HostOperation::Realpath => Some(ConfigHostOperation::Realpath),
                 _ => None,
             };
             if let Some(operation) = operation {
@@ -4705,6 +4809,8 @@ pub(crate) fn bag_compiler_options(
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
         list_files: config_option_bool(options, "listFiles"),
         explain_files: config_option_bool(options, "explainFiles"),
+        diagnostics: config_option_bool(options, "diagnostics"),
+        extended_diagnostics: config_option_bool(options, "extendedDiagnostics"),
         trace_resolution: config_option_bool(options, "traceResolution"),
         list_files_only: config_option_bool(options, "listFilesOnly"),
         emit_bom: config_option_bool(options, "emitBOM"),
@@ -5024,10 +5130,13 @@ fn config_root_reasons<'j0, 'j1>(
             if let Some(spec) = normalized_files.get(&key) {
                 return RootFileReason::FilesList { spec: spec.clone() };
             }
-            if let Some((_, _, spec)) = include_patterns.iter().find(|(pattern, host_spec, _)| {
-                (!file_extension_is(file_name, ".json") || host_spec.ends_with(".json"))
-                    && pattern.matches(file_name)
-            }) {
+            // tsgo `getMatchedIncludeSpec`: the first include spec that
+            // matches, a JSON file's too (Strada skipped the specs not
+            // ending in `.json` for one).
+            if let Some((_, _, spec)) = include_patterns
+                .iter()
+                .find(|(pattern, _, _)| pattern.matches(file_name))
+            {
                 return RootFileReason::IncludePattern {
                     spec: spec.clone(),
                     config_file: config_file.clone(),

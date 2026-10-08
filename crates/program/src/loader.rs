@@ -1364,6 +1364,19 @@ impl SourceInclusionReason {
         }
         self
     }
+
+    /// The file whose reference this is, as recorded.
+    fn parent_mut(&mut self) -> Option<&mut JsString> {
+        match self {
+            Self::Import { parent, .. }
+            | Self::PathReference { parent, .. }
+            | Self::TypeReference { parent, .. }
+            | Self::LibraryReference { parent, .. } => Some(parent),
+            Self::Root(_) | Self::AutomaticType { .. } | Self::Synthetic | Self::LibraryRoot(_) => {
+                None
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1869,6 +1882,8 @@ struct CompleteGraph {
     package_redirect_files: Vec<(ProgramPath, usize, usize, Vec<SourceInclusionReason>)>,
     /// The `--traceResolution` lines, in replay order.
     resolution_trace: Vec<String>,
+    /// A referenced project writes this program's build info (TS6377).
+    build_info_emit_blocked: bool,
 }
 
 struct StagedGraph<'host, 'options, 'resolver> {
@@ -1883,6 +1898,9 @@ struct StagedGraph<'host, 'options, 'resolver> {
     source_by_canonical: FxHashMap<CanonicalPath, usize>,
     files_by_name_ignore_case: FxHashMap<JsString, usize>,
     case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
+    /// The spellings the collection replaced (a file first walked under
+    /// another spelling keeps that one), old to new.
+    respelled: FxHashMap<JsString, JsString>,
     sources: Vec<StagedSource>,
     /// tsgo filesParser: the parse tasks, their shared data by path, the
     /// root tasks in tsgo's order and the single-threaded work queue (a
@@ -1993,6 +2011,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             source_by_canonical: FxHashMap::default(),
             files_by_name_ignore_case: FxHashMap::default(),
             case_sensitive_casing_conflicts: Vec::new(),
+            respelled: FxHashMap::default(),
             sources: Vec::new(),
             tasks: Vec::new(),
             task_data: Vec::new(),
@@ -3325,7 +3344,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 });
                 return Ok(());
             }
-            let diagnostic = missing_root_diagnostic(root_spelling, root_reason);
+            let diagnostic = self.with_root_related_information(
+                missing_root_diagnostic(root_spelling, root_reason.clone()),
+                root_reason,
+            );
             if self
                 .diagnosed_missing_roots
                 .insert(path.display().to_owned())
@@ -3367,11 +3389,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
 
-        let diagnostic = unresolved_extensionless_root_diagnostic(
-            root_spelling,
-            self.compiler_options.allow_js,
+        let diagnostic = self.with_root_related_information(
+            unresolved_extensionless_root_diagnostic(
+                root_spelling,
+                self.compiler_options.allow_js,
+                root_reason.clone(),
+            )?,
             root_reason,
-        )?;
+        );
         if self
             .diagnosed_missing_roots
             .insert(path.display().to_owned())
@@ -3385,6 +3410,24 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             task: None,
         });
         Ok(())
+    }
+
+    /// tsgo `createDiagnosticExplainingFile` for a root the program could
+    /// not load: the reason's place in the config (`files` or `include`)
+    /// as related information.
+    fn with_root_related_information(
+        &self,
+        mut diagnostic: Diagnostic,
+        reason: RootFileReason,
+    ) -> Diagnostic {
+        if let Some(related) = root_inclusion_related_information(
+            &SourceInclusionReason::Root(reason),
+            self.program_options.config_file(),
+        ) {
+            diagnostic.related.push(related);
+            diagnostic.related_information_present = true;
+        }
+        diagnostic
     }
 
     fn file_exists(&self, path: &ProgramPath) -> Result<bool, ProgramLoadError> {
@@ -3674,6 +3717,28 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.record_unloaded_targets()?;
         let collected = self.collect_files()?;
         self.program_order = collected.order.clone();
+        // tsgo prints a reason's file by its program name: the references
+        // recorded under a spelling the collection replaced follow it.
+        if !self.respelled.is_empty() {
+            let respelled = std::mem::take(&mut self.respelled);
+            let follow = |reason: &mut SourceInclusionReason| {
+                if let Some(parent) = reason.parent_mut() {
+                    if let Some(spelling) = respelled.get(parent) {
+                        *parent = spelling.clone();
+                    }
+                }
+            };
+            for source in &mut self.sources {
+                source.inclusion_reasons.iter_mut().for_each(follow);
+                source
+                    .alternate_inclusion_reasons
+                    .iter_mut()
+                    .for_each(|(_, reason)| follow(reason));
+            }
+            for conflict in &mut self.case_sensitive_casing_conflicts {
+                follow(&mut conflict.incoming_reason);
+            }
+        }
         let mut kept = vec![false; self.sources.len()];
         for &source in &collected.order {
             kept[source] = true;
@@ -3784,8 +3849,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // command reporting skips after an option/global diagnostic.
         self.program_diagnostics
             .extend(self.source_module_option_diagnostics());
-        self.program_diagnostics
-            .extend(self.project_reference_diagnostics());
+        let (reference_diagnostics, build_info_emit_blocked) = self.project_reference_diagnostics();
+        self.program_diagnostics.extend(reference_diagnostics);
         self.program_diagnostics.extend(root_diagnostics);
         let mut library_postorder = collected
             .order
@@ -3834,6 +3899,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             package_json_probes,
             package_redirect_files,
             resolution_trace: self.resolution_trace,
+            build_info_emit_blocked,
         })
     }
 
@@ -3843,24 +3909,44 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// emit (TS6310); a referenced project must not write the same build
     /// info file (TS5056). Each diagnostic is located at the reference's
     /// syntax in the referencing config.
-    fn project_reference_diagnostics(&self) -> Vec<Diagnostic> {
+    /// The diagnostics, and whether the program's build info is blocked
+    /// (TS6377, tsgo `hasEmitBlockingDiagnostics`).
+    fn project_reference_diagnostics(&self) -> (Vec<Diagnostic>, bool) {
         let Some(references) = self.project_references() else {
-            return Vec::new();
+            return (Vec::new(), false);
         };
         let context = self.resolver.path_context();
         let current_directory = context.current_directory().display();
         let case_sensitive = context.use_case_sensitive_file_names();
         let root_config = self.program_options.config_file();
-        let root_build_info = (self.compiler_options.suppress_output_path_check != Some(true))
-            .then(|| {
-                crate::output_directories::build_info_file_name(
-                    self.compiler_options,
-                    root_config.map(|config| config.path().display()),
+        // tsgo `GetBuildInfoFileName`: under `tsc -b` (`Build`) every
+        // project has one.
+        let build_info_name = |options: &CompilerOptions, config: Option<JsStr<'_>>| {
+            if self.program_options.build_mode() {
+                crate::output_directories::build_info_file_name_in_build_mode(
+                    options,
+                    config,
                     current_directory,
                     case_sensitive,
                 )
+            } else {
+                crate::output_directories::build_info_file_name(
+                    options,
+                    config,
+                    current_directory,
+                    case_sensitive,
+                )
+            }
+        };
+        let root_build_info = (self.compiler_options.suppress_output_path_check != Some(true))
+            .then(|| {
+                build_info_name(
+                    self.compiler_options,
+                    root_config.map(|config| config.path().display()),
+                )
             })
             .flatten();
+        let mut build_info_emit_blocked = false;
         let mut diagnostics = Vec::new();
         let mut pending = vec![(
             root_config.map(|config| (config.diagnostic_file_name().to_owned(), config.clone())),
@@ -3923,14 +4009,14 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         ));
                     }
                 }
-                if let (Some(mine), Some(theirs)) =
-                    (&root_build_info, project.build_info_file_name())
-                {
-                    if mine.as_js() == theirs {
+                let theirs = build_info_name(options, Some(project.plan().config_file_name()));
+                if let (Some(mine), Some(theirs)) = (&root_build_info, theirs) {
+                    if *mine == theirs {
                         diagnostics.push(at(
                             &gen::Cannot_write_file_0_because_it_will_overwrite_tsbuildinfo_file_generated_by_referenced_project_1,
                             &[mine.clone(), written],
                         ));
+                        build_info_emit_blocked = true;
                     }
                 }
                 pending.push((
@@ -3944,7 +4030,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 ));
             }
         }
-        diagnostics
+        (diagnostics, build_info_emit_blocked)
     }
 
     // tsc-port: verifyCompilerOptions (source module constraints) @6.0.3
@@ -4214,12 +4300,39 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         &self,
         file: &CanonicalPath,
     ) -> Option<&'options Arc<crate::project_references::ResolvedProjectReference>> {
-        let project = self.project_references()?.project_for_resolution(file)?;
+        let project = self
+            .project_references()?
+            .project_for_resolution(file)
+            .or_else(|| self.symlinked_output(file).map(|output| output.project()))?;
         let root_config = self
             .program_options
             .config_file_path()
             .map(ProgramPath::canonical);
         (root_config != Some(project.canonical())).then_some(project)
+    }
+
+    /// tsgo `getSourceToDtsIfSymlink`: under `preserveSymlinks` a file in
+    /// `node_modules` keeps its symlink spelling; its real path may be the
+    /// output declaration file of a referenced project.
+    fn symlinked_output(
+        &self,
+        file: &CanonicalPath,
+    ) -> Option<&'options Arc<crate::project_references::ProjectReferenceSourceOutput>> {
+        if !self.program_options.preserve_symlinks_effective()
+            || !file.as_js().contains("/node_modules/")
+        {
+            return None;
+        }
+        let references = self.project_references()?;
+        let real = self.host.realpath_js(file.as_js()).ok()??;
+        let real = make_program_path(
+            &real,
+            self.resolver.path_context().use_case_sensitive_file_names(),
+        )
+        .ok()?;
+        (real.canonical() != file)
+            .then(|| references.source_for_output(real.canonical()))
+            .flatten()
     }
 
     /// tsgo ResolveModuleName with the redirect's options: the resolver of
@@ -4240,14 +4353,28 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 self.host,
                 project.compiler_options(),
                 project.plan().program_options(),
-            )?;
+            )?
+            .with_redirect_config(
+                project.config_file_name(),
+                self.compiler_options.trace_resolution == Some(true),
+            );
             self.project_resolvers
                 .insert(project.canonical().clone(), resolver);
         }
+        // tsgo `getRedirectForResolution`: an output declaration file of a
+        // referenced project resolves as its source does.
+        let containing_file = self
+            .project_references()
+            .and_then(|references| references.source_for_output(file))
+            .or_else(|| self.symlinked_output(file))
+            .map_or_else(
+                || containing_file.clone(),
+                |output| output.source().to_owned(),
+            );
         self.project_resolvers
             .get_mut(project.canonical())
             .expect("inserted above")
-            .resolve_with_facts(containing_file, key.specifier(), key.mode())
+            .resolve_with_facts(&containing_file, key.specifier(), key.mode())
     }
 
     /// tsgo filesParser: a task for one arrival at `path`. The data of the
@@ -4592,18 +4719,22 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         })?;
         // Package deduplication is decided when the files are collected
         // (`collect_files`), as tsgo's parse tasks load every copy and its
-        // subtasks and the collect walk redirects the later copies.
-        let package_scope = self
-            .resolver
-            .package_scope_for_file(path.display())
-            .map_err(|error| {
-                ProgramLoadError::resolution_js(
-                    ProgramLoadOperation::ObservePackageScope,
-                    Some(path.display().to_owned()),
-                    None,
-                    error,
-                )
-            })?;
+        // subtasks and the collect walk redirects the later copies. A
+        // library is a script: tsgo looks up no package.json for it.
+        let package_scope = if class.library_priority().is_some() {
+            None
+        } else {
+            self.resolver
+                .package_scope_for_file(path.display())
+                .map_err(|error| {
+                    ProgramLoadError::resolution_js(
+                        ProgramLoadOperation::ObservePackageScope,
+                        Some(path.display().to_owned()),
+                        None,
+                        error,
+                    )
+                })?
+        };
         let file_name = path.display();
         // The output of a referenced project takes its project's options
         // (tsgo getCompilerOptionsForFile): its format and its requests
@@ -5817,6 +5948,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .map(|(key, _)| key)
                 .filter(|key| !ordered.contains(key));
             let containing_file = staged.prepared.path().display().to_owned();
+            // A referenced project's file resolves with its own resolver
+            // (never through the memo), from the name tsgo traces.
+            let redirected = self
+                .project_for_resolution(staged.prepared.path().canonical())
+                .is_some();
             for key in synthetic.chain(staged.module_request_order.iter()) {
                 if let Some(&index) = self.module_resolution_by_key.get(key) {
                     lines.extend(
@@ -5827,10 +5963,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             .map(|trace| {
                                 // A resolution shared through the per-directory memo
                                 // was traced from another file of the directory.
-                                if std::ptr::eq(
-                                    trace.message(),
-                                    &tsc_diagnostics::gen::Resolving_module_0_from_1,
-                                ) && trace.args().len() == 2
+                                if !redirected
+                                    && std::ptr::eq(
+                                        trace.message(),
+                                        &tsc_diagnostics::gen::Resolving_module_0_from_1,
+                                    )
+                                    && trace.args().len() == 2
                                 {
                                     tsc_diagnostics::format_message(
                                         trace.message().text,
@@ -5899,6 +6037,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // The kept spelling is the first collected (tsgo keeps that
             // task's parse); the one that admitted the file becomes an alias.
             if self.sources[source].prepared.path().display() != spelling.as_js() {
+                self.respelled.insert(
+                    self.sources[source].prepared.path().display().to_owned(),
+                    spelling.clone(),
+                );
                 self.sources[source]
                     .prepared
                     .respell(spelling.as_js())
@@ -6031,7 +6173,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                             else {
                                 unreachable!("a root's task has a root origin");
                             };
-                            let diagnostic = missing_root_diagnostic(spelling.as_js(), reason);
+                            let diagnostic = self.with_root_related_information(
+                                missing_root_diagnostic(spelling.as_js(), reason.clone()),
+                                reason,
+                            );
                             if self
                                 .diagnosed_missing_roots
                                 .insert(path.display().to_owned())
@@ -6118,6 +6263,7 @@ fn publish_program(
     }
     builder = builder.with_package_json_probes(package_json_probes.into_values().collect());
     builder = builder.with_resolution_trace(staged.resolution_trace.clone());
+    builder = builder.with_build_info_emit_blocked(staged.build_info_emit_blocked);
     let config_file = program_options.config_file().cloned();
     let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
     let mut auxiliary_paths = HashSet::default();
@@ -7125,25 +7271,8 @@ fn explaining_file_diagnostic(
         {
             continue;
         }
-        if let Some(related) = root_inclusion_related_information(reason, config) {
+        if let Some(related) = inclusion_related_information(reason, config) {
             diagnostic.related.push(related);
-        } else if let Some((file, start, end)) = source_inclusion_location(reason) {
-            let message = match reason {
-                SourceInclusionReason::Import { .. } => &gen::File_is_included_via_import_here,
-                SourceInclusionReason::PathReference { .. } => {
-                    &gen::File_is_included_via_reference_here
-                }
-                SourceInclusionReason::TypeReference { .. } => {
-                    &gen::File_is_included_via_type_library_reference_here
-                }
-                _ => unreachable!("only reference reasons carry source locations"),
-            };
-            diagnostic.related.push(RelatedInfo {
-                file_name: Some(file),
-                start: Some(start),
-                length: Some(end.saturating_sub(start)),
-                message: MessageChain::new(message, &[]),
-            });
         }
     }
     diagnostic.related_information_present = !diagnostic.related.is_empty();
@@ -7207,6 +7336,33 @@ fn root_module_format_detail(
         }),
         ResolutionMode::Unspecified => None,
     }
+}
+
+/// tsgo `includeProcessor.getRelatedInfo`: where a reason includes the
+/// file, the config's `files` or `include` entry or the reference in its
+/// source.
+fn inclusion_related_information(
+    reason: &SourceInclusionReason,
+    config: Option<&ProgramConfigFile>,
+) -> Option<RelatedInfo> {
+    if let Some(related) = root_inclusion_related_information(reason, config) {
+        return Some(related);
+    }
+    let (file, start, end) = source_inclusion_location(reason)?;
+    let message = match reason {
+        SourceInclusionReason::Import { .. } => &gen::File_is_included_via_import_here,
+        SourceInclusionReason::PathReference { .. } => &gen::File_is_included_via_reference_here,
+        SourceInclusionReason::TypeReference { .. } => {
+            &gen::File_is_included_via_type_library_reference_here
+        }
+        _ => unreachable!("only reference reasons carry source locations"),
+    };
+    Some(RelatedInfo {
+        file_name: Some(file),
+        start: Some(start),
+        length: Some(end.saturating_sub(start)),
+        message: MessageChain::new(message, &[]),
+    })
 }
 
 fn root_inclusion_related_information(
@@ -7300,8 +7456,15 @@ fn casing_diagnostic(
             (Some(path), Some(start), Some(end.saturating_sub(start)))
         });
     let mut diagnostic = Diagnostic::new_js(file_name, start, length, message);
+    // tsgo `createDiagnosticExplainingFile`: every other reason's place, in
+    // the order the reasons were recorded.
+    let mut location_reason = location_reason;
     for reason in all_reasons {
-        if let Some(related) = root_inclusion_related_information(reason, config_file) {
+        if location_reason.is_some_and(|location| location == reason) {
+            location_reason = None;
+            continue;
+        }
+        if let Some(related) = inclusion_related_information(reason, config_file) {
             diagnostic.related.push(related);
         }
     }

@@ -890,16 +890,18 @@ impl<'p> IncrementalDriver<'p> {
     /// The emit committed (tsgo `emitFilesHandler.updateSnapshot`):
     /// `requests` and `preflight` name the units emitted (the whole plan
     /// without an old state).
+    /// It returns the cached declaration diagnostics of the files the emit
+    /// did not cover (tsgo reports them with the emit).
     pub(crate) fn record_emit(
         &self,
         emit: &EmitOutcome,
         records: &[DeclarationRecord],
         wrote_anything: bool,
         requests: Option<(&[UnitEmitRequest], &EmitPreflight)>,
-    ) {
+    ) -> Vec<Diagnostic> {
         let mut guard = self.state();
         let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
-            return;
+            return Vec::new();
         };
         state.differing_only_in_map = records
             .iter()
@@ -931,14 +933,14 @@ impl<'p> IncrementalDriver<'p> {
             };
             let (updates, deleted) = fresh_emit_updates(&state.snapshot, FileState::Emit(&facts));
             state.snapshot.record_emit(updates, &deleted);
-            return;
+            return Vec::new();
         }
         if emit.emit_skipped() && !wrote_anything {
             // HandleNoEmitOptions stopped the emit: nothing changes.
-            return;
+            return Vec::new();
         }
         let Some((requests, preflight)) = requests else {
-            return;
+            return Vec::new();
         };
         let files = &state.snapshot.program().files;
         let mut updates = Vec::new();
@@ -972,7 +974,23 @@ impl<'p> IncrementalDriver<'p> {
             })
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
+        // Get updated errors that were not included in affected files emit
+        let cached = files
+            .iter()
+            .enumerate()
+            .filter(|(index, file)| !seen.contains(index) && file.may_be_emitted)
+            .filter_map(|(index, _)| match state.snapshot.emit_rows(index)? {
+                CachedRows::Old(rows) => Some(
+                    rows.iter()
+                        .map(|row| assembly.to_diagnostic(index, row))
+                        .collect::<Vec<_>>(),
+                ),
+                CachedRows::New(_) => None,
+            })
+            .flatten()
+            .collect();
         state.snapshot.record_emit(updates, &deleted);
+        cached
     }
 
     /// tsgo `ensureHasErrorsForState`'s non-cached errors: the command's
@@ -1044,6 +1062,11 @@ impl<'p> IncrementalDriver<'p> {
     }
 
     pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {
+        // tsgo `emitBuildInfo`: nothing when a referenced project writes the
+        // same file (TS6377 blocks it).
+        if self.prepared.build_info_emit_blocked() {
+            return None;
+        }
         let file_name = self.build_info_file_name.clone()?;
         let mut guard = self.state();
         let state = guard.as_mut()?;

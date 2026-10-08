@@ -36,6 +36,7 @@ use crate::build::{self, BuildCommand};
 use crate::help::Help;
 use crate::locale::Locale;
 use crate::show_config::ShowConfig;
+use crate::statistics::Statistics;
 use crate::system::{
     CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
 };
@@ -164,6 +165,8 @@ pub(crate) struct CliRoute<'a> {
     pub(crate) pretty: bool,
     pub(crate) locale: Locale,
     pub(crate) output_filesystem: &'a mut dyn EmitFileSystem,
+    /// The time the configuration took to parse (tsgo `ConfigTime`).
+    pub(crate) config_time: std::time::Duration,
 }
 
 impl CliRoute<'_> {
@@ -395,6 +398,7 @@ fn execute(
         pretty,
         locale,
         output_filesystem: &mut output_filesystem,
+        config_time: std::time::Duration::ZERO,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     // tsgo wraps the command line's options as `compilerOptions` and merges
@@ -427,7 +431,12 @@ fn execute(
                 EXIT_COMMAND_LINE,
             );
         }
-        let project = PathBuf::from(project.to_string_lossy().into_owned());
+        // tsgo `tspath.NormalizePath(Project)`: `D:\\work` is `D:/work`.
+        let project = PathBuf::from(
+            tsc_program::normalize_path(project)
+                .to_string_lossy()
+                .into_owned(),
+        );
         let config_file = match resolve_project_file(host, &current_directory, &project)? {
             Ok(config_file) => config_file,
             Err(ProjectFileError::MissingPath(path)) => {
@@ -463,8 +472,10 @@ fn execute(
             }
         };
         let config_started = std::time::Instant::now();
+        let config_clock = system.now();
         let (plan, source_texts) =
             parse_config_file(host, &current_directory, &config_file, &command_line)?;
+        route.config_time = elapsed_since(system, config_clock);
         tsc_types::trace::mark("cli: project config plan", config_started);
         if show_config {
             return Ok(show_config_of_plan(&plan, case_sensitive));
@@ -569,8 +580,10 @@ fn execute(
         stdout.push_str(&help.help(all));
         return Ok(CliOutput::new(stdout, EXIT_COMMAND_LINE));
     };
+    let config_clock = system.now();
     let (plan, source_texts) =
         parse_config_file(host, &current_directory, &config_file, &command_line)?;
+    route.config_time = elapsed_since(system, config_clock);
     if show_config {
         return Ok(show_config_of_plan(&plan, case_sensitive));
     }
@@ -644,6 +657,7 @@ fn execute_build(
         pretty,
         locale,
         output_filesystem: &mut output_filesystem,
+        config_time: std::time::Duration::ZERO,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     let command = BuildCommand {
@@ -678,6 +692,9 @@ pub(crate) struct BuildProjectRun {
     pub(crate) sources: DiagnosticSourceMap,
     /// The incremental program's files for a test harness.
     pub(crate) program_report: Option<Vec<crate::ProgramFileReport>>,
+    /// The run's statistics, when its options ask for them (a build
+    /// aggregates them).
+    pub(crate) statistics: Option<Statistics>,
 }
 
 /// How a project is run: for `tsc -b` the session knows it is a build and
@@ -775,6 +792,7 @@ fn run_config(
     // over them. tsgo runs no emit under --listFilesOnly: the no-emit route.
     let limits = cli_limits(route.system);
     let load_started = std::time::Instant::now();
+    let load_clock = route.system.now();
     let prepared = if plan.compiler_options().list_files_only == Some(true) {
         load_config_program_with_no_emit_override(host, plan, catalog, limits)
     } else if plan.compiler_options().no_emit == Some(true) {
@@ -808,6 +826,7 @@ fn run_config(
                 stamped: Vec::new(),
                 sources: source_texts,
                 program_report: None,
+                statistics: None,
             });
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
@@ -858,6 +877,12 @@ fn run_config(
     };
     let config_file = plan.config_file_name().to_string_lossy().into_owned();
     let resolution_trace = resolution_trace_text(&prepared, route, !mode.build);
+    let statistics = wants_statistics(prepared.compiler_options()).then(|| Statistics {
+        config_time: route.config_time,
+        parse_time: elapsed_since(route.system, load_clock),
+        ..Statistics::of_program(&prepared)
+    });
+    let check_clock = route.system.now();
     let mut run = execute_prepared(
         current_directory,
         source_texts,
@@ -869,7 +894,34 @@ fn run_config(
     )?;
     run.stdout.insert_str(0, &resolution_trace);
     report_program(route, Some(config_file), &run);
+    report_statistics(route, &mut run, statistics, check_clock);
     Ok(run)
+}
+
+/// tsgo `EmitAndReportStatistics`: under `--diagnostics` or
+/// `--extendedDiagnostics` a compilation that ran prints its statistics
+/// after its output.
+fn wants_statistics(options: &CompilerOptions) -> bool {
+    options.diagnostics == Some(true) || options.extended_diagnostics == Some(true)
+}
+
+fn elapsed_since(system: &dyn System, start: std::time::SystemTime) -> std::time::Duration {
+    system.now().duration_since(start).unwrap_or_default()
+}
+
+fn report_statistics(
+    route: &CliRoute<'_>,
+    run: &mut BuildProjectRun,
+    statistics: Option<Statistics>,
+    check_clock: std::time::SystemTime,
+) {
+    let Some(mut statistics) = statistics else {
+        return;
+    };
+    statistics.check_time = elapsed_since(route.system, check_clock);
+    statistics.total_time = route.system.since_start();
+    run.stdout.push_str(&statistics.report(route.testing));
+    run.statistics = Some(statistics);
 }
 
 /// The `--traceResolution` lines of a program's creation, as tsgo prints
@@ -914,6 +966,7 @@ fn execute_explicit_files(
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     let limits = cli_limits(route.system);
+    let load_clock = route.system.now();
     // tsgo runs no emit under --listFilesOnly: the no-emit route (whose
     // loader requires an explicit noEmit).
     let prepared = if options.no_emit == Some(true) || options.list_files_only == Some(true) {
@@ -939,7 +992,12 @@ fn execute_explicit_files(
         &prepared,
         &catalog.directory().to_string_lossy(),
     );
-    let run = execute_prepared(
+    let statistics = wants_statistics(prepared.compiler_options()).then(|| Statistics {
+        parse_time: elapsed_since(route.system, load_clock),
+        ..Statistics::of_program(&prepared)
+    });
+    let check_clock = route.system.now();
+    let mut run = execute_prepared(
         current_directory,
         source_texts,
         prepared,
@@ -949,6 +1007,7 @@ fn execute_explicit_files(
         ProjectRunMode::COMMAND,
     )?;
     report_program(route, None, &run);
+    report_statistics(route, &mut run, statistics, check_clock);
     Ok(CliOutput::new(
         resolution_trace + &run.stdout,
         run.exit_code,
@@ -994,12 +1053,11 @@ fn execute_prepared(
         .with_old_build_info(old_build_info)
         .with_testing(route.testing.is_some());
     // tsgo EmitFilesAndReportErrors runs no emit under --listFilesOnly, so no
-    // build info is written either.
-    let session = if list_files_only {
-        session.with_list_files_only(true)
-    } else {
-        session.with_command_build_info()
-    };
+    // build info is written either; an incremental program is still created
+    // from the old build info (its testing data reports the files).
+    let session = session
+        .with_list_files_only(list_files_only)
+        .with_command_build_info();
     let outcome = session
         .run_no_emit_pass(false, tsc_checker::LibraryPrefixCompletion::Complete, true)
         .map_err(|error| CliError::Driver(error.to_string()))?;
@@ -1035,7 +1093,7 @@ fn execute_prepared(
     let mut status_writes = Vec::new();
     let mut emitted_files = Vec::new();
     let program_report = outcome.program_report().map(<[_]>::to_vec);
-    if let Some(document) = outcome.build_info() {
+    if let Some(document) = outcome.build_info().filter(|_| !list_files_only) {
         let mut sink = FsOutputSink::new(route.output_filesystem);
         match crate::incremental::write_build_info(&mut sink, document) {
             Some(failure) => {
@@ -1072,6 +1130,7 @@ fn execute_prepared(
         .map(|testing| testing.on_emitted_files(&emitted_files))
         .unwrap_or_default();
     status_writes.extend(listing);
+    let status_writes = between_list_file_markers(route, status_writes);
     let work_counters = outcome.work_counters();
     let render_started = std::time::Instant::now();
     let rendered = rendered_diagnostics_with_exit_work_status_and_summary(
@@ -1101,7 +1160,27 @@ fn execute_prepared(
         stamped,
         sources: source_texts,
         program_report,
+        statistics: None,
     })
+}
+
+/// tsgo `listFiles` under a test harness: the listed files between
+/// `OnListFilesStart` and `OnListFilesEnd`, which the harness drops when
+/// it compares an incremental run with a clean one.
+fn between_list_file_markers(route: &CliRoute<'_>, lines: Vec<JsString>) -> Vec<JsString> {
+    let Some(testing) = route.testing else {
+        return lines;
+    };
+    let mut start = String::new();
+    testing.on_list_files_start(&mut start);
+    let mut end = String::new();
+    testing.on_list_files_end(&mut end);
+    start
+        .lines()
+        .map(JsString::from)
+        .chain(lines)
+        .chain(end.lines().map(JsString::from))
+        .collect()
 }
 
 /// tsgo execute/tsc/emit.go `listFiles`: after the `TSFILE:` lines,
@@ -1225,6 +1304,7 @@ fn execute_emitting_prepared(
     let (mut status_writes, exit_code) =
         emit_command_status(cwd, &emit, &diagnostics, list_emitted_files);
     status_writes.extend(listing);
+    let status_writes = between_list_file_markers(route, status_writes);
     let emitted_files = emit
         .emitted_files()
         .unwrap_or_default()
@@ -1262,6 +1342,7 @@ fn execute_emitting_prepared(
         stamped,
         sources: source_texts,
         program_report,
+        statistics: None,
     })
 }
 
@@ -1592,15 +1673,18 @@ pub(crate) fn relative_file_name<'p>(
     case_sensitive: bool,
 ) -> JsString {
     let file_name = normalize_slashes(file_name);
-    if !file_name.as_js().starts_with("/") {
+    // tspath `ConvertToRelativePath`: a path without a root (`/`, `c:/`, …)
+    // is left as it is.
+    if tsc_program::path_root_parts(file_name.as_js()).is_none() {
         return file_name;
     }
     let directory = normalize_slashes(current_directory);
     let reduce = |path: JsStr<'_>| -> Vec<JsString> {
         // getPathComponents + reducePathComponents: a root component and
         // the segments, with `.` dropped and `..` folded.
-        let mut components: Vec<JsString> = vec!["/".into()];
-        for segment in path.split_ascii(b'/') {
+        let (root, rest) = tsc_program::path_root_parts(path).unwrap_or(("".into(), path));
+        let mut components: Vec<JsString> = vec![root.to_owned()];
+        for segment in rest.split_ascii(b'/') {
             if segment.is_empty() || segment == "." {
                 continue;
             }
@@ -1736,27 +1820,14 @@ fn resolve_project_file(
 
 /// tspath.NormalizePath of the absolute path: forward slashes, with `.` and
 /// `..` resolved.
+/// tspath `GetNormalizedAbsolutePath`.
 fn normalized_absolute_path(current_directory: &Path, path: &Path) -> String {
-    let text = absolutize(current_directory, path)
-        .to_string_lossy()
-        .replace('\\', "/");
-    let rooted = text.starts_with('/');
-    let mut parts: Vec<&str> = Vec::new();
-    for component in text.split('/') {
-        match component {
-            "" | "." => {}
-            ".." => {
-                parts.pop();
-            }
-            component => parts.push(component),
-        }
-    }
-    let joined = parts.join("/");
-    if rooted {
-        format!("/{joined}")
-    } else {
-        joined
-    }
+    tsc_program::get_normalized_absolute_path(
+        JsStr::from_str(&path.to_string_lossy()),
+        JsStr::from_str(&current_directory.to_string_lossy()),
+    )
+    .to_string_lossy()
+    .into_owned()
 }
 
 fn find_config_file(
@@ -1775,8 +1846,13 @@ fn find_config_file(
     }
 }
 
+/// A path joined to the current directory unless it is rooted, as tspath
+/// roots it (`/`, `c:/`, UNC and URL roots, on every platform).
 fn absolutize(current_directory: &Path, path: &Path) -> PathBuf {
-    if path.is_absolute() {
+    let rooted = path
+        .to_str()
+        .is_some_and(|text| tsc_program::path_root_parts(JsStr::from_str(text)).is_some());
+    if path.is_absolute() || rooted {
         path.to_path_buf()
     } else {
         current_directory.join(path)
