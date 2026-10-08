@@ -1002,3 +1002,12 @@ file）を持つ機能として入れ、型の id と生成順は port の check
   incremental 29、compiler 439、conformance 52、harness 31、checker 1,797（全て 0 失敗）。workspace 全体の test と clippy は hosted の
   `rust` job に任せた。実 project の比較は行っていない（trace を取らない run での変更は tracer の有無の分岐だけで、checker の意味は変えて
   いない）。性能は計測していない（利用者の指示）。
+
+### P4-7aのhostedの記録とmerge（2026-10-09）
+
+- hosted：最終候補 `386ad076e`（code `d8903ccf3`・ratchet `586ebc3b5`・packet の記録）の run 37860181232（`plan` 35s、`rust` 6m49s、
+  `conformance (TypeScript 7.1)` 20m14s（lane A の後に suites 5 種の `--check`）、`gates` 17s。全て成功）。merge → `73a96eab6`
+  （merge commit）。
+- 計測（conformance の全体実行、suites、並列対照、crate test）は上の記録のとおり、merge 前に最終 bytes `d8903ccf3` で行った。実 project の
+  比較と性能は計測していない（上の記録の理由と利用者の指示）。
+- 次：P4-7b（`tsc --watch`）。branch `fix/ts71-watch`（`386ad076e` から）。
