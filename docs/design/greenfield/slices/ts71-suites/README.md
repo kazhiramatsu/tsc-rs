@@ -767,3 +767,54 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
   hosted の `rust` job に任せた。実 project の比較と parallel control は行っていない（checker を変えていない。build の
   root 読みと project 参照の root の修正は実 project にも効くので、P4-6 の終わりに DT／azure／material-ui で比べる）。
   性能は計測していない（利用者の指示）。
+
+## P4-6b help／version／init／showConfig／locale（2026-10-08）
+
+利用者の指示（「残りの項目を全て実装してください」）どおり、P4-6a で known に残した command line の機能を tsgo に合わせて
+実装した（known に留めない）。
+
+- **vendoring**：`scripts/vendor_typescript_native.py` の FILES に option 宣言の Go source 7 本（`tsc/internal/tsoptions/`
+  `declscompiler.go`／`declsbuild.go`／`declswatch.go`／`commandlineoption.go`／`enummaps.go`、`tsc/internal/core/`
+  `compileroptions.go`／`watchoptions.go`）と、tsgo が埋め込む翻訳 catalog 13 本（`tsc/internal/diagnostics/loc/<locale>.json.gz`）。
+  追加のみ、`--check` 一致、vendored 59,055 file（harness の pin 59,035 → 59,055）。
+- **option 宣言表**：`scripts/tsgo_option_declarations.py` が vendored Go source から `crates/compiler/src/options/gen.rs` を生成
+  （名前・短縮名・種類・file path か・command line 専用か・簡易 help に出すか・説明・category・既定値の説明、enum map を宣言順で、
+  help が省く deprecated key、list の要素宣言、`core.CompilerOptions` の field 順）。message は `diagnosticMessages.json` の
+  key と code から port の `gen.rs` の名前へ写す。`--check` は生成し直して byte 比較。gen.rs は `#[rustfmt::skip]`。
+- **help／version**（`crates/compiler/src/help.rs`、tsgo `execute/tsc/help.go`）：`PrintVersion`、簡易 help、`--all`、`-b --help`、
+  `getHeader`（terminal 幅が足りれば右端に TS icon、右寄せは最大 120）、`createColors`（`defaultIsPretty` と `OS`／`WT_SESSION`／
+  `TERM_PROGRAM`／`COLORTERM`／`TERM`）、`getPrettyOutput`（説明を幅で byte 単位に折る）、`formatDefaultValue`（enum の既定値は
+  key、型の違う既定値（newLine の "lf"）は空）、`getPossibleValues`（同値の key を `/` で、deprecated key を除く）、category の
+  初出順のまとまり。config が無く file も無いときは tsgo どおり version と help を出して exit 1（`--showConfig` なら TS5081）。
+- **version の文字列**：`--version` と help の version は tsgo の `core.Version()`（`7.1.0-dev`）にした（従来は
+  `7.1.0-dev-19dadef8`）。build info の `version` と typesVersions が使う版と同じ。commit は profile 名（vendor の directory）が持つ。
+- **`--init`**（`crates/compiler/src/init.rs`、tsgo `execute/tsc/init.go`）：`generateTSConfig` を `ConfigWriter`（行と未出力の
+  option を持つ）で写した。command line の値が既定値を置き換え、`Optional` の項目は command line にあれば comment を外し、残りの
+  option は command line の順で末尾へ。enum は同値の最初の key（`--target es2015` は `"es6"`）、`lib` は要素の key。既に
+  `tsconfig.json` があれば TS5054（exit 0）。書き込みは System の `FileSystem::write_creating_dirs`。
+- **`--showConfig`**（`crates/compiler/src/show_config.rs`、tsgo `tsoptions/showconfig.go`）：`ConvertToTSConfig` の移植。
+  option は `core.CompilerOptions` の field 順、category が Command-line Options／Output Formatting のものと command 自身の
+  option を除き、enum は同値の最初の key、file path は config file からの相対、`lib` は要素の key。続けて `impliedOptions`（14 個、
+  依存先が書かれていて値が既定と違うもの：`module`／`moduleResolution`／`moduleDetection`／`isolatedModules`／
+  `preserveConstEnums`／`declaration`／`declarationMap`／`incremental`／`useDefineForClassFields`／
+  `resolvePackageJsonExports`／`resolvePackageJsonImports`／`resolveJsonModule`／`allowJs`／`allowImportingTsExtensions`、
+  getter は tsgo の `core.CompilerOptions` の写し）、references、files、include（validated、既定の `**/*` だけなら省く）、
+  exclude（validated、`exclude` が無ければ outDir／declarationDir）、compileOnSave。JSON は Go の `jsontext` の 4 space indent、
+  末尾改行なし。program crate の `ConfigRootPlan` が validated include／exclude spec を持つようにした。
+- **`--locale`**（`crates/compiler/src/locale.rs`）：13 catalog を gzip のまま埋め込み、初回に展開（`miniz_oxide`）。tag は BCP 47
+  の構文で読み、言語で翻訳を選ぶ（中国語は script／region で簡体／繁体）。`tsc_diagnostics::MessageCatalog` を通して、診断
+  （pretty／plain、関連情報、error summary）、`tsc -b` の status、help、`--init` の見出しを翻訳する。
+- **結果**：tsc 149 → **180**／224、tsbuild 136 → **138**／192（help／version 8、`--init` 7、`--showConfig` 16、locale 2）。
+  transpile 41、tsoptions 80、config 87 は変わらず。
+- **実 tsgo との比較**（`target/typescript7/bin/tsc-19dadef8`、一時 directory）：`--locale ja`、`--locale de --pretty false`、
+  `--locale zh-TW --foo`、`--locale fr -b --verbose`、`-b --help`、`-b --help --locale es`、`--init --locale ko`、
+  `--locale pt-br --all`、`--help`、`--all`、`--version`、`--locale it --version`、`--showConfig`（config のみ、
+  `--module preserve --verbatimModuleSyntax`、`--strict false --lib es2015,dom --outDir out`）が stdout と exit status まで一致。
+- **残る制限**：`--locale xx-YY` は tsgo が TS6048（x/text が未登録の subtag を拒否）、port は構文だけ見て英語。tsgo は CLDR の
+  距離で近い言語／地域の翻訳も選ぶ（x/text の matcher）が、port は言語の一致だけ。x/text の registry と matcher の移植は後続の
+  候補。`--generateTrace` 2 件は P4-6c で扱う（types file が tsgo の type id の生成順を要る）。watch の test が書く tsc baseline 1 件
+  （`adds-color-when-FORCE_COLOR-is-set`）は P4-7。
+- tests：compiler の unit（help 4：version 行と Czech、header の位置、help-all の候補と既定値、折り返し；init 3：tsgo baseline の
+  全文、command line の順、同値の最初の key；show_config 3：implied、struct 順、相対 path と lib の key；locale 2）、
+  CLI contract 1（version と help、`--all`、`--init` と TS5054、`--showConfig` の JSON、`--locale ja --version`）、
+  version の contract を `7.1.0-dev` へ。
