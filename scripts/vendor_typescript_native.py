@@ -7,6 +7,7 @@ Copies, byte for byte and at their upstream paths, into
 vendor/typescript-native/<profile>/upstream/:
 
   tsc/testdata/tests/cases/{compiler,conformance}   every case file
+  tsc/testdata/tests/cases/transpile                every transpile case file
   tsc/testdata/tests/lib                            the harness's /.lib files
   tsc/internal/bundled/libs                         the embedded standard libraries
   tsc/internal/diagnostics/diagnosticMessages.json  the diagnostic message catalog
@@ -16,6 +17,8 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/baselines/reference/{compiler,conformance}/*.sourcemap.txt
   tsc/testdata/baselines/reference/{compiler,conformance}/*.types
   tsc/testdata/baselines/reference/{compiler,conformance}/*.symbols
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.trace.json
+  tsc/testdata/baselines/reference/transpile        every transpile baseline
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
 each set's Git tree id (a single file's blob id; a filtered baseline set
@@ -43,8 +46,10 @@ REMOTE = "https://github.com/microsoft/TypeScript.git"
 TREES = [
     "tsc/testdata/tests/cases/compiler",
     "tsc/testdata/tests/cases/conformance",
+    "tsc/testdata/tests/cases/transpile",
     "tsc/testdata/tests/lib",
     "tsc/internal/bundled/libs",
+    "tsc/testdata/baselines/reference/transpile",
 ]
 FILES = [
     "tsc/internal/diagnostics/diagnosticMessages.json",

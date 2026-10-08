@@ -247,9 +247,10 @@ fn native_vendored_inputs_match_the_manifest() {
         vendored += rows.len();
     }
     // 32,680 inputs of the first profile plus the 12,779 `.types` and 12,779
-    // `.symbols` baselines vendored for the type and symbol comparison and
-    // the 148 `.trace.json` baselines of the trace comparison.
-    assert_eq!(vendored, 58_386);
+    // `.symbols` baselines vendored for the type and symbol comparison, the
+    // 148 `.trace.json` baselines of the trace comparison and the 25 cases
+    // and 41 baselines of the transpile suite.
+    assert_eq!(vendored, 58_452);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()
