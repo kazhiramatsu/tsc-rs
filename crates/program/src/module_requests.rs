@@ -136,6 +136,7 @@ pub struct SourceRequestPlan {
     unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
     loadable_module_requests: BTreeSet<ResolutionKey>,
     module_request_spans: BTreeMap<ResolutionKey, Vec<(u32, u32)>>,
+    module_request_order: Vec<ResolutionKey>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     observed_request_occurrence_count: usize,
@@ -200,6 +201,15 @@ impl SourceRequestPlan {
         self.module_request_spans
             .get(key)
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// Every resolved occurrence in tsgo's `moduleNames` order
+    /// (fileloader.go:864-871): the imports (static, then dynamic), then the
+    /// string-literal module augmentations, each as often as it occurs; the
+    /// synthetic requests are not here. Built only under `traceResolution`
+    /// (the loader replays the traces in this order).
+    pub fn module_request_order(&self) -> &[ResolutionKey] {
+        &self.module_request_order
     }
 
     pub fn type_reference_directives(&self) -> &[PlannedTypeReferenceDirective] {
@@ -757,6 +767,17 @@ fn plan_module_requests_worker(
     // occurrence made the plan quadratic in the file; a CommonJS index of
     // 10,000 `require` calls (material-ui's `@mui/icons-material/lib/index.js`,
     // 2.4 MB) took 13 seconds here where tsgo takes milliseconds.
+    let module_request_order: Vec<ResolutionKey> = if options.trace_resolution == Some(true) {
+        static_occurrences
+            .iter()
+            .chain(dynamic_occurrences.iter())
+            .filter(|occurrence| occurrence.loads_source)
+            .chain(augmentation_occurrences.iter())
+            .map(|occurrence| occurrence.key.clone())
+            .collect()
+    } else {
+        Vec::new()
+    };
     let positions = source.snapshot().positions();
     let source_text = source.text();
     for occurrence in static_occurrences
@@ -800,6 +821,7 @@ fn plan_module_requests_worker(
         unpreprocessed_module_requests,
         loadable_module_requests,
         module_request_spans,
+        module_request_order,
         type_reference_directives,
         lib_reference_directives,
         observed_request_occurrence_count,

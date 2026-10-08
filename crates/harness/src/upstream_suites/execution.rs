@@ -867,11 +867,12 @@ fn apply_compiler_setting(
         "resolvepackagejsonimports" => {
             compiler_options.resolve_package_json_imports = Some(boolean()?)
         }
+        // tsgo `ParseListTypeOption` splits on commas and keeps the elements
+        // as written (` browser` stays a condition with its space).
         "customconditions" => {
             compiler_options.custom_conditions = Some(
                 value
                     .split(',')
-                    .map(str::trim)
                     .filter(|entry| !entry.is_empty())
                     .map(JsString::from)
                     .collect(),
@@ -953,11 +954,11 @@ fn apply_compiler_setting(
         "nocheck" => compiler_options.no_check = Some(boolean()?),
         "deduplicatepackages" => compiler_options.deduplicate_packages = Some(boolean()?),
         "incremental" => compiler_options.incremental = Some(boolean()?),
+        "traceresolution" => compiler_options.trace_resolution = Some(boolean()?),
         "assumechangesonlyaffectdirectdependencies"
         | "disablesizelimit"
         | "out"
         | "pretty"
-        | "traceresolution"
         | "listfilesonly"
         | "capturesuggestions"
         | "fullemitpaths"

@@ -20,6 +20,7 @@ use crate::module_requests::{
 use crate::module_resolution::PackageJsonProbe;
 use crate::module_resolution::{
     make_program_path, HostModuleResolution, HostResolvedTypeReferenceDirective, ModuleResolver,
+    ResolutionTrace,
 };
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::{
@@ -829,17 +830,6 @@ fn load_program_worker(
     // tsc resolves replacement libraries with an isolated Node10 option set;
     // ordinary module options such as paths, baseUrl, moduleSuffixes, and
     // package exports must not influence this lookup.
-    let library_resolution_options = CompilerOptions {
-        module_resolution: Some(2),
-        ..CompilerOptions::default()
-    };
-    let mut library_resolver = (compiler_options.lib_replacement == Some(true)
-        && program_options.no_lib() != Some(true))
-    .then(|| ModuleResolver::new(host, &library_resolution_options))
-    .transpose()
-    .map_err(|error| {
-        ProgramLoadError::resolution_js(ProgramLoadOperation::InitializeResolver, None, None, error)
-    })?;
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
     let library_directory = if program_options.no_lib() == Some(true) {
@@ -859,7 +849,6 @@ fn load_program_worker(
         library_directory,
         limits,
         resolver: &mut resolver,
-        library_resolver: library_resolver.as_mut(),
     });
     // Parse-ahead of the explicit roots. Normalization errors are left for
     // the sequential loop below, which reports them in root order.
@@ -960,11 +949,7 @@ fn load_program_worker(
     let dependency_symlink_resolutions =
         resolve_runtime_dependency_symlinks(&mut resolver, &staged)?;
     let mut packages_by_path = BTreeMap::new();
-    for package in resolver.observed_package_metadata().chain(
-        library_resolver
-            .iter()
-            .flat_map(|resolver| resolver.observed_package_metadata()),
-    ) {
+    for package in resolver.observed_package_metadata() {
         packages_by_path
             .entry(package.package_json().canonical().clone())
             .or_insert_with(|| package.clone());
@@ -995,13 +980,7 @@ fn load_program_worker(
         }
     }
     let packages = packages_by_path.into_values().collect::<Vec<_>>();
-    if let Some(library_resolver) = library_resolver.as_mut() {
-        staged
-            .package_json_probes
-            .extend(library_resolver.take_package_json_probes());
-    }
     drop(resolver);
-    drop(library_resolver);
     tsc_types::trace::mark("load: dependency symlinks and packages", phase_started);
 
     publish_program(
@@ -1486,6 +1465,10 @@ struct StagedSource {
     /// The spans of the occurrences of each request that load a source, in
     /// source order; a request without one is synthetic.
     module_request_spans: rustc_hash::FxHashMap<ResolutionKey, Vec<(u32, u32)>>,
+    /// The resolved occurrences in tsgo's `moduleNames` order (the imports,
+    /// then the module augmentations), kept only when tracing; the synthetic
+    /// requests are not here.
+    module_request_order: Vec<ResolutionKey>,
 }
 
 impl StagedSource {
@@ -1864,6 +1847,8 @@ struct StagedTypeResolution {
     key: TypeReferenceResolutionKey,
     host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
     diagnostics: Vec<Diagnostic>,
+    /// The resolver's `--traceResolution` lines of this resolution.
+    trace: Vec<ResolutionTrace>,
 }
 
 struct CompleteGraph {
@@ -1882,6 +1867,8 @@ struct CompleteGraph {
     /// The deduplicated package copies: path, owner, program index and the
     /// copy's own include reasons (see `PackageRedirectFile`).
     package_redirect_files: Vec<(ProgramPath, usize, usize, Vec<SourceInclusionReason>)>,
+    /// The `--traceResolution` lines, in replay order.
+    resolution_trace: Vec<String>,
 }
 
 struct StagedGraph<'host, 'options, 'resolver> {
@@ -1892,7 +1879,6 @@ struct StagedGraph<'host, 'options, 'resolver> {
     library_directory: Option<ProgramPath>,
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
-    library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
     resolved_library_paths: BTreeMap<String, ProgramPath>,
     source_by_canonical: FxHashMap<CanonicalPath, usize>,
     files_by_name_ignore_case: FxHashMap<JsString, usize>,
@@ -1942,8 +1928,22 @@ struct StagedGraph<'host, 'options, 'resolver> {
     pre_resolved_hits: usize,
     /// Type-reference resolutions computed by the read-ahead that the walk
     /// has not reached yet, taken like `pre_resolved`.
-    pre_resolved_types:
-        BTreeMap<TypeReferenceResolutionKey, ResolutionOutcome<HostResolvedTypeReferenceDirective>>,
+    pre_resolved_types: BTreeMap<
+        TypeReferenceResolutionKey,
+        (
+            ResolutionOutcome<HostResolvedTypeReferenceDirective>,
+            Vec<ResolutionTrace>,
+        ),
+    >,
+    /// The `--traceResolution` lines replayed so far (tsgo
+    /// filesparser.go:440-445: per collected task, its type reference
+    /// resolutions then its module resolutions).
+    resolution_trace: Vec<String>,
+    /// The automatic type directive resolutions, in name order.
+    automatic_type_resolution_indices: Vec<usize>,
+    /// The `--traceResolution` lines of the library replacement lookups by
+    /// the synthetic containing file (tsgo `pathForLibFileResolutions`).
+    library_resolution_traces: BTreeMap<JsString, Vec<String>>,
     /// One resolution per (containing directory, specifier, mode): tsc's
     /// perDirectoryResolutionCache. A module resolution depends on the
     /// containing file only through its directory (and the package scope
@@ -1977,7 +1977,6 @@ struct StagedGraphConfig<'host, 'options, 'resolver> {
     library_directory: Option<ProgramPath>,
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
-    library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
 }
 
 impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
@@ -1990,7 +1989,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             library_directory: config.library_directory,
             limits: config.limits,
             resolver: config.resolver,
-            library_resolver: config.library_resolver,
             resolved_library_paths: BTreeMap::new(),
             source_by_canonical: FxHashMap::default(),
             files_by_name_ignore_case: FxHashMap::default(),
@@ -2018,6 +2016,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             pre_resolved: rustc_hash::FxHashMap::default(),
             pre_resolved_hits: 0,
             pre_resolved_types: BTreeMap::new(),
+            resolution_trace: Vec::new(),
+            automatic_type_resolution_indices: Vec::new(),
+            library_resolution_traces: BTreeMap::new(),
             directory_resolutions: rustc_hash::FxHashMap::default(),
             directory_resolution_hits: 0,
             project_resolvers: BTreeMap::new(),
@@ -3025,6 +3026,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 type_roots.as_deref(),
             )
             .ok()?;
+        let trace = self.resolver.take_trace();
         let target = match &host {
             ResolutionOutcome::Resolved(target)
                 if is_loadable_typescript_extension(target.extension()) =>
@@ -3033,7 +3035,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
             _ => None,
         };
-        self.pre_resolved_types.insert(key.clone(), host);
+        self.pre_resolved_types.insert(key.clone(), (host, trace));
         target
     }
 
@@ -3440,36 +3442,41 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let index = if let Some(index) = self.type_resolution_by_key.get(&key).copied() {
                 index
             } else {
-                let host = match self.pre_resolved_types.remove(&key) {
-                    Some(host) => host,
-                    None => self
-                        .resolver
-                        .resolve_type_reference(
-                            containing_file.display(),
-                            name,
-                            ResolutionMode::Unspecified,
-                            type_roots.as_deref(),
-                        )
-                        .map_err(|error| {
-                            ProgramLoadError::resolution_js(
-                                ProgramLoadOperation::ResolveTypeReference,
-                                Some(containing_file.display().to_owned()),
-                                Some(name.clone()),
-                                error,
+                let (host, trace) = match self.pre_resolved_types.remove(&key) {
+                    Some(resolved) => resolved,
+                    None => {
+                        let host = self
+                            .resolver
+                            .resolve_type_reference(
+                                containing_file.display(),
+                                name,
+                                ResolutionMode::Unspecified,
+                                type_roots.as_deref(),
                             )
-                        })?,
+                            .map_err(|error| {
+                                ProgramLoadError::resolution_js(
+                                    ProgramLoadOperation::ResolveTypeReference,
+                                    Some(containing_file.display().to_owned()),
+                                    Some(name.clone()),
+                                    error,
+                                )
+                            })?;
+                        (host, self.resolver.take_trace())
+                    }
                 };
                 let index = self.type_resolutions.len();
                 self.type_resolutions.push(StagedTypeResolution {
                     key: key.clone(),
                     host,
                     diagnostics: Vec::new(),
+                    trace,
                 });
                 self.type_resolution_by_key.insert(key, index);
                 index
             };
             resolution_indices.push(index);
         }
+        self.automatic_type_resolution_indices = resolution_indices.clone();
 
         // Vendored createProgram resolves the complete batch before it starts
         // processing the first target, then processes names sequentially.
@@ -3826,6 +3833,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             project_reference_redirects: self.project_reference_redirects,
             package_json_probes,
             package_redirect_files,
+            resolution_trace: self.resolution_trace,
         })
     }
 
@@ -4685,6 +4693,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .map(|(key, loads_source)| (key.clone(), loads_source))
                 .collect::<Vec<_>>()
         });
+        let module_request_order = plan
+            .as_ref()
+            .map_or_else(Vec::new, |plan| plan.module_request_order().to_vec());
         let module_request_spans =
             plan.as_ref()
                 .map_or_else(rustc_hash::FxHashMap::default, |plan| {
@@ -4724,6 +4735,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             lib_reference_directives,
             module_requests,
             module_request_spans,
+            module_request_order,
         });
         // The joint bound over admitted sources and retained read-ahead
         // payloads holds after every admission (see prefetch_roots).
@@ -4900,15 +4912,33 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 )
             })?;
             let package_name = replacement_package_name(file_name);
+            // tsgo `resolveLibrary`: the program's resolver, CommonJS mode; its
+            // trace is replayed after every file's (filesparser.go:553-562).
             let resolution = self
-                .library_resolver
-                .as_deref_mut()
-                .expect("libReplacement=true initializes the library resolver")
-                .resolve(
+                .resolver
+                .resolve_with_facts(
                     resolve_from.as_js(),
                     &package_name,
-                    ResolutionMode::Unspecified,
+                    ResolutionMode::CommonJs,
                 )
+                .map(|resolution| {
+                    if self.compiler_options.trace_resolution == Some(true) {
+                        let key = crate::js_path::file_name_key(
+                            resolve_from.as_js(),
+                            self.resolver.path_context().use_case_sensitive_file_names(),
+                        );
+                        self.library_resolution_traces
+                            .entry(key)
+                            .or_insert_with(|| {
+                                resolution
+                                    .trace()
+                                    .iter()
+                                    .map(ResolutionTrace::text)
+                                    .collect()
+                            });
+                    }
+                    resolution.into_outcome()
+                })
                 .map_err(|error| {
                     ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveLibrary,
@@ -5279,30 +5309,34 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for directive in &directives {
             let key = directive.key().clone();
             if !self.type_resolution_by_key.contains_key(&key) {
-                let host = match self.pre_resolved_types.remove(&key) {
-                    Some(host) => host,
-                    None => self
-                        .resolver
-                        .resolve_type_reference(
-                            containing_source.display(),
-                            key.specifier(),
-                            key.mode(),
-                            type_roots.as_deref(),
-                        )
-                        .map_err(|error| {
-                            ProgramLoadError::resolution_js(
-                                ProgramLoadOperation::ResolveTypeReference,
-                                Some(containing_source.display().to_owned()),
-                                Some(key.specifier().to_owned()),
-                                error,
+                let (host, trace) = match self.pre_resolved_types.remove(&key) {
+                    Some(resolved) => resolved,
+                    None => {
+                        let host = self
+                            .resolver
+                            .resolve_type_reference(
+                                containing_source.display(),
+                                key.specifier(),
+                                key.mode(),
+                                type_roots.as_deref(),
                             )
-                        })?,
+                            .map_err(|error| {
+                                ProgramLoadError::resolution_js(
+                                    ProgramLoadOperation::ResolveTypeReference,
+                                    Some(containing_source.display().to_owned()),
+                                    Some(key.specifier().to_owned()),
+                                    error,
+                                )
+                            })?;
+                        (host, self.resolver.take_trace())
+                    }
                 };
                 let index = self.type_resolutions.len();
                 self.type_resolutions.push(StagedTypeResolution {
                     key: key.clone(),
                     host,
                     diagnostics: Vec::new(),
+                    trace,
                 });
                 self.type_resolution_by_key.insert(key, index);
             }
@@ -5734,12 +5768,88 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         for redirect in &mut redirects {
             redirect.2 += library_count;
         }
+        for lines in std::mem::take(&mut self.library_resolution_traces).into_values() {
+            self.resolution_trace.extend(lines);
+        }
         Ok(CollectedFiles { order, redirects })
     }
 
     /// tsgo collectFiles for one task before its subtasks: its include
     /// reason, the alias and casing checks of its spelling, and package
     /// deduplication. Returns the task whose subtasks are walked.
+    /// tsgo filesparser.go:440-445: the `--traceResolution` lines of a
+    /// collected task, its type reference resolutions' then its module
+    /// resolutions', in the order of the file's directives and imports.
+    fn replay_resolution_traces(&mut self, task: usize) {
+        if self.compiler_options.trace_resolution != Some(true) {
+            return;
+        }
+        let mut lines = Vec::new();
+        if matches!(self.tasks[task].origin, TaskOrigin::AutomaticTypes) {
+            for &index in &self.automatic_type_resolution_indices {
+                lines.extend(
+                    self.type_resolutions[index]
+                        .trace
+                        .iter()
+                        .map(ResolutionTrace::text),
+                );
+            }
+        } else if let Some(source) = self.tasks[task].source {
+            for directive in &self.sources[source].type_reference_directives {
+                if let Some(&index) = self.type_resolution_by_key.get(directive.key()) {
+                    lines.extend(
+                        self.type_resolutions[index]
+                            .trace
+                            .iter()
+                            .map(ResolutionTrace::text),
+                    );
+                }
+            }
+            // tsgo resolves every occurrence (fileloader.go `moduleNames`):
+            // the synthetic requests (helpers, the JSX runtime) first, then
+            // the imports in source order, then the module augmentations.
+            let staged = &self.sources[source];
+            let ordered: rustc_hash::FxHashSet<&ResolutionKey> =
+                staged.module_request_order.iter().collect();
+            let synthetic = staged
+                .module_requests
+                .iter()
+                .map(|(key, _)| key)
+                .filter(|key| !ordered.contains(key));
+            let containing_file = staged.prepared.path().display().to_owned();
+            for key in synthetic.chain(staged.module_request_order.iter()) {
+                if let Some(&index) = self.module_resolution_by_key.get(key) {
+                    lines.extend(
+                        self.module_resolutions[index]
+                            .host
+                            .trace()
+                            .iter()
+                            .map(|trace| {
+                                // A resolution shared through the per-directory memo
+                                // was traced from another file of the directory.
+                                if std::ptr::eq(
+                                    trace.message(),
+                                    &tsc_diagnostics::gen::Resolving_module_0_from_1,
+                                ) && trace.args().len() == 2
+                                {
+                                    tsc_diagnostics::format_message(
+                                        trace.message().text,
+                                        &[
+                                            trace.args()[0].as_js().to_string_lossy().into_owned(),
+                                            containing_file.as_js().to_string_lossy().into_owned(),
+                                        ],
+                                    )
+                                } else {
+                                    trace.text()
+                                }
+                            }),
+                    );
+                }
+            }
+        }
+        self.resolution_trace.extend(lines);
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn enter_collected_task(
         &mut self,
@@ -5783,6 +5893,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             return Ok(None);
         }
         seen[data] = Some(spelling.clone());
+        self.replay_resolution_traces(task);
         let source = self.tasks[task].source;
         if let Some(source) = source {
             // The kept spelling is the first collected (tsgo keeps that
@@ -6006,6 +6117,7 @@ fn publish_program(
             .or_insert(probe);
     }
     builder = builder.with_package_json_probes(package_json_probes.into_values().collect());
+    builder = builder.with_resolution_trace(staged.resolution_trace.clone());
     let config_file = program_options.config_file().cloned();
     let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
     let mut auxiliary_paths = HashSet::default();

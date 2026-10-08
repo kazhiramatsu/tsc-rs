@@ -562,6 +562,10 @@ impl NativeProfile {
 
     /// The type baseline of one configuration (`DoTypeAndSymbolBaseline`):
     /// the type at every expression and declaration name.
+    pub fn trace_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.trace.json"))
+    }
+
     pub fn types_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
         self.baseline_path(suite, &format!("{stem}.types"))
     }

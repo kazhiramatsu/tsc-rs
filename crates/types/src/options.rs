@@ -230,6 +230,7 @@ pub struct CompilerOptions {
     /// `--explainFiles`: the command explains why each file is in the
     /// program (tsgo `Program.ExplainFiles`).
     pub explain_files: Option<bool>,
+    pub trace_resolution: Option<bool>,
     /// `--listFilesOnly` (command line only): the files are listed and the
     /// command neither emits nor asks for the global and semantic
     /// diagnostics.

@@ -4640,6 +4640,7 @@ pub(crate) fn bag_compiler_options(
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
         list_files: config_option_bool(options, "listFiles"),
         explain_files: config_option_bool(options, "explainFiles"),
+        trace_resolution: config_option_bool(options, "traceResolution"),
         list_files_only: config_option_bool(options, "listFilesOnly"),
         emit_bom: config_option_bool(options, "emitBOM"),
         no_emit_on_error: config_option_bool(options, "noEmitOnError"),
