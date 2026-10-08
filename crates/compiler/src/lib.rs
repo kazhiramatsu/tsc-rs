@@ -67,10 +67,11 @@ mod build;
 mod cli;
 mod declaration_diagnostics;
 mod incremental;
+pub mod system;
 pub use incremental::BuildInfoDocument;
 pub mod transpile;
 
-pub use cli::{run_cli, CliOutput};
+pub use cli::{execute_command_line, run_cli, CliOutput, TYPESCRIPT_VERSION as CLI_VERSION};
 pub use declaration_diagnostics::DeclarationSession;
 pub use tsc_checker::JSDocParsingMode;
 pub use tsc_emitter::EmitRouteKind;
@@ -128,6 +129,10 @@ pub struct ProgramSession {
     /// diagnostics alone and lists the files (tsgo GetDiagnosticsOfAnyProgram
     /// with ListFilesOnly), without the declaration getter.
     list_files_only: bool,
+    /// The command runs under tsgo's test harness (`CommandLineTesting`):
+    /// versions and signatures carry their text and the emitted files are
+    /// collected for it.
+    testing: bool,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -1271,6 +1276,7 @@ impl ProgramSession {
             old_build_info: None,
             build_mode: false,
             list_files_only: false,
+            testing: false,
         }
     }
 
@@ -1392,6 +1398,13 @@ impl ProgramSession {
         self
     }
 
+    /// The command runs under tsgo's test harness (see the `testing`
+    /// field).
+    pub fn with_testing(mut self, testing: bool) -> Self {
+        self.testing = testing;
+        self
+    }
+
     /// Consume this Program for a declaration-only diagnostic getter.
     /// Compiler options, including noEmit and noCheck, remain unchanged.
     pub fn get_declaration_diagnostics(
@@ -1454,6 +1467,7 @@ impl ProgramSession {
             old_build_info: _,
             build_mode: _,
             list_files_only: _,
+            testing: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1686,6 +1700,7 @@ impl ProgramSession {
             old_build_info: _,
             build_mode: _,
             list_files_only: _,
+            testing: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1812,6 +1827,7 @@ impl ProgramSession {
             old_build_info: _,
             build_mode: _,
             list_files_only: _,
+            testing: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1918,9 +1934,10 @@ impl ProgramSession {
             old_build_info,
             build_mode,
             list_files_only: _,
+            testing,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
-            .with_collected_emitted_files(build_mode);
+            .with_collected_emitted_files(build_mode || testing);
         if forced_declarations {
             tsc_emitter::validate_forced_declaration_request(&emit_host)
                 .map_err(DriverError::Emit)?;
@@ -1959,6 +1976,7 @@ impl ProgramSession {
                 emits: true,
                 options_diagnostics: options_rows,
                 build: build_mode,
+                hash_with_text: testing,
             },
         );
         let mut planner = driver.planner();
@@ -2006,6 +2024,7 @@ impl ProgramSession {
                     &mut *sink,
                     driver.composite_signatures(),
                     build_mode,
+                    testing,
                 );
                 // The units an incremental program re-emits (tsgo
                 // emitFilesIncremental), with the plan they index.
@@ -2125,7 +2144,7 @@ impl ProgramSession {
             .map_err(DriverError::Emit);
         };
         let preflight_diagnostics = preflight.diagnostics().to_vec();
-        let mut recording = incremental::SignatureRecordingSink::new(sink);
+        let mut recording = incremental::SignatureRecordingSink::new(sink, testing);
         emit_files(
             &UnavailableEmitResolver,
             &emit_host,
@@ -2182,10 +2201,11 @@ impl ProgramSession {
             old_build_info,
             build_mode,
             list_files_only: _,
+            testing,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
-            .with_collected_emitted_files(build_mode);
+            .with_collected_emitted_files(build_mode || testing);
         validate_emit_request(&emit_host).map_err(DriverError::Emit)?;
         tsc_types::trace::mark("emit: host and request validation", setup_started);
         let incremental_facts_requested = command_build_info
@@ -2211,6 +2231,7 @@ impl ProgramSession {
                 emits: true,
                 options_diagnostics: options_rows,
                 build: build_mode,
+                hash_with_text: testing,
             },
         );
         let mut planner = driver.planner();
@@ -2218,6 +2239,7 @@ impl ProgramSession {
             sink,
             driver.composite_signatures(),
             build_mode,
+            testing,
         );
         let sink: &mut dyn OutputSink = &mut recording;
         let inputs_started = std::time::Instant::now();
@@ -3185,6 +3207,7 @@ impl ProgramSession {
                 options_diagnostics: !available_options.is_empty()
                     || self.command_options_diagnostics,
                 build: self.build_mode,
+                hash_with_text: self.testing,
             },
         );
         let mut planner = driver.planner();

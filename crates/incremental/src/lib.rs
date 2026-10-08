@@ -23,7 +23,7 @@ pub use build_info::{
     BuildInfo, BuildInfoDiagnostic, BuildInfoRoot, EmitSignatureEntry, FileInfoEntry,
     RepopulateInfo, SemanticDiagnosticEntry, VERSION,
 };
-pub use hash::compute_hash;
+pub use hash::{compute_hash, compute_hash_with_text};
 pub use old_state::{
     is_default_library_name, CachedDiagnostic, EmitSignature, OldFileInfo, OldState, OldStatePaths,
 };
