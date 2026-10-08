@@ -3,16 +3,17 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::js_string_ops::{js_replace_all_stars, js_replace_first_star};
 use crate::json_value::{JsonObject as Map, JsonValue as Value};
-use tsc_diagnostics::{gen, Diagnostic, DiagnosticList, MessageChain};
+use tsc_diagnostics::{gen, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::CompilerHost;
-use tsc_types::{compiler_version_satisfies, js_number_to_string, CompilerOptions};
+use tsc_types::{
+    compiler_version_satisfies, CompilerOptions, TYPESCRIPT_VERSION, TYPESCRIPT_VERSION_MAJOR_MINOR,
+};
 
 use crate::json::{
     decode_user_object_key, json_number_as_f64, json_object_get, json_object_own_get,
-    jsonc_prototype, parse_json_object,
+    parse_json_object,
 };
 use crate::path::ProgramPath;
 use crate::prepared::{
@@ -31,7 +32,6 @@ use crate::text::decode_host_text;
 // fail as a typed resource error before exhausting memory.
 const MIN_PACKAGE_MAP_REWRITE_WORK_BUDGET: usize = 4_096;
 const PACKAGE_MAP_REWRITE_INPUT_MULTIPLIER: usize = 8;
-const MAX_JS_JSON_COERCION_OUTPUT_BUDGET: usize = 64 << 20;
 
 /// Filesystem-derived module facts that have not yet been bound to a program
 /// source id.
@@ -128,6 +128,7 @@ pub struct HostModuleResolution {
     outcome: ResolutionOutcome<HostResolvedModule>,
     alternate_result: Option<ProgramPath>,
     diagnostics: DiagnosticList,
+    trace: Vec<ResolutionTrace>,
 }
 
 impl HostModuleResolution {
@@ -139,11 +140,18 @@ impl HostModuleResolution {
             outcome,
             alternate_result,
             diagnostics: Vec::new(),
+            trace: Vec::new(),
         }
     }
 
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
+    }
+
+    /// The `--traceResolution` lines of this resolution (tsgo's traces of
+    /// `ResolveModuleName`), when the resolver traced.
+    pub fn trace(&self) -> &[ResolutionTrace] {
+        &self.trace
     }
 
     pub fn into_parts(self) -> (ResolutionOutcome<HostResolvedModule>, DiagnosticList) {
@@ -274,6 +282,25 @@ struct CachedPackage {
     /// The peers' package.json files the suffix looked for, with whether
     /// each exists: probed when the identity is attached.
     peer_probes: Vec<(JsString, bool)>,
+    /// tsgo `readPackageJsonPeerDependencies`' observations, traced when the
+    /// package id is computed.
+    peer_dependencies_trace: PeerDependenciesTrace,
+}
+
+#[derive(Clone, Debug, Default)]
+enum PeerDependenciesTrace {
+    /// No `peerDependencies` field.
+    #[default]
+    Absent,
+    /// A field of another type (tsgo `Expected_type_of_0_field…`).
+    Invalid(&'static str),
+    /// The field, its package directory, that directory's real path and
+    /// every peer's package.json with its version when it exists.
+    Present {
+        package_directory: JsString,
+        real_directory: JsString,
+        peers: Vec<(JsString, JsString, Option<JsString>)>,
+    },
 }
 
 /// What a package's `peerDependencies` contribute to its identity: the
@@ -283,11 +310,12 @@ struct CachedPackage {
 struct PeerDependencyLookup {
     suffix: Option<JsString>,
     probes: Vec<(JsString, bool)>,
+    trace: PeerDependenciesTrace,
 }
 
 #[derive(Clone, Debug)]
 enum PackageCacheEntry {
-    Missing,
+    Missing { directory_exists: bool },
     Found(Arc<CachedPackage>),
 }
 
@@ -345,6 +373,8 @@ struct SelectedPackageMapTarget<'a> {
     target: &'a Value,
     subpath: JsString,
     pattern: bool,
+    /// The table key the specifier matched (tsgo's `key` of the trace).
+    key: JsString,
 }
 
 enum ImportsTargetState {
@@ -353,6 +383,10 @@ enum ImportsTargetState {
         target: Value,
         subpath: JsString,
         pattern: bool,
+        /// The specifier resolved in the scope and the table key it matched
+        /// (tsgo's trace arguments).
+        specifier: JsString,
+        key: JsString,
     },
     Bare {
         containing_directory: JsString,
@@ -364,9 +398,18 @@ enum ImportsTargetState {
 enum ImportsTargetFrame {
     Sequence {
         package: Arc<CachedPackage>,
-        remaining: std::vec::IntoIter<Value>,
+        /// The entries left, each with its condition name for a conditions
+        /// object (none for an array).
+        remaining: std::vec::IntoIter<(Option<JsString>, Value)>,
+        /// Whether the entries are a conditions object (tsgo traces its
+        /// entering and exiting).
+        conditions: bool,
+        /// The condition whose target is being resolved.
+        current: Option<JsString>,
         subpath: JsString,
         pattern: bool,
+        specifier: JsString,
+        key: JsString,
     },
     BareAfterPackageMap {
         containing_directory: JsString,
@@ -522,7 +565,6 @@ struct TypesVersionsResolutionContext<'a> {
     base_directory: JsStr<'a>,
     loader: TypesVersionsLoader,
     attach_exact_package_id: bool,
-    only_record_failures: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -534,6 +576,21 @@ enum TypesVersionsLoader {
 struct SpecificPackageResolution {
     outcome: ResolutionOutcome<HostResolvedModule>,
     root_package_observed: bool,
+    /// tsgo `!resolved.shouldContinueSearching()`: the lookup ends with this
+    /// outcome even when it is no result (an `exports` target mapped to
+    /// `null` is `unresolved()`, not `continueSearching()`).
+    terminal: bool,
+}
+
+impl SpecificPackageResolution {
+    fn of(outcome: ResolutionOutcome<HostResolvedModule>, root_package_observed: bool) -> Self {
+        let terminal = matches!(outcome, ResolutionOutcome::Resolved(_));
+        Self {
+            outcome,
+            root_package_observed,
+            terminal,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -551,6 +608,50 @@ enum OptionalResolutionLoader {
 /// One Node request owns its diagnostic reporter. A diagnostic retry never
 /// appends to the caller; a bare imports target resolves within the
 /// caller's request, as tsgo's nested resolveNodeLike shares its state.
+/// One line of `--traceResolution` output (tsgo module/resolver.go
+/// `DiagAndArgs`): the diagnostic message and its arguments.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolutionTrace {
+    message: &'static DiagnosticMessage,
+    args: Vec<JsString>,
+}
+
+impl ResolutionTrace {
+    pub fn message(&self) -> &'static DiagnosticMessage {
+        self.message
+    }
+
+    pub fn args(&self) -> &[JsString] {
+        &self.args
+    }
+
+    /// The English line (tsgo `Message.Localize`).
+    pub fn text(&self) -> String {
+        let args: Vec<String> = self
+            .args
+            .iter()
+            .map(|argument| argument.as_js().to_string_lossy().into_owned())
+            .collect();
+        tsc_diagnostics::format_message(self.message.text, &args)
+    }
+}
+
+/// `trace!(self, gen::Message, argument, ...)`: records a trace line when the
+/// resolver traces (tsgo `tracer.write`); the arguments are not evaluated
+/// otherwise.
+macro_rules! trace {
+    ($resolver:expr, $message:expr $(, $argument:expr)* $(,)?) => {
+        if let Some(trace) = $resolver.trace.as_ref() {
+            if $resolver.trace_suppressed.get() == 0 {
+                trace.borrow_mut().push(ResolutionTrace {
+                    message: &$message,
+                    args: vec![$(JsString::from($argument)),*],
+                });
+            }
+        }
+    };
+}
+
 struct InputResolutionRequest {
     report_diagnostics: bool,
     diagnostics: DiagnosticList,
@@ -593,6 +694,12 @@ pub struct ModuleResolver<'a> {
     /// `paths` substitution's own extension came from the configuration, so
     /// the resolution does not count as one using a TS extension.
     candidate_ending_is_from_config: bool,
+    /// The `--traceResolution` lines of the current request (tsgo
+    /// `tracer`), when the options ask for them.
+    trace: Option<std::cell::RefCell<Vec<ResolutionTrace>>>,
+    /// Suppresses the trace while a probe runs ahead of the point tsgo
+    /// traces it (the peer dependency lookups of a package.json).
+    trace_suppressed: std::cell::Cell<u32>,
 }
 
 impl<'a> ModuleResolver<'a> {
@@ -700,6 +807,9 @@ impl<'a> ModuleResolver<'a> {
             input_requests: Vec::new(),
             config_file_path: config_file_path.cloned(),
             candidate_ending_is_from_config: false,
+            trace: (options.trace_resolution == Some(true))
+                .then(|| std::cell::RefCell::new(Vec::new())),
+            trace_suppressed: std::cell::Cell::new(0),
         })
     }
 
@@ -740,6 +850,9 @@ impl<'a> ModuleResolver<'a> {
             input_requests: Vec::new(),
             config_file_path: None,
             candidate_ending_is_from_config: false,
+            trace: (options.trace_resolution == Some(true))
+                .then(|| std::cell::RefCell::new(Vec::new())),
+            trace_suppressed: std::cell::Cell::new(0),
         })
     }
 
@@ -770,11 +883,9 @@ impl<'a> ModuleResolver<'a> {
             .as_deref()
             .filter(|suffixes| !suffixes.is_empty())
         else {
-            return self
-                .host
-                .file_exists_js(file_name)
-                .map(|exists| exists.then_some(ProbedFile::Borrowed(file_name)))
-                .map_err(Into::into);
+            let exists = self.host.file_exists_js(file_name)?;
+            self.trace_file_lookup(file_name, exists);
+            return Ok(exists.then_some(ProbedFile::Borrowed(file_name)));
         };
 
         let extension = module_suffix_extension(file_name);
@@ -785,7 +896,9 @@ impl<'a> ModuleResolver<'a> {
         for suffix in suffixes {
             let suffix = suffix.runtime_text();
             if suffix.is_empty() {
-                if self.host.file_exists_js(file_name)? {
+                let exists = self.host.file_exists_js(file_name)?;
+                self.trace_file_lookup(file_name, exists);
+                if exists {
                     return Ok(Some(ProbedFile::Borrowed(file_name)));
                 }
                 continue;
@@ -811,7 +924,9 @@ impl<'a> ModuleResolver<'a> {
             candidate.push_js(file_name_without_extension);
             candidate.push_js(suffix);
             candidate.push_str(extension);
-            if self.host.file_exists_js(JsStr::from(&candidate))? {
+            let exists = self.host.file_exists_js(JsStr::from(&candidate))?;
+            self.trace_file_lookup(candidate.as_js(), exists);
+            if exists {
                 return Ok(Some(ProbedFile::Owned(candidate)));
             }
         }
@@ -820,9 +935,352 @@ impl<'a> ModuleResolver<'a> {
 
     /// Every successfully decoded package manifest observed by this resolver,
     /// in canonical-path order and without duplicates.
+    /// Whether the resolver records `--traceResolution` lines.
+    pub fn tracing(&self) -> bool {
+        self.trace.is_some()
+    }
+
+    /// The trace lines recorded since the previous call: the lines of the
+    /// resolutions in between, in order.
+    pub fn take_trace(&mut self) -> Vec<ResolutionTrace> {
+        self.trace
+            .as_ref()
+            .map(|trace| std::mem::take(&mut *trace.borrow_mut()))
+            .unwrap_or_default()
+    }
+
+    fn trace_module_resolution_kind(&self) {
+        if self.trace.is_none() {
+            return;
+        }
+        let kind = module_resolution_kind_name(self.options.emit_module_resolution_kind());
+        if self.options.module_resolution.is_some() {
+            trace!(
+                self,
+                gen::Explicitly_specified_module_resolution_kind_0,
+                kind
+            );
+        } else {
+            trace!(
+                self,
+                gen::Module_resolution_kind_is_not_specified_using_0,
+                kind
+            );
+        }
+    }
+
+    fn trace_module_resolution_result(&self, specifier: JsStr<'_>, result: &HostModuleResolution) {
+        if self.trace.is_none() {
+            return;
+        }
+        match result.outcome() {
+            ResolutionOutcome::Resolved(module) => match module.package_id() {
+                Some(package_id) => trace!(
+                    self,
+                    gen::Module_name_0_was_successfully_resolved_to_1_with_Package_ID_2,
+                    specifier,
+                    module.resolved_file().display(),
+                    package_id.display_text()
+                ),
+                None => trace!(
+                    self,
+                    gen::Module_name_0_was_successfully_resolved_to_1,
+                    specifier,
+                    module.resolved_file().display()
+                ),
+            },
+            ResolutionOutcome::NotFound => {
+                trace!(self, gen::Module_name_0_was_not_resolved, specifier);
+            }
+        }
+    }
+
+    fn trace_type_reference_result(
+        &self,
+        specifier: JsStr<'_>,
+        outcome: &ResolutionOutcome<HostResolvedTypeReferenceDirective>,
+    ) {
+        if self.trace.is_none() {
+            return;
+        }
+        match outcome {
+            ResolutionOutcome::Resolved(directive) => {
+                let primary = if directive.primary { "true" } else { "false" };
+                match directive.package_id() {
+                    Some(package_id) => trace!(
+                        self,
+                        gen::Type_reference_directive_0_was_successfully_resolved_to_1_with_Package_ID_2_primary_3,
+                        specifier,
+                        directive.resolved_file().display(),
+                        package_id.display_text(),
+                        primary
+                    ),
+                    None => trace!(
+                        self,
+                        gen::Type_reference_directive_0_was_successfully_resolved_to_1_primary_2,
+                        specifier,
+                        directive.resolved_file().display(),
+                        primary
+                    ),
+                }
+            }
+            ResolutionOutcome::NotFound => {
+                trace!(
+                    self,
+                    gen::Type_reference_directive_0_was_not_resolved,
+                    specifier
+                );
+            }
+        }
+    }
+
+    /// tsgo `resolveNodeLike`'s first line: the mode and the conditions
+    /// (`GetConditions`).
+    fn trace_resolution_mode(&self, mode: ResolutionMode) {
+        if self.trace.is_none() {
+            return;
+        }
+        let kind = self.options.emit_module_resolution_kind();
+        let esm_mode = matches!(kind, 3 | 99) && mode == ResolutionMode::EsNext;
+        let conditions = self
+            .resolution_conditions(mode)
+            .iter()
+            .map(|condition| format!("'{condition}'"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        trace!(
+            self,
+            gen::Resolving_in_0_mode_with_conditions_1,
+            if esm_mode { "ESM" } else { "CJS" },
+            conditions.as_str()
+        );
+    }
+
+    /// tsgo `GetConditions`.
+    fn resolution_conditions(&self, mode: ResolutionMode) -> Vec<String> {
+        let kind = self.options.emit_module_resolution_kind();
+        let mode = if mode == ResolutionMode::Unspecified && kind == 100 {
+            ResolutionMode::EsNext
+        } else {
+            mode
+        };
+        let mut conditions = vec![if mode == ResolutionMode::EsNext {
+            "import".to_owned()
+        } else {
+            "require".to_owned()
+        }];
+        if self.options.no_dts_resolution != Some(true) {
+            conditions.push("types".to_owned());
+        }
+        if kind != 100 {
+            conditions.push("node".to_owned());
+        }
+        if let Some(custom) = self.options.custom_conditions.as_ref() {
+            conditions.extend(
+                custom
+                    .iter()
+                    .map(|condition| condition.as_js().to_string_lossy().into_owned()),
+            );
+        }
+        conditions
+    }
+
+    /// tsgo `extensions.String()` of the pass.
+    fn extensions_text(&self, pass: ExtensionProbePass) -> String {
+        let json = self.options.resolve_json_module_effective();
+        let mut parts: Vec<&str> = Vec::new();
+        match self.effective_module_probe_pass(pass) {
+            ExtensionProbePass::All => {
+                parts.extend(["TypeScript", "JavaScript", "Declaration"]);
+                if json {
+                    parts.push("JSON");
+                }
+            }
+            ExtensionProbePass::Preferred => parts.extend(["TypeScript", "Declaration"]),
+            ExtensionProbePass::Fallback | ExtensionProbePass::ImplementationFallback => {
+                parts.push("JavaScript");
+                if json {
+                    parts.push("JSON");
+                }
+            }
+            ExtensionProbePass::Implementation => {
+                parts.extend(["TypeScript", "JavaScript"]);
+                if json {
+                    parts.push("JSON");
+                }
+            }
+            ExtensionProbePass::ImplementationPreferred => parts.push("TypeScript"),
+            ExtensionProbePass::Declaration => parts.push("Declaration"),
+            ExtensionProbePass::JsonConfig | ExtensionProbePass::JsonModule => parts.push("JSON"),
+            ExtensionProbePass::Empty => {}
+        }
+        parts.join(", ")
+    }
+
+    /// "Searching all ancestor node_modules directories for ..." for one
+    /// pass of a node_modules walk.
+    fn trace_node_modules_pass(&self, pass: ExtensionProbePass) {
+        if self.trace.is_none() {
+            return;
+        }
+        let text = self.extensions_text(pass);
+        match self.effective_module_probe_pass(pass) {
+            ExtensionProbePass::Fallback | ExtensionProbePass::ImplementationFallback => trace!(
+                self,
+                gen::Searching_all_ancestor_node_modules_directories_for_fallback_extensions_0,
+                text.as_str()
+            ),
+            _ => trace!(
+                self,
+                gen::Searching_all_ancestor_node_modules_directories_for_preferred_extensions_0,
+                text.as_str()
+            ),
+        }
+    }
+
+    fn trace_file_lookup(&self, file_name: JsStr<'_>, exists: bool) {
+        if exists {
+            trace!(
+                self,
+                gen::File_0_exists_use_it_as_a_name_resolution_result,
+                file_name
+            );
+        } else {
+            trace!(self, gen::File_0_does_not_exist, file_name);
+        }
+    }
+
+    /// tsgo `mangleScopedPackageName`'s trace for a scoped name.
+    fn trace_scoped_package(&self, specifier: JsStr<'_>) {
+        if self.trace.is_none() || !specifier.starts_with("@") {
+            return;
+        }
+        let mangled = mangle_scoped_package_name(specifier);
+        if mangled.as_js() != specifier {
+            trace!(
+                self,
+                gen::Scoped_package_detected_looking_in_0,
+                mangled.as_js()
+            );
+        }
+    }
+
+    fn trace_scoped_package_request(&self, request: &PackageRequest<'_>) {
+        if self.trace.is_none() {
+            return;
+        }
+        let mut specifier = request.package_name.to_owned();
+        if let Some(rest) = request.exports_subpath.as_js().strip_prefix(".") {
+            specifier.push_js(rest);
+        }
+        if request.trailing_separator && !specifier.ends_with("/") {
+            specifier.push('/');
+        }
+        self.trace_scoped_package(specifier.as_js());
+    }
+
+    /// tsgo `GetVersionPaths`' traces, replayed on every lookup.
+    fn trace_types_versions_field(&self, package: &CachedPackage) {
+        if self.trace.is_none() {
+            return;
+        }
+        let Some(types_versions) = package.types_versions.as_ref() else {
+            trace!(
+                self,
+                gen::package_json_does_not_have_a_0_field,
+                "typesVersions"
+            );
+            return;
+        };
+        let Value::Object(table) = types_versions else {
+            trace!(
+                self,
+                gen::Expected_type_of_0_field_in_package_json_to_be_1_got_2,
+                "typesVersions",
+                "object",
+                json_value_type_name(types_versions)
+            );
+            return;
+        };
+        trace!(
+            self,
+            gen::package_json_has_a_typesVersions_field_with_version_specific_path_mappings,
+            "typesVersions"
+        );
+        for (range, paths) in json_object_entries_in_order(table) {
+            let Some(satisfies) = range.as_str().and_then(compiler_version_satisfies) else {
+                trace!(
+                    self,
+                    gen::package_json_has_a_typesVersions_entry_0_that_is_not_a_valid_semver_range,
+                    range
+                );
+                continue;
+            };
+            if !satisfies {
+                continue;
+            }
+            if !matches!(paths, Value::Object(_)) {
+                let field = format!("typesVersions['{}']", range.to_string_lossy());
+                trace!(
+                    self,
+                    gen::Expected_type_of_0_field_in_package_json_to_be_1_got_2,
+                    field.as_str(),
+                    "object",
+                    json_value_type_name(paths)
+                );
+            }
+            return;
+        }
+        trace!(
+            self,
+            gen::package_json_does_not_have_a_typesVersions_entry_that_matches_version_0,
+            TYPESCRIPT_VERSION_MAJOR_MINOR
+        );
+    }
+
+    /// tsgo `getPackageFile`'s traces: the package.json fields the pass tries,
+    /// in order, until one is present.
+    fn trace_package_entry_field(&self, package: &CachedPackage, pass: ExtensionProbePass) {
+        if self.trace.is_none() {
+            return;
+        }
+        let fields: Vec<(&str, &Option<JsString>)> = match self.effective_module_probe_pass(pass) {
+            ExtensionProbePass::JsonConfig => vec![("tsconfig", &package.tsconfig)],
+            ExtensionProbePass::All
+            | ExtensionProbePass::Preferred
+            | ExtensionProbePass::Declaration => vec![
+                ("typings", &package.typings),
+                ("types", &package.types),
+                ("main", &package.main),
+            ],
+            ExtensionProbePass::Implementation
+            | ExtensionProbePass::ImplementationPreferred
+            | ExtensionProbePass::ImplementationFallback
+            | ExtensionProbePass::Fallback => vec![("main", &package.main)],
+            ExtensionProbePass::JsonModule | ExtensionProbePass::Empty => Vec::new(),
+        };
+        for (name, value) in fields {
+            match value {
+                Some(value) => {
+                    let path = normalize_legacy_package_target(package, value.as_js())
+                        .unwrap_or_else(|_| value.clone());
+                    trace!(
+                        self,
+                        gen::package_json_has_0_field_1_that_references_2,
+                        name,
+                        value.as_js(),
+                        path.as_js()
+                    );
+                    return;
+                }
+                None => trace!(self, gen::package_json_does_not_have_a_0_field, name),
+            }
+        }
+    }
+
     pub fn observed_package_metadata(&self) -> impl Iterator<Item = &PackageMetadata> {
         self.package_cache.values().filter_map(|entry| match entry {
-            PackageCacheEntry::Missing => None,
+            PackageCacheEntry::Missing { .. } => None,
             PackageCacheEntry::Found(package) => Some(package.metadata.as_ref()),
         })
     }
@@ -958,6 +1416,11 @@ impl<'a> ModuleResolver<'a> {
             }
             let node_modules = join_normalized(&ancestor, "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    node_modules.as_js()
+                );
                 continue;
             }
             let package_root = package_root_for_request(&node_modules, &request);
@@ -995,6 +1458,14 @@ impl<'a> ModuleResolver<'a> {
         let containing_file =
             normalize_absolute_js_path(containing_file, Some(self.current_directory_text()), true)?;
         let containing_directory = js_directory_name(&containing_file);
+        let _ = self.take_trace();
+        trace!(
+            self,
+            gen::Resolving_module_0_from_1,
+            specifier,
+            containing_file.as_js()
+        );
+        self.trace_module_resolution_kind();
         let (mut result, diagnostics) = self.with_input_request(true, |resolver| {
             resolver.resolve_module_request(
                 &containing_file,
@@ -1004,6 +1475,8 @@ impl<'a> ModuleResolver<'a> {
             )
         })?;
         result.diagnostics = diagnostics;
+        self.trace_module_resolution_result(specifier, &result);
+        result.trace = self.take_trace();
         Ok(result)
     }
 
@@ -1041,6 +1514,7 @@ impl<'a> ModuleResolver<'a> {
             2 => return self.resolve_node10(containing_file, specifier, mode),
             _ => {}
         }
+        self.trace_resolution_mode(mode);
         if is_relative_specifier(specifier) {
             return self
                 .resolve_relative(containing_file, specifier, mode)
@@ -1080,6 +1554,13 @@ impl<'a> ModuleResolver<'a> {
             .is_some_and(|paths| !paths.entries().is_empty());
         let path_relative = is_path_relative_specifier(specifier);
         let external_relative = is_relative_specifier(specifier);
+        if has_paths && !path_relative {
+            trace!(
+                self,
+                gen::paths_option_is_specified_looking_for_a_pattern_to_match_module_name_0,
+                specifier
+            );
+        }
         if path_relative {
             return self.resolve_using_root_dirs(
                 containing_directory,
@@ -1115,6 +1596,21 @@ impl<'a> ModuleResolver<'a> {
         }
 
         if let Some((mapping_index, capture)) = matching_paths {
+            if self.trace.is_some() {
+                let pattern = self
+                    .paths
+                    .as_deref()
+                    .expect("a matching paths index has a shared mapping owner")
+                    .entries()[mapping_index]
+                    .pattern()
+                    .to_owned();
+                trace!(
+                    self,
+                    gen::Module_name_0_matched_pattern_1,
+                    specifier,
+                    pattern.as_js()
+                );
+            }
             let substitution_count = self
                 .paths
                 .as_deref()
@@ -1137,16 +1633,20 @@ impl<'a> ModuleResolver<'a> {
                     // matching_paths reports JavaScript code-unit offsets.
                     // A capture can even split a canonical surrogate pair;
                     // it cannot be used as a Rust str byte range.
-                    let expanded = match capture.as_ref() {
-                        Some(capture) if !capture.is_empty() => {
-                            let captured = specifier.substring(capture.start, capture.end);
-                            Some(js_replace_first_star(substitution, &captured)?)
-                        }
-                        None | Some(_) => None,
-                    };
-                    let expanded = expanded
-                        .as_ref()
-                        .map_or(substitution.as_js(), JsString::as_js);
+                    // tsgo tryLoadModuleUsingPaths: strings.Replace(subst, "*",
+                    // matchedStar, 1), literal and also for an exact match
+                    // (the matched text is then empty).
+                    let captured = capture.as_ref().map_or_else(JsString::new, |capture| {
+                        specifier.substring(capture.start, capture.end)
+                    });
+                    let expanded = replace_first_star(substitution.as_js(), captured.as_js());
+                    let expanded = expanded.as_js();
+                    trace!(
+                        self,
+                        gen::Trying_substitution_0_candidate_module_location_1,
+                        substitution.as_js(),
+                        expanded
+                    );
                     let base_directory = self
                         .paths_base_directory
                         .as_deref()
@@ -1184,9 +1684,10 @@ impl<'a> ModuleResolver<'a> {
                 // before invoking either loader. Node's loader and the
                 // extension-adder then observe the same parent again; those
                 // repeated host calls are intentionally observable.
-                if !self
-                    .host
-                    .directory_exists_js(JsStr::from(&js_directory_name(&candidate)))?
+                if self.trace.is_none()
+                    && !self
+                        .host
+                        .directory_exists_js(JsStr::from(&js_directory_name(&candidate)))?
                 {
                     continue;
                 }
@@ -1269,6 +1770,11 @@ impl<'a> ModuleResolver<'a> {
             else {
                 return Ok(ResolutionOutcome::NotFound);
             };
+            trace!(
+                self,
+                gen::rootDirs_option_is_set_using_it_to_resolve_relative_module_name_0,
+                specifier
+            );
 
             let mut matched: Option<(usize, JsString)> = None;
             for (index, root_dir) in root_dirs.iter().enumerate() {
@@ -1276,23 +1782,41 @@ impl<'a> ModuleResolver<'a> {
                 if !prefix.ends_with("/") {
                     prefix.push('/');
                 }
-                if candidate.as_js().starts_with_js(prefix.as_js())
+                let is_longest = candidate.as_js().starts_with_js(prefix.as_js())
                     && matched
                         .as_ref()
-                        .is_none_or(|(_, current)| current.len_units() < prefix.len_units())
-                {
+                        .is_none_or(|(_, current)| current.len_units() < prefix.len_units());
+                trace!(
+                    self,
+                    gen::Checking_if_0_is_the_longest_matching_prefix_for_1_2,
+                    prefix.as_js(),
+                    candidate.as_js(),
+                    if is_longest { "true" } else { "false" }
+                );
+                if is_longest {
                     matched = Some((index, prefix));
                 }
             }
             let Some((matched_index, matched_prefix)) = matched else {
                 return Ok(ResolutionOutcome::NotFound);
             };
+            trace!(
+                self,
+                gen::Longest_matching_prefix_for_0_is_1,
+                candidate.as_js(),
+                matched_prefix.as_js()
+            );
             let suffix = candidate
                 .as_js()
                 .substring(matched_prefix.len_units(), candidate.len_units());
             let matched_root = &root_dirs[matched_index];
             let mut candidates = Vec::with_capacity(root_dirs.len());
-            candidates.push((candidate, containing_directory.to_owned()));
+            candidates.push((
+                candidate,
+                containing_directory.to_owned(),
+                matched_prefix.clone(),
+                suffix.to_owned(),
+            ));
             for root_dir in root_dirs {
                 // Upstream compares rootDir strings, so equal duplicate roots
                 // are all skipped after the first longest-prefix match.
@@ -1308,18 +1832,36 @@ impl<'a> ModuleResolver<'a> {
                     &suffix,
                 );
                 let base_directory = js_directory_name(&candidate);
-                candidates.push((candidate, base_directory));
+                candidates.push((
+                    candidate,
+                    base_directory,
+                    root_dir.clone(),
+                    suffix.to_owned(),
+                ));
             }
             candidates
         };
 
-        for (candidate, preflight_directory) in candidates {
+        for (index, (candidate, preflight_directory, root, suffix)) in
+            candidates.into_iter().enumerate()
+        {
+            if index == 1 {
+                trace!(self, gen::Trying_other_entries_in_rootDirs);
+            }
+            trace!(
+                self,
+                gen::Loading_0_from_the_root_dir_1_candidate_location_2,
+                suffix.as_js(),
+                root.as_js(),
+                candidate.as_js()
+            );
             // Upstream converts a missing preflight directory into
             // `onlyRecordFailures`, which suppresses every loader host query
             // for this candidate. Host failures remain observable.
-            if !self
-                .host
-                .directory_exists_js(JsStr::from(&preflight_directory))?
+            if self.trace.is_none()
+                && !self
+                    .host
+                    .directory_exists_js(JsStr::from(&preflight_directory))?
             {
                 continue;
             }
@@ -1335,6 +1877,7 @@ impl<'a> ModuleResolver<'a> {
                 return Ok(outcome);
             }
         }
+        trace!(self, gen::Module_resolution_using_rootDirs_has_failed);
         Ok(ResolutionOutcome::NotFound)
     }
 
@@ -1426,14 +1969,23 @@ impl<'a> ModuleResolver<'a> {
                 && is_typescript_family_specifier(candidate),
             follow_realpath: false,
         };
+        trace!(
+            self,
+            gen::Loading_module_as_file_folder_candidate_module_location_0_target_file_types_1,
+            candidate,
+            self.extensions_text(probe_pass).as_str()
+        );
         if !candidate.ends_with("/") {
             // nodeLoadModuleByRelativeName turns a missing parent into
             // `onlyRecordFailures` before its file loader runs. That also
             // suppresses the later candidate-directory/package probes.
-            if !self
-                .host
-                .directory_exists_js(JsStr::from(&js_directory_name(candidate)))?
-            {
+            let parent = js_directory_name(candidate);
+            if !self.host.directory_exists_js(JsStr::from(&parent))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    parent.as_js()
+                );
                 return Ok(ResolutionOutcome::NotFound);
             }
             let outcome =
@@ -1448,7 +2000,15 @@ impl<'a> ModuleResolver<'a> {
             }
         }
         let candidate_exists = self.host.directory_exists_js(candidate)?;
-        if !allow_implicit || !candidate_exists {
+        if !candidate_exists {
+            trace!(
+                self,
+                gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                candidate
+            );
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if !allow_implicit {
             return Ok(ResolutionOutcome::NotFound);
         }
 
@@ -1460,7 +2020,7 @@ impl<'a> ModuleResolver<'a> {
                 probe_pass,
                 mode,
                 LegacyResolutionContext {
-                    attach_package_id: true,
+                    attach_package_id: false,
                     resolved_using_ts_extension: false,
                     follow_realpath: false,
                     ..context
@@ -1891,6 +2451,11 @@ impl<'a> ModuleResolver<'a> {
                 }
                 let node_modules = join_normalized(&ancestor, "node_modules");
                 if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                    trace!(
+                        self,
+                        gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                        node_modules.as_js()
+                    );
                     continue;
                 }
                 let package_root = package_root_for_request(&node_modules, request);
@@ -1927,7 +2492,7 @@ impl<'a> ModuleResolver<'a> {
                                 /* follow_realpath */ false,
                             )?;
                             resolved_package_directory |= specific.root_package_observed;
-                            if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                            if specific.terminal {
                                 return Ok((specific.outcome, resolved_package_directory));
                             }
                         }
@@ -1972,6 +2537,11 @@ impl<'a> ModuleResolver<'a> {
             }
             let node_modules = join_normalized(&ancestor, "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    node_modules.as_js()
+                );
                 continue;
             }
             let (outcome, _) = self.resolve_legacy_at_types_from_node_modules(
@@ -2097,6 +2667,11 @@ impl<'a> ModuleResolver<'a> {
             }
             let node_modules = join_normalized(&ancestor, "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    node_modules.as_js()
+                );
                 continue;
             }
             let package_root = package_root_for_request(&node_modules, request);
@@ -2185,6 +2760,20 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<ResolutionOutcome<HostResolvedTypeReferenceDirective>, ResolutionError> {
         let containing_file = containing_file.into();
         let specifier = specifier.into();
+        let _ = self.take_trace();
+        let outcome =
+            self.resolve_type_reference_worker(containing_file, specifier, mode, type_roots)?;
+        self.trace_type_reference_result(specifier, &outcome);
+        Ok(outcome)
+    }
+
+    fn resolve_type_reference_worker(
+        &mut self,
+        containing_file: JsStr<'_>,
+        specifier: JsStr<'_>,
+        mode: ResolutionMode,
+        type_roots: Option<&[ProgramPath]>,
+    ) -> Result<ResolutionOutcome<HostResolvedTypeReferenceDirective>, ResolutionError> {
         self.validate_supported_type_reference_configuration(mode)?;
 
         let current_directory = self.current_directory_text().to_owned();
@@ -2195,6 +2784,31 @@ impl<'a> ModuleResolver<'a> {
         )?;
         let custom_type_roots = type_roots.is_some();
         let effective_type_roots = self.effective_type_roots(type_roots)?;
+        if self.trace.is_some() {
+            let roots: Vec<String> = effective_type_roots
+                .iter()
+                .map(|root| root.as_js().to_string_lossy().into_owned())
+                .collect();
+            trace!(
+                self,
+                gen::Resolving_type_reference_directive_0_containing_file_1_root_directory_2,
+                specifier,
+                containing_file.as_js(),
+                roots.join(",").as_str()
+            );
+            if roots.is_empty() {
+                trace!(
+                    self,
+                    gen::Root_directory_cannot_be_determined_skipping_primary_search_paths
+                );
+            } else {
+                trace!(
+                    self,
+                    gen::Resolving_with_primary_search_path_0,
+                    roots.join(", ").as_str()
+                );
+            }
+        }
 
         for type_root in effective_type_roots {
             let outcome = self.resolve_type_reference_from_root(
@@ -2216,8 +2830,17 @@ impl<'a> ModuleResolver<'a> {
         // automatic names. Explicit custom roots make that primary search
         // authoritative and suppress the ordinary node_modules fallback.
         if custom_type_roots && base_name(&containing_file) == "__inferred type names__.ts" {
+            trace!(
+                self,
+                gen::Resolving_type_reference_directive_for_program_that_specifies_custom_typeRoots_skipping_lookup_in_node_modules_folder
+            );
             return Ok(ResolutionOutcome::NotFound);
         }
+        trace!(
+            self,
+            gen::Looking_up_in_node_modules_folder_initial_location_0,
+            js_directory_name(&containing_file).as_js()
+        );
 
         let outcome = if is_relative_specifier(specifier) {
             self.resolve_relative_type_reference(&containing_file, specifier, mode)?
@@ -2225,12 +2848,22 @@ impl<'a> ModuleResolver<'a> {
             let Ok(request) = parse_package_request(specifier) else {
                 return Ok(ResolutionOutcome::NotFound);
             };
-            self.resolve_type_reference_from_node_modules(
+            let outcome = self.resolve_type_reference_from_node_modules(
                 &js_directory_name(&containing_file),
                 &request,
                 mode,
                 self.type_reference_uses_package_exports(mode),
-            )?
+            )?;
+            // tsgo createResolvedTypeReferenceDirective: the real path
+            // follows the whole node_modules lookup, after the package id
+            // and its peerDependencies traces.
+            match outcome {
+                ResolutionOutcome::Resolved(mut module) => {
+                    self.follow_module_realpath(&mut module)?;
+                    ResolutionOutcome::Resolved(module)
+                }
+                ResolutionOutcome::NotFound => ResolutionOutcome::NotFound,
+            }
         };
         Ok(match outcome {
             ResolutionOutcome::Resolved(mut module) => {
@@ -2268,15 +2901,50 @@ impl<'a> ModuleResolver<'a> {
             return Ok(ResolutionOutcome::NotFound);
         }
         self.active_resolutions.push(active);
-        let result = self.resolve_non_relative_inner(&containing_directory, specifier, mode);
+        let result =
+            self.resolve_non_relative_with_alternate(&containing_directory, specifier, mode);
         self.active_resolutions.pop();
-        let mut outcome = result?;
+        result
+    }
+
+    /// tsgo resolveNodeLike: the worker's result is completed
+    /// (createResolvedModuleHandlingSymlink) before the diagnostic retry
+    /// looks for an alternate.
+    fn resolve_non_relative_with_alternate<'j0, 'j1>(
+        &mut self,
+        containing_directory: impl Into<JsStr<'j0>>,
+        specifier: impl Into<JsStr<'j1>>,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let containing_directory = containing_directory.into();
+        let specifier = specifier.into();
+        let (mut outcome, resolved_package_directory) =
+            self.resolve_non_relative_inner(containing_directory, specifier, mode)?;
         if let ResolutionOutcome::Resolved(module) = &mut outcome {
-            if module.is_external_library_import() {
-                self.follow_module_realpath(module)?;
-            }
+            self.complete_node_like_module(module)?;
         }
-        Ok(outcome)
+        self.attach_modern_alternate(
+            containing_directory,
+            specifier,
+            mode,
+            resolved_package_directory,
+            outcome,
+        )
+    }
+
+    /// tsgo createResolvedModuleHandlingSymlink: a non-relative result is
+    /// external when its path contains `node_modules`, and an external result
+    /// without a recorded original path is replaced by its real path.
+    fn complete_node_like_module(
+        &self,
+        module: &mut HostResolvedModule,
+    ) -> Result<(), ResolutionError> {
+        module.is_external_library_import =
+            path_contains_node_modules(module.resolved_file.display());
+        if module.is_external_library_import && module.original_path.is_none() {
+            self.follow_module_realpath(module)?;
+        }
+        Ok(())
     }
 
     fn resolve_bare_import_target<'j0>(
@@ -2352,6 +3020,7 @@ impl<'a> ModuleResolver<'a> {
                     containing_directory,
                     specifier,
                 } => {
+                    self.trace_resolution_mode(context.mode);
                     let containing_directory = normalize_absolute_js_path(
                         JsStr::from(&containing_directory),
                         Some(self.current_directory_text()),
@@ -2454,10 +3123,11 @@ impl<'a> ModuleResolver<'a> {
                                                 selected.target.clone(),
                                                 selected.subpath,
                                                 selected.pattern,
+                                                selected.key,
                                             )
                                         });
-                                        selected.map(|(target, subpath, pattern)| {
-                                            (package, target, subpath, pattern)
+                                        selected.map(|(target, subpath, pattern, key)| {
+                                            (package, target, subpath, pattern, key)
                                         })
                                     } else {
                                         None
@@ -2469,12 +3139,13 @@ impl<'a> ModuleResolver<'a> {
                                 None
                             };
 
-                            if let Some((package, target, subpath, pattern)) = selected {
+                            if let Some((package, target, subpath, pattern, key)) = selected {
                                 let package_key = canonical_text(
                                     &package.root,
                                     self.path_context.use_case_sensitive_file_names(),
                                 );
                                 self.active_package_maps.push(package_key);
+                                let target_specifier = specifier.clone();
                                 frames.push(ImportsTargetFrame::BareAfterPackageMap {
                                     containing_directory,
                                     specifier,
@@ -2485,6 +3156,8 @@ impl<'a> ModuleResolver<'a> {
                                     target,
                                     subpath,
                                     pattern,
+                                    specifier: target_specifier,
+                                    key,
                                 }
                             } else {
                                 let (outcome, resolved_package_directory) = self
@@ -2513,20 +3186,38 @@ impl<'a> ModuleResolver<'a> {
                     target,
                     subpath,
                     pattern,
+                    specifier,
+                    key,
                 } => match target {
                     Value::Null => {
+                        trace!(
+                            self,
+                            gen::package_json_scope_0_explicitly_maps_specifier_1_to_null,
+                            package.root.as_js(),
+                            specifier.as_js()
+                        );
                         ImportsTargetState::Result(Search::Terminal(ResolutionOutcome::NotFound))
                     }
                     Value::String(raw_target) => {
                         if !pattern && !subpath.is_empty() && !raw_target.ends_with("/") {
+                            self.trace_invalid_package_map_target(&package, specifier.as_js());
                             ImportsTargetState::Result(Search::Continue)
                         } else if !raw_target.starts_with("./") {
                             match expand_imports_bare_target(&raw_target, &subpath, pattern)? {
-                                Some(specifier) => ImportsTargetState::Bare {
-                                    containing_directory: package.root.clone(),
-                                    specifier,
-                                },
-                                None => ImportsTargetState::Result(Search::Continue),
+                                Some(bare) => {
+                                    self.trace_bare_imports_target(&package, key.as_js(), &bare);
+                                    ImportsTargetState::Bare {
+                                        containing_directory: package.root.clone(),
+                                        specifier: bare,
+                                    }
+                                }
+                                None => {
+                                    self.trace_invalid_package_map_target(
+                                        &package,
+                                        specifier.as_js(),
+                                    );
+                                    ImportsTargetState::Result(Search::Continue)
+                                }
                             }
                         } else {
                             let Some(target) = expand_export_target(
@@ -2536,14 +3227,32 @@ impl<'a> ModuleResolver<'a> {
                                 pattern,
                             )?
                             else {
+                                self.trace_invalid_package_map_target(&package, specifier.as_js());
                                 state = ImportsTargetState::Result(Search::Continue);
                                 continue;
                             };
                             let candidate =
                                 normalize_absolute_js_path(JsStr::from(&target), None, true)?;
                             if !path_is_within(&candidate, &package.root) {
+                                self.trace_invalid_package_map_target(&package, specifier.as_js());
                                 ImportsTargetState::Result(Search::Continue)
                             } else {
+                                if self.trace.is_some() {
+                                    let message_target = if pattern {
+                                        replace_all_stars(raw_target.as_js(), subpath.as_js())
+                                    } else {
+                                        let mut text = raw_target.clone();
+                                        text.push_js(subpath.as_js());
+                                        text
+                                    };
+                                    trace!(
+                                        self,
+                                        gen::Using_0_subpath_1_with_target_2,
+                                        "imports",
+                                        key.as_js(),
+                                        message_target.as_js()
+                                    );
+                                }
                                 ImportsTargetState::Result(self.probe_package_map_target(
                                     &package,
                                     &candidate,
@@ -2555,55 +3264,49 @@ impl<'a> ModuleResolver<'a> {
                         }
                     }
                     Value::Object(conditions) => {
-                        let mut remaining = js_own_property_entries(&conditions)
+                        trace!(self, gen::Entering_conditional_exports);
+                        let remaining = js_own_property_entries(&conditions)
                             .into_iter()
-                            .filter(|(condition, _)| {
-                                self.package_condition_matches(
-                                    *condition,
-                                    context.mode,
-                                    context.resolution_kind,
-                                )
-                            })
-                            .map(|(_, target)| target.clone())
+                            .map(|(condition, target)| (Some(condition.to_owned()), target.clone()))
                             .collect::<Vec<_>>()
                             .into_iter();
-                        if let Some(target) = remaining.next() {
-                            frames.push(ImportsTargetFrame::Sequence {
-                                package: Arc::clone(&package),
-                                remaining,
-                                subpath: subpath.clone(),
-                                pattern,
-                            });
-                            ImportsTargetState::Target {
-                                package,
-                                target,
-                                subpath,
-                                pattern,
-                            }
-                        } else {
-                            ImportsTargetState::Result(Search::Continue)
-                        }
+                        frames.push(ImportsTargetFrame::Sequence {
+                            package,
+                            remaining,
+                            conditions: true,
+                            current: None,
+                            subpath,
+                            pattern,
+                            specifier,
+                            key,
+                        });
+                        ImportsTargetState::Result(Search::Continue)
                     }
                     Value::Array(targets) => {
-                        let mut remaining = targets.into_iter();
-                        if let Some(target) = remaining.next() {
+                        if targets.is_empty() {
+                            self.trace_invalid_package_map_target(&package, specifier.as_js());
+                            ImportsTargetState::Result(Search::Continue)
+                        } else {
+                            let remaining = targets
+                                .into_iter()
+                                .map(|target| (None, target))
+                                .collect::<Vec<_>>()
+                                .into_iter();
                             frames.push(ImportsTargetFrame::Sequence {
-                                package: Arc::clone(&package),
-                                remaining,
-                                subpath: subpath.clone(),
-                                pattern,
-                            });
-                            ImportsTargetState::Target {
                                 package,
-                                target,
+                                remaining,
+                                conditions: false,
+                                current: None,
                                 subpath,
                                 pattern,
-                            }
-                        } else {
+                                specifier,
+                                key,
+                            });
                             ImportsTargetState::Result(Search::Continue)
                         }
                     }
                     Value::Bool(_) | Value::Number(_) => {
+                        self.trace_invalid_package_map_target(&package, specifier.as_js());
                         ImportsTargetState::Result(Search::Continue)
                     }
                 },
@@ -2615,27 +3318,84 @@ impl<'a> ModuleResolver<'a> {
                         ImportsTargetFrame::Sequence {
                             package,
                             mut remaining,
+                            conditions,
+                            current,
                             subpath,
                             pattern,
+                            specifier,
+                            key,
                         } => match result {
                             Search::Terminal(outcome) => {
+                                if let Some(condition) = &current {
+                                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                                        trace!(
+                                            self,
+                                            gen::Resolved_under_condition_0,
+                                            condition.as_js()
+                                        );
+                                    }
+                                    trace!(self, gen::Exiting_conditional_exports);
+                                }
                                 ImportsTargetState::Result(Search::Terminal(outcome))
                             }
                             Search::Continue => {
-                                if let Some(target) = remaining.next() {
+                                if let Some(condition) = &current {
+                                    trace!(
+                                        self,
+                                        gen::Failed_to_resolve_under_condition_0,
+                                        condition.as_js()
+                                    );
+                                }
+                                // tsgo iterates the conditions in order, tracing
+                                // the ones that do not apply.
+                                let mut next = None;
+                                for (condition, target) in remaining.by_ref() {
+                                    if let Some(condition) = &condition {
+                                        if !self.package_condition_matches(
+                                            condition.as_js(),
+                                            context.mode,
+                                            context.resolution_kind,
+                                        ) {
+                                            trace!(
+                                                self,
+                                                gen::Saw_non_matching_condition_0,
+                                                condition.as_js()
+                                            );
+                                            continue;
+                                        }
+                                        trace!(
+                                            self,
+                                            gen::Matched_0_condition_1,
+                                            "imports",
+                                            condition.as_js()
+                                        );
+                                    }
+                                    next = Some((condition, target));
+                                    break;
+                                }
+                                if let Some((condition, target)) = next {
                                     frames.push(ImportsTargetFrame::Sequence {
                                         package: Arc::clone(&package),
                                         remaining,
+                                        conditions,
+                                        current: condition,
                                         subpath: subpath.clone(),
                                         pattern,
+                                        specifier: specifier.clone(),
+                                        key: key.clone(),
                                     });
                                     ImportsTargetState::Target {
                                         package,
                                         target,
                                         subpath,
                                         pattern,
+                                        specifier,
+                                        key,
                                     }
                                 } else {
+                                    if conditions {
+                                        trace!(self, gen::Exiting_conditional_exports);
+                                    }
                                     ImportsTargetState::Result(Search::Continue)
                                 }
                             }
@@ -2684,6 +3444,11 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
+        // tsgo resolveNodeLike on the bare target: the worker's result is
+        // completed before the diagnostic retry.
+        if let ResolutionOutcome::Resolved(module) = &mut outcome {
+            self.complete_node_like_module(module)?;
+        }
         self.run_nested_diagnostic_retry(
             containing_directory,
             specifier,
@@ -2694,9 +3459,6 @@ impl<'a> ModuleResolver<'a> {
             &outcome,
         )?;
         if let ResolutionOutcome::Resolved(module) = &mut outcome {
-            if module.is_external_library_import() {
-                self.follow_module_realpath(module)?;
-            }
             module.is_external_library_import = false;
             module.alternate_result = None;
             return Ok(Search::Terminal(outcome));
@@ -2787,11 +3549,23 @@ impl<'a> ModuleResolver<'a> {
             }
         }
         if specifier.contains(":") {
+            trace!(
+                self,
+                gen::Skipping_module_0_that_looks_like_an_absolute_URI_target_file_types_1,
+                specifier,
+                self.extensions_text(probe_pass).as_str()
+            );
             return Ok((ResolutionOutcome::NotFound, false));
         }
         if matches!(probe_pass, ExtensionProbePass::Empty) {
             return Ok((ResolutionOutcome::NotFound, false));
         }
+        trace!(
+            self,
+            gen::Loading_module_0_from_node_modules_folder_target_file_types_1,
+            specifier,
+            self.extensions_text(probe_pass).as_str()
+        );
         let all_passes = [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback];
         let one_pass = [probe_pass];
         let passes = if matches!(probe_pass, ExtensionProbePass::All) {
@@ -2831,6 +3605,7 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
         let containing_directory = containing_directory.into();
         let probe_pass = self.effective_module_probe_pass(probe_pass);
+        self.trace_node_modules_pass(probe_pass);
         let mut resolved_package_directory = false;
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
@@ -2838,6 +3613,11 @@ impl<'a> ModuleResolver<'a> {
             }
             let node_modules = join_normalized(&ancestor, "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    node_modules.as_js()
+                );
                 continue;
             }
             let package_root = package_root_for_request(&node_modules, request);
@@ -2851,13 +3631,20 @@ impl<'a> ModuleResolver<'a> {
                 /* follow_realpath */ false,
             )?;
             resolved_package_directory |= specific.root_package_observed;
-            if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+            if specific.terminal {
                 return Ok((specific.outcome, resolved_package_directory));
             }
 
             if probe_pass_has_declaration(probe_pass) {
                 let at_types = join_normalized(&node_modules, "@types");
-                if self.host.directory_exists_js(JsStr::from(&at_types))? {
+                if !self.host.directory_exists_js(JsStr::from(&at_types))? {
+                    trace!(
+                        self,
+                        gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                        at_types.as_js()
+                    );
+                } else {
+                    self.trace_scoped_package_request(request);
                     let package_root = types_package_root_for_request(&at_types, request);
                     let specific = self.resolve_specific_package(
                         &package_root,
@@ -2869,7 +3656,7 @@ impl<'a> ModuleResolver<'a> {
                         /* follow_realpath */ false,
                     )?;
                     resolved_package_directory |= specific.root_package_observed;
-                    if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
+                    if specific.terminal {
                         return Ok((specific.outcome, resolved_package_directory));
                     }
                 }
@@ -2878,12 +3665,13 @@ impl<'a> ModuleResolver<'a> {
         Ok((ResolutionOutcome::NotFound, resolved_package_directory))
     }
 
+    /// tsgo resolveNodeLikeWorker; the flag is `resolvedPackageDirectory`.
     fn resolve_non_relative_inner<'j0, 'j1>(
         &mut self,
         containing_directory: impl Into<JsStr<'j0>>,
         specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         let optional = self.resolve_using_optional_settings(
@@ -2895,7 +3683,7 @@ impl<'a> ModuleResolver<'a> {
             /* follow_realpath */ false,
         )?;
         if matches!(optional, ResolutionOutcome::Resolved(_)) {
-            return Ok(optional);
+            return Ok((optional, false));
         }
         if specifier.starts_with("#") {
             if let Search::Terminal(outcome) = self.resolve_package_imports(
@@ -2907,7 +3695,7 @@ impl<'a> ModuleResolver<'a> {
                 /* use_package_exports */ self.module_exports_feature_enabled(),
                 /* resolution_kind */ None,
             )? {
-                return Ok(outcome);
+                return Ok((outcome, false));
             }
         }
         let request = parse_package_request(specifier)?;
@@ -2919,12 +3707,24 @@ impl<'a> ModuleResolver<'a> {
             ExtensionProbePass::All,
             /* resolution_kind */ None,
         )? {
-            return Ok(outcome);
+            return Ok((outcome, false));
         }
 
         if specifier.contains(":") {
-            return Ok(ResolutionOutcome::NotFound);
+            trace!(
+                self,
+                gen::Skipping_module_0_that_looks_like_an_absolute_URI_target_file_types_1,
+                specifier,
+                self.extensions_text(ExtensionProbePass::All).as_str()
+            );
+            return Ok((ResolutionOutcome::NotFound, false));
         }
+        trace!(
+            self,
+            gen::Loading_module_0_from_node_modules_folder_target_file_types_1,
+            specifier,
+            self.extensions_text(ExtensionProbePass::All).as_str()
+        );
 
         self.resolve_from_node_modules(containing_directory, specifier, &request, mode)
     }
@@ -3148,15 +3948,32 @@ impl<'a> ModuleResolver<'a> {
         let resolution_kind =
             resolution_kind.unwrap_or_else(|| self.options.emit_module_resolution_kind());
         if specifier == "#" || (specifier.starts_with("#/") && resolution_kind == 3) {
+            trace!(
+                self,
+                gen::Invalid_import_specifier_0_has_no_possible_resolutions,
+                specifier
+            );
             return Ok(Search::Continue);
         }
         let Some(package) = self.find_nearest_package_scope(containing_directory)? else {
+            let directory_path = normalize_absolute_js_path(
+                containing_directory,
+                Some(self.current_directory_text()),
+                true,
+            )?;
+            trace!(
+                self,
+                gen::Directory_0_has_no_containing_package_json_scope_Imports_will_not_resolve,
+                directory_path.as_js()
+            );
             return Ok(Search::Continue);
         };
-        let Some(imports) = package.imports.as_ref() else {
-            return Ok(Search::Continue);
-        };
-        let Some(table) = imports.as_object() else {
+        let Some(table) = package.imports.as_ref().and_then(Value::as_object) else {
+            trace!(
+                self,
+                gen::package_json_scope_0_has_no_imports_defined,
+                package.root.as_js()
+            );
             return Ok(Search::Continue);
         };
 
@@ -3186,7 +4003,16 @@ impl<'a> ModuleResolver<'a> {
             },
         );
         self.active_package_maps.pop();
-        search
+        let search = search?;
+        if matches!(search, Search::Continue) {
+            trace!(
+                self,
+                gen::Import_specifier_0_does_not_exist_in_package_json_scope_at_path_1,
+                specifier,
+                package.root.as_js()
+            );
+        }
+        Ok(search)
     }
 
     fn resolve_from_node_modules<'j0, 'j1>(
@@ -3195,18 +4021,24 @@ impl<'a> ModuleResolver<'a> {
         specifier: impl Into<JsStr<'j1>>,
         request: &PackageRequest<'_>,
         mode: ResolutionMode,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         let mut resolved_package_directory = false;
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
             let probe_pass = self.effective_module_probe_pass(probe_pass);
+            self.trace_node_modules_pass(probe_pass);
             for ancestor in ancestor_directories(containing_directory) {
                 if base_name(&ancestor) == "node_modules" {
                     continue;
                 }
                 let node_modules = join_normalized(&ancestor, "node_modules");
                 if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                    trace!(
+                        self,
+                        gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                        node_modules.as_js()
+                    );
                     continue;
                 }
                 let package_root = package_root_for_request(&node_modules, request);
@@ -3220,20 +4052,20 @@ impl<'a> ModuleResolver<'a> {
                     /* follow_realpath */ false,
                 )?;
                 resolved_package_directory |= specific.root_package_observed;
-                if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
-                    return self.attach_modern_alternate(
-                        containing_directory,
-                        specifier,
-                        request,
-                        mode,
-                        resolved_package_directory,
-                        specific.outcome,
-                    );
+                if specific.terminal {
+                    return Ok((specific.outcome, resolved_package_directory));
                 }
 
                 if matches!(probe_pass, ExtensionProbePass::Preferred) {
                     let at_types = join_normalized(&node_modules, "@types");
-                    if self.host.directory_exists_js(JsStr::from(&at_types))? {
+                    if !self.host.directory_exists_js(JsStr::from(&at_types))? {
+                        trace!(
+                            self,
+                            gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                            at_types.as_js()
+                        );
+                    } else {
+                        self.trace_scoped_package_request(request);
                         let types_package = types_package_root_for_request(&at_types, request);
                         let specific = self.resolve_specific_package(
                             &types_package,
@@ -3245,36 +4077,21 @@ impl<'a> ModuleResolver<'a> {
                             /* follow_realpath */ false,
                         )?;
                         resolved_package_directory |= specific.root_package_observed;
-                        if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
-                            return self.attach_modern_alternate(
-                                containing_directory,
-                                specifier,
-                                request,
-                                mode,
-                                resolved_package_directory,
-                                specific.outcome,
-                            );
+                        if specific.terminal {
+                            return Ok((specific.outcome, resolved_package_directory));
                         }
                     }
                 }
             }
         }
         let outcome = self.resolve_module_from_type_roots(specifier, mode)?;
-        self.attach_modern_alternate(
-            containing_directory,
-            specifier,
-            request,
-            mode,
-            resolved_package_directory,
-            outcome,
-        )
+        Ok((outcome, resolved_package_directory))
     }
 
     fn attach_modern_alternate<'j0, 'j1>(
         &mut self,
         containing_directory: impl Into<JsStr<'j0>>,
         specifier: impl Into<JsStr<'j1>>,
-        request: &PackageRequest<'_>,
         mode: ResolutionMode,
         resolved_package_directory: bool,
         mut outcome: ResolutionOutcome<HostResolvedModule>,
@@ -3297,18 +4114,26 @@ impl<'a> ModuleResolver<'a> {
         if !should_retry {
             return Ok(outcome);
         }
+        trace!(
+            self,
+            gen::Resolution_of_non_relative_name_failed_trying_with_modern_Node_resolution_features_disabled_to_see_if_npm_library_needs_configuration_update
+        );
+        let request = parse_package_request(specifier)?;
         let alternate = self.resolve_modern_preferred_without_exports(
             containing_directory,
             specifier,
-            request,
+            &request,
             mode,
             ExtensionProbePass::Preferred,
             /* force_package_maps */ self.module_imports_feature_is_hardcoded(),
             self.options.emit_module_resolution_kind(),
         )?;
-        if let (ResolutionOutcome::Resolved(primary), ResolutionOutcome::Resolved(alternate)) =
+        if let (ResolutionOutcome::Resolved(primary), ResolutionOutcome::Resolved(mut alternate)) =
             (&mut outcome, alternate)
         {
+            // The diagnostic result is completed like the primary one: the
+            // alternate is its real path.
+            self.complete_node_like_module(&mut alternate)?;
             if alternate.is_external_library_import() {
                 primary.alternate_result = Some(alternate.resolved_file().clone());
             }
@@ -3401,11 +4226,24 @@ impl<'a> ModuleResolver<'a> {
         }
 
         if specifier.contains(":") {
+            trace!(
+                self,
+                gen::Skipping_module_0_that_looks_like_an_absolute_URI_target_file_types_1,
+                specifier,
+                self.extensions_text(probe_pass).as_str()
+            );
             return Ok(ResolutionOutcome::NotFound);
         }
         if matches!(probe_pass, ExtensionProbePass::Empty) {
             return Ok(ResolutionOutcome::NotFound);
         }
+        trace!(
+            self,
+            gen::Loading_module_0_from_node_modules_folder_target_file_types_1,
+            specifier,
+            self.extensions_text(probe_pass).as_str()
+        );
+        self.trace_node_modules_pass(probe_pass);
 
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
@@ -3413,6 +4251,11 @@ impl<'a> ModuleResolver<'a> {
             }
             let node_modules = join_normalized(&ancestor, "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    node_modules.as_js()
+                );
                 continue;
             }
             let package_root = package_root_for_request(&node_modules, request);
@@ -3434,8 +4277,14 @@ impl<'a> ModuleResolver<'a> {
             if probe_pass_has_declaration(probe_pass) {
                 let at_types = join_normalized(&node_modules, "@types");
                 if !self.host.directory_exists_js(JsStr::from(&at_types))? {
+                    trace!(
+                        self,
+                        gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                        at_types.as_js()
+                    );
                     continue;
                 }
+                self.trace_scoped_package_request(request);
                 let package_root = types_package_root_for_request(&at_types, request);
                 let outcome = self
                     .resolve_specific_package(
@@ -3473,9 +4322,11 @@ impl<'a> ModuleResolver<'a> {
         exports_subpath: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
         use_package_exports: bool,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+    ) -> Result<SpecificPackageResolution, ResolutionError> {
         let package_root = package_root.into();
         let exports_subpath = exports_subpath.into();
+        // tsgo createResolvedTypeReferenceDirective takes the real path after
+        // the whole lookup (resolve_type_reference_worker).
         self.resolve_specific_package(
             package_root,
             exports_subpath,
@@ -3483,9 +4334,8 @@ impl<'a> ModuleResolver<'a> {
             mode,
             use_package_exports,
             None,
-            /* follow_realpath */ true,
+            /* follow_realpath */ false,
         )
-        .map(|result| result.outcome)
     }
 
     /// tsc-port: loadModuleFromSpecificNodeModulesDirectory @6.0.3
@@ -3547,10 +4397,7 @@ impl<'a> ModuleResolver<'a> {
                         mode,
                         follow_realpath,
                     )?;
-                    return Ok(SpecificPackageResolution {
-                        outcome,
-                        root_package_observed: false,
-                    });
+                    return Ok(SpecificPackageResolution::of(outcome, false));
                 }
             }
         }
@@ -3582,53 +4429,52 @@ impl<'a> ModuleResolver<'a> {
                     },
                 )?;
                 if matches!(direct, ResolutionOutcome::Resolved(_)) {
-                    return Ok(SpecificPackageResolution {
-                        outcome: direct,
-                        root_package_observed: true,
-                    });
+                    return Ok(SpecificPackageResolution::of(direct, true));
                 }
             }
-            let outcome = if uses_exports {
-                if let Some(resolution_kind) = exports_resolution_kind {
-                    self.resolve_package_exports_with_resolution_kind(
-                        &package,
-                        exports_subpath,
-                        /* is_external_library_import */ true,
-                        probe_pass,
-                        mode,
-                        resolution_kind,
-                        follow_realpath,
-                    )?
-                } else {
-                    self.resolve_package_exports(
-                        &package,
-                        exports_subpath,
-                        /* is_external_library_import */ true,
-                        probe_pass,
-                        mode,
-                        follow_realpath,
-                    )?
-                }
-            } else {
-                self.resolve_legacy_package(
+            if uses_exports {
+                // tsgo loadModuleFromSpecificNodeModulesDirectory returns
+                // loadModuleFromExports' result as is: an `exports` target
+                // mapped to `null` ends the whole lookup without a result.
+                let resolution_kind = exports_resolution_kind
+                    .unwrap_or_else(|| self.options.emit_module_resolution_kind());
+                let search = self.search_package_exports(
                     &package,
                     exports_subpath,
+                    /* is_external_library_import */ true,
                     probe_pass,
                     mode,
-                    LegacyResolutionContext {
-                        is_external_library_import: true,
-                        attach_package_id: true,
-                        resolved_using_ts_extension: false,
-                        follow_realpath,
+                    resolution_kind,
+                    follow_realpath,
+                )?;
+                return Ok(match search {
+                    Search::Continue => SpecificPackageResolution {
+                        outcome: ResolutionOutcome::NotFound,
+                        root_package_observed: true,
+                        terminal: false,
                     },
-                    Some(candidate.as_js()),
-                    /* allow_node_esm_index_fallback */ true,
-                )?
-            };
-            Ok(SpecificPackageResolution {
-                outcome,
-                root_package_observed: true,
-            })
+                    Search::Terminal(outcome) => SpecificPackageResolution {
+                        outcome,
+                        root_package_observed: true,
+                        terminal: true,
+                    },
+                });
+            }
+            let outcome = self.resolve_legacy_package(
+                &package,
+                exports_subpath,
+                probe_pass,
+                mode,
+                LegacyResolutionContext {
+                    is_external_library_import: true,
+                    attach_package_id: true,
+                    resolved_using_ts_extension: false,
+                    follow_realpath,
+                },
+                Some(candidate.as_js()),
+                /* allow_node_esm_index_fallback */ true,
+            )?;
+            Ok(SpecificPackageResolution::of(outcome, true))
         } else {
             let outcome = self.resolve_manifestless_package(
                 &candidate,
@@ -3637,10 +4483,7 @@ impl<'a> ModuleResolver<'a> {
                 mode,
                 follow_realpath,
             )?;
-            Ok(SpecificPackageResolution {
-                outcome,
-                root_package_observed: false,
-            })
+            Ok(SpecificPackageResolution::of(outcome, false))
         }
     }
 
@@ -3741,10 +4584,10 @@ impl<'a> ModuleResolver<'a> {
                 /* follow_realpath */ false,
             )?;
             if let ResolutionOutcome::Resolved(mut module) = outcome {
-                // resolveFromTypeRoot is entered from the non-relative node
-                // resolver and wraps even a custom local root as an external
-                // library import. Primary realpath is deferred to the caller.
-                module.is_external_library_import = true;
+                // tsgo createResolvedModuleHandlingSymlink: a typeRoots result is
+                // an external library import only under node_modules.
+                module.is_external_library_import =
+                    path_contains_node_modules(module.resolved_file.display());
                 return Ok(ResolutionOutcome::Resolved(module));
             }
         }
@@ -3762,9 +4605,15 @@ impl<'a> ModuleResolver<'a> {
         let type_root = type_root.into();
         let specifier = specifier.into();
         if !self.host.directory_exists_js(type_root)? {
+            trace!(
+                self,
+                gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                type_root
+            );
             return Ok(ResolutionOutcome::NotFound);
         }
         let name_for_lookup = if type_root.ends_with("/node_modules/@types") {
+            self.trace_scoped_package(specifier);
             mangle_scoped_package_name(specifier)
         } else {
             specifier.to_owned()
@@ -3841,39 +4690,51 @@ impl<'a> ModuleResolver<'a> {
         use_package_exports: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let containing_directory = containing_directory.into();
+        self.trace_node_modules_pass(ExtensionProbePass::Declaration);
         for ancestor in ancestor_directories(containing_directory) {
             if base_name(&ancestor) == "node_modules" {
                 continue;
             }
             let node_modules = join_normalized(&ancestor, "node_modules");
             if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    node_modules.as_js()
+                );
                 continue;
             }
 
             let package_root = package_root_for_request(&node_modules, request);
-            let outcome = self.resolve_declaration_package(
+            let specific = self.resolve_declaration_package(
                 &package_root,
                 &request.exports_subpath,
                 mode,
                 use_package_exports,
             )?;
-            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                return Ok(outcome);
+            if specific.terminal {
+                return Ok(specific.outcome);
             }
 
             let at_types = join_normalized(&node_modules, "@types");
             if !self.host.directory_exists_js(JsStr::from(&at_types))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    at_types.as_js()
+                );
                 continue;
             }
+            self.trace_scoped_package_request(request);
             let types_package = types_package_root_for_request(&at_types, request);
-            let outcome = self.resolve_declaration_package(
+            let specific = self.resolve_declaration_package(
                 &types_package,
                 &request.exports_subpath,
                 mode,
                 use_package_exports,
             )?;
-            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                return Ok(outcome);
+            if specific.terminal {
+                return Ok(specific.outcome);
             }
         }
         Ok(ResolutionOutcome::NotFound)
@@ -3904,14 +4765,20 @@ impl<'a> ModuleResolver<'a> {
             follow_realpath: true,
         };
         let allow_implicit = !self.is_node_esm_mode(mode);
+        trace!(
+            self,
+            gen::Loading_module_as_file_folder_candidate_module_location_0_target_file_types_1,
+            target.as_js(),
+            "Declaration"
+        );
         if !directory_spelling {
-            // nodeLoadModuleByRelativeName latches its outer parent
-            // observation before the file loader performs stage-specific
-            // observations of the same directory.
-            if !self
-                .host
-                .directory_exists_js(JsStr::from(&js_directory_name(&target)))?
-            {
+            let parent = js_directory_name(&target);
+            if !self.host.directory_exists_js(JsStr::from(&parent))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    parent.as_js()
+                );
                 return Ok(ResolutionOutcome::NotFound);
             }
             let direct = self
@@ -3923,7 +4790,15 @@ impl<'a> ModuleResolver<'a> {
         // ESM mode disables the directory loader only after observing the
         // candidate directory.
         let target_exists = self.host.directory_exists_js(JsStr::from(&target))?;
-        if !allow_implicit || !target_exists {
+        if !target_exists {
+            trace!(
+                self,
+                gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                target.as_js()
+            );
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if !allow_implicit {
             return Ok(ResolutionOutcome::NotFound);
         }
         if let Some(directory_package) =
@@ -3935,7 +4810,7 @@ impl<'a> ModuleResolver<'a> {
                 ExtensionProbePass::Declaration,
                 mode,
                 LegacyResolutionContext {
-                    attach_package_id: true,
+                    attach_package_id: false,
                     ..context
                 },
                 Some(target.as_js()),
@@ -4029,15 +4904,20 @@ impl<'a> ModuleResolver<'a> {
             if matches!(optional, ResolutionOutcome::Resolved(_)) {
                 return Ok(optional);
             }
+            trace!(
+                self,
+                gen::Loading_module_as_file_folder_candidate_module_location_0_target_file_types_1,
+                target.as_js(),
+                self.extensions_text(probe_pass).as_str()
+            );
             if !directory_spelling {
-                // nodeLoadModuleByRelativeName converts a missing candidate
-                // parent into `onlyRecordFailures` before any package or
-                // candidate-directory work. The file loader checks the same
-                // parent again when this preflight succeeds.
-                if !self
-                    .host
-                    .directory_exists_js(JsStr::from(&js_directory_name(&target)))?
-                {
+                let parent = js_directory_name(&target);
+                if !self.host.directory_exists_js(JsStr::from(&parent))? {
+                    trace!(
+                        self,
+                        gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                        parent.as_js()
+                    );
                     continue;
                 }
                 let outcome = self.probe_legacy_file(
@@ -4059,7 +4939,15 @@ impl<'a> ModuleResolver<'a> {
             }
 
             let target_exists = self.host.directory_exists_js(JsStr::from(&target))?;
-            if !allow_implicit || !target_exists {
+            if !target_exists {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    target.as_js()
+                );
+                continue;
+            }
+            if !allow_implicit {
                 continue;
             }
             let package_json = join_normalized(&target, "package.json");
@@ -4071,7 +4959,7 @@ impl<'a> ModuleResolver<'a> {
                     mode,
                     LegacyResolutionContext {
                         is_external_library_import: external,
-                        attach_package_id: true,
+                        attach_package_id: false,
                         resolved_using_ts_extension: false,
                         follow_realpath: false,
                     },
@@ -4203,6 +5091,7 @@ impl<'a> ModuleResolver<'a> {
         let probe_pass = self.effective_module_probe_pass(probe_pass);
         let rest = package_subpath(exports_subpath)?;
         if let Some(rest) = rest {
+            self.trace_types_versions_field(package);
             // The outer package loader applies a root-relative mapping to the
             // package subpath before invoking its file/directory loader. A
             // matched all-target miss owns this package candidate.
@@ -4216,7 +5105,6 @@ impl<'a> ModuleResolver<'a> {
                     base_directory: package.root.as_js(),
                     loader: TypesVersionsLoader::PackageSubpath,
                     attach_exact_package_id: false,
-                    only_record_failures: false,
                 },
             )? {
                 Search::Terminal(outcome) => return Ok(outcome),
@@ -4298,6 +5186,10 @@ impl<'a> ModuleResolver<'a> {
         // package entry field and its typesVersions logical name.
         let is_package_root =
             path_relative_to_directory(&candidate_key, &package_root_key) == Some("".into());
+        self.trace_types_versions_field(package);
+        if is_package_root {
+            self.trace_package_entry_field(package, probe_pass);
+        }
         let package_field = is_package_root
             .then(|| selected_package_entry_field(package, probe_pass))
             .flatten();
@@ -4312,8 +5204,6 @@ impl<'a> ModuleResolver<'a> {
             })
             .transpose()?;
         let only_record_failures_for_index = !self.host.directory_exists_js(candidate_directory)?;
-        let only_record_failures_for_types_versions =
-            package_field_parent_exists == Some(false) || only_record_failures_for_index;
         let types_versions_eligible = package_field_candidate
             .as_ref()
             .map(JsString::as_js)
@@ -4356,7 +5246,6 @@ impl<'a> ModuleResolver<'a> {
                     base_directory: candidate_directory,
                     loader: TypesVersionsLoader::PackageDirectory,
                     attach_exact_package_id: context.attach_package_id,
-                    only_record_failures: only_record_failures_for_types_versions,
                 },
             )? {
                 Search::Terminal(outcome) => return Ok(outcome),
@@ -4423,9 +5312,9 @@ impl<'a> ModuleResolver<'a> {
         self.probe_legacy_directory_worker(package, candidate, probe_pass, mode, context)
     }
 
-    /// A matching `typesVersions` key owns the result even when every target
-    /// misses. No matching range or mapping key continues to ordinary legacy
-    /// package loading.
+    /// tsgo `GetVersionPaths` + `tryLoadModuleUsingPaths` over `GetPaths`: the
+    /// selected range's array-valued mappings are tried in order, and a
+    /// mapping whose targets all miss continues the search.
     fn search_package_types_versions<'j0>(
         &self,
         package: &CachedPackage,
@@ -4440,121 +5329,109 @@ impl<'a> ModuleResolver<'a> {
             base_directory,
             loader,
             attach_exact_package_id,
-            only_record_failures,
         } = context;
-        let Some(types_versions) = package.types_versions.as_ref() else {
+        let Some(Value::Object(types_versions)) = package.types_versions.as_ref() else {
             return Ok(Search::Continue);
         };
-        let matching = js_json_object_entries(types_versions)
-            .expect("CachedPackage retains only object-like typesVersions fields")
-            .into_iter()
-            // Version-range grammar contains no surrogate code units.
-            .find(|(range, _)| range.as_str().and_then(compiler_version_satisfies) == Some(true));
-        let Some((_, mappings)) = matching else {
-            return Ok(Search::Continue);
-        };
-        match mappings {
-            Value::Object(_) | Value::Array(_) => {}
-            // TypeScript 6.0.3 reaches tryParsePatterns(null), whose WeakMap
-            // access throws. Preserve that malformed-input failure as a typed
-            // resolver error rather than silently falling back.
-            Value::Null => {
-                return Err(ResolutionError::invalid_data(format!(
-                    "selected typesVersions paths in {} are null",
-                    package.metadata.package_json().display().to_string_lossy()
-                )));
-            }
-            // Other non-object values are rejected by
-            // readPackageJsonTypesVersionPaths and legacy loading continues.
-            Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-                return Ok(Search::Continue);
+        // tsgo GetVersionPaths: the first entry (package.json order) whose key
+        // is a range the compiler version satisfies; a key that is not a
+        // range is skipped, and a matching entry whose value is not an object
+        // leaves the package without version paths.
+        let mut selected = None;
+        for (range, paths) in json_object_entries_in_order(types_versions) {
+            let Some(satisfies) = range.as_str().and_then(compiler_version_satisfies) else {
+                continue;
+            };
+            if satisfies {
+                if let Value::Object(paths) = paths {
+                    selected = Some((range, paths));
+                }
+                break;
             }
         }
-        // The outer subpath paths phase re-observes the root package
-        // directory only after an applicable version range was selected.
-        // Directory-worker callers already supply their combined latch.
-        let only_record_failures = if matches!(loader, TypesVersionsLoader::PackageSubpath) {
-            only_record_failures || !self.host.directory_exists_js(base_directory)?
-        } else {
-            only_record_failures
+        let Some((version, paths)) = selected else {
+            return Ok(Search::Continue);
         };
-        let Some((pattern, capture, targets)) =
-            select_types_versions_mapping(mappings, logical_name)
+        trace!(
+            self,
+            gen::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
+            version,
+            TYPESCRIPT_VERSION,
+            logical_name
+        );
+        let Some((pattern, capture, targets)) = select_types_versions_mapping(paths, logical_name)
         else {
             return Ok(Search::Continue);
         };
-        // tsc calls its generic JavaScript `forEach` helper here rather than
-        // validating an array. Preserve the observable array-like behavior:
-        // strings iterate UTF-16 code units, objects iterate numeric keys up
-        // to their JavaScript-coerced `length`, and primitive values without
-        // a length perform no work. Callback values retain JavaScript's lazy
-        // path coercion, so a successful early substitution never evaluates a
-        // malformed later element.
-        let outcome =
-            try_for_each_types_versions_substitution(targets, &pattern, |substitution| {
-                // tryLoadModuleUsingPaths treats an empty wildcard capture like
-                // an exact mapping and retains a literal `*` in the target.
-                let (expanded, written_extension) =
-                    project_types_versions_substitution(substitution, &capture, &pattern)?;
-                let candidate = normalize_legacy_target_from_directory(base_directory, &expanded)?;
-                if only_record_failures {
-                    return Ok(None);
+        trace!(
+            self,
+            gen::Module_name_0_matched_pattern_1,
+            logical_name,
+            pattern.as_js()
+        );
+        // tsgo tryLoadModuleUsingPaths over GetPaths: a target that is not a
+        // string is the empty string, the first `*` of a target is replaced
+        // by the matched text, a target with a recognized extension is probed
+        // as that file first and the loader runs otherwise; there is no
+        // onlyRecordFailures, and a mapping whose targets all miss continues
+        // the search.
+        for target in targets {
+            let substitution = match target {
+                Value::String(target) => target.clone(),
+                _ => JsString::new(),
+            };
+            let expanded = replace_first_star(substitution.as_js(), capture.as_js());
+            let candidate = normalize_legacy_target_from_directory(base_directory, &expanded)?;
+            trace!(
+                self,
+                gen::Trying_substitution_0_candidate_module_location_1,
+                substitution.as_js(),
+                expanded.as_js()
+            );
+            if let Some(extension) = recognized_module_extension(&substitution) {
+                if let Some(resolved_path) = self.try_file(&candidate)? {
+                    return self
+                        .finish_legacy_resolution(
+                            Some(package),
+                            resolved_path.as_js(),
+                            extension,
+                            LegacyResolutionContext {
+                                attach_package_id: attach_exact_package_id,
+                                resolved_using_ts_extension: false,
+                                ..context
+                            },
+                        )
+                        .map(Search::Terminal);
                 }
-                // tsc's paths loader first probes a substitution that already has
-                // a recognized extension exactly, irrespective of the preferred
-                // TypeScript/declaration pass. The paths loader itself returns an
-                // exact hit without a package id; the outer package-root loader
-                // may attach the root package id again. An exact miss falls
-                // through to the ordinary package loader.
-                if let Some(extension) = written_extension {
-                    if let Some(resolved_path) = self.try_file(&candidate)? {
-                        return self
-                            .finish_legacy_resolution(
-                                Some(package),
-                                resolved_path.as_js(),
-                                extension,
-                                LegacyResolutionContext {
-                                    attach_package_id: attach_exact_package_id,
-                                    resolved_using_ts_extension: false,
-                                    ..context
-                                },
-                            )
-                            .map(Some);
-                    }
-                }
-                // tryLoadModuleUsingPaths latches onlyRecordFailures from the
-                // expanded candidate's parent after its raw-substitution exact
-                // shortcut. A later parent appearance must not revive the loader.
-                if !self
+            }
+            if self.trace.is_none()
+                && !self
                     .host
                     .directory_exists_js(JsStr::from(&js_directory_name(&candidate)))?
-                {
-                    return Ok(None);
+            {
+                continue;
+            }
+            let outcome = match loader {
+                TypesVersionsLoader::PackageDirectory => self.probe_package_field_path(
+                    Some(package),
+                    &candidate,
+                    probe_pass,
+                    !self.is_node_esm_mode(mode)
+                        || package.metadata.module_type() != PackageJsonType::Module,
+                    LegacyResolutionContext {
+                        resolved_using_ts_extension: false,
+                        ..context
+                    },
+                )?,
+                TypesVersionsLoader::PackageSubpath => {
+                    self.probe_package_subpath_path(package, &candidate, probe_pass, mode, context)?
                 }
-                let outcome = match loader {
-                    TypesVersionsLoader::PackageDirectory => self.probe_package_field_path(
-                        Some(package),
-                        &candidate,
-                        probe_pass,
-                        !self.is_node_esm_mode(mode)
-                            || package.metadata.module_type() != PackageJsonType::Module,
-                        LegacyResolutionContext {
-                            resolved_using_ts_extension: false,
-                            ..context
-                        },
-                    )?,
-                    TypesVersionsLoader::PackageSubpath => self.probe_package_subpath_path(
-                        package, &candidate, probe_pass, mode, context,
-                    )?,
-                };
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok(Some(outcome));
-                }
-                Ok(None)
-            })?;
-        Ok(Search::Terminal(
-            outcome.unwrap_or(ResolutionOutcome::NotFound),
-        ))
+            };
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(Search::Terminal(outcome));
+            }
+        }
+        Ok(Search::Continue)
     }
 
     /// `loadNodeModuleFromDirectoryWorker` gives `types`, `typings`, `main`,
@@ -4596,15 +5473,24 @@ impl<'a> ModuleResolver<'a> {
         } else {
             probe_pass
         };
+        trace!(
+            self,
+            gen::Loading_module_as_file_folder_candidate_module_location_0_target_file_types_1,
+            candidate,
+            self.extensions_text(expanded_pass).as_str()
+        );
         if !candidate.ends_with("/") {
             // nodeLoadModuleByRelativeName preflights the candidate parent
             // before entering loadModuleFromFile, which then performs its own
             // per-stage directory observations. A trailing directory spelling
             // skips this complete file phase upstream.
-            if !self
-                .host
-                .directory_exists_js(JsStr::from(&js_directory_name(candidate)))?
-            {
+            let parent = js_directory_name(candidate);
+            if !self.host.directory_exists_js(JsStr::from(&parent))? {
+                trace!(
+                    self,
+                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                    parent.as_js()
+                );
                 return Ok(ResolutionOutcome::NotFound);
             }
             let outcome = self.probe_legacy_file(
@@ -4628,7 +5514,15 @@ impl<'a> ModuleResolver<'a> {
         // candidate directory after a file miss before deciding that the
         // directory loader is disabled.
         let candidate_exists = self.host.directory_exists_js(candidate)?;
-        if !allow_implicit || !candidate_exists {
+        if !candidate_exists {
+            trace!(
+                self,
+                gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                candidate
+            );
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        if !allow_implicit {
             return Ok(ResolutionOutcome::NotFound);
         }
         self.probe_legacy_file(
@@ -4706,6 +5600,15 @@ impl<'a> ModuleResolver<'a> {
             }
             Err(error) => return Err(error),
         };
+        if base_name(candidate).contains(".") {
+            let extension = written_extension_to_strip(candidate);
+            trace!(
+                self,
+                gen::File_name_0_has_a_1_extension_stripping_it,
+                candidate,
+                extension.as_js()
+            );
+        }
         if replacement
             .as_ref()
             .is_none_or(|(_, probes)| probes.is_empty())
@@ -4808,6 +5711,15 @@ impl<'a> ModuleResolver<'a> {
         } else {
             None
         };
+        if has_written_extension {
+            let extension = written_extension_to_strip(candidate);
+            trace!(
+                self,
+                gen::File_name_0_has_a_1_extension_stripping_it,
+                candidate,
+                extension.as_js()
+            );
+        }
         let implicit = allow_implicit.then(|| implicit_extension_probes(probe_pass));
         if !has_written_extension && implicit.is_none() {
             return Ok(ResolutionOutcome::NotFound);
@@ -4894,7 +5806,7 @@ impl<'a> ModuleResolver<'a> {
         containing_directory: impl Into<JsStr<'p>>,
     ) -> Result<Option<Arc<CachedPackage>>, ResolutionError> {
         let containing_directory = containing_directory.into();
-        let memo_key = self.package_cache_enabled.then(|| {
+        let memo_key = (self.package_cache_enabled && self.trace.is_none()).then(|| {
             canonical_text(
                 containing_directory,
                 self.path_context.use_case_sensitive_file_names(),
@@ -4931,23 +5843,42 @@ impl<'a> ModuleResolver<'a> {
         if self.package_cache_enabled {
             if let Some(entry) = self.package_cache.get(&cache_key) {
                 return Ok(match entry {
-                    PackageCacheEntry::Missing => None,
-                    PackageCacheEntry::Found(package) => Some(Arc::clone(package)),
+                    PackageCacheEntry::Missing { directory_exists } => {
+                        if *directory_exists {
+                            trace!(
+                                self,
+                                gen::File_0_does_not_exist_according_to_earlier_cached_lookups,
+                                package_json
+                            );
+                        }
+                        None
+                    }
+                    PackageCacheEntry::Found(package) => {
+                        trace!(
+                            self,
+                            gen::File_0_exists_according_to_earlier_cached_lookups,
+                            package_json
+                        );
+                        Some(Arc::clone(package))
+                    }
                 });
             }
         }
 
         let package_directory = crate::js_path::directory_name(package_json);
-        if !self.host.directory_exists_js(package_directory.as_js())?
-            || !self.host.file_exists_js(package_json)?
-        {
+        let directory_exists = self.host.directory_exists_js(package_directory.as_js())?;
+        if !directory_exists || !self.host.file_exists_js(package_json)? {
+            if directory_exists {
+                trace!(self, gen::File_0_does_not_exist, package_json);
+            }
             self.record_package_json_probe(&cache_key, package_json, false)?;
             if self.package_cache_enabled {
                 self.package_cache
-                    .insert(cache_key, PackageCacheEntry::Missing);
+                    .insert(cache_key, PackageCacheEntry::Missing { directory_exists });
             }
             return Ok(None);
         }
+        trace!(self, gen::Found_package_json_at_0, package_json);
         self.record_package_json_probe(&cache_key, package_json, true)?;
         // TypeScript's readJson treats an absent read after a successful
         // file-existence probe as an empty object. This can occur across a
@@ -4983,6 +5914,7 @@ impl<'a> ModuleResolver<'a> {
         let PeerDependencyLookup {
             suffix: peer_dependencies,
             probes: peer_probes,
+            trace: peer_dependencies_trace,
         } = self.package_json_peer_dependencies(&object, package_directory.as_js())?;
         let package = Arc::new(CachedPackage {
             root: package_directory,
@@ -5003,6 +5935,7 @@ impl<'a> ModuleResolver<'a> {
             metadata,
             peer_dependencies,
             peer_probes,
+            peer_dependencies_trace,
         });
         if self.package_cache_enabled {
             self.package_cache
@@ -5040,7 +5973,73 @@ impl<'a> ModuleResolver<'a> {
     /// readPackageJsonPeerDependencies → getPackageJsonInfo), recorded as
     /// probed when the identity is attached to a resolution and not when the
     /// package.json is merely read.
+    /// tsgo `readPackageJsonPeerDependencies`, run by `getPackageId`: the
+    /// peer dependency lookups' traces and probes.
     fn record_peer_probes(&self, package: &CachedPackage) -> Result<(), ResolutionError> {
+        match &package.peer_dependencies_trace {
+            PeerDependenciesTrace::Absent => {
+                trace!(
+                    self,
+                    gen::package_json_does_not_have_a_0_field,
+                    "peerDependencies"
+                );
+            }
+            PeerDependenciesTrace::Invalid(actual) => {
+                trace!(
+                    self,
+                    gen::Expected_type_of_0_field_in_package_json_to_be_1_got_2,
+                    "peerDependencies",
+                    "object",
+                    *actual
+                );
+                trace!(
+                    self,
+                    gen::package_json_does_not_have_a_0_field,
+                    "peerDependencies"
+                );
+            }
+            PeerDependenciesTrace::Present {
+                package_directory,
+                real_directory,
+                peers,
+            } => {
+                trace!(self, gen::package_json_has_a_peerDependencies_field);
+                trace!(
+                    self,
+                    gen::Resolving_real_path_for_0_result_1,
+                    package_directory.as_js(),
+                    real_directory.as_js()
+                );
+                for (name, peer_package_json, version) in peers {
+                    match version {
+                        Some(version) => {
+                            trace!(
+                                self,
+                                gen::Found_package_json_at_0,
+                                peer_package_json.as_js()
+                            );
+                            trace!(
+                                self,
+                                gen::Found_peerDependency_0_with_1_version,
+                                name.as_js(),
+                                version.as_js()
+                            );
+                        }
+                        None => {
+                            if self
+                                .host
+                                .directory_exists_js(JsStr::from(&js_directory_name(
+                                    peer_package_json,
+                                )))?
+                            {
+                                trace!(self, gen::File_0_does_not_exist, peer_package_json.as_js());
+                            }
+                            trace!(self, gen::Failed_to_find_peerDependency_0, name.as_js());
+                        }
+                    }
+                }
+            }
+        }
         for (peer_package_json, exists) in &package.peer_probes {
             let cache_key = canonical_text(
                 peer_package_json.as_js(),
@@ -5071,7 +6070,10 @@ impl<'a> ModuleResolver<'a> {
             return Ok(PeerDependencyLookup::default());
         };
         let Some(peers) = peers.as_object() else {
-            return Ok(PeerDependencyLookup::default());
+            return Ok(PeerDependencyLookup {
+                trace: PeerDependenciesTrace::Invalid(json_value_type_name(peers)),
+                ..PeerDependencyLookup::default()
+            });
         };
         if peers.is_empty() || !peers.values().all(Value::is_string) {
             return Ok(PeerDependencyLookup::default());
@@ -5085,7 +6087,14 @@ impl<'a> ModuleResolver<'a> {
         // `strings.LastIndex(packageDirectory, "/node_modules")`: the text up
         // to and including the last `/node_modules`.
         let Some((before, _)) = real_directory.as_js().rsplit_once("/node_modules") else {
-            return Ok(PeerDependencyLookup::default());
+            return Ok(PeerDependencyLookup {
+                trace: PeerDependenciesTrace::Present {
+                    package_directory: package_directory.to_owned(),
+                    real_directory: real_directory.clone(),
+                    peers: Vec::new(),
+                },
+                ..PeerDependencyLookup::default()
+            });
         };
         let mut node_modules = before.to_owned();
         node_modules.push_str("/node_modules");
@@ -5093,12 +6102,14 @@ impl<'a> ModuleResolver<'a> {
         names.sort();
         let mut suffix = JsString::from("");
         let mut probes = Vec::with_capacity(names.len());
+        let mut peers = Vec::with_capacity(names.len());
         for name in names {
             let peer_package_json =
                 join_normalized(&join_normalized(&node_modules, &name), "package.json");
             let exists = self.host.file_exists_js(peer_package_json.as_js())?;
             probes.push((peer_package_json.clone(), exists));
             if !exists {
+                peers.push((name, peer_package_json, None));
                 continue;
             }
             let bytes = self
@@ -5115,72 +6126,30 @@ impl<'a> ModuleResolver<'a> {
             suffix.push_str("+");
             suffix.push_js(name.as_js());
             suffix.push_str("@");
-            if let Some(version) = json_object_get(&peer, "version").and_then(Value::as_js) {
+            let version = json_object_get(&peer, "version").and_then(Value::as_js);
+            if let Some(version) = version {
                 suffix.push_js(version);
             }
+            peers.push((
+                name,
+                peer_package_json,
+                Some(version.map(JsStr::to_owned).unwrap_or_else(JsString::new)),
+            ));
         }
         Ok(PeerDependencyLookup {
             suffix: Some(suffix),
             probes,
+            trace: PeerDependenciesTrace::Present {
+                package_directory: package_directory.to_owned(),
+                real_directory,
+                peers,
+            },
         })
     }
 
     /// tsc-port: loadModuleFromExports @6.0.3
     /// tsc-hash: d64ca654fc853b01792ee9ffc748787fc9f080c30386c42e9f2bf20f5b4bf5bc
     /// tsc-span: _tsc.js:41471-41533
-    fn resolve_package_exports<'j0>(
-        &mut self,
-        package: &CachedPackage,
-        subpath: impl Into<JsStr<'j0>>,
-        is_external_library_import: bool,
-        probe_pass: ExtensionProbePass,
-        mode: ResolutionMode,
-        follow_realpath: bool,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let subpath = subpath.into();
-        let search = self.search_package_exports(
-            package,
-            subpath,
-            is_external_library_import,
-            probe_pass,
-            mode,
-            self.options.emit_module_resolution_kind(),
-            follow_realpath,
-        )?;
-        Ok(match search {
-            // A present exports map suppresses every legacy package fallback.
-            Search::Continue => ResolutionOutcome::NotFound,
-            Search::Terminal(outcome) => outcome,
-        })
-    }
-
-    #[allow(clippy::too_many_arguments)] // Conditions and extension masks vary independently.
-    fn resolve_package_exports_with_resolution_kind<'j0>(
-        &mut self,
-        package: &CachedPackage,
-        subpath: impl Into<JsStr<'j0>>,
-        is_external_library_import: bool,
-        probe_pass: ExtensionProbePass,
-        mode: ResolutionMode,
-        resolution_kind: i32,
-        follow_realpath: bool,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let subpath = subpath.into();
-        let search = self.search_package_exports(
-            package,
-            subpath,
-            is_external_library_import,
-            probe_pass,
-            mode,
-            resolution_kind,
-            follow_realpath,
-        )?;
-        Ok(match search {
-            Search::Continue => ResolutionOutcome::NotFound,
-            Search::Terminal(outcome) => outcome,
-        })
-    }
-
     /// Preserve the upstream SearchResult distinction for self references:
     /// an ordinary target miss continues to node_modules, while an explicit
     /// null target is terminal.
@@ -5217,11 +6186,16 @@ impl<'a> ModuleResolver<'a> {
             bare_features: None,
         };
 
-        let search = match exports {
-            Value::String(_) if subpath == "." => {
-                self.resolve_selected_export(package, exports, "", false, context)?
-            }
-            Value::String(_) => Search::Continue,
+        // tsgo loadModuleFromExports: a main export of any value (`null`
+        // included) goes to the target loader as is, whose result returns
+        // directly; the "Export specifier … does not exist" trace is written
+        // only where the function runs to its end.
+        let (search, trace_missing) = match exports {
+            Value::String(_) | Value::Array(_) if subpath == "." => (
+                self.resolve_selected_export(package, exports, "", false, context, ".", ".")?,
+                false,
+            ),
+            Value::String(_) | Value::Array(_) => (Search::Continue, true),
             Value::Object(table) => {
                 let mut own_keys = table.keys().filter_map(decode_user_object_key);
                 let no_key_starts_with_dot = own_keys.clone().all(|key| !key.starts_with("."));
@@ -5229,31 +6203,49 @@ impl<'a> ModuleResolver<'a> {
 
                 if subpath == "." {
                     if no_key_starts_with_dot {
-                        self.resolve_selected_export(package, exports, "", false, context)?
+                        (
+                            self.resolve_selected_export(
+                                package, exports, "", false, context, ".", ".",
+                            )?,
+                            false,
+                        )
                     } else if let Some(main_export) = json_object_own_get(table, ".") {
-                        if js_json_value_is_truthy(main_export) {
-                            self.resolve_selected_export(package, main_export, "", false, context)?
-                        } else {
-                            Search::Continue
-                        }
+                        (
+                            self.resolve_selected_export(
+                                package,
+                                main_export,
+                                "",
+                                false,
+                                context,
+                                ".",
+                                ".",
+                            )?,
+                            false,
+                        )
                     } else {
-                        Search::Continue
+                        (Search::Continue, true)
                     }
                 } else if all_keys_start_with_dot {
-                    self.search_exports_table(package, table, subpath, context)?
+                    (
+                        self.search_exports_table(package, table, subpath, context)?,
+                        true,
+                    )
                 } else {
-                    Search::Continue
+                    (Search::Continue, true)
                 }
             }
-            Value::Array(_) if subpath == "." => {
-                self.resolve_selected_export(package, exports, "", false, context)?
-            }
-            Value::Array(_) => Search::Continue,
-            Value::Bool(_) | Value::Number(_) => Search::Continue,
             // Falsy exports never enter this worker, but retaining Continue
             // here keeps the helper fail-safe if an internal caller changes.
-            Value::Null => Search::Continue,
+            Value::Bool(_) | Value::Number(_) | Value::Null => (Search::Continue, true),
         };
+        if trace_missing && matches!(search, Search::Continue) {
+            trace!(
+                self,
+                gen::Export_specifier_0_does_not_exist_in_package_json_scope_at_path_1,
+                subpath,
+                package.root.as_js()
+            );
+        }
 
         Ok(search)
     }
@@ -5280,77 +6272,186 @@ impl<'a> ModuleResolver<'a> {
             &selected.subpath,
             selected.pattern,
             context,
+            subpath,
+            &selected.key,
         )
     }
 
     /// tsc-port: getLoadModuleFromTargetExportOrImport @6.0.3
     /// tsc-hash: 53140e49d3d9c87a08a45ee1da483817e6da6a64062106b27a96bc0ad9d64717
     /// tsc-span: _tsc.js:41659-41883
-    fn resolve_selected_export<'s>(
+    /// tsgo `loadModuleFromTargetExportOrImport`: `module_name` is the
+    /// specifier resolved in the scope and `key` the table key it matched.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_selected_export<'s, 'n, 'k>(
         &mut self,
         package: &CachedPackage,
         target: &Value,
         subpath: impl Into<JsStr<'s>>,
         pattern: bool,
         context: ExportProbeContext,
+        module_name: impl Into<JsStr<'n>>,
+        key: impl Into<JsStr<'k>>,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let subpath = subpath.into();
+        let module_name = module_name.into();
+        let key = key.into();
+        let map_kind = if context.kind == PackageMapKind::Imports {
+            "imports"
+        } else {
+            "exports"
+        };
         match target {
-            Value::Null => Ok(Search::Terminal(ResolutionOutcome::NotFound)),
+            Value::Null => {
+                trace!(
+                    self,
+                    gen::package_json_scope_0_explicitly_maps_specifier_1_to_null,
+                    package.root.as_js(),
+                    module_name
+                );
+                Ok(Search::Terminal(ResolutionOutcome::NotFound))
+            }
             Value::String(raw_target) => {
                 if !pattern && !subpath.is_empty() && !raw_target.ends_with("/") {
+                    self.trace_invalid_package_map_target(package, module_name);
                     return Ok(Search::Continue);
                 }
                 if context.kind == PackageMapKind::Imports && !raw_target.starts_with("./") {
                     let Some(target) = expand_imports_bare_target(raw_target, subpath, pattern)?
                     else {
+                        self.trace_invalid_package_map_target(package, module_name);
                         return Ok(Search::Continue);
                     };
+                    self.trace_bare_imports_target(package, key, &target);
                     return self.resolve_bare_import_target(package, &target, context);
                 }
                 let Some(target) =
                     expand_export_target(&package.root, raw_target, subpath, pattern)?
                 else {
+                    self.trace_invalid_package_map_target(package, module_name);
                     return Ok(Search::Continue);
                 };
                 let candidate = normalize_absolute_js_path(JsStr::from(&target), None, true)?;
                 if !path_is_within(&candidate, &package.root) {
+                    self.trace_invalid_package_map_target(package, module_name);
                     return Ok(Search::Continue);
+                }
+                if self.trace.is_some() {
+                    let message_target = if pattern {
+                        replace_all_stars(raw_target.as_js(), subpath)
+                    } else {
+                        let mut text = raw_target.clone();
+                        text.push_js(subpath);
+                        text
+                    };
+                    trace!(
+                        self,
+                        gen::Using_0_subpath_1_with_target_2,
+                        map_kind,
+                        key,
+                        message_target.as_js()
+                    );
                 }
                 self.probe_package_map_target(package, &candidate, subpath, context, raw_target)
             }
             Value::Object(conditions) => {
+                trace!(self, gen::Entering_conditional_exports);
                 for (condition, target) in js_own_property_entries(conditions) {
                     if !self.package_condition_matches(
                         condition,
                         context.mode,
                         context.resolution_kind,
                     ) {
+                        trace!(self, gen::Saw_non_matching_condition_0, condition);
                         continue;
                     }
-                    let result =
-                        self.resolve_selected_export(package, target, subpath, pattern, context)?;
+                    trace!(self, gen::Matched_0_condition_1, map_kind, condition);
+                    let result = self.resolve_selected_export(
+                        package,
+                        target,
+                        subpath,
+                        pattern,
+                        context,
+                        module_name,
+                        key,
+                    )?;
                     if !matches!(result, Search::Continue) {
+                        if matches!(result, Search::Terminal(ResolutionOutcome::Resolved(_))) {
+                            trace!(self, gen::Resolved_under_condition_0, condition);
+                        }
+                        trace!(self, gen::Exiting_conditional_exports);
                         return Ok(result);
                     }
+                    trace!(self, gen::Failed_to_resolve_under_condition_0, condition);
                 }
+                trace!(self, gen::Exiting_conditional_exports);
                 Ok(Search::Continue)
             }
             Value::Array(targets) => {
                 if targets.is_empty() {
+                    self.trace_invalid_package_map_target(package, module_name);
                     return Ok(Search::Continue);
                 }
                 for target in targets {
-                    let result =
-                        self.resolve_selected_export(package, target, subpath, pattern, context)?;
+                    let result = self.resolve_selected_export(
+                        package,
+                        target,
+                        subpath,
+                        pattern,
+                        context,
+                        module_name,
+                        key,
+                    )?;
                     if !matches!(result, Search::Continue) {
                         return Ok(result);
                     }
                 }
                 Ok(Search::Continue)
             }
-            Value::Bool(_) | Value::Number(_) => Ok(Search::Continue),
+            Value::Bool(_) | Value::Number(_) => {
+                self.trace_invalid_package_map_target(package, module_name);
+                Ok(Search::Continue)
+            }
         }
+    }
+
+    fn trace_invalid_package_map_target(&self, package: &CachedPackage, module_name: JsStr<'_>) {
+        trace!(
+            self,
+            gen::package_json_scope_0_has_invalid_type_for_target_of_specifier_1,
+            package.root.as_js(),
+            module_name
+        );
+    }
+
+    /// The two lines before tsgo re-enters `resolveNodeLike` for a bare
+    /// `imports` target.
+    fn trace_bare_imports_target(
+        &self,
+        package: &CachedPackage,
+        key: JsStr<'_>,
+        target: &JsString,
+    ) {
+        if self.trace.is_none() {
+            return;
+        }
+        let mut scope_directory = package.root.clone();
+        if !scope_directory.ends_with("/") {
+            scope_directory.push('/');
+        }
+        trace!(
+            self,
+            gen::Using_0_subpath_1_with_target_2,
+            "imports",
+            key,
+            target.as_js()
+        );
+        trace!(
+            self,
+            gen::Resolving_module_0_from_1,
+            target.as_js(),
+            scope_directory.as_js()
+        );
     }
 
     /// tsgo: the string-target arm of loadModuleFromTargetExportOrImport
@@ -5683,6 +6784,15 @@ impl<'a> ModuleResolver<'a> {
             }
             Err(error) => return Err(error),
         };
+        if base_name(target).contains(".") {
+            let extension = written_extension_to_strip(target);
+            trace!(
+                self,
+                gen::File_name_0_has_a_1_extension_stripping_it,
+                target,
+                extension.as_js()
+            );
+        }
         if replacement
             .as_ref()
             .is_none_or(|(_, probes)| probes.is_empty())
@@ -5865,6 +6975,12 @@ impl<'a> ModuleResolver<'a> {
         }
         let Some(real_path) = self.host.realpath_js(lexical_path)? else {
             if allow_missing {
+                trace!(
+                    self,
+                    gen::Resolving_real_path_for_0_result_1,
+                    lexical_path,
+                    lexical_path
+                );
                 return Ok((lexical, None));
             }
             return Err(ResolutionError::invalid_data(format!(
@@ -5877,6 +6993,12 @@ impl<'a> ModuleResolver<'a> {
             Some(self.current_directory_text()),
             true,
         )?;
+        trace!(
+            self,
+            gen::Resolving_real_path_for_0_result_1,
+            lexical_path,
+            normalized_real_path.as_js()
+        );
         let real = self.program_path(&normalized_real_path)?;
         if real.canonical() == lexical.canonical() {
             Ok((lexical, None))
@@ -6188,6 +7310,52 @@ fn selected_package_entry_field(
         | ExtensionProbePass::ImplementationPreferred
         | ExtensionProbePass::ImplementationFallback
         | ExtensionProbePass::Fallback => package.main.as_ref().map(JsString::as_js),
+    }
+}
+
+/// tsgo `ModuleResolutionKind.String()`.
+fn module_resolution_kind_name(kind: i32) -> &'static str {
+    match kind {
+        1 => "Classic",
+        2 => "Node10",
+        3 => "Node16",
+        99 => "NodeNext",
+        _ => "Bundler",
+    }
+}
+
+/// tsgo `packagejson.JSONValueType.String()`.
+fn json_value_type_name(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::String(_) => "string",
+        Value::Number(_) => "number",
+        Value::Bool(_) => "boolean",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+/// The extension tsgo `loadModuleFromFileNoImplicitExtensions` strips: a
+/// supported extension (`tspath.RemoveFileExtension`), else the longest
+/// written one.
+fn written_extension_to_strip(candidate: JsStr<'_>) -> JsString {
+    const REMOVABLE: [&str; 12] = [
+        ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
+        ".json",
+    ];
+    for extension in REMOVABLE {
+        if candidate.len_units() > extension.len() && candidate.ends_with(extension) {
+            return JsString::from(extension);
+        }
+    }
+    match base_name(candidate).rsplit_once(".") {
+        Some((_, extension)) => {
+            let mut text = JsString::from(".");
+            text.push_js(extension);
+            text
+        }
+        None => JsString::new(),
     }
 }
 
@@ -6705,25 +7873,6 @@ pub fn js_own_property_entries(object: &Map) -> Vec<(JsStr<'_>, &Value)> {
         .collect()
 }
 
-fn js_json_object_entries(value: &Value) -> Option<Vec<(JsString, &Value)>> {
-    match value {
-        Value::Object(object) => Some(
-            js_own_property_entries(object)
-                .into_iter()
-                .map(|(key, value)| (key.to_owned(), value))
-                .collect(),
-        ),
-        Value::Array(array) => Some(
-            array
-                .iter()
-                .enumerate()
-                .map(|(index, value)| (JsString::from(index.to_string()), value))
-                .collect(),
-        ),
-        _ => None,
-    }
-}
-
 fn js_array_index<'a>(key: impl Into<JsStr<'a>>) -> Option<u32> {
     // JavaScript numeric property indices use a canonical ASCII spelling.
     let key = key.into().as_str()?;
@@ -6732,311 +7881,6 @@ fn js_array_index<'a>(key: impl Into<JsStr<'a>>) -> Option<u32> {
     }
     let index = key.parse::<u32>().ok()?;
     (index != u32::MAX && index.to_string() == key).then_some(index)
-}
-
-/// Project the value passed to TypeScript's generic `forEach` helper in
-/// `tryLoadModuleUsingPaths`.
-///
-/// tsc-port: forEach @6.0.3
-/// tsc-hash: 8efa7fabfe639253b0004be7e4cf536dd28e0425554f481edec429d0a7508ca7
-/// tsc-span: _tsc.js:29-39
-fn try_for_each_types_versions_substitution<'p, T>(
-    targets: &Value,
-    pattern: impl Into<JsStr<'p>>,
-    mut callback: impl FnMut(&Value) -> Result<Option<T>, ResolutionError>,
-) -> Result<Option<T>, ResolutionError> {
-    let pattern = pattern.into();
-    match targets {
-        // Generic forEach indexes a JavaScript string one UTF-16 unit at a
-        // time. Retain each unit through replacement and path operations.
-        Value::String(target) => {
-            for unit in target.code_units() {
-                let substitution = Value::String(JsString::from_code_units(&[unit]));
-                if let Some(result) = callback(&substitution)? {
-                    return Ok(Some(result));
-                }
-            }
-            Ok(None)
-        }
-        Value::Array(targets) => {
-            for target in targets {
-                if let Some(result) = callback(target)? {
-                    return Ok(Some(result));
-                }
-            }
-            Ok(None)
-        }
-        Value::Object(targets) => {
-            let length = js_json_object_array_like_length(targets)?;
-            let mut index = 0_usize;
-            while (index as f64) < length {
-                let substitution =
-                    json_object_get(targets, &index.to_string()).ok_or_else(|| {
-                        ResolutionError::invalid_data(format!(
-                            "typesVersions mapping {pattern:?} is missing array-like index {index}"
-                        ))
-                    })?;
-                if let Some(result) = callback(substitution)? {
-                    return Ok(Some(result));
-                }
-                index = index.checked_add(1).ok_or_else(|| {
-                    ResolutionError::resource_limit(format!(
-                        "typesVersions mapping {pattern:?} has an unbounded array-like length"
-                    ))
-                })?;
-            }
-            Ok(None)
-        }
-        // `forEach(null, ...)` reads `null.length` and throws. Other JSON
-        // primitives expose no `length`, so the JavaScript loop executes zero
-        // times and the selected mapping owns a miss.
-        Value::Null => Err(ResolutionError::invalid_data(format!(
-            "typesVersions mapping {pattern:?} is null"
-        ))),
-        Value::Bool(_) | Value::Number(_) => Ok(None),
-    }
-}
-
-/// Apply the callback-local JavaScript coercions from
-/// `tryLoadModuleUsingPaths`. A nonempty wildcard capture goes through
-/// `String.prototype.replace.call`, while an exact match passes its raw value
-/// to `combinePaths`: false, zero, and an empty string are skipped there, but
-/// other truthy non-string JSON values fail during slash normalization.
-fn project_types_versions_substitution<'c, 'p>(
-    substitution: &Value,
-    capture: impl Into<JsStr<'c>>,
-    pattern: impl Into<JsStr<'p>>,
-) -> Result<(JsString, Option<ModuleExtension>), ResolutionError> {
-    let capture = capture.into();
-    let pattern = pattern.into();
-    let invalid_target = || {
-        ResolutionError::invalid_data(format!(
-            "typesVersions mapping {pattern:?} contains a target that cannot be used as a path"
-        ))
-    };
-    if !capture.is_empty() {
-        let target = js_json_to_string(substitution)?;
-        let expanded = js_replace_first_star(&target, capture)?;
-        let extension = recognized_types_versions_raw_extension(substitution, pattern)?;
-        return Ok((expanded, extension));
-    }
-
-    match substitution {
-        Value::String(target) => Ok((target.clone(), recognized_module_extension(target))),
-        Value::Bool(false) => Ok((JsString::new(), None)),
-        Value::Number(target) if json_number_as_f64(target).is_some_and(|target| target == 0.0) => {
-            Ok((JsString::new(), None))
-        }
-        Value::Null | Value::Bool(true) | Value::Number(_) | Value::Array(_) | Value::Object(_) => {
-            Err(invalid_target())
-        }
-    }
-}
-
-fn recognized_types_versions_raw_extension<'p>(
-    substitution: &Value,
-    pattern: impl Into<JsStr<'p>>,
-) -> Result<Option<ModuleExtension>, ResolutionError> {
-    let pattern = pattern.into();
-    let invalid_target = || {
-        ResolutionError::invalid_data(format!(
-            "typesVersions mapping {pattern:?} contains a target with invalid path operations"
-        ))
-    };
-    match substitution {
-        Value::String(substitution) => Ok(recognized_module_extension(substitution)),
-        Value::Null => Err(invalid_target()),
-        Value::Bool(_) | Value::Number(_) => Ok(None),
-        Value::Object(substitution) => {
-            let length = js_json_object_array_like_length(substitution)?;
-            for (text, extension) in [
-                (".d.ts", ModuleExtension::Dts),
-                (".d.mts", ModuleExtension::Dmts),
-                (".d.cts", ModuleExtension::Dcts),
-                (".mjs", ModuleExtension::Mjs),
-                (".mts", ModuleExtension::Mts),
-                (".cjs", ModuleExtension::Cjs),
-                (".cts", ModuleExtension::Cts),
-                (".ts", ModuleExtension::Ts),
-                (".js", ModuleExtension::Js),
-                (".tsx", ModuleExtension::Tsx),
-                (".jsx", ModuleExtension::Jsx),
-                (".json", ModuleExtension::Json),
-            ] {
-                if length.is_nan() || length <= text.len() as f64 {
-                    continue;
-                }
-                if !js_json_object_inherits_array_method(substitution, "indexOf") {
-                    return Err(invalid_target());
-                }
-                let expected = length - text.len() as f64;
-                if js_json_object_array_index_of_starts_with_match(substitution, text, expected)? {
-                    return Ok(Some(extension));
-                }
-            }
-            Ok(None)
-        }
-        Value::Array(substitution) => {
-            for (text, extension) in [
-                (".d.ts", ModuleExtension::Dts),
-                (".d.mts", ModuleExtension::Dmts),
-                (".d.cts", ModuleExtension::Dcts),
-                (".mjs", ModuleExtension::Mjs),
-                (".mts", ModuleExtension::Mts),
-                (".cjs", ModuleExtension::Cjs),
-                (".cts", ModuleExtension::Cts),
-                (".ts", ModuleExtension::Ts),
-                (".js", ModuleExtension::Js),
-                (".tsx", ModuleExtension::Tsx),
-                (".jsx", ModuleExtension::Jsx),
-                (".json", ModuleExtension::Json),
-            ] {
-                if substitution.len() <= text.len() {
-                    continue;
-                }
-                let expected = substitution.len() - text.len();
-                if substitution
-                    .iter()
-                    .skip(expected)
-                    .position(|value| value.as_js().is_some_and(|value| value == text))
-                    == Some(0)
-                {
-                    return Ok(Some(extension));
-                }
-            }
-            Ok(None)
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum JsJsonObjectToStringMethod {
-    Object,
-    ArrayJoin,
-}
-
-fn js_json_object_to_string_method(
-    object: &Map,
-) -> Result<JsJsonObjectToStringMethod, ResolutionError> {
-    js_json_object_to_string_method_worker(object, false)
-}
-
-fn js_json_object_to_string_method_worker(
-    object: &Map,
-    inherited_join_is_shadowed: bool,
-) -> Result<JsJsonObjectToStringMethod, ResolutionError> {
-    // JSON cannot carry a function. Any own `toString` therefore shadows the
-    // inherited callable with a non-callable value and JavaScript throws.
-    if json_object_own_get(object, "toString").is_some() {
-        return Err(ResolutionError::invalid_data(
-            "JSON object shadows its inherited JavaScript toString method",
-        ));
-    }
-    let inherited_join_is_shadowed =
-        inherited_join_is_shadowed || json_object_own_get(object, "join").is_some();
-    match jsonc_prototype(object) {
-        Some(Value::Object(prototype)) => {
-            js_json_object_to_string_method_worker(prototype, inherited_join_is_shadowed)
-        }
-        // `convertToJson` assigns through `result["__proto__"]`. An array
-        // value consequently lends Array.prototype.toString to the result;
-        // that method invokes a callable `this.join`, or falls back to
-        // Object.prototype.toString when a JSON value shadows `join`.
-        Some(Value::Array(_)) if inherited_join_is_shadowed => {
-            Ok(JsJsonObjectToStringMethod::Object)
-        }
-        Some(Value::Array(_)) => Ok(JsJsonObjectToStringMethod::ArrayJoin),
-        Some(Value::Null) => Err(ResolutionError::invalid_data(
-            "JSON object has no inherited JavaScript toString method",
-        )),
-        None => Ok(JsJsonObjectToStringMethod::Object),
-        Some(_) => {
-            unreachable!("the JSONC converter stores only object, array, or null prototypes")
-        }
-    }
-}
-
-fn js_json_object_inherits_array_method(object: &Map, method: &str) -> bool {
-    if json_object_own_get(object, method).is_some() {
-        return false;
-    }
-    match jsonc_prototype(object) {
-        Some(Value::Object(prototype)) => js_json_object_inherits_array_method(prototype, method),
-        Some(Value::Array(_)) => true,
-        Some(Value::Null) | None => false,
-        Some(_) => {
-            unreachable!("the JSONC converter stores only object, array, or null prototypes")
-        }
-    }
-}
-
-fn js_json_object_array_index_of_starts_with_match(
-    object: &Map,
-    needle: &str,
-    expected: f64,
-) -> Result<bool, ResolutionError> {
-    // `tryGetExtensionFromPath2` compares Array#indexOf's integer return
-    // value with the raw subtraction result. A fractional or infinite value
-    // can therefore never match, though the inherited method lookup above is
-    // still observable and must already have succeeded.
-    if !expected.is_finite() || expected < 0.0 || expected.fract() != 0.0 {
-        return Ok(false);
-    }
-    let element_count = js_array_like_to_length(js_json_object_array_like_length(object)?);
-    if expected >= element_count as f64 {
-        return Ok(false);
-    }
-    let index = format!("{expected:.0}");
-    Ok(json_object_get(object, &index)
-        .and_then(Value::as_js)
-        .is_some_and(|value| value == needle))
-}
-
-fn js_array_like_to_length(length: f64) -> u64 {
-    if length.is_nan() || length <= 0.0 {
-        0
-    } else if !length.is_finite() {
-        9_007_199_254_740_991
-    } else {
-        length.floor().min(9_007_199_254_740_991.0) as u64
-    }
-}
-
-fn js_json_object_array_like_length(object: &Map) -> Result<f64, ResolutionError> {
-    if let Some(length) = json_object_own_get(object, "length") {
-        return js_json_to_number(length);
-    }
-    match jsonc_prototype(object) {
-        Some(Value::Object(prototype)) => js_json_object_array_like_length(prototype),
-        Some(Value::Array(prototype)) => Ok(prototype.len() as f64),
-        Some(Value::Null) | None => Ok(f64::NAN),
-        Some(_) => {
-            unreachable!("the JSONC converter stores only object, array, or null prototypes")
-        }
-    }
-}
-
-fn js_json_to_string(value: &Value) -> Result<JsString, ResolutionError> {
-    match value {
-        Value::Null => Err(ResolutionError::invalid_data(
-            "null cannot be used as a JavaScript string receiver",
-        )),
-        Value::Bool(value) => Ok(JsString::from(if *value { "true" } else { "false" })),
-        Value::Number(value) => json_number_as_f64(value)
-            .map(js_number_to_string)
-            .map(JsString::from)
-            .ok_or_else(|| {
-                ResolutionError::invalid_data(
-                    "JSON number cannot be represented as a JavaScript number",
-                )
-            }),
-        Value::String(value) => Ok(value.clone()),
-        Value::Array(values) => js_json_array_to_string(values),
-        Value::Object(value) => match js_json_object_to_string_method(value)? {
-            JsJsonObjectToStringMethod::Object => Ok(JsString::from("[object Object]")),
-            JsJsonObjectToStringMethod::ArrayJoin => js_json_object_array_join_to_string(value),
-        },
-    }
 }
 
 fn js_json_value_is_truthy(value: &Value) -> bool {
@@ -7050,403 +7894,40 @@ fn js_json_value_is_truthy(value: &Value) -> bool {
     }
 }
 
-/// JavaScript Number coercion for JSON values used as an array-like `length`.
-fn js_json_to_number(value: &Value) -> Result<f64, ResolutionError> {
-    match value {
-        Value::Null => Ok(0.0),
-        Value::Bool(value) => Ok(f64::from(u8::from(*value))),
-        Value::Number(value) => json_number_as_f64(value).ok_or_else(|| {
-            ResolutionError::invalid_data(
-                "JSON number cannot be represented as a JavaScript number",
-            )
-        }),
-        Value::String(value) => Ok(js_number_from_text(value)),
-        Value::Array(values) => Ok(js_number_from_text(&js_json_array_to_string(values)?)),
-        Value::Object(value) => match js_json_object_to_string_method(value)? {
-            JsJsonObjectToStringMethod::Object => Ok(f64::NAN),
-            JsJsonObjectToStringMethod::ArrayJoin => Ok(js_number_from_text(
-                &js_json_object_array_join_to_string(value)?,
-            )),
-        },
-    }
-}
-
-fn js_number_from_text<'a>(value: impl Into<JsStr<'a>>) -> f64 {
-    // StringNumericLiteral and its whitespace grammar contain no surrogate
-    // units. A non-scalar value is therefore NaN, not a missing JSON value.
-    let Some(value) = value.into().as_str() else {
-        return f64::NAN;
-    };
-    let value = value.trim_matches(is_ecmascript_string_numeric_whitespace);
-    if value.is_empty() {
-        return 0.0;
-    }
-    match value {
-        "Infinity" | "+Infinity" => return f64::INFINITY,
-        "-Infinity" => return f64::NEG_INFINITY,
-        _ => {}
-    }
-    for (prefixes, radix) in [(["0x", "0X"], 16_u32), (["0o", "0O"], 8), (["0b", "0B"], 2)] {
-        if let Some(digits) = prefixes
-            .iter()
-            .find_map(|prefix| value.strip_prefix(prefix))
-        {
-            if digits.is_empty() {
-                return f64::NAN;
-            }
-            let mut number = 0.0_f64;
-            for digit in digits.chars() {
-                let Some(digit) = digit.to_digit(radix) else {
-                    return f64::NAN;
-                };
-                number = number.mul_add(f64::from(radix), f64::from(digit));
-            }
-            return number;
-        }
-    }
-    if !is_ecmascript_decimal_number(value) {
-        return f64::NAN;
-    }
-    value
-        .strip_prefix('+')
-        .unwrap_or(value)
-        .parse()
-        .unwrap_or(f64::NAN)
-}
-
-fn is_ecmascript_string_numeric_whitespace(character: char) -> bool {
-    matches!(
-        character,
-        '\u{0009}'
-            | '\u{000a}'
-            | '\u{000b}'
-            | '\u{000c}'
-            | '\u{000d}'
-            | '\u{0020}'
-            | '\u{00a0}'
-            | '\u{1680}'
-            | '\u{2000}'
-            ..='\u{200a}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202f}'
-                | '\u{205f}'
-                | '\u{3000}'
-                | '\u{feff}'
-    )
-}
-
-fn is_ecmascript_decimal_number(value: &str) -> bool {
-    let unsigned = value.strip_prefix(['+', '-']).unwrap_or(value);
-    if unsigned.is_empty() {
-        return false;
-    }
-    let mut exponent_parts = unsigned.split(['e', 'E']);
-    let mantissa = exponent_parts
-        .next()
-        .expect("split always yields a mantissa");
-    if let Some(exponent) = exponent_parts.next() {
-        if exponent_parts.next().is_some() {
-            return false;
-        }
-        let exponent = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
-        if exponent.is_empty() || !exponent.bytes().all(|byte| byte.is_ascii_digit()) {
-            return false;
-        }
-    }
-    let mut decimal_parts = mantissa.split('.');
-    let whole = decimal_parts
-        .next()
-        .expect("split always yields a whole part");
-    let fraction = decimal_parts.next();
-    if decimal_parts.next().is_some() {
-        return false;
-    }
-    let whole_is_digits = whole.bytes().all(|byte| byte.is_ascii_digit());
-    let fraction_is_digits =
-        fraction.is_none_or(|fraction| fraction.bytes().all(|byte| byte.is_ascii_digit()));
-    whole_is_digits
-        && fraction_is_digits
-        && (!whole.is_empty() || fraction.is_some_and(|fraction| !fraction.is_empty()))
-}
-
-fn js_json_array_to_string(values: &[Value]) -> Result<JsString, ResolutionError> {
-    let output_length = js_json_array_string_length(values)?;
-    if output_length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
-        return Err(ResolutionError::resource_limit(format!(
-            "JavaScript array string coercion would produce {output_length} bytes (budget {MAX_JS_JSON_COERCION_OUTPUT_BUDGET})"
-        )));
-    }
-    let mut result = JsString::new();
-    result.try_reserve_exact(output_length).map_err(|error| {
-        ResolutionError::resource_limit(format!(
-            "could not reserve {output_length} bytes for JavaScript array string coercion: {error}"
-        ))
-    })?;
-    append_js_json_array_string(values, &mut result)?;
-    debug_assert_eq!(result.as_bytes().len(), output_length);
-    Ok(result)
-}
-
-fn js_json_array_string_length(values: &[Value]) -> Result<usize, ResolutionError> {
-    let mut length = values.len().saturating_sub(1);
-    for value in values {
-        let value_length = js_json_join_element_string_length(value)?;
-        length = length.checked_add(value_length).ok_or_else(|| {
-            ResolutionError::resource_limit(
-                "JavaScript array string coercion output length overflowed usize",
-            )
-        })?;
-    }
-    Ok(length)
-}
-
-fn append_js_json_array_string(
-    values: &[Value],
-    result: &mut JsString,
-) -> Result<(), ResolutionError> {
-    for (index, value) in values.iter().enumerate() {
-        if index != 0 {
-            result.push(',');
-        }
-        append_js_json_join_element(value, result)?;
-    }
-    Ok(())
-}
-
-fn append_js_json_join_element(
-    value: &Value,
-    result: &mut JsString,
-) -> Result<(), ResolutionError> {
-    match value {
-        Value::Null => {}
-        Value::Bool(value) => result.push_str(if *value { "true" } else { "false" }),
-        Value::Number(value) => {
-            let value = json_number_as_f64(value).ok_or_else(|| {
-                ResolutionError::invalid_data(
-                    "JSON number cannot be represented as a JavaScript number",
-                )
-            })?;
-            result.push_str(&js_number_to_string(value));
-        }
-        Value::String(value) => result.push_js(value.as_js()),
-        Value::Array(values) => append_js_json_array_string(values, result)?,
-        Value::Object(value) => append_js_json_object_string(value, result)?,
-    }
-    Ok(())
-}
-
-fn js_json_join_element_string_length(value: &Value) -> Result<usize, ResolutionError> {
-    match value {
-        // Array#join renders null and an absent/undefined element as empty.
-        Value::Null => Ok(0),
-        Value::Bool(true) => Ok(4),
-        Value::Bool(false) => Ok(5),
-        Value::Number(value) => json_number_as_f64(value)
-            .map(js_number_to_string)
-            .map(|value| value.len())
-            .ok_or_else(|| {
-                ResolutionError::invalid_data(
-                    "JSON number cannot be represented as a JavaScript number",
-                )
-            }),
-        Value::String(value) => Ok(value.as_bytes().len()),
-        Value::Array(values) => js_json_array_string_length(values),
-        Value::Object(value) => match js_json_object_to_string_method(value)? {
-            JsJsonObjectToStringMethod::Object => Ok("[object Object]".len()),
-            JsJsonObjectToStringMethod::ArrayJoin => js_json_object_array_join_string_length(value),
-        },
-    }
-}
-
-fn append_js_json_object_string(
-    object: &Map,
-    result: &mut JsString,
-) -> Result<(), ResolutionError> {
-    match js_json_object_to_string_method(object)? {
-        JsJsonObjectToStringMethod::Object => result.push_str("[object Object]"),
-        JsJsonObjectToStringMethod::ArrayJoin => {
-            append_js_json_object_array_join_string(object, result)?;
-        }
-    }
-    Ok(())
-}
-
-fn js_json_object_array_join_to_string(object: &Map) -> Result<JsString, ResolutionError> {
-    let (element_count, elements) = js_json_object_array_join_projection(object)?;
-    let output_length = js_json_object_array_join_projection_length(element_count, &elements)?;
-    if output_length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
-        return Err(ResolutionError::resource_limit(format!(
-            "JavaScript generic array string coercion would produce {output_length} bytes (budget {MAX_JS_JSON_COERCION_OUTPUT_BUDGET})"
-        )));
-    }
-    let mut result = JsString::new();
-    result.try_reserve_exact(output_length).map_err(|error| {
-        ResolutionError::resource_limit(format!(
-            "could not reserve {output_length} bytes for JavaScript generic array string coercion: {error}"
-        ))
-    })?;
-    append_js_json_object_array_join_projection(element_count, &elements, &mut result)?;
-    debug_assert_eq!(result.as_bytes().len(), output_length);
-    Ok(result)
-}
-
-fn js_json_object_array_join_string_length(object: &Map) -> Result<usize, ResolutionError> {
-    let (element_count, elements) = js_json_object_array_join_projection(object)?;
-    js_json_object_array_join_projection_length(element_count, &elements)
-}
-
-fn js_json_object_array_join_projection_length(
-    element_count: usize,
-    elements: &BTreeMap<usize, &Value>,
-) -> Result<usize, ResolutionError> {
-    let mut length = element_count.saturating_sub(1);
-    if length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
-        return Err(ResolutionError::resource_limit(format!(
-            "JavaScript generic array string coercion requires {length} separator bytes (budget {MAX_JS_JSON_COERCION_OUTPUT_BUDGET})"
-        )));
-    }
-    for value in elements.values() {
-        length = length
-            .checked_add(js_json_join_element_string_length(value)?)
-            .ok_or_else(|| {
-                ResolutionError::resource_limit(
-                    "JavaScript generic array string coercion output length overflowed usize",
-                )
-            })?;
-        if length > MAX_JS_JSON_COERCION_OUTPUT_BUDGET {
-            return Err(ResolutionError::resource_limit(format!(
-                "JavaScript generic array string coercion would exceed the {MAX_JS_JSON_COERCION_OUTPUT_BUDGET}-byte budget"
-            )));
-        }
-    }
-    Ok(length)
-}
-
-fn append_js_json_object_array_join_string(
-    object: &Map,
-    result: &mut JsString,
-) -> Result<(), ResolutionError> {
-    let (element_count, elements) = js_json_object_array_join_projection(object)?;
-    append_js_json_object_array_join_projection(element_count, &elements, result)
-}
-
-fn js_json_object_array_join_projection(
-    object: &Map,
-) -> Result<(usize, BTreeMap<usize, &Value>), ResolutionError> {
-    let element_count = js_array_join_element_count(js_json_object_array_like_length(object)?)?;
-    let mut elements = BTreeMap::new();
-    let mut current = object;
-    loop {
-        for (key, value) in current {
-            let Some(index) = js_generic_array_property_index(key) else {
-                continue;
-            };
-            if index < element_count {
-                elements.entry(index).or_insert(value);
-            }
-        }
-        match jsonc_prototype(current) {
-            Some(Value::Object(prototype)) => current = prototype,
-            Some(Value::Array(prototype)) => {
-                for (index, value) in prototype.iter().take(element_count).enumerate() {
-                    elements.entry(index).or_insert(value);
-                }
-                break;
-            }
-            Some(Value::Null) | None => break,
-            Some(_) => {
-                unreachable!("the JSONC converter stores only object, array, or null prototypes")
-            }
-        }
-    }
-    Ok((element_count, elements))
-}
-
-fn js_generic_array_property_index<'a>(key: impl Into<JsStr<'a>>) -> Option<usize> {
-    // JavaScript numeric property indices use a canonical ASCII spelling.
-    let key = key.into().as_str()?;
-    if key.is_empty() || (key.len() > 1 && key.starts_with('0')) {
-        return None;
-    }
-    let index = key.parse::<usize>().ok()?;
-    (index.to_string() == key).then_some(index)
-}
-
-fn append_js_json_object_array_join_projection(
-    element_count: usize,
-    elements: &BTreeMap<usize, &Value>,
-    result: &mut JsString,
-) -> Result<(), ResolutionError> {
-    let mut rendered_elements = 0usize;
-    for (&index, value) in elements {
-        let commas = if rendered_elements == 0 {
-            index
-        } else {
-            index - rendered_elements + 1
-        };
-        append_commas(result, commas);
-        append_js_json_join_element(value, result)?;
-        rendered_elements = index + 1;
-    }
-    let trailing_commas = if rendered_elements == 0 {
-        element_count.saturating_sub(1)
-    } else {
-        element_count - rendered_elements
-    };
-    append_commas(result, trailing_commas);
-    Ok(())
-}
-
-fn append_commas(result: &mut JsString, mut count: usize) {
-    const COMMA_BLOCK: &str = ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,";
-    while count >= COMMA_BLOCK.len() {
-        result.push_str(COMMA_BLOCK);
-        count -= COMMA_BLOCK.len();
-    }
-    result.push_str(&COMMA_BLOCK[..count]);
-}
-
-fn js_array_join_element_count(length: f64) -> Result<usize, ResolutionError> {
-    if length.is_nan() || length <= 0.0 {
-        return Ok(0);
-    }
-    if !length.is_finite() {
-        return Err(ResolutionError::resource_limit(
-            "JavaScript generic array string coercion has an infinite length",
-        ));
-    }
-    let length = length.floor().min(9_007_199_254_740_991.0);
-    if length > (MAX_JS_JSON_COERCION_OUTPUT_BUDGET + 1) as f64 {
-        return Err(ResolutionError::resource_limit(format!(
-            "JavaScript generic array string coercion length {length} exceeds the output budget"
-        )));
-    }
-    Ok(length as usize)
-}
-
+/// tsgo `TryParsePatterns` + `MatchPatternOrExact` over `GetPaths`: only the
+/// array-valued keys take part, in package.json order; a key without `*`
+/// matches exactly, a key with one `*` is a pattern (more are ignored), and
+/// the longest prefix wins (ties keep the first).
 fn select_types_versions_mapping<'a, 'r>(
-    table: &'a Value,
+    table: &'a Map,
     request: impl Into<JsStr<'r>>,
-) -> Option<(JsString, JsString, &'a Value)> {
+) -> Option<(JsString, JsString, &'a [Value])> {
     let request = request.into();
-    let entries = js_json_object_entries(table)?;
-    if let Some((key, targets)) = entries.iter().find(|(key, _)| key.as_js() == request) {
-        return Some((key.clone(), JsString::new(), *targets));
+    let entries: Vec<(JsStr<'a>, &'a [Value])> = json_object_entries_in_order(table)
+        .filter_map(|(key, targets)| match targets {
+            Value::Array(targets) => Some((key, targets.as_slice())),
+            _ => None,
+        })
+        .collect();
+    if let Some((key, targets)) = entries
+        .iter()
+        .find(|(key, _)| !key.contains("*") && *key == request)
+    {
+        return Some((JsString::from(*key), JsString::new(), *targets));
     }
-    let mut best = None;
+    let mut best: Option<(JsStr<'a>, JsString, &'a [Value], usize)> = None;
     for (pattern, targets) in entries {
-        if !has_one_asterisk(pattern.as_js()) {
+        if !has_one_asterisk(pattern) {
             continue;
         }
-        let (prefix, suffix) = pattern.as_js().split_once("*").expect("one asterisk");
+        let (prefix, suffix) = pattern.split_once("*").expect("one asterisk");
         let prefix_length = prefix.len_units();
         let suffix_length = suffix.len_units();
         if request.starts_with_js(prefix)
             && request.ends_with_js(suffix)
             && request.len_units() >= prefix_length + suffix_length
         {
-            // Equal prefix lengths retain package.json enumeration order.
+            // Equal prefix lengths keep the first key.
             if best
                 .as_ref()
                 .is_some_and(|(_, _, _, longest_prefix)| *longest_prefix >= prefix_length)
@@ -7457,7 +7938,7 @@ fn select_types_versions_mapping<'a, 'r>(
             best = Some((pattern, capture, targets, prefix_length));
         }
     }
-    best.map(|(pattern, capture, targets, _)| (pattern, capture, targets))
+    best.map(|(pattern, capture, targets, _)| (pattern.to_owned(), capture, targets))
 }
 
 pub fn mangle_scoped_package_name<'p>(package_name: impl Into<JsStr<'p>>) -> JsString {
@@ -7535,6 +8016,50 @@ fn has_one_asterisk(key: JsStr<'_>) -> bool {
         .is_some_and(|(_, suffix)| !suffix.contains("*"))
 }
 
+/// tsgo `strings.Replace(target, "*", replacement, 1)`: the first `*` is
+/// replaced literally (no JavaScript replacement-string tokens).
+fn replace_first_star<'t, 'r>(
+    target: impl Into<JsStr<'t>>,
+    replacement: impl Into<JsStr<'r>>,
+) -> JsString {
+    let target = target.into();
+    let replacement = replacement.into();
+    match target.split_once("*") {
+        Some((prefix, suffix)) => {
+            let mut result = prefix.to_owned();
+            result.push_js(replacement);
+            result.push_js(suffix);
+            result
+        }
+        None => target.to_owned(),
+    }
+}
+
+/// tsgo `strings.ReplaceAll(target, "*", replacement)`.
+fn replace_all_stars<'t, 'r>(
+    target: impl Into<JsStr<'t>>,
+    replacement: impl Into<JsStr<'r>>,
+) -> JsString {
+    let replacement = replacement.into();
+    let mut rest = target.into();
+    let mut result = JsString::new();
+    while let Some((prefix, suffix)) = rest.split_once("*") {
+        result.push_js(prefix);
+        result.push_js(replacement);
+        rest = suffix;
+    }
+    result.push_js(rest);
+    result
+}
+
+/// The entries of a package.json object in document order (tsgo's ordered
+/// map; JavaScript's integer-key ordering does not apply).
+fn json_object_entries_in_order(object: &Map) -> impl Iterator<Item = (JsStr<'_>, &Value)> {
+    object
+        .iter()
+        .filter_map(|(key, value)| decode_user_object_key(key).map(|key| (key, value)))
+}
+
 fn select_package_map_target<'a, 'n>(
     table: &'a Map,
     specifier: impl Into<JsStr<'n>>,
@@ -7547,6 +8072,7 @@ fn select_package_map_target<'a, 'n>(
                 target,
                 subpath: JsString::new(),
                 pattern: false,
+                key: specifier.to_owned(),
             });
         }
     }
@@ -7580,6 +8106,7 @@ fn select_package_map_target<'a, 'n>(
                     target,
                     subpath: specifier.substring(start, end),
                     pattern: true,
+                    key: key.to_owned(),
                 });
             }
             if suffix.is_empty() && specifier.starts_with_js(prefix) {
@@ -7587,6 +8114,7 @@ fn select_package_map_target<'a, 'n>(
                     target,
                     subpath: specifier.substring(prefix.len_units(), specifier.len_units()),
                     pattern: true,
+                    key: key.to_owned(),
                 });
             }
         }
@@ -7597,6 +8125,7 @@ fn select_package_map_target<'a, 'n>(
                 target,
                 subpath: specifier.substring(key.len_units(), specifier.len_units()),
                 pattern: false,
+                key: key.to_owned(),
             });
         }
     }
@@ -7624,7 +8153,7 @@ fn expand_export_target<'p, 't, 's>(
     }
     let resolved_target = join_normalized_js(package_root, target);
     Ok(Some(if pattern {
-        js_replace_all_stars(&resolved_target, subpath)?
+        replace_all_stars(&resolved_target, subpath)
     } else {
         let mut result = resolved_target;
         result.push_js(subpath);
@@ -7647,7 +8176,7 @@ fn expand_imports_bare_target<'t, 's>(
         return Ok(None);
     }
     Ok(Some(if pattern {
-        js_replace_all_stars(target, subpath)?
+        replace_all_stars(target, subpath)
     } else {
         let mut result = target.to_owned();
         result.push_js(subpath);

@@ -1090,6 +1090,13 @@ fn execute_explicit_files(
         load_emitting_program(host, roots, options, program_options, catalog, limits)
     }
     .map_err(|error| CliError::Load(error.to_string()))?;
+    // tsgo prints the resolution trace while it creates the Program, before
+    // any listing or diagnostic.
+    let resolution_trace: String = prepared
+        .resolution_trace()
+        .iter()
+        .map(|line| format!("{line}\n"))
+        .collect();
     let mut source_texts = BTreeMap::new();
     for source in prepared.source_files() {
         source_texts.insert(
@@ -1111,7 +1118,7 @@ fn execute_explicit_files(
         old_build_info,
         ProjectRunMode::COMMAND,
     )
-    .map(|run| CliOutput::new(run.stdout, run.exit_code))
+    .map(|run| CliOutput::new(resolution_trace + &run.stdout, run.exit_code))
 }
 
 fn execute_prepared(

@@ -18,6 +18,7 @@ serde_json = "1.0"
 sha2 = "0.10"
 tsc-checker.workspace = true
 tsc-compiler.workspace = true
+tsc-types.workspace = true
 tsc-diagnostics.workspace = true
 tsc-harness.workspace = true
 tsc-program.workspace = true

@@ -16,6 +16,7 @@
 mod emit_baseline;
 mod errors_baseline;
 mod sourcemap_baseline;
+mod trace_baseline;
 mod type_symbol_baseline;
 
 use std::collections::{BTreeMap, HashSet};
@@ -418,6 +419,11 @@ pub enum Outcome {
         /// matches byte for byte, and why not.
         sourcemap: EmitAgreement,
         sourcemap_detail: Option<String>,
+        /// Whether the `.trace.json` baseline (the `--traceResolution` lines
+        /// of the Program, sanitized as tsgo's harness does) matches byte
+        /// for byte, and why not.
+        trace: EmitAgreement,
+        trace_detail: Option<String>,
     },
     /// Lane A, but tsc-rs could not build or check the Program.
     HarnessError { reason: String },
@@ -1224,6 +1230,17 @@ fn run_lane_a(
             }
         }
     };
+    // The `.trace.json` record (DoModuleResolutionBaseline): the lines the
+    // load traced, sanitized as the harness does; none without the option.
+    let rendered_trace = (prepared.compiler_options().trace_resolution == Some(true))
+        .then(|| {
+            trace_baseline::render(
+                prepared.resolution_trace(),
+                &prepared.current_directory().display().to_string_lossy(),
+                prepared.path_context().use_case_sensitive_file_names(),
+            )
+        })
+        .filter(|record| !record.is_empty());
     let budget = || {
         std::num::NonZeroUsize::new(checkers).map_or(CheckerBudget::serial(), CheckerBudget::new)
     };
@@ -1538,6 +1555,11 @@ fn run_lane_a(
         expected_sourcemap.as_deref(),
         emit_error.as_deref().or(sourcemap_error.as_deref()),
     );
+    let expected_trace = std::fs::read(profile.trace_baseline_path(suite, stem))
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+    let (trace, trace_detail) =
+        emit_agreement(rendered_trace.as_deref(), expected_trace.as_deref(), None);
     if let Some(directory) = dump {
         if emit == EmitAgreement::None {
             dump_file(
@@ -1561,6 +1583,14 @@ fn run_lane_a(
                 suite,
                 &format!("{stem}.sourcemap.txt"),
                 rendered_sourcemap.as_deref().unwrap_or_default(),
+            );
+        }
+        if trace == EmitAgreement::None {
+            dump_file(
+                directory,
+                suite,
+                &format!("{stem}.trace.json"),
+                rendered_trace.as_deref().unwrap_or_default(),
             );
         }
     }
@@ -1609,6 +1639,8 @@ fn run_lane_a(
         symbols_detail,
         sourcemap,
         sourcemap_detail,
+        trace,
+        trace_detail,
     }
 }
 

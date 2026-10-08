@@ -1557,6 +1557,9 @@ pub struct PreparedProgram {
     /// Every package.json the load's resolvers probed (see
     /// [`PreparedProgram::package_json_probes`]).
     package_json_probes: Vec<crate::PackageJsonProbe>,
+    /// The `--traceResolution` lines (see
+    /// [`PreparedProgram::resolution_trace`]).
+    resolution_trace: Vec<String>,
     /// The deduplicated package copies the load dropped (see
     /// [`PreparedProgram::package_redirect_files`]).
     package_redirect_files: Vec<PackageRedirectFile>,
@@ -1652,6 +1655,12 @@ impl PreparedProgram {
         &self.package_json_probes
     }
 
+    /// The `--traceResolution` lines of the load (tsgo's `Host.Trace`
+    /// calls, in order): empty unless the option is on.
+    pub fn resolution_trace(&self) -> &[String] {
+        &self.resolution_trace
+    }
+
     pub fn auxiliary_files(&self) -> impl Iterator<Item = &PreparedAuxiliaryFile> {
         self.auxiliary_files.values()
     }
@@ -1710,6 +1719,7 @@ pub struct PreparedProgramBuilder {
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
     package_json_probes: Vec<crate::PackageJsonProbe>,
+    resolution_trace: Vec<String>,
     package_redirect_files: Vec<PackageRedirectFile>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
@@ -1723,6 +1733,13 @@ impl PreparedProgramBuilder {
     /// [`PreparedProgram::package_json_probes`]).
     pub fn with_package_json_probes(mut self, probes: Vec<crate::PackageJsonProbe>) -> Self {
         self.package_json_probes = probes;
+        self
+    }
+
+    /// Record the `--traceResolution` lines of the load (see
+    /// [`PreparedProgram::resolution_trace`]).
+    pub fn with_resolution_trace(mut self, lines: Vec<String>) -> Self {
+        self.resolution_trace = lines;
         self
     }
 
@@ -1767,6 +1784,7 @@ impl PreparedProgramBuilder {
             auxiliary_files: BTreeMap::new(),
             packages: BTreeMap::new(),
             package_json_probes: Vec::new(),
+            resolution_trace: Vec::new(),
             package_redirect_files: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
@@ -2277,6 +2295,7 @@ impl PreparedProgramBuilder {
             auxiliary_files: self.auxiliary_files,
             packages: self.packages,
             package_json_probes: self.package_json_probes,
+            resolution_trace: self.resolution_trace,
             package_redirect_files: self.package_redirect_files,
             resolutions: self.resolutions,
             dependency_symlink_resolutions: self.dependency_symlink_resolutions,

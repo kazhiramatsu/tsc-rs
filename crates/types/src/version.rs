@@ -1,3 +1,9 @@
+/// tsgo `core.Version()`: the TypeScript version the compiler reports
+/// (typesVersions matching, `--traceResolution`).
+pub const TYPESCRIPT_VERSION: &str = "7.1.0-dev";
+/// tsgo `core.VersionMajorMinor()`.
+pub const TYPESCRIPT_VERSION_MAJOR_MINOR: &str = "7.1";
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PackageVersion {
     major: u64,
@@ -356,7 +362,14 @@ fn package_version_comparator_matches(
 /// tsc-hash: 25b6a78b2d413328c4b3ab536f00a67c4098b91089ce2ad5b69db70e404ee7ce
 /// tsc-span: _tsc.js:2321-2486
 pub fn compiler_version_satisfies(range: &str) -> Option<bool> {
-    let compiler = PackageVersion::stable(6, 0, 3);
+    // tsgo packagejson/cache.go tests the ranges against `core.Version()`
+    // (`7.1.0-dev`, a prerelease).
+    let compiler = PackageVersion {
+        major: 7,
+        minor: 1,
+        patch: 0,
+        prerelease: vec!["dev".to_owned()],
+    };
     let mut alternatives = Vec::new();
     for alternative in range.trim().split("||") {
         let alternative = alternative.trim();

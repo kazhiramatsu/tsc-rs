@@ -57,7 +57,7 @@ BASELINE_DIRS = [
 # emit, the raw source maps, the source-map records and the type and symbol
 # baselines. A kind's suffix must not end another kind's suffix (`.js` is
 # matched before `.js.map` is ruled out by `baseline_kind`).
-BASELINE_SUFFIXES = (".errors.txt", ".js", ".js.map", ".sourcemap.txt", ".types", ".symbols")
+BASELINE_SUFFIXES = (".errors.txt", ".js", ".js.map", ".sourcemap.txt", ".types", ".symbols", ".trace.json")
 
 
 def baseline_kind(name):

@@ -134,8 +134,9 @@ fn native_expansion_reproduces_the_reference_baseline_configurations() {
 /// set vendors one file), sorted by upstream path.
 /// The vendored baseline kinds, longest suffix first so `.js.map` is not
 /// taken for `.js`.
-const BASELINE_SUFFIXES: [&str; 6] = [
+const BASELINE_SUFFIXES: [&str; 7] = [
     ".sourcemap.txt",
+    ".trace.json",
     ".errors.txt",
     ".symbols",
     ".js.map",
@@ -246,8 +247,9 @@ fn native_vendored_inputs_match_the_manifest() {
         vendored += rows.len();
     }
     // 32,680 inputs of the first profile plus the 12,779 `.types` and 12,779
-    // `.symbols` baselines vendored for the type and symbol comparison.
-    assert_eq!(vendored, 58_238);
+    // `.symbols` baselines vendored for the type and symbol comparison and
+    // the 148 `.trace.json` baselines of the trace comparison.
+    assert_eq!(vendored, 58_386);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()

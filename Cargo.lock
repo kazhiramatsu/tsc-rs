@@ -356,6 +356,7 @@ dependencies = [
  "tsc-rs-diagnostics",
  "tsc-rs-harness",
  "tsc-rs-program",
+ "tsc-rs-types",
 ]
 
 [[package]]

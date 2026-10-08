@@ -166,9 +166,10 @@ fn compiler_plan_projects_ordered_custom_conditions() {
     )
     .expect("customConditions is a typed module-resolution option");
 
+    // tsgo ParseListTypeOption keeps the list elements untrimmed.
     assert_eq!(
         compiler_options.custom_conditions.as_deref(),
-        Some(&["webpack".into(), "browser".into()][..]),
+        Some(&["webpack".into(), " browser".into()][..]),
     );
 }
 

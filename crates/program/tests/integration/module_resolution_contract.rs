@@ -66,11 +66,14 @@ struct SequencedDirectoryExistsHost {
     calls: Cell<usize>,
 }
 
-struct RealpathAfterProbeHost {
+/// Fails the guarded probe (the diagnostic alternate's declaration file)
+/// unless the primary result's realpath ran first: tsgo completes the
+/// worker's result (createResolvedModuleHandlingSymlink) before the retry.
+struct ProbeAfterRealpathHost {
     inner: MemoryCompilerHost,
-    required_probe: PathBuf,
+    guarded_probe: PathBuf,
     primary_realpath: PathBuf,
-    required_probe_seen: Cell<bool>,
+    primary_realpath_seen: Cell<bool>,
 }
 
 struct PostManifestPackageRootMissHost {
@@ -230,7 +233,7 @@ impl CompilerHost for RecordingRealpathHost {
     }
 }
 
-impl CompilerHost for RealpathAfterProbeHost {
+impl CompilerHost for ProbeAfterRealpathHost {
     scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
@@ -245,8 +248,13 @@ impl CompilerHost for RealpathAfterProbeHost {
     }
 
     fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
-        if path == self.required_probe {
-            self.required_probe_seen.set(true);
+        if path == self.guarded_probe && !self.primary_realpath_seen.get() {
+            return Err(HostError::new(
+                HostErrorKind::Other,
+                HostOperation::FileExists,
+                Some(path.to_path_buf()),
+                "the diagnostic alternate probe ran before the primary realpath",
+            ));
         }
         self.inner.file_exists(path)
     }
@@ -260,13 +268,8 @@ impl CompilerHost for RealpathAfterProbeHost {
     }
 
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
-        if path == self.primary_realpath && !self.required_probe_seen.get() {
-            return Err(HostError::new(
-                HostErrorKind::Other,
-                HostOperation::Realpath,
-                Some(path.to_path_buf()),
-                "primary realpath ran before the diagnostic alternate probe",
-            ));
+        if path == self.primary_realpath {
+            self.primary_realpath_seen.set(true);
         }
         self.inner.realpath(path)
     }
@@ -1419,7 +1422,7 @@ fn package_fields_retain_the_exact_phase_before_the_ordinary_loader_phase() {
 }
 
 #[test]
-fn package_directory_failure_latches_suppress_root_types_versions_and_commonjs_index() {
+fn types_versions_probe_past_package_directory_misses_while_the_commonjs_index_does_not() {
     let inner = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(
@@ -1447,15 +1450,21 @@ fn package_directory_failure_latches_suppress_root_types_versions_and_commonjs_i
     let options = options_for_module(199);
     let mut resolver =
         ModuleResolver::new(&host, &options).expect("create missing package-field parent resolver");
-    assert_eq!(
+    // tsgo tryLoadModuleUsingPaths has no onlyRecordFailures: the substitution
+    // file is probed although the package field's parent directory is
+    // missing, and it resolves (tsgo 7.1.0-dev-19dadef8 on this layout).
+    let module = resolved(
         resolver
-            .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs,)
-            .expect("a latched package-directory miss is an ordinary miss"),
-        ResolutionOutcome::NotFound
+            .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs)
+            .expect("a typesVersions substitution resolves past a missing package-field parent"),
+    );
+    assert_eq!(
+        module.resolved_file().display().scalar_test_path(),
+        Path::new("/work/node_modules/pkg/types/good.ts")
     );
     assert!(
-        recorded_file_probes(&host, "/work/node_modules/pkg/types/good").is_empty(),
-        "typesVersions must only record failures after the package-field parent miss"
+        !recorded_file_probes(&host, "/work/node_modules/pkg/types/good").is_empty(),
+        "the substitution file is probed although the package-field parent is missing"
     );
 
     let inner = MemoryCompilerHost::builder("/work")
@@ -1517,19 +1526,23 @@ fn package_directory_failure_latches_suppress_root_types_versions_and_commonjs_i
     };
     let mut resolver =
         ModuleResolver::new(&host, &options).expect("create missing subpath package-root resolver");
-    assert_eq!(
+    // tsgo tryLoadModuleUsingPaths probes a substitution that carries an
+    // extension directly (tryFile), without a package-root latch.
+    let module = resolved(
         resolver
-            .resolve("/work/main.ts", "pkg/sub", ResolutionMode::CommonJs,)
-            .expect("a subpath typesVersions lookup reuses its package-root latch"),
-        ResolutionOutcome::NotFound
+            .resolve("/work/main.ts", "pkg/sub", ResolutionMode::CommonJs)
+            .expect("a subpath typesVersions mapping resolves its exact target"),
     );
-    assert!(host.returned_root_miss.get());
+    assert_eq!(
+        module.resolved_file().display().scalar_test_path(),
+        Path::new("/work/node_modules/pkg/types/value.ts")
+    );
     assert!(
         host.file_calls
             .borrow()
             .iter()
-            .all(|path| path != Path::new("/work/node_modules/pkg/types/value.ts")),
-        "a latched subpath mapping must not probe its exact target"
+            .any(|path| path == Path::new("/work/node_modules/pkg/types/value.ts")),
+        "the exact target is probed regardless of the package-root directory"
     );
 }
 
@@ -1628,7 +1641,7 @@ fn types_versions_distinguishes_raw_substitutions_and_root_package_field_provena
 }
 
 #[test]
-fn node_esm_index_exception_runs_after_an_owned_types_versions_miss() {
+fn node_esm_index_exception_and_commonjs_index_run_after_a_types_versions_miss() {
     let build = || {
         MemoryCompilerHost::builder("/work")
             .file("/work/main.mts", b"export {};".to_vec())
@@ -1663,14 +1676,20 @@ fn node_esm_index_exception_runs_after_an_owned_types_versions_miss() {
         Path::new("/work/node_modules/pkg/index.d.ts")
     );
 
+    // tsgo tryLoadModuleUsingPaths continues past a matched mapping whose
+    // substitutions all fail: the `types` file is probed, then the index
+    // (tsgo 7.1.0-dev-19dadef8 on this layout resolves index.d.ts).
     let host = build();
     let mut resolver =
-        ModuleResolver::new(&host, &options).expect("create CommonJS terminal-miss resolver");
-    assert_eq!(
+        ModuleResolver::new(&host, &options).expect("create CommonJS typesVersions-miss resolver");
+    let module = resolved(
         resolver
-            .resolve("/work/main.mts", "pkg", ResolutionMode::CommonJs,)
-            .expect("the matched mapping owns a CommonJS miss"),
-        ResolutionOutcome::NotFound
+            .resolve("/work/main.mts", "pkg", ResolutionMode::CommonJs)
+            .expect("a matched typesVersions miss continues to the CommonJS index"),
+    );
+    assert_eq!(
+        module.resolved_file().display().scalar_test_path(),
+        Path::new("/work/node_modules/pkg/index.d.ts")
     );
 }
 
@@ -1748,7 +1767,7 @@ fn types_versions_use_normalized_root_names_and_replace_only_the_first_star() {
 }
 
 #[test]
-fn types_versions_keep_empty_stars_and_first_equal_prefix_patterns() {
+fn types_versions_replace_empty_stars_and_keep_first_equal_prefix_patterns() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(
@@ -1797,11 +1816,12 @@ fn types_versions_keep_empty_stars_and_first_equal_prefix_patterns() {
     let empty = resolved(
         resolver
             .resolve("/work/main.ts", "empty/foo", ResolutionMode::CommonJs)
-            .expect("retain a literal substitution star for an empty capture"),
+            .expect("replace the substitution star with the empty capture"),
     );
+    // tsgo tryLoadModuleUsingPaths: strings.Replace(subst, "*", "", 1).
     assert_eq!(
         empty.resolved_file().display().scalar_test_path(),
-        Path::new("/work/node_modules/empty/types/*.d.ts")
+        Path::new("/work/node_modules/empty/types/.d.ts")
     );
 
     let tie = resolved(
@@ -3031,17 +3051,14 @@ fn diagnostic_class_paths_errors_remain_recoverable_during_resolution() {
         ResolutionOutcome::NotFound,
         "a matched empty list owns the miss instead of falling back to baseUrl"
     );
-    let multi_star_substitution = resolved(
+    // tsgo tryLoadModuleUsingPaths replaces the first `*` of the substitution
+    // with the matched text even for an exact key (empty): `value**` becomes
+    // `value*`, which no file matches (probe I of the P4-3 record).
+    assert_eq!(
         resolver
             .resolve("/work/main.ts", "multi", ResolutionMode::CommonJs)
             .expect("a diagnostic-class substitution remains resolver input"),
-    );
-    assert_eq!(
-        multi_star_substitution
-            .resolved_file()
-            .display()
-            .scalar_test_path(),
-        Path::new("/base/value**.ts")
+        ResolutionOutcome::NotFound
     );
 }
 
@@ -3605,7 +3622,7 @@ fn arbitrary_extension_twins_resolve_in_legacy_and_node_esm_modes() {
 }
 
 #[test]
-fn empty_captures_keep_the_literal_star_and_paths_precede_modern_package_maps() {
+fn empty_captures_replace_the_star_and_paths_precede_modern_package_maps() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(
@@ -3617,7 +3634,7 @@ fn empty_captures_keep_the_literal_star_and_paths_precede_modern_package_maps() 
             }"##
             .to_vec(),
         )
-        .file("/work/literal/*.ts", b"export {};".to_vec())
+        .file("/work/literal/.ts", b"export {};".to_vec())
         .file("/work/literal/bar.ts", b"export {};".to_vec())
         .file("/work/paths/imports.ts", b"export {};".to_vec())
         .file("/work/paths/self.ts", b"export {};".to_vec())
@@ -3640,7 +3657,8 @@ fn empty_captures_keep_the_literal_star_and_paths_precede_modern_package_maps() 
         .expect("create paths/package-map resolver");
 
     for (specifier, expected) in [
-        ("foo", "/work/literal/*.ts"),
+        // tsgo: the empty capture replaces the star (probe I).
+        ("foo", "/work/literal/.ts"),
         ("foobar", "/work/literal/bar.ts"),
         ("#mapped", "/work/paths/imports.ts"),
         ("#fallback", "/work/fallback.ts"),
@@ -5246,8 +5264,8 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
             );
             assert_eq!(self_reference.extension(), expected_extension);
             assert!(
-                !self_reference.is_external_library_import(),
-                "a package self-reference is not an external-library traversal"
+                self_reference.is_external_library_import(),
+                "tsgo createResolvedModuleHandlingSymlink: a self-reference under node_modules is external"
             );
         }
 
@@ -5565,8 +5583,8 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
         Some(Into::into("dep"))
     );
     assert!(
-        !external.is_external_library_import(),
-        "the outer imports boundary owns an external bare target"
+        external.is_external_library_import(),
+        "tsgo: a bare imports target under node_modules is external"
     );
 
     let empty = resolved(
@@ -5813,7 +5831,7 @@ fn invalid_import_roots_continue_to_the_ordinary_node_modules_lookup() {
     let options = options_for_module(100);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
-    for (specifier, expected, rewritten) in [
+    for (specifier, expected, _rewritten) in [
         ("#", "/work/node_modules/#/index.d.ts", false),
         ("#/x", "/work/node_modules/#/x.d.ts", false),
         ("#to-hash", "/work/node_modules/#/index.d.ts", true),
@@ -5832,7 +5850,8 @@ fn invalid_import_roots_continue_to_the_ordinary_node_modules_lookup() {
                 .scalar_test_path(),
             Path::new(expected)
         );
-        assert_eq!(module.is_external_library_import(), !rewritten);
+        // tsgo: external by path, rewritten through `imports` or not.
+        assert!(module.is_external_library_import());
     }
 }
 
@@ -6147,7 +6166,7 @@ fn imports_backslash_targets_keep_raw_paths_matching_before_normalized_fallbacks
     let package_id = package.package_id().expect("backslash package id");
     assert_eq!(package_id.name(), "dep\\sub");
     assert_eq!(package_id.submodule_name(), "index.d.ts");
-    assert!(!package.is_external_library_import());
+    assert!(package.is_external_library_import());
 }
 
 #[test]
@@ -6572,7 +6591,7 @@ fn package_name_slicing_keeps_a_scope_without_a_package_component() {
             module.package_id().map(PackageId::name),
             Some(Into::into("@scope"))
         );
-        assert_eq!(module.is_external_library_import(), specifier == "@scope");
+        assert!(module.is_external_library_import());
     }
 
     let at_types_host = MemoryCompilerHost::builder("/work")
@@ -6603,7 +6622,7 @@ fn package_name_slicing_keeps_a_scope_without_a_package_component() {
             module.resolved_file().display().scalar_test_path(),
             Path::new("/work/node_modules/@types/@scope/index.d.ts")
         );
-        assert_eq!(module.is_external_library_import(), specifier == "@scope");
+        assert!(module.is_external_library_import());
     }
 }
 
@@ -6642,7 +6661,7 @@ fn package_name_slicing_normalizes_unvalidated_rest_segments_like_typescript() {
             module.package_id().map(PackageId::name),
             Some(Into::into("nested"))
         );
-        assert_eq!(module.is_external_library_import(), specifier != "#x");
+        assert!(module.is_external_library_import());
     }
 }
 
@@ -6732,7 +6751,8 @@ fn bare_import_targets_search_preferred_extensions_across_all_ancestors_first() 
         module.package_id().map(PackageId::version),
         Some(Into::into("2.0.0"))
     );
-    assert!(!module.is_external_library_import());
+    // tsgo createResolvedModuleHandlingSymlink: external by path.
+    assert!(module.is_external_library_import());
 }
 
 #[test]
@@ -6873,7 +6893,7 @@ fn nested_exports_disabled_retry_retains_the_bundler_condition_profile() {
 }
 
 #[test]
-fn modern_diagnostic_imports_retain_exports_disabled_in_bare_targets() {
+fn modern_diagnostic_imports_rerun_bare_targets_without_exports() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.mts", b"export {};".to_vec())
         .file(
@@ -6919,17 +6939,26 @@ fn modern_diagnostic_imports_retain_exports_disabled_in_bare_targets() {
     let module = resolved(
         resolver
             .resolve("/work/main.mts", "#x", ResolutionMode::EsNext)
-            .expect("diagnostic imports rewrite owns its local alternate"),
+            .expect("the diagnostic retry re-runs the imports target without exports"),
     );
     assert_eq!(
         module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/#x/runtime.js")
     );
-    assert_eq!(module.alternate_result(), None);
+    // tsgo's retry re-enters `imports` with exports disabled: `dep`'s `types`
+    // resolves and, being under node_modules, is the alternate (TS7016
+    // "There are types at .../dep/legacy.d.ts"; probe F of the P4-3 record).
+    assert_eq!(
+        module
+            .alternate_result()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
+        Some(Path::new("/work/node_modules/dep/legacy.d.ts"))
+    );
 }
 
 #[test]
-fn nested_bare_import_diagnostics_run_before_primary_realpath() {
+fn nested_bare_import_diagnostics_run_after_the_target_realpath() {
     let inner = MemoryCompilerHost::builder("/work")
         .file("/work/main.mts", b"export {};".to_vec())
         .file(
@@ -6956,11 +6985,13 @@ fn nested_bare_import_diagnostics_run_before_primary_realpath() {
         )
         .build()
         .expect("build nested imports diagnostic-order host");
-    let host = RealpathAfterProbeHost {
+    // tsgo resolveNodeLike on the bare target completes its result (the
+    // real path) before the nested diagnostic retry probes the declaration.
+    let host = ProbeAfterRealpathHost {
         inner,
-        required_probe: PathBuf::from("/work/node_modules/dep/legacy.d.ts"),
+        guarded_probe: PathBuf::from("/work/node_modules/dep/legacy.d.ts"),
         primary_realpath: PathBuf::from("/work/node_modules/dep/index.js"),
-        required_probe_seen: Cell::new(false),
+        primary_realpath_seen: Cell::new(false),
     };
     let options = CompilerOptions {
         module_resolution: Some(99),
@@ -6984,9 +7015,12 @@ fn nested_bare_import_diagnostics_run_before_primary_realpath() {
             .map(|path| path.scalar_test_path()),
         Some(Path::new("/work/node_modules/dep/index.js"))
     );
+    // tsgo createResolvedModuleHandlingSymlink decides the outer flag from
+    // the imports target's completed path, here the real path outside
+    // node_modules; the nested retry's alternate stays inside the lookup.
     assert!(!module.is_external_library_import());
     assert_eq!(module.alternate_result(), None);
-    assert!(host.required_probe_seen.get());
+    assert!(host.primary_realpath_seen.get());
 }
 
 #[test]
@@ -7186,7 +7220,7 @@ fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
 }
 
 #[test]
-fn modern_alternate_restarts_all_ancestors_before_primary_realpath() {
+fn modern_alternate_restarts_all_ancestors_after_primary_realpath() {
     let inner = MemoryCompilerHost::builder("/work")
         .file("/work/src/main.mts", b"export {};".to_vec())
         .file(
@@ -7220,11 +7254,13 @@ fn modern_alternate_restarts_all_ancestors_before_primary_realpath() {
         )
         .build()
         .expect("build full modern alternate host");
-    let host = RealpathAfterProbeHost {
+    // tsgo resolveNodeLike completes the worker's result (its real path)
+    // before the diagnostic retry probes the legacy declaration.
+    let host = ProbeAfterRealpathHost {
         inner,
-        required_probe: PathBuf::from("/work/node_modules/pkg/legacy.d.ts"),
+        guarded_probe: PathBuf::from("/work/node_modules/pkg/legacy.d.ts"),
         primary_realpath: PathBuf::from("/work/src/node_modules/pkg/index.js"),
-        required_probe_seen: Cell::new(false),
+        primary_realpath_seen: Cell::new(false),
     };
     let options = CompilerOptions {
         module_resolution: Some(99),
@@ -7255,7 +7291,7 @@ fn modern_alternate_restarts_all_ancestors_before_primary_realpath() {
             .map(|path| path.scalar_test_path()),
         Some(Path::new("/work/node_modules/pkg/legacy.d.ts"))
     );
-    assert!(host.required_probe_seen.get());
+    assert!(host.primary_realpath_seen.get());
 }
 
 #[test]
@@ -7364,7 +7400,7 @@ fn falsy_exports_use_legacy_fields_and_overlapping_patterns_follow_js_substring(
 }
 
 #[test]
-fn external_walk_prefers_types_across_ancestors_and_continues_after_null() {
+fn external_walk_prefers_types_across_ancestors_and_stops_at_null() {
     let host = MemoryCompilerHost::builder("/work/project")
         .file("/work/project/src/index.mts", b"export {};".to_vec())
         .file(
@@ -7402,26 +7438,33 @@ fn external_walk_prefers_types_across_ancestors_and_continues_after_null() {
     let options = options_for_module(199);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
-    for specifier in ["inner/typed", "inner/blocked"] {
-        let resolution = resolved(
-            resolver
-                .resolve(
-                    "/work/project/src/index.mts",
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
-                .expect("resolve across node_modules ancestors"),
-        );
-        assert_eq!(resolution.extension(), &ModuleExtension::Dts);
-        assert_eq!(
-            resolution
-                .resolved_file()
-                .canonical()
-                .as_js()
-                .scalar_test_path(),
-            Path::new("/work/project/node_modules/inner/outer.d.ts")
-        );
-    }
+    // A miss in the nearer package continues to the ancestor's node_modules.
+    let typed = resolved(
+        resolver
+            .resolve(
+                "/work/project/src/index.mts",
+                "inner/typed",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve across node_modules ancestors"),
+    );
+    assert_eq!(typed.extension(), &ModuleExtension::Dts);
+    assert_eq!(
+        typed.resolved_file().canonical().as_js().scalar_test_path(),
+        Path::new("/work/project/node_modules/inner/outer.d.ts")
+    );
+    // tsgo unresolved(): an `exports` target mapped to null ends the whole
+    // lookup; the ancestor's node_modules is not consulted.
+    assert_eq!(
+        resolver
+            .resolve(
+                "/work/project/src/index.mts",
+                "inner/blocked",
+                ResolutionMode::EsNext,
+            )
+            .expect("a null exports target is terminal"),
+        ResolutionOutcome::NotFound
+    );
 }
 
 #[test]
@@ -8172,26 +8215,24 @@ fn self_name_observes_the_empty_secondary_extension_mask() {
 }
 
 #[test]
-fn self_references_skip_external_realpath_and_case_only_realpaths_stay_lexical() {
-    let realpath_failure = HostError::new(
-        HostErrorKind::Other,
-        HostOperation::Realpath,
-        Some(PathBuf::from("/node_modules/inner/index.d.ts")),
-        "realpath must not run for a self-reference",
-    );
-    let host = MemoryCompilerHost::builder("/")
-        .file(
-            "/node_modules/inner/package.json",
-            br#"{"name":"inner","exports":{"./x":"./index.js"}}"#.to_vec(),
-        )
-        .file("/node_modules/inner/test.d.ts", b"export {};".to_vec())
-        .file(
-            "/node_modules/inner/index.d.ts",
-            b"export const x: true;".to_vec(),
-        )
-        .failure(realpath_failure)
-        .build()
-        .expect("build self-reference host");
+fn self_references_under_node_modules_take_their_real_path_and_case_only_realpaths_stay_lexical() {
+    // tsgo createResolvedModuleHandlingSymlink: a self-reference resolved
+    // under node_modules is external and takes its real path.
+    let host = RecordingRealpathHost {
+        inner: MemoryCompilerHost::builder("/")
+            .file(
+                "/node_modules/inner/package.json",
+                br#"{"name":"inner","exports":{"./x":"./index.js"}}"#.to_vec(),
+            )
+            .file("/node_modules/inner/test.d.ts", b"export {};".to_vec())
+            .file(
+                "/node_modules/inner/index.d.ts",
+                b"export const x: true;".to_vec(),
+            )
+            .build()
+            .expect("build self-reference host"),
+        calls: RefCell::new(Vec::new()),
+    };
     let options = options_for_module(199);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let self_reference = resolved(
@@ -8201,9 +8242,14 @@ fn self_references_skip_external_realpath_and_case_only_realpaths_stay_lexical()
                 "inner/x",
                 ResolutionMode::CommonJs,
             )
-            .expect("self-reference does not query realpath"),
+            .expect("a self-reference under node_modules queries realpath"),
     );
+    assert!(self_reference.is_external_library_import());
     assert_eq!(self_reference.original_path(), None);
+    assert!(host
+        .calls
+        .borrow()
+        .contains(&PathBuf::from("/node_modules/inner/index.d.ts")));
 
     let insensitive = MemoryCompilerHost::builder("/")
         .case_sensitive(false)
@@ -8841,10 +8887,8 @@ fn types_versions_root_back_references_unmapped_fallback_and_mapped_misses_are_d
             .scalar_test_path(),
         Path::new("/node_modules/ext/ts3.1/index.d.ts")
     );
-    assert_eq!(
-        self_back_reference.package_id().map(PackageId::name),
-        Some(Into::into("ext"))
-    );
+    // tsgo loadNodeModuleFromDirectory: a directory resolution has no package id.
+    assert_eq!(self_back_reference.package_id(), None);
     let root_other = resolved(
         resolver
             .resolve(
@@ -8867,13 +8911,21 @@ fn types_versions_root_back_references_unmapped_fallback_and_mapped_misses_are_d
         Some(Into::into("ext"))
     );
 
-    for specifier in ["mapped-miss", "mapped-miss/foo"] {
-        assert_eq!(
+    // tsgo tryLoadModuleUsingPaths: a selected mapping whose targets all miss
+    // continues to the legacy file.
+    for (specifier, expected) in [
+        ("mapped-miss", "/node_modules/mapped-miss/index.d.ts"),
+        ("mapped-miss/foo", "/node_modules/mapped-miss/foo.d.ts"),
+    ] {
+        let module = resolved(
             resolver
                 .resolve("/main.ts", specifier, ResolutionMode::CommonJs)
-                .expect("a selected mapping owns an all-target miss"),
-            ResolutionOutcome::NotFound,
-            "{specifier} must not fall through to its legacy file"
+                .expect("an all-target miss continues to the legacy file"),
+        );
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new(expected),
+            "{specifier}"
         );
     }
 }
@@ -8919,12 +8971,8 @@ fn relative_directory_spellings_reenter_the_root_package_entry_field() {
             Path::new("/pkg/good/index.d.ts"),
             "{specifier} must use the package entry as its typesVersions logical name"
         );
-        let package_id = module
-            .package_id()
-            .expect("the root package entry retains its package id");
-        assert_eq!(package_id.name(), "pkg");
-        assert_eq!(package_id.version(), "1.0.0");
-        assert_eq!(package_id.submodule_name(), "ood/index.d.ts");
+        // tsgo loadNodeModuleFromDirectory attaches no package id.
+        assert_eq!(module.package_id(), None, "{specifier}");
     }
 }
 
@@ -8973,10 +9021,8 @@ fn relative_package_ids_follow_file_and_directory_manifest_boundaries() {
             .resolve("/work/index.ts", "./directory/", ResolutionMode::CommonJs)
             .expect("resolve a relative directory with its own package manifest"),
     );
-    assert_eq!(
-        directory_package.package_id().map(PackageId::name),
-        Some(Into::into("directory"))
-    );
+    // tsgo loadNodeModuleFromDirectory attaches no package id.
+    assert_eq!(directory_package.package_id(), None);
     assert!(!directory_package.is_external_library_import());
 
     let manifestless_directory = resolved(
@@ -9124,7 +9170,7 @@ fn custom_type_roots_preserve_combine_paths_spelling_and_rooted_children() {
 }
 
 #[test]
-fn non_relative_modules_use_explicit_type_roots_for_primary_and_alternate_results() {
+fn non_relative_modules_use_explicit_type_roots_as_internal_results() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.mts", b"export {};".to_vec())
         .file(
@@ -9179,18 +9225,14 @@ fn non_relative_modules_use_explicit_type_roots_for_primary_and_alternate_result
             .resolve("/work/main.mts", "primary", ResolutionMode::EsNext)
             .expect("resolve a module from explicit typeRoots"),
     );
+    // tsgo createResolvedModuleHandlingSymlink: a typeRoots result outside
+    // node_modules is internal and keeps its lexical path.
     assert_eq!(
         primary.resolved_file().display().scalar_test_path(),
-        Path::new("/physical/primary/entry.d.ts")
+        Path::new("/custom/primary/entry.d.ts")
     );
-    assert_eq!(
-        primary
-            .original_path()
-            .map(ProgramPath::display)
-            .map(|path| path.scalar_test_path()),
-        Some(Path::new("/custom/primary/entry.d.ts"))
-    );
-    assert!(primary.is_external_library_import());
+    assert_eq!(primary.original_path(), None);
+    assert!(!primary.is_external_library_import());
 
     let alternate = resolved(
         resolver
@@ -9201,17 +9243,13 @@ fn non_relative_modules_use_explicit_type_roots_for_primary_and_alternate_result
         alternate.resolved_file().display().scalar_test_path(),
         Path::new("/physical/alternate/index.js")
     );
-    assert_eq!(
-        alternate
-            .alternate_result()
-            .map(ProgramPath::display)
-            .map(|path| path.scalar_test_path()),
-        Some(Path::new("/custom/alternate/legacy.d.ts"))
-    );
+    // tsgo records only an external diagnostic result as the alternate; the
+    // typeRoots declaration outside node_modules is dropped.
+    assert_eq!(alternate.alternate_result(), None);
 }
 
 #[test]
-fn types_versions_ranges_follow_javascript_own_property_order() {
+fn types_versions_ranges_follow_package_json_order() {
     let host = MemoryCompilerHost::builder("/")
         .file("/main.ts", b"export {};".to_vec())
         .file(
@@ -9221,7 +9259,7 @@ fn types_versions_ranges_follow_javascript_own_property_order() {
                 "version":"1.0.0",
                 "typesVersions":{
                     "*":{"x":["generic.d.ts"]},
-                    "6":{"x":["six.d.ts"]}
+                    "7":{"x":["seven.d.ts"]}
                 }
             }"#
             .to_vec(),
@@ -9231,35 +9269,39 @@ fn types_versions_ranges_follow_javascript_own_property_order() {
             b"export const generic: true;".to_vec(),
         )
         .file(
-            "/node_modules/range-order/six.d.ts",
-            b"export const six: true;".to_vec(),
+            "/node_modules/range-order/seven.d.ts",
+            b"export const seven: true;".to_vec(),
         )
         .build()
-        .expect("build JavaScript-property-order package");
+        .expect("build package.json-order package");
     let options = options_for_module(1);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let module = resolved(
         resolver
             .resolve("/main.ts", "range-order/x", ResolutionMode::CommonJs)
-            .expect("select the numeric range before later string keys"),
+            .expect("select the first matching key in package.json order"),
     );
+    // tsgo GetVersionPaths iterates the entries in package.json order (an
+    // ordered map), so `*` wins over the later `7` (probe E of the P4-3
+    // record); JavaScript's integer-key ordering does not apply.
     assert_eq!(
         module.resolved_file().display().scalar_test_path(),
-        Path::new("/node_modules/range-order/six.d.ts")
+        Path::new("/node_modules/range-order/generic.d.ts")
     );
 }
 
 #[test]
-fn types_versions_targets_follow_javascript_array_like_iteration() {
+fn types_versions_targets_follow_tsgo_get_paths() {
+    // tsgo packagejson VersionPaths.GetPaths: only an array value is a
+    // mapping, an element that is not a string is the empty string, and
+    // tryLoadModuleUsingPaths replaces the first `*` literally (probes G and
+    // H of the ts71-suites P4-3 record, tsgo 7.1.0-dev-19dadef8).
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(
             "/work/node_modules/string-target/package.json",
-            br#"{
-                "name":"string-target","version":"1.0.0",
-                "typesVersions":{"*":{"x":"m"}}
-            }"#
-            .to_vec(),
+            br#"{"name":"string-target","version":"1.0.0","typesVersions":{"*":{"x":"m"}}}"#
+                .to_vec(),
         )
         .file(
             "/work/node_modules/string-target/m.ts",
@@ -9278,149 +9320,31 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
             b"export const objectTarget: true;".to_vec(),
         )
         .file(
-            "/work/node_modules/boolean-length/package.json",
-            br#"{
-                "name":"boolean-length","version":"1.0.0",
-                "typesVersions":{"*":{"x":{"0":"m","length":true}}}
-            }"#
-            .to_vec(),
+            "/work/node_modules/object-target/x.ts",
+            b"export const objectFallback: true;".to_vec(),
         )
         .file(
-            "/work/node_modules/boolean-length/m.ts",
-            b"export const booleanLength: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/fractional-length/package.json",
-            br#"{
-                "name":"fractional-length","version":"1.0.0",
-                "typesVersions":{"*":{"x":{
-                    "0":"missing","1":"m","length":1.5
-                }}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/fractional-length/m.ts",
-            b"export const fractionalLength: true;".to_vec(),
+            "/work/node_modules/null-target/package.json",
+            br#"{"name":"null-target","version":"1.0.0","typesVersions":{"*":{"x":null}}}"#
+                .to_vec(),
         )
         .file(
             "/work/node_modules/early-array/package.json",
-            br#"{
-                "name":"early-array","version":"1.0.0",
-                "typesVersions":{"*":{"x":["m",null]}}
-            }"#
-            .to_vec(),
+            br#"{"name":"early-array","version":"1.0.0","typesVersions":{"*":{"x":["m",null]}}}"#
+                .to_vec(),
         )
         .file(
             "/work/node_modules/early-array/m.ts",
             b"export const earlyArray: true;".to_vec(),
         )
         .file(
-            "/work/node_modules/early-object/package.json",
-            br#"{
-                "name":"early-object","version":"1.0.0",
-                "typesVersions":{"*":{"x":{"0":"m","length":"Infinity"}}}
-            }"#
-            .to_vec(),
+            "/work/node_modules/number-element/package.json",
+            br#"{"name":"number-element","version":"1.0.0","typesVersions":{"*":{"x":[1,"m"]}}}"#
+                .to_vec(),
         )
         .file(
-            "/work/node_modules/early-object/m.ts",
-            b"export const earlyObject: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-object-prototype/package.json",
-            br#"{/* force convertToJson */
-                "name":"jsonc-object-prototype","version":"1.0.0",
-                "typesVersions":{"*":{"x":{
-                    "__proto__":{"0":"m","length":1}
-                }}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-object-prototype/m.ts",
-            b"export const inheritedObjectTarget: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-array-prototype/package.json",
-            br#"{/* force convertToJson */
-                "name":"jsonc-array-prototype","version":"1.0.0",
-                "typesVersions":{"*":{"x":{"__proto__":["m"]}}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-array-prototype/m.ts",
-            b"export const inheritedArrayTarget: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-array-string/package.json",
-            br#"{/* force convertToJson */
-                "name":"jsonc-array-string","version":"1.0.0",
-                "typesVersions":{"*":{
-                    "x*":[{"__proto__":{"__proto__":["m"]}}],
-                    "join*":[{"__proto__":["m"],"join":null}],
-                    "own*":[{"__proto__":["p"],"0":"o"}],
-                    "gap*":[{"__proto__":["a"],"length":3}]
-                }}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-array-string/m.ts",
-            b"export const inheritedArrayToString: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-array-string/[object Object].ts",
-            b"export const shadowedJoinFallback: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-array-string/o.ts",
-            b"export const ownIndexWins: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-array-string/a,,.ts",
-            b"export const sparseArrayJoin: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-raw-array-methods/package.json",
-            br#"{/* force convertToJson */
-                "name":"jsonc-raw-array-methods","version":"1.0.0",
-                "typesVersions":{"*":{
-                    "match*":[{"__proto__":["a",".ts","b","c"]}],
-                    "miss*":[{"__proto__":["a","b","c","d"]}],
-                    "shadow*":[{
-                        "__proto__":["a",".ts","b","c"],"indexOf":null
-                    }]
-                }}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-raw-array-methods/a,.ts,b,c",
-            b"export const rawInheritedIndexOf: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/jsonc-raw-array-methods/a,b,c,d.ts",
-            b"export const rawInheritedIndexOfMiss: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/strict-proto-own/package.json",
-            br#"{
-                "name":"strict-proto-own","version":"1.0.0",
-                "typesVersions":{"*":{"x":{
-                    "__proto__":{"0":"m","length":1}
-                }}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/strict-proto-own/m.ts",
-            b"export const hiddenStrictProtoTarget: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/strict-proto-own/x.ts",
-            b"export const hiddenStrictProtoFallback: true;".to_vec(),
+            "/work/node_modules/number-element/m.ts",
+            b"export const numberElement: true;".to_vec(),
         )
         .file(
             "/work/node_modules/exact-false/package.json",
@@ -9435,54 +9359,6 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
             b"export const exactFalse: true;".to_vec(),
         )
         .file(
-            "/work/node_modules/exact-zero/package.json",
-            br#"{
-                "name":"exact-zero","version":"1.0.0","types":"root.d.ts",
-                "typesVersions":{"*":{"x":[0]}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/exact-zero/root.d.ts",
-            b"export const exactZero: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/wildcard-coercion/package.json",
-            br#"{
-                "name":"wildcard-coercion","version":"1.0.0",
-                "typesVersions":{"*":{
-                    "false*":[false],"true*":[true],"zero*":[0],"one*":[1],
-                    "object*":[{}],"array*":[["m"]],
-                    "badObject*":[{"length":4}]
-                }}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/wildcard-coercion/false.ts",
-            b"export const coercedFalse: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/wildcard-coercion/true.ts",
-            b"export const coercedTrue: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/wildcard-coercion/0.ts",
-            b"export const coercedZero: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/wildcard-coercion/1.ts",
-            b"export const coercedOne: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/wildcard-coercion/[object Object].ts",
-            b"export const coercedObject: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/wildcard-coercion/m.ts",
-            b"export const coercedArray: true;".to_vec(),
-        )
-        .file(
             "/work/node_modules/replacement-tokens/package.json",
             br#"{
                 "name":"replacement-tokens","version":"1.0.0",
@@ -9491,185 +9367,54 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
             .to_vec(),
         )
         .file(
-            "/work/node_modules/replacement-tokens/types/*.ts",
-            b"export const wholeMatch: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/replacement-tokens/types/$.ts",
-            b"export const escapedDollar: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/replacement-tokens/types/types/.ts",
-            b"export const matchPrefix: true;".to_vec(),
+            "/work/node_modules/replacement-tokens/types/$&.ts",
+            b"export const literalToken: true;".to_vec(),
         )
         .file(
             "/work/node_modules/extension-only/package.json",
-            br#"{
-                "name":"extension-only","version":"1.0.0",
-                "typesVersions":{"*":{"x":[".ts"],"y":[".d.ts"]}}
-            }"#
-            .to_vec(),
+            br#"{"name":"extension-only","version":"1.0.0","typesVersions":{"*":{"x":[".ts"]}}}"#
+                .to_vec(),
         )
         .file(
             "/work/node_modules/extension-only/.ts",
             b"export const tsExtensionOnly: true;".to_vec(),
         )
-        .file(
-            "/work/node_modules/extension-only/.d.ts",
-            b"export const dtsExtensionOnly: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/infinite-substitution/package.json",
-            br#"{/* JSONC fallback */
-                "name":"infinite-substitution","version":"1.0.0",
-                "typesVersions":{"*":{
-                    "positive*":[1e309],"negative*":[-1e309]
-                }}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/infinite-substitution/Infinity.ts",
-            b"export const positiveInfinity: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/infinite-substitution/-Infinity.ts",
-            b"export const negativeInfinity: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/inf-length/package.json",
-            br#"{
-                "name":"inf-length","version":"1.0.0",
-                "typesVersions":{"*":{"x":{"0":"m","length":"inf"}}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/inf-length/m.ts",
-            b"export const hiddenInfTarget: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/inf-length/x.ts",
-            b"export const hiddenInfFallback: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/nel-length/package.json",
-            br#"{
-                "name":"nel-length","version":"1.0.0",
-                "typesVersions":{"*":{"x":{"0":"m","length":"\u00851"}}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/nel-length/m.ts",
-            b"export const hiddenNelTarget: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/nel-length/x.ts",
-            b"export const hiddenNelFallback: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/boolean-target/package.json",
-            br#"{
-                "name":"boolean-target","version":"1.0.0",
-                "typesVersions":{"*":{"x":true}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/boolean-target/x.ts",
-            b"export const hiddenBooleanFallback: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/number-target/package.json",
-            br#"{
-                "name":"number-target","version":"1.0.0",
-                "typesVersions":{"*":{"x":1}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/number-target/x.ts",
-            b"export const hiddenNumberFallback: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/object-miss/package.json",
-            br#"{
-                "name":"object-miss","version":"1.0.0",
-                "typesVersions":{"*":{"x":{"0":"m"}}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/object-miss/x.ts",
-            b"export const hiddenObjectFallback: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/plain-object-length/package.json",
-            br#"{
-                "name":"plain-object-length","version":"1.0.0",
-                "typesVersions":{"*":{"x":{"0":"m","length":{}}}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/plain-object-length/x.ts",
-            b"export const hiddenPlainObjectFallback: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/shadowed-to-string/package.json",
-            br#"{
-                "name":"shadowed-to-string","version":"1.0.0",
-                "typesVersions":{"*":{"x":{
-                    "0":"m","length":{"toString":null}
-                }}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/shadowed-array-to-string/package.json",
-            br#"{
-                "name":"shadowed-array-to-string","version":"1.0.0",
-                "typesVersions":{"*":{"x":{
-                    "0":"m","length":[{"toString":"1"}]
-                }}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/null-target/package.json",
-            br#"{
-                "name":"null-target","version":"1.0.0",
-                "typesVersions":{"*":{"x":null}}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/array-null/package.json",
-            br#"{
-                "name":"array-null","version":"1.0.0",
-                "typesVersions":{"*":{"x":[null]}}
-            }"#
-            .to_vec(),
-        )
         .build()
-        .expect("build JavaScript array-like typesVersions packages");
+        .expect("build tsgo typesVersions value packages");
     let options = CompilerOptions {
         module_resolution: Some(2),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
 
-    for package in [
-        "string-target",
-        "object-target",
-        "boolean-length",
-        "fractional-length",
-        "early-array",
-        "early-object",
-        "jsonc-object-prototype",
-        "jsonc-array-prototype",
-    ] {
+    // A value that is not an array is no mapping: the request falls to the
+    // ordinary lookup.
+    for package in ["string-target", "null-target"] {
+        assert_eq!(
+            resolver
+                .resolve(
+                    "/work/main.ts",
+                    &format!("{package}/x"),
+                    ResolutionMode::CommonJs,
+                )
+                .expect("a non-array typesVersions value is skipped"),
+            ResolutionOutcome::NotFound,
+            "{package}"
+        );
+    }
+    let object_target = resolved(
+        resolver
+            .resolve("/work/main.ts", "object-target/x", ResolutionMode::CommonJs)
+            .expect("an object typesVersions value is skipped"),
+    );
+    assert_eq!(
+        object_target.resolved_file().display().scalar_test_path(),
+        Path::new("/work/node_modules/object-target/x.ts")
+    );
+
+    // An element that is not a string is the empty string; the first string
+    // target resolves.
+    for package in ["early-array", "number-element"] {
         let module = resolved(
             resolver
                 .resolve(
@@ -9677,7 +9422,7 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
                     &format!("{package}/x"),
                     ResolutionMode::CommonJs,
                 )
-                .expect("resolve an array-like typesVersions substitution"),
+                .expect("resolve the first string target"),
         );
         assert_eq!(
             module.resolved_file().display().scalar_test_path(),
@@ -9685,139 +9430,36 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         );
     }
 
-    let inherited_array_to_string = resolved(
+    // `[false]` is the empty target: the package directory, whose `types`
+    // entry is the root declaration.
+    let exact_false = resolved(
+        resolver
+            .resolve("/work/main.ts", "exact-false/x", ResolutionMode::CommonJs)
+            .expect("resolve an empty target through the package root"),
+    );
+    assert_eq!(
+        exact_false.resolved_file().display().scalar_test_path(),
+        Path::new("/work/node_modules/exact-false/root.d.ts")
+    );
+
+    // The first `*` is replaced literally: no JavaScript replacement tokens.
+    let literal = resolved(
         resolver
             .resolve(
                 "/work/main.ts",
-                "jsonc-array-string/xa",
+                "replacement-tokens/$&",
                 ResolutionMode::CommonJs,
             )
-            .expect("coerce an object through inherited generic Array#join"),
+            .expect("replace the star literally"),
     );
     assert_eq!(
-        inherited_array_to_string
-            .resolved_file()
-            .display()
-            .scalar_test_path(),
-        Path::new("/work/node_modules/jsonc-array-string/m.ts")
+        literal.resolved_file().display().scalar_test_path(),
+        Path::new("/work/node_modules/replacement-tokens/types/$&.ts")
     );
 
-    let shadowed_join = resolved(
-        resolver
-            .resolve(
-                "/work/main.ts",
-                "jsonc-array-string/joinx",
-                ResolutionMode::CommonJs,
-            )
-            .expect("fall back to Object#toString when generic Array#join is shadowed"),
-    );
-    assert_eq!(
-        shadowed_join.resolved_file().display().scalar_test_path(),
-        Path::new("/work/node_modules/jsonc-array-string/[object Object].ts")
-    );
-
-    for (request, expected) in [("ownx", "o.ts"), ("gapx", "a,,.ts")] {
-        let module = resolved(
-            resolver
-                .resolve(
-                    "/work/main.ts",
-                    &format!("jsonc-array-string/{request}"),
-                    ResolutionMode::CommonJs,
-                )
-                .expect("stringify an effective sparse generic Array#join projection"),
-        );
-        assert_eq!(
-            module.resolved_file().display().scalar_test_path(),
-            PathBuf::from(format!("/work/node_modules/jsonc-array-string/{expected}"))
-        );
-    }
-
-    for (request, expected) in [("matchx", "a,.ts,b,c"), ("missx", "a,b,c,d.ts")] {
-        let module = resolved(
-            resolver
-                .resolve(
-                    "/work/main.ts",
-                    &format!("jsonc-raw-array-methods/{request}"),
-                    ResolutionMode::CommonJs,
-                )
-                .expect("apply inherited generic Array#indexOf to a raw substitution"),
-        );
-        assert_eq!(
-            module.resolved_file().display().scalar_test_path(),
-            PathBuf::from(format!(
-                "/work/node_modules/jsonc-raw-array-methods/{expected}"
-            ))
-        );
-    }
-    assert!(matches!(
-        resolver.resolve(
-            "/work/main.ts",
-            "jsonc-raw-array-methods/shadowx",
-            ResolutionMode::CommonJs,
-        ),
-        Err(ResolutionError::InvalidData(_))
-    ));
-
-    for package in ["exact-false", "exact-zero"] {
-        let module = resolved(
-            resolver
-                .resolve(
-                    "/work/main.ts",
-                    &format!("{package}/x"),
-                    ResolutionMode::CommonJs,
-                )
-                .expect("resolve a falsy exact substitution through the package root"),
-        );
-        assert_eq!(
-            module.resolved_file().display().scalar_test_path(),
-            PathBuf::from(format!("/work/node_modules/{package}/root.d.ts"))
-        );
-    }
-
-    for (request, expected) in [
-        ("falsex", "false.ts"),
-        ("truex", "true.ts"),
-        ("zerox", "0.ts"),
-        ("onex", "1.ts"),
-        ("objectx", "[object Object].ts"),
-        ("arrayx", "m.ts"),
-    ] {
-        let module = resolved(
-            resolver
-                .resolve(
-                    "/work/main.ts",
-                    &format!("wildcard-coercion/{request}"),
-                    ResolutionMode::CommonJs,
-                )
-                .expect("resolve a JavaScript-coerced wildcard substitution"),
-        );
-        assert_eq!(
-            module.resolved_file().display().scalar_test_path(),
-            PathBuf::from(format!("/work/node_modules/wildcard-coercion/{expected}"))
-        );
-    }
-
-    for (request, expected) in [
-        ("$&", "types/*.ts"),
-        ("$$", "types/$.ts"),
-        ("$`", "types/types/.ts"),
-    ] {
-        let module = resolved(
-            resolver
-                .resolve(
-                    "/work/main.ts",
-                    &format!("replacement-tokens/{request}"),
-                    ResolutionMode::CommonJs,
-                )
-                .expect("resolve a JavaScript replacement-string token"),
-        );
-        assert_eq!(
-            module.resolved_file().display().scalar_test_path(),
-            PathBuf::from(format!("/work/node_modules/replacement-tokens/{expected}"))
-        );
-    }
-
-    let extension_only_ts = resolved(
+    // A dot-file name is no extension (tsgo FileExtensionIs needs a longer
+    // path): the ordinary loader resolves it and attaches the package id.
+    let extension_only = resolved(
         resolver
             .resolve(
                 "/work/main.ts",
@@ -9827,102 +9469,18 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
             .expect("resolve an extension-only substitution through the ordinary loader"),
     );
     assert_eq!(
-        extension_only_ts
-            .resolved_file()
-            .display()
-            .scalar_test_path(),
+        extension_only.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/extension-only/.ts")
     );
-    assert_eq!(extension_only_ts.extension(), &ModuleExtension::Ts);
-    assert!(extension_only_ts.resolved_using_ts_extension());
-    assert!(extension_only_ts.package_id().is_some());
-
-    let extension_only_dts = resolved(
-        resolver
-            .resolve(
-                "/work/main.ts",
-                "extension-only/y",
-                ResolutionMode::CommonJs,
-            )
-            .expect("resolve a declaration-looking extension through the ordinary loader"),
-    );
-    assert_eq!(
-        extension_only_dts
-            .resolved_file()
-            .display()
-            .scalar_test_path(),
-        Path::new("/work/node_modules/extension-only/.d.ts")
-    );
-    assert_eq!(extension_only_dts.extension(), &ModuleExtension::Ts);
-    assert!(!extension_only_dts.resolved_using_ts_extension());
-    assert_eq!(extension_only_dts.package_id(), None);
-
-    for (request, expected) in [("positivex", "Infinity.ts"), ("negativex", "-Infinity.ts")] {
-        let module = resolved(
-            resolver
-                .resolve(
-                    "/work/main.ts",
-                    &format!("infinite-substitution/{request}"),
-                    ResolutionMode::CommonJs,
-                )
-                .expect("coerce an overflowing JSON number like JavaScript"),
-        );
-        assert_eq!(
-            module.resolved_file().display().scalar_test_path(),
-            PathBuf::from(format!(
-                "/work/node_modules/infinite-substitution/{expected}"
-            ))
-        );
-    }
-
-    for package in [
-        "boolean-target",
-        "number-target",
-        "object-miss",
-        "inf-length",
-        "nel-length",
-        "plain-object-length",
-        "strict-proto-own",
-    ] {
-        assert_eq!(
-            resolver
-                .resolve(
-                    "/work/main.ts",
-                    &format!("{package}/x"),
-                    ResolutionMode::CommonJs,
-                )
-                .expect("an array-like value without length owns a miss"),
-            ResolutionOutcome::NotFound
-        );
-    }
-
-    for package in [
-        "null-target",
-        "array-null",
-        "shadowed-to-string",
-        "shadowed-array-to-string",
-    ] {
-        assert!(matches!(
-            resolver.resolve(
-                "/work/main.ts",
-                &format!("{package}/x"),
-                ResolutionMode::CommonJs,
-            ),
-            Err(ResolutionError::InvalidData(_))
-        ));
-    }
-    assert!(matches!(
-        resolver.resolve(
-            "/work/main.ts",
-            "wildcard-coercion/badObjectx",
-            ResolutionMode::CommonJs,
-        ),
-        Err(ResolutionError::InvalidData(_))
-    ));
+    assert_eq!(extension_only.extension(), &ModuleExtension::Ts);
+    assert!(extension_only.resolved_using_ts_extension());
+    assert!(extension_only.package_id().is_some());
 }
 
 #[test]
-fn package_maps_apply_javascript_replacement_tokens_after_absolute_join() {
+fn package_maps_replace_stars_literally() {
+    // tsgo loadModuleFromTargetExportOrImport: strings.ReplaceAll(target, "*",
+    // subpath); JavaScript replacement-string tokens do not apply.
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.mts", b"export {};".to_vec())
         .file(
@@ -9934,19 +9492,19 @@ fn package_maps_apply_javascript_replacement_tokens_after_absolute_join() {
             .to_vec(),
         )
         .file(
-            "/work/node_modules/export-tokens/types/*.ts",
-            b"export const wholeMatch: true;".to_vec(),
+            "/work/node_modules/export-tokens/types/$&.ts",
+            b"export const wholeMatchToken: true;".to_vec(),
         )
         .file(
-            "/work/node_modules/export-tokens/types/$.ts",
-            b"export const escapedDollar: true;".to_vec(),
+            "/work/node_modules/export-tokens/types/$$.ts",
+            b"export const doubledDollar: true;".to_vec(),
         )
         .file(
-            "/work/node_modules/export-tokens/types/work/node_modules/export-tokens/types/.ts",
-            b"export const absolutePrefix: true;".to_vec(),
+            "/work/node_modules/export-tokens/types/$`.ts",
+            b"export const prefixToken: true;".to_vec(),
         )
         .build()
-        .expect("build package-map replacement-token host");
+        .expect("build package-map literal-star host");
     let options = CompilerOptions {
         module: Some(199),
         module_resolution: Some(99),
@@ -9954,14 +9512,7 @@ fn package_maps_apply_javascript_replacement_tokens_after_absolute_join() {
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create NodeNext resolver");
 
-    for (request, expected) in [
-        ("$&", "/work/node_modules/export-tokens/types/*.ts"),
-        ("$$", "/work/node_modules/export-tokens/types/$.ts"),
-        (
-            "$`",
-            "/work/node_modules/export-tokens/types/work/node_modules/export-tokens/types/.ts",
-        ),
-    ] {
+    for request in ["$&", "$$", "$`"] {
         let module = resolved(
             resolver
                 .resolve(
@@ -9969,47 +9520,15 @@ fn package_maps_apply_javascript_replacement_tokens_after_absolute_join() {
                     &format!("export-tokens/{request}"),
                     ResolutionMode::EsNext,
                 )
-                .expect("resolve an exports replacement-string token"),
+                .expect("resolve an exports subpath spelled like a replacement token"),
         );
         assert_eq!(
             module.resolved_file().display().scalar_test_path(),
-            Path::new(expected)
+            PathBuf::from(format!(
+                "/work/node_modules/export-tokens/types/{request}.ts"
+            ))
         );
     }
-}
-
-#[test]
-fn javascript_replacement_expansion_fails_before_quadratic_allocation() {
-    let target = format!("{}*", "a".repeat(2_048));
-    let package_json = format!(
-        r#"{{
-            "name":"replacement-limit","version":"1.0.0",
-            "typesVersions":{{"*":{{"*":["{target}"]}}}}
-        }}"#
-    );
-    let host = MemoryCompilerHost::builder("/work")
-        .file("/work/main.ts", b"export {};".to_vec())
-        .file(
-            "/work/node_modules/replacement-limit/package.json",
-            package_json.into_bytes(),
-        )
-        .build()
-        .expect("build replacement expansion limit host");
-    let options = CompilerOptions {
-        module_resolution: Some(2),
-        ..CompilerOptions::default()
-    };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
-    let capture = "$`".repeat(600);
-
-    assert!(matches!(
-        resolver.resolve(
-            "/work/main.ts",
-            &format!("replacement-limit/{capture}"),
-            ResolutionMode::CommonJs,
-        ),
-        Err(ResolutionError::ResourceLimit(_))
-    ));
 }
 
 #[test]
@@ -10075,11 +9594,6 @@ fn malformed_types_versions_objects_fall_back_to_legacy_package_fields() {
     for (specifier, expected) in [
         ("top", "/work/node_modules/top/index.d.ts"),
         ("range", "/work/node_modules/range/index.d.ts"),
-        ("array/x", "/work/node_modules/array/mapped.d.ts"),
-        (
-            "inner-array/6",
-            "/work/node_modules/inner-array/mapped.d.ts",
-        ),
     ] {
         let module = resolved(
             resolver
@@ -10089,6 +9603,18 @@ fn malformed_types_versions_objects_fall_back_to_legacy_package_fields() {
         assert_eq!(
             module.resolved_file().display().scalar_test_path(),
             Path::new(expected)
+        );
+    }
+    // tsgo GetVersionPaths: an array-shaped `typesVersions` field, or a
+    // matching entry whose value is an array, is not an object and leaves
+    // no paths (probe H of the ts71-suites P4-3 record).
+    for specifier in ["array/x", "inner-array/7"] {
+        assert_eq!(
+            resolver
+                .resolve("/work/main.ts", specifier, ResolutionMode::CommonJs)
+                .expect("an array-shaped typesVersions value leaves no paths"),
+            ResolutionOutcome::NotFound,
+            "{specifier}"
         );
     }
 }
@@ -10185,11 +9711,16 @@ fn legacy_subpaths_honor_nested_packages_and_nested_types_versions_workers() {
             Path::new(expected)
         );
     }
-    assert_eq!(
+    // tsgo tryLoadModuleUsingPaths continues past the inner mapping's miss
+    // (`index` -> `missing`) to the mapped directory's index.
+    let fallen_through = resolved(
         resolver
-            .resolve("/main.ts", "owned-miss/sub", ResolutionMode::CommonJs,)
-            .expect("an inner mapping owns its miss"),
-        ResolutionOutcome::NotFound
+            .resolve("/main.ts", "owned-miss/sub", ResolutionMode::CommonJs)
+            .expect("an inner mapping miss continues to the directory index"),
+    );
+    assert_eq!(
+        fallen_through.resolved_file().display().scalar_test_path(),
+        Path::new("/node_modules/owned-miss/mapped/index.d.ts")
     );
 }
 
