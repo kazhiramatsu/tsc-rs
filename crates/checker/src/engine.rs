@@ -3928,7 +3928,7 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(true);
             }
-            if name.starts_with("__@") {
+            if name.starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX) {
                 let string = self.tables.intrinsics.string;
                 if self.get_index_info_of_type(target, string)?.is_some() {
                     return Ok(true);

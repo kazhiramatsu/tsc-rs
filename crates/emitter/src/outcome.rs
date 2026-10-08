@@ -108,6 +108,17 @@ impl EmitOutcome {
         self.source_maps.as_deref()
     }
 
+    /// tsgo `emitFilesIncremental`'s results from `emitDiagnosticsPerFile`:
+    /// the cached declaration diagnostics of the files this emit did not
+    /// cover join its own, each such result skipped.
+    pub fn with_cached_diagnostics(mut self, cached: Vec<Diagnostic>) -> Self {
+        if !cached.is_empty() {
+            self.emit_skipped = true;
+            self.diagnostics.extend(cached);
+        }
+        self
+    }
+
     /// The build info write that followed this emit (tsgo
     /// `emitBuildInfo`): its file joins the emitted files, or the failure
     /// to write it (TS5033) joins the diagnostics.

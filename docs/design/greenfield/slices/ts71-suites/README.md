@@ -836,3 +836,68 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
 - 計測（conformance の全体実行、suites、crate test、実 tsgo との比較）は上の記録のとおり、merge 前に最終 bytes `5f592032b` で行った。
   実 project の比較は P4-6 の終わりに行う。性能は計測していない（利用者の指示）。
 - 次：P4-6c（残りの class）。branch `fix/ts71-tsc-behaviors`（base `70a485247`）。
+
+## P4-6c tsc／tsbuild の残りの class（2026-10-09）
+
+利用者の指示（「残りの項目を全て実装してください」）どおり、P4-6a・P4-6b の後に残った class を tsgo に合わせた。
+
+- **test harness**（`ts71/suites/tsc/`）：tsgo `CommandLineTesting` の file listing の marker（TSFILE 行・`--listFiles`・
+  `--explainFiles` は `OnListFilesStart/End` の間）を incremental correctness の比較から外す。`FakeTSVersion` で書いた build
+  info は compiler の version で読み直す。incremental correctness の diff は tsgo `baseline.DiffText`
+  （`github.com/peter-evans/patience` v0.3.0 の patience diff と 3 行文脈の unified hunk）の移植（`patience.rs`、unit test は
+  Go の library の出力で pin）。
+- **config と command line**：references の検証（path が無い・文字列でない・`circular` が boolean でないと TS5024、空の path は
+  TS18051）、空の references 配列は solution。command line の `null` は config の値を消す。include の理由は最初に当たった spec
+  （JSON も）。node_modules の中の config は real path。drive root を持つ path。`--diagnostics`／`--extendedDiagnostics` は
+  tsgo の統計表のうち port が測る行（file、行数、config・parse・check の時間、build は集計）。
+- **extends の継承**（tsgo `applyExtendedConfig`）：書かれた key は値が無くても（`null`・値の欠落）継承を止める。継承するのは
+  配列だけ（文字列・数値・object は継承しない）、文字列でない要素は書かれたまま残す（TS18003 の include は `[1]` と出る）。
+  tsgo の JSON 変換は配列の `null` を落とし、`null` だけの配列は nil slice（spec の読み手には無いのと同じ）。tsc 6.0.3 の
+  `__proto__`／truthy／文字列の文字ごとの継承の規則は捨てた。program の unit test をこれに合わせて書き直し（実 tsgo の
+  `--showConfig` で確かめた）、tsc 6.0.3 の観測 fixture `h2-8b-config-extends` の 1 件（`own-null-files-inherits`）は
+  tsgo で変わったので外して contract test に置き換えた。
+- **参照 project の file の options**（tsgo `getCompilerOptionsForFile`／`getRedirectForResolution`）：program の file が
+  参照 project の source か出力 d.ts なら、その project の options（emit module kind、module resolution、package.json の
+  exports／imports、preserveConstEnums、common source directory、outDir）を `ReferencedProjectOptions` として持つ。checker は
+  file ごとの resolution mode をそれで決め（`resolution_mode_for_usage`）、`canHaveSyntheticDefault` の project reference の
+  分岐、出力 d.ts の const enum の TS2748 の例外、TS2878（rewrite する import が別 project へ解決し、出力の相対位置が source と
+  違う）を tsgo どおりに行う。`authoritative Module resolution is missing` で止まっていた extends の rebuild もこれで直った。
+- **参照 project の source**：program に入った参照 project の source（出力 d.ts が代わりにならない JSON など）は emit しない。
+  別 project の source への `/// <reference path>` は出力 d.ts に redirect され（tsgo `getParseFileRedirect`）、checker の
+  TS6053 の補完（loader を通らない program のためのもの）は参照 project の source を解決済みとする（provider に問う）。宣言 emit の `preserve` な参照は
+  出力 d.ts を指す（`GetSourceFileForResolvedModule`）。module specifier は出力 d.ts を元の source の名で探し
+  （`GetSourceOfProjectReferenceIfOutputIncluded`）、source の出力 d.ts も候補にする（`GetEachFileNameOfModule`）。monorepo の
+  `import("package-c").MyType` が TS2883 になっていた。
+- **`repopulateInfo`**（tsgo `RepopulateDiagnosticInfo`）：package.json の状態による chain（mode mismatch の
+  TS1479 系の案内、module が見つからないときの案内）を `MessageChain::repopulate` に記録して build info に書き、cache の行を
+  報告するときに今の program から作り直す（tsgo `toDiagnostic` と同じく遅延で、作り直した行を次の build info に書く）。
+  詳細の計算は checker と共有（`mode_mismatch_details`／`module_not_found_details`）。
+- **build info の `errors`**（tsgo `ensureHasErrorsForState` の `GetGlobalDiagnostics`）：planner が signature を作るときの
+  file の無い診断（例：宣言 emit が先に型を解いて出る TS5114）と、check の global 診断（check していない JavaScript の
+  filter で落ちるものも）を数える。
+- **その他**：CommonJS の `export default` の文は comment range だけを持ち source map に載らない（tsgo
+  `createExportStatement`）。unique symbol の property 名は tsgo の `"\xFE@<名前>@<id>"`（Rust の文字列では U+FFFD）。JSON の
+  値の検証の診断は位置ごとに 1 つの規則を通らない（tsgo `validateJsonValue`）。
+- **結果**：tsc 180 → **211**／224、tsbuild 138 → **182**／192。transpile 41、tsoptions 80、config 87 は変わらず全て full。
+- **残る 23 件**：`target: es5` の 12 件（tsgo 7.1 は TS5108 を報告して ES2015 として出力、port は 2026-09-29 の指示どおり ES5 に
+  下げる。TS5108 の診断は一致、違いは emit だけ）、content mapper 8 件（対象外）、`--generateTrace` 2 件（types file が tsgo の
+  型の生成順と id を要る。利用者の判断待ち）、watch の test が書く 1 件（P4-7）。
+- **後続の候補**：壊れた tsconfig の JSON の変換（tsgo は parser が tsconfig の値も検証して TS1328 を出し、変換の診断は前置
+  trivia を含む位置に出る。TS5024 の型名は enum／Array。`1 + 2` のような JSON でない式を port は bounded grammar の外として
+  止まる）。baseline には現れない。
+- tests：compiler の statistics 2（表の揃え、行数）、conformance の patience 4（Go の library の出力で pin）、program の
+  config contract（tsgo に合わせて書き直し 3：JSONC の `__proto__` は普通の key、値の無い include も継承を止める、継承は
+  配列だけ；追加 2：`files: null` が継承を止める、TS18003 が文字列でない include をそのまま出す）、checker の unit 2
+  （unique symbol の名前の prefix）。tsc 6.0.3 の観測 fixture `h2-8b-config-extends` は 28 件のうち 27 件を残し、
+  `own-null-files-inherits` を tsgo の contract に置き換えた。
+- 計測（code の最終 bytes `5777f9bfe`、macOS、`nice -n 20`、2 worker）：conformance 12,748 case／478 s、errors full 13,451
+  （mismatch 0）、emit full 13,443（not assessed 8）、types full 12,677／mismatch 90、symbols full 12,715／mismatch 52、
+  sourcemap full 13,451、trace full 13,448／mismatch 3、harness error 15（P4-6b と同じ）、ratchet 0 regressions。suites
+  （`scripts/suites_ts71.py --update`：75 行 none → full、下げた行なし → `--check`）0 regressions。並列対照（`--checkers 4`、
+  全件、458 s）：15,224 構成が一致、違う 4 構成は記録済みの「emit が先」の 4 構成（`mutuallyRecursiveInference`、
+  `incorrectRecursiveMappedTypeConstraint`、`typeParameterWithInvalidConstraintType`、`recursiveMappedTypes`）。
+- local（`nice -n 20`、2 job、最終 bytes）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）diagnostics／
+  types／syntax／program／incremental／emitter／checker／compiler／conformance；test diagnostics 51、types 43、syntax 246、
+  program 601、incremental 29、emitter 635、checker 1,797、compiler 437、conformance 52（全て 0 失敗）。workspace 全体の test と
+  clippy は hosted の `rust` job に任せた。実 project の比較（P4-6 の終わり）は下の hosted の記録に書く。性能は計測していない
+  （利用者の指示）。

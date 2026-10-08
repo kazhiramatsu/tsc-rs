@@ -632,7 +632,7 @@ fn relation_property_reports_use_target_symbol_to_string_faces() {
         );
     }
     assert!(
-        texts.iter().all(|text| !text.contains("__@sym@")),
+        texts.iter().all(|text| !text.contains("\u{FFFD}@sym@")),
         "internal late-bound names must never reach diagnostics: {texts:#?}"
     );
     assert!(

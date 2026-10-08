@@ -51,6 +51,7 @@ fn diagnostic(code: u32, text: &str) -> Diagnostic {
             next_present: false,
             next: Vec::new(),
             related: Vec::new(),
+            repopulate: None,
         },
     )
 }
@@ -69,6 +70,7 @@ fn located_diagnostic(code: u32, file_name: &str, text: &str) -> Diagnostic {
             next_present: false,
             next: Vec::new(),
             related: Vec::new(),
+            repopulate: None,
         },
     )
 }

@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use tsc_checker::emit::CheckerSession;
 use tsc_checker::{IncrementalCheckFacts, IncrementalFileFacts, IncrementalPlan, ProgramSnapshot};
 use tsc_diagnostics::{
-    by_code, Diagnostic, DiagnosticCategory, JsStr, JsString, MessageChain, RelatedInfo,
+    by_code, Diagnostic, DiagnosticCategory, JsStr, JsString, MessageChain, RelatedInfo, Repopulate,
 };
 use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitIoError, EmitOutcome, EmitPreflight,
@@ -26,11 +26,11 @@ use tsc_incremental::{
     compute_hash_with_text, declaration_write_decision, ensure_path_is_non_module_name,
     fresh_emit_updates, BuildInfo, BuildInfoDiagnostic, CachedDiagnostic, CachedRows,
     DeclarationEmit, DeclarationEmitFacts, DeclarationOutput, EmitUpdate, FileEmitKind, FileState,
-    OldState, OldStatePaths, ProgramFileFacts, ProgramState, Snapshot,
+    OldState, OldStatePaths, ProgramFileFacts, ProgramState, RepopulateInfo, Snapshot,
 };
 use tsc_program::{
-    PackageJsonType, PreparedProgram, ResolutionOutcome, SourceFileId,
-    TypeReferenceResolutionOrigin,
+    PackageJsonType, PreparedProgram, ResolutionKey, ResolutionMode, ResolutionOutcome,
+    SourceFileId, TypeReferenceResolutionOrigin,
 };
 
 use crate::{CheckedEmitHost, EmitRouteKind, PreparedEmitHost, ProgramDiagnostics, SourceApiFacts};
@@ -489,7 +489,10 @@ struct DriverState {
     /// The planner's facts (every file's module facts and program rows).
     facts: Vec<IncrementalFileFacts>,
     /// A global row the check deferred into a file's rows.
-    deferred_global_rows: bool,
+    /// The check of the files reported file-less rows.
+    check_global_rows: bool,
+    /// The planner's declaration signatures reported file-less rows.
+    planner_global_rows: bool,
     /// The declaration files of this emit that differ only in their map.
     differing_only_in_map: Vec<JsString>,
 }
@@ -635,7 +638,8 @@ impl<'p> IncrementalDriver<'p> {
             *self.state() = Some(DriverState {
                 snapshot: snap,
                 facts: facts.to_vec(),
-                deferred_global_rows: false,
+                check_global_rows: false,
+                planner_global_rows: false,
                 differing_only_in_map: Vec::new(),
             });
             IncrementalPlan { check }
@@ -664,10 +668,13 @@ impl<'p> IncrementalDriver<'p> {
                     self.old.as_deref(),
                 ),
                 facts: facts.files.clone(),
-                deferred_global_rows: false,
+                check_global_rows: false,
+                planner_global_rows: false,
                 differing_only_in_map: Vec::new(),
             }
         });
+        state.planner_global_rows |= facts.planner_global_rows;
+        state.check_global_rows |= facts.check_global_rows;
         if rows_cached {
             let assembly = Assembly::new(
                 self.prepared,
@@ -679,9 +686,6 @@ impl<'p> IncrementalDriver<'p> {
                 let Some(rows) = &file.semantic_rows else {
                     continue;
                 };
-                if rows.iter().any(|row| row.file_name.is_none()) {
-                    state.deferred_global_rows = true;
-                }
                 state.snapshot.store_fresh_rows(
                     index,
                     rows.iter().map(|row| assembly.cached(index, row)).collect(),
@@ -699,8 +703,8 @@ impl<'p> IncrementalDriver<'p> {
         if self.prepared.compiler_options().no_check == Some(true) {
             return Vec::new();
         }
-        let guard = self.state();
-        let (Some(state), Some(file_name)) = (guard.as_ref(), &self.build_info_file_name) else {
+        let mut guard = self.state();
+        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
             return Vec::new();
         };
         let assembly = Assembly::new(
@@ -712,6 +716,9 @@ impl<'p> IncrementalDriver<'p> {
         let no_emit = self.prepared.compiler_options().no_emit == Some(true);
         let mut diagnostics = Vec::new();
         for index in 0..self.prepared.source_files().len() {
+            state
+                .snapshot
+                .convert_old_semantic_rows(index, |row| assembly.repopulated(index, row));
             let Some(rows) = state.snapshot.cached_rows(index) else {
                 continue;
             };
@@ -777,6 +784,12 @@ impl<'p> IncrementalDriver<'p> {
             );
             state.snapshot.record_emit(updates, &deleted);
             return Vec::new();
+        }
+        // tsgo converts the cached rows it reports (toDiagnostic).
+        for index in 0..self.prepared.source_files().len() {
+            state
+                .snapshot
+                .convert_old_emit_rows(index, |row| assembly.repopulated(index, row));
         }
         let files = &state.snapshot.program().files;
         let mut updates = Vec::new();
@@ -890,16 +903,18 @@ impl<'p> IncrementalDriver<'p> {
     /// The emit committed (tsgo `emitFilesHandler.updateSnapshot`):
     /// `requests` and `preflight` name the units emitted (the whole plan
     /// without an old state).
+    /// It returns the cached declaration diagnostics of the files the emit
+    /// did not cover (tsgo reports them with the emit).
     pub(crate) fn record_emit(
         &self,
         emit: &EmitOutcome,
         records: &[DeclarationRecord],
         wrote_anything: bool,
         requests: Option<(&[UnitEmitRequest], &EmitPreflight)>,
-    ) {
+    ) -> Vec<Diagnostic> {
         let mut guard = self.state();
         let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
-            return;
+            return Vec::new();
         };
         state.differing_only_in_map = records
             .iter()
@@ -931,15 +946,21 @@ impl<'p> IncrementalDriver<'p> {
             };
             let (updates, deleted) = fresh_emit_updates(&state.snapshot, FileState::Emit(&facts));
             state.snapshot.record_emit(updates, &deleted);
-            return;
+            return Vec::new();
         }
         if emit.emit_skipped() && !wrote_anything {
             // HandleNoEmitOptions stopped the emit: nothing changes.
-            return;
+            return Vec::new();
         }
         let Some((requests, preflight)) = requests else {
-            return;
+            return Vec::new();
         };
+        // tsgo converts the cached rows it reports (toDiagnostic).
+        for index in 0..file_count {
+            state
+                .snapshot
+                .convert_old_emit_rows(index, |row| assembly.repopulated(index, row));
+        }
         let files = &state.snapshot.program().files;
         let mut updates = Vec::new();
         let mut seen = BTreeSet::new();
@@ -972,7 +993,23 @@ impl<'p> IncrementalDriver<'p> {
             })
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
+        // Get updated errors that were not included in affected files emit
+        let cached = files
+            .iter()
+            .enumerate()
+            .filter(|(index, file)| !seen.contains(index) && file.may_be_emitted)
+            .filter_map(|(index, _)| match state.snapshot.emit_rows(index)? {
+                CachedRows::Old(rows) => Some(
+                    rows.iter()
+                        .map(|row| assembly.to_diagnostic(index, row))
+                        .collect::<Vec<_>>(),
+                ),
+                CachedRows::New(_) => None,
+            })
+            .flatten()
+            .collect();
         state.snapshot.record_emit(updates, &deleted);
+        cached
     }
 
     /// tsgo `ensureHasErrorsForState`'s non-cached errors: the command's
@@ -986,7 +1023,10 @@ impl<'p> IncrementalDriver<'p> {
         if command.config || command.syntactic || command.options || command.global {
             return true;
         }
-        if state.deferred_global_rows && command.semantic_cached() {
+        // tsgo `GetGlobalDiagnostics` when it writes the build info: the
+        // rows the checks reported (when the command asked for the semantic
+        // diagnostics) and the ones the planner's signatures reported.
+        if (state.check_global_rows && command.semantic_cached()) || state.planner_global_rows {
             return true;
         }
         let Some(file_name) = &self.build_info_file_name else {
@@ -1044,6 +1084,11 @@ impl<'p> IncrementalDriver<'p> {
     }
 
     pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {
+        // tsgo `emitBuildInfo`: nothing when a referenced project writes the
+        // same file (TS6377 blocks it).
+        if self.prepared.build_info_emit_blocked() {
+            return None;
+        }
         let file_name = self.build_info_file_name.clone()?;
         let mut guard = self.state();
         let state = guard.as_mut()?;
@@ -1059,6 +1104,31 @@ impl<'p> IncrementalDriver<'p> {
 /// The Program's facts and the conversions between the compiler's
 /// diagnostics and the build info's rows (tsgo `toBuildInfo` and
 /// `buildInfoDiagnosticWithFileName.toDiagnostic`).
+/// tsgo `toBuildInfoRepopulateInfo`.
+fn repopulate_info(repopulate: &Repopulate) -> RepopulateInfo {
+    match repopulate {
+        Repopulate::ModeMismatch => RepopulateInfo {
+            kind: 1,
+            module_reference: String::new(),
+            mode: 0,
+            package_name: String::new(),
+        },
+        Repopulate::ModuleNotFound {
+            module_reference,
+            mode,
+            package_name,
+        } => RepopulateInfo {
+            kind: 2,
+            module_reference: module_reference.to_string_lossy().into_owned(),
+            mode: *mode,
+            package_name: package_name
+                .as_ref()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        },
+    }
+}
+
 struct Assembly<'p> {
     prepared: &'p PreparedProgram,
     facts: &'p [IncrementalFileFacts],
@@ -1213,6 +1283,7 @@ impl<'p> Assembly<'p> {
                 .collect(),
             reports_unnecessary: metadata.is_some_and(|message| message.reports_unnecessary),
             reports_deprecated: metadata.is_some_and(|message| message.reports_deprecated),
+            repopulate_info: chain.repopulate.as_ref().map(repopulate_info),
             ..BuildInfoDiagnostic::default()
         }
     }
@@ -1286,6 +1357,157 @@ impl<'p> Assembly<'p> {
         rows
     }
 
+    /// tsgo `buildInfoDiagnosticWithFileName.toDiagnostic` as the next build
+    /// info records the result: the entries of a cached row stored under
+    /// file `owner` that depend on the program's package state
+    /// (`repopulateInfo`) recomputed from this program. `None` when the
+    /// row has no such entry.
+    fn repopulated(&self, owner: usize, row: &CachedDiagnostic) -> Option<CachedDiagnostic> {
+        self.repopulated_entry(Some(owner), row)
+    }
+
+    fn repopulated_entry(
+        &self,
+        file: Option<usize>,
+        row: &CachedDiagnostic,
+    ) -> Option<CachedDiagnostic> {
+        // tsgo toDiagnostic's fileForDiagnostic.
+        let file = if row.no_file {
+            None
+        } else {
+            match &row.file {
+                Some(path) => self.index_by_canonical.get(path).copied(),
+                None => file,
+            }
+        };
+        let converted = |entries: &[CachedDiagnostic]| {
+            let entries = entries
+                .iter()
+                .map(|entry| self.repopulated_entry(file, entry))
+                .collect::<Vec<_>>();
+            entries.iter().any(Option::is_some).then_some(entries)
+        };
+        let keep = |converted: Option<Vec<Option<CachedDiagnostic>>>,
+                    entries: &[CachedDiagnostic]| {
+            match converted {
+                Some(converted) => converted
+                    .into_iter()
+                    .zip(entries)
+                    .map(|(converted, entry)| converted.unwrap_or_else(|| entry.clone()))
+                    .collect(),
+                None => entries.to_vec(),
+            }
+        };
+        let chain = converted(&row.message_chain);
+        let Some(info) = &row.repopulate_info else {
+            let related = converted(&row.related_information);
+            if chain.is_none() && related.is_none() {
+                return None;
+            }
+            return Some(CachedDiagnostic {
+                message_chain: keep(chain, &row.message_chain),
+                related_information: keep(related, &row.related_information),
+                ..row.clone()
+            });
+        };
+        let message_chain = keep(chain, &row.message_chain);
+        let Some(details) = file.and_then(|file| self.repopulated_details(file, info)) else {
+            // tsgo toDiagnosticWithoutRepopulate.
+            let related = converted(&row.related_information);
+            return Some(CachedDiagnostic {
+                source: String::new(),
+                message_text: String::new(),
+                message_chain,
+                related_information: keep(related, &row.related_information),
+                repopulate_info: None,
+                ..row.clone()
+            });
+        };
+        Some(CachedDiagnostic {
+            file: row.file.clone(),
+            no_file: row.no_file,
+            pos: row.pos,
+            end: row.end,
+            code: details.code,
+            category: Self::category(details.category),
+            source: String::new(),
+            message_text: String::new(),
+            message_key: details.key.unwrap_or("").to_owned(),
+            message_args: details
+                .args
+                .iter()
+                .map(|arg| arg.to_string_lossy().into_owned())
+                .collect(),
+            message_chain,
+            related_information: Vec::new(),
+            reports_unnecessary: false,
+            reports_deprecated: false,
+            skipped_on_no_emit: false,
+            repopulate_info: None,
+        })
+    }
+
+    /// tsgo `repopulateDiagnosticChain`'s details for a program file.
+    fn repopulated_details(&self, file: usize, info: &RepopulateInfo) -> Option<MessageChain> {
+        let source = &self.prepared.source_files()[file];
+        match info.kind {
+            // tsgo `CreateModeMismatchDetails` over the file's metadata.
+            1 => {
+                let untyped_package_json = source.package_scope().and_then(|scope| {
+                    (self.package_types.get(scope) == Some(&PackageJsonType::Unspecified))
+                        .then(|| self.prepared.package(scope))
+                        .flatten()
+                        .map(|package| package.package_json().display())
+                });
+                Some(tsc_checker::modules::mode_mismatch_details(
+                    source.path().display(),
+                    untyped_package_json,
+                ))
+            }
+            // tsgo `CreateModuleNotFoundChain` over the file's resolution.
+            2 => {
+                let module_reference = JsString::from(info.module_reference.as_str());
+                let package_name = if info.package_name.is_empty() {
+                    module_reference.clone()
+                } else {
+                    JsString::from(info.package_name.as_str())
+                };
+                let mode = match info.mode {
+                    1 => ResolutionMode::CommonJs,
+                    99 => ResolutionMode::EsNext,
+                    _ => ResolutionMode::Unspecified,
+                };
+                let resolution = self
+                    .prepared
+                    .resolutions()
+                    .require_module(&ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        module_reference.as_js(),
+                        mode,
+                    ))
+                    .ok();
+                let alternate_result = resolution
+                    .and_then(|resolution| resolution.alternate_result())
+                    .map(|path| path.display());
+                Some(tsc_checker::modules::module_not_found_details(
+                    module_reference.as_js(),
+                    package_name.as_js(),
+                    tsc_checker::modules::ModuleNotFoundFacts {
+                        alternate_result,
+                        types_package_exists: resolution
+                            .is_some_and(|resolution| resolution.types_package_exists()),
+                        package_bundles_types: resolution
+                            .is_some_and(|resolution| resolution.package_bundles_types()),
+                    },
+                    self.prepared
+                        .compiler_options()
+                        .emit_module_resolution_kind(),
+                ))
+            }
+            _ => None,
+        }
+    }
+
     /// tsgo `buildInfoDiagnosticWithFileName.toDiagnostic`: a cached row
     /// stored under file `owner` as the compiler's diagnostic (its message
     /// formatted from the catalog message and the recorded arguments).
@@ -1352,6 +1574,7 @@ impl<'p> Assembly<'p> {
                 next_present: false,
                 next: Vec::new(),
                 related: Vec::new(),
+                repopulate: None,
             },
         };
         message.code = row.code;

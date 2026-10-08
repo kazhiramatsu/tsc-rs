@@ -216,6 +216,73 @@ pub struct PreparedSourceFile {
     /// present (empty when nothing was retained) and excluded from content
     /// equality by [`PreparsedSyntax`]'s content-independent `PartialEq`.
     preparsed_syntax: PreparsedSyntax,
+    /// The referenced project the file belongs to, when it does.
+    project_reference: Option<ProjectReferenceFile>,
+}
+
+/// The options of a referenced project its files are checked under (tsgo
+/// `getCompilerOptionsForFile` with the project as the redirect).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReferencedProjectOptions {
+    /// `GetEmitModuleKind()` and `GetModuleResolutionKind()`.
+    pub emit_module_kind: i32,
+    pub module_resolution_kind: i32,
+    /// The effective `resolvePackageJsonExports` and `...Imports`.
+    pub resolve_package_json_exports: bool,
+    pub resolve_package_json_imports: bool,
+    /// `ShouldPreserveConstEnums()`.
+    pub preserves_const_enums: bool,
+    /// `CommonSourceDirectory()` and `outDir`, absolute.
+    pub common_source_directory: JsString,
+    pub out_dir: Option<JsString>,
+}
+
+impl ReferencedProjectOptions {
+    pub(crate) fn of(
+        plan: &crate::ConfigRootPlan,
+        current_directory: JsStr<'_>,
+        case_sensitive: bool,
+    ) -> Self {
+        let options = plan.compiler_options();
+        let module_resolution_kind = options.emit_module_resolution_kind();
+        let package_maps = matches!(module_resolution_kind, 3 | 99 | 100);
+        Self {
+            emit_module_kind: options.emit_module_kind(),
+            module_resolution_kind,
+            resolve_package_json_exports: options
+                .resolve_package_json_exports
+                .unwrap_or(package_maps),
+            resolve_package_json_imports: options
+                .resolve_package_json_imports
+                .unwrap_or(package_maps),
+            preserves_const_enums: options.should_preserve_const_enums(),
+            // A project has a config, so its files are not consulted.
+            common_source_directory: crate::common_source_directory(
+                options,
+                Some(plan.config_file_name()),
+                &[],
+                current_directory,
+                case_sensitive,
+            ),
+            out_dir: options
+                .out_dir
+                .as_ref()
+                .filter(|directory| !directory.is_empty())
+                .map(|directory| {
+                    crate::js_path::normalized_absolute_path(directory.as_js(), current_directory)
+                }),
+        }
+    }
+}
+
+/// A file of a referenced project (tsgo `getRedirectForResolution`): the
+/// project's options, and whether the file's own path is an output
+/// declaration file of the project (`GetProjectReferenceFromOutputDts`; a
+/// symlinked spelling of one is not).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProjectReferenceFile {
+    pub options: Arc<ReferencedProjectOptions>,
+    pub output_declaration: bool,
 }
 
 impl PreparedSourceFile {
@@ -257,6 +324,7 @@ impl PreparedSourceFile {
             is_external_module: None,
             package_scope: None,
             preparsed_syntax: PreparsedSyntax::empty(),
+            project_reference: None,
         }
     }
 
@@ -339,6 +407,17 @@ impl PreparedSourceFile {
     pub fn with_package_scope(mut self, package_json: CanonicalPath) -> Self {
         self.package_scope = Some(package_json);
         self
+    }
+
+    pub fn with_project_reference(mut self, project_reference: ProjectReferenceFile) -> Self {
+        self.project_reference = Some(project_reference);
+        self
+    }
+
+    /// The referenced project the file belongs to (tsgo
+    /// `getRedirectForResolution`), when it does.
+    pub fn project_reference(&self) -> Option<&ProjectReferenceFile> {
+        self.project_reference.as_ref()
     }
 
     pub fn with_inclusion_reasons(mut self, reasons: Vec<crate::SourceInclusionReason>) -> Self {
@@ -1242,9 +1321,21 @@ pub struct ProgramOptions {
     /// command (see [`ResolvedProjectReferences`]); absent for a program
     /// without references.
     project_references: Option<Arc<ResolvedProjectReferences>>,
+    /// The program is a project of `tsc -b` (tsgo `CompilerOptions.Build`):
+    /// it writes a build info whether or not it is incremental.
+    build_mode: bool,
 }
 
 impl ProgramOptions {
+    pub fn with_build_mode(mut self, build_mode: bool) -> Self {
+        self.build_mode = build_mode;
+        self
+    }
+
+    pub const fn build_mode(&self) -> bool {
+        self.build_mode
+    }
+
     pub fn with_project_references(
         mut self,
         project_references: Arc<ResolvedProjectReferences>,
@@ -1560,6 +1651,8 @@ pub struct PreparedProgram {
     /// The `--traceResolution` lines (see
     /// [`PreparedProgram::resolution_trace`]).
     resolution_trace: Vec<String>,
+    /// See [`PreparedProgram::build_info_emit_blocked`].
+    build_info_emit_blocked: bool,
     /// The deduplicated package copies the load dropped (see
     /// [`PreparedProgram::package_redirect_files`]).
     package_redirect_files: Vec<PackageRedirectFile>,
@@ -1612,6 +1705,55 @@ impl PreparedProgram {
         &self.path_context
     }
 
+    /// tsgo `getParseFileRedirect`: the output declaration file the program
+    /// loads in place of a referenced project's source, by the source's
+    /// normalized absolute name.
+    pub fn project_reference_output_of_source(&self, file_name: JsStr<'_>) -> Option<JsStr<'_>> {
+        let key = crate::js_path::file_name_key(
+            file_name,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        let source = CanonicalPath::from_js_normalized(key.as_js()).ok()?;
+        self.program_options()
+            .project_references()?
+            .output_for_source(&source)?
+            .output_dts()
+    }
+
+    /// tsgo `Program.CommonSourceDirectory()`: the rootDir, else the
+    /// config's directory, else the common directory of the files the
+    /// program may emit.
+    pub fn common_source_directory(&self) -> JsString {
+        let config_file = self
+            .program_options()
+            .config_file_path()
+            .map(|path| path.display());
+        let current_directory = self.current_directory().display();
+        let case_sensitive = self.path_context.use_case_sensitive_file_names();
+        let files = self
+            .source_files()
+            .iter()
+            .filter(|source| {
+                crate::source_file_may_be_emitted_for_options(
+                    source.path().display(),
+                    source.may_be_emitted(),
+                    &self.compiler_options,
+                    config_file,
+                    current_directory,
+                    case_sensitive,
+                )
+            })
+            .map(|source| source.path().display())
+            .collect::<Vec<_>>();
+        crate::common_source_directory(
+            &self.compiler_options,
+            config_file,
+            &files,
+            current_directory,
+            case_sensitive,
+        )
+    }
+
     pub fn compiler_options(&self) -> &CompilerOptions {
         &self.compiler_options
     }
@@ -1659,6 +1801,12 @@ impl PreparedProgram {
     /// calls, in order): empty unless the option is on.
     pub fn resolution_trace(&self) -> &[String] {
         &self.resolution_trace
+    }
+
+    /// tsgo `IsEmitBlocked(buildInfoFileName)`: a referenced project writes
+    /// the same build info (TS6377), so this program writes none.
+    pub const fn build_info_emit_blocked(&self) -> bool {
+        self.build_info_emit_blocked
     }
 
     pub fn auxiliary_files(&self) -> impl Iterator<Item = &PreparedAuxiliaryFile> {
@@ -1720,6 +1868,7 @@ pub struct PreparedProgramBuilder {
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
     package_json_probes: Vec<crate::PackageJsonProbe>,
     resolution_trace: Vec<String>,
+    build_info_emit_blocked: bool,
     package_redirect_files: Vec<PackageRedirectFile>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
@@ -1740,6 +1889,12 @@ impl PreparedProgramBuilder {
     /// [`PreparedProgram::resolution_trace`]).
     pub fn with_resolution_trace(mut self, lines: Vec<String>) -> Self {
         self.resolution_trace = lines;
+        self
+    }
+
+    /// tsgo `verifyProjectReferences` blocked the build info (TS6377).
+    pub fn with_build_info_emit_blocked(mut self, blocked: bool) -> Self {
+        self.build_info_emit_blocked = blocked;
         self
     }
 
@@ -1785,6 +1940,7 @@ impl PreparedProgramBuilder {
             packages: BTreeMap::new(),
             package_json_probes: Vec::new(),
             resolution_trace: Vec::new(),
+            build_info_emit_blocked: false,
             package_redirect_files: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
@@ -2300,6 +2456,7 @@ impl PreparedProgramBuilder {
             packages: self.packages,
             package_json_probes: self.package_json_probes,
             resolution_trace: self.resolution_trace,
+            build_info_emit_blocked: self.build_info_emit_blocked,
             package_redirect_files: self.package_redirect_files,
             resolutions: self.resolutions,
             dependency_symlink_resolutions: self.dependency_symlink_resolutions,

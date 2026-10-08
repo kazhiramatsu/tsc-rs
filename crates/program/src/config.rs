@@ -91,6 +91,7 @@ pub enum ConfigHostOperation {
     FileExists,
     ReadFile,
     ReadDirectory,
+    Realpath,
 }
 
 impl fmt::Display for ConfigHostOperation {
@@ -99,6 +100,7 @@ impl fmt::Display for ConfigHostOperation {
             Self::FileExists => "fileExists",
             Self::ReadFile => "readFile",
             Self::ReadDirectory => "readDirectory",
+            Self::Realpath => "realpath",
         };
         formatter.write_str(name)
     }
@@ -174,6 +176,12 @@ pub trait ConfigParseHost {
         includes: Option<&[JsString]>,
         depth: Option<usize>,
     ) -> Result<Vec<JsString>, ConfigHostError>;
+
+    /// The real path of a file (tsgo `FS().Realpath`): a config found in
+    /// `node_modules` resolves to where it really is. `None` keeps the path.
+    fn realpath(&self, _path: JsStr<'_>) -> Result<Option<JsString>, ConfigHostError> {
+        Ok(None)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1101,6 +1109,14 @@ impl ConfigRootPlan {
         self.module_resolution_options.program_options()
     }
 
+    /// The plan of a `tsc -b` project (tsgo merges `Build` into each
+    /// project's options).
+    pub fn into_build_mode(mut self) -> Self {
+        let options = std::mem::take(&mut self.module_resolution_options.program_options);
+        self.module_resolution_options.program_options = options.with_build_mode(true);
+        self
+    }
+
     /// tsgo `validatedIncludeSpecs`: the valid include specs (`**/*` when
     /// neither `files` nor `include` is given) with `${configDir}`
     /// substituted.
@@ -1507,6 +1523,25 @@ struct ConfigExtendsSpec {
     location: Option<ConfigLocation>,
 }
 
+/// An element of a config's `files`, `include` or `exclude` array as the
+/// configs extending it inherit it (tsgo `applyExtendedConfig`): a path,
+/// rebased to the extending config, or another value kept as written (the
+/// spec validation then skips it).
+#[derive(Clone, Debug, PartialEq)]
+enum InheritedSpec {
+    Path(ConfigSpec),
+    Other(Value),
+}
+
+impl InheritedSpec {
+    fn raw_value(&self) -> Value {
+        match self {
+            Self::Path(spec) => Value::String(spec.text.clone()),
+            Self::Other(value) => value.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct ParsedConfigNode {
     source: ConfigSourceText,
@@ -1517,14 +1552,17 @@ struct ParsedConfigNode {
     files_location: Option<ConfigLocation>,
     include: Option<Vec<ConfigSpec>>,
     exclude: Option<Vec<ConfigSpec>>,
-    inheritable_files: Option<Vec<ConfigSpec>>,
-    inheritable_include: Option<Vec<ConfigSpec>>,
-    inheritable_exclude: Option<Vec<ConfigSpec>>,
+    inheritable_files: Option<Vec<InheritedSpec>>,
+    inheritable_include: Option<Vec<InheritedSpec>>,
+    inheritable_exclude: Option<Vec<InheritedSpec>>,
     references: Option<Value>,
     watch_options: Option<ConfigOptionBag>,
     type_acquisition: ConfigOptionBag,
     compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
+    /// tsgo `getProjectReferences`' errors for the root config's
+    /// `references` (reported after the file names').
+    reference_errors: Vec<Diagnostic>,
     extended_sources: Vec<ConfigSourceText>,
     extended_source_files: Vec<JsString>,
 }
@@ -1682,6 +1720,7 @@ fn parse_config_root_plan_inner(
         &mut context.errors,
     )?;
     tsc_types::trace::mark("config: file names", phase_started);
+    context.errors.append(&mut node.reference_errors);
     let phase_started = std::time::Instant::now();
     let root_reasons = config_root_reasons(
         &file_names,
@@ -1829,12 +1868,19 @@ fn config_project_references<'j0>(
 ) -> Option<Vec<ConfigProjectReference>> {
     let config_base_path = config_base_path.into();
     let values = references?.as_array()?;
+    // tsgo `getProjectReferences`: an array, even an empty one, is a list
+    // of references; an element without a non-empty string path is left
+    // out (`project_reference_diagnostics` reports it).
     let mut result = Vec::new();
     for reference in values {
         let Some(object) = reference.as_object() else {
             continue;
         };
-        let Some(original_path) = object.get("path").and_then(Value::as_js) else {
+        let Some(original_path) = object
+            .get("path")
+            .and_then(Value::as_js)
+            .filter(|path| !path.is_empty())
+        else {
             continue;
         };
         let path = crate::js_path::normalized_absolute_path(original_path, config_base_path);
@@ -1845,7 +1891,60 @@ fn config_project_references<'j0>(
             circular: object.get("circular").and_then(Value::as_bool),
         });
     }
-    (!result.is_empty()).then_some(result)
+    Some(result)
+}
+
+/// tsgo `getProjectReferences`' checks of each reference: a missing or
+/// non-string `path` (TS5024), an empty one (TS18051), a non-boolean
+/// `circular` (TS5024), at the property's value or else the element.
+fn project_reference_diagnostics(source: &SourceFile, references: &[Value]) -> Vec<Diagnostic> {
+    let elements = config_property_initializer(source, "references")
+        .map(|array| config_array_elements(source, array))
+        .unwrap_or_default();
+    let location = |index: usize, property: &str| {
+        let element = *elements.get(index)?;
+        let node = config_object_properties(source, element)
+            .into_iter()
+            .find(|candidate| candidate.name == property)
+            .map_or(element, |candidate| candidate.initializer);
+        config_location(source, node)
+    };
+    let mut diagnostics = Vec::new();
+    for (index, reference) in references.iter().enumerate() {
+        let Some(object) = reference.as_object() else {
+            continue;
+        };
+        match object.get("path") {
+            Some(Value::String(path)) if path.is_empty() => {
+                diagnostics.push(config_diagnostic(
+                    &gen::Compiler_option_0_cannot_be_given_an_empty_string,
+                    &["reference.path"],
+                    location(index, "path"),
+                ));
+                continue;
+            }
+            Some(Value::String(_)) => {}
+            _ => {
+                diagnostics.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &["reference.path", "string"],
+                    location(index, "path"),
+                ));
+                continue;
+            }
+        }
+        if object
+            .get("circular")
+            .is_some_and(|circular| !matches!(circular, Value::Bool(_)))
+        {
+            diagnostics.push(config_diagnostic(
+                &gen::Compiler_option_0_requires_a_value_of_type_1,
+                &["reference.circular", "boolean"],
+                location(index, "circular"),
+            ));
+        }
+    }
+    diagnostics
 }
 
 fn derive_wildcard_directories<'j0>(
@@ -2130,6 +2229,9 @@ const H0_NO_EMIT_SOURCE_MAP_CONFIG_OPTIONS: &[&str] = &[
 /// `stripInternal`) reports exactly what tsc reports. An emitting command
 /// still projects them through the H1 inventory.
 const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
+    // The statistics are printed after the run.
+    "diagnostics",
+    "extendedDiagnostics",
     "stripInternal",
     "newLine",
     "removeComments",
@@ -2203,6 +2305,8 @@ fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
 }
 
 const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
+    "diagnostics",
+    "extendedDiagnostics",
     // `pretty` only selects the diagnostic renderer, which the command line
     // already decides (`--pretty false`); zod's base tsconfig sets it, so an
     // emitting command admits it like the no-emit inventory does.
@@ -2483,7 +2587,8 @@ impl ParseContext<'_> {
             return Ok(None);
         }
         self.stack.push(cache_key.clone());
-        let result = self.parse_node_uncached(source, parsed, normalized_file_name, base_path);
+        let result =
+            self.parse_node_uncached(source, parsed, normalized_file_name, base_path, is_root);
         self.stack.pop();
         result
     }
@@ -2494,6 +2599,7 @@ impl ParseContext<'_> {
         parsed: SourceFile,
         normalized_file_name: impl Into<JsStr<'j0>>,
         base_path: impl Into<JsStr<'j1>>,
+        is_root: bool,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
         let normalized_file_name = normalized_file_name.into();
         let base_path = base_path.into();
@@ -2574,12 +2680,11 @@ impl ParseContext<'_> {
                 config_location(&parsed, property.name_node),
             ));
         }
-        // applyExtendedConfig uses ordinary JavaScript property access here,
-        // so JSONC `__proto__` values can block or supply inheritance even
-        // though the final config-file-spec pass accepts own properties only.
-        let blocks_inherited_files = property_is_truthy(object, &raw_property_names, "files");
-        let blocks_inherited_include = property_is_truthy(object, &raw_property_names, "include");
-        let blocks_inherited_exclude = property_is_truthy(object, &raw_property_names, "exclude");
+        // tsgo applyExtendedConfig: a property the config writes, whatever
+        // its value, is not inherited.
+        let blocks_inherited_files = raw_property_names.contains("files".as_bytes());
+        let blocks_inherited_include = raw_property_names.contains("include".as_bytes());
+        let blocks_inherited_exclude = raw_property_names.contains("exclude".as_bytes());
         let has_own_files = own_files.is_some();
         let has_own_include = own_include.is_some();
         let has_own_exclude = own_exclude.is_some();
@@ -2642,26 +2747,27 @@ impl ParseContext<'_> {
                 continue;
             };
             inherited_options.extend_from(&extended.options);
-            if !blocks_inherited_files && extended.inheritable_files.is_some() {
-                inherited_files = Some(rebase_config_specs(
-                    extended.inheritable_files.as_deref().unwrap_or(&[]),
-                    base_path,
-                    self.host.use_case_sensitive_file_names(),
-                )?);
-            }
-            if !blocks_inherited_include && extended.inheritable_include.is_some() {
-                inherited_include = Some(rebase_config_specs(
-                    extended.inheritable_include.as_deref().unwrap_or(&[]),
-                    base_path,
-                    self.host.use_case_sensitive_file_names(),
-                )?);
-            }
-            if !blocks_inherited_exclude && extended.inheritable_exclude.is_some() {
-                inherited_exclude = Some(rebase_config_specs(
-                    extended.inheritable_exclude.as_deref().unwrap_or(&[]),
-                    base_path,
-                    self.host.use_case_sensitive_file_names(),
-                )?);
+            let case_sensitive = self.host.use_case_sensitive_file_names();
+            for (blocked, inheritable, inherited) in [
+                (
+                    blocks_inherited_files,
+                    &extended.inheritable_files,
+                    &mut inherited_files,
+                ),
+                (
+                    blocks_inherited_include,
+                    &extended.inheritable_include,
+                    &mut inherited_include,
+                ),
+                (
+                    blocks_inherited_exclude,
+                    &extended.inheritable_exclude,
+                    &mut inherited_exclude,
+                ),
+            ] {
+                if let Some(specs) = inheritable.as_deref().filter(|_| !blocked) {
+                    *inherited = Some(rebase_inherited_specs(specs, base_path, case_sensitive)?);
+                }
             }
             for extended_source in &extended.extended_sources {
                 if seen_sources.insert(extended_source.file_name.clone()) {
@@ -2685,13 +2791,25 @@ impl ParseContext<'_> {
         inherited_options.extend_from(&own_options);
         own_options = inherited_options;
 
-        let files = own_files.or(inherited_files);
+        // The spec validation keeps the inherited paths only.
+        let inherited_paths = |inherited: &Option<Vec<InheritedSpec>>| {
+            inherited.as_ref().map(|specs| {
+                specs
+                    .iter()
+                    .filter_map(|spec| match spec {
+                        InheritedSpec::Path(spec) => Some(spec.clone()),
+                        InheritedSpec::Other(_) => None,
+                    })
+                    .collect::<Vec<_>>()
+            })
+        };
+        let files = own_files.or_else(|| inherited_paths(&inherited_files));
         let files_location = has_own_files
             .then(|| config_property_initializer(&parsed, "files"))
             .flatten()
             .and_then(|node| config_location(&parsed, node));
-        let include = own_include.or(inherited_include);
-        let exclude = own_exclude.or(inherited_exclude);
+        let include = own_include.or_else(|| inherited_paths(&inherited_include));
+        let exclude = own_exclude.or_else(|| inherited_paths(&inherited_exclude));
         let mut watch_options = inherited_watch_options;
         if let Some(own) = own_watch_options {
             watch_options
@@ -2720,21 +2838,16 @@ impl ParseContext<'_> {
         let raw_object = raw
             .as_object_mut()
             .expect("config raw was validated as an object");
-        for (name, was_own, specs) in [
-            ("files", has_own_files, files.as_ref()),
-            ("include", has_own_include, include.as_ref()),
-            ("exclude", has_own_exclude, exclude.as_ref()),
+        for (name, was_own, inherited) in [
+            ("files", has_own_files, &inherited_files),
+            ("include", has_own_include, &inherited_include),
+            ("exclude", has_own_exclude, &inherited_exclude),
         ] {
             if !was_own {
-                if let Some(specs) = specs {
+                if let Some(specs) = inherited {
                     raw_object.insert(
                         name.to_owned(),
-                        Value::Array(
-                            specs
-                                .iter()
-                                .map(|spec| Value::String(spec.text.clone()))
-                                .collect(),
-                        ),
+                        Value::Array(specs.iter().map(InheritedSpec::raw_value).collect()),
                     );
                     raw_property_names.insert(name.into());
                 }
@@ -2763,6 +2876,12 @@ impl ParseContext<'_> {
             &parsed,
         );
 
+        let reference_errors = match (&own_references, is_root) {
+            (Some(Value::Array(references)), true) => {
+                project_reference_diagnostics(&parsed, references.as_slice())
+            }
+            _ => Vec::new(),
+        };
         Ok(Some(ParsedConfigNode {
             source,
             raw: config_raw_projection(raw),
@@ -2780,6 +2899,7 @@ impl ParseContext<'_> {
             type_acquisition,
             compile_on_save,
             unsupported_root_scopes,
+            reference_errors,
             extended_sources,
             extended_source_files,
         }))
@@ -4141,10 +4261,18 @@ impl CompilerHost for ConfigCompilerHostAdapter<'_> {
         Ok(Vec::new())
     }
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
-        Ok(Some(path.to_path_buf()))
+        let query = native_config_query(path, HostOperation::Realpath)?;
+        Ok(self
+            .realpath_js(query)?
+            .map(|real| PathBuf::from(real.to_string_lossy().into_owned())))
     }
     fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
-        Ok(Some(path.to_owned()))
+        Ok(Some(
+            self.host
+                .realpath(path)
+                .map_err(config_host_error_for_resolver)?
+                .unwrap_or_else(|| path.to_owned()),
+        ))
     }
 }
 
@@ -4164,6 +4292,7 @@ fn config_host_error_for_resolver(error: ConfigHostError) -> HostError {
         ConfigHostOperation::FileExists => HostOperation::FileExists,
         ConfigHostOperation::ReadFile => HostOperation::ReadFile,
         ConfigHostOperation::ReadDirectory => HostOperation::ReadDirectory,
+        ConfigHostOperation::Realpath => HostOperation::Realpath,
     };
     HostError::new_js(
         HostErrorKind::Other,
@@ -4180,6 +4309,7 @@ fn config_error_from_resolution(error: ResolutionError) -> ConfigParseError {
                 HostOperation::FileExists => Some(ConfigHostOperation::FileExists),
                 HostOperation::ReadFile => Some(ConfigHostOperation::ReadFile),
                 HostOperation::ReadDirectory => Some(ConfigHostOperation::ReadDirectory),
+                HostOperation::Realpath => Some(ConfigHostOperation::Realpath),
                 _ => None,
             };
             if let Some(operation) = operation {
@@ -4518,13 +4648,13 @@ fn report_no_input_files<'j0>(
 
     let include = raw
         .get("include")
-        .filter(|value| value.is_array())
-        .cloned()
+        .filter(|value| value.is_array() && !is_nil_json_array(value))
+        .map(without_json_nulls)
         .unwrap_or_else(|| Value::Array(vec![Value::String("**/*".into())]));
     let exclude = raw
         .get("exclude")
-        .filter(|value| value.is_array())
-        .cloned()
+        .filter(|value| value.is_array() && !is_nil_json_array(value))
+        .map(without_json_nulls)
         .unwrap_or_else(|| {
             Value::Array(
                 effective_excludes
@@ -4542,6 +4672,27 @@ fn report_no_input_files<'j0>(
         &[config_file_name.to_owned(), include.into(), exclude.into()],
         None,
     ));
+}
+
+/// tsgo's JSON conversion keeps the non-null elements of an array
+/// (`convertArrayLiteralExpressionToJson`): an array literal of nulls only
+/// becomes a nil slice, which the spec readers take for an absent value.
+fn is_nil_json_array(value: &Value) -> bool {
+    matches!(value, Value::Array(values) if !values.is_empty() && values.iter().all(Value::is_null))
+}
+
+/// An array as tsgo's JSON conversion leaves it: without its nulls.
+fn without_json_nulls(value: &Value) -> Value {
+    match value {
+        Value::Array(values) => Value::Array(
+            values
+                .iter()
+                .filter(|value| !value.is_null())
+                .cloned()
+                .collect(),
+        ),
+        other => other.clone(),
+    }
 }
 
 fn javascript_json_stringify(value: &Value) -> String {
@@ -4705,6 +4856,8 @@ pub(crate) fn bag_compiler_options(
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
         list_files: config_option_bool(options, "listFiles"),
         explain_files: config_option_bool(options, "explainFiles"),
+        diagnostics: config_option_bool(options, "diagnostics"),
+        extended_diagnostics: config_option_bool(options, "extendedDiagnostics"),
         trace_resolution: config_option_bool(options, "traceResolution"),
         list_files_only: config_option_bool(options, "listFilesOnly"),
         emit_bom: config_option_bool(options, "emitBOM"),
@@ -5024,10 +5177,13 @@ fn config_root_reasons<'j0, 'j1>(
             if let Some(spec) = normalized_files.get(&key) {
                 return RootFileReason::FilesList { spec: spec.clone() };
             }
-            if let Some((_, _, spec)) = include_patterns.iter().find(|(pattern, host_spec, _)| {
-                (!file_extension_is(file_name, ".json") || host_spec.ends_with(".json"))
-                    && pattern.matches(file_name)
-            }) {
+            // tsgo `getMatchedIncludeSpec`: the first include spec that
+            // matches, a JSON file's too (Strada skipped the specs not
+            // ending in `.json` for one).
+            if let Some((_, _, spec)) = include_patterns
+                .iter()
+                .find(|(pattern, _, _)| pattern.matches(file_name))
+            {
                 return RootFileReason::IncludePattern {
                     spec: spec.clone(),
                     config_file: config_file.clone(),
@@ -5984,62 +6140,42 @@ fn specs<'j0>(
     result
 }
 
+/// tsgo applyExtendedConfig reads the config's own `files`, `include` or
+/// `exclude` array (after its own extends were applied); any other value is
+/// not inherited.
 fn inheritable_specs<'j0>(
     object: &Map,
     raw_property_names: &BTreeSet<JsString>,
     name: &str,
     base_path: impl Into<JsStr<'j0>>,
     source: &SourceFile,
-) -> Option<Vec<ConfigSpec>> {
+) -> Option<Vec<InheritedSpec>> {
     let base_path = base_path.into();
-    let value = config_property_get(object, raw_property_names, name)?;
-    if !json_value_is_truthy(value) {
+    if !raw_property_names.contains(name.as_bytes()) {
         return None;
     }
-
-    // applyExtendedConfig deliberately maps the extended config's raw value,
-    // not the validated ConfigFileSpecs projection. TypeScript's generic
-    // `map` treats truthy booleans, numbers, and ordinary objects as empty
-    // array-like values, indexes strings by UTF-16 unit, and lets falsey array
-    // elements flow through combinePaths as an empty path. Keep that recovery
-    // separate from `specs`, which already emitted the value/type diagnostics.
-    let texts = match value {
-        Value::Array(values) => values
-            .iter()
-            .filter_map(config_array_like_path_text)
-            .collect::<Vec<_>>(),
-        Value::String(value) => value
-            .code_units()
-            .map(|unit| JsString::from_code_units(&[unit]))
-            .collect(),
-        Value::Bool(_) | Value::Number(_) | Value::Object(_) => Vec::new(),
-        Value::Null => unreachable!("falsey raw spec values returned above"),
+    let value = json_object_own_get(object, name)?;
+    let Value::Array(values) = value else {
+        return None;
     };
+    if is_nil_json_array(value) {
+        return None;
+    }
     let locations = config_spec_locations(source, name);
     Some(
-        texts
-            .into_iter()
-            .map(|text| ConfigSpec {
-                location: locations.get(text.as_js().as_bytes()).cloned().flatten(),
-                text,
-                base_path: base_path.to_owned(),
+        values
+            .iter()
+            .filter(|value| !value.is_null())
+            .map(|value| match value {
+                Value::String(text) => InheritedSpec::Path(ConfigSpec {
+                    location: locations.get(text.as_js().as_bytes()).cloned().flatten(),
+                    text: text.clone(),
+                    base_path: base_path.to_owned(),
+                }),
+                other => InheritedSpec::Other(other.clone()),
             })
             .collect(),
     )
-}
-
-fn config_array_like_path_text(value: &Value) -> Option<JsString> {
-    match value {
-        Value::String(value) => Some(value.clone()),
-        Value::Null | Value::Bool(false) => Some(JsString::new()),
-        Value::Number(value) if value.as_f64().is_some_and(|value| value == 0.0) => {
-            Some(JsString::new())
-        }
-        // For a truthy non-string element TypeScript itself throws while
-        // probing the path. The Rust planner remains fail-safe and omits that
-        // unusable element after `specs` has already diagnosed its type.
-        Value::Bool(true) | Value::Number(_) | Value::Array(_) | Value::Object(_) => None,
-    }
 }
 
 fn specs_from_value<'j0>(
@@ -6051,7 +6187,7 @@ fn specs_from_value<'j0>(
     errors: &mut Vec<Diagnostic>,
 ) -> Option<Vec<ConfigSpec>> {
     let base_path = base_path.into();
-    if value.is_null() {
+    if value.is_null() || is_nil_json_array(value) {
         return None;
     }
     let Some(values) = value.as_array() else {
@@ -6107,10 +6243,6 @@ fn config_property_get<'a>(
     } else {
         json_object_get(object, name)
     }
-}
-
-fn property_is_truthy(object: &Map, raw_property_names: &BTreeSet<JsString>, name: &str) -> bool {
-    config_property_get(object, raw_property_names, name).is_some_and(json_value_is_truthy)
 }
 
 fn json_value_is_truthy(value: &Value) -> bool {
@@ -6201,15 +6333,22 @@ fn extends_values_from_value(
     result
 }
 
-fn rebase_config_specs<'j0>(
-    specs: &[ConfigSpec],
+/// tsgo applyExtendedConfig: a path not rooted and not starting with
+/// `${configDir}` is made relative to the extending config; other values
+/// stay as written.
+fn rebase_inherited_specs<'j0>(
+    specs: &[InheritedSpec],
     base_path: impl Into<JsStr<'j0>>,
     case_sensitive: bool,
-) -> Result<Vec<ConfigSpec>, ConfigParseError> {
+) -> Result<Vec<InheritedSpec>, ConfigParseError> {
     let base_path = base_path.into();
     specs
         .iter()
         .map(|spec| {
+            let spec = match spec {
+                InheritedSpec::Path(spec) => spec,
+                InheritedSpec::Other(value) => return Ok(InheritedSpec::Other(value.clone())),
+            };
             let text = normalize_slashes(spec.text.as_js());
             let rebased = if starts_with_config_dir_template(text.as_js())
                 || root_parts(text.as_js()).is_some()
@@ -6230,13 +6369,13 @@ fn rebase_config_specs<'j0>(
                     difference
                 }
             };
-            Ok(ConfigSpec {
+            Ok(InheritedSpec::Path(ConfigSpec {
                 text: rebased,
                 base_path: base_path.to_owned(),
                 // Inherited specs are copied into the root raw object but do
                 // not have a corresponding node in the root source file.
                 location: None,
-            })
+            }))
         })
         .collect()
 }

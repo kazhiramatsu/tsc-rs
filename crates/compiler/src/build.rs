@@ -29,6 +29,7 @@ use crate::cli::{
     relative_file_name, render_diagnostics, run_config_for_build, BuildProjectRun, CliError,
     CliOutput, CliRoute, DiagnosticSourceMap,
 };
+use crate::statistics::{ProjectCounts, Statistics};
 use crate::system::{CommandLineTesting, System};
 
 /// The parsed `tsc -b` command line (tsgo `ParsedBuildCommandLine`).
@@ -222,6 +223,8 @@ struct BuildTask {
     exit_status: i32,
     build_kind: BuildKind,
     files_to_delete: Vec<String>,
+    /// The project's statistics, when its options asked for them.
+    statistics: Option<Statistics>,
 }
 
 impl BuildTask {
@@ -385,6 +388,7 @@ impl<'a> Orchestrator<'a> {
                 exit_status: 0,
                 build_kind: BuildKind::None,
                 files_to_delete: Vec::new(),
+                statistics: None,
             });
             self.by_path.insert(path, self.tasks.len() - 1);
             self.create_build_tasks(&references);
@@ -407,7 +411,8 @@ impl<'a> Orchestrator<'a> {
             &self.command.command_line,
             &mut self.config_cache,
         )
-        .ok()?;
+        .ok()?
+        .into_build_mode();
         for source in plan.extended_sources() {
             self.sources
                 .insert(source.file_name.clone(), Arc::clone(source.snapshot()));
@@ -607,7 +612,45 @@ impl<'a> Orchestrator<'a> {
                 self.locale,
             )?);
         }
+        stdout.push_str(&self.aggregate_statistics());
         Ok(CliOutput::new(stdout, exit_status))
+    }
+
+    /// tsgo `reportWithFilesToDelete`: the build's aggregate statistics
+    /// under the command line's `--diagnostics` or `--extendedDiagnostics`.
+    fn aggregate_statistics(&self) -> String {
+        let requested = ["diagnostics", "extendedDiagnostics"].iter().any(|name| {
+            matches!(
+                self.command.command_line.typed_value_state(name),
+                tsc_program::ConfigOptionValueState::Value(value) if value.as_bool() == Some(true)
+            )
+        });
+        if !requested {
+            return String::new();
+        }
+        let mut statistics = Statistics {
+            projects: Some(ProjectCounts {
+                in_scope: self.order.len(),
+                built: self
+                    .order
+                    .iter()
+                    .filter(|&&task| matches!(self.tasks[task].build_kind, BuildKind::Program))
+                    .count(),
+                timestamp_updates: self
+                    .order
+                    .iter()
+                    .filter(|&&task| matches!(self.tasks[task].build_kind, BuildKind::Pseudo))
+                    .count(),
+            }),
+            ..Statistics::default()
+        };
+        for &task in &self.order {
+            if let Some(project) = &self.tasks[task].statistics {
+                statistics.aggregate(project);
+            }
+        }
+        statistics.total_time = self.system.since_start();
+        statistics.report(self.testing)
     }
 
     /// tsgo `BuildTask.buildProject` of the initial cycle.
@@ -784,6 +827,7 @@ impl<'a> Orchestrator<'a> {
             entry.output.push_str(&run.stdout);
             entry.exit_status = run.exit_code;
             entry.errors.extend(run.diagnostics.iter().cloned());
+            entry.statistics = run.statistics;
         }
         let build_info_name = self.build_info_name(task);
         if let Some(name) = &build_info_name {

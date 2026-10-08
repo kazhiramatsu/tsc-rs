@@ -989,7 +989,7 @@ impl TypeTables {
     /// tsc-span: _tsc.js:63112-63116
     ///
     /// Not freshable; the caller (getESSymbolLikeTypeForNode) supplies
-    /// the `__@<name>@<id>` escaped name and owns the per-symbol memo.
+    /// the late-bound `<prefix><name>@<id>` escaped name and owns the per-symbol memo.
     pub fn create_unique_es_symbol_type(
         &mut self,
         symbol: SymbolId,

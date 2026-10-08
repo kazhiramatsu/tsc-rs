@@ -266,6 +266,12 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         self.host.use_case_sensitive_file_names()
     }
 
+    fn realpath(&self, path: JsStr<'_>) -> Result<Option<JsString>, ConfigHostError> {
+        self.host
+            .realpath_js(path)
+            .map_err(|error| self.host_error(ConfigHostOperation::Realpath, path, error))
+    }
+
     fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
         self.host
             .file_exists_js(path)

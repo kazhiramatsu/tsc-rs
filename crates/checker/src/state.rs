@@ -981,6 +981,9 @@ pub struct CheckerState<'a> {
     pub(crate) authoritative_implied_node_formats: Vec<Option<crate::AuthoritativeResolutionMode>>,
     pub(crate) authoritative_implied_node_formats_for_emit:
         Vec<Option<crate::AuthoritativeResolutionMode>>,
+    /// Per file: the referenced project it belongs to (tsgo
+    /// `getRedirectForResolution`).
+    pub(crate) authoritative_project_references: Vec<Option<tsc_program::ProjectReferenceFile>>,
     /// First fail-closed host-table failure. This is intentionally separate
     /// from CheckAbort: augmentation recovery may contain an oracle crash,
     /// but it must never turn an incomplete authoritative table into success.
@@ -1281,6 +1284,7 @@ impl<'a> CheckerState<'a> {
         let mut source_may_be_emitted = Vec::with_capacity(metadata.len());
         let mut implied_node_formats = Vec::with_capacity(metadata.len());
         let mut implied_node_formats_for_emit = Vec::with_capacity(metadata.len());
+        let mut project_references = Vec::with_capacity(metadata.len());
         for (file_index, source) in metadata.iter().enumerate() {
             let checker_file_name = &self.binder.source(file_index).file_name;
             if source.file_name != *checker_file_name {
@@ -1303,6 +1307,7 @@ impl<'a> CheckerState<'a> {
             source_may_be_emitted.push(source.may_be_emitted);
             implied_node_formats.push(source.implied_node_format);
             implied_node_formats_for_emit.push(source.implied_node_format_for_emit);
+            project_references.push(source.project_reference.clone());
         }
 
         self.authoritative_module_provider = Some(provider);
@@ -1311,6 +1316,7 @@ impl<'a> CheckerState<'a> {
         self.authoritative_source_may_be_emitted = source_may_be_emitted;
         self.authoritative_implied_node_formats = implied_node_formats;
         self.authoritative_implied_node_formats_for_emit = implied_node_formats_for_emit;
+        self.authoritative_project_references = project_references;
         // The memo derives from the tables replaced above.
         self.implied_node_format_memo.borrow_mut().clear();
         Ok(())
@@ -1656,6 +1662,7 @@ impl<'a> CheckerState<'a> {
             authoritative_source_may_be_emitted: Vec::new(),
             authoritative_implied_node_formats: Vec::new(),
             authoritative_implied_node_formats_for_emit: Vec::new(),
+            authoritative_project_references: Vec::new(),
             authoritative_module_failure: std::cell::OnceCell::new(),
             module_name_outside_program: std::cell::Cell::new(false),
             host_file_paths: Default::default(),

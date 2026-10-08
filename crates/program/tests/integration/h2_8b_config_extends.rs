@@ -125,6 +125,12 @@ fn observe(case: &Value, option_keys: &[Value]) -> Value {
     })
 }
 
+/// The cases where tsgo (7.1.0-dev-19dadef8) parts from these tsc 6.0.3
+/// observations, each pinned to tsgo in `config_root_plan_contract`: a
+/// written `files: null` blocks the inherited files
+/// (`own_null_files_blocks_inheritance`).
+const SUPERSEDED_BY_TSGO: &[&str] = &["h2-8b-config-extends/own-null-files-inherits"];
+
 #[test]
 fn config_extends_matches_fresh_typescript_observations() {
     let inputs: Value = serde_json::from_slice(include_bytes!(
@@ -146,6 +152,9 @@ fn config_extends_matches_fresh_typescript_observations() {
     for (case, expected) in cases.iter().zip(expected) {
         assert_eq!(case["case_id"], expected["case_id"]);
         let case_id = case["case_id"].as_str().expect("case id");
+        if SUPERSEDED_BY_TSGO.contains(&case_id) {
+            continue;
+        }
         for repetition in 1..=2 {
             let actual = observe(case, option_keys);
             let exact = json_values_equivalent(&actual, &expected["typescript_observation"]);

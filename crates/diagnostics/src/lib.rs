@@ -197,6 +197,28 @@ pub struct MessageChain {
     /// the [`Diagnostic`]; equality ignores this, as tsgo's
     /// equalMessageChain does.
     pub related: Vec<RelatedInfo>,
+    /// How an incremental build recomputes this entry when it reuses the
+    /// diagnostic; equality ignores it.
+    pub repopulate: Option<Repopulate>,
+}
+
+/// tsgo `RepopulateDiagnosticInfo`: a chain entry that depends on the
+/// program's package.json state. An incremental build that reuses the
+/// diagnostic recomputes the entry from its program.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Repopulate {
+    /// tsgo `CreateModeMismatchDetails` of the diagnostic's file.
+    ModeMismatch,
+    /// tsgo `CreateModuleNotFoundChain` for a module request of the
+    /// diagnostic's file.
+    ModuleNotFound {
+        module_reference: JsString,
+        /// tsgo `core.ResolutionMode` of the request: 0, 1 (CommonJS) or
+        /// 99 (ESNext).
+        mode: u32,
+        /// The package name, when it is not the request itself.
+        package_name: Option<JsString>,
+    },
 }
 
 impl MessageChain {
@@ -238,6 +260,7 @@ impl MessageChain {
             next_present: false,
             next: Vec::new(),
             related: Vec::new(),
+            repopulate: None,
         }
     }
 
@@ -251,6 +274,7 @@ impl MessageChain {
             next_present: false,
             next: Vec::new(),
             related: Vec::new(),
+            repopulate: None,
         }
     }
 
@@ -266,12 +290,18 @@ impl MessageChain {
             next_present: false,
             next: Vec::new(),
             related: Vec::new(),
+            repopulate: None,
         }
     }
 
     pub fn with_next(mut self, next: Vec<MessageChain>) -> Self {
         self.next_present = true;
         self.next = next;
+        self
+    }
+
+    pub fn with_repopulate(mut self, repopulate: Repopulate) -> Self {
+        self.repopulate = Some(repopulate);
         self
     }
 }

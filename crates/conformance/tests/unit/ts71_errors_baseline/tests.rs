@@ -12,6 +12,7 @@ fn chain(code: u32, text: &str, next: Vec<MessageChain>) -> MessageChain {
         next_present: !next.is_empty(),
         next,
         related: Vec::new(),
+        repopulate: None,
     }
 }
 

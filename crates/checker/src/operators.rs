@@ -991,7 +991,11 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(tsc_types::EscapedName::from_escaped_value(
-            format!("__@{symbol_name}").into(),
+            format!(
+                "{}{symbol_name}",
+                tsc_types::InternalSymbolName::LATE_BOUND_PREFIX
+            )
+            .into(),
         ))
     }
 

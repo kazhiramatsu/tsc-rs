@@ -91,7 +91,10 @@ mod config_matcher;
 mod config_options;
 mod error;
 mod js_path;
-pub use js_path::{base_file_name, normalize_path};
+pub use js_path::{
+    base_file_name, normalize_path, normalized_absolute_path as get_normalized_absolute_path,
+    root_parts as path_root_parts,
+};
 pub use tsc_host::to_file_name_lower_case_js;
 mod js_string_ops;
 mod json;
@@ -180,7 +183,8 @@ pub use prepared::{
     PackageJsonType, PackageMetadata, PackageRedirectFile, PathContext, PathMapping,
     PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
     PreparedProgramMode, PreparedRoot, PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax,
-    ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ResolutionTable, SourceFileId,
+    ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ProjectReferenceFile,
+    ReferencedProjectOptions, ResolutionTable, SourceFileId,
 };
 pub use project_references::{
     resolve_config_file_name_of_project_reference, resolve_project_references,

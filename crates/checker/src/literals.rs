@@ -578,9 +578,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fa5a1b163b9aaf0d9d2d7e15ee191225b8e92a24fd926e812ddafc1e62a8edfa
     /// tsc-span: _tsc.js:74088-74092
     ///
-    /// isKnownSymbol (19295) inlines as the "__@" escaped-name prefix.
+    /// isKnownSymbol (19295) inlines as the late-bound name prefix.
     fn is_symbol_with_symbol_name(&mut self, symbol: SymbolId) -> CheckResult<bool> {
-        if self.binder.symbol(symbol).escaped_name.starts_with("__@") {
+        if self
+            .binder
+            .symbol(symbol)
+            .escaped_name
+            .starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX)
+        {
             return Ok(true);
         }
         let Some(first_decl) = self.binder.symbol(symbol).declarations.first().copied() else {

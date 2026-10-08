@@ -634,6 +634,31 @@ impl Snapshot {
         }
     }
 
+    /// tsgo converts a file's cached diagnostics when it reports them, and
+    /// its next build info records the converted ones: `convert` rewrites
+    /// the file's old semantic rows (`None` leaves a row as it is).
+    pub fn convert_old_semantic_rows(
+        &mut self,
+        file: usize,
+        convert: impl Fn(&CachedDiagnostic) -> Option<CachedDiagnostic>,
+    ) {
+        if let Some(Some(CachedRows::Old(rows))) = self.semantic.get_mut(file) {
+            convert_rows(rows, convert);
+        }
+    }
+
+    /// [`Self::convert_old_semantic_rows`] for the file's old declaration
+    /// emit rows.
+    pub fn convert_old_emit_rows(
+        &mut self,
+        file: usize,
+        convert: impl Fn(&CachedDiagnostic) -> Option<CachedDiagnostic>,
+    ) {
+        if let Some(Some(CachedRows::Old(rows))) = self.emit_rows.get_mut(file) {
+            convert_rows(rows, convert);
+        }
+    }
+
     /// Store the rows the check produced for a file.
     pub fn store_fresh_rows(&mut self, file: usize, rows: Vec<BuildInfoDiagnostic>) {
         self.semantic[file] = Some(CachedRows::New(rows));
@@ -1412,6 +1437,17 @@ impl<'p> ToBuildInfo<'p> {
             reports_deprecated: row.reports_deprecated,
             skipped_on_no_emit: row.skipped_on_no_emit,
             repopulate_info: row.repopulate_info.clone(),
+        }
+    }
+}
+
+fn convert_rows(
+    rows: &mut [CachedDiagnostic],
+    convert: impl Fn(&CachedDiagnostic) -> Option<CachedDiagnostic>,
+) {
+    for row in rows {
+        if let Some(converted) = convert(row) {
+            *row = converted;
         }
     }
 }

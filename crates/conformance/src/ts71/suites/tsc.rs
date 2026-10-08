@@ -14,6 +14,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 mod build_info;
+mod patience;
 mod system;
 
 use system::TestSystem;

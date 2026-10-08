@@ -45,8 +45,9 @@ fn unique_symbol_types_are_per_declaration_memoized_and_widen() {
             };
             let u_name = name_of(state, u_type);
             let v_name = name_of(state, v_type);
-            assert!(u_name.starts_with("__@u@"), "{u_name:?}");
-            assert!(v_name.starts_with("__@v@"), "{v_name:?}");
+            // tsgo's late-bound prefix ("\xFE@", U+FFFD in UTF-16 text).
+            assert!(u_name.starts_with("\u{FFFD}@u@"), "{u_name:?}");
+            assert!(v_name.starts_with("\u{FFFD}@v@"), "{v_name:?}");
             assert_ne!(u_name, v_name);
             // The per-declaration memo: re-resolving the same
             // declaration answers the SAME TypeId.

@@ -37,6 +37,8 @@ pub struct ResolvedProjectReference {
     canonical: CanonicalPath,
     plan: ConfigRootPlan,
     build_info_file_name: Option<JsString>,
+    /// What the project's files take from its options.
+    options: Arc<crate::ReferencedProjectOptions>,
 }
 
 impl ResolvedProjectReference {
@@ -62,6 +64,12 @@ impl ResolvedProjectReference {
     /// project writes, when it is incremental or composite.
     pub fn build_info_file_name(&self) -> Option<JsStr<'_>> {
         self.build_info_file_name.as_ref().map(JsString::as_js)
+    }
+
+    /// The project's options its files are checked under (tsgo
+    /// `getCompilerOptionsForFile`).
+    pub fn referenced_options(&self) -> &Arc<crate::ReferencedProjectOptions> {
+        &self.options
     }
 }
 
@@ -319,11 +327,17 @@ impl ReferenceParser<'_> {
             self.current_directory,
             self.case_sensitive,
         );
+        let options = Arc::new(crate::ReferencedProjectOptions::of(
+            &plan,
+            self.current_directory,
+            self.case_sensitive,
+        ));
         let project = Arc::new(ResolvedProjectReference {
             config_file_name: config_file_name.to_owned(),
             canonical: canonical.clone(),
             plan,
             build_info_file_name,
+            options,
         });
         self.parsed
             .insert(canonical.clone(), Some(Arc::clone(&project)));

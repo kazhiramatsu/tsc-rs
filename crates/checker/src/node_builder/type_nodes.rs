@@ -4288,7 +4288,9 @@ fn add_property_to_element_list(
     };
     let old_enclosing = context.enclosing_declaration;
     let property_data = checker.binder.symbol(property);
-    let late_bound_name = property_data.escaped_name.starts_with("__@");
+    let late_bound_name = property_data
+        .escaped_name
+        .starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX);
     if context.tracker.can_track_symbol && late_bound_name {
         if let Some(&declaration) = property_data.declarations.first() {
             if checker.has_late_bindable_ast_name(declaration) {

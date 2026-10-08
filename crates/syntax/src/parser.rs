@@ -10220,12 +10220,28 @@ impl<'text> Parser<'text> {
         args: Vec<JsString>,
         origin: ParseDiagnosticOrigin,
     ) -> (Option<usize>, usize) {
+        self.record_parse_diagnostic(start, length, message, args, origin, true)
+    }
+
+    /// One parse diagnostic and its recovery event. With `one_per_position`
+    /// (tsgo parseErrorAtPosition) a diagnostic at the start of the previous
+    /// one is dropped.
+    fn record_parse_diagnostic(
+        &mut self,
+        start: usize,
+        length: usize,
+        message: &'static DiagnosticMessage,
+        args: Vec<JsString>,
+        origin: ParseDiagnosticOrigin,
+        one_per_position: bool,
+    ) -> (Option<usize>, usize) {
         let start_utf16 = self.to_utf16(start);
         let end_utf16 = self.to_utf16(start.saturating_add(length));
-        let diagnostic_index = if self
-            .parse_diagnostics
-            .last()
-            .is_none_or(|last| last.start != Some(start_utf16))
+        let diagnostic_index = if !one_per_position
+            || self
+                .parse_diagnostics
+                .last()
+                .is_none_or(|last| last.start != Some(start_utf16))
         {
             self.parse_diagnostics.push(Diagnostic::new_js(
                 Some(self.file_name.clone()),
@@ -10788,12 +10804,15 @@ impl Parser<'_> {
         } else {
             crate::scanner::skip_trivia(self.scanner.text(), pos)
         };
-        self.push_parse_diagnostic(
+        // tsgo appends these to the parser's diagnostics directly: a value
+        // the parser already reported missing is reported again.
+        self.record_parse_diagnostic(
             start,
             end.saturating_sub(start),
             message,
             Vec::new(),
             ParseDiagnosticOrigin::Parser,
+            false,
         );
     }
 }

@@ -302,7 +302,7 @@ pub enum TypeData {
     Enum,
     /// `unique symbol` (createUniqueESSymbolType 63112): one per
     /// declaration symbol (memoized in SymbolLinks.uniqueESSymbolType);
-    /// escaped_name = `__@<symbol.escapedName>@<symbolId>` — the
+    /// escaped_name = `<late-bound prefix><symbol.escapedName>@<symbolId>` — the
     /// late-bound member name known-symbol lookups compare against.
     UniqueESSymbol {
         escaped_name: crate::EscapedName,

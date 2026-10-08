@@ -6089,13 +6089,15 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let target = self.create_export_access("default")?;
                 let assignment = self.create_assignment(target, value)?;
                 let emitted = self.create_expression_statement(assignment)?;
-                // createExportStatement: `setTextRange(statement, node)` only.
-                // No `setOriginalNode`, so a synthesized `export default
-                // default_1;` (the standard-decorator lowering of a decorated
-                // default class) carries neither positions nor the source-map
-                // range its original holds: the statement prints unmapped
-                // (_tsc.js:111792-111803).
-                self.context.factory()?.set_text_range(emitted, statement)?;
+                // tsgo createExportStatement gives the statement the export
+                // assignment's comment range only: it prints unmapped, its
+                // value keeping its own positions (commonjsmodule.go:578-588,
+                // 926-938).
+                self.set_comment_range_from(emitted, statement)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(emitted)
+                    .set_starts_on_new_line(true);
                 Ok(vec![emitted])
             }
             NodeData::FunctionDeclaration(mut data) => {
@@ -12115,14 +12117,23 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .arena_mut()?
             .set_original_node(node, Some(original))?;
         self.set_source_map_range_from(node, original)?;
+        self.set_comment_range_from(node, original)?;
+        Ok(node)
+    }
+
+    fn set_comment_range_from(
+        &mut self,
+        node: TransformNode,
+        range_source: TransformNode,
+    ) -> Result<(), TransformError> {
         let comment_range = {
             let arena = self.context.arena();
-            let record = arena.node(original)?;
-            let source = arena.source(original.source())?.syntax();
+            let record = arena.node(range_source)?;
+            let source = arena.source(range_source.source())?.syntax();
             SourceRange::from_raw(record.pos, record.end, source.positions())
-                .map(|range| CommentRange::new(original.source(), range))
+                .map(|range| CommentRange::new(range_source.source(), range))
                 .map_err(|error| TransformError::InvalidSourceRange {
-                    node: original,
+                    node: range_source,
                     error,
                 })?
         };
@@ -12130,7 +12141,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .arena_mut()?
             .metadata_mut(node)
             .set_comment_range(comment_range);
-        Ok(node)
+        Ok(())
     }
 
     fn resolver_node(&self, node: TransformNode) -> Result<EmitResolverNode, TransformError> {

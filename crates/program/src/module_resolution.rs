@@ -697,6 +697,9 @@ pub struct ModuleResolver<'a> {
     /// The `--traceResolution` lines of the current request (tsgo
     /// `tracer`), when the options ask for them.
     trace: Option<std::cell::RefCell<Vec<ResolutionTrace>>>,
+    /// The referenced project whose options this resolver has (tsgo's
+    /// `redirectedReference`): its config file name, traced per resolution.
+    redirect_config: Option<JsString>,
     /// Suppresses the trace while a probe runs ahead of the point tsgo
     /// traces it (the peer dependency lookups of a package.json).
     trace_suppressed: std::cell::Cell<u32>,
@@ -720,12 +723,21 @@ impl<'a> ModuleResolver<'a> {
     /// config identity also anchors default type roots. [`Self::new`]
     /// deliberately remains the compatibility entry point without these
     /// program-owned options.
+    /// A resolver for a referenced project's files (tsgo
+    /// `redirectedReference`), named by the project's config file. tsgo
+    /// traces by the program's options, not the redirect's.
+    pub(crate) fn with_redirect_config(mut self, config: JsStr<'_>, trace: bool) -> Self {
+        self.redirect_config = Some(config.to_owned());
+        self.trace = trace.then(|| std::cell::RefCell::new(Vec::new()));
+        self
+    }
+
     pub fn new_with_program_options(
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
         program_options: &ProgramOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(
+        let mut resolver = Self::new_with_owned_paths(
             host,
             options,
             program_options.preserve_symlinks_effective(),
@@ -733,7 +745,11 @@ impl<'a> ModuleResolver<'a> {
             program_options.config_file_path(),
             program_options.root_dirs(),
             program_options.type_roots(),
-        )
+        )?;
+        // Every `tsc -b` project writes a build info, which lists the
+        // package.json files by their real paths.
+        resolver.record_package_json_realpaths |= program_options.build_mode();
+        Ok(resolver)
     }
 
     fn new_with_owned_paths(
@@ -809,6 +825,7 @@ impl<'a> ModuleResolver<'a> {
             candidate_ending_is_from_config: false,
             trace: (options.trace_resolution == Some(true))
                 .then(|| std::cell::RefCell::new(Vec::new())),
+            redirect_config: None,
             trace_suppressed: std::cell::Cell::new(0),
         })
     }
@@ -852,6 +869,7 @@ impl<'a> ModuleResolver<'a> {
             candidate_ending_is_from_config: false,
             trace: (options.trace_resolution == Some(true))
                 .then(|| std::cell::RefCell::new(Vec::new())),
+            redirect_config: None,
             trace_suppressed: std::cell::Cell::new(0),
         })
     }
@@ -1424,6 +1442,9 @@ impl<'a> ModuleResolver<'a> {
                 continue;
             }
             let package_root = package_root_for_request(&node_modules, &request);
+            // tsgo `createResolvedModuleHandlingSymlink`: a config found in
+            // node_modules is its real path (a symlinked package's config
+            // extends from where it really is).
             let specific = self.resolve_specific_package(
                 &package_root,
                 &request.exports_subpath,
@@ -1431,7 +1452,7 @@ impl<'a> ModuleResolver<'a> {
                 ResolutionMode::Unspecified,
                 /* use_package_exports */ true,
                 Some(99),
-                /* follow_realpath */ false,
+                /* follow_realpath */ true,
             )?;
             if matches!(specific.outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(specific.outcome);
@@ -1465,6 +1486,13 @@ impl<'a> ModuleResolver<'a> {
             specifier,
             containing_file.as_js()
         );
+        if let Some(config) = self.redirect_config.clone() {
+            trace!(
+                self,
+                gen::Using_compiler_options_of_project_reference_redirect_0,
+                config.as_js()
+            );
+        }
         self.trace_module_resolution_kind();
         let (mut result, diagnostics) = self.with_input_request(true, |resolver| {
             resolver.resolve_module_request(

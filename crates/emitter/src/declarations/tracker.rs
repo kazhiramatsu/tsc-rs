@@ -747,6 +747,18 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostAdapter<'_> {
     fn redirect_targets(&self, file_path: JsStr<'_>) -> Vec<JsString> {
         self.host.redirect_targets(file_path)
     }
+
+    fn project_reference_output_of_source(&self, file_name: JsStr<'_>) -> Option<JsString> {
+        self.host
+            .project_reference_output_of_source(self.host.canonical_output_path(file_name).as_js())
+    }
+
+    fn project_reference_source_of_output(&self, file_name: JsStr<'_>) -> Option<JsString> {
+        let id = self
+            .host
+            .source_file_by_canonical_path(self.host.canonical_output_path(file_name).as_js())?;
+        self.host.project_reference_source_of_output(id)
+    }
 }
 
 impl ModuleSpecifierHostAdapter<'_> {

@@ -378,6 +378,10 @@ pub struct AuthoritativeSourceMetadata {
     /// can default to CommonJS while a non-Node emit module kind deliberately
     /// ignores that default unless a package scope states its `type`.
     pub implied_node_format_for_emit: Option<AuthoritativeResolutionMode>,
+    /// The referenced project the source belongs to (tsgo
+    /// `getRedirectForResolution`): it is checked under that project's
+    /// module options.
+    pub project_reference: Option<tsc_program::ProjectReferenceFile>,
 }
 
 /// One exact checker-to-host module lookup. `containing_file` is diagnostic
@@ -517,6 +521,23 @@ pub trait AuthoritativeModuleProvider: Sync {
     /// Program rows report none.
     fn include_processor_diagnostics(&self) -> Vec<(AuthoritativeSourceToken, Diagnostic)> {
         Vec::new()
+    }
+
+    /// tsgo `getParseFileRedirect`: whether a file name is a referenced
+    /// project's source, which the program loads as that project's output.
+    fn is_project_reference_source(&self, _file_name: JsStr<'_>) -> bool {
+        false
+    }
+
+    /// tsgo `Program.CommonSourceDirectory()`, which TS2878 compares with a
+    /// referenced project's. Providers without a program report none.
+    fn common_source_directory(&self) -> Option<JsString> {
+        None
+    }
+
+    /// The program's current directory and file-name case sensitivity.
+    fn path_context(&self) -> Option<&tsc_program::PathContext> {
+        None
     }
 }
 
@@ -1293,9 +1314,25 @@ fn is_supported_path_reference<'n>(
 /// reports 6053 when absent. Extensionless, unsupported-extension,
 /// redirect, config, and project-reference faces remain outside this
 /// slice.
+/// A provider borrowed from the run or made for one question.
+enum RedirectProvider<'p> {
+    Shared(&'p dyn AuthoritativeModuleProvider),
+    Owned(Box<dyn AuthoritativeModuleProvider + 'p>),
+}
+
+impl RedirectProvider<'_> {
+    fn get(&self) -> &dyn AuthoritativeModuleProvider {
+        match self {
+            Self::Shared(provider) => *provider,
+            Self::Owned(provider) => provider.as_ref(),
+        }
+    }
+}
+
 fn missing_path_reference_diagnostics<'cwd, 'a>(
     sources: impl IntoIterator<Item = &'a tsc_syntax::SourceFile>,
     host_files: impl Iterator<Item = JsString>,
+    is_redirected: impl Fn(&JsString) -> bool,
     options: &CompilerOptions,
     current_directory: impl Into<JsStr<'cwd>>,
 ) -> DiagnosticList {
@@ -1321,7 +1358,7 @@ fn missing_path_reference_diagnostics<'cwd, 'a>(
             }
             let resolved =
                 state::CheckerState::normalize_program_path(&reference.file_name, source_directory);
-            if known_paths.contains(&resolved) {
+            if known_paths.contains(&resolved) || is_redirected(&resolved) {
                 continue;
             }
             // The reference as written, like the program loader's row
@@ -2804,11 +2841,24 @@ fn parse_program_inputs(
     tsc_types::trace::mark("checker: adopt (parallel rewrite)", rewrite_started);
 
     let host_current_directory = resolve_host_current_directory(current_directory);
+    // A referenced project's source is loaded as its output (tsgo
+    // getParseFileRedirect): a reference to it is resolved.
+    let redirect_provider = authoritative_run.map(|run| match run.provider {
+        AuthoritativeProviderSource::Shared(provider) => RedirectProvider::Shared(provider),
+        AuthoritativeProviderSource::PerChecker(factory) => {
+            RedirectProvider::Owned(factory.provider())
+        }
+    });
     let mut program_diagnostics = missing_path_reference_diagnostics(
         program_sources.iter().map(Arc::as_ref),
         libs.iter().chain(files.iter()).map(|file| {
             state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
         }),
+        |path| {
+            redirect_provider
+                .as_ref()
+                .is_some_and(|provider| provider.get().is_project_reference_source(path.as_js()))
+        },
         options,
         &host_current_directory,
     );
@@ -3764,7 +3814,17 @@ fn merge_shard_outputs(
                 facts
             })
             .collect();
-        IncrementalCheckFacts { files }
+        IncrementalCheckFacts {
+            files,
+            planner_global_rows: false,
+            check_global_rows: outputs.iter().any(|output| {
+                output
+                    .complete
+                    .globals_by_file
+                    .iter()
+                    .any(|rows| !rows.is_empty())
+            }),
+        }
     });
     Ok(CheckExecution {
         result: assemble_check_result_with_facts(
@@ -3924,6 +3984,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     // The incremental program's planner runs over one initialized checker on
     // the coordinator before the shards check, and restricts the checked
     // files (see `check_snapshot_serially`).
+    let mut planner_global_rows = false;
     let selected: Option<Vec<bool>> = match planner.as_deref_mut() {
         Some(planner) if run.incremental_facts => {
             let provider = factory.provider();
@@ -3939,8 +4000,10 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
                 .iter()
                 .any(|file| !file.syntactic.is_empty())
                 && state.visible_global_diagnostics.is_empty();
+            let reported_before = state.diagnostics.len();
             let session = CheckerSession::from_checked_state(state);
             let plan = planner(&snapshot, &session, &facts, check_runs);
+            planner_global_rows = session.reported_global_rows_since(reported_before);
             drop(session);
             drop(provider);
             (!plan.check.is_empty()).then_some(plan.check)
@@ -4282,7 +4345,12 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             run.incremental_facts,
             selected.as_deref(),
         ) {
-            Ok(execution) => execution,
+            Ok(mut execution) => {
+                if let Some(facts) = &mut execution.result.incremental {
+                    facts.planner_global_rows = planner_global_rows;
+                }
+                execution
+            }
             Err(marked_reasons) => {
                 dispose_states(states);
                 return ShardedRun::Replay(marked_reasons);
@@ -4439,6 +4507,7 @@ fn check_snapshot_serially(
     // collectAllAffectedFiles) runs over the initialized checker before any
     // source is checked and restricts the check to the files whose rows the
     // old build info does not cover.
+    let mut planner_global_rows = false;
     let selected: Option<Vec<bool>> = match planner {
         Some(planner) if incremental_facts => {
             let facts = incremental::planner_facts(&mut state, program_diagnostics);
@@ -4449,9 +4518,11 @@ fn check_snapshot_serially(
                     .iter()
                     .any(|file| !file.syntactic.is_empty())
                 && state.visible_global_diagnostics.is_empty();
+            let reported_before = state.diagnostics.len();
             let session = CheckerSession::from_checked_state(state);
             let plan = planner(snapshot, &session, &facts, check_runs);
             state = session.into_state();
+            planner_global_rows = reported_global_rows_since(&state, reported_before);
             (!plan.check.is_empty()).then_some(plan.check)
         }
         _ => None,
@@ -4479,14 +4550,17 @@ fn check_snapshot_serially(
         state.line_profile.flush();
         let incremental = incremental_facts.then(|| {
             let none_by_file = vec![Vec::new(); state.binder.file_count()];
-            incremental_facts_after_check(
-                &mut state,
-                &none_by_file,
-                options,
-                false,
-                program_diagnostics,
-                None,
-            )
+            IncrementalCheckFacts {
+                planner_global_rows,
+                ..incremental_facts_after_check(
+                    &mut state,
+                    &none_by_file,
+                    options,
+                    false,
+                    program_diagnostics,
+                    None,
+                )
+            }
         });
         let result = assemble_check_result_with_facts(
             &file_diagnostics,
@@ -4585,8 +4659,9 @@ fn check_snapshot_serially(
     let partial_checks = state.partial_check_records.clone();
     let authoritative_failure = state.take_authoritative_module_failure();
     state.line_profile.flush();
-    let incremental = incremental_facts.then(|| {
-        incremental_facts_after_check(
+    let incremental = incremental_facts.then(|| IncrementalCheckFacts {
+        planner_global_rows,
+        ..incremental_facts_after_check(
             &mut state,
             &global_checker_diagnostics_by_file,
             options,
@@ -4896,6 +4971,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // The incremental program's planner (see `check_snapshot_serially`)
         // runs over the initialized checker before any source is checked
         // and restricts the checked files.
+        let mut planner_global_rows = false;
         let selected: Option<Vec<bool>> = match planner {
             Some(planner) if authoritative_run.is_some_and(|run| run.incremental_facts) => {
                 let check_runs = authoritative_run
@@ -4906,9 +4982,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                         .any(|file| !file.syntactic.is_empty())
                     && state.visible_global_diagnostics.is_empty();
                 let facts = incremental::planner_facts(&mut state, &program_diagnostics);
+                let reported_before = state.diagnostics.len();
                 let session = CheckerSession::from_checked_state(state);
                 let plan = planner(&snapshot, &session, &facts, check_runs);
                 state = session.into_state();
+                planner_global_rows = reported_global_rows_since(&state, reported_before);
                 (!plan.check.is_empty()).then_some(plan.check)
             }
             _ => None,
@@ -5035,14 +5113,17 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         partial_checks = state.partial_check_records.clone();
         authoritative_failure = state.take_authoritative_module_failure();
         if authoritative_run.is_some_and(|run| run.incremental_facts) {
-            incremental = Some(incremental_facts_after_check(
-                &mut state,
-                &global_checker_diagnostics_by_file,
-                options,
-                true,
-                &program_diagnostics,
-                selected.as_deref(),
-            ));
+            incremental = Some(IncrementalCheckFacts {
+                planner_global_rows,
+                ..incremental_facts_after_check(
+                    &mut state,
+                    &global_checker_diagnostics_by_file,
+                    options,
+                    true,
+                    &program_diagnostics,
+                    selected.as_deref(),
+                )
+            });
         }
         if authoritative_failure.is_none() {
             if let Some(operation) = emit_operation {
@@ -5217,6 +5298,13 @@ fn cached_semantic_rows_for_program_file(
 
 /// The facts of every Program file after a serial check: the rows the
 /// program caches (empty for a skipped file) and the module facts.
+/// Whether the checker reported a file-less row after its first `start`.
+fn reported_global_rows_since(state: &state::CheckerState<'_>, start: usize) -> bool {
+    state.diagnostics[start..]
+        .iter()
+        .any(|diagnostic| diagnostic.file_name.is_none())
+}
+
 fn incremental_facts_after_check(
     state: &mut state::CheckerState<'_>,
     global_checker_diagnostics_by_file: &[Vec<Diagnostic>],
@@ -5245,7 +5333,13 @@ fn incremental_facts_after_check(
             facts
         })
         .collect();
-    IncrementalCheckFacts { files }
+    IncrementalCheckFacts {
+        files,
+        planner_global_rows: false,
+        check_global_rows: global_checker_diagnostics_by_file
+            .iter()
+            .any(|rows| !rows.is_empty()),
+    }
 }
 
 /// getBindAndCheckDiagnosticsForFileNoCache: bind -> check (new globals
