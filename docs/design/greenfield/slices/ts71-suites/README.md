@@ -767,3 +767,12 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
   hosted の `rust` job に任せた。実 project の比較と parallel control は行っていない（checker を変えていない。build の
   root 読みと project 参照の root の修正は実 project にも効くので、P4-6 の終わりに DT／azure／material-ui で比べる）。
   性能は計測していない（利用者の指示）。
+
+### P4-6aのhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `a8c0f201b`（vendoring・System 層・vfs・runner・port の修正・ratchet・packet の記録）の run 37778876128
+  （`plan` 32s、`rust` 11m0s、`conformance (TypeScript 7.1)` 15m47s（lane A の後に suites 5 種の `--check`）、`gates` 14s。
+  全て成功）。merge → `8b8b43fb5`（merge commit）。
+- 計測（conformance の全体実行、suites、crate test）は上の記録のとおり、merge 前に最終 bytes `e544587ec` で行った。
+  実 project の比較は P4-6 の終わりに行う。性能は計測していない（利用者の指示）。
+- 次：P4-6b（help／version／init／showConfig／locale）。branch `fix/ts71-tsc-cli-features`（base `a8c0f201b`）。
