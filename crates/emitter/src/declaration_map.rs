@@ -130,6 +130,7 @@ fn finish_declaration_map_for_output(
     ))?;
     let map_json = generator.to_json_string();
     let observation = SourceMapObservation::new(
+        declaration_path.to_owned(),
         generator.raw_sources().to_vec(),
         map_json.clone().into_boxed_str(),
     );

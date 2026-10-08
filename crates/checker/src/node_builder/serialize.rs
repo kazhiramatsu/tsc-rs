@@ -2272,7 +2272,14 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
         leftmost: NodeId,
         symbol: Option<SymbolId>,
     ) -> BuildResult<TransformNode> {
-        if node.node() == leftmost {
+        // tsgo compares the visited node with the leftmost identifier of the
+        // original tree (`node == leftmost`); a node of another file reaches
+        // here as a clone in the target source, so compare its parse node.
+        let parse = arena
+            .require_parse_tree_resolver_node(node)
+            .map_err(factory_error)?
+            .node();
+        if parse == leftmost {
             if let Some(symbol) = symbol.filter(|&symbol| {
                 self.checker
                     .symbol_flags(symbol)

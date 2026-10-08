@@ -345,3 +345,66 @@ P4-1 の計測（types mismatch 233、symbols mismatch 172）の大きい class 
 - 次：P4-1c（`getTypeOfSymbol` の accessor 優先順（tsgo は Accessor を Variable|Property より先に見る）、再利用した型 node の中の
   shadowed type parameter 名、package 自己参照の module specifier、heritage clause 名の `any`（instrumented tsgo）、
   package redirect の unit、`SKIPPED_WALK_TESTS`）。
+
+## P4-1c `.types`／`.symbols` の差分 class（第 3 回：型の表示）（2026-10-08）
+
+- **accessor と property を merge した symbol の型**（types 1：`duplicateClassElements`）：tsgo の `getTypeOfSymbol`
+  （TypeScript 7.1）は `Accessor` の arm を `Variable|Property` より先に見る（tsc 6.0.3 は逆順）。港は property の arm に
+  入って `any` を返していた（tsgo は accessor の `number`）。arm の順を tsgo に合わせた。
+- **別 file の node を再利用したときの shadowed type parameter の名前**（types 4：`controlFlowInstanceofWithSymbolHasInstance`、
+  `unspecializedConstraints`、`declarationsWithRecursiveInternalTypesProduceUniqueTypeParams`、`unionAndIntersectionInference1`）：
+  tsgo の `attachSymbolToLeftmostIdentifier`（nodecopy.go）は訪問中の node が元の木の leftmost identifier と同じ
+  （`node == leftmost`）なら type parameter を `typeParameterToName` で改名する（`T_1`）。港の
+  `attach_symbol_to_entity_name` は `node.node() == leftmost` で比べていたが、別 file（lib）の node は target source に
+  clone されて id が変わるので常に偽になり、素の clone（`T`）を出していた。parse node（`require_parse_tree_resolver_node`）
+  で比べる形に直した。
+- **property と auto-accessor を merge した symbol の型**（`duplicatePropertyAndAccessor`：1 回目の full run で errors が
+  full → none に下がった唯一の configuration）：上の arm の順の変更で `getTypeOfAccessors` に入るようになったが、港は
+  auto-accessor を「最初の PropertyDeclaration が auto accessor なら」で探していた（tsc 6.0.3 の `tryCast(getDeclarationOfKind(...))`）。
+  tsgo は `core.Find(symbol.Declarations, IsAutoAccessorPropertyDeclaration)` で宣言全体から探す。港の探し方では
+  `y: number = 2; accessor y: number = 3;` の型が `any` になり TS2717 が余分に出た。宣言全体から探す形に直した。
+- 残る class：package 自己参照の module specifier（`./index.mjs` vs `package/mjs`、symbols 3）、`Clod.x`／escape 名／
+  declaration 列の差（各 1–2）、heritage clause 名の `any`（declFile*：instrumented tsgo が要る）、package redirect の
+  unit、`SKIPPED_WALK_TESTS`。
+
+## P4-2 `.sourcemap.txt`（source map の record）（2026-10-08）
+
+tsgo の `DoSourcemapRecordBaseline`（tsbaseline/sourcemap_record_baseline.go）は、`sourceMap`／`inlineSourceMap`／
+`declarationMap` のいずれかが真の configuration で `GetSourceMapRecord`（harnessutil.go:915-951）の record を書く
+（`noEmitOnError` ＋診断あり、または record が空なら baseline なし）。record は `EmitResult.SourceMaps` の順に、map ごとに
+`sourcemap_recorder.go` の writer が描く：`=` 67 個の header（`JsFile:`＝map の `file`、`mapUrl:`＝生成 file 末尾の
+`//# sourceMappingURL=`、`sourceRoot:`、`sources:`、任意の `sourcesContent:`）、source file が変わるたびに `-` 67 個の区切りと
+`emittedFile:`／`sourceFile:`、生成行ごとに `>>>` ＋行、span の marker（`N >` ＋ `^`、継続は `->`、次の行の先頭は `1->`）、
+source の text、`<id>Emitted(l, c) Source(l, c) + SourceIndex(i)[ name (N)]`、`---`。driver は map の `mappings` を
+decode して span を流し、writer はもう一つの decoder で同じ span を照合する（食い違えば `!!^^` の行）。
+
+- **emitter**：`SourceMapObservation`（tsgo の `SourceMapEmitResult`）に `generated_file` を足した（JS と d.ts の
+  producer の 2 か所）。`input_source_files`（generator の raw sources）と map の JSON は既にあった。
+- **conformance crate**：`ts71/sourcemap_baseline.rs` に recorder を移植した：`MappingsDecoder`（sourcemap/decoder.go、
+  error 文言も同じ）、`ComputeECMALineStarts`（`\r\n`／`\n`／`\r`／U+2028／U+2029）、
+  `ComputePositionOfLineAndUTF16Character`（UTF-16 列 → byte 位置、`allowEdits`）、`TryGetSourceMappingURL`、
+  `SpanWriter`（`sourceMapSpanWriter` ＋ `recordedSpanWriter`）。tsgo が Strada 互換のまま残している癖も写した：継続 marker の
+  長さは**次の**生成行の byte 長から（`len(jsFileText)-1`）、`emittedFile:… (l, c)` の header は先頭 span の
+  generated character と新 span の generated line が等しいとき（char == line）。文字列の位置は tsgo と同じく UTF-8 の
+  byte、mapping の列は UTF-16。`sourcesContent:` は tsgo の `json.Marshal`（encoding/json/v2、HTML escape なし）と同じ
+  serde_json の出力。全体に `removeTestPathPrefixes`。
+- **runner**：第 2 Program の `EmitOutcome::source_maps()` から record の入力（生成 file 名、入力 file 名（絶対）、JSON）を
+  取り、生成 file の text は `Emission` の js／dts から、source の text は Program の入力から引く。
+  `Outcome::Compared` に `sourcemap`／`sourcemap_detail`、`--dump` で `<stem>.sourcemap.txt`。
+- **script**：`scripts/conformance_ts71.py` の summary に `sourcemap_full`／`sourcemap_mismatch`／`sourcemap_not_assessed`、
+  ratchet TSV に 6 列目（`sourcemap`：`full`／`none`）。既存の行は `none` から上がるだけ。
+- dev binary で `.sourcemap.txt` の baseline を持つ 152 case（213 configuration）を先に回した：vendored の 157 baseline のうち
+  **155 が byte 一致**、残り 2（`contentMapperDeclarationEmit`、`contentMapperDeclarationEmitFailure`）は harness option
+  `runExternalCode` 未対応の既存の harness error（P4-1b の run でも同じ）。baseline の無い configuration で両側 None の
+  「Full」は無い（compared の Full ＝ baseline のある 155 ちょうど）。
+- 1 回目の full run（accessor の探し方を直す前、1 worker、maintenance clamp、4,306 s）：errors full 13,450／mismatch 1
+  （上の `duplicatePropertyAndAccessor`）、emit 13,443（不変）、types full 12,675／mismatch 92（113 から：`T_1` の修正が
+  `declarationEmitPromise`、`correlatedUnions`、`strictBindCallApply1`、`typedArrays` など 22 configuration を上げた）、
+  symbols 不変、**sourcemap full 13,451／mismatch 0／not assessed 0**、harness error 15（不変）。
+- 計測（最終 bytes、macOS、`taskpolicy -c maintenance nice -n 20`、1 worker）：12,748 case／4,625 s、errors full 13,451（mismatch 0）、emit full 13,443（mismatch 0、not assessed 8）、
+  **types full 12,676／mismatch 91（P4-1b の 113 から）**、symbols full 12,715／mismatch 52（不変）、
+  **sourcemap full 13,451／mismatch 0／not assessed 0**、harness error 15（不変）。ratchet 0 regressions：6 列目（sourcemap）を
+  全 13,451 行に `full` で記録し、types の 22 行が none → full（下がった行は無い）。fix commit `a6b20716c`。
+- local（maintenance clamp、1 job）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）emitter／checker／compiler／conformance／harness；
+  test emitter＋conformance＋harness＋compiler 1,106/0、checker 1,797/0（最終 bytes `a6b20716c`、`taskpolicy -c maintenance nice -n 20`、
+  1 job）。

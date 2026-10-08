@@ -5,17 +5,29 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 /// Normalized source-map observation reserved by the H1 result shape.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceMapObservation {
+    generated_file: JsString,
     input_source_files: Box<[JsString]>,
     canonical_json: Box<str>,
 }
 
 impl SourceMapObservation {
     // H1.1 froze the result slot; h2-6a-m-3 is the producer.
-    pub(crate) fn new(input_source_files: Vec<JsString>, canonical_json: Box<str>) -> Self {
+    pub(crate) fn new(
+        generated_file: JsString,
+        input_source_files: Vec<JsString>,
+        canonical_json: Box<str>,
+    ) -> Self {
         Self {
+            generated_file,
             input_source_files: input_source_files.into_boxed_slice(),
             canonical_json,
         }
+    }
+
+    /// tsgo `SourceMapEmitResult.GeneratedFile`: the JavaScript or
+    /// declaration file the map describes, as the emitter named it.
+    pub fn generated_file(&self) -> &JsString {
+        &self.generated_file
     }
 
     pub fn input_source_files(&self) -> &[JsString] {

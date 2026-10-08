@@ -34,9 +34,10 @@ The ratchet ratchets/ts71/<profile>.tsv lists every lane-A configuration that
 agrees with its baseline at least on locations, with the deepest tier it
 reached (location < category < text < full) and, in a third column, its emit
 tier: `js` when tsc-rs's JavaScript emit baseline (the `.js` reference, with
-the declaration files) matches byte for byte, `none` otherwise. The fourth
-and fifth columns are the `.types` and `.symbols` tiers: `full` when the
-rendered baseline matches byte for byte, `none` otherwise. `--check` fails
+the declaration files) matches byte for byte, `none` otherwise. The fourth,
+fifth and sixth columns are the `.types`, `.symbols` and `.sourcemap.txt`
+tiers: `full` when the rendered baseline matches byte for byte, `none`
+otherwise. `--check` fails
 when a listed configuration of the run is now below any tier; `--update`
 records the run's tiers without lowering any.
 """
@@ -55,11 +56,12 @@ BINARY = ROOT / "target/release/conformance-ts71"
 DUMP = None
 TIERS = ("location", "category", "text", "full")
 EMIT_TIERS = ("none", "js")
-# The `.types` and `.symbols` comparisons (P4-1): byte agreement or none.
+# The `.types`, `.symbols` (P4-1) and `.sourcemap.txt` (P4-2) comparisons: byte
+# agreement or none.
 WALK_TIERS = ("none", "full")
 RATCHET_HEADER = (
     "# TypeScript 7.1 lane-A configurations, the deepest error tier each has reached, its emit tier\n"
-    "# and its .types and .symbols tiers (scripts/conformance_ts71.py --update). A tier is lowered only by a reviewed edit.\n"
+    "# and its .types, .symbols and .sourcemap.txt tiers (scripts/conformance_ts71.py --update). A tier is lowered only by a reviewed edit.\n"
 )
 
 
@@ -193,7 +195,8 @@ def summarize(results):
                "location": 0, "mismatch": 0, "emit_full": 0, "emit_mismatch": 0,
                "emit_not_assessed": 0, "types_full": 0, "types_mismatch": 0,
                "types_not_assessed": 0, "symbols_full": 0, "symbols_mismatch": 0,
-               "symbols_not_assessed": 0, "harness_errors": 0, "skipped": 0, "not_run": 0}
+               "symbols_not_assessed": 0, "sourcemap_full": 0, "sourcemap_mismatch": 0,
+               "sourcemap_not_assessed": 0, "harness_errors": 0, "skipped": 0, "not_run": 0}
     tiers = {"Full": "full", "Text": "text", "Category": "category", "Location": "location",
              "None": "mismatch"}
     for result in results:
@@ -203,7 +206,7 @@ def summarize(results):
             summary[tiers[result["agreement"]]] += 1
             summary[{"Full": "emit_full", "NotAssessed": "emit_not_assessed"}
                     .get(result.get("emit"), "emit_mismatch")] += 1
-            for walk in ("types", "symbols"):
+            for walk in ("types", "symbols", "sourcemap"):
                 summary[{"Full": f"{walk}_full", "NotAssessed": f"{walk}_not_assessed"}
                         .get(result.get(walk), f"{walk}_mismatch")] += 1
         elif status == "harness-error":
@@ -216,42 +219,43 @@ def summarize(results):
     return summary
 
 
-NO_TIERS = ("none", "none", "none", "none")
+NO_TIERS = ("none", "none", "none", "none", "none")
 
 
 def measured_tiers(results):
-    """`suite/stem` -> (error tier, emit tier, types tier, symbols tier) of
-    every configuration compared at location or deeper."""
+    """`suite/stem` -> (error tier, emit tier, types tier, symbols tier,
+    sourcemap tier) of every configuration compared at location or deeper."""
     return {f"{result['suite']}/{result['stem']}":
             (result["agreement"].lower(), "js" if result.get("emit") == "Full" else "none",
              "full" if result.get("types") == "Full" else "none",
-             "full" if result.get("symbols") == "Full" else "none")
+             "full" if result.get("symbols") == "Full" else "none",
+             "full" if result.get("sourcemap") == "Full" else "none")
             for result in results
             if result["status"] == "compared" and result["agreement"] != "None"}
 
 
 def read_ratchet(path):
-    """`suite/stem` -> (error tier, emit tier, types tier, symbols tier); a
-    row without a column (written before that comparison existed) counts as
-    `none` there."""
+    """`suite/stem` -> (error tier, emit tier, types tier, symbols tier,
+    sourcemap tier); a row without a column (written before that comparison
+    existed) counts as `none` there."""
     if not path.exists():
         return {}
     accepted = {}
     for line in path.read_text().splitlines():
         if line and not line.startswith("#"):
             key, tier, *rest = line.split("\t")
-            rest += ["none"] * (3 - len(rest))
-            accepted[key] = (tier, rest[0], rest[1], rest[2])
+            rest += ["none"] * (4 - len(rest))
+            accepted[key] = (tier, rest[0], rest[1], rest[2], rest[3])
     return accepted
 
 
 def tier_ranks():
-    """The rank tables of the four columns, in column order."""
+    """The rank tables of the five columns, in column order."""
     return [{tier: index for index, tier in enumerate(tiers)}
-            for tiers in (TIERS, EMIT_TIERS, WALK_TIERS, WALK_TIERS)]
+            for tiers in (TIERS, EMIT_TIERS, WALK_TIERS, WALK_TIERS, WALK_TIERS)]
 
 
-COLUMN_NAMES = ("", "emit ", "types ", "symbols ")
+COLUMN_NAMES = ("", "emit ", "types ", "symbols ", "sourcemap ")
 
 
 def check_ratchet(path, results, filtered):
