@@ -342,7 +342,6 @@ tsc/commandLine/Parse-enum-type-options.js	full
 tsc/commandLine/Project-is-empty-string.js	full
 tsc/commandLine/adds-color-when-FORCE_COLOR-is-empty-and-output-is-not-a-TTY.js	full
 tsc/commandLine/adds-color-when-FORCE_COLOR-is-one-and-output-is-not-a-TTY.js	full
-tsc/commandLine/adds-color-when-FORCE_COLOR-is-set.js	none
 tsc/commandLine/adds-color-when-FORCE_COLOR-is-three-and-output-is-not-a-TTY.js	full
 tsc/commandLine/adds-color-when-FORCE_COLOR-is-true-and-output-is-not-a-TTY.js	full
 tsc/commandLine/adds-color-when-FORCE_COLOR-is-two-and-output-is-not-a-TTY.js	full
