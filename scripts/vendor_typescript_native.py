@@ -22,6 +22,7 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/baselines/reference/tsoptions        every command-line parsing baseline
   tsc/testdata/baselines/reference/config/tsconfigParsing
                                                     every tsconfig parsing baseline
+  tsc/testdata/baselines/reference/{tsc,tsbuild}    every tsc and tsc -b baseline
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
 each set's Git tree id (a single file's blob id; a filtered baseline set
@@ -55,6 +56,8 @@ TREES = [
     "tsc/testdata/baselines/reference/transpile",
     "tsc/testdata/baselines/reference/tsoptions",
     "tsc/testdata/baselines/reference/config/tsconfigParsing",
+    "tsc/testdata/baselines/reference/tsc",
+    "tsc/testdata/baselines/reference/tsbuild",
 ]
 FILES = [
     "tsc/internal/diagnostics/diagnosticMessages.json",
