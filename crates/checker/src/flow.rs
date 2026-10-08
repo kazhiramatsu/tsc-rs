@@ -507,6 +507,10 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<FlowType> {
         let mut flow = flow;
         if query.flow_depth == 2000 {
+            let depth = query.flow_depth;
+            self.trace_instant("getTypeAtFlowNode_DepthLimit", || {
+                tsc_types::tracing::Args::new().with("depth", depth)
+            });
             self.flow_analysis_disabled = true;
             self.report_flow_control_error(query.reference);
             return Ok(FlowType::Type(self.tables.intrinsics.error));

@@ -94,7 +94,7 @@ impl<'a> CheckerState<'a> {
     /// the type of that cycle with the smallest symbol, and every entry
     /// point gives the same variances.
     ///
-    /// The tracing push/pop is elided. On CheckAbort unwind the stack entry
+    /// Traced for `--generateTrace` as tsgo traces it. On CheckAbort unwind the stack entry
     /// is popped, the resolutionStart save is restored and the empty marker
     /// of the abandoned measurement is cleared (tsc cannot fail here).
     fn get_variances_worker(
@@ -105,6 +105,41 @@ impl<'a> CheckerState<'a> {
         if let Some(stored) = self.stored_variances(symbol) {
             return Ok(stored);
         }
+        // `--generateTrace`: a span over the measurement whose end event
+        // lists the variances (relater.go:1337-1348).
+        let mut span = if self.tracer.is_some() {
+            let declared = self.get_declared_type_of_symbol(symbol)?;
+            self.tracer.as_ref().map(|tracer| {
+                tracer.begin(
+                    tsc_types::tracing::Phase::CheckTypes,
+                    "getVariancesWorker",
+                    tsc_types::tracing::Args::new()
+                        .with("arity", type_parameters.len())
+                        .with("id", crate::tracing::trace_type_id(declared)),
+                )
+            })
+        } else {
+            None
+        };
+        let result = self.measure_or_restart_variances(symbol, type_parameters);
+        if let (Some(span), Ok(result)) = (&mut span, &result) {
+            let formatted = match result {
+                VariancesResult::Empty => Vec::new(),
+                VariancesResult::Known(list) => {
+                    list.iter().copied().map(variance_flags_text).collect()
+                }
+            };
+            span.set_arg("variances", formatted);
+        }
+        result
+    }
+
+    /// getVariancesWorker past its stored-result check.
+    fn measure_or_restart_variances(
+        &mut self,
+        symbol: SymbolId,
+        type_parameters: &[TypeId],
+    ) -> CheckResult<VariancesResult> {
         match self
             .variance_stack
             .iter()
@@ -420,3 +455,22 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 #[path = "../tests/unit/variance/tests.rs"]
 mod tests;
+
+/// tsgo `VarianceFlags.String` (checker/types.go:574-596).
+fn variance_flags_text(flags: VarianceFlags) -> String {
+    let mut text = match flags.bits() & VarianceFlags::VARIANCE_MASK.bits() {
+        0 => "in out",
+        3 => "[bivariant]",
+        2 => "in",
+        1 => "out",
+        4 => "[independent]",
+        _ => "",
+    }
+    .to_owned();
+    if flags.intersects(VarianceFlags::UNMEASURABLE) {
+        text.push_str(" (unmeasurable)");
+    } else if flags.intersects(VarianceFlags::UNRELIABLE) {
+        text.push_str(" (unreliable)");
+    }
+    text
+}

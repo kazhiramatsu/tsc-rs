@@ -86,8 +86,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7d5852063394fdbf5fe79c0a3a578f405b9813a93ffdb0239ea1dcacfb018e16
     /// tsc-span: _tsc.js:83600-83606
     ///
-    /// The tracing push/pop pair is elided (no tracing host).
+    /// Sampled for `--generateTrace` as tsgo samples it.
     pub(crate) fn check_variable_declaration(&mut self, node: NodeId) -> CheckResult<()> {
+        let _sample = self.trace_node_sample("checkVariableDeclaration", node);
         self.check_grammar_variable_declaration(node)?;
         self.check_variable_like_declaration(node)
     }

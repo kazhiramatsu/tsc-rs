@@ -289,8 +289,10 @@ pub fn plan_source_requests_retaining_syntax(
 ) -> Result<(SourceRequestPlan, PreparsedSyntax), ResolutionError> {
     // The loader never asks for a request outside `SourceFile.imports`, so
     // it skips the whole-file walk for misplaced imports and exports.
+    let started = std::time::Instant::now();
     let (plan, parsed) = plan_module_requests_worker(source, options, true, false)?;
-    Ok((plan, PreparsedSyntax::new(parsed)))
+    let parse_span = (started, std::time::Instant::now());
+    Ok((plan, PreparsedSyntax::new(parsed, parse_span)))
 }
 
 /// Exact syntax projection used by the module-request planner. Exposed so

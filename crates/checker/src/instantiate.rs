@@ -1641,6 +1641,12 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         if self.instantiation_stack.len() == 100 || self.instantiation_count >= 5_000_000 {
+            self.trace_instant("instantiateType_DepthLimit", || {
+                tsc_types::tracing::Args::new()
+                    .with("typeId", crate::tracing::trace_type_id(ty))
+                    .with("instantiationDepth", self.instantiation_stack.len())
+                    .with("instantiationCount", self.instantiation_count)
+            });
             // tsgo (checker.go:22502-22518) names the types that recur on
             // the instantiation stack. currentNode is the driver's element
             // cursor (5.4); queries outside the driver (probe entries,

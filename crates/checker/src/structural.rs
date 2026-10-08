@@ -1835,6 +1835,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let prop_type = self.st.get_non_missing_type_of_symbol(source_property)?;
             num_combinations = num_combinations.saturating_mul(self.count_types(prop_type));
             if num_combinations > 25 {
+                self.st
+                    .trace_instant("typeRelatedToDiscriminatedType_DepthLimit", || {
+                        tsc_types::tracing::Args::new()
+                            .with("sourceId", crate::tracing::trace_type_id(source))
+                            .with("targetId", crate::tracing::trace_type_id(target))
+                            .with("numCombinations", num_combinations)
+                    });
                 return Ok(Ternary::FALSE);
             }
         }

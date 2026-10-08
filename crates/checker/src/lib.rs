@@ -145,6 +145,7 @@ pub mod state;
 pub mod statements;
 pub mod structural;
 mod syntactic_type_node_builder;
+mod tracing;
 pub(crate) mod type_order;
 #[doc(hidden)]
 pub mod type_writer;
@@ -182,6 +183,7 @@ pub fn unused_identifier_suggestions() -> bool {
     UNUSED_IDENTIFIER_SUGGESTIONS.load(std::sync::atomic::Ordering::Relaxed)
 }
 use tsc_types::perf::{self, PerfCounter};
+use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
 use tsc_types::{IdentityDomain, IdentityLease, JsStr, JsString};
 
 use crate::emit::CheckerSession;
@@ -537,6 +539,13 @@ pub trait AuthoritativeModuleProvider: Sync {
 
     /// The program's current directory and file-name case sensitivity.
     fn path_context(&self) -> Option<&tsc_program::PathContext> {
+        None
+    }
+
+    /// The program's `--generateTrace` session (tsgo `Program.Tracing`):
+    /// its checkers record their events and types there. Providers without
+    /// a session report none.
+    fn tracing(&self) -> Option<Arc<Tracing>> {
         None
     }
 }
@@ -1564,12 +1573,14 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
             &bundle_options,
             &identity_domain,
             WorkerBudget::serial(),
+            None,
         );
         let lib_binders = bind_lib_sources(
             &lib_sources,
             &bundle_options,
             &identity_domain,
             WorkerBudget::serial(),
+            None,
         );
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
@@ -1653,12 +1664,14 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         &bundle_options,
         &identity_domain,
         WorkerBudget::serial(),
+        None,
     );
     let lib_binders = bind_lib_sources(
         &lib_sources,
         &bundle_options,
         &identity_domain,
         WorkerBudget::serial(),
+        None,
     );
     let lib_data = binders_into_data(lib_binders);
     let lib_documents = publish_bound_documents(lib_sources, lib_data);
@@ -1775,6 +1788,12 @@ impl DiagnosticSchedule {
 /// tsrs-native: per-checker construction seam for the sharded driver.
 pub trait AuthoritativeModuleProviderFactory: Sync {
     fn provider(&self) -> Box<dyn AuthoritativeModuleProvider + '_>;
+
+    /// The program's `--generateTrace` session (see
+    /// [`AuthoritativeModuleProvider::tracing`]).
+    fn tracing(&self) -> Option<Arc<Tracing>> {
+        None
+    }
 }
 
 /// Where a checker run obtains its module provider.
@@ -1795,6 +1814,47 @@ struct AuthoritativeRun<'a> {
     /// Collect every file's [`IncrementalFileFacts`] (an incremental
     /// program's build info).
     incremental_facts: bool,
+    /// The program's `--generateTrace` session, and its `bindSourceFiles`
+    /// span: it begins before the library files are bound and ends after
+    /// the program's sources are.
+    tracing: Option<Arc<Tracing>>,
+    bind_span: std::sync::Mutex<Option<tsc_types::tracing::Span>>,
+}
+
+impl AuthoritativeRun<'_> {
+    fn begin_bind_phase(&self) {
+        if let Some(tracing) = &self.tracing {
+            *self
+                .bind_span
+                .lock()
+                .unwrap_or_else(|error| error.into_inner()) =
+                Some(tracing.begin(TracePhase::Bind, "bindSourceFiles", TraceArgs::new()));
+        }
+    }
+
+    fn end_bind_phase(&self) {
+        self.bind_span
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+    }
+
+    /// A `checkSourceFiles` span around the check of the program's files
+    /// (tsgo's `emitFilesAndReportErrors` around the semantic getter).
+    fn check_phase(&self) -> Option<tsc_types::tracing::Span> {
+        self.tracing
+            .as_ref()
+            .map(|tracing| tracing.begin(TracePhase::Check, "checkSourceFiles", TraceArgs::new()))
+    }
+}
+
+impl AuthoritativeProviderSource<'_> {
+    fn tracing(self) -> Option<Arc<Tracing>> {
+        match self {
+            Self::Shared(provider) => provider.tracing(),
+            Self::PerChecker(factory) => factory.tracing(),
+        }
+    }
 }
 
 struct CheckExecution {
@@ -2380,6 +2440,8 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
         library_prefix,
         diagnostic_schedule,
         incremental_facts,
+        tracing: provider.tracing(),
+        bind_span: std::sync::Mutex::new(None),
     };
     let mut observe_phase = |_| {};
     let execution = if cache_enabled {
@@ -2431,10 +2493,22 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     } else {
         let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
-        let (lib_sources, lib_work) =
-            parse_lib_sources(&effective_libs, &bundle_options, &identity_domain, workers);
-        let lib_binders =
-            bind_lib_sources(&lib_sources, &bundle_options, &identity_domain, workers);
+        let tracing = run.tracing.as_ref();
+        let (lib_sources, lib_work) = parse_lib_sources(
+            &effective_libs,
+            &bundle_options,
+            &identity_domain,
+            workers,
+            tracing,
+        );
+        run.begin_bind_phase();
+        let lib_binders = bind_lib_sources(
+            &lib_sources,
+            &bundle_options,
+            &identity_domain,
+            workers,
+            tracing,
+        );
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         // Sharding is a property of the eager whole-Program schedule with
@@ -2800,6 +2874,10 @@ fn parse_program_inputs(
             }
             None => {
                 work_counters.record_parse(file.text().len());
+                let _span = trace_parse(
+                    authoritative_run.and_then(|run| run.tracing.as_ref()),
+                    &file.name,
+                );
                 PendingProgramSource::Ready(
                     tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
                         file.name.clone(),
@@ -2941,8 +3019,17 @@ fn init_checker_state<'a>(
         &[AuthoritativeSourceMetadata],
     )>,
     host: HostFacts,
+    checker_index: Option<usize>,
 ) -> state::CheckerState<'a> {
     let mut state = state::CheckerState::from_snapshot_deferring_globals(snapshot, options);
+    // tsgo `NewTracer` per checker of the pool: the checker's events carry
+    // its index and its types file is written when the state ends.
+    if let (Some(index), Some(tracing)) = (
+        checker_index,
+        authoritative.and_then(|(provider, _)| provider.tracing()),
+    ) {
+        state.tracer = Some(tsc_types::tracing::CheckerTracer::new(tracing, index));
+    }
     if let Some((provider, metadata)) = authoritative {
         if let Err(failure) = state.install_authoritative_module_provider(provider, metadata) {
             state.record_authoritative_module_failure(failure);
@@ -3432,7 +3519,13 @@ fn run_checker_shard<'a>(
     selected: Option<&[bool]>,
 ) -> (ShardOutput, Option<state::CheckerState<'a>>) {
     let shard_started = std::time::Instant::now();
-    let mut state = init_checker_state(snapshot, options, Some((provider, metadata)), host);
+    let mut state = init_checker_state(
+        snapshot,
+        options,
+        Some((provider, metadata)),
+        host,
+        Some(shard_index),
+    );
     reserve_type_tables(&mut state, reserved_nodes);
     // W2c: every type created from here on is shard-local. In the exact mode
     // the guard records order-consuming operations over two or more of them
@@ -3933,8 +4026,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     );
     observe_phase(CheckPhase::Bind);
     let phase_started = std::time::Instant::now();
-    let bind_data =
-        bind_sources_in_program_order(&program_sources, options, identity_domain, workers);
+    let bind_data = bind_sources_in_program_order(
+        &program_sources,
+        options,
+        identity_domain,
+        workers,
+        run.tracing.as_ref(),
+    );
+    run.end_bind_phase();
     for (source_file, data) in program_sources.iter().zip(bind_data) {
         work_counters.record_bind();
         document_store
@@ -3988,11 +4087,14 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let selected: Option<Vec<bool>> = match planner.as_deref_mut() {
         Some(planner) if run.incremental_facts => {
             let provider = factory.provider();
+            // The planner's checker is not one of the program's checkers:
+            // it records no trace.
             let mut state = init_checker_state(
                 &snapshot,
                 options,
                 Some((&*provider, metadata.as_slice())),
                 host.clone(),
+                None,
             );
             reserve_type_tables(&mut state, 0);
             let facts = incremental::planner_facts(&mut state, &program_diagnostics);
@@ -4234,6 +4336,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         Merged(CheckExecution),
         Replay(u32),
     }
+    let mut check_span = run.check_phase();
     let sharded = std::thread::scope(|scope| {
         let mut handles = Vec::with_capacity(shard_count);
         let mut results: Vec<Option<(ShardOutput, Option<state::CheckerState<'_>>)>> =
@@ -4288,6 +4391,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
             .iter()
             .map(|output| output.files.clone())
             .collect::<Vec<_>>();
+        check_span.take();
         tsc_types::trace::mark("checker: shards checked", phase_started);
         let phase_started = std::time::Instant::now();
         let dispose_states = |states: Vec<state::CheckerState<'_>>| {
@@ -4494,7 +4598,7 @@ fn check_snapshot_serially(
     planner: Option<&mut IncrementalPlanner<'_>>,
 ) -> CheckExecution {
     let init_started = std::time::Instant::now();
-    let mut state = init_checker_state(snapshot, options, authoritative, host);
+    let mut state = init_checker_state(snapshot, options, authoritative, host, Some(0));
     reserve_type_tables(&mut state, snapshot_node_count(snapshot));
     let global_diagnostics = if collect_global_diagnostics {
         let mut rows = state.visible_global_diagnostics.clone();
@@ -4581,6 +4685,7 @@ fn check_snapshot_serially(
     let program_file_ids = state.binder.file_ids().skip(lib_count).collect::<Vec<_>>();
     let mut global_checker_diagnostics_by_file = vec![Vec::new(); state.binder.file_count()];
     let check_started = std::time::Instant::now();
+    let check_span = state.trace_check_phase();
     let checked_program_file_ids = program_file_ids
         .iter()
         .copied()
@@ -4642,6 +4747,7 @@ fn check_snapshot_serially(
             &mut global_checker_diagnostics_by_file,
         );
     }
+    drop(check_span);
     let mut diagnostics = Vec::new();
     for &file in &all_program_file_ids {
         if state.skip_type_checking_file(file) || !is_selected(file) {
@@ -4799,8 +4905,16 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
     // and private-name-serial leases in the source's identity domain.
     observe_phase(CheckPhase::Bind);
 
-    let bind_data =
-        bind_sources_in_program_order(&program_sources, options, identity_domain, workers);
+    let bind_data = bind_sources_in_program_order(
+        &program_sources,
+        options,
+        identity_domain,
+        workers,
+        authoritative_run.and_then(|run| run.tracing.as_ref()),
+    );
+    if let Some(run) = authoritative_run {
+        run.end_bind_phase();
+    }
     for (source_file, data) in program_sources.iter().zip(bind_data) {
         work_counters.record_bind();
         document_store
@@ -4902,6 +5016,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     (provider, metadata)
                 }),
             host,
+            Some(0),
         );
         reserve_type_tables(&mut state, snapshot_node_count(&snapshot));
         work_counters.record_checker_shards(1, 1);
@@ -5011,6 +5126,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
             .copied()
             .filter(|&file| is_selected(file))
             .collect::<Vec<_>>();
+        let check_span = state.trace_check_phase();
         check_files_in_order(
             &mut state,
             &checked_program_file_ids,
@@ -5086,6 +5202,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
                     &mut global_checker_diagnostics_by_file,
                 );
             }
+            drop(check_span);
 
             let mut diagnostics = Vec::new();
             // Reassemble every file from the completed diagnostic ledger.
@@ -5657,9 +5774,20 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
     // Binder borrows its CompilerOptions for the bundle's lifetime.
     let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
     let identity_domain = IdentityDomain::reclaiming();
-    let (sources, _lib_work) =
-        parse_lib_sources(libs, options, &identity_domain, WorkerBudget::serial());
-    let binders = bind_lib_sources(&sources, options, &identity_domain, WorkerBudget::serial());
+    let (sources, _lib_work) = parse_lib_sources(
+        libs,
+        options,
+        &identity_domain,
+        WorkerBudget::serial(),
+        None,
+    );
+    let binders = bind_lib_sources(
+        &sources,
+        options,
+        &identity_domain,
+        WorkerBudget::serial(),
+        None,
+    );
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
     let documents = publish_bound_documents_from_handles(sources, data);
@@ -5674,9 +5802,20 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
 fn build_owned_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> OwnedHarnessLibBundle {
     let options = lib_bundle_options(options);
     let identity_domain = IdentityDomain::reclaiming();
-    let (sources, _lib_work) =
-        parse_lib_sources(libs, &options, &identity_domain, WorkerBudget::serial());
-    let binders = bind_lib_sources(&sources, &options, &identity_domain, WorkerBudget::serial());
+    let (sources, _lib_work) = parse_lib_sources(
+        libs,
+        &options,
+        &identity_domain,
+        WorkerBudget::serial(),
+        None,
+    );
+    let binders = bind_lib_sources(
+        &sources,
+        &options,
+        &identity_domain,
+        WorkerBudget::serial(),
+        None,
+    );
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
     let documents = publish_bound_documents_from_handles(sources, data);
@@ -5695,6 +5834,7 @@ fn parse_lib_sources(
     options: &CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
+    tracing: Option<&Arc<Tracing>>,
 ) -> (Vec<tsc_syntax::SourceFile>, LibParseWork) {
     let mut work = LibParseWork::default();
     let mut pending: Vec<PendingProgramSource> = Vec::new();
@@ -5721,6 +5861,7 @@ fn parse_lib_sources(
             }
             None => {
                 work.parsed += 1;
+                let _span = trace_parse(tracing, &lib.name);
                 PendingProgramSource::Ready(
                     tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
                         lib.name.clone(),
@@ -5749,9 +5890,24 @@ fn bind_lib_sources<'a>(
     options: &'a CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
+    tracing: Option<&Arc<Tracing>>,
 ) -> Vec<tsc_binder::Binder<'a>> {
     let sources = sources.iter().collect::<Vec<_>>();
-    bind_reserved_in_program_order(&sources, options, identity_domain, workers)
+    bind_reserved_in_program_order(&sources, options, identity_domain, workers, tracing)
+}
+
+/// A `createSourceFile` span of one parse (tsgo `parseSourceFile`).
+fn trace_parse(
+    tracing: Option<&Arc<Tracing>>,
+    file_name: &JsString,
+) -> Option<tsc_types::tracing::Span> {
+    tracing.map(|tracing| {
+        tracing.begin(
+            TracePhase::Parse,
+            "createSourceFile",
+            TraceArgs::new().with("path", file_name.to_string_lossy().into_owned()),
+        )
+    })
 }
 
 /// Reserve every source's symbol and private-name-serial ranges in order on
@@ -5767,6 +5923,7 @@ fn bind_reserved_in_program_order<'a>(
     options: &'a CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
+    tracing: Option<&Arc<Tracing>>,
 ) -> Vec<tsc_binder::Binder<'a>> {
     let phase_started = std::time::Instant::now();
     let reservations = sources
@@ -5780,6 +5937,17 @@ fn bind_reserved_in_program_order<'a>(
         |&index| sources[index].text().len(),
         |index| {
             let (symbol_lease, serial_lease) = &reservations[index];
+            // tsgo `BindSourceFiles`: one span per file, on the file's row.
+            let _span = tracing.map(|tracing| {
+                tracing.begin(
+                    TracePhase::Bind,
+                    "bindSourceFile",
+                    TraceArgs::new().with(
+                        "path",
+                        sources[index].file_name.to_string_lossy().into_owned(),
+                    ),
+                )
+            });
             let mut binder = tsc_binder::Binder::bind_reserved(
                 sources[index],
                 options,
@@ -5858,9 +6026,10 @@ fn bind_sources_in_program_order(
     options: &CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
+    tracing: Option<&Arc<Tracing>>,
 ) -> Vec<BindData> {
     let sources = sources.iter().map(Arc::as_ref).collect::<Vec<_>>();
-    bind_reserved_in_program_order(&sources, options, identity_domain, workers)
+    bind_reserved_in_program_order(&sources, options, identity_domain, workers, tracing)
         .into_iter()
         .map(tsc_binder::Binder::into_bind_data)
         .collect()

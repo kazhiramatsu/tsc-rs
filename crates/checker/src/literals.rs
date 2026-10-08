@@ -1808,6 +1808,9 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_cross_product_union(&mut self, types: &[TypeId]) -> bool {
         let size = self.cross_product_union_size(types);
         if size >= 100_000 {
+            self.trace_instant("checkCrossProductUnion_DepthLimit", || {
+                tsc_types::tracing::Args::new().with("size", size)
+            });
             self.error_at(
                 self.current_node,
                 &diagnostics::Expression_produces_a_union_type_that_is_too_complex_to_represent,

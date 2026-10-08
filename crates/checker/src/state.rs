@@ -630,6 +630,10 @@ pub struct CheckerState<'a> {
     /// ran (not skipped by skipTypeChecking and not already TypeChecked).
     /// H2.8c evidence counter; never consulted by checking itself.
     pub(crate) checked_source_files: u32,
+    /// This checker's `--generateTrace` tracer (tsgo `Checker.tracer`):
+    /// its check events carry the checker's index, and its types file is
+    /// written when the state ends.
+    pub(crate) tracer: Option<tsc_types::tracing::CheckerTracer>,
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
     /// tsc currentNode (46454): the element/deferred-node the driver is
@@ -1504,6 +1508,7 @@ impl<'a> CheckerState<'a> {
             speculation_depth: 0,
             order_guard: crate::order_guard::OrderGuard::default(),
             checked_source_files: 0,
+            tracer: None,
             #[cfg(test)]
             speculation_commit_count: 0,
             #[cfg(test)]

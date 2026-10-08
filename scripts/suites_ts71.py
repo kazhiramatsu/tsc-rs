@@ -78,8 +78,13 @@ def check_ratchet(path, results, filtered):
 
 def update_ratchet(path, results):
     rank = {tier: index for index, tier in enumerate(TIERS)}
-    accepted = read_ratchet(path)
-    for key, tier in measured_tiers(results).items():
+    measured = measured_tiers(results)
+    # An unfiltered run reports every baseline it compares: a `none` row it
+    # no longer reports (an excluded reference) leaves the ratchet. Any
+    # other unreported row stays and fails --check.
+    accepted = {key: tier for key, tier in read_ratchet(path).items()
+                if key in measured or tier != "none"}
+    for key, tier in measured.items():
         old = accepted.get(key, "none")
         accepted[key] = tier if rank[tier] > rank[old] else old
     path.parent.mkdir(parents=True, exist_ok=True)

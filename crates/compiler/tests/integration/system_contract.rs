@@ -216,3 +216,123 @@ fn a_build_takes_roots_in_a_referenced_project_from_its_output() {
         "{output}"
     );
 }
+
+/// The `(ph, name)` of every begin and end event of a trace, in order.
+fn trace_spans(trace: &str) -> Vec<(String, String)> {
+    trace
+        .lines()
+        .filter_map(|line| {
+            let ph = line.split("\"ph\":\"").nth(1)?.split('"').next()?;
+            let name = line.split("\"name\":\"").nth(1)?.split('"').next()?;
+            matches!(ph, "B" | "E").then(|| (ph.to_owned(), name.to_owned()))
+        })
+        .collect()
+}
+
+#[test]
+fn generate_trace_records_the_compilation_in_its_directory() {
+    let system = MemorySystem::new(&[
+        (
+            "/work/tsconfig.json",
+            r#"{ "compilerOptions": { "noEmit": true, "strict": true } }"#,
+        ),
+        (
+            "/work/a.ts",
+            "interface Person { name: string }\nconst p: Person = { name: \"a\" };\n",
+        ),
+    ]);
+    // Under the test hooks the session is deterministic (tsgo's): the
+    // timestamps count and no sampled event is written.
+    let status = execute_command_line(
+        &system,
+        &args(&["--generateTrace", "/work/trace", "--singleThreaded"]),
+        Some(&system),
+    );
+    assert_eq!(status, 0, "{}", system.output.lock().unwrap());
+    assert_eq!(
+        system.text("/work/trace/legend.json"),
+        "[\n  {\n    \"configFilePath\": \"/work/tsconfig.json\",\n    \
+         \"tracePath\": \"/work/trace/trace.json\",\n    \
+         \"typesPath\": \"/work/trace/types_0.json\",\n    \"checkerId\": 0\n  }\n]"
+    );
+    let trace = system.text("/work/trace/trace.json");
+    assert!(trace.starts_with(
+        "[\n{\"pid\":1,\"tid\":1,\"ph\":\"M\",\"cat\":\"__metadata\",\"ts\":1,\
+         \"name\":\"process_name\",\"args\":{\"name\":\"tsgo\"}},\n"
+    ));
+    assert!(trace.ends_with("}\n]\n"));
+    assert!(!trace.contains("\"ph\":\"X\""));
+    let spans = trace_spans(&trace);
+    let names = spans
+        .iter()
+        .map(|(ph, name)| format!("{ph} {name}"))
+        .collect::<Vec<_>>();
+    let expected = [
+        "B createProgram",
+        "B createSourceFile",
+        "E createSourceFile",
+        "B createSourceFile",
+        "E createSourceFile",
+        "E createProgram",
+        "B bindSourceFiles",
+        "B bindSourceFile",
+        "E bindSourceFile",
+        "B bindSourceFile",
+        "E bindSourceFile",
+        "E bindSourceFiles",
+        "B checkSourceFiles",
+        "B checkSourceFile",
+        "E checkSourceFile",
+        "B checkSourceFile",
+        "E checkSourceFile",
+        "E checkSourceFiles",
+        "B emit",
+        "E emit",
+    ];
+    assert_eq!(names, expected, "{trace}");
+    assert!(trace.contains(
+        "{\"pid\":1,\"tid\":2,\"ph\":\"M\",\"cat\":\"__metadata\",\"ts\":1,\
+         \"name\":\"thread_name\",\"args\":{\"name\":\"checker:0\"}}"
+    ));
+    assert!(trace.contains(
+        "\"name\":\"checkSourceFile\",\"args\":{\"checkerId\":0,\"path\":\"/work/a.ts\"}"
+    ));
+    let types = system.text("/work/trace/types_0.json");
+    assert!(
+        types.starts_with(
+            "[{\"id\":1,\"intrinsicName\":\"any\",\"recursionId\":0,\"flags\":[\"Any\"]},\n"
+        ),
+        "{types}"
+    );
+    assert!(types.ends_with("}]\n"));
+    // The interface's declared type, with its declaration's location.
+    assert!(
+        types.contains("\"symbolName\":\"Person\",\"recursionId\":"),
+        "{types}"
+    );
+    assert!(types.contains(
+        "\"firstDeclaration\":{\"path\":\"/work/a.ts\",\"start\":{\"line\":1,\"character\":1},\
+         \"end\":{\"line\":1,\"character\":34}}"
+    ));
+}
+
+#[test]
+fn generate_trace_records_no_build() {
+    // tsgo traces a command's compilation, never a build's projects.
+    let system = MemorySystem::new(&[
+        (
+            "/work/tsconfig.json",
+            r#"{ "compilerOptions": { "composite": true, "generateTrace": "trace" } }"#,
+        ),
+        ("/work/a.ts", "export const a = 1;\n"),
+    ]);
+    let status = execute_command_line(&system, &args(&["-b"]), Some(&system));
+    assert_eq!(status, 0, "{}", system.output.lock().unwrap());
+    assert!(system.fs.read("/work/a.js").is_ok());
+    assert!(system.fs.read("/work/trace/trace.json").is_err());
+
+    // The command records the option the config sets.
+    let status = execute_command_line(&system, &[], Some(&system));
+    assert_eq!(status, 0, "{}", system.output.lock().unwrap());
+    assert!(system.fs.read("/work/trace/trace.json").is_ok());
+}

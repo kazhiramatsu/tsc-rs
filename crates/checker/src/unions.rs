@@ -454,6 +454,9 @@ impl<'a> CheckerState<'a> {
                     if count == 100_000 {
                         let estimated = count / (len - i) * len;
                         if estimated > 1_000_000 {
+                            self.trace_instant("removeSubtypes_DepthLimit", || {
+                                tsc_types::tracing::Args::new().with("estimatedCount", estimated)
+                            });
                             self.error_at(
                                 self.current_node,
                                 &diagnostics::Expression_produces_a_union_type_that_is_too_complex_to_represent,

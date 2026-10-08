@@ -82,8 +82,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b56997759c77785af8c96e94324267893636cd83bfdc656d059ef139e4cd71ac
     /// tsc-span: _tsc.js:80960-80974
     ///
-    /// The tracing pushes are elided. instantiationCount resets here —
-    /// the third and last reset point (state.rs note closes).
+    /// The `--generateTrace` sample is taken in the worker below.
+    /// instantiationCount resets here — the third and last reset point
+    /// (state.rs note closes).
     pub(crate) fn check_expression(
         &mut self,
         node: NodeId,
@@ -101,6 +102,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         force_tuple: bool,
     ) -> CheckResult<TypeId> {
+        let _sample = self.trace_node_sample("checkExpression", node);
         let save_current_node = self.current_node;
         self.current_node = Some(node);
         self.instantiation_count = 0;
