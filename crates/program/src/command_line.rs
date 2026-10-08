@@ -79,6 +79,13 @@ impl ParsedBuildCommandLine {
             .find(|(option, _)| option == name)
             .and_then(|(_, value)| value.as_bool())
     }
+
+    pub fn option_string(&self, name: &str) -> Option<JsStr<'_>> {
+        self.options
+            .iter()
+            .find(|(option, _)| option == name)
+            .and_then(|(_, value)| value.as_js())
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

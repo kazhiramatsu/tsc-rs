@@ -66,7 +66,12 @@ use tsc_program::{
 mod build;
 mod cli;
 mod declaration_diagnostics;
+mod help;
 mod incremental;
+mod init;
+pub mod locale;
+mod options;
+mod show_config;
 pub mod system;
 pub use incremental::{BuildInfoDocument, ProgramFileReport};
 pub use tsc_incremental::{SemanticDiagnosticsState, SignatureUpdateKind};

@@ -33,6 +33,9 @@ use tsc_program::{
 };
 
 use crate::build::{self, BuildCommand};
+use crate::help::Help;
+use crate::locale::Locale;
+use crate::show_config::ShowConfig;
 use crate::system::{
     CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
 };
@@ -45,8 +48,9 @@ const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
 /// The vendored TypeScript profile whose standard libraries the executable
 /// embeds and whose behavior it follows; `--version` reports it.
-const EMBEDDED_LIBRARY_PROFILE: &str = "7.1.0-dev-19dadef8";
-pub const TYPESCRIPT_VERSION: &str = EMBEDDED_LIBRARY_PROFILE;
+/// The version the command reports, tsgo's `core.Version()` at the vendored
+/// profile.
+pub const TYPESCRIPT_VERSION: &str = tsc_types::TYPESCRIPT_VERSION;
 pub(crate) type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
@@ -158,6 +162,7 @@ pub(crate) struct CliRoute<'a> {
     pub(crate) system: &'a dyn System,
     pub(crate) testing: Option<&'a dyn CommandLineTesting>,
     pub(crate) pretty: bool,
+    pub(crate) locale: Locale,
     pub(crate) output_filesystem: &'a mut dyn EmitFileSystem,
 }
 
@@ -168,6 +173,7 @@ impl CliRoute<'_> {
             current_directory,
             case_sensitive: self.system.fs().case_sensitive(),
             pretty: self.pretty,
+            locale: self.locale,
         }
     }
 }
@@ -180,6 +186,8 @@ pub(crate) struct Format<'a> {
     pub(crate) current_directory: &'a Path,
     pub(crate) case_sensitive: bool,
     pub(crate) pretty: bool,
+    /// The language of the messages (tsgo `FormattingOptions.Locale`).
+    pub(crate) locale: Locale,
 }
 
 impl fmt::Display for CliError {
@@ -327,10 +335,12 @@ fn execute(
     let pretty = parsed
         .option_bool("pretty")
         .unwrap_or_else(|| default_pretty(system));
+    let locale = command_line_locale(parsed.option_string("locale"));
     let format = Format {
         current_directory: &current_directory,
         case_sensitive: host.use_case_sensitive_file_names(),
         pretty,
+        locale,
     };
     if !parsed.errors.is_empty() {
         return rendered_diagnostics_with_exit(
@@ -340,23 +350,18 @@ fn execute(
             EXIT_COMMAND_LINE,
         );
     }
+    // tsgo createColors follows the environment and the terminal, not
+    // --pretty.
+    let help = Help::new(system, default_pretty(system), locale, TYPESCRIPT_VERSION);
+    let all = parsed.option_bool("all") == Some(true);
     if parsed.option_bool("init") == Some(true) {
-        return Err(CliError::Usage(
-            "unsupported option \"--init\" (tsconfig.json generation)".to_owned(),
-        ));
+        return write_config_file(system, &help, format, &parsed.options);
     }
     if parsed.option_bool("version") == Some(true) {
-        return Ok(CliOutput {
-            stdout: format!("Version {TYPESCRIPT_VERSION}\n"),
-            stderr: String::new(),
-            exit_code: EXIT_SUCCESS,
-            work_counters: NoEmitWorkCounters::default(),
-        });
+        return Ok(CliOutput::new(help.version(), EXIT_SUCCESS));
     }
-    if parsed.option_bool("help") == Some(true) || parsed.option_bool("all") == Some(true) {
-        return Err(CliError::Usage(
-            "unsupported option \"--help\" (the README describes the options)".to_owned(),
-        ));
+    if parsed.option_bool("help") == Some(true) || all {
+        return Ok(CliOutput::new(help.help(all), EXIT_SUCCESS));
     }
     if parsed.option_bool("watch") == Some(true)
         && parsed.option_bool("listFilesOnly") == Some(true)
@@ -382,28 +387,13 @@ fn execute(
             "unsupported option \"--watch\" (watch mode)".to_owned(),
         ));
     }
-    if parsed.option_bool("showConfig") == Some(true) {
-        return Err(CliError::Usage(
-            "unsupported option \"--showConfig\"".to_owned(),
-        ));
-    }
-    if let Some(locale) = parsed.option_string("locale") {
-        if !locale
-            .as_str()
-            .is_some_and(|locale| locale.to_ascii_lowercase().starts_with("en"))
-        {
-            return Err(CliError::Usage(format!(
-                "unsupported option \"--locale {}\" (only English messages exist)",
-                locale.to_string_lossy()
-            )));
-        }
-    }
     let mut output_filesystem =
         SystemEmitFileSystem::new(system.fs(), cli_worker_budget(system).max_workers() > 1);
     let mut route = CliRoute {
         system,
         testing,
         pretty,
+        locale,
         output_filesystem: &mut output_filesystem,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
@@ -416,6 +406,7 @@ fn execute(
         .map(PathBuf::from)
         .collect::<Vec<_>>();
     let ignore_config = parsed.option_bool("ignoreConfig") == Some(true);
+    let show_config = parsed.option_bool("showConfig") == Some(true);
     tsc_types::trace::mark("cli: arguments, host, catalog", prologue_started);
 
     if let Some(project) = parsed.option_string("project") {
@@ -475,6 +466,9 @@ fn execute(
         let (plan, source_texts) =
             parse_config_file(host, &current_directory, &config_file, &command_line)?;
         tsc_types::trace::mark("cli: project config plan", config_started);
+        if show_config {
+            return Ok(show_config_of_plan(&plan, case_sensitive));
+        }
         return execute_config(
             host,
             &current_directory,
@@ -514,6 +508,24 @@ fn execute(
             case_sensitive,
         )
         .map_err(config_error)?;
+        if show_config {
+            // Without a config file tsgo writes paths from a tsconfig.json
+            // in the current directory.
+            let absolute =
+                |path: &str| normalized_absolute_path(&current_directory, Path::new(path));
+            let show = ShowConfig {
+                options: &command_line,
+                config_file: absolute("tsconfig.json"),
+                file_names: parsed
+                    .file_names
+                    .iter()
+                    .map(|file| absolute(file))
+                    .collect(),
+                plan: None,
+                case_sensitive,
+            };
+            return Ok(CliOutput::new(show.to_json(), EXIT_SUCCESS));
+        }
         // Keep the caller's spelling for root-file diagnostics. The program
         // loader normalizes these against the host cwd for identity and I/O,
         // while TypeScript reports a missing explicit root as it was written
@@ -533,14 +545,35 @@ fn execute(
     // tsgo searches tsconfig.json upward from the current directory (even
     // under --ignoreConfig when no file is named) and prints its version and
     // help when there is none.
-    let config_file = find_config_file(host, &current_directory)?.ok_or_else(|| {
-        CliError::Usage(format!(
-            "cannot find {CONFIG_FILE_NAME} from {}",
-            current_directory.display()
-        ))
-    })?;
+    // Without a config file tsgo prints its version and help (or, under
+    // --showConfig, that it found none).
+    let Some(config_file) = find_config_file(host, &current_directory)? else {
+        if parsed.option_bool("showConfig") == Some(true) {
+            let diagnostic = Diagnostic::new(
+                None,
+                None,
+                None,
+                MessageChain::new(
+                    &gen::Cannot_find_a_tsconfig_json_file_at_the_current_directory_0,
+                    &[normalized_absolute_path(&current_directory, Path::new("."))],
+                ),
+            );
+            return rendered_diagnostics_with_exit(
+                route.format(&current_directory),
+                &BTreeMap::new(),
+                &[diagnostic],
+                EXIT_COMMAND_LINE,
+            );
+        }
+        let mut stdout = help.version();
+        stdout.push_str(&help.help(all));
+        return Ok(CliOutput::new(stdout, EXIT_COMMAND_LINE));
+    };
     let (plan, source_texts) =
         parse_config_file(host, &current_directory, &config_file, &command_line)?;
+    if show_config {
+        return Ok(show_config_of_plan(&plan, case_sensitive));
+    }
     execute_config(
         host,
         &current_directory,
@@ -577,10 +610,12 @@ fn execute_build(
     let pretty = parsed
         .option_bool("pretty")
         .unwrap_or_else(|| default_pretty(system));
+    let locale = command_line_locale(parsed.option_string("locale"));
     let format = Format {
         current_directory: &current_directory,
         case_sensitive: host.use_case_sensitive_file_names(),
         pretty,
+        locale,
     };
     if !parsed.errors.is_empty() {
         return rendered_diagnostics_with_exit(
@@ -591,9 +626,10 @@ fn execute_build(
         );
     }
     if parsed.option_bool("help") == Some(true) {
-        return Err(CliError::Usage(
-            "unsupported option \"--help\" (the README describes the options)".to_owned(),
-        ));
+        let help = Help::new(system, default_pretty(system), locale, TYPESCRIPT_VERSION);
+        let mut stdout = help.version();
+        stdout.push_str(&help.build_help());
+        return Ok(CliOutput::new(stdout, EXIT_SUCCESS));
     }
     if parsed.option_bool("watch") == Some(true) {
         return Err(CliError::Usage(
@@ -606,6 +642,7 @@ fn execute_build(
         system,
         testing,
         pretty,
+        locale,
         output_filesystem: &mut output_filesystem,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
@@ -1274,11 +1311,13 @@ pub(crate) fn render_error_summary_text(
     current_directory: &Path,
     source_texts: &DiagnosticSourceMap,
     diagnostics: &[Diagnostic],
+    locale: Locale,
 ) -> Result<String, CliError> {
     let current_directory = current_directory
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
-    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);
+    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts)
+        .with_catalog(locale.messages());
     let summarized: Vec<Diagnostic> = diagnostics
         .iter()
         .filter(|diagnostic| !is_command_line_selection_diagnostic(diagnostic.code()))
@@ -1320,7 +1359,8 @@ fn rendered_diagnostics_with_exit_work_status_and_summary(
         .current_directory
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
-    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);
+    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts)
+        .with_catalog(format.locale.messages());
     let text = if format.pretty {
         // tsgo's pretty reporter: each diagnostic with its context, then the
         // error summary (CreateDiagnosticReporter, CreateReportErrorSummary).
@@ -1359,6 +1399,7 @@ fn rendered_diagnostics_with_exit_work_status_and_summary(
             source_texts,
             current_directory,
             format.case_sensitive,
+            format.locale.messages(),
         )
         .map_err(|error| CliError::Render(error.to_string()))?;
         append_status_writes(&mut text, status_writes);
@@ -1381,6 +1422,64 @@ fn append_status_writes(output: &mut JsString, status_writes: &[JsString]) {
 
 fn is_command_line_selection_diagnostic(code: u32) -> bool {
     matches!(code, 5058 | 5081 | 5112)
+}
+
+/// tsgo `WriteConfigFile`: a `tsconfig.json` with the recommended settings
+/// and the command line's options in the current directory, or TS5054 when
+/// one is there. Either way the run succeeds.
+fn write_config_file(
+    system: &dyn System,
+    help: &Help<'_>,
+    format: Format<'_>,
+    options: &[(String, tsc_program::JsonValue)],
+) -> Result<CliOutput, CliError> {
+    let file = tsc_host::vfs::normalize(&format!("{}/tsconfig.json", system.current_directory()))
+        .map_err(|error| CliError::Host(error.to_string()))?;
+    if system.fs().is_file(&file) {
+        let diagnostic = Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(&gen::A_tsconfig_json_file_is_already_defined_at_0, &[file]),
+        );
+        return rendered_diagnostics_with_exit(
+            format,
+            &BTreeMap::new(),
+            &[diagnostic],
+            EXIT_SUCCESS,
+        );
+    }
+    let text = crate::init::generate_tsconfig(options, format.locale.messages());
+    // tsgo ignores a failed write.
+    let _ = system.fs().write_creating_dirs(&file, text.as_bytes());
+    let mut stdout = "\n".to_owned();
+    stdout.push_str(&help.header("Created a new tsconfig.json"));
+    stdout.push_str("You can learn more at https://aka.ms/tsconfig\n");
+    Ok(CliOutput::new(stdout, EXIT_SUCCESS))
+}
+
+/// tsgo `showConfig` for a config file: its options in effect, root files,
+/// references, specs and `compileOnSave`.
+fn show_config_of_plan(plan: &ConfigRootPlan, case_sensitive: bool) -> CliOutput {
+    let show = ShowConfig {
+        options: plan.options(),
+        config_file: plan.config_file_name().to_string_lossy().into_owned(),
+        file_names: plan
+            .file_names()
+            .iter()
+            .map(|file| file.to_string_lossy().into_owned())
+            .collect(),
+        plan: Some(plan),
+        case_sensitive,
+    };
+    CliOutput::new(show.to_json(), EXIT_SUCCESS)
+}
+
+/// The language of `--locale` (tsgo `ParsedCommandLine.Locale`): English
+/// unless a well-formed tag names a translation.
+fn command_line_locale(tag: Option<JsStr<'_>>) -> Locale {
+    tag.and_then(|tag| Locale::parse(&tag.to_string_lossy()))
+        .unwrap_or_default()
 }
 
 /// tsgo `defaultIsPretty`: FORCE_COLOR decides, then NO_COLOR and a dumb
@@ -1413,6 +1512,7 @@ fn format_plain_diagnostics(
     source_texts: &DiagnosticSourceMap,
     current_directory: &str,
     case_sensitive: bool,
+    catalog: Option<&dyn tsc_diagnostics::MessageCatalog>,
 ) -> Result<JsString, String> {
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
     let mut output = JsString::new();
@@ -1457,20 +1557,25 @@ fn format_plain_diagnostics(
         output.push_str(" TS");
         output.push_str(&diagnostic.code().to_string());
         output.push_str(": ");
-        append_plain_message(&diagnostic.message, 0, &mut output);
+        append_plain_message(&diagnostic.message, 0, &mut output, catalog);
         output.push('\n');
     }
     Ok(output)
 }
 
-fn append_plain_message(message: &MessageChain, indent: usize, output: &mut JsString) {
+fn append_plain_message(
+    message: &MessageChain,
+    indent: usize,
+    output: &mut JsString,
+    catalog: Option<&dyn tsc_diagnostics::MessageCatalog>,
+) {
     if indent != 0 {
         output.push('\n');
         output.push_str(&"  ".repeat(indent));
     }
-    output.push_js(message.text.as_js());
+    output.push_js(message.text_in(catalog).as_js());
     for child in &message.next {
-        append_plain_message(child, indent + 1, output);
+        append_plain_message(child, indent + 1, output, catalog);
     }
 }
 

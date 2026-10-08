@@ -698,16 +698,23 @@ struct OutputSanitizer<'a> {
 }
 
 impl OutputSanitizer<'_> {
+    /// tsgo `addOutputLine`: the version in quotes, the English and the
+    /// Czech `Version {0}` (the locale test) become `FakeTSVersion`.
     fn add(&mut self, line: &str) {
-        let cli_version = format!("Version {}", tsc_compiler::CLI_VERSION);
-        let version = format!("Version {}", tsc_types::TYPESCRIPT_VERSION);
+        let version = tsc_compiler::CLI_VERSION;
+        let czech = |version: &str| {
+            tsc_diagnostics::gen::Version_0
+                .format_in(tsc_compiler::locale::Locale::Czech.messages(), &[version])
+                .to_string_lossy()
+                .into_owned()
+        };
         let line = line
+            .replace(&format!("'{version}'"), &format!("'{FAKE_VERSION}'"))
             .replace(
-                &format!("'{}'", tsc_types::TYPESCRIPT_VERSION),
-                &format!("'{FAKE_VERSION}'"),
+                &format!("Version {version}"),
+                &format!("Version {FAKE_VERSION}"),
             )
-            .replace(&cli_version, &format!("Version {FAKE_VERSION}"))
-            .replace(&version, &format!("Version {FAKE_VERSION}"));
+            .replace(&czech(version), &czech(FAKE_VERSION));
         self.output.push(sanitize_internal_symbol_name(&line));
     }
 
