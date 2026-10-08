@@ -9,6 +9,10 @@
 //! then for each unit the output of `transpile.TranspileModule` (or
 //! `TranspileDeclaration`), its source map and, when there are any, the
 //! diagnostics as an error baseline.
+//!
+//! tsoptions and config (`tsoptions/commandlineparser_test.go`,
+//! `tsoptions/tsconfigparsing_test.go`): the command-line and tsconfig
+//! parsing baselines of the Go tests' tables ([`tsoptions`], [`tsconfig`]).
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -24,8 +28,13 @@ use tsc_harness::upstream_suites::transpile::{TranspileCase, TranspileConfigurat
 use super::errors_baseline::{self, InputFile};
 use super::{declaration_emit_extension, output_extension, panic_text, CASE_STACK_BYTES};
 
+mod go_json;
+mod tables;
+mod tsconfig;
+mod tsoptions;
+
 /// The suites [`run`] knows.
-pub const SUITES: [&str; 1] = ["transpile"];
+pub const SUITES: [&str; 3] = ["config", "transpile", "tsoptions"];
 
 /// How one produced (or expected) baseline compares with its reference.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -65,9 +74,115 @@ pub fn run(workspace: &Path, options: &SuiteRunOptions) -> Result<Vec<SuiteResul
     let profile =
         NativeProfile::load(workspace, &options.profile).map_err(|error| error.to_string())?;
     let mut results = run_transpile(&profile, options)?;
+    let reference = profile
+        .upstream_root()
+        .join("tsc/testdata/baselines/reference");
+    results.extend(run_rendered(
+        "tsoptions",
+        &reference.join("tsoptions"),
+        tsoptions::cases()
+            .into_iter()
+            .map(|case| {
+                let baseline = case.baseline.clone();
+                (
+                    baseline,
+                    Box::new(move || Ok(tsoptions::render(&case))) as Render,
+                )
+            })
+            .collect(),
+        options,
+    )?);
+    results.extend(run_rendered(
+        "config",
+        &reference.join("config"),
+        tsconfig::cases()
+            .into_iter()
+            .map(|case| {
+                let baseline = case.baseline.clone();
+                (
+                    baseline,
+                    Box::new(move || tsconfig::render(&case)) as Render,
+                )
+            })
+            .collect(),
+        options,
+    )?);
     results
         .sort_by(|left, right| (left.suite, &left.baseline).cmp(&(right.suite, &right.baseline)));
     Ok(results)
+}
+
+/// A baseline's renderer.
+type Render = Box<dyn FnOnce() -> Result<String, String> + Send>;
+
+/// Renders each `(baseline, render)` of a table-driven suite and compares it
+/// with its reference.
+fn run_rendered(
+    suite: &'static str,
+    reference_root: &Path,
+    cases: Vec<(String, Render)>,
+    options: &SuiteRunOptions,
+) -> Result<Vec<SuiteResult>, String> {
+    let mut results = Vec::new();
+    let mut produced = BTreeSet::new();
+    for (baseline, render) in cases {
+        if options
+            .filter
+            .as_deref()
+            .is_some_and(|filter| !baseline.contains(filter))
+        {
+            continue;
+        }
+        produced.insert(baseline.clone());
+        let actual = run_on_large_stack(render);
+        results.push(compare(
+            suite,
+            baseline,
+            actual,
+            reference_root,
+            options.dump.as_deref(),
+        ));
+    }
+    if options.filter.is_none() {
+        unproduced_references(suite, reference_root, &produced, &mut results)?;
+    }
+    Ok(results)
+}
+
+/// Every reference under `root` (by its path relative to it) that no case
+/// produced: a full run reports it as a mismatch.
+fn unproduced_references(
+    suite: &'static str,
+    root: &Path,
+    produced: &BTreeSet<String>,
+    results: &mut Vec<SuiteResult>,
+) -> Result<(), String> {
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(directory) = stack.pop() {
+        let entries = std::fs::read_dir(&directory)
+            .map_err(|error| format!("{}: {error}", directory.display()))?;
+        for entry in entries {
+            let path = entry.map_err(|error| error.to_string())?.path();
+            if path.is_dir() {
+                stack.push(path);
+                continue;
+            }
+            let name = path
+                .strip_prefix(root)
+                .expect("walked under the reference root")
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !produced.contains(&name) {
+                results.push(SuiteResult {
+                    suite,
+                    baseline: name,
+                    outcome: SuiteOutcome::Mismatch,
+                    detail: Some("tsc-rs does not produce this baseline".to_owned()),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 /// `TranspileBaselineRunner.RunTests`.
@@ -131,23 +246,7 @@ fn run_transpile(
     // A reference no configuration produced (only for a full run: a filter
     // leaves cases out).
     if options.filter.is_none() {
-        let entries = std::fs::read_dir(&reference_root)
-            .map_err(|error| format!("{}: {error}", reference_root.display()))?;
-        for entry in entries {
-            let name = entry
-                .map_err(|error| error.to_string())?
-                .file_name()
-                .to_string_lossy()
-                .into_owned();
-            if !produced.contains(&name) {
-                results.push(SuiteResult {
-                    suite: "transpile",
-                    baseline: name,
-                    outcome: SuiteOutcome::Mismatch,
-                    detail: Some("tsc-rs does not produce this baseline".to_owned()),
-                });
-            }
-        }
+        unproduced_references("transpile", &reference_root, &produced, &mut results)?;
     }
     Ok(results)
 }
@@ -301,9 +400,11 @@ fn compare(
     };
     if outcome != SuiteOutcome::Full {
         if let Some(dump) = dump {
-            let directory = dump.join(suite);
-            let _ = std::fs::create_dir_all(&directory);
-            let _ = std::fs::write(directory.join(&baseline), &actual);
+            let path = dump.join(suite).join(&baseline);
+            if let Some(directory) = path.parent() {
+                let _ = std::fs::create_dir_all(directory);
+            }
+            let _ = std::fs::write(path, &actual);
         }
     }
     SuiteResult {

@@ -1,40 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "slice": "H2.8b-CFG1d",
-  "typescript": "6.0.3",
-  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "typescript": "7.1.0-dev-19dadef8",
+  "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
-    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
-    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
-    "anchors": [
-      {
-        "symbol": "parseJsonConfigFileContentWorker",
-        "start_line": 39004,
-        "end_line": 39037,
-        "sha256": "5502c59602e7988cfff1e902ad41a8fea33657b2ab5d02eb4784f61b53f83b4d"
-      },
-      {
-        "symbol": "parseConfig",
-        "start_line": 39272,
-        "end_line": 39330,
-        "sha256": "1f07635fad8d6fc935271b45fea3dc451ccb10e65298a000fa858f5d5c2cd883"
-      },
-      {
-        "symbol": "parseOwnConfigOfJsonSourceFile",
-        "start_line": 39379,
-        "end_line": 39435,
-        "sha256": "3fcba2287729ac4bed96a5d9a4aa0c6d28736f435a868806e898131d4a304e13"
-      },
-      {
-        "symbol": "getDefaultTypeAcquisition",
-        "start_line": 39519,
-        "end_line": 39521,
-        "sha256": "7242c24bd5f0a08acc660f125398669958280f64ba92be870d81e2eabc0653d1"
-      }
-    ]
+    "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe()",
+    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show."
   },
-  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "2b147017e59655bd7e46c8e47b7838904516e65f706c76fd8c0da25f6fd84bc5",
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-root-options-inputs.json",
     "sha256": "fdb662a4e9834ad5825dc83068070674f5f123a2e8a517974b2de96684239ea7"
@@ -76,18 +48,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -231,13 +200,11 @@
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -378,18 +345,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -530,18 +494,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -684,18 +645,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -838,18 +796,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -992,18 +947,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -1161,18 +1113,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -1326,18 +1275,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -1481,18 +1427,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -1654,18 +1597,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -1828,18 +1768,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -1981,18 +1918,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -2173,18 +2107,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -2324,18 +2255,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -2495,18 +2423,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -2646,18 +2571,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -2811,18 +2733,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -2989,18 +2908,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -3145,13 +3061,11 @@
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -3293,8 +3207,7 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
@@ -3466,18 +3379,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -3620,18 +3530,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -3771,18 +3678,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -3942,18 +3846,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -4107,8 +4008,7 @@
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -4294,18 +4194,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -4467,18 +4364,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -4618,18 +4512,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -4769,18 +4660,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -4920,18 +4808,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -5091,18 +4976,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -5269,18 +5151,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -5436,18 +5315,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -5608,18 +5484,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -5775,13 +5648,11 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
@@ -5951,18 +5822,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -6122,13 +5990,11 @@
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -6280,18 +6146,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",
@@ -6439,18 +6302,15 @@
         "acquisition_option_probes": [
           {
             "name": "enable",
-            "state": "value",
-            "value": false
+            "state": "absent"
           },
           {
             "name": "include",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "exclude",
-            "state": "list",
-            "elements": []
+            "state": "absent"
           },
           {
             "name": "disableFilenameBasedTypeAcquisition",

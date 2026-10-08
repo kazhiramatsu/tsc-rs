@@ -1,5 +1,6 @@
-//! Compare the TypeScript 7.1 suites outside the compiler runner (transpile)
-//! with a vendored native profile's reference baselines.
+//! Compare the TypeScript 7.1 suites outside the compiler runner (transpile,
+//! command-line and tsconfig parsing) with a vendored native profile's
+//! reference baselines.
 //!
 //! usage: suites-ts71 [--profile <name>] [--filter <path substring>]
 //!                    [--no-report] [--dump <directory>]

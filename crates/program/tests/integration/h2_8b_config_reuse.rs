@@ -223,7 +223,7 @@ fn config_reuse_matches_typescript_host_and_cache_observations() {
             .unwrap();
     let oracle: Value =
         serde_json::from_slice(include_bytes!("../fixtures/h2-8b-config-reuse.json")).unwrap();
-    assert_eq!(oracle["typescript"], "6.0.3");
+    assert_eq!(oracle["typescript"], "7.1.0-dev-19dadef8");
     assert_eq!(oracle["config_parse_attempts"], 60);
     let cases = inputs["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 26);

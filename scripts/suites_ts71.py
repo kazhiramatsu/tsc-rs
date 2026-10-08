@@ -6,9 +6,10 @@ usage: suites_ts71.py [--profile <name>] [--filter <path substring>]
 
 Runs target/release/suites-ts71 (build it first: cargo build --release -p
 tsc-rs-conformance --bin suites-ts71), which renders every baseline of the
-transpile suite (testrunner/transpile_runner.go), compares it with the
-vendored reference byte for byte and writes
-target/suites-ts71/<profile>/report.json. --dump writes the produced
+transpile suite (testrunner/transpile_runner.go) and of the command-line and
+tsconfig parsing tests (tsoptions/commandlineparser_test.go,
+tsoptions/tsconfigparsing_test.go), compares it with the vendored reference
+byte for byte and writes target/suites-ts71/<profile>/report.json. --dump writes the produced
 baselines that differ under <directory>/<suite>/.
 
 The ratchet ratchets/ts71/suites-<profile>.tsv lists every baseline of the

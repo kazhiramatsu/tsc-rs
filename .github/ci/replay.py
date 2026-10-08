@@ -9,8 +9,9 @@ CONTRIBUTING.md or LICENSE selects nothing; any other change, and an unknown
 change range, selects both `rust` (formatting, Clippy and the Rust test
 targets) and `conformance-ts71` (the TypeScript 7.1 conformance comparison:
 the error, emit, type, symbol, source-map and trace baselines on one
-checker, then the suites outside the compiler runner (transpile), each
-checked against its ratchet in ratchets/ts71/). `gate ci` requires every
+checker, then the suites outside the compiler runner (transpile,
+command-line and tsconfig parsing), each checked against its ratchet in
+ratchets/ts71/). `gate ci` requires every
 selected job to have succeeded and every unselected job to have been
 skipped.
 """

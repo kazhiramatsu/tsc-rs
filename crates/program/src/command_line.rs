@@ -11,8 +11,9 @@ use tsc_types::CompilerOptions;
 
 use crate::config::{
     bag_compiler_options, config_named_option_choices, config_named_string_option_choices,
-    config_program_path, effective_discovery_options, ConfigOption, ConfigOptionBag,
-    ConfigParseError, ConfigTypedListElement, ConfigTypedOptionValue,
+    config_program_path, effective_discovery_options, invalid_dot_dot_after_recursive_wildcard,
+    ConfigOption, ConfigOptionBag, ConfigParseError, ConfigTypedListElement,
+    ConfigTypedOptionValue,
 };
 use crate::config_options::{
     build_option_declaration_ignore_case, compiler_option_declaration,
@@ -108,6 +109,8 @@ struct Parser<'a> {
     current_directory: JsStr<'a>,
     case_sensitive: bool,
     read_file: &'a ResponseFileReader<'a>,
+    /// Declarations the compile command line knows besides the catalog's.
+    extra_declarations: &'static [CompilerOptionDeclaration],
     options: Vec<(String, Value)>,
     file_names: Vec<String>,
     errors: Vec<Diagnostic>,
@@ -121,7 +124,21 @@ pub fn parse_command_line(
     case_sensitive: bool,
     read_file: &ResponseFileReader<'_>,
 ) -> ParsedCommandLine {
+    parse_command_line_with_declarations(args, current_directory, case_sensitive, read_file, &[])
+}
+
+/// tsgo `ParseCommandLineTestWorker`: the compile command line over the
+/// catalog's declarations followed by `extra_declarations` (the tests'
+/// tsconfig-only `optionName`).
+pub fn parse_command_line_with_declarations(
+    args: &[String],
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+    read_file: &ResponseFileReader<'_>,
+    extra_declarations: &'static [CompilerOptionDeclaration],
+) -> ParsedCommandLine {
     let mut parser = Parser::new(Mode::Compile, current_directory, case_sensitive, read_file);
+    parser.extra_declarations = extra_declarations;
     parser.parse_strings(args);
     ParsedCommandLine {
         options: parser.options,
@@ -238,6 +255,7 @@ impl<'a> Parser<'a> {
             current_directory,
             case_sensitive,
             read_file,
+            extra_declarations: &[],
             options: Vec::new(),
             file_names: Vec::new(),
             errors: Vec::new(),
@@ -270,12 +288,16 @@ impl<'a> Parser<'a> {
             .find(|(short, _)| *short == lower)
             .map_or(lower.as_str(), |(_, full)| *full);
         let found = match self.mode {
-            Mode::Compile => {
-                compiler_option_declaration_ignore_case(full).map(|declaration| OptionRef {
+            Mode::Compile => compiler_option_declaration_ignore_case(full)
+                .or_else(|| {
+                    self.extra_declarations
+                        .iter()
+                        .find(|declaration| declaration.name().eq_ignore_ascii_case(full))
+                })
+                .map(|declaration| OptionRef {
                     declaration,
                     group: Group::Compiler,
-                })
-            }
+                }),
             Mode::Build => {
                 build_option_declaration_ignore_case(full).map(|declaration| OptionRef {
                     declaration,
@@ -404,7 +426,12 @@ impl<'a> Parser<'a> {
                         &[declaration.name().to_owned()],
                     );
                 }
-                match option_spelling_suggestion(name, COMPILER_OPTION_DECLARATIONS) {
+                match option_spelling_suggestion(
+                    name,
+                    COMPILER_OPTION_DECLARATIONS
+                        .iter()
+                        .chain(self.extra_declarations),
+                ) {
                     Some(suggestion) => fileless(
                         &gen::Unknown_compiler_option_0_Did_you_mean_1,
                         &[argument.to_owned(), suggestion.name().to_owned()],
@@ -573,7 +600,17 @@ impl<'a> Parser<'a> {
                                 }
                             }
                             _ => {
-                                if !element.is_empty() {
+                                // tsgo `validateJsonOptionValue` passes the
+                                // spec message without its argument, so the
+                                // text keeps `'{0}'` (tsconfigparsing.go:387-391).
+                                if descriptor.validate_file_spec()
+                                    && invalid_dot_dot_after_recursive_wildcard(element)
+                                {
+                                    errors.push(fileless(
+                                        &gen::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_0,
+                                        &[],
+                                    ));
+                                } else if !element.is_empty() {
                                     elements.push(Value::String(element.into()));
                                 }
                             }
@@ -835,6 +872,56 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // tsgo's commandLineParsing baselines `parseCommandLine/option of type
+    // string …` (the tests' tsconfig-only `optionName`).
+    #[test]
+    fn extra_tsconfig_only_declarations_parse_like_tsgo_tests() {
+        static EXTRA: [CompilerOptionDeclaration; 1] = [CompilerOptionDeclaration::tsconfig_only(
+            "optionName",
+            CompilerOptionValueKind::String,
+        )];
+        let parse_extra = |args: &[&str]| {
+            let args = args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
+            parse_command_line_with_declarations(&args, "/work".into(), true, &|_| None, &EXTRA)
+        };
+        let parsed = parse_extra(&["--optionName", "null", "0.ts"]);
+        assert!(parsed.errors.is_empty());
+        assert_eq!(parsed.options, [("optionName".to_owned(), Value::Null)]);
+        assert_eq!(parsed.file_names, ["0.ts"]);
+        let parsed = parse_extra(&["--optionName", "hello", "0.ts"]);
+        assert_eq!(
+            messages(&parsed.errors),
+            [(
+                6064,
+                "Option 'optionName' can only be specified in 'tsconfig.json' file or set to 'null' on command line."
+                    .to_owned()
+            )]
+        );
+        assert!(parsed.options.is_empty());
+        assert_eq!(parsed.file_names, ["0.ts"]);
+    }
+
+    // tsgo's commandLineParsing baseline `parseCommandLine/errors on invalid
+    // excludeDirectories`: validateJsonOptionValue passes the spec message
+    // without its argument.
+    #[test]
+    fn invalid_watch_file_specs_keep_the_message_placeholder() {
+        let parsed = parse(&["--excludeDirectories", "**/../*", "0.ts"]);
+        assert_eq!(
+            parsed.options,
+            [("excludeDirectories".to_owned(), Value::Array(Vec::new()))]
+        );
+        assert_eq!(
+            messages(&parsed.errors),
+            [(
+                5065,
+                "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'."
+                    .to_owned()
+            )]
+        );
+        assert_eq!(parsed.file_names, ["0.ts"]);
     }
 
     // tsgo 7.1.0-dev-19dadef8, `tsgo -p . <args>` (scratchpad p36g/probe).

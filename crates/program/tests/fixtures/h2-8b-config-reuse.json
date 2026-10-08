@@ -1,33 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "slice": "H2.8b-CFG1e",
-  "typescript": "6.0.3",
+  "typescript": "7.1.0-dev-19dadef8",
+  "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
-    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
-    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
-    "anchors": [
-      {
-        "symbol": "getExtendedConfig",
-        "start_line": 39460,
-        "end_line": 39500,
-        "sha256": "545d6ab16e97cc943150aa4dd577a88bb693aa81ca82a86f7a75328b37d9084f"
-      },
-      {
-        "symbol": "performCompilation",
-        "start_line": 132860,
-        "end_line": 132899,
-        "sha256": "9de1e7224a4630e06f3161f7a5d54c05bc8ec06b4b5de77b4d1e4bd55e7488b7"
-      },
-      {
-        "symbol": "executeCommandLineWorker-config-cache",
-        "start_line": 132652,
-        "end_line": 132654,
-        "sha256": "4b1453b132b9c0fb04c485f87da6877934d1eadbfa99e0fc943b4be3672525f5"
-      }
-    ]
+    "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe()",
+    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show."
   },
-  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
-  "observer_sha256": "1a7e01668ac3e0aa1d2ebd0ec56dd4f3ab858f6286470396f66e66e2e1375b11",
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-reuse-inputs.json",
     "sha256": "235c5bc62a47efc8e63dd8451a5cb4fccd4a0d307fa58e84c3536a1b7d3f5b9e"
@@ -74,11 +53,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -146,11 +121,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -201,11 +172,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -292,11 +259,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -386,11 +349,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -432,11 +391,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -470,11 +425,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -508,11 +459,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -558,11 +505,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -632,11 +575,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -723,11 +662,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -813,11 +748,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -881,11 +812,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -932,11 +859,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1001,11 +924,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1091,11 +1010,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1136,11 +1051,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1172,11 +1083,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1210,11 +1117,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1260,11 +1163,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1330,11 +1229,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1417,11 +1312,7 @@
             "configFilePath": "/project/tsconfig.json"
           },
           "watch_options": null,
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1511,11 +1402,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1627,11 +1514,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"
@@ -1692,11 +1575,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "C:/project/main.ts"
@@ -1737,11 +1616,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "//server/share/project/main.ts"
@@ -1782,11 +1657,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "https://example.test/project/main.ts"
@@ -1847,11 +1718,7 @@
           "watch_options": {
             "watchFile": 4
           },
-          "type_acquisition": {
-            "enable": false,
-            "include": [],
-            "exclude": []
-          },
+          "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
             "/project/main.ts"

@@ -252,16 +252,14 @@ fn exact_lookup_and_required_typed_metadata_are_exposed() {
 }
 
 #[test]
-fn jsconfig_defaults_preserve_upstream_object_insertion_order() {
+fn jsconfig_defaults_follow_tsgo() {
+    // tsgo getDefaultCompilerOptions (tsoptions/tsconfigparsing.go:927-939)
+    // has no allowSyntheticDefaultImports default.
     assert_eq!(
         jsconfig_defaults(),
         &[
             ("allowJs", JsConfigDefaultValue::Boolean(true)),
             ("maxNodeModuleJsDepth", JsConfigDefaultValue::Number(2)),
-            (
-                "allowSyntheticDefaultImports",
-                JsConfigDefaultValue::Boolean(true)
-            ),
             ("skipLibCheck", JsConfigDefaultValue::Boolean(true)),
             ("noEmit", JsConfigDefaultValue::Boolean(true)),
         ]
