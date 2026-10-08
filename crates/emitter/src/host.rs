@@ -161,10 +161,37 @@ pub trait EmitHost {
         let directory = paths::directory_path(referencing.path());
         let target = paths::combine_paths(&directory, &reference.file_name);
         let target = self.canonical_output_path(target.as_js());
-        self.source_file_ids().iter().find_map(|&id| {
-            let candidate = self.source_file(id)?;
-            (candidate.canonical_path() == target.as_js()).then_some(candidate)
-        })
+        self.source_file_ids()
+            .iter()
+            .find_map(|&id| {
+                let candidate = self.source_file(id)?;
+                (candidate.canonical_path() == target.as_js()).then_some(candidate)
+            })
+            // tsgo GetSourceFileForResolvedModule: a referenced project's
+            // source is the output loaded in its place.
+            .or_else(|| {
+                self.project_reference_redirect(target.as_js())
+                    .and_then(|id| self.source_file(id))
+            })
+    }
+
+    /// tsgo `GetParseFileRedirect`: the program file loaded in place of a
+    /// referenced project's source (its output declaration file), by the
+    /// source's canonical path. Hosts without project references have none.
+    fn project_reference_redirect(&self, _canonical_source: JsStr<'_>) -> Option<SourceFileId> {
+        None
+    }
+
+    /// tsgo `GetSourceOfProjectReferenceIfOutputIncluded`: the source name
+    /// of a referenced project that a program file was loaded in place of.
+    fn project_reference_source_of_output(&self, _id: SourceFileId) -> Option<JsString> {
+        None
+    }
+
+    /// tsgo `GetProjectReferenceFromSource(path).OutputDts`, by the source's
+    /// canonical path.
+    fn project_reference_output_of_source(&self, _canonical_source: JsStr<'_>) -> Option<JsString> {
+        None
     }
 
     /// tsc-port: getEmitModuleFormatOfFileWorker @6.0.3

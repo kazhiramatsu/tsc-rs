@@ -277,14 +277,22 @@ pub trait EmitModuleSpecifierHost {
     fn redirect_targets(&self, _file_path: tsc_types::JsStr<'_>) -> Vec<tsc_types::JsString> {
         Vec::new()
     }
-    fn get_redirect_from_source_file(
+    /// tsgo `GetProjectReferenceFromSource(path).OutputDts`: the output
+    /// declaration file of a referenced project's source.
+    fn project_reference_output_of_source(
         &self,
         _file_name: tsc_types::JsStr<'_>,
     ) -> Option<tsc_types::JsString> {
         None
     }
-    fn is_source_of_project_reference_redirect(&self, _file_name: tsc_types::JsStr<'_>) -> bool {
-        false
+    /// tsgo `GetSourceOfProjectReferenceIfOutputIncluded`: the referenced
+    /// project's source a program file (its output declaration file) was
+    /// loaded in place of.
+    fn project_reference_source_of_output(
+        &self,
+        _file_name: tsc_types::JsStr<'_>,
+    ) -> Option<tsc_types::JsString> {
+        None
     }
     /// The Import-kind file-include reasons for an imported module path —
     /// the existing-specifier-reuse arm of `computeModuleSpecifiers`

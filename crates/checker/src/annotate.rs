@@ -1315,7 +1315,8 @@ impl<'a> CheckerState<'a> {
                 if let Some(cached) = *self.links.symbol_cold().unique_es_symbol_type.get(symbol) {
                     return Ok(cached);
                 }
-                let mut escaped_text = tsc_types::JsString::from("__@");
+                let mut escaped_text =
+                    tsc_types::JsString::from(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX);
                 escaped_text.push_js(self.binder.symbol(symbol).escaped_name.as_js());
                 escaped_text.push_str(&format!("@{}", symbol.index()));
                 let escaped_name = tsc_types::EscapedName::from_escaped_value(escaped_text);

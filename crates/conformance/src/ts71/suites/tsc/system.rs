@@ -15,6 +15,7 @@ use tsc_host::vfs::{
 };
 use tsc_incremental::{SemanticDiagnosticsState, SignatureUpdateKind};
 
+use super::patience::diff_text;
 use super::{build_info, Op, Scenario};
 
 /// tsgo `tscLibPath`.
@@ -816,18 +817,6 @@ pub(super) fn diff_for_incremental(incremental: &TestSystem, clean: &TestSystem)
         ));
     }
     diff
-}
-
-/// A unified diff of two texts (tsgo `baseline.DiffText`).
-fn diff_text(old_name: &str, new_name: &str, old: &str, new: &str) -> String {
-    let mut text = format!("--- {old_name}\n+++ {new_name}\n");
-    for line in old.lines() {
-        text.push_str(&format!("-{line}\n"));
-    }
-    for line in new.lines() {
-        text.push_str(&format!("+{line}\n"));
-    }
-    text
 }
 
 /// tsgo `SanitizeInternalSymbolName`: `\u{FFFD}@name@123` becomes

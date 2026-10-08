@@ -400,6 +400,7 @@ mod tests {
             next_present: !next.is_empty(),
             next,
             related: Vec::new(),
+            repopulate: None,
         }
     }
 

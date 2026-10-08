@@ -1041,11 +1041,37 @@ fn undefined_files_presence_suppresses_no_input_diagnostics() {
     assert!(plan.file_names().is_empty());
 }
 
+/// tsgo applyExtendedConfig: `files: null` is written, so the base config's
+/// files are not inherited and the default include applies (checked against
+/// tsgo 7.1.0-dev-19dadef8 `--showConfig`; tsc 6.0.3 inherited them).
 #[test]
-fn undefined_duplicate_include_does_not_block_inheritance() {
+fn own_null_files_blocks_inheritance() {
+    let host = MemoryConfigHost::default()
+        .with_file("/project/base.json", r#"{"files":["main.ts"]}"#)
+        .with_directory_files(&["/project/main.ts", "/project/src/main.ts"]);
+    let plan = parse_config_root_plan(
+        &host,
+        request(
+            "/project/tsconfig.json",
+            r#"{"extends":"./base.json","files":null}"#,
+        ),
+    )
+    .expect("own null files");
+    assert_eq!(plan.raw()["files"], json!(null).into());
+    assert_eq!(
+        plan.file_names(),
+        ["/project/main.ts", "/project/src/main.ts"]
+    );
+}
+
+/// A written property blocks the inheritance even without a value (tsgo
+/// applyExtendedConfig's `Has`; checked against tsgo 7.1.0-dev-19dadef8
+/// `--showConfig`, where the default include applies).
+#[test]
+fn undefined_duplicate_include_blocks_inheritance() {
     let host = MemoryConfigHost::default()
         .with_file("/project/base.json", r#"{"include":["base/**/*.ts"]}"#)
-        .with_directory_files(&["/project/base/main.ts"]);
+        .with_directory_files(&["/project/base/main.ts", "/project/own/main.ts"]);
     let plan = parse_config_root_plan(
         &host,
         request(
@@ -1053,9 +1079,13 @@ fn undefined_duplicate_include_does_not_block_inheritance() {
             r#"{"extends":"./base.json","include":["own/**/*.ts"],"include":}"#,
         ),
     )
-    .expect("undefined include allows the inherited spec through");
+    .expect("an include without a value blocks the inherited spec");
 
-    assert_eq!(plan.raw()["include"], json!(["base/**/*.ts"]).into());
+    assert_eq!(plan.raw()["include"], json!(null).into());
+    assert_eq!(
+        plan.file_names(),
+        ["/project/base/main.ts", "/project/own/main.ts"]
+    );
     assert_eq!(plan.errors().last().unwrap().code(), 5024);
 }
 
@@ -1727,8 +1757,12 @@ fn published_compiler_options_strip_jsonc_prototype_state_recursively() {
         .all(|option| !option.name.contains("tsc-rs:jsonc-prototype")));
 }
 
+/// tsgo applyExtendedConfig reads the extended config's own keys (a JSONC
+/// `__proto__` is an ordinary key), and any key the extending config writes,
+/// even without a value, blocks the inheritance (checked against tsgo
+/// 7.1.0-dev-19dadef8 `--showConfig`).
 #[test]
-fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() {
+fn jsonc_prototype_keys_neither_supply_nor_block_inheritance() {
     let inherited = MemoryConfigHost::default()
         .with_file(
             "/project/base.json",
@@ -1739,11 +1773,11 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
         &inherited,
         request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
     )
-    .expect("prototype files inherited through applyExtendedConfig");
-    assert_eq!(plan.file_names(), ["/project/inherited.ts"]);
+    .expect("prototype files are not the base config's files");
+    assert_eq!(plan.file_names(), ["/project/default.ts"]);
     assert_eq!(
         &scalar_json(&(plan.raw())),
-        &json!({"extends": "./base.json", "files": ["inherited.ts"]})
+        &json!({"extends": "./base.json"})
     );
 
     let blocked = MemoryConfigHost::default()
@@ -1756,15 +1790,12 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
             r#"{"__proto__":{"files":[]},"extends":"./base.json"}"#,
         ),
     )
-    .expect("prototype files block inherited files without becoming own raw");
-    assert_eq!(plan.file_names(), ["/project/default.ts"]);
-    assert_eq!(
-        &scalar_json(&(plan.raw())),
-        &json!({"extends": "./base.json"})
-    );
+    .expect("a prototype key does not block the inherited files");
+    assert_eq!(plan.file_names(), ["/project/base.ts"]);
 
-    let own_undefined_files =
-        MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":["base.ts"]}"#);
+    let own_undefined_files = MemoryConfigHost::default()
+        .with_file("/project/base.json", r#"{"files":["base.ts"]}"#)
+        .with_directory_files(&["/project/default.ts"]);
     let plan = parse_config_root_plan(
         &own_undefined_files,
         request(
@@ -1772,7 +1803,7 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
             r#"{"extends":"./base.json","__proto__":{"files":["proto.ts"]},"files":}"#,
         ),
     )
-    .expect("own undefined files shadow the prototype without blocking the base config");
+    .expect("own files without a value block the base config's files");
     assert_eq!(
         plan.root_parse_diagnostics()
             .iter()
@@ -1787,8 +1818,8 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
             .collect::<Vec<_>>(),
         [5024]
     );
-    assert_eq!(plan.raw()["files"], json!(["base.ts"]).into());
-    assert_eq!(plan.file_names(), ["/project/base.ts"]);
+    assert_eq!(plan.raw()["files"], json!(null).into());
+    assert_eq!(plan.file_names(), ["/project/default.ts"]);
 
     let own_undefined = MemoryConfigHost::default()
         .with_file("/project/base.json", r#"{"exclude":["base"]}"#)
@@ -1800,14 +1831,7 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
             r#"{"extends":"./base.json","__proto__":{"exclude":["proto"]},"exclude":,"include":["**/*"]}"#,
         ),
     )
-    .expect("own undefined excludes shadow the prototype without blocking the base config");
-    assert_eq!(
-        plan.root_parse_diagnostics()
-            .iter()
-            .map(|error| error.code())
-            .collect::<Vec<_>>(),
-        [1109]
-    );
+    .expect("own exclude without a value blocks the base config's exclude");
     assert_eq!(
         plan.errors()
             .iter()
@@ -1815,11 +1839,8 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
             .collect::<Vec<_>>(),
         [5024]
     );
-    assert_eq!(plan.raw()["exclude"], json!(["base"]).into());
-    assert_eq!(
-        own_undefined.requested_excludes.borrow().as_slice(),
-        [Some(vec!["base".to_owned()])]
-    );
+    assert_eq!(plan.raw()["exclude"], json!(null).into());
+    assert_eq!(own_undefined.requested_excludes.borrow().as_slice(), [None]);
 }
 
 #[test]
@@ -2396,65 +2417,59 @@ fn exact_drive_root_extends_is_resolved_as_a_disk_path() {
     assert_eq!(plan.file_names(), ["c:/x.ts"]);
 }
 
+/// tsgo applyExtendedConfig inherits an array only: a scalar or a string
+/// `files` is not inherited, and an array of nulls is no array once tsgo's
+/// JSON conversion drops its nulls (checked against tsgo
+/// 7.1.0-dev-19dadef8 `--showConfig`).
 #[test]
-fn inherited_invalid_specs_follow_typescripts_raw_array_like_recovery() {
-    let scalar = MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":true}"#);
-    let plan = parse_config_root_plan(
-        &scalar,
-        request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
-    )
-    .expect("a truthy scalar extended files value maps to an empty raw array");
-    assert_eq!(
-        plan.errors()
-            .iter()
-            .map(|error| error.code())
-            .collect::<Vec<_>>(),
-        [5024]
-    );
-    assert_eq!(plan.raw()["files"], json!([]).into());
-    assert!(plan.file_names().is_empty());
-    assert!(scalar.requested_includes.borrow().is_empty());
+fn inherited_specs_are_arrays_as_tsgo_converts_them() {
+    for base in [
+        r#"{"files":true}"#,
+        r#"{"files":"foo.ts"}"#,
+        r#"{"files":[null]}"#,
+    ] {
+        let host = MemoryConfigHost::default()
+            .with_file("/project/base.json", base)
+            .with_directory_files(&["/project/default.ts"]);
+        let plan = parse_config_root_plan(
+            &host,
+            request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
+        )
+        .expect("extended config");
+        assert_eq!(plan.raw()["files"], json!(null).into(), "{base}");
+        assert_eq!(plan.file_names(), ["/project/default.ts"], "{base}");
+    }
 
-    let string =
-        MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":"foo.ts"}"#);
+    let mixed =
+        MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":[null,"a.ts",1]}"#);
     let plan = parse_config_root_plan(
-        &string,
+        &mixed,
         request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
     )
-    .expect("a string extended files value maps through its array-like characters");
-    assert_eq!(
-        plan.errors()
-            .iter()
-            .map(|error| error.code())
-            .collect::<Vec<_>>(),
-        [5024]
-    );
-    assert_eq!(
-        plan.raw()["files"],
-        json!(["f", "o", "o", ".", "t", "s"]).into()
-    );
-    assert_eq!(
-        plan.file_names(),
-        [
-            "/project/f",
-            "/project/o",
-            "/project",
-            "/project/t",
-            "/project/s"
-        ]
-    );
+    .expect("an array keeps its non-null elements, paths rebased");
+    assert_eq!(plan.raw()["files"], json!(["a.ts", 1.0]).into());
+    assert_eq!(plan.file_names(), ["/project/a.ts"]);
+}
 
-    let null_element =
-        MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":[null]}"#);
+/// tsgo prints the include specs as written in TS18003, a non-string one
+/// too.
+#[test]
+fn no_inputs_names_inherited_non_string_include_specs() {
+    let host = MemoryConfigHost::default().with_file("/project/base.json", r#"{"include":[1]}"#);
     let plan = parse_config_root_plan(
-        &null_element,
+        &host,
         request("/project/tsconfig.json", r#"{"extends":"./base.json"}"#),
     )
-    .expect("a falsey raw array element maps through combinePaths as an empty path");
-    assert!(plan.errors().is_empty());
-    assert_eq!(plan.raw()["files"], json!([""]).into());
-    assert_eq!(plan.file_names(), ["/project"]);
-    assert!(null_element.requested_includes.borrow().is_empty());
+    .expect("extended config");
+    let no_inputs = plan
+        .errors()
+        .iter()
+        .find(|error| error.code() == 18003)
+        .expect("TS18003");
+    assert_eq!(
+        no_inputs.message_text().to_string_lossy(),
+        "No inputs were found in config file '/project/tsconfig.json'. Specified 'include' paths were '[1]' and 'exclude' paths were '[]'."
+    );
 }
 
 #[test]

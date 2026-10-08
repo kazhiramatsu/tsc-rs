@@ -216,6 +216,73 @@ pub struct PreparedSourceFile {
     /// present (empty when nothing was retained) and excluded from content
     /// equality by [`PreparsedSyntax`]'s content-independent `PartialEq`.
     preparsed_syntax: PreparsedSyntax,
+    /// The referenced project the file belongs to, when it does.
+    project_reference: Option<ProjectReferenceFile>,
+}
+
+/// The options of a referenced project its files are checked under (tsgo
+/// `getCompilerOptionsForFile` with the project as the redirect).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReferencedProjectOptions {
+    /// `GetEmitModuleKind()` and `GetModuleResolutionKind()`.
+    pub emit_module_kind: i32,
+    pub module_resolution_kind: i32,
+    /// The effective `resolvePackageJsonExports` and `...Imports`.
+    pub resolve_package_json_exports: bool,
+    pub resolve_package_json_imports: bool,
+    /// `ShouldPreserveConstEnums()`.
+    pub preserves_const_enums: bool,
+    /// `CommonSourceDirectory()` and `outDir`, absolute.
+    pub common_source_directory: JsString,
+    pub out_dir: Option<JsString>,
+}
+
+impl ReferencedProjectOptions {
+    pub(crate) fn of(
+        plan: &crate::ConfigRootPlan,
+        current_directory: JsStr<'_>,
+        case_sensitive: bool,
+    ) -> Self {
+        let options = plan.compiler_options();
+        let module_resolution_kind = options.emit_module_resolution_kind();
+        let package_maps = matches!(module_resolution_kind, 3 | 99 | 100);
+        Self {
+            emit_module_kind: options.emit_module_kind(),
+            module_resolution_kind,
+            resolve_package_json_exports: options
+                .resolve_package_json_exports
+                .unwrap_or(package_maps),
+            resolve_package_json_imports: options
+                .resolve_package_json_imports
+                .unwrap_or(package_maps),
+            preserves_const_enums: options.should_preserve_const_enums(),
+            // A project has a config, so its files are not consulted.
+            common_source_directory: crate::common_source_directory(
+                options,
+                Some(plan.config_file_name()),
+                &[],
+                current_directory,
+                case_sensitive,
+            ),
+            out_dir: options
+                .out_dir
+                .as_ref()
+                .filter(|directory| !directory.is_empty())
+                .map(|directory| {
+                    crate::js_path::normalized_absolute_path(directory.as_js(), current_directory)
+                }),
+        }
+    }
+}
+
+/// A file of a referenced project (tsgo `getRedirectForResolution`): the
+/// project's options, and whether the file's own path is an output
+/// declaration file of the project (`GetProjectReferenceFromOutputDts`; a
+/// symlinked spelling of one is not).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProjectReferenceFile {
+    pub options: Arc<ReferencedProjectOptions>,
+    pub output_declaration: bool,
 }
 
 impl PreparedSourceFile {
@@ -257,6 +324,7 @@ impl PreparedSourceFile {
             is_external_module: None,
             package_scope: None,
             preparsed_syntax: PreparsedSyntax::empty(),
+            project_reference: None,
         }
     }
 
@@ -339,6 +407,17 @@ impl PreparedSourceFile {
     pub fn with_package_scope(mut self, package_json: CanonicalPath) -> Self {
         self.package_scope = Some(package_json);
         self
+    }
+
+    pub fn with_project_reference(mut self, project_reference: ProjectReferenceFile) -> Self {
+        self.project_reference = Some(project_reference);
+        self
+    }
+
+    /// The referenced project the file belongs to (tsgo
+    /// `getRedirectForResolution`), when it does.
+    pub fn project_reference(&self) -> Option<&ProjectReferenceFile> {
+        self.project_reference.as_ref()
     }
 
     pub fn with_inclusion_reasons(mut self, reasons: Vec<crate::SourceInclusionReason>) -> Self {
@@ -1624,6 +1703,55 @@ impl PreparedProgram {
 
     pub fn path_context(&self) -> &PathContext {
         &self.path_context
+    }
+
+    /// tsgo `getParseFileRedirect`: the output declaration file the program
+    /// loads in place of a referenced project's source, by the source's
+    /// normalized absolute name.
+    pub fn project_reference_output_of_source(&self, file_name: JsStr<'_>) -> Option<JsStr<'_>> {
+        let key = crate::js_path::file_name_key(
+            file_name,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        let source = CanonicalPath::from_js_normalized(key.as_js()).ok()?;
+        self.program_options()
+            .project_references()?
+            .output_for_source(&source)?
+            .output_dts()
+    }
+
+    /// tsgo `Program.CommonSourceDirectory()`: the rootDir, else the
+    /// config's directory, else the common directory of the files the
+    /// program may emit.
+    pub fn common_source_directory(&self) -> JsString {
+        let config_file = self
+            .program_options()
+            .config_file_path()
+            .map(|path| path.display());
+        let current_directory = self.current_directory().display();
+        let case_sensitive = self.path_context.use_case_sensitive_file_names();
+        let files = self
+            .source_files()
+            .iter()
+            .filter(|source| {
+                crate::source_file_may_be_emitted_for_options(
+                    source.path().display(),
+                    source.may_be_emitted(),
+                    &self.compiler_options,
+                    config_file,
+                    current_directory,
+                    case_sensitive,
+                )
+            })
+            .map(|source| source.path().display())
+            .collect::<Vec<_>>();
+        crate::common_source_directory(
+            &self.compiler_options,
+            config_file,
+            &files,
+            current_directory,
+            case_sensitive,
+        )
     }
 
     pub fn compiler_options(&self) -> &CompilerOptions {

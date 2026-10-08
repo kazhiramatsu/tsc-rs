@@ -60,6 +60,7 @@ fn metadata(
         may_be_emitted,
         implied_node_format,
         implied_node_format_for_emit: implied_node_format,
+        project_reference: None,
     }
 }
 

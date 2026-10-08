@@ -129,6 +129,7 @@ fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
         may_be_emitted: false,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let file_metadata = [AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(1),
@@ -136,6 +137,7 @@ fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
         may_be_emitted: true,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let run = |skip_default_lib_check| {
         check_program_with_authoritative_modules_at(
@@ -1276,6 +1278,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
         may_be_emitted: false,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let file_metadata = [AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(1),
@@ -1283,6 +1286,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
         may_be_emitted: true,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let options = CompilerOptions {
         no_emit: Some(true),
@@ -1365,6 +1369,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
         may_be_emitted: true,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let result = check_program_with_authoritative_modules_at_cache_mode(
         &[],
@@ -6905,6 +6910,7 @@ fn library_related_information_follows_program_membership_across_entry_families(
         may_be_emitted,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     };
     let lib_metadata = [metadata(0, &libs[0], false)];
     let file_metadata = [metadata(1, &files[0], true)];
@@ -7015,6 +7021,7 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
         may_be_emitted: false,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let file_metadata = files
         .iter()
@@ -7025,6 +7032,7 @@ fn sharded_checkers_publish_the_serial_result_over_the_shared_snapshot() {
             may_be_emitted: true,
             implied_node_format: None,
             implied_node_format_for_emit: None,
+            project_reference: None,
         })
         .collect::<Vec<_>>();
     let options = CompilerOptions {
@@ -7194,6 +7202,7 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
         may_be_emitted: false,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let file_metadata = files
         .iter()
@@ -7204,6 +7213,7 @@ fn order_guard_replays_last_union_member_inference_at_every_width() {
             may_be_emitted: true,
             implied_node_format: None,
             implied_node_format_for_emit: None,
+            project_reference: None,
         })
         .collect::<Vec<_>>();
     let options = CompilerOptions {
@@ -7450,6 +7460,7 @@ fn assert_order_guard_shape(
         may_be_emitted: false,
         implied_node_format: None,
         implied_node_format_for_emit: None,
+        project_reference: None,
     }];
     let file_metadata = files
         .iter()
@@ -7460,6 +7471,7 @@ fn assert_order_guard_shape(
             may_be_emitted: true,
             implied_node_format: None,
             implied_node_format_for_emit: None,
+            project_reference: None,
         })
         .collect::<Vec<_>>();
     let options = CompilerOptions {

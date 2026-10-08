@@ -599,13 +599,12 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
         self.primary.redirect_targets(file_path)
     }
 
-    fn get_redirect_from_source_file(&self, file_name: JsStr<'_>) -> Option<JsString> {
-        self.primary.get_redirect_from_source_file(file_name)
+    fn project_reference_output_of_source(&self, file_name: JsStr<'_>) -> Option<JsString> {
+        self.primary.project_reference_output_of_source(file_name)
     }
 
-    fn is_source_of_project_reference_redirect(&self, file_name: JsStr<'_>) -> bool {
-        self.primary
-            .is_source_of_project_reference_redirect(file_name)
+    fn project_reference_source_of_output(&self, file_name: JsStr<'_>) -> Option<JsString> {
+        self.primary.project_reference_source_of_output(file_name)
     }
 
     fn import_include_reasons(&self, imported_path: JsStr<'_>) -> Vec<EmitImportIncludeReason> {

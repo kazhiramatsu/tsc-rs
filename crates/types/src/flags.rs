@@ -1082,6 +1082,11 @@ impl InternalSymbolName {
     pub const INSTANTIATION_EXPRESSION: &'static str = "__instantiationExpression";
     /// tsc InternalSymbolName.ImportAttributes
     pub const IMPORT_ATTRIBUTES: &'static str = "__importAttributes";
+    /// The start of a late-bound name (a unique symbol's property name,
+    /// `<prefix><description>@<symbol id>`): tsgo's internal symbol name
+    /// prefix and `@`. tsgo's prefix is the byte 0xFE, which no UTF-16 text
+    /// holds; its output reads it as U+FFFD, the spelling here.
+    pub const LATE_BOUND_PREFIX: &'static str = "\u{FFFD}@";
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]

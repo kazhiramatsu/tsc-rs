@@ -87,6 +87,14 @@ impl<'p> IncrementalRequest<'p> {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct IncrementalCheckFacts {
     pub files: Vec<IncrementalFileFacts>,
+    /// The planner's declaration signatures reported file-less rows: the
+    /// check of the files then defers none of them, but tsgo's
+    /// `GetGlobalDiagnostics` sees them when it writes the build info.
+    pub planner_global_rows: bool,
+    /// The check of the files reported file-less rows (deferred into the
+    /// rows of the file being checked, even when an unchecked JavaScript
+    /// file's filter then drops them).
+    pub check_global_rows: bool,
 }
 
 /// tsgo parser/references.go `collectExternalModuleReferences`: the module

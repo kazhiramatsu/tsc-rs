@@ -183,7 +183,8 @@ pub use prepared::{
     PackageJsonType, PackageMetadata, PackageRedirectFile, PathContext, PathMapping,
     PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
     PreparedProgramMode, PreparedRoot, PreparedSourceFile, PreparsedSourceFile, PreparsedSyntax,
-    ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ResolutionTable, SourceFileId,
+    ProgramConfigFile, ProgramConfigSpan, ProgramOptions, ProjectReferenceFile,
+    ReferencedProjectOptions, ResolutionTable, SourceFileId,
 };
 pub use project_references::{
     resolve_config_file_name_of_project_reference, resolve_project_references,

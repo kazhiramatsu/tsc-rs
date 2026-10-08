@@ -38,6 +38,7 @@ fn with_focused_emit_resolver(
             may_be_emitted: true,
             implied_node_format: None,
             implied_node_format_for_emit: None,
+            project_reference: None,
         })
         .collect::<Vec<_>>();
     check_program_with_authoritative_modules_at_for_emit(

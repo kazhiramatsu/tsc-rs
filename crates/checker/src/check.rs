@@ -8631,7 +8631,8 @@ impl<'a> CheckerState<'a> {
         let exports = self.get_exports_of_symbol(parent)?;
         let own = self.binder.symbol(symbol).escaped_name;
         let usable = |name: tsc_types::EscapedName| {
-            !name.starts_with("__@") && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
+            !name.starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX)
+                && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
         };
         if usable(own) {
             if let Some(&exported) = exports.get(own) {

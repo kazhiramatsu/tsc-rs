@@ -4736,12 +4736,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 })?
         };
         let file_name = path.display();
-        // The output of a referenced project takes its project's options
-        // (tsgo getCompilerOptionsForFile): its format and its requests
-        // follow them.
-        let options_for_file = self
-            .project_for_resolution(path.canonical())
-            .map_or(self.compiler_options, |project| project.compiler_options());
+        // A file of a referenced project takes its project's options (tsgo
+        // getCompilerOptionsForFile): its format and its requests follow
+        // them.
+        let project = self.project_for_resolution(path.canonical());
+        let options_for_file =
+            project.map_or(self.compiler_options, |project| project.compiler_options());
         let implied = implied_node_format(file_name, package_scope.as_ref(), options_for_file);
         let implied_for_emit =
             implied_node_format_for_emit(file_name, package_scope.as_ref(), options_for_file);
@@ -4766,6 +4766,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             ),
         };
         prepared = prepared.with_implied_node_formats(implied, implied_for_emit);
+        // The checker reads the project's options too.
+        if let Some(project) = project {
+            let output_declaration = self
+                .project_references()
+                .and_then(|references| references.source_for_output(path.canonical()))
+                .is_some();
+            prepared = prepared.with_project_reference(crate::ProjectReferenceFile {
+                options: Arc::clone(project.referenced_options()),
+                output_declaration,
+            });
+        }
         if is_json_source(path.canonical())
             && self.compiler_options.out_dir.is_none()
             && self.compiler_options.out_file.is_none()
@@ -4775,6 +4786,20 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             prepared = prepared
                 .with_may_be_emitted(false)
                 .with_may_emit_forced_declaration(true);
+        }
+        // tsgo sourceFileMayBeEmitted: a source of a referenced project (one
+        // its output does not replace, such as a JSON file) is that
+        // project's to emit.
+        if self
+            .project_references()
+            .and_then(|references| references.output_for_source(path.canonical()))
+            .is_some()
+        {
+            // A forced declaration emit still covers it.
+            let forced = prepared.may_emit_forced_declaration();
+            prepared = prepared
+                .with_may_be_emitted(false)
+                .with_may_emit_forced_declaration(forced);
         }
         if let Some(package_scope) = package_scope {
             prepared =

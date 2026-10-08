@@ -18,7 +18,9 @@ use std::sync::Arc;
 use tsc_binder::{
     escape_leading_underscores, node_util, unescape_leading_underscores, SymbolId, SymbolTable,
 };
-use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
+use tsc_diagnostics::{
+    gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain, Repopulate,
+};
 use tsc_emitter::EmitExportContainerMode;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -128,6 +130,133 @@ pub(crate) enum ModuleResolutionMode {
     CommonJs,
     EsNext,
     Unknown,
+}
+
+/// tsgo `CreateModeMismatchDetails`: how a CommonJS file becomes an ES
+/// module, by its extension (a `.ts` or `.js` file can be renamed) and its
+/// package scope (`untyped_package_json`: the scope's package.json when it
+/// states no `type`).
+pub fn mode_mismatch_details(
+    file_name: JsStr<'_>,
+    untyped_package_json: Option<JsStr<'_>>,
+) -> MessageChain {
+    // tsgo TryGetExtensionFromPath: the declaration extensions precede
+    // `.ts`.
+    let target_extension = if file_name.ends_with(".ts") && !file_name.ends_with(".d.ts") {
+        Some(".mts")
+    } else if file_name.ends_with(".js") {
+        Some(".mjs")
+    } else {
+        None
+    };
+    match (untyped_package_json, target_extension) {
+        (Some(package_json), Some(target_extension)) => MessageChain::new_js_parts(
+            &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_add_the_field_type_module_to_1,
+            &[target_extension.into(), package_json],
+        ),
+        (Some(package_json), None) => MessageChain::new_js_parts(
+            &diagnostics::To_convert_this_file_to_an_ECMAScript_module_add_the_field_type_module_to_0,
+            &[package_json],
+        ),
+        (None, Some(target_extension)) => MessageChain::new_js_parts(
+            &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_create_a_local_package_json_file_with_type_module,
+            &[target_extension.into()],
+        ),
+        (None, None) => MessageChain::new_js_parts(
+            &diagnostics::To_convert_this_file_to_an_ECMAScript_module_create_a_local_package_json_file_with_type_module,
+            &[],
+        ),
+    }
+}
+
+/// What tsgo `CreateModuleNotFoundChain` reads from the program about a
+/// module request that found no typed module.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ModuleNotFoundFacts<'a> {
+    /// The resolution's `AlternateResult`.
+    pub alternate_result: Option<JsStr<'a>>,
+    /// Whether the program resolved a module of the package's `@types`
+    /// package.
+    pub types_package_exists: bool,
+    /// Whether the program resolved a declaration file of the package.
+    pub package_bundles_types: bool,
+}
+
+/// tsgo `CreateModuleNotFoundChain`, with tsc's arm for
+/// `moduleResolution: node10` (kind 2).
+pub fn module_not_found_details(
+    module_reference: JsStr<'_>,
+    package_name: JsStr<'_>,
+    facts: ModuleNotFoundFacts<'_>,
+    module_resolution_kind: i32,
+) -> MessageChain {
+    if let Some(alternate_result) = facts.alternate_result {
+        if module_resolution_kind == 2 {
+            return MessageChain::new_js_parts(
+                &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
+                &[alternate_result],
+            );
+        }
+        let library_name = if alternate_result.contains("/node_modules/@types/") {
+            crate::concat_js(&[
+                &"@types/",
+                &tsc_program::mangle_scoped_package_name(package_name),
+            ])
+        } else {
+            package_name.to_owned()
+        };
+        return MessageChain::new_js_parts(
+            &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
+            &[alternate_result, library_name.as_js()],
+        );
+    }
+    let mangled = tsc_program::mangle_scoped_package_name(package_name);
+    if facts.types_package_exists {
+        MessageChain::new_js_parts(
+            &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
+            &[package_name, mangled.as_js()],
+        )
+    } else if facts.package_bundles_types {
+        MessageChain::new_js_parts(
+            &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
+            &[package_name, module_reference],
+        )
+    } else {
+        MessageChain::new_js_parts(
+            &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
+            &[module_reference, mangled.as_js()],
+        )
+    }
+}
+
+/// tsgo `core.ResolutionMode` as the build info records it.
+fn resolution_mode_number(mode: ModuleResolutionMode) -> u32 {
+    match mode {
+        ModuleResolutionMode::CommonJs => 1,
+        ModuleResolutionMode::EsNext => 99,
+        ModuleResolutionMode::Unknown => 0,
+    }
+}
+
+/// The module options a file is checked under (tsgo
+/// `getCompilerOptionsForFile`).
+#[derive(Clone, Copy, Debug)]
+struct FileModuleOptions {
+    emit_module_kind: i32,
+    module_resolution_kind: i32,
+    package_json_exports: bool,
+    package_json_imports: bool,
+}
+
+impl FileModuleOptions {
+    /// tsc importSyntaxAffectsModuleResolution. Node16 and NodeNext always
+    /// participate; Bundler does so only while at least one package-map
+    /// feature is effectively enabled.
+    fn import_syntax_affects_module_resolution(self) -> bool {
+        (3..=99).contains(&self.module_resolution_kind)
+            || (matches!(self.module_resolution_kind, 3 | 99 | 100)
+                && (self.package_json_exports || self.package_json_imports))
+    }
 }
 
 pub(crate) const EMIT_HELPER_EXTENDS: u32 = 1 << 0;
@@ -2404,6 +2533,18 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(false);
             }
+            // tsgo: a declaration file of a referenced project takes its
+            // module format from that project's options
+            // (`GetEmitModuleFormatOfFile`).
+            if target_mode.is_none() && self.binder.source(file_index).is_declaration_file {
+                if let Some(reference) = self.project_reference_of_file(file_index) {
+                    if usage_mode == ModuleResolutionMode::EsNext
+                        && (5..=99).contains(&reference.options.emit_module_kind)
+                    {
+                        return Ok(false);
+                    }
+                }
+            }
         }
         if !self.options.allow_synthetic_default_imports_effective() {
             return Ok(false);
@@ -4447,6 +4588,10 @@ impl<'a> CheckerState<'a> {
                             &[(extension)],
                         );
                     }
+                } else if resolved.resolved_using_ts_extension && should_rewrite {
+                    if let Some(error_node) = error_node {
+                        self.check_rewrite_into_referenced_project(error_node, resolved.file_index);
+                    }
                 }
             }
             let root = source.root;
@@ -4483,6 +4628,7 @@ impl<'a> CheckerState<'a> {
                         };
                         self.report_implicit_any_module(
                             /*is_error*/ false,
+                            location,
                             error_node,
                             module_reference,
                             &untyped,
@@ -4568,6 +4714,7 @@ impl<'a> CheckerState<'a> {
                             .strict_option_value(self.options.no_implicit_any);
                     self.report_implicit_any_module(
                         is_error,
+                        location,
                         error_node,
                         module_reference,
                         untyped,
@@ -4636,6 +4783,7 @@ impl<'a> CheckerState<'a> {
                             .strict_option_value(self.options.no_implicit_any);
                     self.report_implicit_any_module(
                         is_error,
+                        location,
                         error_node,
                         module_reference,
                         &untyped,
@@ -4692,7 +4840,12 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(alternate_result) = alternate_result {
                 let details = self
-                    .alternate_result_module_not_found_detail(alternate_result, module_reference);
+                    .alternate_result_module_not_found_detail(alternate_result, module_reference)
+                    .with_repopulate(Repopulate::ModuleNotFound {
+                        module_reference: module_reference.to_owned(),
+                        mode: resolution_mode_number(self.resolution_mode_for_usage(location)),
+                        package_name: None,
+                    });
                 let chain =
                     MessageChain::new_js(module_not_found_error, &[(module_reference.to_owned())])
                         .with_next(vec![details]);
@@ -4819,42 +4972,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:12801-12828
     fn create_mode_mismatch_details(&self, location: NodeId) -> Option<MessageChain> {
         let file_name = &self.binder.source_of_node(location).file_name;
-        let target_extension = if file_name.ends_with(".tsx") || file_name.ends_with(".jsx") {
-            None
-        } else if Self::try_extract_ts_extension(file_name) == Some(".ts")
-            && !Self::is_declaration_file_name(file_name)
+        // tsgo gives the details to `.ts`, `.js`, `.tsx` and `.jsx` files
+        // (TryGetExtensionFromPath).
+        if !((file_name.ends_with(".ts") && !file_name.ends_with(".d.ts"))
+            || file_name.ends_with(".js")
+            || file_name.ends_with(".tsx")
+            || file_name.ends_with(".jsx"))
         {
-            Some(".mts")
-        } else if file_name.ends_with(".js")
-            && !file_name.ends_with(".mjs")
-            && !file_name.ends_with(".cjs")
-        {
-            Some(".mjs")
-        } else {
             return None;
-        };
-        let package_scope = self.package_scope_module_type_and_path_for_file_name(file_name);
-        let untyped_scope = package_scope
-            .as_ref()
-            .filter(|(_, module_type)| *module_type == PackageJsonModuleType::Missing);
-        match (untyped_scope, target_extension) {
-            (Some((package_json, _)), Some(target_extension)) => Some(MessageChain::new_js(
-                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_add_the_field_type_module_to_1,
-                &[JsString::from(target_extension), package_json.clone()],
-            )),
-            (Some((package_json, _)), None) => Some(MessageChain::new_js(
-                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_add_the_field_type_module_to_0,
-                std::slice::from_ref(package_json),
-            )),
-            (None, Some(target_extension)) => Some(MessageChain::new_js(
-                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_create_a_local_package_json_file_with_type_module,
-                &[JsString::from(target_extension)],
-            )),
-            (None, None) => Some(MessageChain::new_js(
-                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_create_a_local_package_json_file_with_type_module,
-                &[],
-            )),
         }
+        let package_scope = self.package_scope_module_type_and_path_for_file_name(file_name);
+        let untyped_package_json = package_scope
+            .as_ref()
+            .filter(|(_, module_type)| *module_type == PackageJsonModuleType::Missing)
+            .map(|(package_json, _)| package_json.as_js());
+        Some(
+            mode_mismatch_details(file_name.as_js(), untyped_package_json)
+                .with_repopulate(Repopulate::ModeMismatch),
+        )
     }
 
     /// tsrs-native: containment scope for a resolver-suppressed module
@@ -5840,25 +5975,15 @@ impl<'a> CheckerState<'a> {
         alternate_result: impl Into<JsStr<'path_text>>,
         package_name: impl Into<JsStr<'path_text>>,
     ) -> MessageChain {
-        let alternate_result = alternate_result.into();
         let package_name = package_name.into();
-        if self.options.emit_module_resolution_kind() == 2 {
-            return MessageChain::new_js(
-                &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
-                &[(alternate_result.to_owned())],
-            );
-        }
-        let library_name = if alternate_result.contains("/node_modules/@types/") {
-            crate::concat_js(&[
-                &"@types/",
-                &(Self::mangle_scoped_package_name(package_name)),
-            ])
-        } else {
-            package_name.to_owned()
-        };
-        MessageChain::new_js(
-            &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
-            &[(alternate_result.to_owned()), (library_name)],
+        module_not_found_details(
+            package_name,
+            package_name,
+            ModuleNotFoundFacts {
+                alternate_result: Some(alternate_result.into()),
+                ..ModuleNotFoundFacts::default()
+            },
+            self.options.emit_module_resolution_kind(),
         )
     }
 
@@ -5875,6 +6000,7 @@ impl<'a> CheckerState<'a> {
     fn report_implicit_any_module<'n>(
         &mut self,
         is_error: bool,
+        location: NodeId,
         error_node: NodeId,
         module_reference: impl Into<JsStr<'n>>,
         resolution: &UntypedModuleResolution,
@@ -5888,27 +6014,22 @@ impl<'a> CheckerState<'a> {
             .as_ref()
             .filter(|_| !Self::is_external_module_name_relative(module_reference))
             .map(|package_name| {
-                if let Some(alternate_result) = &resolution.alternate_result {
-                    self.alternate_result_module_not_found_detail(
-                        alternate_result,
-                        package_name,
-                    )
-                } else if resolution.types_package_exists {
-                    MessageChain::new_js(
-                        &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
-                        &[(package_name.clone()), (Self::mangle_scoped_package_name(package_name))],
-                    )
-                } else if resolution.package_bundles_types {
-                    MessageChain::new_js(
-                        &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
-                        &[(package_name.clone()), (module_reference.to_owned())],
-                    )
-                } else {
-                    MessageChain::new_js(
-                        &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
-                        &[(module_reference.to_owned()), (Self::mangle_scoped_package_name(package_name))],
-                    )
-                }
+                module_not_found_details(
+                    module_reference,
+                    package_name.as_js(),
+                    ModuleNotFoundFacts {
+                        alternate_result: resolution.alternate_result.as_ref().map(JsString::as_js),
+                        types_package_exists: resolution.types_package_exists,
+                        package_bundles_types: resolution.package_bundles_types,
+                    },
+                    self.options.emit_module_resolution_kind(),
+                )
+                .with_repopulate(Repopulate::ModuleNotFound {
+                    module_reference: module_reference.to_owned(),
+                    mode: resolution_mode_number(self.resolution_mode_for_usage(location)),
+                    package_name: (package_name.as_js() != module_reference)
+                        .then(|| package_name.clone()),
+                })
             });
         let mut chain = MessageChain::new_js(
             &diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type,
@@ -7107,14 +7228,99 @@ impl<'a> CheckerState<'a> {
         Self::module_path_basename(name).contains(".")
     }
 
-    /// tsc importSyntaxAffectsModuleResolution over the represented
-    /// option set. Node16 and NodeNext always participate; Bundler does so
-    /// only while at least one package-map feature is effectively enabled.
+    /// tsgo `getRedirectForResolution`: the referenced project a program
+    /// file belongs to.
+    pub(crate) fn project_reference_of_file(
+        &self,
+        file_index: usize,
+    ) -> Option<&tsc_program::ProjectReferenceFile> {
+        self.authoritative_project_references
+            .get(file_index)?
+            .as_ref()
+    }
+
+    /// The module options a file is checked under (tsgo
+    /// `getCompilerOptionsForFile`): its referenced project's, else the
+    /// program's.
+    fn module_options_for_file(&self, file_index: usize) -> FileModuleOptions {
+        match self.project_reference_of_file(file_index) {
+            Some(reference) => FileModuleOptions {
+                emit_module_kind: reference.options.emit_module_kind,
+                module_resolution_kind: reference.options.module_resolution_kind,
+                package_json_exports: reference.options.resolve_package_json_exports,
+                package_json_imports: reference.options.resolve_package_json_imports,
+            },
+            None => self.program_module_options(),
+        }
+    }
+
+    fn program_module_options(&self) -> FileModuleOptions {
+        FileModuleOptions {
+            emit_module_kind: self.options.emit_module_kind(),
+            module_resolution_kind: self.options.emit_module_resolution_kind(),
+            package_json_exports: self.package_json_exports_enabled(),
+            package_json_imports: self.package_json_imports_enabled(),
+        }
+    }
+
+    /// tsc importSyntaxAffectsModuleResolution over the program's options.
     pub(crate) fn import_syntax_affects_module_resolution(&self) -> bool {
-        let module_resolution = self.options.emit_module_resolution_kind();
-        (3..=99).contains(&module_resolution)
-            || (matches!(module_resolution, 3 | 99 | 100)
-                && (self.package_json_exports_enabled() || self.package_json_imports_enabled()))
+        self.program_module_options()
+            .import_syntax_affects_module_resolution()
+    }
+
+    /// tsgo: a rewritten import resolving into a referenced project is
+    /// unsafe when the projects' output directories are not placed as their
+    /// source directories are (TS2878).
+    fn check_rewrite_into_referenced_project(&mut self, error_node: NodeId, file_index: usize) {
+        let Some(reference) = self.project_reference_of_file(file_index) else {
+            return;
+        };
+        let Some(provider) = self.authoritative_module_provider else {
+            return;
+        };
+        let (Some(own_root), Some(paths)) =
+            (provider.common_source_directory(), provider.path_context())
+        else {
+            return;
+        };
+        let current_directory = paths.current_directory().display();
+        let relative = |from: JsStr<'_>, to: JsStr<'_>| {
+            tsc_program::relative_path_from_directory(
+                tsc_program::get_normalized_absolute_path(from, current_directory).as_js(),
+                tsc_program::get_normalized_absolute_path(to, current_directory).as_js(),
+                paths.use_case_sensitive_file_names(),
+            )
+        };
+        let other_root = reference.options.common_source_directory.as_js();
+        let own_out = self
+            .options
+            .out_dir
+            .as_ref()
+            .filter(|directory| !directory.is_empty())
+            .map_or(own_root.as_js(), JsString::as_js);
+        let other_out = reference
+            .options
+            .out_dir
+            .as_ref()
+            .map_or(other_root, JsString::as_js);
+        if relative(own_root.as_js(), other_root) != relative(own_out, other_out) {
+            self.error_at_js(
+                Some(error_node),
+                &diagnostics::This_import_path_is_unsafe_to_rewrite_because_it_resolves_to_another_project_and_the_relative_path_between_the_projects_output_files_is_not_the_same_as_the_relative_path_between_its_input_files,
+                &[],
+            );
+        }
+    }
+
+    /// tsgo's exception to TS2748: a const enum declared in an output
+    /// declaration file of a referenced project that preserves const enums
+    /// (`GetProjectReferenceFromOutputDts(...).ShouldPreserveConstEnums()`).
+    pub(crate) fn declared_in_const_enum_preserving_project(&self, declaration: NodeId) -> bool {
+        self.project_reference_of_file(self.binder.file_index_of_node(declaration))
+            .is_some_and(|reference| {
+                reference.output_declaration && reference.options.preserves_const_enums
+            })
     }
 
     /// tsc getModeForUsageLocationWorker / getEmitSyntaxForUsageLocationWorker.
@@ -7124,7 +7330,9 @@ impl<'a> CheckerState<'a> {
         if let Some(mode) = self.resolution_mode_override_for_usage(location) {
             return mode;
         }
-        if !self.import_syntax_affects_module_resolution() {
+        // tsgo GetModeForUsageLocation reads the file's options.
+        let file_options = self.module_options_for_file(self.binder.file_index_of_node(location));
+        if !file_options.import_syntax_affects_module_resolution() {
             return ModuleResolutionMode::Unknown;
         }
         if self.authoritative_module_provider.is_some()
@@ -7136,7 +7344,7 @@ impl<'a> CheckerState<'a> {
             return ModuleResolutionMode::CommonJs;
         }
         if self.has_import_call_ancestor(location) {
-            let module_kind = self.options.emit_module_kind();
+            let module_kind = file_options.emit_module_kind;
             if (100..=199).contains(&module_kind) || module_kind == 200 {
                 return ModuleResolutionMode::EsNext;
             }
@@ -7178,7 +7386,9 @@ impl<'a> CheckerState<'a> {
                 .implied_node_format_for_emit(location)
                 .unwrap_or(ModuleResolutionMode::Unknown);
         }
-        let module_kind = self.options.emit_module_kind();
+        let module_kind = self
+            .module_options_for_file(self.binder.file_index_of_node(location))
+            .emit_module_kind;
         if (100..=199).contains(&module_kind) {
             return self
                 .implied_node_format_for_file(location)
@@ -7403,7 +7613,9 @@ impl<'a> CheckerState<'a> {
                 return mode;
             }
         }
-        let module_kind = self.options.emit_module_kind();
+        let module_kind = self
+            .module_options_for_file(self.binder.file_index_of_node(location))
+            .emit_module_kind;
         if module_kind == 1 {
             ModuleResolutionMode::CommonJs
         } else if (100..=199).contains(&module_kind) {
@@ -9510,10 +9722,8 @@ impl<'a> CheckerState<'a> {
                 );
             }
 
-            // tsc's getRedirectFromOutput exception is absent for the
-            // in-memory program graph: there are no project-reference
-            // output redirects, so an ambient declaration reached through
-            // the resolved alias is always the declaration being consumed.
+            // tsgo: an ambient const enum declared in the output of a
+            // referenced project that preserves const enums is allowed.
             if self.options.verbatim_module_syntax == Some(true)
                 && target_flags.intersects(SymbolFlags::CONST_ENUM)
                 && self
@@ -9524,6 +9734,7 @@ impl<'a> CheckerState<'a> {
                         self.binder
                             .flags_of(declaration)
                             .intersects(tsc_types::NodeFlags::AMBIENT)
+                            && !self.declared_in_const_enum_preserving_project(declaration)
                     })
             {
                 self.error_at_js(

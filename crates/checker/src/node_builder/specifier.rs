@@ -1042,11 +1042,21 @@ pub(crate) fn get_module_specifiers_with_cache_info(
         });
     };
 
-    let info = get_info(&state.binder.source_of_node(importing_file).file_name, host);
+    // tsgo GetModuleSpecifiersWithInfo: an output declaration file of a
+    // referenced project is named as the source it was loaded in place of
+    // (GetSourceOfProjectReferenceIfOutputIncluded), the importing file too.
+    let source_name = |file_name: &JsString| {
+        host.project_reference_source_of_output(file_name.as_js())
+            .unwrap_or_else(|| file_name.clone())
+    };
+    let info = get_info(
+        &source_name(&state.binder.source_of_node(importing_file).file_name),
+        host,
+    );
     let module_paths = cache_probe.module_paths.unwrap_or_else(|| {
         get_all_module_paths_worker(
             &info,
-            &state.binder.source(module_source_file).file_name,
+            &source_name(&state.binder.source(module_source_file).file_name),
             host,
             compiler_options,
             options,
@@ -1637,10 +1647,9 @@ pub(crate) fn for_each_file_name_of_module<'path, T>(
     let imported_file_name = imported_file_name.into();
     let cwd = host.get_current_directory();
     let case_sensitive = host.use_case_sensitive_file_names();
-    let reference_redirect = host
-        .is_source_of_project_reference_redirect(imported_file_name)
-        .then(|| host.get_redirect_from_source_file(imported_file_name))
-        .flatten();
+    // tsgo GetEachFileNameOfModule: a referenced project's source is named
+    // by its output declaration file first.
+    let reference_redirect = host.project_reference_output_of_source(imported_file_name);
     let imported_path = canonical_host_path(imported_file_name, host);
     let mut imported_file_names = Vec::new();
     if let Some(reference_redirect) = &reference_redirect {

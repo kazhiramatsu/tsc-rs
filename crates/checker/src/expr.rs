@@ -494,7 +494,10 @@ impl<'a> CheckerState<'a> {
         let ambient = self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
         let valid_type_only_use =
             self.is_in_type_query(node) || self.is_in_ambient_or_type_node(node);
-        if ambient && !valid_type_only_use {
+        if ambient
+            && !valid_type_only_use
+            && !self.declared_in_const_enum_preserving_project(declaration)
+        {
             let option_name = if self.options.verbatim_module_syntax == Some(true) {
                 "verbatimModuleSyntax"
             } else {

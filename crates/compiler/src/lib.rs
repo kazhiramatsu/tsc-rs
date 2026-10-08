@@ -662,6 +662,34 @@ impl EmitHost for PreparedEmitHost<'_> {
         self.symlinks.directories.clone()
     }
 
+    fn project_reference_source_of_output(&self, id: SourceFileId) -> Option<JsString> {
+        self.prepared
+            .source_file(id)?
+            .project_reference_source_paths()
+            .last()
+            .map(|path| path.display().to_owned())
+    }
+
+    fn project_reference_output_of_source(&self, canonical_source: JsStr<'_>) -> Option<JsString> {
+        let source = tsc_program::CanonicalPath::from_js_normalized(canonical_source).ok()?;
+        self.prepared
+            .program_options()
+            .project_references()?
+            .output_for_source(&source)?
+            .output_dts()
+            .map(JsStr::to_owned)
+    }
+
+    fn project_reference_redirect(&self, canonical_source: JsStr<'_>) -> Option<SourceFileId> {
+        self.source_files.iter().copied().find(|&id| {
+            self.prepared.source_file(id).is_some_and(|source| {
+                source.project_reference_source_paths().iter().any(|path| {
+                    self.canonical_output_path(path.display()).as_js() == canonical_source
+                })
+            })
+        })
+    }
+
     fn redirect_targets(&self, canonical_path: JsStr<'_>) -> Vec<JsString> {
         // The copies of a package the loader redirected to this source by
         // their exact package identity (`PreparedSourceFile::
@@ -786,6 +814,19 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
 
     fn redirect_targets(&self, canonical_path: JsStr<'_>) -> Vec<JsString> {
         self.prepared.redirect_targets(canonical_path)
+    }
+
+    fn project_reference_redirect(&self, canonical_source: JsStr<'_>) -> Option<SourceFileId> {
+        self.prepared.project_reference_redirect(canonical_source)
+    }
+
+    fn project_reference_source_of_output(&self, id: SourceFileId) -> Option<JsString> {
+        self.prepared.project_reference_source_of_output(id)
+    }
+
+    fn project_reference_output_of_source(&self, canonical_source: JsStr<'_>) -> Option<JsString> {
+        self.prepared
+            .project_reference_output_of_source(canonical_source)
     }
 
     fn current_directory(&self) -> JsStr<'_> {
@@ -923,6 +964,20 @@ impl PreparedModuleProvider<'_> {
 }
 
 impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
+    fn common_source_directory(&self) -> Option<JsString> {
+        Some(self.prepared.common_source_directory())
+    }
+
+    fn path_context(&self) -> Option<&tsc_program::PathContext> {
+        Some(self.prepared.path_context())
+    }
+
+    fn is_project_reference_source(&self, file_name: JsStr<'_>) -> bool {
+        self.prepared
+            .project_reference_output_of_source(file_name)
+            .is_some()
+    }
+
     fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
         Some(self.prepared.program_options())
     }
@@ -4138,6 +4193,7 @@ fn project_source(
         implied_node_format_for_emit: source
             .implied_node_format_for_emit()
             .map(checker_resolution_mode),
+        project_reference: source.project_reference().cloned(),
     };
     // The planning parse used the process default (or the API fact); the
     // checker adopts it only when its own expectation matches.

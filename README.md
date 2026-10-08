@@ -666,6 +666,7 @@ a response file.
 | `--listFiles` | Print the names of the files in the program after the diagnostics. |
 | `--explainFiles` | Print why each file is in the program (its include reasons, redirects and module format), as `tsgo --explainFiles` does. |
 | `--listFilesOnly` | Print the names of the files without emitting or type-checking (syntactic and option diagnostics only); not accepted with `-b`. |
+| `--diagnostics`, `--extendedDiagnostics` | Print the compilation's statistics as `tsgo` does: files, lines and the configuration, parse, check and total times (with `-b`, the project counts and the aggregates). |
 | `--pretty false` | Use plain diagnostic output. |
 | `--ignoreConfig` | Compile explicit files without loading a discovered configuration. |
 | `--newLine lf` | Use LF line endings in generated output; `crlf` is also accepted. |
@@ -1062,6 +1063,10 @@ runs are listed under the repository's Actions tab.
 - `--noEmit -p` does not accept command-line emit overrides such as
   `--target` or `--module`; see the
   [configuration for type checks](#configuration-for-type-checks).
+- `--diagnostics` and `--extendedDiagnostics` print the rows the port
+  measures; `tsgo`'s identifier, symbol, type, instantiation and memory
+  rows are not printed, and the check time covers the emit as well.
+  `--generateTrace` is not supported.
 - `--locale` picks a translation by the tag's language (Chinese by its
   script or region) after checking the tag's BCP 47 syntax. `tsgo` also
   rejects a well-formed tag whose subtags are not registered (for example

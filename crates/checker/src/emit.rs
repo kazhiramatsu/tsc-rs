@@ -83,6 +83,16 @@ impl<'program> CheckerSession<'program> {
     /// tsrs-native: observes the current file-less bucket with sort/dedupe WITHOUT tsc
     /// checker.getGlobalDiagnostics' ensurePendingDiagnosticWorkComplete (87133-87136);
     /// cite that difference
+    /// Whether the checker reported a file-less row after the first `start`.
+    pub(crate) fn reported_global_rows_since(&self, start: usize) -> bool {
+        self.state
+            .lock()
+            .expect("checker session state")
+            .diagnostics[start..]
+            .iter()
+            .any(|diagnostic| diagnostic.file_name.is_none())
+    }
+
     pub fn get_global_diagnostics(&self) -> DiagnosticList {
         let mut diagnostics = self
             .state

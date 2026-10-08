@@ -8421,9 +8421,9 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<IndexInfo>> {
         let name = name.name();
         // getApplicableIndexInfoForName probes LATE-BOUND names
-        // (isLateBoundName — the `__@` unique-symbol spellings) with
-        // esSymbolType, everything else with the name's literal type.
-        let name_type = if name.starts_with("__@") {
+        // (isLateBoundName — the unique-symbol spellings) with esSymbolType,
+        // everything else with the name's literal type.
+        let name_type = if name.starts_with(tsc_types::InternalSymbolName::LATE_BOUND_PREFIX) {
             self.tables.intrinsics.es_symbol
         } else {
             self.tables
