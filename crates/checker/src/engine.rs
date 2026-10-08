@@ -1381,7 +1381,47 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     }
 }
 
+/// The `sourceId`/`targetId` arguments of a relation's trace events.
+fn relation_trace_args(source: TypeId, target: TypeId) -> tsc_types::tracing::Args {
+    tsc_types::tracing::Args::new()
+        .with("sourceId", crate::tracing::trace_type_id(source))
+        .with("targetId", crate::tracing::trace_type_id(target))
+}
+
 impl<'r, 'a> RelationChecker<'r, 'a> {
+    /// tsgo-port: Relater.traceUnionsOrIntersectionsTooLarge @7.1
+    /// (checker/relater.go:5030-5046): a `--generateTrace` instant for a
+    /// relation of two unions or intersections whose sizes multiply past a
+    /// million.
+    fn trace_unions_or_intersections_too_large(&self, source: TypeId, target: TypeId) {
+        if self.st.tracer.is_none() {
+            return;
+        }
+        let both = TypeFlags::UNION.bits() | TypeFlags::INTERSECTION.bits();
+        if self.flags(source).bits() & both == 0 || self.flags(target).bits() & both == 0 {
+            return;
+        }
+        if self.st.tables.object_flags_of(source).bits()
+            & self.st.tables.object_flags_of(target).bits()
+            & ObjectFlags::PRIMITIVE_UNION.bits()
+            != 0
+        {
+            return;
+        }
+        let source_size = self.union_members(source).len();
+        let target_size = self.union_members(target).len();
+        if source_size.saturating_mul(target_size) > 1_000_000 {
+            self.st
+                .trace_instant("traceUnionsOrIntersectionsTooLarge_DepthLimit", || {
+                    tsc_types::tracing::Args::new()
+                        .with("sourceId", crate::tracing::trace_type_id(source))
+                        .with("sourceSize", source_size)
+                        .with("targetId", crate::tracing::trace_type_id(target))
+                        .with("targetSize", target_size)
+                });
+        }
+    }
+
     /// tsrs-native: owned result of checkTypeRelatedTo's fresh-overflow
     /// branch (64872-64890), shared by verdict and diagnostic entry points.
     fn overflow_error_output(
@@ -1394,6 +1434,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         // tsgo (relater.go:371-381): the only overflow left is the
         // complexity budget; 100 levels of nesting end in Maybe.
+        let (depth, target_depth) = (self.source_depth, self.target_depth);
+        self.st.trace_instant("checkTypeRelatedTo_DepthLimit", || {
+            relation_trace_args(source, target)
+                .with("depth", depth)
+                .with("targetDepth", target_depth)
+        });
         let overflow_bits = RelationComparisonResult::COMPLEXITY_OVERFLOW;
         let message = &diagnostics::Excessive_complexity_comparing_types_0_and_1;
         let id = self.st.get_relation_key(
@@ -1547,6 +1593,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if self.flags(source).intersects(TypeFlags::SINGLETON) {
                 return Ok(Ternary::TRUE);
             }
+            self.trace_unions_or_intersections_too_large(source, target);
             return self.recursive_type_related_to(
                 source,
                 target,
@@ -1672,6 +1719,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 return Ok(Ternary::FALSE);
             }
+            self.trace_unions_or_intersections_too_large(source, target);
             let skip_caching = (self.flags(source).intersects(TypeFlags::UNION)
                 && self.union_members(source).len() < 4
                 && !self.flags(target).intersects(TypeFlags::UNION))
@@ -3633,8 +3681,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             save_reliability_flags = Some(self.st.reliability_flags);
             self.st.reliability_flags = RelationComparisonResult::NONE;
             if self.expanding_flags == ExpandingFlags::BOTH {
+                let (depth, target_depth) = (self.source_depth, self.target_depth);
+                self.st
+                    .trace_instant("recursiveTypeRelatedTo_DepthLimit", || {
+                        relation_trace_args(source, target)
+                            .with("depth", depth)
+                            .with("targetDepth", target_depth)
+                    });
                 Ok(Ternary::MAYBE)
             } else {
+                let _sample = self.st.trace_sample(
+                    tsc_types::tracing::Phase::CheckTypes,
+                    "structuredTypeRelatedTo",
+                    || relation_trace_args(source, target),
+                );
                 self.structured_type_related_to(source, target, report_errors, intersection_state)
             }
         })();
@@ -4869,7 +4929,7 @@ impl<'a> CheckerState<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum RecursionIdentity {
     Symbol(tsc_binder::SymbolId),
     Type(TypeId),

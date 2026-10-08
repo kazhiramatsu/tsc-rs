@@ -2232,6 +2232,8 @@ const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
     // The statistics are printed after the run.
     "diagnostics",
     "extendedDiagnostics",
+    // The command records the compilation in a trace directory.
+    "generateTrace",
     "stripInternal",
     "newLine",
     "removeComments",
@@ -2307,6 +2309,7 @@ fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
 const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
     "diagnostics",
     "extendedDiagnostics",
+    "generateTrace",
     // `pretty` only selects the diagnostic renderer, which the command line
     // already decides (`--pretty false`); zod's base tsconfig sets it, so an
     // emitting command admits it like the no-emit inventory does.
@@ -4859,6 +4862,7 @@ pub(crate) fn bag_compiler_options(
         diagnostics: config_option_bool(options, "diagnostics"),
         extended_diagnostics: config_option_bool(options, "extendedDiagnostics"),
         trace_resolution: config_option_bool(options, "traceResolution"),
+        generate_trace: config_option_string(options, "generateTrace"),
         list_files_only: config_option_bool(options, "listFilesOnly"),
         emit_bom: config_option_bool(options, "emitBOM"),
         no_emit_on_error: config_option_bool(options, "noEmitOnError"),

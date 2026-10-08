@@ -118,6 +118,11 @@ pub trait EmitHost {
     fn emit_route(&self) -> crate::EmitRouteKind {
         crate::EmitRouteKind::Program
     }
+    /// The program's `--generateTrace` session: each unit's emit is a span
+    /// of it (tsgo `emitter.tr`).
+    fn tracing(&self) -> Option<&std::sync::Arc<tsc_types::tracing::Tracing>> {
+        None
+    }
     fn current_directory(&self) -> JsStr<'_>;
     /// Absolute common source directory; the caller may omit its trailing separator.
     fn common_source_directory(&self) -> JsStr<'_>;

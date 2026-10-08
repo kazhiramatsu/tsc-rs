@@ -9,6 +9,7 @@ pub mod options;
 pub mod perf;
 pub mod tables;
 pub mod trace;
+pub mod tracing;
 pub mod ty;
 pub mod type_order;
 mod version;

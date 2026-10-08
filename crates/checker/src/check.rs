@@ -182,6 +182,20 @@ impl<'a> CheckerState<'a> {
             return;
         }
         self.checked_source_files += 1;
+        let _span = self.tracer.as_ref().map(|tracer| {
+            tracer.begin(
+                tsc_types::tracing::Phase::Check,
+                "checkSourceFile",
+                tsc_types::tracing::Args::new().with(
+                    "path",
+                    self.binder
+                        .source_of_node(root)
+                        .file_name
+                        .to_string_lossy()
+                        .into_owned(),
+                ),
+            )
+        });
         self.check_grammar_source_file(root);
         // 87010-87014: the five per-file accumulators clear at worker
         // entry (the PartiallyTypeChecked restore stays elided).
@@ -4070,12 +4084,13 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    /// checkDeferredNode (86916), tracing elided. Every arm except
+    /// checkDeferredNode (86916), sampled for `--generateTrace`. Every arm except
     /// TypeParameter is unreachable TODAY: the only checkNodeDeferred
     /// call site is checkTypeParameter (grep check_node_deferred) —
     /// the expression/call registrations arrive with 5.5/5.7, whose
     /// stages replace the unreachable!()s with their workers.
     fn check_deferred_node(&mut self, node: NodeId) {
+        let _sample = self.trace_node_sample("checkDeferredNode", node);
         // tsrs-native (7.4b): a deferred node whose CONTEXT hangs off
         // a CONTAINED resolution cannot be checked faithfully (tsc,
         // with no failure channel, resolves those fully) — checking it
@@ -4259,6 +4274,15 @@ impl<'a> CheckerState<'a> {
                     self.marker_sub_type_for_check,
                 )
             };
+            let _sample = self.trace_sample(
+                tsc_types::tracing::Phase::CheckTypes,
+                "checkTypeParameterDeferred",
+                || {
+                    tsc_types::tracing::Args::new()
+                        .with("parent", crate::tracing::trace_type_id(parent_declared))
+                        .with("id", crate::tracing::trace_type_id(type_parameter))
+                },
+            );
             let source = self.create_marker_type(parent_symbol, type_parameter, source_marker)?;
             let target = self.create_marker_type(parent_symbol, type_parameter, target_marker)?;
             let save_variance_type_parameter = self.variance_type_parameter;

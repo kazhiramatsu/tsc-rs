@@ -41,6 +41,7 @@ use crate::system::{
     CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
 };
 use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
+use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
 
 const EXIT_SUCCESS: i32 = 0;
 const EXIT_COMMAND_LINE: i32 = 1;
@@ -103,9 +104,49 @@ fn cli_checker_budget(system: &dyn System) -> CheckerBudget {
     .with_order_replay(tsc_checker::order_replay_requested())
 }
 
-/// The CLI's program load limits with its worker budget.
-fn cli_limits(system: &dyn System) -> ProgramLoadLimits {
-    DEFAULT_LIMITS.with_workers(cli_worker_budget(system))
+/// The command's own parallelism options (tsgo `singleThreaded` and
+/// `checkers`, process options of the command line): one worker and one
+/// checker, or that many checkers.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct CommandBudgets {
+    single_threaded: bool,
+    checkers: Option<std::num::NonZeroUsize>,
+}
+
+impl CommandBudgets {
+    fn of(single_threaded: Option<bool>, checkers: Option<f64>) -> Self {
+        Self {
+            single_threaded: single_threaded == Some(true),
+            checkers: checkers
+                .filter(|count| count.is_finite() && *count >= 1.0)
+                .and_then(|count| std::num::NonZeroUsize::new(count as usize)),
+        }
+    }
+
+    /// tsgo `Program.SingleThreaded`: no worker threads.
+    fn worker_budget(self, system: &dyn System) -> WorkerBudget {
+        if self.single_threaded {
+            WorkerBudget::serial()
+        } else {
+            cli_worker_budget(system)
+        }
+    }
+
+    /// tsgo `newCheckerPool`: one checker when single-threaded, else
+    /// `--checkers`, else the process's budget.
+    fn checker_budget(self, system: &dyn System) -> CheckerBudget {
+        if self.single_threaded {
+            CheckerBudget::serial()
+                .with_leaked_states(true)
+                .with_order_replay(tsc_checker::order_replay_requested())
+        } else if let Some(checkers) = self.checkers {
+            CheckerBudget::new(checkers)
+                .with_leaked_states(true)
+                .with_order_replay(tsc_checker::order_replay_requested())
+        } else {
+            cli_checker_budget(system)
+        }
+    }
 }
 
 /// Result of one CLI invocation. The binary writes the two streams and exits
@@ -167,9 +208,26 @@ pub(crate) struct CliRoute<'a> {
     pub(crate) output_filesystem: &'a mut dyn EmitFileSystem,
     /// The time the configuration took to parse (tsgo `ConfigTime`).
     pub(crate) config_time: std::time::Duration,
+    /// `--singleThreaded` and `--checkers`.
+    pub(crate) budgets: CommandBudgets,
+    /// The project's `--generateTrace` session while it runs.
+    pub(crate) tracing: Option<Arc<Tracing>>,
 }
 
 impl CliRoute<'_> {
+    pub(crate) fn worker_budget(&self) -> WorkerBudget {
+        self.budgets.worker_budget(self.system)
+    }
+
+    pub(crate) fn checker_budget(&self) -> CheckerBudget {
+        self.budgets.checker_budget(self.system)
+    }
+
+    /// The program load limits with the run's worker budget.
+    fn limits(&self) -> ProgramLoadLimits {
+        DEFAULT_LIMITS.with_workers(self.worker_budget())
+    }
+
     /// How this run writes diagnostics from `current_directory`.
     fn format<'p>(&self, current_directory: &'p Path) -> Format<'p> {
         Format {
@@ -390,8 +448,14 @@ fn execute(
             "unsupported option \"--watch\" (watch mode)".to_owned(),
         ));
     }
+    let budgets = CommandBudgets::of(
+        parsed.option_bool("singleThreaded"),
+        parsed
+            .option_value("checkers")
+            .and_then(|value| value.as_f64()),
+    );
     let mut output_filesystem =
-        SystemEmitFileSystem::new(system.fs(), cli_worker_budget(system).max_workers() > 1);
+        SystemEmitFileSystem::new(system.fs(), budgets.worker_budget(system).max_workers() > 1);
     let mut route = CliRoute {
         system,
         testing,
@@ -399,6 +463,8 @@ fn execute(
         locale,
         output_filesystem: &mut output_filesystem,
         config_time: std::time::Duration::ZERO,
+        budgets,
+        tracing: None,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     // tsgo wraps the command line's options as `compilerOptions` and merges
@@ -649,8 +715,14 @@ fn execute_build(
             "unsupported option \"--watch\" (watch mode)".to_owned(),
         ));
     }
+    let budgets = CommandBudgets::of(
+        parsed.option_bool("singleThreaded"),
+        parsed
+            .option_value("checkers")
+            .and_then(|value| value.as_f64()),
+    );
     let mut output_filesystem =
-        SystemEmitFileSystem::new(system.fs(), cli_worker_budget(system).max_workers() > 1);
+        SystemEmitFileSystem::new(system.fs(), budgets.worker_budget(system).max_workers() > 1);
     let mut route = CliRoute {
         system,
         testing,
@@ -658,6 +730,8 @@ fn execute_build(
         locale,
         output_filesystem: &mut output_filesystem,
         config_time: std::time::Duration::ZERO,
+        budgets,
+        tracing: None,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     let command = BuildCommand {
@@ -790,7 +864,13 @@ fn run_config(
     );
     // The plan's options are the config's with the command line's merged
     // over them. tsgo runs no emit under --listFilesOnly: the no-emit route.
-    let limits = cli_limits(route.system);
+    let limits = route.limits();
+    let config_file_name = plan.config_file_name().to_string_lossy().into_owned();
+    // tsgo `startTracingIfNeeded` (a command's compilation; never a build's).
+    let tracing = (!mode.build)
+        .then(|| start_tracing(route, plan.compiler_options(), &config_file_name))
+        .flatten();
+    let create_program = begin_create_program(tracing.as_ref(), &config_file_name);
     let load_started = std::time::Instant::now();
     let load_clock = route.system.now();
     let prepared = if plan.compiler_options().list_files_only == Some(true) {
@@ -801,6 +881,10 @@ fn run_config(
         load_emitting_config_program(host, plan, catalog, limits)
     };
     tsc_types::trace::mark("load program", load_started);
+    if let Ok(prepared) = &prepared {
+        trace_loader_parses(tracing.as_ref(), prepared);
+    }
+    drop(create_program);
     let prepared = match prepared {
         Ok(prepared) => prepared,
         Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
@@ -883,7 +967,8 @@ fn run_config(
         ..Statistics::of_program(&prepared)
     });
     let check_clock = route.system.now();
-    let mut run = execute_prepared(
+    route.tracing = tracing;
+    let run = execute_prepared(
         current_directory,
         source_texts,
         prepared,
@@ -891,11 +976,97 @@ fn run_config(
         route,
         old_build_info,
         mode,
-    )?;
+    );
+    let tracing = route.tracing.take();
+    let mut run = run?;
     run.stdout.insert_str(0, &resolution_trace);
     report_program(route, Some(config_file), &run);
     report_statistics(route, &mut run, statistics, check_clock);
+    stop_tracing(route, tracing, &mut run.stdout);
     Ok(run)
+}
+
+/// tsgo `startTracingIfNeeded`: a `--generateTrace` session for the
+/// compilation, deterministic under a test harness.
+fn start_tracing(
+    route: &CliRoute<'_>,
+    options: &CompilerOptions,
+    config_file_path: &str,
+) -> Option<Arc<Tracing>> {
+    let directory = options.generate_trace.as_ref()?.to_string_lossy();
+    if directory.is_empty() {
+        return None;
+    }
+    Some(Tracing::start(
+        &directory,
+        config_file_path,
+        route.testing.is_some(),
+    ))
+}
+
+/// tsgo `Program` creation's span (`createProgram`).
+fn begin_create_program(
+    tracing: Option<&Arc<Tracing>>,
+    config_file_path: &str,
+) -> Option<tsc_types::tracing::Span> {
+    tracing.map(|tracing| {
+        tracing.begin(
+            TracePhase::Program,
+            "createProgram",
+            TraceArgs::new().with("configFilePath", config_file_path),
+        )
+    })
+}
+
+/// The `createSourceFile` spans of the loader's parses (on worker threads
+/// before the trace saw them), in the order they started.
+fn trace_loader_parses(tracing: Option<&Arc<Tracing>>, prepared: &tsc_program::PreparedProgram) {
+    let Some(tracing) = tracing else {
+        return;
+    };
+    let mut parses = prepared
+        .source_files()
+        .iter()
+        .filter_map(|source| {
+            let (start, end) = source.preparsed_syntax().parse_span()?;
+            Some((
+                start,
+                end,
+                source.path().display().to_string_lossy().into_owned(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    parses.sort_by_key(|(start, _, _)| *start);
+    for (start, end, path) in parses {
+        tracing.record_span(
+            TracePhase::Parse,
+            "createSourceFile",
+            &TraceArgs::new().with("path", path),
+            start,
+            end,
+        );
+    }
+}
+
+/// tsgo `stopTracing`: the session's files, written through the run's file
+/// system; a failure is a warning in the output.
+fn stop_tracing(route: &CliRoute<'_>, tracing: Option<Arc<Tracing>>, stdout: &mut String) {
+    let Some(tracing) = tracing else {
+        return;
+    };
+    for file in tracing.finish() {
+        if let Err(error) = route
+            .system
+            .fs()
+            .write_creating_dirs(&file.path, file.text.as_bytes())
+        {
+            stdout.push_str(&format!(
+                "Warning: Failed to stop tracing: failed to write {}: {error}\n",
+                file.path
+            ));
+            return;
+        }
+    }
 }
 
 /// tsgo `EmitAndReportStatistics`: under `--diagnostics` or
@@ -965,8 +1136,10 @@ fn execute_explicit_files(
     program_options: ProgramOptions,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
-    let limits = cli_limits(route.system);
+    let limits = route.limits();
     let load_clock = route.system.now();
+    let tracing = start_tracing(route, &options, "");
+    let create_program = begin_create_program(tracing.as_ref(), "");
     // tsgo runs no emit under --listFilesOnly: the no-emit route (whose
     // loader requires an explicit noEmit).
     let prepared = if options.no_emit == Some(true) || options.list_files_only == Some(true) {
@@ -977,6 +1150,8 @@ fn execute_explicit_files(
         load_emitting_program(host, roots, options, program_options, catalog, limits)
     }
     .map_err(|error| CliError::Load(error.to_string()))?;
+    trace_loader_parses(tracing.as_ref(), &prepared);
+    drop(create_program);
     // tsgo prints the resolution trace while it creates the Program, before
     // any listing or diagnostic.
     let resolution_trace = resolution_trace_text(&prepared, route, true);
@@ -997,7 +1172,8 @@ fn execute_explicit_files(
         ..Statistics::of_program(&prepared)
     });
     let check_clock = route.system.now();
-    let mut run = execute_prepared(
+    route.tracing = tracing;
+    let run = execute_prepared(
         current_directory,
         source_texts,
         prepared,
@@ -1005,9 +1181,12 @@ fn execute_explicit_files(
         route,
         old_build_info,
         ProjectRunMode::COMMAND,
-    )?;
+    );
+    let tracing = route.tracing.take();
+    let mut run = run?;
     report_program(route, None, &run);
     report_statistics(route, &mut run, statistics, check_clock);
+    stop_tracing(route, tracing, &mut run.stdout);
     Ok(CliOutput::new(
         resolution_trace + &run.stdout,
         run.exit_code,
@@ -1045,13 +1224,14 @@ fn execute_prepared(
     // that getter over its own checker sessions
     // (`ProgramSession::run_no_emit_command`).
     let session = ProgramSession::new(prepared)
-        .with_worker_budget(cli_worker_budget(route.system))
-        .with_checker_budget(cli_checker_budget(route.system))
+        .with_worker_budget(route.worker_budget())
+        .with_checker_budget(route.checker_budget())
         .with_leaked_program(true)
         .with_command_options_diagnostics(!additional_diagnostics.is_empty())
         .with_build_mode(mode.build)
         .with_old_build_info(old_build_info)
-        .with_testing(route.testing.is_some());
+        .with_testing(route.testing.is_some())
+        .with_tracing(route.tracing.clone());
     // tsgo EmitFilesAndReportErrors runs no emit under --listFilesOnly, so no
     // build info is written either; an incremental program is still created
     // from the old build info (its testing data reports the files).
@@ -1093,7 +1273,18 @@ fn execute_prepared(
     let mut status_writes = Vec::new();
     let mut emitted_files = Vec::new();
     let program_report = outcome.program_report().map(<[_]>::to_vec);
+    // tsgo's emit of a --noEmit command (none under --listFilesOnly): an
+    // incremental program writes its build info, any other program's
+    // `Program.Emit` returns at once.
+    if !list_files_only && outcome.build_info().is_none() {
+        if let Some(tracing) = &route.tracing {
+            tracing
+                .begin(TracePhase::Emit, "emit", TraceArgs::new())
+                .end();
+        }
+    }
     if let Some(document) = outcome.build_info().filter(|_| !list_files_only) {
+        let _span = crate::trace_build_info(route.tracing.as_ref());
         let mut sink = FsOutputSink::new(route.output_filesystem);
         match crate::incremental::write_build_info(&mut sink, document) {
             Some(failure) => {
@@ -1267,7 +1458,10 @@ fn execute_emitting_prepared(
 ) -> Result<BuildProjectRun, CliError> {
     // The real filesystem is stateless: its artifacts are written on the
     // worker budget; an injected (observing) filesystem keeps ordered writes.
-    let write_workers = cli_worker_budget(route.system).max_workers();
+    let write_workers = route.worker_budget().max_workers();
+    let (worker_budget, checker_budget) = (route.worker_budget(), route.checker_budget());
+    let testing = route.testing.is_some();
+    let tracing = route.tracing.clone();
     let mut shared_sink;
     let mut ordered_sink;
     let sink: &mut dyn tsc_emitter::OutputSink =
@@ -1282,12 +1476,13 @@ fn execute_emitting_prepared(
     let listing = listing_lines(&prepared, current_directory);
     let session_started = std::time::Instant::now();
     let outcome = ProgramSession::new(prepared)
-        .with_worker_budget(cli_worker_budget(route.system))
-        .with_checker_budget(cli_checker_budget(route.system))
+        .with_worker_budget(worker_budget)
+        .with_checker_budget(checker_budget)
         .with_leaked_program(true)
         .with_build_mode(mode.build)
         .with_old_build_info(old_build_info)
-        .with_testing(route.testing.is_some())
+        .with_testing(testing)
+        .with_tracing(tracing)
         .emit_for_cli(sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check + emit session", session_started);

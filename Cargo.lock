@@ -460,6 +460,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "rustc-hash",
  "tsc-rs-diagnostics",
+ "xxhash-rust",
 ]
 
 [[package]]

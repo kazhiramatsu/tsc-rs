@@ -134,13 +134,25 @@ impl PreparsedSourceFile {
 #[derive(Clone, Default)]
 pub struct PreparsedSyntax {
     slot: Arc<Mutex<Option<PreparsedSourceFile>>>,
+    /// When the planner's parse ran (`--generateTrace`'s `createSourceFile`
+    /// span); kept after the tree is adopted.
+    parse_span: Option<(std::time::Instant, std::time::Instant)>,
 }
 
 impl PreparsedSyntax {
-    pub(crate) fn new(parsed: PreparsedSourceFile) -> Self {
+    pub(crate) fn new(
+        parsed: PreparsedSourceFile,
+        parse_span: (std::time::Instant, std::time::Instant),
+    ) -> Self {
         Self {
             slot: Arc::new(Mutex::new(Some(parsed))),
+            parse_span: Some(parse_span),
         }
+    }
+
+    /// When the loader parsed the source, when it did.
+    pub fn parse_span(&self) -> Option<(std::time::Instant, std::time::Instant)> {
+        self.parse_span
     }
 
     /// An empty slot: the consumer parses.

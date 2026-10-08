@@ -4,6 +4,7 @@ use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticLi
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_program::SourceFileId;
 use tsc_syntax::SourceFile;
+use tsc_types::tracing::{Args as TraceArgs, Phase};
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::get_script_transformers_for_source;
@@ -1029,6 +1030,14 @@ pub fn emit_planned_units_with_kinds(
             EmitRoot::SourceFile(_) => Some(source.path()),
             EmitRoot::Bundle(_) => None,
         };
+        // tsgo `emitter.emit`: a span per source file, around its outputs.
+        let _unit_span = host.tracing().map(|tracing| {
+            tracing.begin(
+                Phase::Emit,
+                "emit",
+                TraceArgs::new().with("path", source.path().to_string_lossy().into_owned()),
+            )
+        });
         let mut parsed_emit_metadata = None;
         let mut javascript_printed = false;
         // A member the request leaves out is neither printed nor listed.
@@ -1052,6 +1061,14 @@ pub fn emit_planned_units_with_kinds(
             if preflight.is_emit_blocked(host, javascript_path) {
                 emission.emit_skipped = true;
             } else {
+                let _span = host.tracing().map(|tracing| {
+                    tracing.begin(
+                        Phase::Emit,
+                        "emitJsFileOrBundle",
+                        TraceArgs::new()
+                            .with("jsFilePath", javascript_path.to_string_lossy().into_owned()),
+                    )
+                });
                 emit_javascript_unit(
                     resolver,
                     host,
@@ -1089,6 +1106,16 @@ pub fn emit_planned_units_with_kinds(
 
         let mut printed_declaration_map_path = None;
         if let Some(declaration_path) = declaration_path.as_ref().map(JsString::as_js) {
+            let _span = host.tracing().map(|tracing| {
+                tracing.begin(
+                    Phase::Emit,
+                    "emitDeclarationFileOrBundle",
+                    TraceArgs::new().with(
+                        "declarationFilePath",
+                        declaration_path.to_string_lossy().into_owned(),
+                    ),
+                )
+            });
             let declaration = emit_declaration_unit(
                 resolver,
                 host,

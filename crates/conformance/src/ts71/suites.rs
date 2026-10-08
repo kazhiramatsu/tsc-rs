@@ -186,6 +186,12 @@ fn run_rendered(
     Ok(results)
 }
 
+/// References no test of the pinned commit writes (left from an earlier
+/// test): `tsc_test.go`'s color tests name no `adds color when FORCE_COLOR
+/// is set` case. They are not compared.
+const ORPHAN_REFERENCES: &[(&str, &str)] =
+    &[("tsc", "commandLine/adds-color-when-FORCE_COLOR-is-set.js")];
+
 /// Every reference under `root` (by its path relative to it) that no case
 /// produced: a full run reports it as a mismatch.
 fn unproduced_references(
@@ -209,7 +215,10 @@ fn unproduced_references(
                 .expect("walked under the reference root")
                 .to_string_lossy()
                 .replace('\\', "/");
-            if !produced.contains(&name) {
+            let orphan = ORPHAN_REFERENCES
+                .iter()
+                .any(|(orphan_suite, orphan)| *orphan_suite == suite && *orphan == name);
+            if !produced.contains(&name) && !orphan {
                 results.push(SuiteResult {
                     suite,
                     baseline: name,

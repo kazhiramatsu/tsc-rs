@@ -235,6 +235,9 @@ pub struct CompilerOptions {
     pub diagnostics: Option<bool>,
     pub extended_diagnostics: Option<bool>,
     pub trace_resolution: Option<bool>,
+    /// `--generateTrace <directory>`: the command records the compilation
+    /// in that directory (see [`crate::tracing`]).
+    pub generate_trace: Option<JsString>,
     /// `--listFilesOnly` (command line only): the files are listed and the
     /// command neither emits nor asks for the global and semantic
     /// diagnostics.

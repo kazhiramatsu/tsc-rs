@@ -667,6 +667,9 @@ a response file.
 | `--explainFiles` | Print why each file is in the program (its include reasons, redirects and module format), as `tsgo --explainFiles` does. |
 | `--listFilesOnly` | Print the names of the files without emitting or type-checking (syntactic and option diagnostics only); not accepted with `-b`. |
 | `--diagnostics`, `--extendedDiagnostics` | Print the compilation's statistics as `tsgo` does: files, lines and the configuration, parse, check and total times (with `-b`, the project counts and the aggregates). |
+| `--generateTrace <directory>` | Record the compilation for performance analysis as `tsgo` does: a Chrome trace-event `trace.json` (program creation, each file's parse, bind, check and emit, the checks that took long, the checker's depth limits), one `types_<n>.json` per checker and a `legend.json`. Not with `-b`. |
+| `--singleThreaded` | Compile on one thread with one checker. |
+| `--checkers <n>` | Check with `n` checkers, at most sixteen (by default one per core, up to eight; `TSRS_CHECKERS` sets it too). |
 | `--pretty false` | Use plain diagnostic output. |
 | `--ignoreConfig` | Compile explicit files without loading a discovered configuration. |
 | `--newLine lf` | Use LF line endings in generated output; `crlf` is also accepted. |
@@ -1066,7 +1069,11 @@ runs are listed under the repository's Actions tab.
 - `--diagnostics` and `--extendedDiagnostics` print the rows the port
   measures; `tsgo`'s identifier, symbol, type, instantiation and memory
   rows are not printed, and the check time covers the emit as well.
-  `--generateTrace` is not supported.
+- `--generateTrace` writes `tsgo`'s files with `tsgo`'s events, thread rows
+  and descriptors, but a types file lists this compiler's types: their ids
+  and creation order are its own. The spans follow this compiler's order of
+  work: the library files are bound before the program's files and checked
+  after them.
 - `--locale` picks a translation by the tag's language (Chinese by its
   script or region) after checking the tag's BCP 47 syntax. `tsgo` also
   rejects a well-formed tag whose subtags are not registered (for example

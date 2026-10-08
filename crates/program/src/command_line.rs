@@ -73,6 +73,13 @@ impl ParsedBuildCommandLine {
             .unwrap_or(false)
     }
 
+    pub fn option_value(&self, name: &str) -> Option<&Value> {
+        self.options
+            .iter()
+            .find(|(option, _)| option == name)
+            .map(|(_, value)| value)
+    }
+
     pub fn option_bool(&self, name: &str) -> Option<bool> {
         self.options
             .iter()

@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use tsc_checker::{IncrementalPlanner, IncrementalRequest};
 use tsc_incremental::OldState;
+use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
 
 use tsc_checker::emit::CheckerSession;
 pub use tsc_checker::CheckerBudget;
@@ -140,6 +141,9 @@ pub struct ProgramSession {
     /// versions and signatures carry their text and the emitted files are
     /// collected for it.
     testing: bool,
+    /// The command's `--generateTrace` session (tsgo
+    /// `ProgramOptions.Tracing`): the checkers and the emit record into it.
+    tracing: Option<Arc<Tracing>>,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -528,6 +532,7 @@ impl ProgramDiagnostics {
 struct PreparedModuleProvider<'a> {
     prepared: &'a PreparedProgram,
     request_plans: std::sync::Mutex<BTreeMap<SourceFileId, SourceRequestPlan>>,
+    tracing: Option<Arc<Tracing>>,
 }
 
 /// Constructs one [`PreparedModuleProvider`] per checker state over the
@@ -536,6 +541,7 @@ struct PreparedModuleProvider<'a> {
 /// tsrs-native: the compiler's per-checker provider seam for sharded checking.
 struct PreparedProviderFactory<'a> {
     prepared: &'a PreparedProgram,
+    tracing: Option<Arc<Tracing>>,
 }
 
 impl AuthoritativeModuleProviderFactory for PreparedProviderFactory<'_> {
@@ -543,7 +549,12 @@ impl AuthoritativeModuleProviderFactory for PreparedProviderFactory<'_> {
         Box::new(PreparedModuleProvider {
             prepared: self.prepared,
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
+            tracing: self.tracing.clone(),
         })
+    }
+
+    fn tracing(&self) -> Option<Arc<Tracing>> {
+        self.tracing.clone()
     }
 }
 
@@ -563,6 +574,8 @@ struct PreparedEmitHost<'program> {
     /// asks; scanning the sources per probe made a 3,000-file declaration
     /// emit quadratic).
     canonical_index: std::sync::OnceLock<std::collections::HashMap<Box<[u8]>, SourceFileId>>,
+    /// The `--generateTrace` session the units' emit is recorded in.
+    tracing: Option<Arc<Tracing>>,
 }
 
 impl<'program> PreparedEmitHost<'program> {
@@ -609,6 +622,7 @@ impl<'program> PreparedEmitHost<'program> {
             canonical_index: std::sync::OnceLock::new(),
             emit_route,
             display_names,
+            tracing: None,
         };
         // getCommonSourceDirectory2 first applies ordinary sourceFileMayBeEmitted
         // (_tsc.js:123142-123157), including noEmitForJsFiles, before comparing
@@ -639,11 +653,20 @@ impl PreparedEmitHost<'_> {
         self.collect_emitted_files = collect;
         self
     }
+
+    fn with_tracing(mut self, tracing: Option<Arc<Tracing>>) -> Self {
+        self.tracing = tracing;
+        self
+    }
 }
 
 impl EmitHost for PreparedEmitHost<'_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn tracing(&self) -> Option<&Arc<Tracing>> {
+        self.tracing.as_ref()
     }
 
     fn collects_emitted_files(&self) -> bool {
@@ -781,6 +804,10 @@ struct CheckedEmitHost<'host, 'snapshot> {
 impl EmitHost for CheckedEmitHost<'_, '_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn tracing(&self) -> Option<&Arc<Tracing>> {
+        self.prepared.tracing()
     }
 
     fn collects_emitted_files(&self) -> bool {
@@ -966,6 +993,10 @@ impl PreparedModuleProvider<'_> {
 impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
     fn common_source_directory(&self) -> Option<JsString> {
         Some(self.prepared.common_source_directory())
+    }
+
+    fn tracing(&self) -> Option<Arc<Tracing>> {
+        self.tracing.clone()
     }
 
     fn path_context(&self) -> Option<&tsc_program::PathContext> {
@@ -1343,7 +1374,19 @@ impl ProgramSession {
             build_mode: false,
             list_files_only: false,
             testing: false,
+            tracing: None,
         }
+    }
+
+    /// Records the session's checks and emit in a `--generateTrace`
+    /// session. Its checker states are then dropped, not leaked, as each
+    /// writes its types file when it ends.
+    pub fn with_tracing(mut self, tracing: Option<Arc<Tracing>>) -> Self {
+        if tracing.is_some() {
+            self.checker_budget = self.checker_budget.with_leaked_states(false);
+        }
+        self.tracing = tracing;
+        self
     }
 
     /// Whether the prepared program is leaked at the end of the session (see
@@ -1534,6 +1577,7 @@ impl ProgramSession {
             build_mode: _,
             list_files_only: _,
             testing: _,
+            tracing: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1542,6 +1586,7 @@ impl ProgramSession {
         let provider = PreparedModuleProvider {
             prepared: &prepared,
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
+            tracing: None,
         };
         let mut pending_operation = Some(operation);
         let mut diagnostic_result = None;
@@ -1768,6 +1813,7 @@ impl ProgramSession {
             build_mode: _,
             list_files_only: _,
             testing: _,
+            tracing: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1815,6 +1861,7 @@ impl ProgramSession {
             inner: PreparedModuleProvider {
                 prepared: &prepared,
                 request_plans: std::sync::Mutex::new(BTreeMap::new()),
+                tracing: None,
             },
             failure: std::sync::Mutex::new(None),
         };
@@ -1895,6 +1942,7 @@ impl ProgramSession {
             build_mode: _,
             list_files_only: _,
             testing: _,
+            tracing: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -1904,6 +1952,7 @@ impl ProgramSession {
         let provider = PreparedModuleProvider {
             prepared: &prepared,
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
+            tracing: None,
         };
         let mut print_result: Option<Result<Vec<(JsString, PrintedText)>, DriverError>> = None;
         let mut operation =
@@ -2002,9 +2051,11 @@ impl ProgramSession {
             build_mode,
             list_files_only: _,
             testing,
+            tracing,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
-            .with_collected_emitted_files(build_mode || testing);
+            .with_collected_emitted_files(build_mode || testing)
+            .with_tracing(tracing.clone());
         if forced_declarations {
             tsc_emitter::validate_forced_declaration_request(&emit_host)
                 .map_err(DriverError::Emit)?;
@@ -2022,6 +2073,7 @@ impl ProgramSession {
         let provider = PreparedModuleProvider {
             prepared: &prepared,
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
+            tracing: tracing.clone(),
         };
         let incremental_facts_requested = command_build_info
             && (tsc_incremental::options::is_incremental(prepared.compiler_options())
@@ -2086,6 +2138,10 @@ impl ProgramSession {
                 .as_ref()
                 .map(|preflight| preflight.diagnostics().to_vec())
                 .unwrap_or_default();
+            // tsgo `Program.Emit`: the program's emit is one span.
+            let _span = tracing
+                .as_ref()
+                .map(|tracing| tracing.begin(TracePhase::Emit, "emit", TraceArgs::new()));
             emit_result = Some(checker.with_emit_resolver(|resolver| {
                 let mut recording = incremental::SignatureRecordingSink::with_composite_signatures(
                     &mut *sink,
@@ -2191,6 +2247,7 @@ impl ProgramSession {
                         let emit = emit.with_cached_diagnostics(cached);
                         match driver.build_info(command) {
                             Some(document) => {
+                                let _span = trace_build_info(tracing.as_ref());
                                 let failure = recording.write_build_info(&document);
                                 emit.with_build_info(document.file_name, failure)
                             }
@@ -2289,6 +2346,7 @@ impl ProgramSession {
                     );
                     match driver.build_info(command) {
                         Some(document) => {
+                            let _span = trace_build_info(tracing.as_ref());
                             let failure = recording.write_build_info(&document);
                             emit.with_build_info(document.file_name, failure)
                         }
@@ -2327,10 +2385,12 @@ impl ProgramSession {
             build_mode,
             list_files_only: _,
             testing,
+            tracing,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
-            .with_collected_emitted_files(build_mode || testing);
+            .with_collected_emitted_files(build_mode || testing)
+            .with_tracing(tracing.clone());
         validate_emit_request(&emit_host).map_err(DriverError::Emit)?;
         tsc_types::trace::mark("emit: host and request validation", setup_started);
         let incremental_facts_requested = command_build_info
@@ -2384,6 +2444,7 @@ impl ProgramSession {
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
         let factory = PreparedProviderFactory {
             prepared: &prepared,
+            tracing: tracing.clone(),
         };
         tsc_types::trace::mark("emit: unit names and checker inputs", inputs_started);
         tsc_types::trace::mark("emit: host, preflight, checker inputs", setup_started);
@@ -2643,6 +2704,10 @@ impl ProgramSession {
                         sessions: &[CheckerSession<'_>],
                         files_by_shard: &[Vec<usize>]|
              -> Result<Vec<ShardEmission>, UnitEmitError> {
+                // tsgo `Program.Emit`: the program's emit is one span.
+                let _span = tracing
+                    .as_ref()
+                    .map(|tracing| tracing.begin(TracePhase::Emit, "emit", TraceArgs::new()));
                 let checked_host = CheckedEmitHost {
                     prepared: &emit_host,
                     snapshot,
@@ -2977,6 +3042,7 @@ impl ProgramSession {
             let emit = emit.with_cached_diagnostics(cached);
             match driver.build_info(command) {
                 Some(document) => {
+                    let _span = trace_build_info(tracing.as_ref());
                     let failure = recording.write_build_info(&document);
                     emit.with_build_info(document.file_name, failure)
                 }
@@ -3312,6 +3378,7 @@ impl ProgramSession {
         let provider = PreparedModuleProvider {
             prepared: &self.prepared,
             request_plans: std::sync::Mutex::new(BTreeMap::new()),
+            tracing: self.tracing.clone(),
         };
         // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): the --noEmit
         // command's declaration getter, requested by `run_no_emit_command`
@@ -3591,6 +3658,7 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &PreparedProviderFactory {
                     prepared: &self.prepared,
+                    tracing: self.tracing.clone(),
                 },
                 self.worker_budget,
                 self.checker_budget,
@@ -3611,6 +3679,7 @@ impl ProgramSession {
                 &inputs.current_directory,
                 &PreparedProviderFactory {
                     prepared: &self.prepared,
+                    tracing: self.tracing.clone(),
                 },
                 self.worker_budget,
                 self.checker_budget,
@@ -4534,6 +4603,12 @@ fn push_programmatic_removed_option_name(
         true,
         message,
     );
+}
+
+/// tsgo `emitBuildInfo`'s span: the write of an incremental program's build
+/// info.
+pub(crate) fn trace_build_info(tracing: Option<&Arc<Tracing>>) -> Option<tsc_types::tracing::Span> {
+    tracing.map(|tracing| tracing.begin(TracePhase::Emit, "emitBuildInfo", TraceArgs::new()))
 }
 
 fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
