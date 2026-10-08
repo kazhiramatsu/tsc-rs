@@ -408,3 +408,13 @@ decode して span を流し、writer はもう一つの decoder で同じ span 
 - local（maintenance clamp、1 job）：`cargo fmt --all -- --check`；clippy（`--all-targets -- -D warnings`）emitter／checker／compiler／conformance／harness；
   test emitter＋conformance＋harness＋compiler 1,106/0、checker 1,797/0（最終 bytes `a6b20716c`、`taskpolicy -c maintenance nice -n 20`、
   1 job）。
+
+### P4-2のhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `6c30897fc`（fix `a6b20716c` ＋ packet の記録）の run 37704574662（`plan` 30s、`rust` 11m11s、
+  `conformance (TypeScript 7.1)` 20m05s、`gates` 15s。全て成功）。merge → `89ba87fca`（merge commit）。
+- 計測（conformance の全体実行、crate test）は上の記録のとおり、merge前に最終bytes `a6b20716c` で行った。実project の比較は
+  行っていない（checker の変更は accessor の型と別 file の再利用 node の名前で、conformance の error／emit は不変；次に
+  checker を変える slice で corpus を再比較する）。性能は計測していない（利用者の指示）。
+- 次：P4-3（`.trace.json` ＋ `--traceResolution`：tsgo resolver.go の tracer（trace 文 61 種）を港の resolver の同じ地点に足し、
+  parse task ごとの buffer を決定的な順で再生、harness の `sanitizeTrace`）。
