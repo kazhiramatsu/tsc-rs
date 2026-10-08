@@ -42,8 +42,9 @@ records the decisions, the retired surfaces and the remaining steps.
   succeeds for the final candidate. It requires the jobs
   `.github/ci/replay.py plan` selected: `rust` (formatting, Clippy and the
   Rust test targets) and `conformance-ts71` (the TypeScript 7.1 error and
-  emit baselines on one checker, then the transpile, command-line and
-  tsconfig parsing suites, checked against `ratchets/ts71/`). A
+  emit baselines on one checker, then the transpile, command-line,
+  tsconfig parsing, tsc and tsc -b suites, checked against
+  `ratchets/ts71/`). A
   change under `docs/` or to the root `README.md`, `CONTRIBUTING.md` or
   `LICENSE` selects neither; any other change selects both. The PR body
   records the commands, source identity, results and remaining bounded

@@ -378,7 +378,11 @@ The API has four parts:
 
 - `tsc-rs-host` (`tsc_host`): the read-only `CompilerHost` trait.
   `FsCompilerHost` implements it over the real filesystem and
-  `MemoryCompilerHost` over files supplied in memory.
+  `MemoryCompilerHost` over files supplied in memory. `tsc_host::vfs` is the
+  file-system layer the command line runs on: the `FileSystem` trait, `OsFs`
+  for the process's file system, `MemFs` (an in-memory file system with
+  case folding, symbolic links and modification times from a `Clock`) and
+  `VfsCompilerHost`, a `CompilerHost` over any `FileSystem`.
 - `tsc-rs-program` (`tsc_program`): `parse_config_root_plan` parses a
   `tsconfig.json`, including `extends` chains. `load_config_program`,
   `load_config_program_with_no_emit_override` and
@@ -505,8 +509,23 @@ three methods of `EmitFileSystem` (`write_file`, `create_directory` and
 `emit` returns the emitter's outcome: its own diagnostics and, when
 `listEmittedFiles` is set, the list of emitted files. The type errors found
 while compiling are not part of this value; to report them, run a no-emit
-session as in the example. The combined report printed by the `tsc-rs`
-command comes from an internal entry that is not yet a public API.
+session as in the example, or run the whole command line as described
+next.
+
+### Run the command line over your own system
+
+`tsc_compiler::execute_command_line(system, args, testing)` runs a command
+line exactly as the `tsc-rs` command does (including `-b`), over any
+implementation of `tsc_compiler::system::System`: the file system it reads
+and writes (a `tsc_host::vfs::FileSystem`), the current directory, the
+directory of the standard library files, the clock, the environment
+variables, whether the output is a terminal, and where the output goes. It
+returns the exit status. `NativeSystem` is the process; a system over
+`MemFs` compiles a project held entirely in memory, with no disk, as tsc-rs's
+own tests of the native `tsc` and `tsc -b` baselines do and as an embedding
+without a file system (such as a WebAssembly host) would. The optional
+`CommandLineTesting` observes the run: the files each emit wrote, the
+status lines, the resolution trace and each incremental program's state.
 
 ### Add the crates to your application
 
@@ -948,7 +967,7 @@ their GitHub Actions logs.
 
 | Check | What it verifies |
 | --- | --- |
-| **TypeScript 7.1 conformance** (`conformance (TypeScript 7.1)`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the diagnostics (`.errors.txt`), the emitted JavaScript, declaration files and source maps (`.js`, `.js.map`) the type and symbol baselines (`.types`, `.symbols`: the type and the symbol at every expression and declaration name, as tsgo's test runner writes them) the source map records (`.sourcemap.txt`: every emitted line with its spans against the source text, as tsgo's recorder writes them) and the module resolution traces (`.trace.json`: the `--traceResolution` lines, sanitized as tsgo's harness does) with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). The ratchet `ratchets/ts71/` records the error tier, the emit tier and the type, symbol, source map record and trace tiers each configuration has reached and rejects regressions. A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. The configurations the native runner itself skips (`target: es5`, the `umd` and `system` module kinds, the `node10` and `classic` resolutions, `baseUrl`, `esModuleInterop: false`, `alwaysStrict: false`) or never produces baselines for (`amd`, `outFile`, its skip list) are not compared. The same job then runs the `transpile` test cases through single-file transpilation (`transpileModule` and `transpileDeclaration`) as the native transpile runner does, and the command-line and tsconfig parsing tests (the arguments and configuration files the native Go tests keep in their tables), and compares each of their baselines (`transpile`, `tsoptions/commandLineParsing`, `config/tsconfigParsing`) byte for byte (`scripts/suites_ts71.py --check`, ratchet `ratchets/ts71/suites-<profile>.tsv`). |
+| **TypeScript 7.1 conformance** (`conformance (TypeScript 7.1)`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the diagnostics (`.errors.txt`), the emitted JavaScript, declaration files and source maps (`.js`, `.js.map`) the type and symbol baselines (`.types`, `.symbols`: the type and the symbol at every expression and declaration name, as tsgo's test runner writes them) the source map records (`.sourcemap.txt`: every emitted line with its spans against the source text, as tsgo's recorder writes them) and the module resolution traces (`.trace.json`: the `--traceResolution` lines, sanitized as tsgo's harness does) with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). The ratchet `ratchets/ts71/` records the error tier, the emit tier and the type, symbol, source map record and trace tiers each configuration has reached and rejects regressions. A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. The configurations the native runner itself skips (`target: es5`, the `umd` and `system` module kinds, the `node10` and `classic` resolutions, `baseUrl`, `esModuleInterop: false`, `alwaysStrict: false`) or never produces baselines for (`amd`, `outFile`, its skip list) are not compared. The same job then runs the `transpile` test cases through single-file transpilation (`transpileModule` and `transpileDeclaration`) as the native transpile runner does, the command-line and tsconfig parsing tests (the arguments and configuration files the native Go tests keep in their tables), and the `tsc` and `tsc -b` tests (each scenario's command lines run over an in-memory system with its edits in between, as the native harness's test system does, recorded from the Go tests by `scripts/tsctests_scenarios.py`), and compares each of their baselines (`transpile`, `tsoptions/commandLineParsing`, `config/tsconfigParsing`, `tsc`, `tsbuild`) byte for byte (`scripts/suites_ts71.py --check`, ratchet `ratchets/ts71/suites-<profile>.tsv`). |
 | **Rust checks** (`rust`) | Checks formatting, runs Clippy over every target of the workspace, executes every workspace test target (`cargo test --workspace`) and verifies that the generated diagnostic catalog is current (`python3 .github/ci/replay.py rust`). |
 
 The `gates` check requires both jobs to succeed; a change that touches only
@@ -1002,7 +1021,7 @@ After an intentional change, `scripts/conformance_ts71.py --workers 4
 --update` records the new tiers in the ratchet without lowering any.
 
 Run the comparison of the other suites (transpile, command-line and
-tsconfig parsing; a few seconds):
+tsconfig parsing, tsc and tsc -b; a few seconds):
 
 ```sh
 cargo build --release -p tsc-rs-conformance --bin suites-ts71
