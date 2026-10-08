@@ -9,10 +9,11 @@ use std::io;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime};
 
-use tsc_compiler::system::{CommandLineTesting, System};
+use tsc_compiler::system::{CommandLineTesting, ProgramReport, System};
 use tsc_host::vfs::{
     Clock, DirEntry, EntryContents, FileSystem, MemFs, Metadata, Seed, SteppingClock,
 };
+use tsc_incremental::{SemanticDiagnosticsState, SignatureUpdateKind};
 
 use super::{build_info, Op, Scenario};
 
@@ -580,6 +581,48 @@ impl CommandLineTesting for TestSystem {
         push_line(output, BUILD_STATUS_END);
     }
 
+    /// tsgo `TestSys.OnProgram`: the config, then the files whose semantic
+    /// diagnostics were computed or are not cached, and the files whose
+    /// signature was updated.
+    fn on_program(&self, program: &ProgramReport) {
+        let mut baselines = lock(&self.program_baselines);
+        if !baselines.is_empty() {
+            baselines.push('\n');
+        }
+        if let Some(config) = &program.config_file {
+            baselines.push_str(&relative_path_from_directory(
+                &self.current_directory,
+                config,
+                self.fs.case_sensitive(),
+            ));
+            baselines.push_str("::\n");
+        }
+        baselines.push_str("SemanticDiagnostics::\n");
+        for file in &program.files {
+            match file.semantic_diagnostics {
+                SemanticDiagnosticsState::Refreshed => {
+                    baselines.push_str(&format!("*refresh*    {}\n", file.file_name));
+                }
+                SemanticDiagnosticsState::NotCached => {
+                    baselines.push_str(&format!("*not cached* {}\n", file.file_name));
+                }
+                SemanticDiagnosticsState::Kept => {}
+            }
+        }
+        baselines.push_str("Signatures::\n");
+        for file in &program.files {
+            let kind = match file.signature_update {
+                Some(SignatureUpdateKind::ComputedDts) => "(computed .d.ts) ",
+                Some(SignatureUpdateKind::StoredAtEmit) => "(stored at emit) ",
+                Some(SignatureUpdateKind::UsedVersion) => "(used version)   ",
+                None => continue,
+            };
+            baselines.push_str(kind);
+            baselines.push_str(&file.file_name);
+            baselines.push('\n');
+        }
+    }
+
     /// tsgo `TestSys.GetTrace` with `TracerForBaselining.sanitizeTrace`.
     fn trace(&self, message: &str, output: &mut String, shared_output: bool) {
         push_line(output, TRACE_START);
@@ -835,6 +878,33 @@ fn decode_utf16(bytes: &[u8], unit: fn([u8; 2]) -> u16) -> String {
         .map(|pair| unit([pair[0], pair[1]]))
         .collect::<Vec<_>>();
     String::from_utf16_lossy(&units)
+}
+
+/// tsgo `tspath.GetRelativePathFromDirectory` of two absolute paths.
+fn relative_path_from_directory(directory: &str, path: &str, case_sensitive: bool) -> String {
+    let from = directory
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let to = path
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    let same = |left: &str, right: &str| {
+        if case_sensitive {
+            left == right
+        } else {
+            tsc_host::to_file_name_lower_case(left) == tsc_host::to_file_name_lower_case(right)
+        }
+    };
+    let common = from
+        .iter()
+        .zip(&to)
+        .take_while(|(left, right)| same(left, right))
+        .count();
+    let mut parts = vec![".."; from.len() - common];
+    parts.extend(&to[common..]);
+    parts.join("/")
 }
 
 fn parent_of(path: &str) -> &str {

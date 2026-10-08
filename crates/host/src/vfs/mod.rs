@@ -359,9 +359,7 @@ fn join<'a>(components: impl IntoIterator<Item = &'a str>) -> String {
         }
         path.push_str(component);
     }
-    if path.is_empty() {
-        path.push('/');
-    } else if is_drive(&path) {
+    if path.is_empty() || is_drive(&path) {
         path.push('/');
     }
     path

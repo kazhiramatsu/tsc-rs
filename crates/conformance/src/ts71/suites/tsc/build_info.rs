@@ -549,7 +549,7 @@ mod tests {
   "options": {
     "outDir": "./dist"
   },
-  "size": 176
+  "size": 191
 }"#
         );
     }

@@ -33,7 +33,9 @@ use tsc_program::{
 };
 
 use crate::build::{self, BuildCommand};
-use crate::system::{CommandLineTesting, NativeSystem, System, SystemEmitFileSystem};
+use crate::system::{
+    CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
+};
 use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
 
 const EXIT_SUCCESS: i32 = 0;
@@ -637,6 +639,8 @@ pub(crate) struct BuildProjectRun {
     /// The texts the diagnostics were rendered from (a build summarizes
     /// them at its end).
     pub(crate) sources: DiagnosticSourceMap,
+    /// The incremental program's files for a test harness.
+    pub(crate) program_report: Option<Vec<crate::ProgramFileReport>>,
 }
 
 /// How a project is run: for `tsc -b` the session knows it is a build and
@@ -766,6 +770,7 @@ fn run_config(
                 declarations_differing_only_in_map: Vec::new(),
                 stamped: Vec::new(),
                 sources: source_texts,
+                program_report: None,
             });
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
@@ -814,7 +819,9 @@ fn run_config(
             crate::incremental::old_state_of(info, &prepared, &default_library_directory)
         }),
     };
-    execute_prepared(
+    let config_file = plan.config_file_name().to_string_lossy().into_owned();
+    let resolution_trace = resolution_trace_text(&prepared, route, !mode.build);
+    let mut run = execute_prepared(
         current_directory,
         source_texts,
         prepared,
@@ -822,7 +829,42 @@ fn run_config(
         route,
         old_build_info,
         mode,
-    )
+    )?;
+    run.stdout.insert_str(0, &resolution_trace);
+    report_program(route, Some(config_file), &run);
+    Ok(run)
+}
+
+/// The `--traceResolution` lines of a program's creation, as tsgo prints
+/// them while it creates the Program; `shared_output` when they go to the
+/// command's own output (a build writes each project's to its buffer).
+fn resolution_trace_text(
+    prepared: &tsc_program::PreparedProgram,
+    route: &CliRoute<'_>,
+    shared_output: bool,
+) -> String {
+    let mut text = String::new();
+    for line in prepared.resolution_trace() {
+        let line = line.to_string();
+        match route.testing {
+            Some(testing) => testing.trace(&line, &mut text, shared_output),
+            None => {
+                text.push_str(&line);
+                text.push('\n');
+            }
+        }
+    }
+    text
+}
+
+/// tsgo `testing.OnProgram` after an incremental program's run.
+fn report_program(route: &CliRoute<'_>, config_file: Option<String>, run: &BuildProjectRun) {
+    if let (Some(testing), Some(files)) = (route.testing, &run.program_report) {
+        testing.on_program(&ProgramReport {
+            config_file,
+            files: files.clone(),
+        });
+    }
 }
 
 fn execute_explicit_files(
@@ -847,17 +889,7 @@ fn execute_explicit_files(
     .map_err(|error| CliError::Load(error.to_string()))?;
     // tsgo prints the resolution trace while it creates the Program, before
     // any listing or diagnostic.
-    let mut resolution_trace = String::new();
-    for line in prepared.resolution_trace() {
-        let line = line.to_string();
-        match route.testing {
-            Some(testing) => testing.trace(&line, &mut resolution_trace, true),
-            None => {
-                resolution_trace.push_str(&line);
-                resolution_trace.push('\n');
-            }
-        }
-    }
+    let resolution_trace = resolution_trace_text(&prepared, route, true);
     let mut source_texts = BTreeMap::new();
     for source in prepared.source_files() {
         source_texts.insert(
@@ -870,7 +902,7 @@ fn execute_explicit_files(
         &prepared,
         &catalog.directory().to_string_lossy(),
     );
-    execute_prepared(
+    let run = execute_prepared(
         current_directory,
         source_texts,
         prepared,
@@ -878,8 +910,12 @@ fn execute_explicit_files(
         route,
         old_build_info,
         ProjectRunMode::COMMAND,
-    )
-    .map(|run| CliOutput::new(resolution_trace + &run.stdout, run.exit_code))
+    )?;
+    report_program(route, None, &run);
+    Ok(CliOutput::new(
+        resolution_trace + &run.stdout,
+        run.exit_code,
+    ))
 }
 
 fn execute_prepared(
@@ -961,6 +997,7 @@ fn execute_prepared(
     // write it (TS5033) joins the diagnostics.
     let mut status_writes = Vec::new();
     let mut emitted_files = Vec::new();
+    let program_report = outcome.program_report().map(<[_]>::to_vec);
     if let Some(document) = outcome.build_info() {
         let mut sink = FsOutputSink::new(route.output_filesystem);
         match crate::incremental::write_build_info(&mut sink, document) {
@@ -1026,6 +1063,7 @@ fn execute_prepared(
         declarations_differing_only_in_map: Vec::new(),
         stamped,
         sources: source_texts,
+        program_report,
     })
 }
 
@@ -1140,6 +1178,7 @@ fn execute_emitting_prepared(
     tsc_checker::line_profile::write_report();
 
     let build_emit = outcome.build_emit.clone();
+    let program_report = outcome.program_report.clone();
     let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
 
     let cwd: JsStr<'_> = current_directory
@@ -1185,9 +1224,12 @@ fn execute_emitting_prepared(
             .collect(),
         stamped,
         sources: source_texts,
+        program_report,
     })
 }
 
+/// The command line's own errors (tsgo `tscCompilation` reports each one and
+/// stops; no error summary follows).
 fn rendered_diagnostics_with_exit(
     format: Format<'_>,
     source_texts: &DiagnosticSourceMap,
@@ -1201,7 +1243,7 @@ fn rendered_diagnostics_with_exit(
         exit_code,
         NoEmitWorkCounters::default(),
         &[],
-        true,
+        false,
     )
 }
 

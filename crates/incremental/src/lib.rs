@@ -31,5 +31,5 @@ pub use snapshot::{
     build_fresh_build_info, declaration_write_decision, ensure_path_is_non_module_name,
     fresh_emit_updates, CachedRows, DeclarationEmit, DeclarationEmitFacts, DeclarationOutput,
     DeclarationWrite, EmitUpdate, FileEmitKind, FileState, FreshSnapshotInput, ProgramFileFacts,
-    ProgramState, SemanticRowsFacts, Snapshot,
+    ProgramState, SemanticDiagnosticsState, SemanticRowsFacts, SignatureUpdateKind, Snapshot,
 };

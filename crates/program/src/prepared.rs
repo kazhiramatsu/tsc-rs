@@ -1986,7 +1986,10 @@ impl PreparedProgramBuilder {
 
     /// Whether `root` selects `source`, or is a package redirect of it: a
     /// root whose file is a redirect names the identity's owner (tsgo
-    /// filesByPath[rootPath] = packageIdFile).
+    /// filesByPath[rootPath] = packageIdFile). A root in a referenced
+    /// project selects that project's output declaration file (tsgo
+    /// `getSourceOfProjectReferenceRedirect`'s inverse: the program holds the
+    /// output in the source's place).
     fn root_selects_source_or_its_redirect(
         &self,
         root: &CanonicalPath,
@@ -1995,6 +1998,7 @@ impl PreparedProgramBuilder {
         if source
             .package_redirect_paths()
             .iter()
+            .chain(source.project_reference_source_paths())
             .any(|redirect| redirect.canonical() == root)
         {
             return Ok(true);

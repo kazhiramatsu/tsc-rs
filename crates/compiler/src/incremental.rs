@@ -463,6 +463,15 @@ pub(crate) struct AffectedPolicy {
     pub(crate) hash_with_text: bool,
 }
 
+/// One file of an incremental program's run as tsgo's test harness sees it
+/// (`incremental.TestingData` over the program's files).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProgramFileReport {
+    pub file_name: String,
+    pub semantic_diagnostics: tsc_incremental::SemanticDiagnosticsState,
+    pub signature_update: Option<tsc_incremental::SignatureUpdateKind>,
+}
+
 /// What `tsc -b` learns from a project's emit (tsgo
 /// `Program.HasChangedDtsFile` and the write hook's `differsOnlyInMap`).
 #[derive(Clone, Debug, Default)]
@@ -1014,6 +1023,24 @@ impl<'p> IncrementalDriver<'p> {
                 declarations_differing_only_in_map: state.differing_only_in_map.clone(),
             })
             .unwrap_or_default()
+    }
+
+    /// The program's files as the run left them (tsgo `GetTestingData`).
+    pub(crate) fn program_report(&self) -> Option<Vec<ProgramFileReport>> {
+        let guard = self.state();
+        let state = guard.as_ref()?;
+        Some(
+            self.prepared
+                .source_files()
+                .iter()
+                .enumerate()
+                .map(|(index, source)| ProgramFileReport {
+                    file_name: source.path().display().to_string_lossy().into_owned(),
+                    semantic_diagnostics: state.snapshot.semantic_diagnostics_state(index),
+                    signature_update: state.snapshot.signature_update(index),
+                })
+                .collect(),
+        )
     }
 
     pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {

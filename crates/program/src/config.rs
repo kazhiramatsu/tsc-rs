@@ -2116,6 +2116,8 @@ const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
     "explainFiles",
     "listFilesOnly",
     "pretty",
+    // The resolution trace is printed while the program is created.
+    "traceResolution",
     // The incremental options change what a command writes, not what it
     // reports; the build info file is not written yet (the roadmap's
     // incremental slice).
@@ -2185,6 +2187,7 @@ const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
     "listFiles",
     "explainFiles",
     "listFilesOnly",
+    "traceResolution",
     "emitBOM",
     "noEmitOnError",
     "noCheck",

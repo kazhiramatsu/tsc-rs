@@ -68,7 +68,8 @@ mod cli;
 mod declaration_diagnostics;
 mod incremental;
 pub mod system;
-pub use incremental::BuildInfoDocument;
+pub use incremental::{BuildInfoDocument, ProgramFileReport};
+pub use tsc_incremental::{SemanticDiagnosticsState, SignatureUpdateKind};
 pub mod transpile;
 
 pub use cli::{execute_command_line, run_cli, CliOutput, TYPESCRIPT_VERSION as CLI_VERSION};
@@ -166,6 +167,9 @@ pub(crate) struct CliEmitSessionOutcome {
     pub(crate) checked_source_files: u32,
     /// What `tsc -b` learns from the emit.
     pub(crate) build_emit: incremental::BuildEmitFacts,
+    /// The incremental program's files for tsgo's test harness (a testing
+    /// session only).
+    pub(crate) program_report: Option<Vec<incremental::ProgramFileReport>>,
 }
 
 impl CliEmitSessionOutcome {
@@ -510,6 +514,7 @@ impl ProgramDiagnostics {
             work_counters,
             checked_source_files: 0,
             build_emit: incremental::BuildEmitFacts::default(),
+            program_report: None,
         }
     }
 }
@@ -1630,6 +1635,7 @@ impl ProgramSession {
                 work_counters: outcome.work_counters,
                 checked_source_files: 0,
                 build_emit: incremental::BuildEmitFacts::default(),
+                program_report: None,
             };
             return Ok(EmitCommandOutcome::with_options_diagnostics(
                 reported,
@@ -2084,6 +2090,9 @@ impl ProgramSession {
                         diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
                     outcome.checked_source_files = checker.checked_source_files();
                     outcome.build_emit = driver.build_emit_facts();
+                    if testing {
+                        outcome.program_report = driver.program_report();
+                    }
                     outcome
                 })
                 .map_err(DriverError::Emit)
@@ -2177,6 +2186,9 @@ impl ProgramSession {
             };
             let mut outcome = diagnostics.with_emit(&preflight_diagnostics, emit, work_counters);
             outcome.build_emit = driver.build_emit_facts();
+            if testing {
+                outcome.program_report = driver.program_report();
+            }
             outcome
         })
         .map_err(DriverError::Emit)
@@ -2900,6 +2912,9 @@ impl ProgramSession {
         };
         let outcome = outcome.map(|mut outcome| {
             outcome.build_emit = driver.build_emit_facts();
+            if testing {
+                outcome.program_report = driver.program_report();
+            }
             outcome
         });
         // The planner and the driver borrow the prepared program; both end
@@ -3561,6 +3576,7 @@ impl ProgramSession {
             }
             driver.build_info(command)
         });
+        let program_report = self.testing.then(|| driver.program_report()).flatten();
         sort_and_dedupe_diagnostics(&mut available_semantic);
 
         // emitFilesAndReportErrors compares the aggregate length with the
@@ -3650,6 +3666,7 @@ impl ProgramSession {
                 native_harness_diagnostics,
                 work_counters,
                 build_info,
+                program_report,
             },
             first_emit,
         ))
@@ -3700,6 +3717,9 @@ pub struct NoEmitOutcome {
     /// The build info of an incremental program (tsgo `emitBuildInfo`, which
     /// a `--noEmit` command still writes): the command writes it.
     build_info: Option<BuildInfoDocument>,
+    /// The incremental program's files for tsgo's test harness (a testing
+    /// session only).
+    program_report: Option<Vec<incremental::ProgramFileReport>>,
 }
 
 impl PartialEq for NoEmitOutcome {
@@ -3813,6 +3833,12 @@ impl NoEmitOutcome {
     /// writes (tsgo `emitBuildInfo`); `None` for other programs.
     pub fn build_info(&self) -> Option<&BuildInfoDocument> {
         self.build_info.as_ref()
+    }
+
+    /// The incremental program's files for tsgo's test harness (a testing
+    /// session only).
+    pub fn program_report(&self) -> Option<&[incremental::ProgramFileReport]> {
+        self.program_report.as_deref()
     }
 
     /// Aggregate public-getter stream used only by differential conformance.

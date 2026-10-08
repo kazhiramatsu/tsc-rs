@@ -83,6 +83,18 @@ pub trait CommandLineTesting: Send + Sync {
         output.push_str(message);
         output.push('\n');
     }
+
+    /// After an incremental program's run (tsgo `OnProgram`).
+    fn on_program(&self, _program: &ProgramReport) {}
+}
+
+/// An incremental program after its run, as tsgo's test harness sees it.
+#[derive(Clone, Debug)]
+pub struct ProgramReport {
+    /// The program's config file (absolute), when it has one.
+    pub config_file: Option<String>,
+    /// Every file of the program, in program order.
+    pub files: Vec<crate::ProgramFileReport>,
 }
 
 /// The process: its file system, current directory, clock and environment.
