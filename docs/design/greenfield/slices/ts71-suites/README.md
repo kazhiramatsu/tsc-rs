@@ -669,3 +669,13 @@ tsgo の `internal/tsoptions` の 2 つの test file は、Go の表を入力に
   incremental 28、compiler 418、checker 1,797（全て 0 失敗）、`.github/ci/test_replay.py` 6。workspace 全体の test と clippy は
   hosted の `rust` job に任せた。実 project の比較は行っていない（config の既定値の変更は常に有効な `allowSyntheticDefaultImports`
   と、使われない type acquisition だけ）。parallel control は checker を変えていないので行っていない。性能は計測していない（利用者の指示）。
+
+### P4-5のhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `d6b39c40f`（vendoring `f81ba0ed1` ＋ fix `38ea9b1e4` ＋ packet の記録）の run 37765052524（`plan` 33s、
+  `rust` 8m6s、`conformance (TypeScript 7.1)` 19m59s（lane A の後に suites 3 種の `--check`）、`gates` 13s。全て成功）。
+  merge → `9cabc9a41`（merge commit）。
+- 計測（conformance の全体実行、suites、crate test）は上の記録のとおり、merge前に最終bytes `38ea9b1e4` で行った。
+  実project の比較は行っていない。性能は計測していない（利用者の指示）。
+- 次：P4-6（tsc（224）＋ tsbuild（192）：`TestSys`（仮想 FS・時計・差分・sanitizer・readable buildinfo）、Go 表の Rust 化、
+  `ExitStatus`、help／init／showConfig／locale の採用判断、vendoring）。大きいので計画を先に決める。
