@@ -581,3 +581,14 @@ tsgo の `TranspileBaselineRunner`（testrunner/transpile_runner.go）は `tests
   `.github/ci/test_replay.py` 6。workspace 全体の test と clippy は hosted の `rust` job に任せた。実 project の比較は行っていない
   （emitter の変更は上の 2 構文の source map range だけ）。parallel control は checker を変えていないので行っていない。
   性能は計測していない（利用者の指示）。
+
+### P4-4のhostedの記録とmerge（2026-10-08）
+
+- hosted：最終候補 `5842b6ded`（vendoring `8f314274e` ＋ fix `609a2de2d` ＋ packet の記録）の run 37756272860（`plan` 33s、
+  `rust` 7m35s、`conformance (TypeScript 7.1)` 19m6s（lane A の後に `scripts/suites_ts71.py --check`）、`gates` 14s。全て成功）。
+  merge → `139893d72`（merge commit）。
+- 計測（conformance の全体実行、transpile suite、crate test）は上の記録のとおり、merge前に最終bytes `609a2de2d` で行った。
+  実project の比較は行っていない。性能は計測していない（利用者の指示）。
+- 次：P4-5（tsoptions（80：parseCommandLine 53＋parseBuildOptions 27）＋ config/tsconfigParsing（87）：Go 表の Rust 化、
+  `Args::`／`CompilerOptions::`／`FileNames::`／`Errors::` 等の形式の描画、vendoring）。`suites-ts71` と
+  `scripts/suites_ts71.py` に suite を足す。P4-4 の残り（`SkipModuleResolution`、clone の位置）は制限として上に記録。
