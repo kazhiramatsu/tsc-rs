@@ -443,24 +443,63 @@ fn a_printed_type_does_not_reuse_an_import_of_another_mode() {
             ..CompilerOptions::default()
         },
     );
-    let mut live = LiveProgram::new(prepared).expect("create the live program");
-    let file = live
-        .file_index("/work/other.cts")
-        .expect("the file is in the Program");
-    let printed = live
-        .with_checker(|state| type_writer::write_types(state, file))
-        .expect("write the types")
-        .iter()
-        .map(|line| format!(">{} : {}", line.source_text, line.text))
-        .collect::<Vec<_>>();
     assert_eq!(
-        printed,
+        printed_types(prepared, "/work/other.cts"),
         [
             ">a : Promise<{ default: typeof import(\"./index.cjs\"); }>",
             ">import(\"package/cjs\") : Promise<{ default: typeof import(\"./index.cjs\"); }>",
             ">\"package/cjs\" : \"package/cjs\"",
         ]
     );
+}
+
+/// Only the first import of the file that resolves to the module is a
+/// candidate, reused when its usage mode (here the CommonJS file's own
+/// syntax: the type-only import has no `resolution-mode`) is the mode
+/// generated for (tsgo computeModuleSpecifiers, specifiers.go:376-404). The
+/// lines are tsgo's `typeOnlyESMImportFromCJS(module=nodenext).types`.
+#[test]
+fn a_printed_type_considers_only_the_first_import_of_the_module() {
+    let files = [
+        ("/work/module.mts", "export {};\n"),
+        (
+            "/work/common.cts",
+            "import type {} from \"./module.mts\";\n\
+             import type {} from \"./module.mts\" with { \"resolution-mode\": \"import\" };\n\
+             import type {} from \"./module.mts\" with { \"resolution-mode\": \"require\" };\n\
+             type _1 = typeof import(\"./module.mts\");\n\
+             type _2 = typeof import(\"./module.mts\", { with: { \"resolution-mode\": \"import\" } });\n\
+             type _3 = typeof import(\"./module.mts\", { with: { \"resolution-mode\": \"require\" } });\n",
+        ),
+    ];
+    let prepared = prepared(
+        &files,
+        CompilerOptions {
+            module: Some(199),
+            ..CompilerOptions::default()
+        },
+    );
+    let module = "typeof import(\"./module.mjs\", { with: { \"resolution-mode\": \"import\" } })";
+    assert_eq!(
+        printed_types(prepared, "/work/common.cts"),
+        [
+            format!(">_1 : {module}"),
+            format!(">_2 : {module}"),
+            format!(">_3 : {module}"),
+        ]
+    );
+}
+
+/// The `.types` lines of `unit` over a live Program no file of which has
+/// been checked.
+fn printed_types(prepared: PreparedProgram, unit: &str) -> Vec<String> {
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    let file = live.file_index(unit).expect("the unit is in the Program");
+    live.with_checker(|state| type_writer::write_types(state, file))
+        .expect("write the types")
+        .iter()
+        .map(|line| format!(">{} : {}", line.source_text, line.text))
+        .collect()
 }
 
 /// A file's semantic rows are those the checker holds when the file is
