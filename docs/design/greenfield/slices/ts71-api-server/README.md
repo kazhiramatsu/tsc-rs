@@ -759,3 +759,70 @@ snapshot、option、module provider を借りる）。
   よる）。merge → `f2f010b07`（merge commit、PR #727）。
 - P5-2（transport と session、request の file system、callback の FS）はこれで終わる。次は P5-3 の計画（「依存と順序」の 3：
   project の要らない request）。
+
+## P5-3 project の要らない request と program の情報の計画（2026-10-10）
+
+「依存と順序」の 3（project の要らない request）に、project の program を読むが checker を使わない request（program の情報）を
+加える。TypeScript の client の test で、最初に足りない method が `getSourceFile` のものが 89 ある。
+
+### tsgo の構成（`19dadef8`）
+
+- **config と command line**（`api/session.go` 1749–1828）：
+  - `parseCommandLine{commandLine}`：`tsoptions.ParseCommandLine` の結果を `ConfigFileResponse`（P5-2a の project の形）で返す。
+  - `readConfigFile{file}`：読めなければ `{config: {}, error: Cannot_read_file_0}`。読めれば `ParseConfigFileTextToJson` の JSON
+    値と最初の error。
+  - `parseJsonConfigFileContent{json, configDirectory | configFileName}`：JSON 値から parse する（`ParseJsonConfigFileContent`）。
+    directory と file 名はちょうど 1 つ（両方か無しは client error）。
+  - `parseConfigFile{file}`：tsconfig の source file から parse する（`ParseJsonSourceFileConfigFileContent`）。読めなければ
+    client error（`could not read file %q`）。
+- **source file**（1835–1930）：`createSourceFile{fileName, sourceText, options{scriptKind}}` と `createSourceFileFromFile`。
+  script kind は Unknown なら file 名から決め、JS・JSX・TS・TSX・JSON 以外は client error。parse cache から lease を取り
+  （`SnapshotHost.AcquireSourceFile`）、encode して header の lease ID（52–59 byte）を書く。`releaseSourceFile{lease}` で手放す
+  （0 は `empty source file lease`、無い lease は `not found`）。session を閉じるとき残りを手放す。
+- **transpile**（1830、1932–1969）：`transpileModule`／`transpileDeclaration`（`{input, options{compilerOptions, fileName,
+  reportDiagnostics}}`）と、file を読んで file 名を置き換える `*FromFile`。`{outputText, diagnostics, sourceMapText}` を返す。
+- **program の情報**（1971–2283。project の program を読み、checker は使わない）：
+  - `getSourceFile`：encode する。無ければ MessagePack は空の binary、JSON は null。
+  - `getSourceFileNames`。
+  - `getSourceFileMetadata`：default library か、external library か、package.json の type と directory、implied node format。
+  - `getConfigFileNames`（config と extends の file）と `getConfigSourceFile`（そのどれかの tsconfig source file）。
+  - `getModeForUsageLocation`／`getModeForResolutionAtIndex`。
+  - `getResolvedModule`（＋`FromModuleSpecifier`）と `getResolvedTypeReferenceDirective`（＋`FromReference`）。
+  - node は handle（`index.kind.path`。index は encoder の node index table のもの）で指す（`resolveNodeHandle`）。
+- **module resolver**（`api/module_resolution.go` 401 行）：
+  - `createModuleResolver{compilerOptions, moduleResolutions, resolveModuleNameCallback}` と `releaseModuleResolver`。
+  - `resolveModuleName{resolver, moduleName, containingDirectory, resolutionMode, snapshot | inProgressSnapshot}`：
+    `{resolvedModule, trace}` を返す。
+  - `createSnapshot` の `createPrograms` に `moduleResolver` を渡すと、program の module の解決が static な解決表
+    （`module.StaticResolutions`。specificity で選ぶ）と client の callback に替わる。callback の失敗は program の
+    `ModuleResolutionError` として request の error になる。
+
+### port の状態
+
+- **既にあるもの**：
+  - command line の parse（`tsc_program::parse_command_line`、P3-6g）と config の text から JSON へ
+    （`parse_config_file_text_to_json`）。
+  - config の source file からの parse（project と CLI の経路）。
+  - transpile（`tsc_compiler::transpile_module`／`transpile_declaration`、P4-4）。
+  - encoder（`encode_source_file`、`build_node_index_table`、P4-7d）と parse cache（`DocumentRegistry`、P5-1c）。
+- **無いもの**：
+  - JSON 値からの config の parse。tsconfig の suite は text から parse して error の位置を外している。
+  - lease と node handle。
+  - program の情報の照会の一部：metadata、mode、解決済みの module の照会。
+  - module resolver の差し替え（loader は自前の resolver だけを使う）と static resolutions。
+
+### slice
+
+- **P5-3a config・command line・source file・transpile**：
+  - 対象は `parseCommandLine`、`readConfigFile`、`parseJsonConfigFileContent`、`parseConfigFile`、`createSourceFile`
+    （＋`FromFile`）、`releaseSourceFile`、transpile の 4 種。
+  - test：`session_createsourcefile_test`（1）、tsgo の probe で固定した Rust の test、client の test。
+- **P5-3b program の情報**：
+  - 対象は `getSourceFile`、`getSourceFileNames`、`getSourceFileMetadata`、`getConfigFileNames`、`getConfigSourceFile`、mode と
+    解決済みの module／type reference の照会、node handle。
+  - test：tsgo の probe と client の test。
+- **P5-3c module resolver**：
+  - 対象は `createModuleResolver`／`releaseModuleResolver`／`resolveModuleName`、static resolutions、program の resolver の
+    差し替え（callback を含む）。
+  - test：`session_module_resolution_test` の 5。LSP の snapshot を使う 1 は LSP と一緒に移す。
+- 次は P5-4（checker の query）。
