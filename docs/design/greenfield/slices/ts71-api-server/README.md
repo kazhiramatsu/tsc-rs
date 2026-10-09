@@ -509,3 +509,25 @@ snapshot、option、module provider を借りる）。
   pool の diagnostics checker（`CheckerLifetimeDiagnostics`）で、型と symbol の query を API checker（`CheckerLifetimeAPI`、
   消されない persistent な checker）で行う。port の `LiveProgram` は 1 つの checker で両方を行うので、query が後の診断に
   影響しないよう、API checker を分ける。LSP の query checker と idle の後片付け（時間で決まる）は移さない。
+
+## P5-1d API checker（2026-10-10）
+
+- **tsgo**：project の checker pool（`project/checkerpool.go`）は、diagnostics checker（index 0。LSP の診断。idle で消える）、
+  query checker（LSP の操作）、API checker（`CheckerLifetimeAPI`。消されない persistent な checker で、API の型と symbol の
+  handle の同一性を保つ）を持つ。API の session は diagnostics の request（syntactic／bind／semantic／suggestion／declaration／
+  global。`api/session.go` の `handleGet*Diagnostics`）を `CheckerLifetimeDiagnostics` で、型の query（`GetTypeChecker`）を
+  `CheckerLifetimeAPI` で行う。
+- **port**：`LiveChecker` は診断の checker のほかに API checker を持ち（最初の query で作る）、`with_checker`
+  （`LiveProgram::with_checker`）はそれを使う。今までは 1 つの checker が両方を行ったので、file を検査する query がその検査の
+  行を後の診断に足すことがあった。
+- **移さないもの**：LSP の query checker、pool の idle の後片付け（30 秒で消して作り直す。時間で結果が決まる部分）、diagnostics
+  checker の作り直しをまたぐ global diagnostics の蓄積（port の diagnostics checker は program と同じだけ生きる）。
+- conformance の runner の `TSRS_LIVE_CHECK`（任意の比較）は、batch の walk の checker と同じく、API checker で先に全ての file を
+  検査してから型と symbol を walk する。
+- **test**：compiler の live program 1 件（library を検査する query の後でも、script の最初の診断は空で、library の検査の後に
+  2374）。共有の checker（前の code）ではこの test が `[2374]` で失敗することを確かめた。
+- **検証**（最終 bytes `63a105c8a`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（checker・
+  compiler・conformance・project、`--all-targets -- -D warnings`）は clean。`cargo test`：compiler の `live_program` 11、project 40、
+  全て成功。変えたのは `LiveChecker` と任意の live 比較だけで、batch の compile の経路と checker の検査は変えていないので、
+  conformance と parallel control は local では走らせず hosted の job に任せた。
+- **残り**：P5-1e（`SnapshotFS` の細部）。

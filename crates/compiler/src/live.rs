@@ -219,8 +219,10 @@ impl LiveProgram {
         self.checker.global_diagnostics()
     }
 
-    /// Run `query` over the Program's checker; none for a Program without
-    /// files, which has no checker.
+    /// Run `query` over the Program's API checker (tsgo's persistent
+    /// checker for the API's queries), kept apart from the checker the
+    /// diagnostics come from; none for a Program without files, which has no
+    /// checker.
     pub fn with_checker<T>(&mut self, query: impl FnOnce(&mut CheckerState<'_>) -> T) -> Option<T> {
         self.checker.with_checker(query)
     }
