@@ -1476,3 +1476,9 @@ source と binary で確かめた。
   いなかった。その変更もこの対照に含まれる。`scripts/suites_ts71.py --check`：全ての suite が変わらず（api 2、config 87、transpile 41、
   tsbuild 182／192、tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）、regression 0。tsgo との比較は上のとおり最終 bytes
   の release binary で 30／33。実 project と性能は計測していない（利用者の指示）。
+
+### resolver の trace と implied format の hosted の記録と merge（2026-10-09）
+
+- hosted：最終候補 `a452d8717`（修正 `c9b93dd6b`・ratchet `414276cae`・packet の記録）の run 37895988182（`plan` 36s、`rust` 7m39s、
+  `conformance (TypeScript 7.1)` 20m36s、`gates` 15s。全て成功）。merge → `fe881418b`（merge commit）。
+- #717 の残りの resolver の 2 つはこれで終わり。次：API server の決定（[ts71-api-server](../ts71-api-server/README.md)）。
