@@ -1007,3 +1007,10 @@ snapshot、option、module provider を借りる）。
   - suites（`scripts/suites_ts71.py --check`）：0 regressions、数は main と同じ。
   - workspace 全体の test と Clippy は hosted の `rust` job に任せた。
 - **残り**：P5-3 はこれで終わる。次は P5-4（checker の query）の計画。
+
+### P5-3c の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `69114cb22`（コード `a59b4cde2`、packet の記録）の run 37998538106（`plan` 30s、`rust` 9m20s、
+  `conformance (TypeScript 7.1)` 20m34s、`gates` 20s。全て成功。workspace 全体の test と Clippy はこの `rust` job に
+  よる）。merge → `cfbd71ecf`（merge commit、PR #730）。
+- P5-3（project の要らない request、program の情報、module resolver）はこれで終わる。次は P5-4（checker の query）の計画。
