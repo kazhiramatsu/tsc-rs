@@ -7,7 +7,7 @@ tsgo's internal/execute/tsctests package declares each test as Go values
 and edit closures, and its baselines are what one run of them writes. This
 script copies the package within the pinned checkout (scripts/typescript7.py
 setup) as internal/execute/tsrsdump, adds scripts/tsctests_dump/
-tsrs_dump_test.go, and runs the one-shot tests (watch mode excluded) with
+tsrs_dump_test.go, and runs the scenario tests (watch mode included) with
 the recorder on: every scenario's files, arguments, environment and terminal,
 and every edit's TestSys file operations, in order. The tests still compare
 their baselines with the reference, so a recording is written only from a
@@ -30,9 +30,11 @@ import typescript7  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 OVERLAY = ROOT / "scripts/tsctests_dump/tsrs_dump_test.go"
 DEFAULT_PROFILE = "7.1.0-dev-19dadef8"
-# The one-shot tests; watch mode is recorded with its own runner later.
-RUN = "^(TestTsc|TestBuild|TestShowConfig|TestForceConsistentCasingInFileNames|TestGenerateTrace|TestTypeAcquisition)"
-SKIP = "Watch"
+# The tests that run scenarios (tscInput.run), watch mode included; the
+# watcher race tests drive a watcher directly and write no baseline.
+RUN = ("^(TestTsc|TestBuild|TestShowConfig|TestForceConsistentCasingInFileNames|TestGenerateTrace"
+       "|TestTypeAcquisition|TestWatch$)")
+SKIP = "^TestBuildWatchStopsWhenContextIsCancelled$"
 
 # (file, anchor, text inserted after the anchor). Each anchor must occur once.
 INSERTIONS = [

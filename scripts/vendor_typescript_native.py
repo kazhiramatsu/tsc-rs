@@ -27,6 +27,8 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/baselines/reference/config/tsconfigParsing
                                                     every tsconfig parsing baseline
   tsc/testdata/baselines/reference/{tsc,tsbuild}    every tsc and tsc -b baseline
+  tsc/testdata/baselines/reference/{tscWatch,tsbuildWatch}
+                                                    every tsc --watch and tsc -b --watch baseline
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
 each set's Git tree id (a single file's blob id; a filtered baseline set
@@ -62,6 +64,8 @@ TREES = [
     "tsc/testdata/baselines/reference/config/tsconfigParsing",
     "tsc/testdata/baselines/reference/tsc",
     "tsc/testdata/baselines/reference/tsbuild",
+    "tsc/testdata/baselines/reference/tscWatch",
+    "tsc/testdata/baselines/reference/tsbuildWatch",
 ]
 LOCALES = ["cs-CZ", "de-DE", "es-ES", "fr-FR", "it-IT", "ja-JP", "ko-KR", "pl-PL", "pt-BR",
            "ru-RU", "tr-TR", "zh-CN", "zh-TW"]

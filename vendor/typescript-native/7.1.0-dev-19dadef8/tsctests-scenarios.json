@@ -27410,6 +27410,1697 @@
     }
    ],
    "edits": []
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-at-types-package-installed-later.js",
+   "test": "TestWatch/tscWatch/watch_detects_at-types_package_installed_later",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects at-types package installed later",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import * as lib from \"untyped-lib\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/untyped-lib/index.js",
+     "text": "module.exports = {};"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "install @types for the library",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/@types/untyped-lib/index.d.ts",
+       "text": "declare module \"untyped-lib\" { export const value: string; }"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/@types/untyped-lib/package.json",
+       "text": "{\"name\": \"@types/untyped-lib\", \"types\": \"index.d.ts\"}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-change-in-symlinked-node_modules-file.js",
+   "test": "TestWatch/tscWatch/watch_detects_change_in_symlinked_node_modules_file",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects change in symlinked node_modules file",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { shared } from \"shared\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/shared/index.ts",
+     "symlink": "/home/src/workspaces/shared/index.ts"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    },
+    {
+     "path": "/home/src/workspaces/shared/index.ts",
+     "text": "export const shared = \"v1\";"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "modify symlink target",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/shared/index.ts",
+       "text": "export const shared = \"v2\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-error-across-global-script-files-when-global-decl-removed.js",
+   "test": "TestWatch/tscWatch/watch_detects_error_across_global_script_files_when_global_decl_removed",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects error across global script files when global decl removed",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "console.log(a);"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    },
+    {
+     "path": "/home/src/workspaces/project/x.ts",
+     "text": "const a = 1;"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "comment out global declaration",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/x.ts",
+       "text": "// const a = 1;"
+      }
+     ]
+    },
+    {
+     "caption": "restore global declaration",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/x.ts",
+       "text": "const a = 1;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-file-added-in-deeply-nested-non-existent-include-path.js",
+   "test": "TestWatch/tscWatch/watch_detects_file_added_in_deeply_nested_non-existent_include_path",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects file added in deeply nested non-existent include path",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x: number = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{ \"include\": [\"*.ts\", \"deep/nested/dir/**/*\"] }"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "create deeply nested file matching include",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/deep/nested/dir/added.ts",
+       "text": "export const added = 1;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-file-added-in-multiple-new-subdirectories-simultaneously.js",
+   "test": "TestWatch/tscWatch/watch_detects_file_added_in_multiple_new_subdirectories_simultaneously",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects file added in multiple new subdirectories simultaneously",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/src/a.ts",
+     "text": "export const a = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"include\": [\"src/**/*.ts\"]\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "create multiple new subdirs with files",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/models/user.ts",
+       "text": "export interface User { name: string; }"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/utils/format.ts",
+       "text": "export function format(s: string): string { return s.trim(); }"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-file-added-in-new-nested-subdirectory.js",
+   "test": "TestWatch/tscWatch/watch_detects_file_added_in_new_nested_subdirectory",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects file added in new nested subdirectory",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/src/a.ts",
+     "text": "export const a = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"include\": [\"src/**/*.ts\"]\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "create nested dir with ts file",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/deep/nested/util.ts",
+       "text": "export const util = \"nested\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-file-added-to-previously-non-existent-include-path.js",
+   "test": "TestWatch/tscWatch/watch_detects_file_added_to_previously_non-existent_include_path",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects file added to previously non-existent include path",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"include\": [\"index.ts\", \"src/**/*.ts\"]\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "create src dir with ts file matching include",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/helper.ts",
+       "text": "export const helper = \"added\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-file-deleted-and-new-file-added-simultaneously.js",
+   "test": "TestWatch/tscWatch/watch_detects_file_deleted_and_new_file_added_simultaneously",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects file deleted and new file added simultaneously",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "import { b } from \"./b\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/b.ts",
+     "text": "export const b = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "delete b.ts and create c.ts with updated import",
+     "args": null,
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/b.ts"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/c.ts",
+       "text": "export const c = 2;"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "import { c } from \"./c\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-file-renamed-and-renamed-back.js",
+   "test": "TestWatch/tscWatch/watch_detects_file_renamed_and_renamed_back",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects file renamed and renamed back",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/helper.ts",
+     "text": "export const helper = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { helper } from \"./helper\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "rename helper to helper2",
+     "args": null,
+     "expectedDiff": "incremental resolves to .js output from prior build while clean build cannot find module",
+     "ops": [
+      {
+       "op": "rename",
+       "path": "/home/src/workspaces/project/helper.ts",
+       "to": "/home/src/workspaces/project/helper2.ts"
+      }
+     ]
+    },
+    {
+     "caption": "rename back to helper",
+     "args": null,
+     "ops": [
+      {
+       "op": "rename",
+       "path": "/home/src/workspaces/project/helper2.ts",
+       "to": "/home/src/workspaces/project/helper.ts"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-import-path-restructured.js",
+   "test": "TestWatch/tscWatch/watch_detects_import_path_restructured",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects import path restructured",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { util } from \"./lib/util\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/lib/util.ts",
+     "text": "export const util = \"v1\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "move file to new path and update import",
+     "args": null,
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/lib/util.ts"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/util.ts",
+       "text": "export const util = \"v2\";"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/index.ts",
+       "text": "import { util } from \"./src/util\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-imported-directory-removed.js",
+   "test": "TestWatch/tscWatch/watch_detects_imported_directory_removed",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects imported directory removed",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { util } from \"./lib/util\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/lib/util.ts",
+     "text": "export const util = \"hello\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "remove directory with imported file",
+     "args": null,
+     "expectedDiff": "incremental resolves to .js output from prior build (TS7016) while clean build cannot find module at all (TS2307)",
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/lib/util.ts"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-imported-file-added-in-new-directory.js",
+   "test": "TestWatch/tscWatch/watch_detects_imported_file_added_in_new_directory",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects imported file added in new directory",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { util } from \"./lib/util\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "create directory and imported file",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/lib/util.ts",
+       "text": "export const util = \"hello\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-module-going-missing-then-coming-back.js",
+   "test": "TestWatch/tscWatch/watch_detects_module_going_missing_then_coming_back",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects module going missing then coming back",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { util } from \"./util\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    },
+    {
+     "path": "/home/src/workspaces/project/util.ts",
+     "text": "export const util = \"v1\";"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "delete util module",
+     "args": null,
+     "expectedDiff": "incremental resolves to .js output from prior build while clean build cannot find module",
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/util.ts"
+      }
+     ]
+    },
+    {
+     "caption": "recreate util module with new content",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/util.ts",
+       "text": "export const util = \"v2\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-nested-subdirectory-removed-and-recreated.js",
+   "test": "TestWatch/tscWatch/watch_detects_nested_subdirectory_removed_and_recreated",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects nested subdirectory removed and recreated",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/src/lib/helper.ts",
+     "text": "export const helper = \"v1\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"include\": [\"src/**/*.ts\"]\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "remove nested dir",
+     "args": null,
+     "expectedDiff": "incremental has prior state and does not report no-inputs error",
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/src/lib/helper.ts"
+      }
+     ]
+    },
+    {
+     "caption": "recreate nested dir with new content",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/lib/helper.ts",
+       "text": "export const helper = \"v2\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-new-file-in-existing-include-directory.js",
+   "test": "TestWatch/tscWatch/watch_detects_new_file_in_existing_include_directory",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects new file in existing include directory",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/src/a.ts",
+     "text": "export const a = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"include\": [\"src/**/*.ts\"]\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "add new file to existing src directory",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/b.ts",
+       "text": "export const b = 2;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-new-file-resolving-failed-import.js",
+   "test": "TestWatch/tscWatch/watch_detects_new_file_resolving_failed_import",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects new file resolving failed import",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "import { b } from \"./b\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "create missing file",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/b.ts",
+       "text": "export const b = 1;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-node-modules-package-added.js",
+   "test": "TestWatch/tscWatch/watch_detects_node_modules_package_added",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects node modules package added",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { lib } from \"mylib\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "install package in node_modules",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/mylib/package.json",
+       "text": "{\"name\": \"mylib\", \"main\": \"index.js\", \"types\": \"index.d.ts\"}"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.js",
+       "text": "exports.lib = \"hello\";"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.d.ts",
+       "text": "export declare const lib: string;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-node-modules-package-removed.js",
+   "test": "TestWatch/tscWatch/watch_detects_node_modules_package_removed",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects node modules package removed",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { lib } from \"mylib\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/index.d.ts",
+     "text": "export declare const lib: string;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/index.js",
+     "text": "exports.lib = \"hello\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/package.json",
+     "text": "{\"name\": \"mylib\", \"main\": \"index.js\", \"types\": \"index.d.ts\"}"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "remove node_modules package",
+     "args": null,
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.d.ts"
+      },
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.js"
+      },
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/node_modules/mylib/package.json"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-node-modules-reinstalled-after-deletion.js",
+   "test": "TestWatch/tscWatch/watch_detects_node_modules_reinstalled_after_deletion",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects node modules reinstalled after deletion",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { lib } from \"mylib\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/index.d.ts",
+     "text": "export declare const lib: string;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/index.js",
+     "text": "exports.lib = \"hello\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/package.json",
+     "text": "{\"name\": \"mylib\", \"main\": \"index.js\", \"types\": \"index.d.ts\"}"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "delete node_modules entirely",
+     "args": null,
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.d.ts"
+      },
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.js"
+      },
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/node_modules/mylib/package.json"
+      }
+     ]
+    },
+    {
+     "caption": "reinstall node_modules",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/mylib/package.json",
+       "text": "{\"name\": \"mylib\", \"main\": \"index.js\", \"types\": \"index.d.ts\"}"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.js",
+       "text": "exports.lib = \"hello\";"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/mylib/index.d.ts",
+       "text": "export declare const lib: string;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-package-json-types-field-edited.js",
+   "test": "TestWatch/tscWatch/watch_detects_package_json_types_field_edited",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects package json types field edited",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { lib } from \"mylib\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/new.d.ts",
+     "text": "export declare const lib: string;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/old.d.ts",
+     "text": "export declare const lib: number;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/mylib/package.json",
+     "text": "{\"name\": \"mylib\", \"types\": \"old.d.ts\"}"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "change package.json types field",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/mylib/package.json",
+       "text": "{\"name\": \"mylib\", \"types\": \"new.d.ts\"}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-detects-scoped-package-installed.js",
+   "test": "TestWatch/tscWatch/watch_detects_scoped_package_installed",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch detects scoped package installed",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { lib } from \"@scope/mylib\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "install scoped package",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/@scope/mylib/package.json",
+       "text": "{\"name\": \"@scope/mylib\", \"types\": \"index.d.ts\"}"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/node_modules/@scope/mylib/index.d.ts",
+       "text": "export declare const lib: string;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-handles-file-rapidly-recreated.js",
+   "test": "TestWatch/tscWatch/watch_handles_file_rapidly_recreated",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch handles file rapidly recreated",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/data.ts",
+     "text": "export const val = \"original\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { val } from \"./data\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "delete and immediately recreate with new content",
+     "args": null,
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/data.ts"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/data.ts",
+       "text": "export const val = \"recreated\";"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-handles-many-bun-dependency-files.js",
+   "test": "TestWatch/tscWatch/watch_handles_many_bun_dependency_files",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch handles many bun dependency files",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "import { value0 } from \"./node_modules/.bun/pkg0/index\"; value0;\nimport { value1 } from \"./node_modules/.bun/pkg1/index\"; value1;\nimport { value2 } from \"./node_modules/.bun/pkg2/index\"; value2;\nimport { value3 } from \"./node_modules/.bun/pkg3/index\"; value3;\nimport { value4 } from \"./node_modules/.bun/pkg4/index\"; value4;\nimport { value5 } from \"./node_modules/.bun/pkg5/index\"; value5;\nimport { value6 } from \"./node_modules/.bun/pkg6/index\"; value6;\nimport { value7 } from \"./node_modules/.bun/pkg7/index\"; value7;\nimport { value8 } from \"./node_modules/.bun/pkg8/index\"; value8;\nimport { value9 } from \"./node_modules/.bun/pkg9/index\"; value9;\nimport { value10 } from \"./node_modules/.bun/pkg10/index\"; value10;\nimport { value11 } from \"./node_modules/.bun/pkg11/index\"; value11;\n"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg0/index.ts",
+     "text": "export const value0 = 0;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg1/index.ts",
+     "text": "export const value1 = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg10/index.ts",
+     "text": "export const value10 = 10;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg11/index.ts",
+     "text": "export const value11 = 11;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg2/index.ts",
+     "text": "export const value2 = 2;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg3/index.ts",
+     "text": "export const value3 = 3;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg4/index.ts",
+     "text": "export const value4 = 4;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg5/index.ts",
+     "text": "export const value5 = 5;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg6/index.ts",
+     "text": "export const value6 = 6;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg7/index.ts",
+     "text": "export const value7 = 7;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg8/index.ts",
+     "text": "export const value8 = 8;"
+    },
+    {
+     "path": "/home/src/workspaces/project/node_modules/.bun/pkg9/index.ts",
+     "text": "export const value9 = 9;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"files\": [\"index.ts\", \"node_modules/.bun/pkg0/index.ts\", \"node_modules/.bun/pkg1/index.ts\", \"node_modules/.bun/pkg2/index.ts\", \"node_modules/.bun/pkg3/index.ts\", \"node_modules/.bun/pkg4/index.ts\", \"node_modules/.bun/pkg5/index.ts\", \"node_modules/.bun/pkg6/index.ts\", \"node_modules/.bun/pkg7/index.ts\", \"node_modules/.bun/pkg8/index.ts\", \"node_modules/.bun/pkg9/index.ts\", \"node_modules/.bun/pkg10/index.ts\", \"node_modules/.bun/pkg11/index.ts\"]\n}"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-handles-tsconfig-deleted.js",
+   "test": "TestWatch/tscWatch/watch_handles_tsconfig_deleted",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch handles tsconfig deleted",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "delete tsconfig",
+     "args": null,
+     "expectedDiff": "incremental reports config read error while clean build without tsconfig prints usage help",
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/tsconfig.json"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-handles-tsconfig-with-extends-base-modified.js",
+   "test": "TestWatch/tscWatch/watch_handles_tsconfig_with_extends_base_modified",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch handles tsconfig with extends base modified",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/base.json",
+     "text": "{\n\t\"compilerOptions\": { \"strict\": false }\n}"
+    },
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x = null; const y: string = x;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"extends\": \"./base.json\"\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "modify base config to enable strict",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/base.json",
+       "text": "{\n\t\"compilerOptions\": { \"strict\": true }\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-rebuilds-when-file-is-modified.js",
+   "test": "TestWatch/tscWatch/watch_rebuilds_when_file_is_modified",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch rebuilds when file is modified",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x: number = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "modify file",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/index.ts",
+       "text": "const x: number = 2;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-rebuilds-when-source-file-is-deleted.js",
+   "test": "TestWatch/tscWatch/watch_rebuilds_when_source_file_is_deleted",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch rebuilds when source file is deleted",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "import { b } from \"./b\";"
+    },
+    {
+     "path": "/home/src/workspaces/project/b.ts",
+     "text": "export const b = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "delete imported file",
+     "args": null,
+     "expectedDiff": "incremental resolves to .js output from prior build (TS7016) while clean build cannot find module at all (TS2307)",
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/b.ts"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-rebuilds-when-tsconfig-include-pattern-adds-file.js",
+   "test": "TestWatch/tscWatch/watch_rebuilds_when_tsconfig_include_pattern_adds_file",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch rebuilds when tsconfig include pattern adds file",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"include\": [\"*.ts\"]\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "widen include pattern to add src dir",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/src/extra.ts",
+       "text": "export const extra = 2;"
+      },
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {},\n\t\"include\": [\"*.ts\", \"src/**/*.ts\"]\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-rebuilds-when-tsconfig-is-modified-to-change-strict.js",
+   "test": "TestWatch/tscWatch/watch_rebuilds_when_tsconfig_is_modified_to_change_strict",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch rebuilds when tsconfig is modified to change strict",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x = null; const y: string = x;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "enable strict mode",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\"compilerOptions\": {\"strict\": true}}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-rebuilds-when-tsconfig-is-touched-but-content-unchanged.js",
+   "test": "TestWatch/tscWatch/watch_rebuilds_when_tsconfig_is_touched_but_content_unchanged",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch rebuilds when tsconfig is touched but content unchanged",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "touch tsconfig without changing content",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-skips-build-when-no-files-change.js",
+   "test": "TestWatch/tscWatch/watch_skips_build_when_no_files_change",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch skips build when no files change",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x: number = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "no change",
+     "args": null,
+     "ops": []
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-stability-with-ancestor-directory-fallback.js",
+   "test": "TestWatch/tscWatch/watch_stability_with_ancestor_directory_fallback",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch stability with ancestor directory fallback",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": "const x: number = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{ \"include\": [\"*.ts\", \"missing/**/*\"] }"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "trivial file change",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/index.ts",
+       "text": "const x: number = 2;"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-with-no-tsconfig.js",
+   "test": "TestWatch/tscWatch/watch_with_no_tsconfig",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch with no tsconfig",
+   "args": [
+    "index.ts",
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": ""
+    }
+   ],
+   "edits": []
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-with-tsconfig-and-incremental.js",
+   "test": "TestWatch/tscWatch/watch_with_tsconfig_and_incremental",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch with tsconfig and incremental",
+   "args": [
+    "--watch",
+    "--incremental"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/index.ts",
+     "text": ""
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{}"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "baseline": "tscWatch/commandLineWatch/watch-with-tsconfig-files-list-entry-deleted.js",
+   "test": "TestWatch/tscWatch/watch_with_tsconfig_files_list_entry_deleted",
+   "scenario": "commandLineWatch",
+   "subScenario": "watch with tsconfig files list entry deleted",
+   "args": [
+    "--watch"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "export const a = 1;"
+    },
+    {
+     "path": "/home/src/workspaces/project/b.ts",
+     "text": "export const b = 2;"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {},\n\t\"files\": [\"a.ts\", \"b.ts\"]\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "delete file listed in files array",
+     "args": null,
+     "ops": [
+      {
+       "op": "remove",
+       "path": "/home/src/workspaces/project/b.ts"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/noEmit/dts-errors-without-dts-enabled.js",
+   "test": "TestTscNoEmitWatch/tscWatch/dts_errors_without_dts_enabled",
+   "scenario": "noEmit",
+   "subScenario": "dts errors without dts enabled",
+   "args": [
+    "-w"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "const a = class { private p = 10; };"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true\n\t}\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "fix error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a = \"hello\";"
+      }
+     ]
+    },
+    {
+     "caption": "emit after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "introduce error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a = class { private p = 10; };"
+      }
+     ]
+    },
+    {
+     "caption": "emit when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \n\t}\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/noEmit/dts-errors.js",
+   "test": "TestTscNoEmitWatch/tscWatch/dts_errors",
+   "scenario": "noEmit",
+   "subScenario": "dts errors",
+   "args": [
+    "-w"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "const a = class { private p = 10; };"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \"declaration\": true\n\t}\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "fix error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a = \"hello\";"
+      }
+     ]
+    },
+    {
+     "caption": "emit after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"declaration\": true\n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \"declaration\": true\n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "introduce error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a = class { private p = 10; };"
+      }
+     ]
+    },
+    {
+     "caption": "emit when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"declaration\": true\n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \"declaration\": true\n\t}\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/noEmit/semantic-errors.js",
+   "test": "TestTscNoEmitWatch/tscWatch/semantic_errors",
+   "scenario": "noEmit",
+   "subScenario": "semantic errors",
+   "args": [
+    "-w"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "const a: number = \"hello\""
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true\n\t}\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "fix error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a = \"hello\";"
+      }
+     ]
+    },
+    {
+     "caption": "emit after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "introduce error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a: number = \"hello\""
+      }
+     ]
+    },
+    {
+     "caption": "emit when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \n\t}\n}"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "baseline": "tscWatch/noEmit/syntax-errors.js",
+   "test": "TestTscNoEmitWatch/tscWatch/syntax_errors",
+   "scenario": "noEmit",
+   "subScenario": "syntax errors",
+   "args": [
+    "-w"
+   ],
+   "files": [
+    {
+     "path": "/home/src/workspaces/project/a.ts",
+     "text": "const a = \"hello"
+    },
+    {
+     "path": "/home/src/workspaces/project/tsconfig.json",
+     "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true\n\t}\n}"
+    }
+   ],
+   "edits": [
+    {
+     "caption": "fix error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a = \"hello\";"
+      }
+     ]
+    },
+    {
+     "caption": "emit after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run after fixing error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "introduce error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/a.ts",
+       "text": "const a = \"hello"
+      }
+     ]
+    },
+    {
+     "caption": "emit when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \n\t}\n}"
+      }
+     ]
+    },
+    {
+     "caption": "no emit run when error",
+     "args": null,
+     "ops": [
+      {
+       "op": "write",
+       "path": "/home/src/workspaces/project/tsconfig.json",
+       "text": "{\n\t\"compilerOptions\": {\n            \"noEmit\": true,\n            \n\t}\n}"
+      }
+     ]
+    }
+   ]
   }
  ]
 }
