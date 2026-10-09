@@ -76,8 +76,13 @@ pub(crate) struct SpecifierCompilerOptions {
 impl SpecifierCompilerOptions {
     /// tsrs-native: Rust constructor for the ported machinery.
     pub(crate) fn new(compiler_options: &CompilerOptions) -> Self {
+        // tsgo `getLocalModuleSpecifier` reads no `baseUrl` (TypeScript 7.1
+        // removed it); only the bundled (`outFile`) emit below sets one, the
+        // common source directory as tsc 6.0 did.
+        let mut compiler_options = compiler_options.clone();
+        compiler_options.base_url = None;
         Self {
-            compiler_options: compiler_options.clone(),
+            compiler_options,
             paths: Vec::new(),
             paths_base_path: None,
             root_dirs: Vec::new(),
@@ -2521,13 +2526,11 @@ pub(crate) fn try_get_module_name_as_node_module(
                 &allowed_endings,
                 override_mode,
             );
-            if options.compiler_options.emit_module_resolution_kind() != 1 {
-                if result.blocked_by_exports {
-                    return None;
-                }
-                if result.verbatim_from_exports {
-                    return Some(result.module_file_to_try);
-                }
+            if result.blocked_by_exports {
+                return None;
+            }
+            if result.verbatim_from_exports {
+                return Some(result.module_file_to_try);
             }
             if let Some(package_root_path) = result.package_root_path {
                 module_specifier = package_root_path;
@@ -2585,14 +2588,9 @@ pub(crate) fn try_get_module_name_as_node_module(
 
     let node_modules_directory_name =
         byte_path_slice(&module_specifier, parts.top_level_package_name_index + 1..)?;
-    let package_name = get_package_name_from_types_package_name(node_modules_directory_name);
-    if options.compiler_options.emit_module_resolution_kind() == 1
-        && package_name.as_js() == node_modules_directory_name
-    {
-        None
-    } else {
-        Some(package_name)
-    }
+    Some(get_package_name_from_types_package_name(
+        node_modules_directory_name,
+    ))
 }
 
 /// tsc-port: tryDirectoryWithPackageJson @6.0.3 (nested in tryGetModuleNameAsNodeModule)
@@ -3914,9 +3912,6 @@ fn get_resolve_package_json_imports(options: &CompilerOptions) -> bool {
 
 fn get_conditions(options: &CompilerOptions, resolution_mode: EmitResolutionMode) -> Vec<JsString> {
     let module_resolution = options.emit_module_resolution_kind();
-    if resolution_mode == EmitResolutionMode::None && module_resolution == 2 {
-        return Vec::new();
-    }
     let resolution_mode = if resolution_mode == EmitResolutionMode::None && module_resolution == 100
     {
         EmitResolutionMode::EsNext

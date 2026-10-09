@@ -1696,10 +1696,8 @@ fn parse_config_root_plan_inner(
         host.use_case_sensitive_file_names(),
         paths_option_validation,
     )?;
-    let mut option_diagnostics = validate_paths_option_diagnostics(
-        module_resolution_options.compiler_options(),
-        module_resolution_options.program_options(),
-    );
+    let mut option_diagnostics =
+        validate_paths_option_diagnostics(module_resolution_options.program_options());
     option_diagnostics.extend(no_lib_lib_option_diagnostics(&node.options, &node.source));
     option_diagnostics.extend(removed_option_diagnostics(
         &node.options,
@@ -3715,7 +3713,7 @@ fn pending_paths_option_violations(
                     violations.push(PendingConfigPathsViolation {
                         key,
                         target: ConfigPathsDiagnosticLocation::Element(index),
-                        kind: PathsOptionViolationKind::NonRelativeSubstitutionWithoutBaseUrl,
+                        kind: PathsOptionViolationKind::NonRelativeSubstitution,
                     });
                 }
             }

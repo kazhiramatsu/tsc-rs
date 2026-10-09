@@ -2194,11 +2194,7 @@ impl<'a> CheckerState<'a> {
         } else {
             "/jsx-runtime"
         });
-        let error_message = if self.options.emit_module_resolution_kind() == 1 {
-            &diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_nodenext_or_to_add_aliases_to_the_paths_option
-        } else {
-            &diagnostics::This_JSX_tag_requires_the_module_path_0_to_exist_but_none_could_be_found_Make_sure_you_have_types_for_the_appropriate_package_installed
-        };
+        let error_message = &diagnostics::This_JSX_tag_requires_the_module_path_0_to_exist_but_none_could_be_found_Make_sure_you_have_types_for_the_appropriate_package_installed;
         let canonical_error_tag = self.first_jsx_tag_in_file(file_index).unwrap_or(location);
         let module = self.resolve_external_module(
             canonical_error_tag,

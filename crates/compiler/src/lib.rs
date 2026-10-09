@@ -4525,7 +4525,6 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
     }
     if !external_config_option_diagnostics {
         diagnostics.extend(validate_paths_option_diagnostics(
-            options,
             prepared.program_options(),
         ));
     }

@@ -827,9 +827,6 @@ fn load_program_worker(
                     error,
                 )
             })?;
-    // tsc resolves replacement libraries with an isolated Node10 option set;
-    // ordinary module options such as paths, baseUrl, moduleSuffixes, and
-    // package exports must not influence this lookup.
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
     let library_directory = if program_options.no_lib() == Some(true) {
@@ -6504,11 +6501,7 @@ fn bind_module_resolution(
     let alternate_result = host.alternate_result().cloned();
     let (outcome, diagnostics) = host.into_parts();
     let ResolutionOutcome::Resolved(module) = outcome else {
-        let mut resolution = ModuleResolution::not_found().with_diagnostics(diagnostics);
-        if let Some(alternate_result) = alternate_result {
-            resolution = resolution.with_alternate_result(alternate_result);
-        }
-        return Ok(resolution);
+        return Ok(ModuleResolution::not_found().with_diagnostics(diagnostics));
     };
     let (types_package_exists, package_bundles_types) =
         module.package_id().map_or((false, false), |package_id| {

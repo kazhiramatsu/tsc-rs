@@ -1425,11 +1425,13 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
     // TypeScript 7.1 has no resolveJsonModule relationship rows; the removed
     // values (`moduleResolution=Classic`, `module=UMD`/`module=System` and
     // `moduleResolution=node10`) report TS5108 and still gate the emit under
-    // noEmitOnError.
+    // noEmitOnError. A removed resolution kind takes the module's default
+    // (bundler), which UMD and System cannot use (TS5095; tsgo
+    // `--module umd --moduleResolution node10`).
     for (module, module_resolution, expected_codes) in [
         (200, 1, &[5108][..]),
-        (3, 2, &[5108, 5108][..]),
-        (4, 2, &[5108, 5108][..]),
+        (3, 2, &[5095, 5108, 5108][..]),
+        (4, 2, &[5095, 5108, 5108][..]),
     ] {
         for no_emit_on_error in [false, true] {
             let prepared = prepared_with_sources_and_minimal_lib(

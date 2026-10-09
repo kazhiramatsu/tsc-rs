@@ -893,9 +893,9 @@ pub(crate) enum PathsOptionViolationKind {
         pattern: JsString,
         substitution: JsString,
     },
-    /// Emission remains conditional until the final effective `baseUrl` is
-    /// known. `pathsBasePath` anchors resolution but does not suppress TS5090.
-    NonRelativeSubstitutionWithoutBaseUrl,
+    /// TS5090, reported for every non-relative substitution (tsgo
+    /// verifyCompilerOptions; TypeScript 7.1 removed `baseUrl`).
+    NonRelativeSubstitution,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1459,7 +1459,7 @@ impl ProgramOptions {
     /// Retain config-derived `paths` together with the directory of the config
     /// which declared the effective map.
     ///
-    /// TypeScript uses this base only when `baseUrl` is absent. Keeping it in
+    /// tsgo `GetPathsBasePath` uses this base for the mappings. Keeping it in
     /// the same immutable allocation as the mappings prevents a stale
     /// `pathsBasePath` from surviving after the mappings themselves are
     /// replaced or removed.

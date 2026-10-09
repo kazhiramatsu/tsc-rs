@@ -469,7 +469,7 @@ fn read_ahead_leaves_skipped_missing_and_json_roots_on_the_sequential_path() {
         .expect("build host");
     let options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         resolve_json_module: Some(true),
         ..compiler_options()
     };

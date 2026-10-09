@@ -539,17 +539,12 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     violations
 }
 
-/// Render the raw-sensitive paths validation plan against the final effective
-/// compiler options. In particular, TS5090 is intentionally delayed until an
-/// embedding has applied its `baseUrl` override.
+/// Render the raw-sensitive paths validation plan.
 ///
 /// tsc-port: verifyCompilerOptions @6.0.3 (paths block)
 /// tsc-hash: e18b8511def0edd57da25ed1bbcbd52b5d675efdeba80d8f8e924b5cb2a9b391
 /// tsc-span: _tsc.js:124805-124854
-pub fn validate_paths_option_diagnostics(
-    options: &CompilerOptions,
-    program_options: &ProgramOptions,
-) -> Vec<Diagnostic> {
+pub fn validate_paths_option_diagnostics(program_options: &ProgramOptions) -> Vec<Diagnostic> {
     let Some(plan) = program_options.paths_option_validation() else {
         return Vec::new();
     };
@@ -577,19 +572,12 @@ pub fn validate_paths_option_diagnostics(
                 &gen::Substitution_0_in_pattern_1_can_have_at_most_one_character,
                 &[substitution.clone(), pattern.clone()],
             ),
-            PathsOptionViolationKind::NonRelativeSubstitutionWithoutBaseUrl => {
-                if options
-                    .base_url
-                    .as_ref()
-                    .is_some_and(|base_url| !base_url.is_empty())
-                {
-                    continue;
-                }
-                MessageChain::new_js(
-                    &gen::Non_relative_paths_are_not_allowed_Did_you_forget_a_leading,
-                    &[],
-                )
-            }
+            // tsgo verifyCompilerOptions reports every non-relative
+            // substitution; TypeScript 7.1 removed `baseUrl`.
+            PathsOptionViolationKind::NonRelativeSubstitution => MessageChain::new_js(
+                &gen::Non_relative_paths_are_not_allowed_Did_you_forget_a_leading,
+                &[],
+            ),
         };
         diagnostics.push(match violation.location() {
             Some(location) => Diagnostic::new_js(
@@ -639,7 +627,7 @@ pub(crate) fn paths_validation_plan_for_typed_mappings(
             }
             if !path_is_relative(substitution) && !path_is_absolute(substitution) {
                 violations.push(PathsOptionViolation::new(
-                    PathsOptionViolationKind::NonRelativeSubstitutionWithoutBaseUrl,
+                    PathsOptionViolationKind::NonRelativeSubstitution,
                     None,
                 ));
             }

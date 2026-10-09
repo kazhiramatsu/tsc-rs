@@ -5,7 +5,7 @@
   "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe() (the removed-option rows follow tsgo program.go verifyCompilerOptions \"Removed in TS7\" at the vendored commit)",
-    "verification": "tsgo built from the vendored commit (scripts/typescript7.py build, Version 7.1.0-dev), run as `tsgo -p <config> --pretty false` on each case's materialized files on 2026-10-02: every config-level row's file, line, column, code and message chain compared (lengths are not printed by tsgo; the recorded lengths are the config parser's property-name and value spans). Result: 63 of 76 cases identical; the 13 others differ only because tsgo maps an explicit `classic`/`node10` moduleResolution to the default resolution (its TS5095 for amd/system with node10, no TS5098/TS5109 with classic), recorded in docs/design/greenfield/slices/ts71-cutover/README.md (P3-5b) as the next class."
+    "verification": "tsgo built from the vendored commit (scripts/typescript7.py build, Version 7.1.0-dev), run as `tsgo -p <config> --pretty false` on each case's materialized files on 2026-10-02: every config-level row's file, line, column, code and message chain compared (lengths are not printed by tsgo; the recorded lengths are the config parser's property-name and value spans). Result on 2026-10-02: 63 of 76 cases identical (the 13 others: tsgo maps an explicit `classic`/`node10` moduleResolution to the default resolution). The same comparison on 2026-10-09, after the ts71-removed-module-resolution slice made the port map them the same way and re-recorded those 13 rows: 76 of 76 cases identical."
   },
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-diagnostics-inputs.json",
@@ -1171,6 +1171,15 @@
             "related_information": []
           },
           {
+            "code": 5095,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'bundler' can only be used when 'module' is set to 'preserve', 'commonjs', or 'es2015' or later.",
+            "related_information": []
+          },
+          {
             "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -1415,6 +1424,15 @@
             "related_information": []
           },
           {
+            "code": 5095,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'bundler' can only be used when 'module' is set to 'preserve', 'commonjs', or 'es2015' or later.",
+            "related_information": []
+          },
+          {
             "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -1656,6 +1674,15 @@
             "start": 47,
             "length": 8,
             "message": "Option 'module=System' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5095,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'bundler' can only be used when 'module' is set to 'preserve', 'commonjs', or 'es2015' or later.",
             "related_information": []
           },
           {
@@ -5186,6 +5213,15 @@
             "related_information": []
           },
           {
+            "code": 5095,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'bundler' can only be used when 'module' is set to 'preserve', 'commonjs', or 'es2015' or later.",
+            "related_information": []
+          },
+          {
             "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -7556,6 +7592,15 @@
             "start": 47,
             "length": 8,
             "message": "Option 'module=System' has been removed. Please remove it from your configuration.",
+            "related_information": []
+          },
+          {
+            "code": 5095,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 75,
+            "length": 6,
+            "message": "Option 'bundler' can only be used when 'module' is set to 'preserve', 'commonjs', or 'es2015' or later.",
             "related_information": []
           },
           {
@@ -11291,6 +11336,15 @@
             "related_information": []
           },
           {
+            "code": 5095,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 72,
+            "length": 6,
+            "message": "Option 'bundler' can only be used when 'module' is set to 'preserve', 'commonjs', or 'es2015' or later.",
+            "related_information": []
+          },
+          {
             "code": 5108,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -12678,15 +12732,6 @@
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
             "related_information": []
-          },
-          {
-            "code": 5098,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 136,
-            "length": 27,
-            "message": "Option 'resolvePackageJsonExports' can only be used when 'moduleResolution' is set to 'node16', 'nodenext', or 'bundler'.",
-            "related_information": []
           }
         ],
         "raw": {
@@ -12911,15 +12956,6 @@
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
             "related_information": []
-          },
-          {
-            "code": 5098,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 136,
-            "length": 27,
-            "message": "Option 'resolvePackageJsonImports' can only be used when 'moduleResolution' is set to 'node16', 'nodenext', or 'bundler'.",
-            "related_information": []
           }
         ],
         "raw": {
@@ -13143,15 +13179,6 @@
             "start": 75,
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
-            "related_information": []
-          },
-          {
-            "code": 5098,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 136,
-            "length": 18,
-            "message": "Option 'customConditions' can only be used when 'moduleResolution' is set to 'node16', 'nodenext', or 'bundler'.",
             "related_information": []
           }
         ],
@@ -14055,15 +14082,6 @@
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
             "related_information": []
-          },
-          {
-            "code": 5109,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 75,
-            "length": 9,
-            "message": "Option 'moduleResolution' must be set to 'Node16' (or left unspecified) when option 'module' is set to 'Node16'.",
-            "related_information": []
           }
         ],
         "raw": {
@@ -14285,15 +14303,6 @@
             "start": 75,
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
-            "related_information": []
-          },
-          {
-            "code": 5109,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 75,
-            "length": 9,
-            "message": "Option 'moduleResolution' must be set to 'Node16' (or left unspecified) when option 'module' is set to 'Node18'.",
             "related_information": []
           }
         ],
@@ -14517,15 +14526,6 @@
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
             "related_information": []
-          },
-          {
-            "code": 5109,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 75,
-            "length": 9,
-            "message": "Option 'moduleResolution' must be set to 'Node16' (or left unspecified) when option 'module' is set to 'Node20'.",
-            "related_information": []
           }
         ],
         "raw": {
@@ -14747,15 +14747,6 @@
             "start": 77,
             "length": 9,
             "message": "Option 'moduleResolution=Classic' has been removed. Please remove it from your configuration.",
-            "related_information": []
-          },
-          {
-            "code": 5109,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 77,
-            "length": 9,
-            "message": "Option 'moduleResolution' must be set to 'NodeNext' (or left unspecified) when option 'module' is set to 'NodeNext'.",
             "related_information": []
           }
         ],

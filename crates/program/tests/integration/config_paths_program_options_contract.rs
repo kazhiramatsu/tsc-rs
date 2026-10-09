@@ -438,8 +438,10 @@ fn official_paths_validation_shapes_are_options_diagnostics_not_parse_errors() {
             vec![5066],
         ),
         (
+            // tsgo reports TS5090 for `controller/*` although a (removed)
+            // baseUrl is set.
             r#"{"compilerOptions":{"baseUrl":"./src","paths":{"@interface/**/*":["./src/interface/*"],"@service/**/*":["./src/service/**/*"],"@controller/*":["controller/*"]}}}"#,
-            vec![5061, 5061, 5062],
+            vec![5061, 5061, 5062, 5090],
         ),
         (
             r#"{"compilerOptions":{"paths":{"@interface/*":["src/interface/*"],"@blah":["blah"],"@humbug/*":["*/generated"]}}}"#,
@@ -467,7 +469,7 @@ fn official_paths_validation_shapes_are_options_diagnostics_not_parse_errors() {
 }
 
 #[test]
-fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
+fn paths_validation_reports_non_relative_substitutions_with_raw_config_spelling() {
     let text = r#"{"compilerOptions":{"paths":{"*":["bare"]}},"files":["a.ts"]}"#;
     let plan = parse_config_root_plan(
         &MemoryConfigHost::default().with_directory_files(&["/.src/a.ts"]),
@@ -489,8 +491,9 @@ fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
     );
     assert_eq!(config_file.diagnostic_file_name(), "tsconfig.json");
 
-    let diagnostics =
-        validate_paths_option_diagnostics(plan.compiler_options(), plan.program_options());
+    // tsgo reports TS5090 for every non-relative substitution, a `baseUrl`
+    // included (TypeScript 7.1 removed it).
+    let diagnostics = validate_paths_option_diagnostics(plan.program_options());
     let [diagnostic] = diagnostics.as_slice() else {
         panic!("one late TS5090 diagnostic expected")
     };
@@ -507,19 +510,6 @@ fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
         Some(text.find("\"bare\"").unwrap() as u32)
     );
     assert_eq!(diagnostic.length, Some(6));
-
-    let mut effective = plan.compiler_options().clone();
-    effective.base_url = Some("/.src".to_owned().into());
-    assert!(validate_paths_option_diagnostics(&effective, plan.program_options()).is_empty());
-
-    effective.base_url = Some(String::new().into());
-    assert_eq!(
-        validate_paths_option_diagnostics(&effective, plan.program_options())
-            .iter()
-            .map(|diagnostic| diagnostic.code())
-            .collect::<Vec<_>>(),
-        [5090]
-    );
 }
 
 #[test]

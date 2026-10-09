@@ -380,13 +380,11 @@ fn plan_module_requests_worker(
 
     let resolution_kind = options.emit_module_resolution_kind();
     if (!expanded && !matches!(resolution_kind, 3 | 99))
-        || (expanded && !matches!(resolution_kind, 1 | 2 | 3 | 99 | 100))
+        || (expanded && !matches!(resolution_kind, 3 | 99 | 100))
     {
         return Err(unsupported(
             source,
-            format!(
-                "module resolution kind {resolution_kind} is not Classic, Node10, Node16, NodeNext, or Bundler"
-            ),
+            format!("module resolution kind {resolution_kind} is not Node16, NodeNext, or Bundler"),
         ));
     }
 
@@ -652,9 +650,10 @@ fn plan_module_requests_worker(
                     if javascript_file {
                         // collectExternalModuleReferences only treats
                         // require() as a module request in JavaScript files.
-                        // Node/Bundler records CommonJS even when ordinary
-                        // static imports emit as ESM; Classic/Node10 retain
-                        // upstream's undefined mode.
+                        // It records CommonJS even when ordinary static
+                        // imports emit as ESM, and no mode when import syntax
+                        // does not affect resolution (bundler without package
+                        // maps).
                         let argument = arguments[0];
                         let specifier = string_literal_like_text(&parsed, argument)
                             .expect("guarded string-literal-like require argument");

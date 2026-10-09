@@ -357,18 +357,16 @@ fn external_symlink_preserves_memory_filesystem_and_session_equivalence() {
 }
 
 #[test]
-fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics() {
+fn paths_and_root_dirs_produce_identical_filesystem_backed_diagnostics() {
     let tree = TempTree::new();
     fs::create_dir(tree.path("src")).expect("create paths directory");
-    fs::create_dir(tree.path("base")).expect("create baseUrl directory");
     fs::create_dir(tree.path("generated")).expect("create rootDirs directory");
     let root = concat!(
         "/// <reference path=\"./globals.d.ts\" />\n",
         "import { mapped } from '@app/mapped';\n",
-        "import { based } from 'based';\n",
         "import { rooted } from './rooted';\n",
         "const result: number = mapped;\n",
-        "export { result, based, rooted };\n",
+        "export { result, rooted };\n",
     );
     let files = [
         ("root.ts", root.as_bytes()),
@@ -377,7 +375,6 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
             "src/mapped.ts",
             b"export const mapped = 'mapped';".as_slice(),
         ),
-        ("base/based.ts", b"export const based = 1;".as_slice()),
         (
             "generated/rooted.ts",
             b"export const rooted = 1;".as_slice(),
@@ -395,7 +392,6 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
     let memory = memory.build().expect("construct memory host");
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
-        base_url: Some("base".to_owned().into()),
         ..CompilerOptions::default()
     };
     let root_dirs = [tree.root().to_path_buf(), tree.path("generated")]
@@ -411,7 +407,7 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
         .with_root_dirs(root_dirs)
         .with_paths(vec![PathMapping::new(
             "@app/*",
-            vec!["../src/*".to_owned().into()],
+            vec!["./src/*".to_owned().into()],
         )]);
     let roots = [tree.path("root.ts")];
 
@@ -432,10 +428,8 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
     )
     .expect("load FsHost program");
     assert_eq!(from_memory, from_filesystem);
-    // TypeScript 7.1 reports the removed `baseUrl` option while it still
-    // resolves through it, and that row suppresses the semantic diagnostics;
-    // the resolutions themselves show that `paths`, `baseUrl` and `rootDirs`
-    // each resolved their import.
+    // The resolutions show that `paths` and `rootDirs` each resolved their
+    // import (TypeScript 7.1 removed `baseUrl`).
     let root_source = from_memory
         .source_files()
         .iter()
@@ -443,7 +437,7 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
         .expect("root source is owned");
     let requests = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan root requests");
-    assert_eq!(requests.module_requests().len(), 3);
+    assert_eq!(requests.module_requests().len(), 2);
     for request in requests.module_requests() {
         let resolution = from_memory
             .resolutions()
@@ -463,16 +457,16 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
         .expect("run FsHost prepared program");
     assert_eq!(memory_outcome, filesystem_outcome);
     assert!(memory_outcome.syntactic_diagnostics().is_empty());
+    assert!(memory_outcome.options_diagnostics().is_empty());
+    assert!(memory_outcome.global_diagnostics().is_empty());
     assert_eq!(
         memory_outcome
-            .options_diagnostics()
+            .semantic_diagnostics()
             .iter()
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>(),
-        [5102]
+        [2322]
     );
-    assert!(memory_outcome.global_diagnostics().is_empty());
-    assert!(memory_outcome.semantic_diagnostics().is_empty());
 }
 
 #[test]
@@ -1201,7 +1195,7 @@ fn declaration_augmentation_allows_a_resolution_only_arbitrary_target() {
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default()

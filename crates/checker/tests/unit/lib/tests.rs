@@ -967,7 +967,7 @@ fn lib_bundle_key_projects_to_bind_observables() {
         strict_null_checks: Some(false),
         jsx: Some(2),
         no_emit: Some(true),
-        module_resolution: Some(1),
+        module_resolution: Some(100),
         ..base.clone()
     };
     assert!(std::ptr::eq(shared, lib_bundle(&libs, &inert)));
@@ -1291,7 +1291,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
     let options = CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let run = |cache_enabled, provider: &Provider| {
@@ -1338,7 +1338,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
 }
 
 #[test]
-fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
+fn authoritative_not_found_facts_reach_the_module_not_found_chain() {
     struct Provider;
 
     impl AuthoritativeModuleProvider for Provider {
@@ -1349,7 +1349,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
             assert_eq!(request.source_token, AuthoritativeSourceToken(1));
             assert_eq!(request.containing_file, "/index.ts");
             assert_eq!(request.specifier, "pkg");
-            assert_eq!(request.mode, AuthoritativeResolutionMode::Unspecified);
+            assert_eq!(request.mode, AuthoritativeResolutionMode::EsNext);
             Ok(AuthoritativeModuleResolution::NotFound(
                 AuthoritativeNotFoundModule {
                     alternate_result: Some(
@@ -1378,7 +1378,6 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
         &metadata,
         &CompilerOptions {
             no_emit: Some(true),
-            module_resolution: Some(2),
             ..CompilerOptions::default()
         },
         "/",
@@ -1426,9 +1425,9 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
                 diagnostic.message.next[0].text.as_str().expect("scalar diagnostic observation"),
             ),
             (
-                6280,
+                6278,
                 DiagnosticCategory::Message,
-                "There are types at '/node_modules/pkg/definitely-not-index.d.ts', but this result could not be resolved under your current 'moduleResolution' setting. Consider updating to 'node16', 'nodenext', or 'bundler'.",
+                "There are types at '/node_modules/pkg/definitely-not-index.d.ts', but this result could not be resolved when respecting package.json \"exports\". The 'pkg' library may need to update its package.json or typings.",
             )
         );
 }
@@ -1861,7 +1860,7 @@ fn unrelated_package_inputs_do_not_hide_a_bare_module_miss() {
 }
 
 #[test]
-fn base_url_miss_without_a_paths_match_reports_2307() {
+fn bare_miss_with_an_ignored_base_url_reports_2307() {
     let result = check_program(
         &[InputFile::new(
             "src/main.ts".to_owned(),

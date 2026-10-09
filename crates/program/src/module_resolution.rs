@@ -117,28 +117,17 @@ impl HostResolvedModule {
 }
 
 /// Lossless filesystem facts for one module-resolution request.
-///
-/// `alternate_result` is independent of the primary outcome because Node10
-/// may miss under its legacy package rules while a diagnostic-only Bundler
-/// retry finds a declaration target. Keeping both values in the return value
-/// avoids a resolver side channel and lets the prepared-program owner bind a
-/// `NotFound` row with its alternate path.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HostModuleResolution {
     outcome: ResolutionOutcome<HostResolvedModule>,
-    alternate_result: Option<ProgramPath>,
     diagnostics: DiagnosticList,
     trace: Vec<ResolutionTrace>,
 }
 
 impl HostModuleResolution {
-    fn new(
-        outcome: ResolutionOutcome<HostResolvedModule>,
-        alternate_result: Option<ProgramPath>,
-    ) -> Self {
+    fn new(outcome: ResolutionOutcome<HostResolvedModule>) -> Self {
         Self {
             outcome,
-            alternate_result,
             diagnostics: Vec::new(),
             trace: Vec::new(),
         }
@@ -162,13 +151,13 @@ impl HostModuleResolution {
         &self.outcome
     }
 
+    /// tsgo `ResolvedModule.AlternateResult`: only a resolved JavaScript
+    /// target has one (the retry with package exports disabled).
     pub fn alternate_result(&self) -> Option<&ProgramPath> {
-        self.alternate_result
-            .as_ref()
-            .or_else(|| match &self.outcome {
-                ResolutionOutcome::Resolved(module) => module.alternate_result(),
-                ResolutionOutcome::NotFound => None,
-            })
+        match &self.outcome {
+            ResolutionOutcome::Resolved(module) => module.alternate_result(),
+            ResolutionOutcome::NotFound => None,
+        }
     }
 
     pub fn into_outcome(self) -> ResolutionOutcome<HostResolvedModule> {
@@ -528,19 +517,8 @@ struct ExportProbeContext {
     pass: ExtensionProbePass,
     mode: ResolutionMode,
     resolution_kind: i32,
-    exports_pattern_trailers: bool,
     kind: PackageMapKind,
     bare_features: Option<BareResolutionFeatures>,
-}
-
-/// The `NodeResolutionFeatures.ExportsPatternTrailers` bit from TypeScript.
-///
-/// Node16, NodeNext, and Bundler carry the bit in their default feature masks.
-/// An explicit per-request resolution mode ORs in `AllFeatures`, including for
-/// legacy Classic and Node10 type-reference resolution; an unspecified legacy
-/// request can therefore enable exports without enabling pattern trailers.
-fn exports_pattern_trailers_enabled(mode: ResolutionMode, resolution_kind: i32) -> bool {
-    mode != ResolutionMode::Unspecified || matches!(resolution_kind, 3 | 99 | 100)
 }
 
 #[derive(Clone, Copy)]
@@ -597,12 +575,6 @@ impl SpecificPackageResolution {
 enum PackageMapKind {
     Exports,
     Imports,
-}
-
-#[derive(Clone, Copy)]
-enum OptionalResolutionLoader {
-    Classic,
-    Node,
 }
 
 /// One Node request owns its diagnostic reporter. A diagnostic retry never
@@ -669,7 +641,6 @@ pub struct ModuleResolver<'a> {
     path_context: PathContext,
     type_root_base_directory: JsString,
     type_roots: Option<Vec<ProgramPath>>,
-    base_url: Option<Arc<JsString>>,
     paths: Option<Arc<ProgramPathMappings>>,
     paths_base_directory: Option<Arc<JsString>>,
     root_dirs: Option<Vec<JsString>>,
@@ -783,15 +754,11 @@ impl<'a> ModuleResolver<'a> {
             }
             None => normalized.clone(),
         };
-        let base_url = normalize_base_url(
-            options.base_url.as_ref().map(JsString::as_js),
-            normalized.as_js(),
-        )?
-        .map(Arc::new);
         let paths = validate_paths(paths)?;
+        // tsgo `GetPathsBasePath`: the config file's directory, else the
+        // current directory (TypeScript 7.1 removed `baseUrl`).
         let paths_base_directory = match paths.as_deref() {
             None => None,
-            Some(_) if base_url.is_some() => base_url.clone(),
             Some(paths) => Some(match paths.config_base_path() {
                 Some(base_path) => {
                     Arc::new(normalize_paths_base_path(base_path, normalized.as_js())?)
@@ -808,7 +775,6 @@ impl<'a> ModuleResolver<'a> {
             path_context: PathContext::new(current_directory, case_sensitive),
             type_root_base_directory,
             type_roots: type_roots.map(<[_]>::to_vec),
-            base_url,
             paths,
             paths_base_directory,
             root_dirs,
@@ -840,11 +806,6 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<Self, ResolutionError> {
         validate_path_context(host, &path_context)?;
         let current_directory = path_context.current_directory().display();
-        let base_url = normalize_base_url(
-            options.base_url.as_ref().map(JsString::as_js),
-            current_directory,
-        )?
-        .map(Arc::new);
         Ok(Self {
             host,
             options,
@@ -852,7 +813,6 @@ impl<'a> ModuleResolver<'a> {
             type_root_base_directory: current_directory.to_owned(),
             type_roots: None,
             path_context,
-            base_url,
             paths: None,
             paths_base_directory: None,
             root_dirs: None,
@@ -971,8 +931,11 @@ impl<'a> ModuleResolver<'a> {
         if self.trace.is_none() {
             return;
         }
-        let kind = module_resolution_kind_name(self.options.emit_module_resolution_kind());
-        if self.options.module_resolution.is_some() {
+        // tsgo resolver.go: the kind is "explicitly specified" only when the
+        // written value is the one used (a removed classic/node10 is not).
+        let effective = self.options.emit_module_resolution_kind();
+        let kind = module_resolution_kind_name(effective);
+        if self.options.module_resolution == Some(effective) {
             trace!(
                 self,
                 gen::Explicitly_specified_module_resolution_kind_0,
@@ -1463,10 +1426,6 @@ impl<'a> ModuleResolver<'a> {
 
     /// Resolve a module while retaining diagnostic-only facts which remain
     /// observable when the primary outcome is `NotFound`.
-    ///
-    /// Classic and Node10 are admitted only through this module-resolution
-    /// entry point. Type-reference resolution retains its modern-resolver
-    /// boundary below.
     pub fn resolve_with_facts<'j0, 'j1>(
         &mut self,
         containing_file: impl Into<JsStr<'j0>>,
@@ -1537,20 +1496,15 @@ impl<'a> ModuleResolver<'a> {
         let containing_file = containing_file.into();
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
-        match self.options.emit_module_resolution_kind() {
-            1 => return self.resolve_classic(containing_file, specifier, mode),
-            2 => return self.resolve_node10(containing_file, specifier, mode),
-            _ => {}
-        }
         self.trace_resolution_mode(mode);
         if is_relative_specifier(specifier) {
             return self
                 .resolve_relative(containing_file, specifier, mode)
-                .map(|outcome| HostModuleResolution::new(outcome, None));
+                .map(HostModuleResolution::new);
         }
 
         self.resolve_non_relative(containing_directory, specifier, mode)
-            .map(|outcome| HostModuleResolution::new(outcome, None))
+            .map(HostModuleResolution::new)
     }
 
     /// tsc-port: tryLoadModuleUsingOptionalResolutionSettings @6.0.3
@@ -1560,17 +1514,16 @@ impl<'a> ModuleResolver<'a> {
     /// tsc-hash: f79098a1c1d51c3d0b6e955bc3e8c700491405adc3f4606ae7bb2044219399dd
     /// tsc-span: _tsc.js:42036-42061
     ///
-    /// A matching `paths` key owns the optional-settings attempt even when all
-    /// of its substitutions miss. That suppresses `baseUrl`, or `rootDirs`
-    /// for a rooted disk specifier; the caller must still continue to its
-    /// ordinary Classic or Node lookup.
+    /// tsgo `tryLoadModuleUsingOptionalResolutionSettings`: `paths` for a
+    /// name that is not path-relative, then `rootDirs` for an external
+    /// relative name (a rooted disk path included) whether or not a `paths`
+    /// pattern matched. TypeScript 7.1 has no `baseUrl` lookup.
     fn resolve_using_optional_settings<'j0, 'j1>(
         &mut self,
         containing_directory: impl Into<JsStr<'j0>>,
         specifier: impl Into<JsStr<'j1>>,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
-        loader: OptionalResolutionLoader,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let containing_directory = containing_directory.into();
@@ -1595,7 +1548,6 @@ impl<'a> ModuleResolver<'a> {
                 specifier,
                 probe_pass,
                 mode,
-                loader,
                 follow_realpath,
             );
         }
@@ -1606,13 +1558,10 @@ impl<'a> ModuleResolver<'a> {
                     specifier,
                     probe_pass,
                     mode,
-                    loader,
                     follow_realpath,
                 );
             }
-            if self.base_url.is_none() {
-                return Ok(ResolutionOutcome::NotFound);
-            }
+            return Ok(ResolutionOutcome::NotFound);
         }
         // `paths` matching precedes validation and ordinary probing. Rooted
         // disk requests (including UNC and root-relative Windows spellings)
@@ -1726,7 +1675,6 @@ impl<'a> ModuleResolver<'a> {
                     &candidate,
                     probe_pass,
                     mode,
-                    loader,
                     external_relative,
                     follow_realpath,
                 );
@@ -1736,43 +1684,23 @@ impl<'a> ModuleResolver<'a> {
                     return Ok(outcome);
                 }
             }
-            return Ok(ResolutionOutcome::NotFound);
         }
 
         // Rooted disk paths are external-relative module names, but unlike
-        // dot-relative names they are still eligible for `paths`. A matching
-        // paths key owns a miss above; only a non-match continues here.
+        // dot-relative names they are still eligible for `paths`. tsgo's
+        // `tryLoadModuleUsingPaths` continues searching after the
+        // substitutions of a matching pattern miss, so `rootDirs` follows
+        // either way.
         if external_relative {
             return self.resolve_using_root_dirs(
                 containing_directory,
                 specifier,
                 probe_pass,
                 mode,
-                loader,
                 follow_realpath,
             );
         }
-
-        let Some(base_url) = self.base_url.as_deref() else {
-            return Ok(ResolutionOutcome::NotFound);
-        };
-        let candidate = normalize_optional_candidate(specifier, base_url)?;
-        // tryLoadModuleUsingBaseUrl owns the same caller-side parent latch as
-        // paths substitutions before handing the candidate to its loader.
-        if !self
-            .host
-            .directory_exists_js(JsStr::from(&js_directory_name(&candidate)))?
-        {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        self.probe_optional_candidate(
-            &candidate,
-            probe_pass,
-            mode,
-            loader,
-            /* external_relative */ false,
-            follow_realpath,
-        )
+        Ok(ResolutionOutcome::NotFound)
     }
 
     /// tsc-port: tryLoadModuleUsingRootDirs @6.0.3
@@ -1784,7 +1712,6 @@ impl<'a> ModuleResolver<'a> {
         specifier: impl Into<JsStr<'j1>>,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
-        loader: OptionalResolutionLoader,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let containing_directory = containing_directory.into();
@@ -1897,7 +1824,6 @@ impl<'a> ModuleResolver<'a> {
                 &candidate,
                 probe_pass,
                 mode,
-                loader,
                 /* external_relative */ true,
                 follow_realpath,
             )?;
@@ -1958,26 +1884,18 @@ impl<'a> ModuleResolver<'a> {
         candidate: impl Into<JsStr<'j0>>,
         probe_pass: ExtensionProbePass,
         mode: ResolutionMode,
-        loader: OptionalResolutionLoader,
         external_relative: bool,
         follow_realpath: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let candidate = candidate.into();
         let probe_pass = self.effective_module_probe_pass(probe_pass);
-        match loader {
-            OptionalResolutionLoader::Classic => self.probe_classic_file(
-                candidate,
-                probe_pass,
-                !external_relative && follow_realpath,
-            ),
-            OptionalResolutionLoader::Node => self.probe_optional_node_candidate(
-                candidate,
-                probe_pass,
-                mode,
-                external_relative,
-                follow_realpath,
-            ),
-        }
+        self.probe_optional_node_candidate(
+            candidate,
+            probe_pass,
+            mode,
+            external_relative,
+            follow_realpath,
+        )
     }
 
     fn probe_optional_node_candidate<'j0>(
@@ -2209,565 +2127,6 @@ impl<'a> ModuleResolver<'a> {
         Ok(ResolutionOutcome::Resolved(module))
     }
 
-    /// tsc-port: classicNameResolver @6.0.3
-    /// tsc-hash: d928985c6c8e588d5b3e35a9135bf163db3cb28ca5f94d1580e68d218230341b
-    /// tsc-span: _tsc.js:42110-42186
-    ///
-    /// The owned Classic slice includes optional `paths`/`baseUrl`, legacy
-    /// ancestor file search, and its nearest automatic `node_modules/@types`
-    /// fallback in the upstream extension-pass order.
-    fn resolve_classic<'j0, 'j1>(
-        &mut self,
-        containing_file: impl Into<JsStr<'j0>>,
-        specifier: impl Into<JsStr<'j1>>,
-        mode: ResolutionMode,
-    ) -> Result<HostModuleResolution, ResolutionError> {
-        let containing_file = containing_file.into();
-        let specifier = specifier.into();
-        if specifier.contains("\0") {
-            return Err(ResolutionError::invalid_data(format!(
-                "invalid Classic module specifier {specifier:?}"
-            )));
-        }
-        let containing_directory = js_directory_name(containing_file);
-        let relative = is_relative_specifier(specifier);
-        let mut request = None;
-
-        for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
-            let probe_pass = self.effective_module_probe_pass(probe_pass);
-            if relative {
-                let optional = self.resolve_using_optional_settings(
-                    &containing_directory,
-                    specifier,
-                    probe_pass,
-                    mode,
-                    OptionalResolutionLoader::Classic,
-                    /* follow_realpath */ true,
-                )?;
-                if matches!(optional, ResolutionOutcome::Resolved(_)) {
-                    return Ok(HostModuleResolution::new(optional, None));
-                }
-                let candidate = preserve_trailing_directory_separator(
-                    normalize_absolute_js_path(
-                        specifier,
-                        Some(JsStr::from(&containing_directory)),
-                        true,
-                    )?,
-                    specifier,
-                );
-                let outcome = self.probe_classic_file(
-                    &candidate, probe_pass, /* follow_external_realpath */ false,
-                )?;
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok(HostModuleResolution::new(outcome, None));
-                }
-            } else {
-                let optional = self.resolve_using_optional_settings(
-                    &containing_directory,
-                    specifier,
-                    probe_pass,
-                    mode,
-                    OptionalResolutionLoader::Classic,
-                    /* follow_realpath */ true,
-                )?;
-                if matches!(optional, ResolutionOutcome::Resolved(_)) {
-                    return Ok(HostModuleResolution::new(optional, None));
-                }
-                if request.is_none() {
-                    request = Some(parse_package_request(specifier)?);
-                }
-                for ancestor in ancestor_directories(&containing_directory) {
-                    let candidate = normalize_absolute_js_path(
-                        JsStr::from(&join_normalized(&ancestor, specifier)),
-                        None,
-                        true,
-                    )?;
-                    let outcome = self.probe_classic_file(
-                        &candidate, probe_pass, /* follow_external_realpath */ true,
-                    )?;
-                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                        return Ok(HostModuleResolution::new(outcome, None));
-                    }
-                }
-                if matches!(probe_pass, ExtensionProbePass::Preferred) {
-                    let outcome = self.resolve_legacy_at_types(
-                        &containing_directory,
-                        request.as_ref().expect("non-relative request was parsed"),
-                        mode,
-                    )?;
-                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                        return Ok(HostModuleResolution::new(outcome, None));
-                    }
-                }
-            }
-        }
-        Ok(HostModuleResolution::new(ResolutionOutcome::NotFound, None))
-    }
-
-    fn probe_classic_file<'j0>(
-        &mut self,
-        candidate: impl Into<JsStr<'j0>>,
-        probe_pass: ExtensionProbePass,
-        follow_external_realpath: bool,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let candidate = candidate.into();
-        let outcome = self.probe_legacy_file(
-            None,
-            candidate,
-            probe_pass,
-            /* allow_implicit */ true,
-            LegacyResolutionContext {
-                is_external_library_import: false,
-                attach_package_id: false,
-                resolved_using_ts_extension: !self.candidate_ending_is_from_config
-                    && is_typescript_family_specifier(candidate),
-                follow_realpath: false,
-            },
-        )?;
-        let ResolutionOutcome::Resolved(mut module) = outcome else {
-            return Ok(ResolutionOutcome::NotFound);
-        };
-        self.classify_selected_path_external(&mut module)?;
-        if module.is_external_library_import && follow_external_realpath {
-            self.follow_module_realpath(&mut module)?;
-        }
-        Ok(ResolutionOutcome::Resolved(module))
-    }
-
-    /// tsc-port: nodeModuleNameResolverWorker @6.0.3 (Node10 branch and
-    /// diagnostic Bundler retry)
-    /// tsc-hash: ccf7790e149deb18d5f0d7ebb0c71377781e460ec97b5e8c5d332298727be3f3
-    /// tsc-span: _tsc.js:40935-41020
-    fn resolve_node10<'j0, 'j1>(
-        &mut self,
-        containing_file: impl Into<JsStr<'j0>>,
-        specifier: impl Into<JsStr<'j1>>,
-        mode: ResolutionMode,
-    ) -> Result<HostModuleResolution, ResolutionError> {
-        let containing_file = containing_file.into();
-        let specifier = specifier.into();
-        if is_relative_specifier(specifier) {
-            let outcome = self.resolve_relative(containing_file, specifier, mode)?;
-            return Ok(HostModuleResolution::new(outcome, None));
-        }
-        let containing_directory = js_directory_name(containing_file);
-        let (mut outcome, resolved_package_directory) =
-            self.resolve_node10_non_relative(&containing_directory, specifier, mode)?;
-        let wanted_types_but_got_other = match &outcome {
-            ResolutionOutcome::NotFound => false,
-            ResolutionOutcome::Resolved(module) => {
-                !is_typescript_module_extension(module.extension())
-            }
-        };
-        let retry_with_exports_disabled = resolved_package_directory
-            && mode == ResolutionMode::EsNext
-            && match &outcome {
-                ResolutionOutcome::Resolved(module) => {
-                    module.is_external_library_import() && wanted_types_but_got_other
-                }
-                ResolutionOutcome::NotFound => false,
-            };
-        let retry_with_bundler = resolved_package_directory
-            && !retry_with_exports_disabled
-            && match &outcome {
-                ResolutionOutcome::NotFound => true,
-                ResolutionOutcome::Resolved(_) => wanted_types_but_got_other,
-            };
-        let alternate_result = if retry_with_exports_disabled || retry_with_bundler {
-            let request = parse_package_request(specifier)?;
-            let alternate = if retry_with_exports_disabled {
-                self.resolve_modern_preferred_without_exports(
-                    &containing_directory,
-                    specifier,
-                    &request,
-                    mode,
-                    ExtensionProbePass::Preferred,
-                    /* force_package_maps */ true,
-                    /* resolution_kind */ 2,
-                )?
-            } else {
-                self.resolve_bundler_preferred_non_relative(
-                    &containing_directory,
-                    specifier,
-                    &request,
-                    ExtensionProbePass::Preferred,
-                    /* enable_package_maps */ mode != ResolutionMode::Unspecified,
-                )?
-            };
-            match alternate {
-                ResolutionOutcome::Resolved(module) if module.is_external_library_import() => {
-                    Some(module.resolved_file().clone())
-                }
-                ResolutionOutcome::Resolved(_) | ResolutionOutcome::NotFound => None,
-            }
-        } else {
-            None
-        };
-        if let ResolutionOutcome::Resolved(module) = &mut outcome {
-            if module.is_external_library_import() {
-                self.follow_module_realpath(module)?;
-            }
-        }
-        Ok(HostModuleResolution::new(outcome, alternate_result))
-    }
-
-    fn resolve_node10_non_relative<'j0, 'j1>(
-        &mut self,
-        containing_directory: impl Into<JsStr<'j0>>,
-        specifier: impl Into<JsStr<'j1>>,
-        mode: ResolutionMode,
-    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
-        let containing_directory = containing_directory.into();
-        let specifier = specifier.into();
-        let mut resolved_package_directory = false;
-        let mut request = None;
-        let all_features = mode != ResolutionMode::Unspecified;
-        for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
-            let probe_pass = self.effective_module_probe_pass(probe_pass);
-            let optional = self.resolve_using_optional_settings(
-                containing_directory,
-                specifier,
-                probe_pass,
-                mode,
-                OptionalResolutionLoader::Node,
-                /* follow_realpath */ false,
-            )?;
-            if matches!(optional, ResolutionOutcome::Resolved(_)) {
-                // Upstream sets `resolvedPackageDirectory` only while walking
-                // the ordinary node_modules package lookup, not when an
-                // optional paths/baseUrl candidate happens to carry metadata.
-                return Ok((optional, resolved_package_directory));
-            }
-
-            if all_features && specifier.starts_with("#") {
-                if let Search::Terminal(outcome) = self.resolve_package_imports(
-                    containing_directory,
-                    specifier,
-                    mode,
-                    probe_pass,
-                    /* force_enabled */ true,
-                    /* use_package_exports */ true,
-                    /* resolution_kind */ None,
-                )? {
-                    return Ok((outcome, resolved_package_directory));
-                }
-            }
-            if request.is_none() {
-                request = Some(parse_package_request(specifier)?);
-            }
-            let request = request.as_ref().expect("non-relative request was parsed");
-            if all_features {
-                if let Search::Terminal(outcome) = self.try_self_reference(
-                    containing_directory,
-                    request,
-                    mode,
-                    probe_pass,
-                    /* resolution_kind */ None,
-                )? {
-                    return Ok((outcome, resolved_package_directory));
-                }
-            }
-            // nodeModuleNameResolverWorker gives optional settings, package
-            // imports, and SelfName an opportunity to own URI-looking names
-            // before suppressing the ordinary node_modules walk.
-            if specifier.contains(":") {
-                continue;
-            }
-            for ancestor in ancestor_directories(containing_directory) {
-                if base_name(&ancestor) == "node_modules" {
-                    continue;
-                }
-                let node_modules = join_normalized(&ancestor, "node_modules");
-                if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
-                    trace!(
-                        self,
-                        gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                        node_modules.as_js()
-                    );
-                    continue;
-                }
-                let package_root = package_root_for_request(&node_modules, request);
-                let specific = self.resolve_specific_package(
-                    &package_root,
-                    &request.exports_subpath,
-                    probe_pass,
-                    mode,
-                    /* use_package_exports */ all_features,
-                    None,
-                    /* follow_realpath */ false,
-                )?;
-                // A nested-package early branch returns before tsc stamps
-                // resolvedPackageDirectory; only the normal root path enables
-                // the diagnostic-only Bundler retry.
-                resolved_package_directory |= specific.root_package_observed;
-                let outcome = specific.outcome;
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok((outcome, resolved_package_directory));
-                }
-
-                if matches!(probe_pass, ExtensionProbePass::Preferred) {
-                    if all_features {
-                        let at_types = join_normalized(&node_modules, "@types");
-                        if self.host.directory_exists_js(JsStr::from(&at_types))? {
-                            let package_root = types_package_root_for_request(&at_types, request);
-                            let specific = self.resolve_specific_package(
-                                &package_root,
-                                &request.exports_subpath,
-                                ExtensionProbePass::Declaration,
-                                mode,
-                                /* use_package_exports */ true,
-                                None,
-                                /* follow_realpath */ false,
-                            )?;
-                            resolved_package_directory |= specific.root_package_observed;
-                            if specific.terminal {
-                                return Ok((specific.outcome, resolved_package_directory));
-                            }
-                        }
-                    } else {
-                        let (outcome, at_types_package_observed) = self
-                            .resolve_legacy_at_types_from_node_modules(
-                                &node_modules,
-                                request,
-                                mode,
-                                /* follow_realpath */ false,
-                            )?;
-                        resolved_package_directory |= at_types_package_observed;
-                        if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                            return Ok((outcome, resolved_package_directory));
-                        }
-                    }
-                }
-            }
-            if matches!(probe_pass, ExtensionProbePass::Preferred) {
-                let outcome = self.resolve_module_from_type_roots(specifier, mode)?;
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok((outcome, resolved_package_directory));
-                }
-            }
-        }
-        Ok((ResolutionOutcome::NotFound, resolved_package_directory))
-    }
-
-    fn resolve_legacy_at_types<'j0>(
-        &mut self,
-        containing_directory: impl Into<JsStr<'j0>>,
-        request: &PackageRequest<'_>,
-        mode: ResolutionMode,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let containing_directory = containing_directory.into();
-        if self.options.no_dts_resolution == Some(true) {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        for ancestor in ancestor_directories(containing_directory) {
-            if base_name(&ancestor) == "node_modules" {
-                continue;
-            }
-            let node_modules = join_normalized(&ancestor, "node_modules");
-            if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
-                trace!(
-                    self,
-                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                    node_modules.as_js()
-                );
-                continue;
-            }
-            let (outcome, _) = self.resolve_legacy_at_types_from_node_modules(
-                &node_modules,
-                request,
-                mode,
-                /* follow_realpath */ true,
-            )?;
-            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                return Ok(outcome);
-            }
-        }
-        Ok(ResolutionOutcome::NotFound)
-    }
-
-    fn resolve_legacy_at_types_from_node_modules<'j0>(
-        &mut self,
-        node_modules: impl Into<JsStr<'j0>>,
-        request: &PackageRequest<'_>,
-        mode: ResolutionMode,
-        follow_realpath: bool,
-    ) -> Result<(ResolutionOutcome<HostResolvedModule>, bool), ResolutionError> {
-        let node_modules = node_modules.into();
-        if self.options.no_dts_resolution == Some(true) {
-            return Ok((ResolutionOutcome::NotFound, false));
-        }
-        let at_types = join_normalized(node_modules, "@types");
-        if !self.host.directory_exists_js(JsStr::from(&at_types))? {
-            return Ok((ResolutionOutcome::NotFound, false));
-        }
-        let package_root = types_package_root_for_request(&at_types, request);
-        let specific = self.resolve_specific_package(
-            &package_root,
-            &request.exports_subpath,
-            ExtensionProbePass::Declaration,
-            mode,
-            /* use_package_exports */ false,
-            None,
-            follow_realpath,
-        )?;
-        Ok((specific.outcome, specific.root_package_observed))
-    }
-
-    #[allow(clippy::too_many_arguments)] // Keeps the upstream retry profile explicit.
-    fn resolve_bundler_preferred_non_relative<'j0, 'j1>(
-        &mut self,
-        containing_directory: impl Into<JsStr<'j0>>,
-        specifier: impl Into<JsStr<'j1>>,
-        request: &PackageRequest<'_>,
-        probe_pass: ExtensionProbePass,
-        enable_package_maps: bool,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let containing_directory = containing_directory.into();
-        let specifier = specifier.into();
-        self.with_input_request(false, |resolver| {
-            resolver.resolve_bundler_preferred_non_relative_worker(
-                containing_directory,
-                specifier,
-                request,
-                probe_pass,
-                enable_package_maps,
-            )
-        })
-        .map(|(outcome, _)| outcome)
-    }
-
-    fn resolve_bundler_preferred_non_relative_worker<'j0, 'j1>(
-        &mut self,
-        containing_directory: impl Into<JsStr<'j0>>,
-        specifier: impl Into<JsStr<'j1>>,
-        request: &PackageRequest<'_>,
-        probe_pass: ExtensionProbePass,
-        enable_package_maps: bool,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let containing_directory = containing_directory.into();
-        let specifier = specifier.into();
-        let probe_pass = self.effective_module_probe_pass(probe_pass);
-        let diagnostic_mode = ResolutionMode::EsNext;
-        let optional = self.resolve_using_optional_settings(
-            containing_directory,
-            specifier,
-            probe_pass,
-            diagnostic_mode,
-            OptionalResolutionLoader::Node,
-            /* follow_realpath */ false,
-        )?;
-        if matches!(optional, ResolutionOutcome::Resolved(_)) {
-            return Ok(optional);
-        }
-        if enable_package_maps && specifier.starts_with("#") {
-            if let Search::Terminal(outcome) = self.resolve_package_imports(
-                containing_directory,
-                specifier,
-                diagnostic_mode,
-                probe_pass,
-                /* force_enabled */ true,
-                /* use_package_exports */ true,
-                /* resolution_kind */ Some(100),
-            )? {
-                return Ok(outcome);
-            }
-        }
-        if enable_package_maps {
-            if let Search::Terminal(outcome) = self.try_self_reference(
-                containing_directory,
-                request,
-                diagnostic_mode,
-                probe_pass,
-                /* resolution_kind */ Some(100),
-            )? {
-                return Ok(outcome);
-            }
-        }
-        if specifier.contains(":") {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        if matches!(probe_pass, ExtensionProbePass::Empty) {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        for ancestor in ancestor_directories(containing_directory) {
-            if base_name(&ancestor) == "node_modules" {
-                continue;
-            }
-            let node_modules = join_normalized(&ancestor, "node_modules");
-            if !self.host.directory_exists_js(JsStr::from(&node_modules))? {
-                trace!(
-                    self,
-                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                    node_modules.as_js()
-                );
-                continue;
-            }
-            let package_root = package_root_for_request(&node_modules, request);
-            let outcome = self
-                .resolve_specific_package(
-                    &package_root,
-                    &request.exports_subpath,
-                    probe_pass,
-                    diagnostic_mode,
-                    /* use_package_exports */ true,
-                    Some(100),
-                    /* follow_realpath */ false,
-                )?
-                .outcome;
-            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                return Ok(outcome);
-            }
-
-            if probe_pass_has_declaration(probe_pass) {
-                let types_package = PackageRequest {
-                    package_name: request.package_name,
-                    exports_subpath: request.exports_subpath.clone(),
-                    trailing_separator: request.trailing_separator,
-                };
-                let outcome = self.resolve_bundler_preferred_at_types(
-                    &node_modules,
-                    &types_package,
-                    diagnostic_mode,
-                )?;
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok(outcome);
-                }
-            }
-        }
-        if probe_pass_has_declaration(probe_pass) {
-            self.resolve_module_from_type_roots(specifier, diagnostic_mode)
-        } else {
-            Ok(ResolutionOutcome::NotFound)
-        }
-    }
-
-    fn resolve_bundler_preferred_at_types<'j0>(
-        &mut self,
-        node_modules: impl Into<JsStr<'j0>>,
-        request: &PackageRequest<'_>,
-        mode: ResolutionMode,
-    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let node_modules = node_modules.into();
-        if self.options.no_dts_resolution == Some(true) {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        let at_types = join_normalized(node_modules, "@types");
-        if !self.host.directory_exists_js(JsStr::from(&at_types))? {
-            return Ok(ResolutionOutcome::NotFound);
-        }
-        let package_root = types_package_root_for_request(&at_types, request);
-        self.resolve_specific_package(
-            &package_root,
-            &request.exports_subpath,
-            ExtensionProbePass::Declaration,
-            mode,
-            /* use_package_exports */ true,
-            Some(100),
-            /* follow_realpath */ false,
-        )
-        .map(|result| result.outcome)
-    }
-
     /// Resolve one source-owned or automatic type-reference directive.
     ///
     /// `type_roots` preserves the compiler option's three observable states:
@@ -2880,7 +2239,7 @@ impl<'a> ModuleResolver<'a> {
                 &js_directory_name(&containing_file),
                 &request,
                 mode,
-                self.type_reference_uses_package_exports(mode),
+                self.module_exports_feature_enabled(),
             )?;
             // tsgo createResolvedTypeReferenceDirective: the real path
             // follows the whole node_modules lookup, after the package id
@@ -3008,8 +2367,8 @@ impl<'a> ModuleResolver<'a> {
     /// for every bare target. A valid package.json can contain thousands of
     /// such redirects, which should not be limited by the Rust thread stack.
     /// Conditions and arrays are continuations here, so misses retain their
-    /// exact fallback order while `paths`/`baseUrl` are still probed before
-    /// each rewritten specifier.
+    /// exact fallback order while `paths` is still probed before each
+    /// rewritten specifier.
     fn resolve_bare_import_target_worker<'j0>(
         &mut self,
         owner_package: &CachedPackage,
@@ -3102,7 +2461,6 @@ impl<'a> ModuleResolver<'a> {
                                 &specifier,
                                 context.pass,
                                 context.mode,
-                                OptionalResolutionLoader::Node,
                                 /* follow_realpath */ false,
                             )?
                         };
@@ -3141,19 +2499,15 @@ impl<'a> ModuleResolver<'a> {
                                     if let Some(table) =
                                         package.imports.as_ref().and_then(Value::as_object)
                                     {
-                                        let selected = select_package_map_target(
-                                            table,
-                                            &specifier,
-                                            context.exports_pattern_trailers,
-                                        )
-                                        .map(|selected| {
-                                            (
-                                                selected.target.clone(),
-                                                selected.subpath,
-                                                selected.pattern,
-                                                selected.key,
-                                            )
-                                        });
+                                        let selected = select_package_map_target(table, &specifier)
+                                            .map(|selected| {
+                                                (
+                                                    selected.target.clone(),
+                                                    selected.subpath,
+                                                    selected.pattern,
+                                                    selected.key,
+                                                )
+                                            });
                                         selected.map(|(target, subpath, pattern, key)| {
                                             (package, target, subpath, pattern, key)
                                         })
@@ -3523,33 +2877,20 @@ impl<'a> ModuleResolver<'a> {
                 ResolutionOutcome::Resolved(module)
                     if module.is_external_library_import() && wanted_types_but_got_other
             );
-        let retry_with_bundler = !retry_without_exports
-            && features.resolution_kind == 2
-            && (matches!(outcome, ResolutionOutcome::NotFound) || wanted_types_but_got_other);
-        if !retry_without_exports && !retry_with_bundler {
+        if !retry_without_exports {
             return Ok(());
         }
         let request = parse_package_request(specifier)?;
         let diagnostic_pass = preferred_diagnostic_pass(probe_pass);
-        if retry_without_exports {
-            let _ = self.resolve_modern_preferred_without_exports(
-                containing_directory,
-                specifier,
-                &request,
-                mode,
-                diagnostic_pass,
-                features.enable_imports,
-                features.resolution_kind,
-            )?;
-        } else {
-            let _ = self.resolve_bundler_preferred_non_relative(
-                containing_directory,
-                specifier,
-                &request,
-                diagnostic_pass,
-                features.enable_imports || features.enable_self_name,
-            )?;
-        }
+        let _ = self.resolve_modern_preferred_without_exports(
+            containing_directory,
+            specifier,
+            &request,
+            mode,
+            diagnostic_pass,
+            features.enable_imports,
+            features.resolution_kind,
+        )?;
         Ok(())
     }
 
@@ -3707,7 +3048,6 @@ impl<'a> ModuleResolver<'a> {
             specifier,
             ExtensionProbePass::All,
             mode,
-            OptionalResolutionLoader::Node,
             /* follow_realpath */ false,
         )?;
         if matches!(optional, ResolutionOutcome::Resolved(_)) {
@@ -3762,24 +3102,26 @@ impl<'a> ModuleResolver<'a> {
         _mode: ResolutionMode,
     ) -> Result<(), ResolutionError> {
         let resolution_kind = self.options.emit_module_resolution_kind();
-        if !matches!(resolution_kind, 1 | 2 | 3 | 99 | 100) {
+        if !matches!(resolution_kind, 3 | 99 | 100) {
             return Err(ResolutionError::unsupported(
                 "module-resolution-kind",
                 format!(
-                    "type-reference resolution is implemented only for Classic, Node10, Node16, NodeNext, and Bundler; got {resolution_kind}"
+                    "type-reference resolution is implemented only for Node16, NodeNext, and Bundler; got {resolution_kind}"
                 ),
             ));
         }
         self.validate_common_configuration()
     }
 
+    /// tsgo `newResolutionState`: node16 and nodenext use their fixed
+    /// feature masks; only bundler applies the option overrides
+    /// (`getNodeResolutionFeatures`). Type references use the same features
+    /// as modules (TypeScript 6.0 added `AllFeatures` for an explicit
+    /// resolution mode).
     fn module_exports_feature_enabled(&self) -> bool {
         match self.options.emit_module_resolution_kind() {
-            // Node16 and NodeNext wrappers pass their fixed feature masks;
-            // only Bundler computes feature overrides from compiler options.
-            3 | 99 => true,
             100 => self.options.resolve_package_json_exports != Some(false),
-            _ => self.options.resolve_package_json_exports == Some(true),
+            _ => true,
         }
     }
 
@@ -3787,37 +3129,16 @@ impl<'a> ModuleResolver<'a> {
         matches!(self.options.emit_module_resolution_kind(), 3 | 99)
     }
 
-    /// tsc-port: getNodeResolutionFeatures @6.0.3
-    /// tsc-hash: 0f196c9d68f11eb9044f8a8b91dc3932ce0282c7825241c05ed817faab092b98
-    /// tsc-span: _tsc.js:40251-40274
-    ///
-    /// `resolveTypeReferenceDirective` adds `AllFeatures` after applying the
-    /// ordinary option overrides whenever the directive carries an explicit
-    /// resolution mode. That deliberately re-enables package exports even
-    /// when `resolvePackageJsonExports` is false. With an unspecified mode,
-    /// Classic and Node10 remain legacy unless exports were explicitly
-    /// enabled, while the modern resolvers use their computed defaults.
-    fn type_reference_uses_package_exports(&self, mode: ResolutionMode) -> bool {
-        if mode != ResolutionMode::Unspecified {
-            return true;
-        }
-        match self.options.emit_module_resolution_kind() {
-            3 | 99 | 100 => self.options.resolve_package_json_exports != Some(false),
-            1 | 2 => self.options.resolve_package_json_exports == Some(true),
-            _ => false,
-        }
-    }
-
     fn validate_supported_module_configuration(
         &self,
         _mode: ResolutionMode,
     ) -> Result<(), ResolutionError> {
         let resolution_kind = self.options.emit_module_resolution_kind();
-        if !matches!(resolution_kind, 1 | 2 | 3 | 99 | 100) {
+        if !matches!(resolution_kind, 3 | 99 | 100) {
             return Err(ResolutionError::unsupported(
                 "module-resolution-kind",
                 format!(
-                    "module resolution is implemented only for Classic, Node10, Node16, NodeNext, and Bundler; got {resolution_kind}"
+                    "module resolution is implemented only for Node16, NodeNext, and Bundler; got {resolution_kind}"
                 ),
             ));
         }
@@ -4020,7 +3341,6 @@ impl<'a> ModuleResolver<'a> {
                 pass: probe_pass,
                 mode,
                 resolution_kind,
-                exports_pattern_trailers: exports_pattern_trailers_enabled(mode, resolution_kind),
                 kind: PackageMapKind::Imports,
                 bare_features: Some(BareResolutionFeatures {
                     use_package_exports,
@@ -4219,7 +3539,6 @@ impl<'a> ModuleResolver<'a> {
             specifier,
             probe_pass,
             mode,
-            OptionalResolutionLoader::Node,
             /* follow_realpath */ false,
         )?;
         if matches!(optional, ResolutionOutcome::Resolved(_)) {
@@ -4874,24 +4193,15 @@ impl<'a> ModuleResolver<'a> {
             )));
         }
         let containing_directory = js_directory_name(containing_file);
-        let resolution_kind = self.options.emit_module_resolution_kind();
-        // nodeModuleNameResolverWorker splits Node10 into priority and
-        // secondary extension passes, but invokes its modern resolvers once
-        // with every admitted extension. Keeping optional and ordinary
-        // candidates inside the same outer pass preserves both rootDirs
-        // ordering and the duplicate original probe after a rootDirs miss.
-        let legacy_passes = [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback];
-        let modern_passes = [ExtensionProbePass::All];
-        let probe_passes = if resolution_kind == 2 {
-            legacy_passes.as_slice()
-        } else {
-            modern_passes.as_slice()
-        };
+        // tsgo resolveNodeLike runs once with every admitted extension.
+        // Keeping optional and ordinary candidates inside the same pass
+        // preserves both rootDirs ordering and the duplicate original probe
+        // after a rootDirs miss.
         self.resolve_relative_with_passes(
             &containing_directory,
             specifier,
             mode,
-            probe_passes,
+            &[ExtensionProbePass::All],
             /* optional_follow_realpath */ true,
         )
     }
@@ -4926,7 +4236,6 @@ impl<'a> ModuleResolver<'a> {
                 specifier,
                 probe_pass,
                 mode,
-                OptionalResolutionLoader::Node,
                 optional_follow_realpath,
             )?;
             if matches!(optional, ResolutionOutcome::Resolved(_)) {
@@ -6209,7 +5518,6 @@ impl<'a> ModuleResolver<'a> {
             pass: probe_pass,
             mode,
             resolution_kind,
-            exports_pattern_trailers: exports_pattern_trailers_enabled(mode, resolution_kind),
             kind: PackageMapKind::Exports,
             bare_features: None,
         };
@@ -6289,9 +5597,7 @@ impl<'a> ModuleResolver<'a> {
         context: ExportProbeContext,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let subpath = subpath.into();
-        let Some(selected) =
-            select_package_map_target(table, subpath, context.exports_pattern_trailers)
-        else {
+        let Some(selected) = select_package_map_target(table, subpath) else {
             return Ok(Search::Continue);
         };
         self.resolve_selected_export(
@@ -6702,11 +6008,6 @@ impl<'a> ModuleResolver<'a> {
         if condition == "default" {
             return true;
         }
-        // getConditions returns an empty set for Node10 when package exports
-        // were explicitly enabled without a per-directive resolution mode.
-        if mode == ResolutionMode::Unspecified && resolution_kind == 2 {
-            return false;
-        }
         let mode = if mode == ResolutionMode::Unspecified && resolution_kind == 100 {
             ResolutionMode::EsNext
         } else {
@@ -7067,17 +6368,6 @@ impl<'a> ModuleResolver<'a> {
             ResolutionError::canonicalization_js(Some(selected_path), error.to_string())
         })
     }
-}
-
-fn normalize_base_url(
-    base_url: Option<JsStr<'_>>,
-    current_directory: JsStr<'_>,
-) -> Result<Option<JsString>, ResolutionError> {
-    let Some(base_url) = base_url else {
-        return Ok(None);
-    };
-    validate_owned_path_text(base_url, "baseUrl", /* allow_empty */ false)?;
-    normalize_absolute_js_path(base_url, Some(current_directory), true).map(Some)
 }
 
 fn normalize_paths_base_path(
@@ -8088,10 +7378,11 @@ fn json_object_entries_in_order(object: &Map) -> impl Iterator<Item = (JsStr<'_>
         .filter_map(|(key, value)| decode_user_object_key(key).map(|key| (key, value)))
 }
 
+/// tsgo `loadModuleFromImportsOrExports`. Every 7.1 resolver (node16,
+/// nodenext and bundler) has `NodeResolutionFeaturesExportsPatternTrailers`.
 fn select_package_map_target<'a, 'n>(
     table: &'a Map,
     specifier: impl Into<JsStr<'n>>,
-    exports_pattern_trailers: bool,
 ) -> Option<SelectedPackageMapTarget<'a>> {
     let specifier = specifier.into();
     if !specifier.ends_with("/") && !specifier.contains("*") {
@@ -8115,8 +7406,7 @@ fn select_package_map_target<'a, 'n>(
         let target =
             json_object_own_get(table, key).expect("expanding key was collected from this table");
         if let Some((prefix, suffix)) = key.split_once("*") {
-            if exports_pattern_trailers
-                && !suffix.is_empty()
+            if !suffix.is_empty()
                 && specifier.starts_with_js(prefix)
                 && specifier.ends_with_js(suffix)
             {

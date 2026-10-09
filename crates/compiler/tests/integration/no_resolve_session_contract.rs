@@ -26,7 +26,7 @@ fn no_resolve_module_rows_reach_the_authoritative_checker_seam() {
             no_emit: Some(true),
             no_resolve: Some(true),
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         },
         ProgramOptions::default()

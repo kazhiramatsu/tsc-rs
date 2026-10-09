@@ -30,7 +30,7 @@ impl AuthoritativeModuleProvider for Provider {
         assert_eq!(request.source_token, AuthoritativeSourceToken(2));
         assert_eq!(request.containing_file, "/main.js");
         assert_eq!(request.specifier, "pkg");
-        assert_eq!(request.mode, AuthoritativeResolutionMode::Unspecified);
+        assert_eq!(request.mode, AuthoritativeResolutionMode::CommonJs);
         Ok(AuthoritativeModuleResolution::Resolved(
             AuthoritativeResolvedModule {
                 target_token: AuthoritativeSourceToken(1),
@@ -100,7 +100,6 @@ fn authoritative_external_fact_alone_controls_checked_js_implicit_any_suggestion
         check_js: Some(true),
         strict: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
         ..CompilerOptions::default()
     };
 

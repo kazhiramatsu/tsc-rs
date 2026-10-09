@@ -2270,8 +2270,8 @@ impl<'h> Candidate<'h> {
     }
 
     /// Resolve one `libReplacement` library package (`@typescript/lib-*`)
-    /// from the synthetic containing file, with tsc's isolated Node10 option
-    /// set (`getOptionsForLibraryResolution`, `_tsc.js:40643`).
+    /// from the synthetic containing file. tsgo `resolveLibrary`
+    /// (compiler/fileloader.go) uses the program's resolver in CommonJS mode.
     pub fn resolve_library(
         &mut self,
         resolve_from: JsStr<'_>,
@@ -2283,21 +2283,18 @@ impl<'h> Candidate<'h> {
             RequestKind::Library,
             directory,
             package_name,
-            ResolutionMode::Unspecified,
+            ResolutionMode::CommonJs,
             Rc::clone(&self.identity),
         );
         let resolve_from = resolve_from.to_owned();
         let package_name = package_name.to_owned();
-        self.lookup_or_compute(key, token, move |host, _, _| {
-            let library_options = CompilerOptions {
-                module_resolution: Some(2),
-                ..CompilerOptions::default()
-            };
-            let mut resolver = ModuleResolver::new(host, &library_options)?;
+        self.lookup_or_compute(key, token, move |host, options, program_options| {
+            let mut resolver =
+                ModuleResolver::new_with_program_options(host, options, program_options)?;
             let outcome = resolver.resolve(
                 resolve_from.as_js(),
                 package_name.as_js(),
-                ResolutionMode::Unspecified,
+                ResolutionMode::CommonJs,
             )?;
             Ok(CachedValue::Library(outcome))
         })
