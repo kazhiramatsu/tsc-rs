@@ -29,7 +29,7 @@ pub struct ServerOptions {
     /// input and output.
     pub pipe_path: Option<String>,
     /// The file system operations the client answers (tsgo's callback file
-    /// system, not ported yet).
+    /// system).
     pub callbacks: Vec<String>,
     /// JSON-RPC instead of MessagePack.
     pub async_protocol: bool,

@@ -676,6 +676,35 @@ fn read_snapshot(session: &Session, snapshot: &Value, file_name: &str) -> Option
 }
 
 #[test]
+fn a_config_matches_a_listing_in_its_order() {
+    // tsgo matches a config's globs in the order of the file system's
+    // listing; the TypeScript client's `project exposes parsedCommandLine`
+    // lists `index.ts` before `foo.ts`.
+    let (session, _) = session(&[]);
+    let response = call(
+        &session,
+        "createSnapshot",
+        json!({
+            "openProjects": ["/tsconfig.json"],
+            "fileSystem": {
+                "kind": "full",
+                "files": {
+                    "/tsconfig.json": r#"{ "compilerOptions": { "noLib": true } }"#,
+                    "/src/index.ts": r#"import { foo } from "./foo";"#,
+                    "/src/foo.ts": "export const foo = 1;",
+                },
+                "directories": { "/src": { "files": ["index.ts", "foo.ts"], "directories": [] } },
+            },
+        }),
+    )
+    .unwrap();
+    assert_eq!(
+        response["projects"][0]["rootFiles"],
+        json!(["/src/index.ts", "/src/foo.ts"])
+    );
+}
+
+#[test]
 fn a_full_file_system_answers_for_the_snapshot() {
     // TestCreateSnapshotUsesFullFileSystem.
     let (session, _) = session(&[("/host.ts", "host")]);
