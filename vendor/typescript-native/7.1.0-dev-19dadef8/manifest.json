@@ -91,6 +91,13 @@
       "bytes": 2631073
     },
     {
+      "path": "tsc/testdata/baselines/reference/api",
+      "git_tree_sha1": "746158bfb2fb7b2d2f2b67410964842956d17688",
+      "blob_inventory_sha256": "5c74de3a63beb8165c46c931e96f3a8e808f05ac42b402c7352758c22a2421e0",
+      "files": 2,
+      "bytes": 2867
+    },
+    {
       "path": "tsc/internal/diagnostics/diagnosticMessages.json",
       "git_blob_sha1": "edc52a66cb04a3ee8b2e8b206fd797804080b523",
       "blob_inventory_sha256": "f96b36f1432be1badd98cd75b183c3665ce8b9883cf36876e84f5dade573c47e",
@@ -145,6 +152,20 @@
       "blob_inventory_sha256": "9c069cee73bee0a2f3f73a5417a855522b3a5f1a97d3f2760a25145bbec21304",
       "files": 1,
       "bytes": 1802
+    },
+    {
+      "path": "tsc/internal/ast/kind_generated.go",
+      "git_blob_sha1": "c74eb65e60c183a93105d00edf4565ed4690161e",
+      "blob_inventory_sha256": "15d0b395ae6e45318fe31ab0a8211f394fa4e6d28cc186cccfb039d7a3b8cf7b",
+      "files": 1,
+      "bytes": 26819
+    },
+    {
+      "path": "tsc/internal/api/encoder/encoder_generated.go",
+      "git_blob_sha1": "b4a9021b6cd0bca151fb5fd065c7deb09971022a",
+      "blob_inventory_sha256": "0ca7a985fa2fad2924ca29f5eaa7d0930db701d4dfaf09e95a9708eec09e5107",
+      "files": 1,
+      "bytes": 35642
     },
     {
       "path": "tsc/internal/diagnostics/loc/cs-CZ.json.gz",
