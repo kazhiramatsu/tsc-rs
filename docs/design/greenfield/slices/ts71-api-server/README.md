@@ -751,3 +751,11 @@ snapshot、option、module provider を借りる）。
   任せた。
 - **残り**：P5-2 はこれで終わる。次は「依存と順序」の 3（project の要らない request：command line と config、`createSourceFile`、
   `transpile*`、module resolver）から計画する。
+
+### P5-2b の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `800a5743e`（コード `b07627cd9`、test `7d3536cf5`、packet の記録）の run 37980248024（`plan` 24s、`rust`
+  11m40s、`conformance (TypeScript 7.1)` 20m6s、`gates` 15s。全て成功。workspace 全体の test と Clippy はこの `rust` job に
+  よる）。merge → `f2f010b07`（merge commit、PR #727）。
+- P5-2（transport と session、request の file system、callback の FS）はこれで終わる。次は P5-3 の計画（「依存と順序」の 3：
+  project の要らない request）。
