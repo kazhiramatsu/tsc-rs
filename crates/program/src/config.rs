@@ -1176,6 +1176,92 @@ impl ConfigRootPlan {
     pub fn extended_source_files(&self) -> &[JsString] {
         &self.extended_source_files
     }
+
+    /// tsgo `PossiblyMatchesFileName`: whether the file at the absolute
+    /// `file_name` could be a root of this config: a root file, a literal
+    /// include, or a file with a supported extension below a wildcard
+    /// directory.
+    pub fn possibly_matches_file_name(&self, file_name: JsStr<'_>, case_sensitive: bool) -> bool {
+        let key = file_name_key(
+            crate::js_path::normalize_path(file_name).as_js(),
+            case_sensitive,
+        );
+        if self
+            .file_names
+            .iter()
+            .any(|file| file_name_key(file.as_js(), case_sensitive) == key)
+        {
+            return true;
+        }
+        let directory = js_directory_name(self.config_file_name());
+        let literal_include = self.include_specs.iter().any(|include| {
+            let spec = include.to_string_lossy();
+            !spec.contains(['*', '?'])
+                && spec
+                    .rsplit('/')
+                    .next()
+                    .is_some_and(|name| name.contains('.'))
+                && file_name_key(
+                    normalized_absolute_path(include.as_js(), directory.as_js()).as_js(),
+                    case_sensitive,
+                ) == key
+        });
+        if literal_include {
+            return true;
+        }
+        const EXTENSIONS: [&str; 9] = [
+            ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".json",
+        ];
+        let name = key.to_string_lossy();
+        EXTENSIONS.iter().any(|extension| name.ends_with(extension))
+            && self.possibly_matches_directory_name(
+                directory_name(key.as_js()).as_js(),
+                case_sensitive,
+            )
+    }
+
+    /// tsgo `PossiblyMatchesDirectoryName`: whether the absolute `directory`
+    /// is a wildcard directory of this config or below a recursive one.
+    pub fn possibly_matches_directory_name(
+        &self,
+        directory: JsStr<'_>,
+        case_sensitive: bool,
+    ) -> bool {
+        let key = file_name_key(
+            crate::js_path::normalize_path(directory).as_js(),
+            case_sensitive,
+        );
+        let key = key.to_string_lossy();
+        self.wildcard_directories.iter().any(|wildcard| {
+            let wildcard_key = file_name_key(wildcard.path.as_js(), case_sensitive);
+            let wildcard_key = wildcard_key.to_string_lossy();
+            let wildcard_key = wildcard_key.trim_end_matches('/');
+            if wildcard.recursive {
+                *key == *wildcard_key
+                    || key
+                        .strip_prefix(wildcard_key)
+                        .is_some_and(|rest| rest.starts_with('/') || wildcard_key.ends_with(':'))
+            } else {
+                *key == *wildcard_key
+            }
+        })
+    }
+
+    /// tsgo `GetMatchedFileSpec(fileName) != ""`: whether the absolute
+    /// `file_name` is one of the config's literal `files`.
+    pub fn lists_file(&self, file_name: JsStr<'_>, case_sensitive: bool) -> bool {
+        let key = file_name_key(
+            crate::js_path::normalize_path(file_name).as_js(),
+            case_sensitive,
+        );
+        let directory = js_directory_name(self.config_file_name());
+        self.files().unwrap_or_default().iter().any(|spec| {
+            file_name_key(
+                normalized_absolute_path(spec.as_js(), directory.as_js()).as_js(),
+                case_sensitive,
+            ) == key
+        })
+    }
 }
 
 /// A config plan cannot be turned into a prepared no-emit program when the

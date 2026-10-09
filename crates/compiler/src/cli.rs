@@ -2357,27 +2357,12 @@ impl WatchTarget {
         }
     }
 
-    /// The include specs naming one file (no wildcard, an extension), made
-    /// absolute against the configuration's directory.
-    pub(crate) fn literal_includes(&self) -> Vec<String> {
-        let Self::Config { plan, .. } = self else {
-            return Vec::new();
-        };
-        let directory = PathBuf::from(crate::watch::config_directory(
-            &plan.config_file_name().to_string_lossy(),
-        ));
-        plan.include_specs()
-            .iter()
-            .map(|spec| spec.to_string_lossy().into_owned())
-            .filter(|spec| {
-                !spec.contains(['*', '?'])
-                    && spec
-                        .rsplit('/')
-                        .next()
-                        .is_some_and(|name| name.contains('.'))
-            })
-            .map(|spec| normalized_absolute(&directory, &spec))
-            .collect()
+    /// The configuration's parse, for a configuration target.
+    pub(crate) fn plan(&self) -> Option<&ConfigRootPlan> {
+        match self {
+            Self::Config { plan, .. } => Some(plan),
+            Self::Files { .. } => None,
+        }
     }
 
     /// tsgo `WildcardDirectories`: the include directories, recursive when
