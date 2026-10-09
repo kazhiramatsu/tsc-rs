@@ -1140,11 +1140,12 @@ pub fn emit_planned_units_with_kinds(
             if let Some(artifact) = declaration.artifact {
                 emission.artifacts.push(artifact);
             }
-        } else if request.declaration && options.emit_declaration_only == Some(true) {
-            // emitDeclarationFileOrBundle also marks a missing declaration
-            // path as skipped. An all-.d.ts program has no units to visit.
-            emission.emit_skipped = true;
         }
+        // Without a declaration path (`emitDeclarationOnly` without
+        // `declaration`), tsgo emitDeclarationFile returns without marking
+        // the emit skipped: the run reports its diagnostics with outputs
+        // generated (exit 2), where tsc 6.0's emitDeclarationFileOrBundle
+        // marked it skipped (exit 1).
         if eager_source_roots || matches!(unit.root(), EmitRoot::Bundle(_)) {
             if let Some(sink) = sink.as_deref_mut() {
                 emission.written_paths.extend(write_artifacts(

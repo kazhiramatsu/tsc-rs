@@ -5367,6 +5367,26 @@ fn no_emit_reports_every_option_diagnostic_as_tsgo() {
 }
 
 #[test]
+fn emit_declaration_only_without_declaration_exits_as_tsgo() {
+    // tsgo emitDeclarationFile does not mark the emit skipped when there is
+    // no declaration path: the option error is reported with outputs
+    // generated (exit 2, tsc 6.0 exited 1) and nothing is written.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export const a = 1;\n").expect("write source");
+    let output = run(
+        &tree,
+        &["--emitDeclarationOnly", "--pretty", "false", "a.ts"],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "error TS5069: Option 'emitDeclarationOnly' cannot be specified without specifying option 'declaration' or option 'composite'.\n"
+    );
+    assert!(!tree.path("a.js").exists());
+    assert!(!tree.path("a.d.ts").exists());
+}
+
+#[test]
 fn malformed_config_reports_tsgo_diagnostics() {
     // A configuration tsgo recovers from is diagnosed, not refused.
     let tree = TempTree::new();
