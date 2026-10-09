@@ -905,3 +905,54 @@ snapshot、option、module provider を借りる）。
   `conformance (TypeScript 7.1)` 19m21s、`gates` 13s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。
   merge → `7ba946f74`（merge commit、PR #728）。
 - 次：P5-3b（program の情報）。
+
+## P5-3b program の情報（2026-10-10）
+
+- **request**（tsgo `api/session.go` 1971–2283）：
+  - `getSourceFile`：project の program の file を、tsgo の parse cache が持つ形で encode する（program が集めた import、binder
+    の flag、module detection）。program に無い file は MessagePack で空の binary、JSON で null。
+  - `getSourceFileNames`（program の順、library が先）。
+  - `getSourceFileMetadata`：default library か、node_modules を探して見つけた file か、package scope の type と directory、
+    implied node format。type は tsgo の `loadSourceFileMetaData` のとおり、拡張子で format が決まらない file が node16〜
+    nodenext で解決されるとき、または node_modules の file のときだけ書く。
+  - `getConfigFileNames`：config と extends の file。config の無い program は `[]`（Go の nil slice）。
+  - `getConfigSourceFile`：config か extends の config を tsconfig source として parse して encode する（content hash なし）。
+  - `getModeForUsageLocation`、`getModeForResolutionAtIndex`、`getResolvedModule`（＋`FromModuleSpecifier`）、
+    `getResolvedTypeReferenceDirective`（＋`FromTypeReferenceDirective`）。
+  - node は handle（`index.kind.path`。index は encoder の node index table のもの、path は file の path）で指す。
+  - file 名は project の directory からの相対（tsgo の program が解決するとおり）。
+- **既存の経路の変更**（いずれも tsgo の動作に合わせる）：
+  - source file は parse したときの module detection（tsgo の `ExternalModuleIndicatorOptions`：JSX と Force）を持ち、
+    encoder はそれを header に書く。program の JSON file も同じ option で parse する（tsgo は nodenext の JSON file の header
+    に Force を書く）。
+  - prepared file は tsgo の `sourceFilesFoundSearchingNodeModules` を持つ。loader は `may_be_emitted` に畳んでいた。
+  - checker は API の `GetModeForUsageLocation` と `GetDefaultResolutionModeForFile` を答える。tsgo では program の関数で、
+    port では同じ規則が checker にある。
+  - 修正（P5-1）：program が missing の directory として探した path が作られると、project を dirty にする。tsgo の
+    `SeenFileOrMissingParentDirectory` は path 自身から確かめるが、port は親から確かめていた。client の test
+    `Snapshot.update host symlinks bypass an inherited full filesystem`（missing の node_modules に host の link を作る）で
+    見つかった。
+- **test**：
+  - api の unit：program の情報 7（file の順と config file、metadata、encode の header、mode と解決、node handle と error、
+    project と file の error、host の link）。
+  - project の unit 1（missing の directory）。
+- **tsgo との比較**（local）：
+  - P5-3b の request 50 行（MessagePack と JSON-RPC）：全て一致。`getSourceFile` と `getConfigSourceFile` の encode は
+    byte まで一致。
+  - node handle の走査（2 つの file の index 0〜59、configured・synthetic・inferred の project）790 行：全て一致。
+  - host の link の場面：一致。
+  - P5-3a、P5-2a、P5-2b の比較は変わらない（P5-2b の 2 行は記録済みの Go の map の順）。
+- **TypeScript の client の test**（local）：tsc-rs 96/327（P5-3a は 42）。残り 231 のうち 230 は未実装の method、1 は
+  P5-3a の null の要素。
+- **検証**（最終 bytes。コード `f96644823`。macOS、`nice -n 20`、Cargo の job 2）：
+  - `cargo fmt --all -- --check` と Clippy（api・program・syntax・checker・project・cli、`--all-targets -- -D warnings`）は
+    clean。
+  - `cargo test` は全て成功：api（unit 133、`callback_fs` 7、`ipc` 14、`server` 2、encoder 5、fixture 1）、project（unit 11、
+    snapshot 41）、program、syntax、cli の contract 264、compiler の contract 153 と `system` 9。
+  - syntax の source file、checker の program の parse、loader は batch の経路なので、release build（2m18s）の full
+    conformance を local で 1 回（`--workers 2 --check`、473s）：0 regressions、accepted tier を超える構成 0。errors full
+    13,451、emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness
+    error 15（main と同じ）。
+  - suites（`scripts/suites_ts71.py --check`）：0 regressions、数は main と同じ。
+  - workspace 全体の test と Clippy は hosted の `rust` job に任せた。
+- **残り**：P5-3c（module resolver）。
