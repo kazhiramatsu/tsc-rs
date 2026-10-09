@@ -89,6 +89,12 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   tsoptions/config, tsc/tsbuild baselines) in slices P4-1 to P4-7, with the
   inventory of each suite's producer, format and prerequisites; LSP and
   content-mapper suites are excluded for now.
+- [greenfield/slices/ts71-api-server/README.md](greenfield/slices/ts71-api-server/README.md):
+  the 2026-10-09 plan for TypeScript 7.1's API server (`--api`): tsgo's
+  transport, session and requests at the pinned commit, its dependency on
+  tsgo's project system (the LSP foundation), the Go session tests and the
+  TypeScript client's API tests as the criteria, and the decisions it waits
+  for.
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,

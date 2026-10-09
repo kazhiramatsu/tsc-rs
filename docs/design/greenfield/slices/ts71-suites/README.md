@@ -1346,3 +1346,10 @@ P4-5b と P4-7c の記録に残した項目を確かめた。
   入力で exit 1 だったことを probe で確かめた）。`scripts/conformance_ts71.py --workers 2 --check`：12,748 case を 473 s、全ての数が
   変わらない（errors full 13,451／mismatch 0、emit full 13,443、types 12,677／90、symbols 12,715／52、sourcemap 13,451、trace
   13,448／3、harness error 15）、regression 0。`scripts/suites_ts71.py --check`：全ての suite が変わらず、regression 0。
+
+### P4-7 の後の小修正の hosted の記録と merge（2026-10-09）
+
+- hosted：最終候補 `7334a1ce2`（修正 `c20fb6f2d`・packet の記録）の run 37883377648（`plan` 30s、`rust` 11m5s、`conformance (TypeScript
+  7.1)` 19m52s、`gates` 14s。全て成功）。merge → `2fdedb42f`（merge commit）。
+- 次：API server の計画（[ts71-api-server](../ts71-api-server/README.md)、決定待ち）。削除済みの `node10`／`classic` の slice は
+  その後か並行で（上の記録）。

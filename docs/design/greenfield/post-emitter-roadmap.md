@@ -210,6 +210,7 @@ Goの主参照は`tsc/internal/project/{session,snapshot,overlayfs,projectcollec
 | API1.1-SYNC（新子） | 同期MessagePack client経路 | typed coreを共有し、encoding/順序/error/releaseをsync clientから別検証。asyncのpassで代用しない |
 | API1.2-EXT（新子） | content mapper、transform、追加LS公開methodなどの採用部分 | 完成済みの固定契約から個別packet化。mapperはvirtual document/span/diagnostic/edit変換を横断比較。上流待ちはその子だけ保留 |
 
+固定pin（`19dadef8`）でのAPI serverの具体化と決定待ちの項目は[ts71-api-server](slices/ts71-api-server/README.md)。
 最初のAPI到達点はCORE＋必要なEMITのasync client経路。
 transpileを同時採用する場合はC-TRANSPILEを依存に加える。legacy JS互換packageのAPI1.3は別の任意scope。
 同期clientと拡張を後続に分けた初期profileを、全API互換と表示しない。
