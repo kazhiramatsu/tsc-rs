@@ -10589,12 +10589,14 @@ fn parse_json_text_with_options(
     validate_value: bool,
 ) -> SourceFile {
     let text = snapshot.text();
+    // initializeState(JSON): getLanguageVariant gives a JSON file the JSX
+    // variant, as it does JavaScript and TSX.
     let mut parser = Parser::new_with_target(
         file_name,
         text,
         snapshot.shared_positions(),
         ScriptTarget::ES2015,
-        LanguageVariant::Standard,
+        LanguageVariant::Jsx,
         true,
     );
     // initializeState(JSON) and parseJsonText stamp these flags on all nodes.

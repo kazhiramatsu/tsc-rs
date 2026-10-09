@@ -118,9 +118,10 @@ mod text;
 mod workers;
 
 pub use command_line::{
-    command_line_option_bag, command_line_program_inputs, parse_build_command_line,
-    parse_command_line, parse_command_line_with_declarations, ParsedBuildCommandLine,
-    ParsedCommandLine, ResponseFileReader,
+    command_line_compiler_options, command_line_option_bag, command_line_program_inputs,
+    command_line_raw, parse_build_command_line, parse_command_line,
+    parse_command_line_with_declarations, ParsedBuildCommandLine, ParsedCommandLine,
+    ResponseFileReader,
 };
 pub use config::{
     compiler_option_named_choices, is_non_fatal_option_diagnostic, load_config_program,

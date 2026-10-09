@@ -429,6 +429,7 @@ dependencies = [
  "base64",
  "serde",
  "serde_json",
+ "tsc-rs-binder",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
  "tsc-rs-host",

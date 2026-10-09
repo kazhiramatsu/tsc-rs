@@ -925,6 +925,8 @@ impl ConfigDiscoveryOptions {
 
 #[derive(Clone, Debug)]
 pub struct ConfigRootPlanRequest {
+    /// The config file, against `base_path`; empty for a config without a
+    /// file, based at `base_path`.
     pub file_name: JsString,
     pub text: String,
     pub base_path: JsString,
@@ -1761,8 +1763,18 @@ fn parse_config_root_plan_inner(
     extended_cache: Option<&mut ConfigExtendedCache>,
     command_line_options: Option<&ConfigOptionBag>,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
-    let config_file_name = normalized_path(&request.file_name, &request.base_path)?;
-    let config_base = js_directory_name(&config_file_name);
+    // tsgo `ParseJsonConfigFileContent` without a config file name: the
+    // config is based at the base path.
+    let (config_file_name, config_base) = if request.file_name.is_empty() {
+        (
+            JsString::default(),
+            normalized_path(&request.base_path, &request.base_path)?,
+        )
+    } else {
+        let config_file_name = normalized_path(&request.file_name, &request.base_path)?;
+        let config_base = js_directory_name(&config_file_name);
+        (config_file_name, config_base)
+    };
     let mut context = ParseContext {
         host,
         extended_cache,
@@ -5046,11 +5058,13 @@ fn config_module_resolution_options<'j0>(
     let config_file_name = config_file_name.into();
     let compiler_options = bag_compiler_options(options, discovery);
 
-    let config_path = config_program_path(config_file_name, case_sensitive)?;
-    let config_file = program_config_file(config_path, config_source);
-    let mut program_options = ProgramOptions::default()
-        .with_config_file(config_file)
-        .with_external_config_option_diagnostics();
+    let mut program_options = ProgramOptions::default().with_external_config_option_diagnostics();
+    // A config without a file (tsgo's JSON api) gives its program none.
+    if !config_file_name.is_empty() {
+        let config_path = config_program_path(config_file_name, case_sensitive)?;
+        program_options =
+            program_options.with_config_file(program_config_file(config_path, config_source));
+    }
     if let Some(value) = config_option_bool(options, "noLib") {
         program_options = program_options.with_no_lib(value);
     }

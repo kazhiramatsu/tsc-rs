@@ -125,8 +125,8 @@ as well. Keep the `typescript` dependency if your editor or other tools use
 it: `tsc-rs` replaces the compiler command and offers a
 [Rust compiler API](#compiler-api-for-rust-projects-experimental), but it
 does not provide TypeScript's language server, and its
-[API server](#api-server-experimental) answers only the snapshot requests
-so far.
+[API server](#api-server-experimental) answers only the snapshot, config
+and transpile requests so far.
 
 ### Use the name `tsc` in your shell
 
@@ -797,10 +797,15 @@ files that changed. A snapshot can read a file system the request supplies
 (`fileSystem`: a full one, or a layer over the disk, with files, directory
 listings, links and removed paths), and with `--callbacks` the client
 answers the file reads, existence checks, listings, real paths, writes and
-removals it names. The flags and their errors are `tsgo`'s. The other
-requests (source files, symbols and types, diagnostics, emit, module
-resolution, configuration parsing, the build orchestrator) answer that they
-are not implemented yet.
+removals it names. It parses command lines and configs
+(`parseCommandLine`, `readConfigFile`, `parseConfigFile`,
+`parseJsonConfigFileContent`), creates and releases a client's source
+files (`createSourceFile`, `createSourceFileFromFile`, `releaseSourceFile`)
+and transpiles (`transpileModule`, `transpileDeclaration` and their
+`FromFile` forms). The flags and their errors are `tsgo`'s. The other
+requests (a program's source files, symbols and types, diagnostics, emit,
+module resolution, the build orchestrator) answer that they are not
+implemented yet.
 
 ## Performance
 
@@ -1150,10 +1155,14 @@ runs are listed under the repository's Actions tab.
   `xx`) and may match a related language or region by CLDR's distances;
   those cases print English here.
 - The compiler command does not provide a language server or editor service.
-- `tsc-rs --api` answers the snapshot requests listed under
+- `tsc-rs --api` answers the requests listed under
   [API server](#api-server-experimental) only. Windows named pipes and
   content mappers are not implemented; an invalid request's decoding error
   is worded by the Rust decoder rather than Go's `encoding/json`.
+  `parseJsonConfigFileContent` parses the value's JSON text, so `null`
+  elements of its lists are dropped as in a config file, where `tsgo`
+  keeps them and reports each list (`Compiler option 'files' requires a
+  value of type string.`).
 - `tsc_api`'s encoding of a JavaScript file lacks the declarations and
   types `tsgo`'s parser derives from its JSDoc tags (`@typedef`, `@type`,
   `@param`, ...), and a few parse-error recoveries and JSDoc details keep

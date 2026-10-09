@@ -29,7 +29,7 @@ pub(super) fn cases() -> Vec<(String, String)> {
 /// parse without a program, so the file has no imports beyond its own),
 /// encoded and formatted.
 pub(super) fn render(text: &str) -> String {
-    let file = parse_source_file("/test.ts", text);
+    let file = parse_source_file("/test.ts", text, ScriptKind::Ts);
     let facts = SourceFileFacts {
         script_kind: ScriptKind::Ts,
         ..SourceFileFacts::default()

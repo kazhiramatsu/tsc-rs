@@ -513,10 +513,11 @@ pub struct DiagnosticResponse {
         skip_serializing_if = "String::is_empty"
     )]
     pub file_name: String,
+    /// -1 for a diagnostic without a location (tsgo's undefined range).
     #[serde(default, deserialize_with = "nullable")]
-    pub pos: usize,
+    pub pos: i64,
     #[serde(default, deserialize_with = "nullable")]
-    pub end: usize,
+    pub end: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_position: Option<DiagnosticPositionResponse>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -692,10 +693,15 @@ impl DiagnosticResponse {
         text_of: &dyn Fn(&str) -> Option<String>,
     ) -> Self {
         let file_name = file_name.map(|name| name.to_string_lossy().into_owned());
-        let start = start.unwrap_or(0) as usize;
-        let end = start + length.unwrap_or(0) as usize;
+        let (pos, end) = match start {
+            Some(start) => (
+                i64::from(start),
+                i64::from(start) + i64::from(length.unwrap_or(0)),
+            ),
+            None => (-1, -1),
+        };
         let mut response = Self {
-            pos: start,
+            pos,
             end,
             code: message.code,
             category: category_number(message.category),
@@ -707,12 +713,14 @@ impl DiagnosticResponse {
         };
         if let Some(file_name) = &file_name {
             response.file_name.clone_from(file_name);
-            if let Some(text) = text_of(file_name) {
+            if let Some(text) = text_of(file_name).filter(|_| start.is_some()) {
                 let file = DiagnosticFile::new(&text);
-                response.pos = start.min(file.utf16_length);
-                response.end = end.min(file.utf16_length).max(response.pos);
-                let start_position = file.position(response.pos);
-                let end_position = file.position(response.end);
+                let pos = (pos as usize).min(file.utf16_length);
+                let end = (end as usize).min(file.utf16_length).max(pos);
+                response.pos = pos as i64;
+                response.end = end as i64;
+                let start_position = file.position(pos);
+                let end_position = file.position(end);
                 response.source_lines = file.source_lines(start_position.line, end_position.line);
                 response.start_position = Some(start_position);
                 response.end_position = Some(end_position);
@@ -725,7 +733,7 @@ impl DiagnosticResponse {
             .map(|next| {
                 Self::located(
                     chain_file.as_ref(),
-                    Some(start as u32),
+                    start,
                     length,
                     next,
                     &[],
@@ -760,8 +768,10 @@ impl DiagnosticResponse {
     pub fn to_diagnostic(&self) -> Diagnostic {
         let mut diagnostic = Diagnostic::new(
             None,
-            Some(self.pos as u32),
-            Some(self.end.saturating_sub(self.pos) as u32),
+            u32::try_from(self.pos).ok(),
+            u32::try_from(self.pos)
+                .ok()
+                .map(|_| self.end.saturating_sub(self.pos) as u32),
             self.to_message_chain(),
         );
         diagnostic.related = self
@@ -769,8 +779,10 @@ impl DiagnosticResponse {
             .iter()
             .map(|related| RelatedInfo {
                 file_name: None,
-                start: Some(related.pos as u32),
-                length: Some(related.end.saturating_sub(related.pos) as u32),
+                start: u32::try_from(related.pos).ok(),
+                length: u32::try_from(related.pos)
+                    .ok()
+                    .map(|_| related.end.saturating_sub(related.pos) as u32),
                 message: related.to_message_chain(),
             })
             .collect();
@@ -797,6 +809,121 @@ impl DiagnosticResponse {
             repopulate: None,
         }
     }
+}
+
+/// tsgo `ParseCommandLineParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParseCommandLineParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub command_line: Vec<String>,
+}
+
+/// tsgo `ReadConfigFileParams` and `ParseConfigFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct ConfigFileParams {
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+}
+
+/// tsgo `ReadConfigFileResponse`.
+#[derive(Clone, Debug, Serialize)]
+pub struct ReadConfigFileResponse {
+    pub config: Box<RawValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<DiagnosticResponse>,
+}
+
+/// tsgo `ParseJsonConfigFileContentParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParseJsonConfigFileContentParams {
+    #[serde(default)]
+    pub json: serde_json::Value,
+    #[serde(default)]
+    pub config_directory: Option<String>,
+    #[serde(default)]
+    pub config_file_name: Option<DocumentIdentifier>,
+}
+
+/// tsgo `CreateSourceFileOptions`.
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSourceFileOptions {
+    /// tsgo `core.ScriptKind`; 0 (unknown) takes the file name's.
+    #[serde(default, deserialize_with = "nullable")]
+    pub script_kind: u32,
+}
+
+/// tsgo `CreateSourceFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSourceFileParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub file_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub source_text: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub options: CreateSourceFileOptions,
+}
+
+/// tsgo `CreateSourceFileFromFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSourceFileFromFileParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub file_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub options: CreateSourceFileOptions,
+}
+
+/// tsgo `ReleaseSourceFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct ReleaseSourceFileParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub lease: u64,
+}
+
+/// tsgo `TranspileOptions`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranspileOptions {
+    #[serde(default)]
+    pub compiler_options: CompilerOptionsParam,
+    #[serde(default, deserialize_with = "nullable")]
+    pub file_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub report_diagnostics: bool,
+}
+
+/// tsgo `TranspileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct TranspileParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub input: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub options: TranspileOptions,
+}
+
+/// tsgo `TranspileFromFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranspileFromFileParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub file_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub options: TranspileOptions,
+}
+
+/// tsgo `TranspileOutputResponse`.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranspileOutputResponse {
+    pub output_text: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<DiagnosticResponse>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub source_map_text: String,
 }
 
 /// tsgo `SourceFileResponse`: a binary source file's bytes as base64 in a

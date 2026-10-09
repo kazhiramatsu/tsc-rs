@@ -21,7 +21,7 @@ fn reference(name: &str) -> String {
 }
 
 fn encode(text: &str) -> Vec<u8> {
-    let file = parse_source_file("/test.ts", text);
+    let file = parse_source_file("/test.ts", text, ScriptKind::Ts);
     let facts = SourceFileFacts {
         script_kind: ScriptKind::Ts,
         ..SourceFileFacts::default()
@@ -65,6 +65,7 @@ fn build_node_index_table_matches_encode() {
     let file = parse_source_file(
         "/test.ts",
         "import { bar } from \"bar\";\nexport function foo<T, U>(a: string, b: string): any {}\nfoo();",
+        ScriptKind::Ts,
     );
     let (_, encoded) = encode_source_file(&file, &SourceFileFacts::default());
     let built = build_node_index_table(&file);
@@ -127,6 +128,7 @@ fn module_references_follow_tsgo_parser() {
     let module = parse_source_file(
         "/module.ts",
         "import a from \"a\";\nexport * from \"b\";\nimport c = require(\"c\");\nconst d = import(\"d\");\ntype E = import(\"e\").E;\ndeclare module \"f\" {}\ndeclare global {}\n",
+        ScriptKind::Ts,
     );
     let references = collect_external_module_references(&module);
     assert_eq!(
@@ -142,6 +144,7 @@ fn module_references_follow_tsgo_parser() {
     let script = parse_source_file(
         "/script.ts",
         "declare module \"amb\" { import x = require(\"inner\"); import y = require(\"./relative\"); }\n",
+        ScriptKind::Ts,
     );
     let references = collect_external_module_references(&script);
     assert_eq!(texts(&script, &references.imports), ["inner"]);
@@ -155,7 +158,11 @@ fn module_references_follow_tsgo_parser() {
         ["amb"]
     );
 
-    let javascript = parse_source_file("/a.js", "const x = require(\"x\");\nrequire(\"y\", 1);\n");
+    let javascript = parse_source_file(
+        "/a.js",
+        "const x = require(\"x\");\nrequire(\"y\", 1);\n",
+        ScriptKind::Js,
+    );
     let references = collect_external_module_references(&javascript);
     assert_eq!(texts(&javascript, &references.imports), ["x"]);
 }

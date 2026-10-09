@@ -641,13 +641,22 @@ impl<'a> Parser<'a> {
                 }
             }
             CompilerOptionValueKind::Named(values) => {
+                // tsgo `convertJsonOptionOfEnumType`: an empty or unknown
+                // value is nil (an unknown one with its error), which the
+                // merge over a config's options takes as an explicit null.
                 let trimmed = value.trim();
-                if !trimmed.is_empty() {
-                    match named_value_in(values, trimmed) {
-                        Some(_) => self.set(name, Value::String(trimmed.into())),
-                        None => self.errors.push(invalid_enum_diagnostic(declaration)),
-                    }
+                let known = !trimmed.is_empty() && named_value_in(values, trimmed).is_some();
+                if !trimmed.is_empty() && !known {
+                    self.errors.push(invalid_enum_diagnostic(declaration));
                 }
+                self.set(
+                    name,
+                    if known {
+                        Value::String(trimmed.into())
+                    } else {
+                        Value::Null
+                    },
+                );
                 index + 1
             }
             CompilerOptionValueKind::Object(_) => {
@@ -740,19 +749,29 @@ fn build_mode_declarations() -> Vec<CompilerOptionDeclaration> {
 /// them as `compilerOptions` and merges them over a config's), with the
 /// config converter's representations: file paths absolute against the
 /// current directory, named values resolved, lists typed; an explicit
-/// `null` removes the option.
+/// `null` removes the option. The options the command itself consumes
+/// (tsgo's executor reads them from the parsed command line) and tsgo's own
+/// process options have no meaning for the program.
 pub fn command_line_option_bag(
     options: &[(String, Value)],
     base_path: JsStr<'_>,
 ) -> ConfigOptionBag {
+    command_line_compiler_options(
+        options
+            .iter()
+            .filter(|(name, _)| !COMMAND_ONLY_OPTIONS.contains(&name.as_str())),
+        base_path,
+    )
+}
+
+/// tsgo `ParsedCommandLine.CompilerOptions()` of a command line: every
+/// compiler option it sets, as [`command_line_option_bag`] converts them.
+pub fn command_line_compiler_options<'a>(
+    options: impl IntoIterator<Item = &'a (String, Value)>,
+    base_path: JsStr<'_>,
+) -> ConfigOptionBag {
     let mut bag = ConfigOptionBag::default();
     for (name, value) in options {
-        // The options the command itself consumes (tsgo's executor reads
-        // them from the parsed command line) and tsgo's own process options
-        // have no meaning for the program.
-        if COMMAND_ONLY_OPTIONS.contains(&name.as_str()) {
-            continue;
-        }
         let Some(declaration) = compiler_option_declaration(name.as_str()) else {
             continue;
         };
@@ -821,6 +840,48 @@ pub fn command_line_option_bag(
         bag.insert_typed(name.as_str(), typed);
     }
     bag
+}
+
+/// tsgo `ParsedCommandLine.Raw` of a command line: each option it sets, in
+/// first-assignment order, with the parser's value (a named value's number,
+/// `null` when it was empty or unknown, a `lib` list's file names; other
+/// values as written).
+pub fn command_line_raw(options: &[(String, Value)]) -> Value {
+    let mut raw = crate::json_value::JsonObject::new();
+    for (name, value) in options {
+        let declaration = compiler_option_declaration(name.as_str()).or_else(|| {
+            WATCH_OPTION_DECLARATIONS
+                .iter()
+                .chain(WATCH_INTERVAL.iter())
+                .find(|declaration| declaration.name() == name.as_str())
+        });
+        let converted = match declaration.map(|declaration| declaration.value_kind()) {
+            Some(CompilerOptionValueKind::Named(values)) => value
+                .as_js()
+                .and_then(|written| named_value_in(values, written))
+                .map_or(Value::Null, Value::from),
+            Some(CompilerOptionValueKind::List(descriptor))
+                if matches!(
+                    descriptor.element_kind(),
+                    CompilerOptionListElementKind::NamedString(_)
+                ) =>
+            {
+                Value::Array(
+                    value
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_js)
+                        .filter_map(|written| descriptor.named_string_value(written))
+                        .map(|mapped| Value::String(mapped.into()))
+                        .collect(),
+                )
+            }
+            _ => value.clone(),
+        };
+        raw.insert(name.as_str(), converted);
+    }
+    Value::Object(raw)
 }
 
 /// The program's options from the command line alone (explicit files): the

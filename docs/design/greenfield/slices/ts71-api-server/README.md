@@ -826,3 +826,75 @@ snapshot、option、module provider を借りる）。
     差し替え（callback を含む）。
   - test：`session_module_resolution_test` の 5。LSP の snapshot を使う 1 は LSP と一緒に移す。
 - 次は P5-4（checker の query）。
+
+## P5-3a config・command line・source file・transpile（2026-10-10）
+
+- **request**（tsgo `api/session.go` 1749–1969）：
+  - `parseCommandLine`：`tsoptions.ParseCommandLine` を session の file system（response file を読む）の上で行い、
+    `ConfigFileResponse` で返す。option は command line が設定する全ての compiler option（command 自身の `project`、`watch`
+    なども。`project` は絶対 path）、raw は parser の値（名前の値は番号、`lib` は file 名、他は書かれたまま）。
+  - `readConfigFile`：config の JSON と最初の error。読めなければ `{config: {}, error: Cannot_read_file_0}`。
+  - `parseConfigFile`：config file の parse。読めなければ client error。
+  - `parseJsonConfigFileContent`：値を JSON text にして parse し、error の位置を外す（tsconfig の suite の json api と同じ）。
+    directory だけなら config file の無い parse（`configFilePath` なし、message の file 名は `''`）。directory と file 名は
+    ちょうど 1 つ。object でない値は空の object。
+  - `createSourceFile`（＋`FromFile`）：script kind（0 は file 名から、知らない拡張子は TS、JS・JSX・TS・TSX・JSON 以外は
+    client error）、parse と bind、header の lease（52–59 byte）。MessagePack は binary、JSON は base64。
+  - `releaseSourceFile`：tsgo の error（0 は `empty source file lease`、無い lease は `not found`）。lease は番号の集合で持つ。
+    tsgo の lease は parse cache の参照だが、port の parse cache は program の identity domain の中にあり、client の file を
+    program と共有しない。
+  - transpile 4 種：tsgo の `CompilerOptions` を option の bag にして program の option に変え、P4-4 の transpile に渡す。
+    diagnostic の source line は input から。
+- **既存の経路の変更**（いずれも tsgo の動作に合わせる）：
+  - encoder は bind 済みの file に binder の flag（到達性、`this`、implicit／explicit return、export context、async
+    function）を書く。tsgo の binder は node の flag をその場で設定するので、API が encode する file にはそれがある。P4-7d の
+    fixture は tsgo の bind しない parse で、従来どおり。
+  - JSON file は JSX の language variant で parse する（`getLanguageVariant`。tsc も同じ）。
+  - command line の空か未知の enum の値は null（未知のものは error 付き）で、config の option への merge は明示の null として
+    扱う（tsgo の parser と `mergeCompilerOptions`）。
+  - config plan は file 名なしで作れる（tsgo の `ParseJsonConfigFileContent` の `configFileName ""`）：base path に置き、
+    config file path も program の config file も持たない。
+  - tsgo の API の option の enum は名前で持つ。`newLine` と `moduleDetection` は tsgo と converter で番号が違い、P5-2a は
+    tsgo の CRLF（1）を LF と読んでいた。
+  - 位置の無い diagnostic の pos と end は -1（tsgo の undefined range。P5-2a は 0 にしていた）。
+- **tsgo と違う所**：
+  - ES5 の target と AMD／System の module：port は下げて出す（conformance と suite と同じ意図的な違い）。tsgo 7.1 は ES5 を
+    下げず、AMD／System は CommonJS で出す。
+  - locale の検査：port は BCP 47 の緩い検査で `xx_YY_bad` を通す。tsgo は Go の `language.Parse`（登録の無い subtag も
+    拒む）。P4-6b からの違い。
+  - config の list の null の要素：
+    - tsgo の値の経路（`parseOwnConfigOfJson`）は null を raw に残し、files・include・exclude・references ごとに
+      `Compiler option '{0}' requires a value of type {1}` を出す（`getPropFromRaw`）。port は値の JSON text を parse するので、
+      config file と同じく null を落とす。client の test `parseJsonConfigFileContent reports null array elements` はこれで
+      失敗する。
+    - config file でも、null だけの list は Go の nil slice になる。tsgo は raw と option に `[]` と書き、`paths` の key も
+      残す。port は null と書き、key を落とす。
+    - references の null の要素の後の error を、tsgo は位置なしで出す（raw の index で AST の要素を引く）。
+  - JavaScript の file の JSDoc の reparse（P4-7d の encoder の制限）：`createSourceFile` の JS の file は tsgo と違う。
+  - tsgo の lease は parse cache を program と共有する（Go の subtest `shares parse cache with programs`。LSP の session と
+    pointer の同一性を使う）。これは移さない。
+- **test**：
+  - api の unit：session の request 11。`TestCreateSourceFile` の 6 subtest の移植（parse cache の共有の 1 を除く）と、
+    command line、config file、config の値、transpile。tsgo の response に固定した。
+  - program の `go_json` 1（API の enum を名前で持つ）。
+- **tsgo との比較**（local、MessagePack と JSON-RPC）：
+  - P5-3a の request 56 行は全て一致。
+  - command line と transpile の 38 行は 35 が一致。残り 3 は上の意図的な違い（AMD、System）と locale。
+  - `createSourceFile` の 13 の text は 12 が binder の flag を含めて byte まで一致。残り 1 は JSDoc の reparse。
+  - JSON の値の config の端（directory だけ、無い extends、include の検査、paths）は一致。
+  - P5-2a の snapshot の transcript は一致のまま。
+- **TypeScript の client の test**（local）：tsc-rs 42/327（P5-2b は 21）。残り 285 のうち 284 は未実装の method、1 は上の
+  null の要素。
+- **検証**（最終 bytes。コード `bcf05f435`。macOS、`nice -n 20`、Cargo の job 2）：
+  - `cargo fmt --all -- --check` と Clippy（api・program・syntax・cli・conformance、`--all-targets -- -D warnings`）は clean。
+  - `cargo test` は全て成功：api（unit 126、`callback_fs` 7、`ipc` 14、`server` 2、encoder 5、fixture 1）、program（unit 71、
+    lib の test 513 ほか）、syntax（229 ほか）、cli の contract 264、compiler の contract 153 と `system` 9。
+  - command line の parser、config の plan、JSON の parse は batch の経路に触れるので、release build（2m17s）の full
+    conformance を local で 1 回（`--workers 2 --check`、466s）：0 regressions、accepted tier を超える構成 0。errors full
+    13,451、emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness
+    error 15（main と同じ）。
+  - suites（`scripts/suites_ts71.py --check`）：0 regressions。api 2、config 87、transpile 41、tsoptions 80、tscWatch 42 は
+    全て full、tsc 211/223、tsbuild 182/192、tsbuildWatch 63/65 は main と同じ。
+  - workspace 全体の test と Clippy は hosted の `rust` job に任せた。
+- **残り**：P5-3b（program の情報：`getSourceFile` ほか。bind 済みの program の file を、program が集めた import と binder の
+  flag で encode する）、P5-3c（module resolver）。

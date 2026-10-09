@@ -28,6 +28,7 @@ mod string_table;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use tsc_binder::BindData;
 use tsc_syntax::{
     JSDocComment, Node, NodeArena, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind,
 };
@@ -90,6 +91,19 @@ pub enum ScriptKind {
 }
 
 impl ScriptKind {
+    /// The kind of tsgo's `core.ScriptKind` number among those a client may
+    /// create a source file of (JS, JSX, TS, TSX, JSON).
+    pub fn from_number(number: u32) -> Option<Self> {
+        match number {
+            1 => Some(Self::Js),
+            2 => Some(Self::Jsx),
+            3 => Some(Self::Ts),
+            4 => Some(Self::Tsx),
+            6 => Some(Self::Json),
+            _ => None,
+        }
+    }
+
     /// tsgo `core.GetScriptKindFromFileName`.
     pub fn from_file_name(file_name: &str) -> Self {
         let Some(dot) = file_name.rfind('.') else {
@@ -123,6 +137,10 @@ pub struct SourceFileFacts<'a> {
     pub module_augmentations: &'a [NodeId],
     /// tsgo `AmbientModuleNames`.
     pub ambient_module_names: &'a [JsString],
+    /// The file's binding, when it is bound: tsgo's binder sets node flags
+    /// in place (reachability, `this` use, export context, async
+    /// functions), so a bound file's encoding has them.
+    pub bind_data: Option<&'a BindData>,
 }
 
 /// tsgo `NodeIndexTable`: the node of each encoded index (`None` for index
@@ -172,7 +190,7 @@ pub fn encode_node(file: &SourceFile, node: NodeId) -> (Vec<u8>, NodeIndexTable)
 /// file's nodes, without encoding them.
 pub fn build_node_index_table(file: &SourceFile) -> NodeIndexTable {
     let mut nodes = vec![None];
-    walk(&Tree::new(file), View::Node(file.root), |event| {
+    walk(&Tree::new(file, None), View::Node(file.root), |event| {
         if let WalkEvent::Record { view, .. } = event {
             nodes.push(view.node());
         }
@@ -265,15 +283,17 @@ struct Tree<'a> {
     file: &'a SourceFile,
     arena: &'a NodeArena,
     javascript: bool,
+    bind_data: Option<&'a BindData>,
 }
 
 impl<'a> Tree<'a> {
-    fn new(file: &'a SourceFile) -> Self {
+    fn new(file: &'a SourceFile, bind_data: Option<&'a BindData>) -> Self {
         let root_flags = NodeFlags::from_bits(file.arena.node(file.root).flags);
         Self {
             file,
             arena: &file.arena,
             javascript: root_flags.contains(NodeFlags::JAVA_SCRIPT_FILE),
+            bind_data,
         }
     }
 
@@ -550,7 +570,7 @@ impl<'a> Tree<'a> {
 /// tsgo's `PossiblyContainsDynamicImport` of `file` (see
 /// `Tree::possibly_contains_dynamic_import`).
 pub(crate) fn tsgo_possibly_contains_dynamic_import(file: &SourceFile) -> bool {
-    Tree::new(file).possibly_contains_dynamic_import()
+    Tree::new(file, None).possibly_contains_dynamic_import()
 }
 
 enum WalkEvent {
@@ -808,8 +828,11 @@ impl Tree<'_> {
     /// `PossiblyContainsDeprecatedTag` when one of its JSDoc comments has a
     /// `@deprecated` tag by tsgo's scanner text check (tsgo parses those
     /// comments lazily); a JavaScript file's when a parsed tag is one.
-    fn node_flags(&self, node: &Node) -> u32 {
-        let mut flags = mapped_node_flags(node.flags);
+    fn node_flags(&self, id: NodeId, node: &Node) -> u32 {
+        let bound = self
+            .bind_data
+            .map_or(node.flags, |data| data.flags_of(id, self.arena).bits());
+        let mut flags = mapped_node_flags(bound);
         let tsc = NodeFlags::from_bits(node.flags);
         if tsc.contains(NodeFlags::NESTED_NAMESPACE) && tsc.contains(NodeFlags::JS_DOC) {
             flags |= TSGO_NESTED_NAMESPACE;
@@ -927,9 +950,10 @@ fn encode_tree(
     facts: Option<&SourceFileFacts<'_>>,
 ) -> (Vec<u8>, NodeIndexTable) {
     let is_source_file = file.arena.node(root).kind == SyntaxKind::SourceFile && facts.is_some();
+    let bind_data = facts.and_then(|facts| facts.bind_data);
     let mut encoder = Encoder {
         file,
-        tree: Tree::new(file),
+        tree: Tree::new(file, bind_data),
         positions: PositionMap::new(file.text()),
         strings: StringTable::new(if is_source_file {
             file.text().as_bytes()
@@ -953,7 +977,7 @@ fn encode_tree(
         }
     }
     let source_file_facts = is_source_file.then_some(facts).flatten();
-    let tree = Tree::new(file);
+    let tree = Tree::new(file, bind_data);
     walk(&tree, View::Node(root), |event| match event {
         WalkEvent::Record {
             view,
@@ -1072,7 +1096,7 @@ impl Encoder<'_> {
                 let node = self.tree.node(id);
                 let kind = encoded_kind(self.tree.arena, node);
                 let data = self.node_data(node, kind, facts);
-                let mut flags = self.tree.node_flags(node);
+                let mut flags = self.tree.node_flags(id, node);
                 if id == self.file.root {
                     flags &= !TSGO_POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
                     if self.tree.possibly_contains_dynamic_import() {
@@ -1141,7 +1165,7 @@ impl Encoder<'_> {
                 // The comment list is always there.
                 let mask = 1 | u32::from(js_doc.tags.is_some()) << 1;
                 let kind = tsgo_kind(SyntaxKind::JSDoc).unwrap();
-                let flags = self.tree.node_flags(node);
+                let flags = self.tree.node_flags(id, node);
                 [
                     kind,
                     utf16(self, pos),

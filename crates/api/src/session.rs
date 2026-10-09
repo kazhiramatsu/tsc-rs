@@ -2,7 +2,11 @@
 //! client's requests over snapshots of tsgo's project system
 //! ([`tsc_project`]). The methods ported so far are `echo`, `ping`,
 //! `initialize`, `batchRequests`, `createSnapshot`, `updateSnapshot`,
-//! `release` and `getDefaultProjectForFile`, and
+//! `release`, `getDefaultProjectForFile`, the command line and config
+//! requests (`parseCommandLine`, `readConfigFile`,
+//! `parseJsonConfigFileContent`, `parseConfigFile`), the source files of a
+//! client (`createSourceFile`, `createSourceFileFromFile`,
+//! `releaseSourceFile`) and the transpile requests, and
 //! `getCurrentLanguageServerSnapshot` answers as tsgo's standalone session
 //! does; tsgo's other methods answer that they are not implemented yet.
 
@@ -15,26 +19,39 @@ use base64::Engine;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::value::RawValue;
+use tsc_compiler::transpile::{transpile_declaration, transpile_module};
 use tsc_compiler::BoundDocument;
-use tsc_host::vfs::FileSystem;
+use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain};
+use tsc_host::vfs::{FileSystem, VfsCompilerHost};
 use tsc_program::go_json::{
     compiler_options_json, struct_json, GoJson, COMPILER_OPTIONS_FIELDS, TYPE_ACQUISITION_FIELDS,
 };
-use tsc_program::{ConfigProjectReference, JsonValue};
+use tsc_program::{
+    command_line_compiler_options, command_line_program_inputs, command_line_raw,
+    parse_command_line, parse_config_file_text_to_json, parse_config_root_plan, CompilerConfigHost,
+    ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest, JsonValue,
+};
 use tsc_project::{
     ApiSnapshotRequest, CommandLine, CreateProgramRequest, FileChangeSummary, Project, ProjectId,
     ProjectKind, ProjectProgram, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotHost,
 };
 
+use crate::encoder::{
+    encode_source_file, ScriptKind, SourceFileFacts, HEADER_OFFSET_SOURCE_FILE_LEASE,
+};
 use crate::ipc::{panic_message, Handler, Payload};
 use crate::proto::{
-    BatchRequest, BatchRequestsParams, ConfigFileResponse, CreateProgramOptions,
-    CreateSnapshotParams, CreateSnapshotResponse, DiagnosticResponse, DocumentIdentifier,
+    BatchRequest, BatchRequestsParams, ConfigFileParams, ConfigFileResponse, CreateProgramOptions,
+    CreateSnapshotParams, CreateSnapshotResponse, CreateSourceFileFromFileParams,
+    CreateSourceFileOptions, CreateSourceFileParams, DiagnosticResponse, DocumentIdentifier,
     EnsurePrograms, FileNotifications, GetDefaultProjectForFileParams, InitializeResponse,
-    OpenedFileOperationResult, ProjectFileChanges, ProjectReference, ProjectResponse,
-    ReleaseParams, SnapshotChanges, SnapshotId, SnapshotOperationResponse, SnapshotRequestChanges,
-    SourceFileResponse, UpdateSnapshotParams,
+    OpenedFileOperationResult, ParseCommandLineParams, ParseJsonConfigFileContentParams,
+    ProjectFileChanges, ProjectReference, ProjectResponse, ReadConfigFileResponse, ReleaseParams,
+    ReleaseSourceFileParams, SnapshotChanges, SnapshotId, SnapshotOperationResponse,
+    SnapshotRequestChanges, SourceFileResponse, TranspileFromFileParams, TranspileOptions,
+    TranspileOutputResponse, TranspileParams, UpdateSnapshotParams,
 };
+use crate::references::collect_external_module_references;
 use crate::request_fs::{RequestFileSystem, SnapshotFileSystem};
 
 /// tsgo `ErrInvalidRequest`.
@@ -97,6 +114,10 @@ pub struct Session {
     /// continuation token.
     batch_pages: Mutex<BTreeMap<String, Vec<String>>>,
     next_batch_page: AtomicU64,
+    /// The source files the client holds (tsgo `sourceFileLeases`), by
+    /// lease.
+    source_file_leases: Mutex<BTreeSet<u64>>,
+    next_source_file_lease: AtomicU64,
 }
 
 impl Session {
@@ -115,6 +136,8 @@ impl Session {
             snapshots: Mutex::default(),
             batch_pages: Mutex::default(),
             next_batch_page: AtomicU64::new(0),
+            source_file_leases: Mutex::default(),
+            next_source_file_lease: AtomicU64::new(0),
         }
     }
 
@@ -172,6 +195,70 @@ impl Session {
                 self.handle_get_default_project_for_file(&params)
                     .map(|response| json(&response))
             }
+            "parseCommandLine" => {
+                let params = parse::<ParseCommandLineParams>("ParseCommandLineParams", params)?;
+                Ok(json(&self.handle_parse_command_line(&params)))
+            }
+            "readConfigFile" => {
+                let params = parse::<ConfigFileParams>("ReadConfigFileParams", params)?;
+                self.handle_read_config_file(&params)
+                    .map(|response| json(&response))
+            }
+            "parseJsonConfigFileContent" => {
+                let params = parse::<ParseJsonConfigFileContentParams>(
+                    "ParseJsonConfigFileContentParams",
+                    params,
+                )?;
+                self.handle_parse_json_config_file_content(&params)
+                    .map(|response| json(&response))
+            }
+            "parseConfigFile" => {
+                let params = parse::<ConfigFileParams>("ParseConfigFileParams", params)?;
+                self.handle_parse_config_file(&params)
+                    .map(|response| json(&response))
+            }
+            "createSourceFile" => {
+                let params = parse::<CreateSourceFileParams>("CreateSourceFileParams", params)?;
+                self.create_source_file(&params.file_name, &params.source_text, params.options)
+            }
+            "createSourceFileFromFile" => {
+                let params = parse::<CreateSourceFileFromFileParams>(
+                    "CreateSourceFileFromFileParams",
+                    params,
+                )?;
+                let file_name = self.host.absolute_file_name(&params.file_name);
+                let text = self
+                    .read_file_text(&file_name)
+                    .ok_or_else(|| client_error(format!("could not read file {file_name:?}")))?;
+                self.create_source_file(&file_name, &text, params.options)
+            }
+            "releaseSourceFile" => {
+                let params = parse::<ReleaseSourceFileParams>("ReleaseSourceFileParams", params)?;
+                self.handle_release_source_file(&params)
+                    .map(|()| json(&true))
+            }
+            "transpileModule" | "transpileDeclaration" => {
+                let params = parse::<TranspileParams>("TranspileParams", params)?;
+                self.transpile(
+                    &params.input,
+                    &params.options,
+                    method == "transpileDeclaration",
+                )
+                .map(|response| json(&response))
+            }
+            "transpileModuleFromFile" | "transpileDeclarationFromFile" => {
+                let params = parse::<TranspileFromFileParams>("TranspileFromFileParams", params)?;
+                let file_name = self.host.absolute_file_name(&params.file_name);
+                let input = self
+                    .read_file_text(&file_name)
+                    .ok_or_else(|| client_error(format!("could not read file {file_name:?}")))?;
+                let options = TranspileOptions {
+                    file_name,
+                    ..params.options
+                };
+                self.transpile(&input, &options, method == "transpileDeclarationFromFile")
+                    .map(|response| json(&response))
+            }
             // A standalone session has no language server to share.
             "getCurrentLanguageServerSnapshot" => Err(client_error(
                 "getCurrentLanguageServerSnapshot requires an LSP-connected API session",
@@ -183,6 +270,263 @@ impl Session {
             }
             _ => Err(invalid_request(format!("unknown API method {method:?}"))),
         }
+    }
+
+    /// tsgo `snapshotHost.FS().ReadFile`: a file of the session's file
+    /// system, decoded.
+    fn read_file_text(&self, file_name: &str) -> Option<String> {
+        self.fs
+            .read(file_name)
+            .ok()
+            .and_then(|bytes| tsc_program::decode_host_text(bytes).ok())
+    }
+
+    /// A host over the session's file system, for config parsing (tsgo
+    /// passes the snapshot host as the `ParseConfigHost`).
+    fn config_host(&self) -> VfsCompilerHost<&dyn FileSystem> {
+        VfsCompilerHost::new(&*self.fs, self.current_directory())
+    }
+
+    /// tsgo `handleParseCommandLine`: `tsoptions.ParseCommandLine` over the
+    /// session's file system (for response files).
+    fn handle_parse_command_line(&self, params: &ParseCommandLineParams) -> ConfigFileResponse {
+        let current_directory = JsStr::from_str(self.current_directory());
+        let read_file = |name: JsStr<'_>| self.read_file_text(&name.to_string_lossy());
+        let parsed = parse_command_line(
+            &params.command_line,
+            current_directory,
+            self.host.case_sensitive(),
+            &read_file,
+        );
+        let options = command_line_compiler_options(&parsed.options, current_directory);
+        let raw = GoJson::from_json(&command_line_raw(&parsed.options));
+        ConfigFileResponse {
+            file_names: parsed.file_names,
+            options: raw_json(struct_json(COMPILER_OPTIONS_FIELDS, &options).compact()),
+            project_references: Vec::new(),
+            type_acquisition: None,
+            compile_on_save: None,
+            raw: Some(raw_json(raw.compact())),
+            errors: parsed
+                .errors
+                .iter()
+                .map(|diagnostic| DiagnosticResponse::new(diagnostic, &|_| None))
+                .collect(),
+        }
+    }
+
+    /// tsgo `handleReadConfigFile`: the config's JSON and its first error.
+    fn handle_read_config_file(
+        &self,
+        params: &ConfigFileParams,
+    ) -> Result<ReadConfigFileResponse, String> {
+        let file_name = self.absolute_file_name(&params.file)?;
+        let Some(text) = self.read_file_text(&file_name) else {
+            return Ok(ReadConfigFileResponse {
+                config: raw_json("{}".to_owned()),
+                error: Some(DiagnosticResponse::new(
+                    &Diagnostic::new(
+                        None,
+                        None,
+                        None,
+                        MessageChain::new(&gen::Cannot_read_file_0, &[file_name]),
+                    ),
+                    &|_| None,
+                )),
+            });
+        };
+        let (config, errors) = parse_config_file_text_to_json(file_name.as_str(), text.as_str())
+            .map_err(|error| error.to_string())?;
+        let text_of = |name: &str| (name == file_name).then(|| text.clone());
+        Ok(ReadConfigFileResponse {
+            config: raw_json(GoJson::from_json(&config).compact()),
+            error: errors
+                .first()
+                .map(|error| DiagnosticResponse::new(error, &text_of)),
+        })
+    }
+
+    /// tsgo `handleParseJsonConfigFileContent`: a config's JSON value,
+    /// parsed in the config directory or as the named config. tsgo parses
+    /// the value itself; tsc-rs parses its JSON text, so its errors lose
+    /// the locations the value does not have.
+    fn handle_parse_json_config_file_content(
+        &self,
+        params: &ParseJsonConfigFileContentParams,
+    ) -> Result<ConfigFileResponse, String> {
+        let (file_name, base_path) = match (&params.config_directory, &params.config_file_name) {
+            (Some(directory), None) => (String::new(), self.host.absolute_file_name(directory)),
+            (None, Some(file)) => (
+                self.absolute_file_name(file)?,
+                self.current_directory().to_owned(),
+            ),
+            _ => {
+                return Err(client_error(
+                    "exactly one of configDirectory or configFileName is required",
+                ))
+            }
+        };
+        // tsgo takes a value that is not an object as an empty one.
+        let text = match &params.json {
+            serde_json::Value::Object(_) => params.json.to_string(),
+            _ => "{}".to_owned(),
+        };
+        let host = self.config_host();
+        let plan = parse_config_root_plan(
+            &CompilerConfigHost::new(&host),
+            ConfigRootPlanRequest {
+                file_name: JsString::from(file_name.as_str()),
+                text,
+                base_path: JsString::from(base_path.as_str()),
+            },
+        )
+        .map_err(|error| error.to_string())?;
+        let mut response = config_file_response(&plan, &|_| None);
+        response.errors = plan
+            .errors()
+            .iter()
+            .map(|error| {
+                let mut error = error.clone();
+                error.file_name = None;
+                error.start = None;
+                error.length = None;
+                error.related.clear();
+                DiagnosticResponse::new(&error, &|_| None)
+            })
+            .collect();
+        Ok(response)
+    }
+
+    /// tsgo `handleParseConfigFile`: the config file's parse.
+    fn handle_parse_config_file(
+        &self,
+        params: &ConfigFileParams,
+    ) -> Result<ConfigFileResponse, String> {
+        let file_name = self.absolute_file_name(&params.file)?;
+        let text = self
+            .read_file_text(&file_name)
+            .ok_or_else(|| client_error(format!("could not read file {file_name:?}")))?;
+        let host = self.config_host();
+        let plan = parse_config_root_plan(
+            &CompilerConfigHost::new(&host),
+            ConfigRootPlanRequest {
+                file_name: JsString::from(file_name.as_str()),
+                text,
+                base_path: JsString::from(self.current_directory()),
+            },
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(config_file_response(&plan, &|name| {
+            self.read_file_text(name)
+        }))
+    }
+
+    /// tsgo `createSourceFile`: the file parsed and bound as tsgo's parse
+    /// cache does, encoded with a new lease.
+    fn create_source_file(
+        &self,
+        file_name: &str,
+        source_text: &str,
+        options: CreateSourceFileOptions,
+    ) -> Result<Payload, String> {
+        // tsgo `EnsureScriptKindFromFileName`: a name without a known
+        // extension is TypeScript.
+        let script_kind = match options.script_kind {
+            0 => match ScriptKind::from_file_name(file_name) {
+                ScriptKind::Unknown => ScriptKind::Ts,
+                kind => kind,
+            },
+            kind => ScriptKind::from_number(kind)
+                .ok_or_else(|| client_error(format!("invalid scriptKind {kind}")))?,
+        };
+        let file_name = self.host.absolute_file_name(file_name);
+        let file = crate::parse_source_file(&file_name, source_text, script_kind);
+        let options = tsc_types::CompilerOptions::default();
+        let bind_data = tsc_binder::bind_source_file(&file, &options).into_bind_data();
+        let references = collect_external_module_references(&file);
+        let path = self.host.to_path(&file_name);
+        let (mut data, _) = encode_source_file(
+            &file,
+            &SourceFileFacts {
+                path: Some(&path),
+                script_kind,
+                imports: &references.imports,
+                module_augmentations: &references.module_augmentations,
+                ambient_module_names: &references.ambient_module_names,
+                bind_data: Some(&bind_data),
+                ..SourceFileFacts::default()
+            },
+        );
+        let lease = self.next_source_file_lease.fetch_add(1, Ordering::Relaxed) + 1;
+        data[HEADER_OFFSET_SOURCE_FILE_LEASE..HEADER_OFFSET_SOURCE_FILE_LEASE + 8]
+            .copy_from_slice(&lease.to_le_bytes());
+        self.source_file_leases
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(lease);
+        Ok(if self.use_binary_responses {
+            Payload::Binary(data)
+        } else {
+            json(&SourceFileResponse {
+                data: base64::engine::general_purpose::STANDARD.encode(data),
+            })
+        })
+    }
+
+    /// tsgo `handleReleaseSourceFile`.
+    fn handle_release_source_file(&self, params: &ReleaseSourceFileParams) -> Result<(), String> {
+        if params.lease == 0 {
+            return Err(client_error("empty source file lease"));
+        }
+        if !self
+            .source_file_leases
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&params.lease)
+        {
+            return Err(client_error(format!(
+                "source file lease {} not found",
+                params.lease
+            )));
+        }
+        Ok(())
+    }
+
+    /// tsgo `transpileOutput`: `transpile.TranspileModule` or
+    /// `TranspileDeclaration` of `input`.
+    fn transpile(
+        &self,
+        input: &str,
+        options: &TranspileOptions,
+        declaration: bool,
+    ) -> Result<TranspileOutputResponse, String> {
+        let (compiler_options, _) = command_line_program_inputs(
+            &options.compiler_options.0,
+            JsStr::from_str(self.current_directory()),
+            self.host.case_sensitive(),
+        )
+        .map_err(|error| format!("{error:?}"))?;
+        let options = tsc_compiler::transpile::TranspileOptions {
+            compiler_options: Some(compiler_options),
+            file_name: (!options.file_name.is_empty()).then(|| options.file_name.clone()),
+            report_diagnostics: options.report_diagnostics,
+        };
+        let output = if declaration {
+            transpile_declaration(input, &options)
+        } else {
+            transpile_module(input, &options)
+        }
+        .map_err(|error| error.to_string())?;
+        let text_of = |_: &str| Some(input.to_owned());
+        Ok(TranspileOutputResponse {
+            output_text: output.output_text,
+            diagnostics: output
+                .diagnostics
+                .iter()
+                .map(|diagnostic| DiagnosticResponse::new(diagnostic, &text_of))
+                .collect(),
+            source_map_text: output.source_map_text.unwrap_or_default(),
+        })
     }
 
     /// tsgo `handleBatchRequests`: each request in order, the encoded
@@ -855,6 +1199,50 @@ fn is_source_file_response_method(method: &str) -> bool {
     )
 }
 
+/// tsgo `NewConfigFileResponse` of a config's parse.
+fn config_file_response(
+    plan: &ConfigRootPlan,
+    text_of: &dyn Fn(&str) -> Option<String>,
+) -> ConfigFileResponse {
+    ConfigFileResponse {
+        file_names: plan
+            .file_names()
+            .iter()
+            .map(|file| file.to_string_lossy().into_owned())
+            .collect(),
+        options: raw_json(compiler_options_json(plan).compact()),
+        project_references: plan
+            .project_references()
+            .unwrap_or_default()
+            .iter()
+            .map(project_reference)
+            .collect(),
+        type_acquisition: Some(raw_json(
+            struct_json(TYPE_ACQUISITION_FIELDS, plan.type_acquisition_option_bag()).compact(),
+        )),
+        // tsgo sets it for every config: the raw value when it is a
+        // boolean, else false.
+        compile_on_save: Some(matches!(
+            plan.compile_on_save(),
+            Some(JsonValue::Bool(true))
+        )),
+        raw: Some(raw_json(GoJson::from_json(plan.raw()).compact())),
+        errors: plan
+            .errors()
+            .iter()
+            .map(|diagnostic| DiagnosticResponse::new(diagnostic, text_of))
+            .collect(),
+    }
+}
+
+fn project_reference(reference: &ConfigProjectReference) -> ProjectReference {
+    ProjectReference {
+        path: reference.path.to_string_lossy().into_owned(),
+        original_path: reference.original_path.to_string_lossy().into_owned(),
+        circular: reference.circular == Some(true),
+    }
+}
+
 /// tsgo `NewProjectResponse`.
 fn project_response(snapshot: &Snapshot, project: &Project) -> ProjectResponse {
     let command_line = project
@@ -865,32 +1253,26 @@ fn project_response(snapshot: &Snapshot, project: &Project) -> ProjectResponse {
             .read_file(file_name)
             .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
     };
-    let (options, type_acquisition, compile_on_save, raw, errors) = match command_line {
-        CommandLine::Config(plan) => (
-            compiler_options_json(plan),
-            Some(struct_json(
-                TYPE_ACQUISITION_FIELDS,
-                plan.type_acquisition_option_bag(),
-            )),
-            // tsgo sets it for every config: the raw value when it is a
-            // boolean, else false.
-            Some(matches!(
-                plan.compile_on_save(),
-                Some(JsonValue::Bool(true))
-            )),
-            Some(GoJson::from_json(plan.raw())),
-            plan.errors(),
-        ),
-        CommandLine::Roots(roots) => (
-            struct_json(COMPILER_OPTIONS_FIELDS, &roots.options),
-            None,
-            None,
-            None,
-            roots.config_file_parsing_diagnostics.as_slice(),
-        ),
+    let parsed_command_line = match command_line {
+        CommandLine::Config(plan) => config_file_response(plan, &text_of),
+        CommandLine::Roots(roots) => ConfigFileResponse {
+            file_names: roots.root_file_names.clone(),
+            options: raw_json(struct_json(COMPILER_OPTIONS_FIELDS, &roots.options).compact()),
+            project_references: roots
+                .project_references
+                .iter()
+                .map(project_reference)
+                .collect(),
+            type_acquisition: None,
+            compile_on_save: None,
+            raw: None,
+            errors: roots
+                .config_file_parsing_diagnostics
+                .iter()
+                .map(|diagnostic| DiagnosticResponse::new(diagnostic, &text_of))
+                .collect(),
+        },
     };
-    let options = raw_json(options.compact());
-    let file_names = command_line.file_names();
     ProjectResponse {
         id: project.id().to_string(),
         config_file_name: match project.kind() {
@@ -899,28 +1281,9 @@ fn project_response(snapshot: &Snapshot, project: &Project) -> ProjectResponse {
         },
         current_directory: project.current_directory().to_owned(),
         dirty: project.is_dirty(),
-        parsed_command_line: ConfigFileResponse {
-            file_names: file_names.clone(),
-            options: options.clone(),
-            project_references: command_line
-                .project_references()
-                .iter()
-                .map(|reference| ProjectReference {
-                    path: reference.path.to_string_lossy().into_owned(),
-                    original_path: reference.original_path.to_string_lossy().into_owned(),
-                    circular: reference.circular == Some(true),
-                })
-                .collect(),
-            type_acquisition: type_acquisition.map(|value| raw_json(value.compact())),
-            compile_on_save,
-            raw: raw.map(|value| raw_json(value.compact())),
-            errors: errors
-                .iter()
-                .map(|diagnostic| DiagnosticResponse::new(diagnostic, &text_of))
-                .collect(),
-        },
-        root_files: file_names,
-        compiler_options: options,
+        root_files: parsed_command_line.file_names.clone(),
+        compiler_options: parsed_command_line.options.clone(),
+        parsed_command_line,
     }
 }
 
