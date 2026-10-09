@@ -1083,3 +1083,13 @@ compile し直す。
   出力は変わらない。性能は利用者の指示）。
 - 依存：`notify` 8.2（CC0-1.0）と、その推奨 backend の crate（`fsevent-sys`・`inotify`・`kqueue`・`mio`・`walkdir` と Windows の
   `windows-sys` 系）。WebAssembly の target には入らない。
+
+### P4-7bのhostedの記録とmerge（2026-10-09）
+
+- hosted：最終候補 `c88f19f0e`（vendoring `8a4634d8d`・code `362eede39`・ratchet `0512e8555`・packet の記録）の run 37864598584
+  （`plan` 30s、`rust` 10m41s、`conformance (TypeScript 7.1)` 12m29s（lane A の後に suites 7 種の `--check`）、`gates` 13s。全て成功）。
+  merge → `b61ffd02e`（merge commit）。
+- 計測（conformance の全体実行、suites、crate test）は上の記録のとおり、merge 前に最終 bytes で行った。実 project の比較と性能は計測して
+  いない（上の記録の理由と利用者の指示）。
+- 次：壊れた・型の違う tsconfig の診断を tsgo に合わせる slice（P4-5b。実 CLI の比較で見つけた：構文の回復、変換の診断（位置・型名）、
+  値の無い property、command line 専用の option、`watchOptions`、`paths` の検証）。その後に P4-7c（`tsc -b --watch`）。
