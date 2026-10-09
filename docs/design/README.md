@@ -93,8 +93,9 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   the 2026-10-09 plan for TypeScript 7.1's API server (`--api`): tsgo's
   transport, session and requests at the pinned commit, its dependency on
   tsgo's project system (the LSP foundation), the Go session tests and the
-  TypeScript client's API tests as the criteria, and the decisions it waits
-  for.
+  TypeScript client's API tests as the criteria, the decision to port the
+  project system first, its slices P5-1a to P5-1e and their records (P5-1a:
+  `LiveProgram`, a Program kept with its checker).
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,

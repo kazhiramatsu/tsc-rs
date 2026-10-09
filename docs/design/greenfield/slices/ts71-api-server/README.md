@@ -114,3 +114,81 @@ request は 170 種（`proto.go` の `Method*`）：snapshot と project（`crea
   変更に置き換える。期待値は tsgo の `SnapshotHost` に同じ操作をする Go の probe で確かめる（API で開いた file は祖先の solution
   を探さないなど、LSP の open と違うところがある）。
 - LSP・LS・content mapper・ATA・watch・push diagnostics・preference の test は移さない。
+
+## P5-1a live program（2026-10-09）
+
+P5-1 の最初の slice。tsgo の API は project の `compiler.Program` と、その checker pool の API 用の checker で request に答え、
+Program を request の間保つ。port の batch の driver は checker を scoped な callback にしか渡さない（checker は Program の
+snapshot、option、module provider を借りる）。
+
+- **`LiveChecker`**（`crates/checker/src/live.rs`）：checker が借りる値（snapshot、option、module provider、metadata、host facts、
+  構文の診断）を持つ owner と、それを借りる `CheckerState` を 1 つの値にした（`self_cell`。workspace の依存に加えた）。作り方は
+  batch の on-demand の driver と同じ（lib の bundle、parse、Program 順の bind、source を 1 つも検査しない checker の初期化）。
+  file の semantic／suggestion の診断を初めて求められたときにその file を検査し、その検査が出した global の行をその file に
+  帰属させる（getDiagnosticsWorker）。`with_checker` が query を走らせる。thread は使わない（WASM の build のため）。
+- **`LiveProgram`**（`crates/compiler/src/live.rs`、`tsc_compiler::LiveProgram`）：`Arc<PreparedProgram>` と `LiveChecker`。module
+  provider は batch の session と同じもの（借りた Program と持つ Program の両方で使えるよう generic にした）。Program の getter：
+  config file parsing、program（tsgo `GetProgramDiagnostics`：preparation の options の行、programmatic な option の行、source の
+  外の program の行、emit する Program の出力 path の行。content mapper の行は port していない）、syntactic、semantic、
+  suggestion、global。README の Rust API の節に加えた。
+- **live check で見つかった差と修正**：どちらも checker の module specifier の host。tsgo の node builder の host は常に Program で
+  （`nodebuilder.go:285`）、表示する型（`.types`、エラーの文、API の typeToString）は emit の有無に依らず同じ specifier を使う。
+  port には checker の host（`BasicModuleSpecifierHost`）と宣言の emitter の host があり、2 つは共有の `specifierCache` を埋めるので、
+  先に計算した方の答えが残る。batch の walk が一致していたのは、emitter の host を渡す宣言の診断が先に cache を埋めていたから。
+  - **symlink**：tsgo の Program は `GetSymlinkCache` で symlink を知り、link の名前を書く（`import("package-a").Foo`）。checker の
+    host は symlink を返さず、live の Program は `import("../packageA").Foo` と書いた。`AuthoritativeModuleProvider` に
+    `symlink_facts`（tsgo `GetSymlinkCache`）を加え、prepared の provider は emit の host と同じ `discover_symlink_facts` を返し、
+    checker の host がそれを報告する。7 構成（`declarationEmitReexportedSymlinkReference2`・`3`、
+    `declarationEmitSubpathImportsReexport`、`symlinkedWorkspaceDependenciesNoDirectLink` の 4 つ）が一致し、
+    `symlinkedWorkspaceDependenciesNoDirectLinkGeneratesDeepNonrelativeName` の `.types` が tsgo と一致した（none → full）。
+  - **既存の import の再利用**：tsgo 7.1 の `computeModuleSpecifiers`（`specifiers.go:376-404`）は、module path ごとに、その
+    module に解決される file の**最初の** import だけを候補にし、その usage の mode（`GetModeForUsageLocation`：type-only の import
+    と import type の `resolution-mode`、`require`／import equals の CommonJS、import call、他は file の emit の構文）が生成する
+    mode と違えば使わず次の module path に進む。port は 6.0 のまま、mode の合う import を全て探し、mode は host の答え（checker の
+    host は index に関係なく file の既定の mode、emitter の host は `None`）か、`None` のときは import call かどうかだけで決めた。
+    checker の host では CommonJS の file が自分の package の `import("package/cjs")`（ESM の mode）を使い（tsgo は
+    `"./index.cjs"`）、live の Program が batch と違った。checker の host を emitter の host と同じ `None` にしただけでは、
+    `resolution-mode` 付きの type-only の import や import type の 19 構成の `.types` が full から落ちた（`"./module.mts"` を使う。
+    tsgo は最初の import が CommonJS の mode なので使わず `"./module.mjs"`。前は checker の host の既定の mode で偶然一致していた）。
+    tsgo の規則にした：最初に解決される import だけを見て、usage の mode は checker の `resolution_mode_for_usage`（
+    `GetModeForUsageLocation` の port。checker の module 解決が使うもの）で取り、provider への解決の request もその mode で引く。
+    2 つの host は index の mode を返さない（`None`）。`nodeModulesDeclarationEmitDynamicImportWithPackageExports` の 3 構成の
+    `.symbols` が tsgo と一致し（none → full。`.types` は emit の後の walk で既に一致していた）、19 構成は full のまま。
+- **file 単位の診断の順序**：file の semantic の行は、その file を聞いたときに checker が持つ行で（tsgo の file 単位の
+  `GetSemanticDiagnostics` → `Checker.GetDiagnostics`）、後の file の検査が前の file に行を足すことがある（lib と merge する global
+  の interface は、最初の宣言のある lib の検査で検査される）。tsgo の全体の取得は全ての file を検査してから集める。`LiveProgram` は
+  tsgo の file 単位の挙動のとおりで、`duplicateNumericIndexers` と `objectTypeHidingMembersOfExtendedObject` は source → lib の順に
+  1 回ずつ聞くと、lib の検査が source に足した行が入らない。runner の live check は全ての file を検査してから聞くようにした。
+- **tests**（`crates/compiler/tests/integration/live_program_contract.rs`、7 件）：6 つの Program で、live の診断（file ごと、全ての
+  種類）の和が batch の native harness の和と等しい（batch の outcome の getter は getPreEmitDiagnostics のように前の種類の行が
+  あると後の種類を返さないので和で比べ、構文の行の無い Program では program と global の行も比べる）。type と symbol の walk が
+  batch の walk と等しい（検査の前と後）。`LiveProgram` は `Send`。emit 無しの query が tsgo の `.types` の行になる 3 件：symlink の
+  workspace（修正を外すと `"../packageA"`）、CommonJS の file から自分の package の dynamic import（checker の host が既定の mode を
+  返すと `"package/cjs"`）、`typeOnlyESMImportFromCJS`（mode の合う import を全て探す前の規則と `None` の host では
+  `"./module.mts"`）。いずれも失敗することを確かめた。lib と merge する interface の行は、lib を検査した後に聞き直すと返る（tsgo の
+  file 単位の挙動）。
+- **runner の live check**：`TSRS_LIVE_CHECK=1|verbose` で、conformance の 1 checker の各構成について `LiveProgram` を batch の
+  結果と比べる（全ての file を batch の順で検査してから聞いた診断の和から宣言の診断の行を除いたもの、type と symbol の walk。
+  emit する構成では最初の Program の walk を追加で取る。batch の結果は変えない）。違いは shard の stderr に `live mismatch` と
+  書く（walk は最初の違う行も）。1 つの case で Program を 2 つ持つので、worker の常駐 memory が 3,072 MiB の上限を超えて新しい
+  worker で case をやり直すことが増える（結果は同じ）。
+- **検証**（最終 bytes：修正 `9eb9861ec`、ratchet `19bd8151c`。macOS、`nice -n 20`、Cargo の job 2）：
+  `cargo fmt --all -- --check`、Clippy（checker・compiler・conformance、`--all-targets -- -D warnings`）は clean。`cargo test -p`：
+  checker 1,796、compiler 459（live の契約 test 7 件を含む）、conformance 52、全て成功（workspace 全体の test と Clippy は hosted の
+  `rust` job）。`TSRS_LIVE_CHECK=verbose scripts/conformance_ts71.py --workers 2 --check`：12,748 case を 703 s、errors full
+  13,451／mismatch 0、emit full 13,443、types 12,678／89（12,677／90 から）、symbols 12,718／49（12,715／52 から）、sourcemap 13,451、
+  trace 13,451、harness error 15、regression 0、4 構成が tier を上回った。live check は比べた全ての構成（13,451、walk は 12,767）で
+  違い 0（2 つの Program の memory で worker を 93 回やり直し、34 構成は 2 度比べた）。`--update`（2 つの case の filter）で ratchet
+  の 4 行を上げた（上の `.types` 1 行と `.symbols` 3 行）。途中の実行：WIP の全体の実行（7,940 構成で止まった）で symlink の
+  7 構成、`b6f2f6732` の全体の実行で 5 構成（既存の import の再利用 3、file 単位の順序 2）、`f3d7a1ffc` の全体の実行で
+  regression 19（既存の import の再利用）。並列対照（`--checkers 4`、464 s、`scripts/conformance_ts71_compare.py`）：15,224 構成が
+  一致、違う 4 構成は記録済みの partition 依存の構成（`mutuallyRecursiveInference`、`incorrectRecursiveMappedTypeConstraint`、
+  `typeParameterWithInvalidConstraintType`、`recursiveMappedTypes`）。`scripts/suites_ts71.py --check`：全ての suite が変わらず（api 2、
+  config 87、transpile 41、tsbuild 182／192、tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）、regression 0。
+  実 project と性能は計測していない（利用者の指示）。
+- **残り**：checker pool（P5-1d）、bind の診断だけを返す getter と宣言の診断の getter（API の request の slice）、project の核
+  （P5-1b）。specifier の生成で tsgo と違う所が 2 つ残る（2 つの host の答えは同じなので live check には現れない。`.types` の
+  残りの不一致との関係は調べていない）：囲む宣言の module specifier の mode（tsgo はその usage の mode、port は file の既定の
+  mode）、ending の推定（tsgo 7.1 は node の解決で CommonJS の mode を生成するとき相対の import を全て飛ばす。port は ESM の mode の
+  import だけを飛ばす 6.0 の形で、host が mode を返さないので飛ばさない）。6.0 の include reason の経路（host が reason を返すとき）
+  は残っているが、reason を返す host は無い。
