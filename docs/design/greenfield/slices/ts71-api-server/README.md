@@ -395,3 +395,15 @@ snapshot、option、module provider を借りる）。
   error 15（main と同じ）。suites の ratchet は hosted の `conformance (TypeScript 7.1)` に任せた。
 - **残り**：synthetic program は常に参照先の source を読む（`CompilerOptions` に `disableSourceOfProjectReferenceRedirect` が
   無いので、API の createProgram の option の変換の slice で決める）。P5-1c〜P5-1e。
+
+### P5-1b-3 の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `5f1ad6a4a`（コード `7fcd3f94d`・packet の記録）の run 37945773018（`plan` 34s、`rust` 11m32s、
+  `conformance (TypeScript 7.1)` 20m16s、`gates` 17s。全て成功。suites の ratchet もこの job で確認）。merge → `559e04b31`
+  （merge commit、PR #722）。
+- 次：P5-1c（parse cache と program の再利用）。tsgo の API の snapshot の変更（`computeSnapshotChanges`）は、program の
+  `FilesByPath` の `*ast.SourceFile` の pointer が違う file を変更として返す。parse cache（parse の option・内容の hash・script
+  kind が鍵の、parse と bind を済ませた file の参照の数を数える cache）があるので、作り直した program でも変わっていない file は
+  同じ pointer になる。port の program は今は作るたびに全ての source を parse と bind し直すので、P5-1c はこの同一性（と
+  `UpdateProgram` の Cloned）を持つ。lib は既に process 全体の cache（`lib_bundle`、lib の内容と binder の option の射影が鍵、
+  identity domain を持つ）で共有されていて、source の cache はその identity domain の中に置く必要がある。
