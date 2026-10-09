@@ -531,3 +531,16 @@ snapshot、option、module provider を借りる）。
   全て成功。変えたのは `LiveChecker` と任意の live 比較だけで、batch の compile の経路と checker の検査は変えていないので、
   conformance と parallel control は local では走らせず hosted の job に任せた。
 - **残り**：P5-1e（`SnapshotFS` の細部）。
+
+### P5-1d の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `8e59137c6`（コード `63a105c8a`・packet の記録）の run 37960764872（`plan` 30s、`rust` 11m9s、
+  `conformance (TypeScript 7.1)` 20m7s、`gates` 34s。全て成功）。この slice は local で conformance を走らせていないので、その
+  確認はこの hosted の job による。merge → `cf74a88b6`（merge commit、PR #724）。
+- 訂正：P5-1c の hosted の記録で、conformance の job が短かった（17m55s）のは lib bundle の再利用のためと見た。この run は
+  20m7s で、その差は hosted の runner のばらつきの範囲と見るのが妥当（条件をそろえた測定は無い）。
+- 次：P5-1e（`SnapshotFS` の細部）。API の経路で効くもの：`node_modules` の symlink を通して読んだ file の realpath の alias
+  （realpath への変更の通知を symlink の path に広げる）、削除の通知があり program が作り直されたときの cache の掃除（どの
+  project も読んでいない file を消す）、作った snapshot の file system の読み（cache に無い file の読みを snapshot ごとに 1 回に
+  する memo、directory の一覧に cache の file を合わせる）。API の通知は常に `node_modules` の外の変更として扱われる
+  （`toFileChangeSummary`）ので、`node_modules` だけの無効化は API の経路では使われない。
