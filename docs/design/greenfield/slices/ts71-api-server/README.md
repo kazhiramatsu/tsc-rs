@@ -192,3 +192,9 @@ snapshot、option、module provider を借りる）。
   mode）、ending の推定（tsgo 7.1 は node の解決で CommonJS の mode を生成するとき相対の import を全て飛ばす。port は ESM の mode の
   import だけを飛ばす 6.0 の形で、host が mode を返さないので飛ばさない）。6.0 の include reason の経路（host が reason を返すとき）
   は残っているが、reason を返す host は無い。
+
+### P5-1a の hosted の記録と merge（2026-10-09）
+
+- hosted：最終候補 `771463d14`（修正 `9eb9861ec`・ratchet `19bd8151c`・packet の記録）の run 37924497777（`plan` 39s、`rust` 11m34s、
+  `conformance (TypeScript 7.1)` 16m23s、`gates` 18s。全て成功）。merge → `ec4dd6c34`（merge commit、PR #719）。
+- 次：P5-1b（project の核）。
