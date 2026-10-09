@@ -311,3 +311,9 @@ snapshot、option、module provider を借りる）。
   変わらない）。実 project と性能は計測していない（利用者の指示）。
 - **残り**：P5-1b-2、P5-1b-3（上）。P5-1c〜P5-1e（parse cache と Cloned、checker pool、FS の細部：大量の変更の node_modules の扱い、
   realpath の alias、cache の掃除、cache した file のディレクトリの一覧への合成）。
+
+### P5-1b-1 の hosted の記録と merge（2026-10-09）
+
+- hosted：最終候補 `32035ebe4`（コード `f435a39ad`・packet の記録）の run 37934606585（`plan` 35s、`rust` 11m12s、
+  `conformance (TypeScript 7.1)` 12m54s、`gates` 16s。全て成功）。merge → `06fdab449`（merge commit、PR #720）。
+- 次：P5-1b-2（API で開く file、default project、inferred project、registry の cleanup）。
