@@ -169,7 +169,8 @@ pub use module_resolution::js_own_property_entries as package_json_own_entries;
 pub use module_resolution::mangle_scoped_package_name;
 pub use module_resolution::{
     normalize_absolute_js_path_lexical, normalize_absolute_path_lexical, HostModuleResolution,
-    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver, PackageJsonProbe,
+    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolutionOverride,
+    ModuleResolutionOverrideHandle, ModuleResolver, OverriddenResolution, PackageJsonProbe,
 };
 pub use option_validation::{
     validate_compiler_options, validate_paths_option_diagnostics, CompilerOptionValidationLocation,

@@ -1085,6 +1085,53 @@ pub struct ResolvedTypeReferenceDirectiveResponse {
     pub is_external_library_import: bool,
 }
 
+/// tsgo `CreateModuleResolverParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateModuleResolverParams {
+    #[serde(default)]
+    pub compiler_options: CompilerOptionsParam,
+    #[serde(default)]
+    pub module_resolutions: Option<crate::module_resolution::ModuleResolutionSpec>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub resolve_module_name_callback: String,
+}
+
+/// tsgo `ReleaseModuleResolverParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct ReleaseModuleResolverParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub resolver: u64,
+}
+
+/// tsgo `ResolveModuleNameParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolveModuleNameParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub in_progress_snapshot: u64,
+    #[serde(default, deserialize_with = "nullable")]
+    pub resolver: u64,
+    #[serde(default, deserialize_with = "nullable")]
+    pub module_name: String,
+    #[serde(default)]
+    pub containing_directory: DocumentIdentifier,
+    #[serde(default)]
+    pub resolution_mode: Option<i64>,
+}
+
+/// tsgo `ResolveModuleNameResult`.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolveModuleNameResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolved_module: Option<ResolvedModuleResponse>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub trace: Vec<String>,
+}
+
 /// tsgo `SourceFileResponse`: a binary source file's bytes as base64 in a
 /// batch.
 #[derive(Clone, Debug, Serialize)]

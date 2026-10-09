@@ -1293,3 +1293,6 @@ mod requests;
 
 #[path = "session_program.rs"]
 mod program;
+
+#[path = "session_module_resolution.rs"]
+mod module_resolution;

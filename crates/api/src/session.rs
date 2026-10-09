@@ -45,22 +45,29 @@ use crate::encoder::{
     build_node_index_table, encode_source_file, ScriptKind, SourceFileFacts,
     HEADER_OFFSET_SOURCE_FILE_LEASE,
 };
-use crate::ipc::{panic_message, Handler, Payload};
+use crate::ipc::{panic_message, Conn, Handler, Payload};
+use crate::module_resolution::{
+    module_kind_name, resolution_mode as api_resolution_mode, Chain, InFlight,
+    ModuleResolverRegistration, ProgramModuleResolution, ResolutionState,
+    ResolveModuleNameCallbackParams, StaticResolutions,
+};
 use crate::proto::{
-    BatchRequest, BatchRequestsParams, ConfigFileParams, ConfigFileResponse, CreateProgramOptions,
-    CreateSnapshotParams, CreateSnapshotResponse, CreateSourceFileFromFileParams,
-    CreateSourceFileOptions, CreateSourceFileParams, DiagnosticResponse, DocumentIdentifier,
-    EnsurePrograms, FileNotifications, GetDefaultProjectForFileParams,
-    GetModeForResolutionAtIndexParams, GetModeForUsageLocationParams,
-    GetResolvedModuleFromModuleSpecifierParams, GetResolvedModuleParams,
-    GetResolvedTypeReferenceDirectiveFromReferenceParams, GetResolvedTypeReferenceDirectiveParams,
-    GetSourceFileParams, InitializeResponse, OpenedFileOperationResult, PackageIdResponse,
-    ParseCommandLineParams, ParseJsonConfigFileContentParams, ProjectFileChanges, ProjectParams,
-    ProjectReference, ProjectResponse, ReadConfigFileResponse, ReleaseParams,
-    ReleaseSourceFileParams, ResolvedModuleResponse, ResolvedTypeReferenceDirectiveResponse,
-    SnapshotChanges, SnapshotId, SnapshotOperationResponse, SnapshotRequestChanges,
-    SourceFileMetadata, SourceFileResponse, TranspileFromFileParams, TranspileOptions,
-    TranspileOutputResponse, TranspileParams, UpdateSnapshotParams,
+    BatchRequest, BatchRequestsParams, ConfigFileParams, ConfigFileResponse,
+    CreateModuleResolverParams, CreateProgramOptions, CreateSnapshotParams, CreateSnapshotResponse,
+    CreateSourceFileFromFileParams, CreateSourceFileOptions, CreateSourceFileParams,
+    DiagnosticResponse, DocumentIdentifier, EnsurePrograms, FileNotifications,
+    GetDefaultProjectForFileParams, GetModeForResolutionAtIndexParams,
+    GetModeForUsageLocationParams, GetResolvedModuleFromModuleSpecifierParams,
+    GetResolvedModuleParams, GetResolvedTypeReferenceDirectiveFromReferenceParams,
+    GetResolvedTypeReferenceDirectiveParams, GetSourceFileParams, InitializeResponse,
+    OpenedFileOperationResult, PackageIdResponse, ParseCommandLineParams,
+    ParseJsonConfigFileContentParams, ProjectFileChanges, ProjectParams, ProjectReference,
+    ProjectResponse, ReadConfigFileResponse, ReleaseModuleResolverParams, ReleaseParams,
+    ReleaseSourceFileParams, ResolveModuleNameParams, ResolveModuleNameResult,
+    ResolvedModuleResponse, ResolvedTypeReferenceDirectiveResponse, SnapshotChanges, SnapshotId,
+    SnapshotOperationResponse, SnapshotRequestChanges, SourceFileMetadata, SourceFileResponse,
+    TranspileFromFileParams, TranspileOptions, TranspileOutputResponse, TranspileParams,
+    UpdateSnapshotParams,
 };
 use crate::references::collect_external_module_references;
 use crate::request_fs::{RequestFileSystem, SnapshotFileSystem};
@@ -111,6 +118,12 @@ struct SnapshotData {
     file_system: Option<Arc<RequestFileSystem>>,
 }
 
+/// A client's module resolver and the resolution its programs share.
+type ModuleResolverEntry = (
+    Arc<ModuleResolverRegistration>,
+    tsc_program::ModuleResolutionOverrideHandle,
+);
+
 /// tsgo `api.Session`.
 pub struct Session {
     id: String,
@@ -129,6 +142,13 @@ pub struct Session {
     /// lease.
     source_file_leases: Mutex<BTreeSet<u64>>,
     next_source_file_lease: AtomicU64,
+    /// The client's module resolvers (tsgo `moduleResolvers`), by ID, with
+    /// the resolution their programs share (a program with the same
+    /// resolver is the same program).
+    module_resolvers: Mutex<BTreeMap<u64, ModuleResolverEntry>>,
+    next_module_resolver: AtomicU64,
+    /// What the resolvers' resolutions share.
+    resolution: Arc<ResolutionState>,
 }
 
 impl Session {
@@ -149,12 +169,21 @@ impl Session {
             next_batch_page: AtomicU64::new(0),
             source_file_leases: Mutex::default(),
             next_source_file_lease: AtomicU64::new(0),
+            module_resolvers: Mutex::default(),
+            next_module_resolver: AtomicU64::new(0),
+            resolution: Arc::default(),
         }
     }
 
     /// tsgo `ID`.
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    /// The connection the client's module resolver callbacks go through
+    /// (tsgo `Session.conn`).
+    pub fn set_connection(&self, conn: &Arc<Conn>) {
+        self.resolution.set_connection(conn);
     }
 
     fn current_directory(&self) -> &str {
@@ -433,6 +462,32 @@ impl Session {
                     &params.type_directive_name,
                     mode,
                 )))
+            }
+            "createModuleResolver" => {
+                let params =
+                    parse::<CreateModuleResolverParams>("CreateModuleResolverParams", params)?;
+                self.handle_create_module_resolver(&params)
+                    .map(|id| json(&id))
+            }
+            "releaseModuleResolver" => {
+                let params =
+                    parse::<ReleaseModuleResolverParams>("ReleaseModuleResolverParams", params)?;
+                if self
+                    .lock_module_resolvers()
+                    .remove(&params.resolver)
+                    .is_none()
+                {
+                    return Err(client_error(format!(
+                        "module resolver {} not found",
+                        params.resolver
+                    )));
+                }
+                Ok(json(&()))
+            }
+            "resolveModuleName" => {
+                let params = parse::<ResolveModuleNameParams>("ResolveModuleNameParams", params)?;
+                self.handle_resolve_module_name(&params)
+                    .map(|result| json(&result))
             }
             // A standalone session has no language server to share.
             "getCurrentLanguageServerSnapshot" => Err(client_error(
@@ -885,6 +940,171 @@ impl Session {
         Ok(self.source_file_payload(data))
     }
 
+    fn lock_module_resolvers(&self) -> MutexGuard<'_, BTreeMap<u64, ModuleResolverEntry>> {
+        self.module_resolvers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn resolution_paths(&self) -> crate::module_resolution::Paths {
+        crate::module_resolution::Paths {
+            current_directory: self.current_directory().to_owned(),
+            case_sensitive: self.host.case_sensitive(),
+        }
+    }
+
+    /// A request starts building a snapshot over `file_system` (the request's,
+    /// else the session's): the context its resolver callbacks run in.
+    fn begin_snapshot(&self, file_system: Option<&Arc<RequestFileSystem>>) {
+        self.resolution.begin(InFlight {
+            context: 0,
+            fs: file_system.map_or_else(
+                || Arc::clone(&self.fs),
+                |file_system| Arc::clone(file_system) as Arc<dyn FileSystem>,
+            ),
+        });
+    }
+
+    /// tsgo `handleCreateModuleResolver`.
+    fn handle_create_module_resolver(
+        &self,
+        params: &CreateModuleResolverParams,
+    ) -> Result<u64, String> {
+        let paths = self.resolution_paths();
+        let resolutions = params
+            .module_resolutions
+            .as_ref()
+            .map(|spec| StaticResolutions::compile(spec, &paths))
+            .transpose()
+            .map_err(client_error)?;
+        let (compiler_options, program_options) = command_line_program_inputs(
+            &params.compiler_options.0,
+            JsStr::from_str(self.current_directory()),
+            self.host.case_sensitive(),
+        )
+        .map_err(|error| format!("{error:?}"))?;
+        let id = self.next_module_resolver.fetch_add(1, Ordering::Relaxed) + 1;
+        let registration = Arc::new(ModuleResolverRegistration {
+            compiler_options,
+            program_options,
+            resolutions,
+            callback: params.resolve_module_name_callback.clone(),
+        });
+        let program =
+            tsc_program::ModuleResolutionOverrideHandle(Arc::new(ProgramModuleResolution {
+                registration: Arc::clone(&registration),
+                state: Arc::clone(&self.resolution),
+                paths,
+            }));
+        self.lock_module_resolvers()
+            .insert(id, (registration, program));
+        Ok(id)
+    }
+
+    /// tsgo `handleResolveModuleName`.
+    fn handle_resolve_module_name(
+        &self,
+        params: &ResolveModuleNameParams,
+    ) -> Result<ResolveModuleNameResult, String> {
+        if params.module_name.is_empty() {
+            return Err(client_error("moduleName is empty"));
+        }
+        let (registration, _) = self
+            .lock_module_resolvers()
+            .get(&params.resolver)
+            .cloned()
+            .ok_or_else(|| {
+                client_error(format!("module resolver {} not found", params.resolver))
+            })?;
+        let mode = match params.resolution_mode {
+            None => ResolutionMode::Unspecified,
+            Some(mode) => api_resolution_mode(mode).ok_or_else(|| {
+                client_error(format!("invalid resolutionMode {}", module_kind_name(mode)))
+            })?,
+        };
+        let containing_directory = tsc_program::get_normalized_absolute_path(
+            JsStr::from_str(&self.absolute_file_name(&params.containing_directory)?),
+            JsStr::from_str(self.current_directory()),
+        )
+        .to_string_lossy()
+        .into_owned();
+        if params.snapshot != 0 && params.in_progress_snapshot != 0 {
+            return Err(client_error(
+                "snapshot and inProgressSnapshot are mutually exclusive",
+            ));
+        }
+        let fs: Arc<dyn FileSystem> = if params.in_progress_snapshot != 0 {
+            match self.resolution.in_flight() {
+                Some(in_flight) if in_flight.context == params.in_progress_snapshot => in_flight.fs,
+                _ => {
+                    return Err(client_error(format!(
+                        "in-progress snapshot {} not found",
+                        params.in_progress_snapshot
+                    )))
+                }
+            }
+        } else if params.snapshot != 0 {
+            // tsgo resolves over the snapshot, which keeps what it read.
+            self.snapshot(params.snapshot)?.file_system()
+        } else {
+            Arc::clone(&self.fs)
+        };
+        let (module, trace) =
+            match registration.chain(&params.module_name, &containing_directory, mode) {
+                Chain::Answered(module) => (module.map(|module| *module), Vec::new()),
+                Chain::Default(registration) if !registration.callback.is_empty() => {
+                    let callback = ResolveModuleNameCallbackParams {
+                        module_name: params.module_name.clone(),
+                        containing_directory: containing_directory.clone(),
+                        resolution_mode: match mode {
+                            ResolutionMode::Unspecified => 0,
+                            ResolutionMode::CommonJs => 1,
+                            ResolutionMode::EsNext => 99,
+                        },
+                        snapshot: (params.snapshot != 0).then_some(params.snapshot),
+                        in_progress_snapshot: (params.in_progress_snapshot != 0)
+                            .then_some(params.in_progress_snapshot),
+                    };
+                    (
+                        self.resolution.call_resolver(
+                            &registration.callback,
+                            &callback,
+                            &self.resolution_paths(),
+                        )?,
+                        Vec::new(),
+                    )
+                }
+                Chain::Default(registration) => {
+                    // tsgo `module.NewResolver` over the snapshot's file system
+                    // with the resolver's options.
+                    let host = VfsCompilerHost::new(fs, self.current_directory());
+                    let mut resolver = tsc_program::ModuleResolver::new_with_program_options(
+                        &host,
+                        &registration.compiler_options,
+                        &registration.program_options,
+                    )
+                    .map_err(|error| error.to_string())?;
+                    let resolution = resolver
+                        .resolve_from_directory(
+                            JsStr::from_str(&containing_directory),
+                            JsStr::from_str(&params.module_name),
+                            mode,
+                        )
+                        .map_err(|error| error.to_string())?;
+                    let trace = resolution.trace().iter().map(|line| line.text()).collect();
+                    let module = match resolution.outcome() {
+                        ResolutionOutcome::Resolved(module) => Some(module.clone()),
+                        ResolutionOutcome::NotFound => None,
+                    };
+                    (module, trace)
+                }
+            };
+        Ok(ResolveModuleNameResult {
+            resolved_module: module.as_ref().map(host_resolved_module_response),
+            trace,
+        })
+    }
+
     /// tsgo `handleBatchRequests`: each request in order, the encoded
     /// responses paged by size.
     fn handle_batch_requests(&self, params: &BatchRequestsParams) -> Result<String, String> {
@@ -1038,9 +1258,16 @@ impl Session {
         }
         let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
         let root = self.host.new_root_snapshot();
+        self.begin_snapshot(file_system.as_ref());
         let snapshot = self
             .host
-            .clone_snapshot(&root, file_changes, Some(&request))
+            .clone_snapshot(&root, file_changes, Some(&request));
+        let resolution_error = self.resolution.end();
+        // A failed resolver callback fails the snapshot, as tsgo's clone
+        // returns the program's error.
+        let snapshot = snapshot
+            .map_err(|error| error.to_string())
+            .and_then(|snapshot| resolution_error.map_or(Ok(snapshot), Err))
             .map_err(|error| client_error(format!("failed to create snapshot: {error}")))?;
         let response = self.create_snapshot_response(&snapshot, None, &params.changes)?;
         self.register_snapshot(snapshot, open, file_system);
@@ -1088,9 +1315,14 @@ impl Session {
             .as_ref()
             .is_some_and(|supplied| supplied.is_full());
         let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
+        self.begin_snapshot(file_system.as_ref());
         let snapshot = self
             .host
-            .clone_snapshot(&base, file_changes, Some(&request))
+            .clone_snapshot(&base, file_changes, Some(&request));
+        let resolution_error = self.resolution.end();
+        let snapshot = snapshot
+            .map_err(|error| error.to_string())
+            .and_then(|snapshot| resolution_error.map_or(Ok(snapshot), Err))
             .map_err(|error| client_error(format!("failed to update snapshot: {error}")))?;
         let response = self.create_snapshot_response(&snapshot, Some(&base), &changes.changes)?;
         self.register_snapshot(snapshot, open, file_system);
@@ -1251,10 +1483,21 @@ impl Session {
         };
         if let Some(program_options) = program_options {
             if program_options.module_resolver != 0 {
-                return Err(client_error(format!(
-                    "module resolver {} not found",
-                    program_options.module_resolver
-                )));
+                // tsgo `moduleResolverFactory`.
+                let (registration, program) = self
+                    .lock_module_resolvers()
+                    .get(&program_options.module_resolver)
+                    .cloned()
+                    .ok_or_else(|| {
+                        client_error(format!(
+                            "module resolver {} not found",
+                            program_options.module_resolver
+                        ))
+                    })?;
+                if !registration.callback.is_empty() && self.resolution.connection().is_none() {
+                    return Err(client_error("API connection is not initialized"));
+                }
+                request.module_resolution = Some(program);
             }
             request.project_references = program_options
                 .project_references
@@ -1687,6 +1930,32 @@ fn resolved_module(
             .map(|path| path.display().to_string_lossy().into_owned())
             .unwrap_or_default(),
     })
+}
+
+/// tsgo `newResolvedModuleResponse` of a resolver's module.
+fn host_resolved_module_response(
+    module: &tsc_program::HostResolvedModule,
+) -> ResolvedModuleResponse {
+    ResolvedModuleResponse {
+        resolved_file_name: module
+            .resolved_file()
+            .display()
+            .to_string_lossy()
+            .into_owned(),
+        original_path: module
+            .original_path()
+            .map(|path| path.display().to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        extension: module.extension().as_js().to_string_lossy().into_owned(),
+        resolved_using_ts_extension: module.resolved_using_ts_extension(),
+        resolved_using_extra_extensions: false,
+        package_id: package_id(module.package_id()),
+        is_external_library_import: module.is_external_library_import(),
+        alternate_result: module
+            .alternate_result()
+            .map(|path| path.display().to_string_lossy().into_owned())
+            .unwrap_or_default(),
+    }
 }
 
 /// tsgo `Program.GetResolvedTypeReferenceDirective` and

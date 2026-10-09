@@ -74,6 +74,9 @@ pub struct CreateProgramRequest {
     /// The projects the program references (tsgo `ProjectReferences`), by
     /// config path.
     pub project_references: Vec<ConfigProjectReference>,
+    /// The API's module resolution for the program (tsgo
+    /// `CreateProgramOptions.ModuleResolver`).
+    pub module_resolution: Option<tsc_program::ModuleResolutionOverrideHandle>,
 }
 
 /// A synthetic program to configure again (tsgo
@@ -237,6 +240,14 @@ impl Snapshot {
     /// file system holds it.
     pub fn read_file(&self, file_name: &str) -> Option<Vec<u8>> {
         self.fs.read(file_name)
+    }
+
+    /// The snapshot's files as a file system (tsgo's snapshot as the host of
+    /// a resolver).
+    pub fn file_system(&self) -> Arc<dyn FileSystem> {
+        Arc::new(crate::fs::SnapshotView {
+            fs: self.fs.clone(),
+        })
     }
 
     /// tsgo `ConfigFileRegistry.GetConfig`: the parse of the config the

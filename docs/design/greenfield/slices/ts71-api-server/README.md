@@ -963,3 +963,47 @@ snapshot、option、module provider を借りる）。
   `conformance (TypeScript 7.1)` 20m26s、`gates` 14s。全て成功。workspace 全体の test と Clippy はこの `rust` job に
   よる）。merge → `b3c64500d`（merge commit、PR #729）。
 - 次：P5-3c（module resolver）。
+
+## P5-3c module resolver（2026-10-10）
+
+- **request**（tsgo `api/module_resolution.go`、`module/staticresolver.go`）：
+  - `createModuleResolver`：compiler option、static resolutions（`fallback` は resolve か unresolved、entry は moduleName と、
+    あれば containingDirectory・resolutionMode、result）、callback の名。tsgo の client error（fallback、null の entry、空の
+    moduleName、result なし、resolutionMode、重複）。
+  - `releaseModuleResolver`。
+  - `resolveModuleName`：static の entry（directory と mode、directory、mode、名前だけの順に最も具体的なもの。fallback が
+    unresolved なら未解決）、次に callback、callback が無ければ既定の resolver。既定の resolver は resolver の option で、
+    snapshot（読んだものを持つ）、作っている途中の snapshot、または host の file system の上で解決し、option が求めれば trace
+    を返す。
+  - program：`createPrograms` の `moduleResolver` で作った program は、static と callback を先に引き、その後に program の
+    resolver を resolver の option で使う（tsgo の factory）。callback は作っている途中の snapshot の番号
+    （`inProgressSnapshot`）を受け取る。callback の失敗は snapshot の作成を失敗させる（`failed to create snapshot: ...`）。
+    同じ resolver で reconfigure した program は同じ program のまま。
+- **既存の経路の変更**：
+  - `ModuleResolver` は program の option にある module resolution の override（`ModuleResolutionOverride`）を先に引く。
+    override が option を持つときはその option で解決する（tsgo の factory は resolver の option を使う）。directory からの
+    解決（tsgo `ResolveModuleNameFromDirectory`）も持つ。
+  - 作り終えた snapshot は自身の file を file system として見せる（tsgo は snapshot を resolver の host にする）。
+- **tsgo と違う所**：
+  - tsgo は program を作るたびに resolution の文脈（番号）を作り、作り終えると解放する。port は request ごとに 1 つ持ち、
+    callback を最初に呼ぶときに番号を振る。作っている途中の snapshot の file system は、request の file system（または
+    host）。
+- **test**：api の unit：module resolver 9。
+  - tsgo の 4 test の移植（LSP の snapshot を使う 1 は除く）。
+  - callback の 1：script した client で、tsgo の error の test に当たる。
+  - client の test にある振る舞い 3：snapshot の読み、同じ resolver の reconfigure、resolver の option。
+  - client error の 1。
+- **tsgo との比較**（local、MessagePack、callback を答える client）：40 行全て一致（static、callback、trace、error、
+  program の file 名、callback の失敗）。P5-3b までの比較も変わらない。
+- **TypeScript の client の test**（local）：tsc-rs 103/327（P5-3b は 96）。残り 224 のうち 223 は未実装の method、1 は
+  P5-3a の null の要素。
+- **検証**（最終 bytes。コード `a59b4cde2`。macOS、`nice -n 20`、Cargo の job 2）：
+  - `cargo fmt --all -- --check` と Clippy（api・program・project・cli、`--all-targets -- -D warnings`）は clean。
+  - `cargo test` は全て成功：api（unit 142、`callback_fs` 7、`ipc` 14、`server` 2、encoder 5、fixture 1）、program、project、
+    cli の contract 264、compiler の contract 153 と `system` 9。
+  - module の解決（`ModuleResolver`）は batch の経路なので、release build（2m15s）の full conformance を local で 1 回
+    （`--workers 2 --check`、469s）：0 regressions、accepted tier を超える構成 0。errors full 13,451、emit 13,443、types
+    12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness error 15（main と同じ）。
+  - suites（`scripts/suites_ts71.py --check`）：0 regressions、数は main と同じ。
+  - workspace 全体の test と Clippy は hosted の `rust` job に任せた。
+- **残り**：P5-3 はこれで終わる。次は P5-4（checker の query）の計画。

@@ -1368,9 +1368,24 @@ pub struct ProgramOptions {
     /// The program is a project of `tsc -b` (tsgo `CompilerOptions.Build`):
     /// it writes a build info whether or not it is incremental.
     build_mode: bool,
+    /// The module resolution the API supplies for the program (tsgo's
+    /// module resolver factory), in front of the program's resolver.
+    module_resolution_override: Option<crate::ModuleResolutionOverrideHandle>,
 }
 
 impl ProgramOptions {
+    pub fn with_module_resolution_override(
+        mut self,
+        value: crate::ModuleResolutionOverrideHandle,
+    ) -> Self {
+        self.module_resolution_override = Some(value);
+        self
+    }
+
+    pub fn module_resolution_override(&self) -> Option<&crate::ModuleResolutionOverrideHandle> {
+        self.module_resolution_override.as_ref()
+    }
+
     pub fn with_build_mode(mut self, build_mode: bool) -> Self {
         self.build_mode = build_mode;
         self

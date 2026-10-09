@@ -79,12 +79,17 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
             Mode::Sync,
         )
     };
-    let mut conn = Conn::new(protocol, session, mode);
+    let mut conn = Conn::new(
+        protocol,
+        Arc::clone(&session) as Arc<dyn crate::ipc::Handler>,
+        mode,
+    );
     conn.set_collect_timing(options.collect_timing);
     let conn = Arc::new(conn);
     if let Some(callback_fs) = &callback_fs {
         callback_fs.set_connection(&conn);
     }
+    session.set_connection(&conn);
     let result = conn.run().map_err(|error| error.to_string());
     // Go's listener removes its socket when it closes.
     if let Some(path) = &options.pipe_path {

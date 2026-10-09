@@ -117,6 +117,87 @@ impl HostResolvedModule {
 }
 
 /// Lossless filesystem facts for one module-resolution request.
+impl HostResolvedModule {
+    /// tsgo `staticModuleResolutionToResolvedModule`: a module the API names
+    /// by its file, with its original path and package; an external
+    /// library import when its original path is in node_modules.
+    pub fn from_api(
+        resolved_file: ProgramPath,
+        original_path: Option<ProgramPath>,
+        package_id: Option<PackageId>,
+    ) -> Self {
+        let is_external_library_import = original_path
+            .as_ref()
+            .unwrap_or(&resolved_file)
+            .display()
+            .contains("/node_modules/");
+        let extension = ModuleExtension::of_file_name(resolved_file.display())
+            .unwrap_or_else(|| ModuleExtension::Arbitrary(JsString::default()));
+        Self {
+            resolved_file,
+            extension,
+            original_path,
+            is_external_library_import,
+            resolved_using_ts_extension: false,
+            package_id,
+            alternate_result: None,
+            package_metadata: None,
+            realpath_may_be_missing_after_suffix_predicate: false,
+        }
+    }
+}
+
+/// A program's module resolution the API supplies (tsgo's module resolver
+/// factory: static resolutions and a client's callback in front of the
+/// program's resolver).
+pub trait ModuleResolutionOverride: Send + Sync {
+    /// tsgo `ResolveModuleName` of the API's resolver: `specifier` from
+    /// `containing_directory` in `mode`.
+    fn resolve(
+        &self,
+        specifier: JsStr<'_>,
+        containing_directory: JsStr<'_>,
+        mode: ResolutionMode,
+    ) -> OverriddenResolution;
+
+    /// The options the program's resolution takes instead of the
+    /// program's: tsgo's factory resolves with the client resolver's.
+    fn resolver_options(&self) -> Option<(&CompilerOptions, &ProgramOptions)> {
+        None
+    }
+}
+
+/// What the API's resolution of a module request is.
+#[derive(Clone, Debug)]
+pub enum OverriddenResolution {
+    /// The program's own resolution.
+    Program,
+    /// No module: a static miss without a fallback, a callback's `null`, or
+    /// a failed callback (which the API reports for the request).
+    Unresolved,
+    /// A module the API names.
+    Resolved(Box<HostResolvedModule>),
+}
+
+/// A [`ModuleResolutionOverride`] in a program's options: programs are the
+/// same when they share it.
+#[derive(Clone)]
+pub struct ModuleResolutionOverrideHandle(pub Arc<dyn ModuleResolutionOverride>);
+
+impl PartialEq for ModuleResolutionOverrideHandle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for ModuleResolutionOverrideHandle {}
+
+impl std::fmt::Debug for ModuleResolutionOverrideHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ModuleResolutionOverrideHandle")
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HostModuleResolution {
     outcome: ResolutionOutcome<HostResolvedModule>,
@@ -636,7 +717,9 @@ struct InputResolutionRequest {
 /// fallible and are never translated into ordinary lookup misses.
 pub struct ModuleResolver<'a> {
     host: &'a dyn CompilerHost,
-    options: &'a CompilerOptions,
+    /// The program's options, or a client resolver's (tsgo's module
+    /// resolver factory resolves with them).
+    options: std::borrow::Cow<'a, CompilerOptions>,
     preserve_symlinks: bool,
     path_context: PathContext,
     type_root_base_directory: JsString,
@@ -674,6 +757,9 @@ pub struct ModuleResolver<'a> {
     /// Suppresses the trace while a probe runs ahead of the point tsgo
     /// traces it (the peer dependency lookups of a package.json).
     trace_suppressed: std::cell::Cell<u32>,
+    /// The API's resolution in front of this one (tsgo's module resolver
+    /// factory).
+    module_resolution_override: Option<Arc<dyn ModuleResolutionOverride>>,
 }
 
 impl<'a> ModuleResolver<'a> {
@@ -684,7 +770,15 @@ impl<'a> ModuleResolver<'a> {
         host: &'a dyn CompilerHost,
         options: &'a CompilerOptions,
     ) -> Result<Self, ResolutionError> {
-        Self::new_with_owned_paths(host, options, false, None, None, None, None)
+        Self::new_with_owned_paths(
+            host,
+            std::borrow::Cow::Borrowed(options),
+            false,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     /// Construct a resolver with the ordered program-owned resolution options.
@@ -708,6 +802,21 @@ impl<'a> ModuleResolver<'a> {
         options: &'a CompilerOptions,
         program_options: &ProgramOptions,
     ) -> Result<Self, ResolutionError> {
+        let module_resolution_override = program_options
+            .module_resolution_override()
+            .map(|handle| Arc::clone(&handle.0));
+        // tsgo's module resolver factory resolves with the client resolver's
+        // options.
+        let resolver_options = module_resolution_override
+            .as_ref()
+            .and_then(|resolution| resolution.resolver_options())
+            .map(|(options, program_options)| (options.clone(), program_options.clone()));
+        let (options, program_options) = match &resolver_options {
+            Some((options, program_options)) => {
+                (std::borrow::Cow::Owned(options.clone()), program_options)
+            }
+            None => (std::borrow::Cow::Borrowed(options), program_options),
+        };
         let mut resolver = Self::new_with_owned_paths(
             host,
             options,
@@ -720,12 +829,13 @@ impl<'a> ModuleResolver<'a> {
         // Every `tsc -b` project writes a build info, which lists the
         // package.json files by their real paths.
         resolver.record_package_json_realpaths |= program_options.build_mode();
+        resolver.module_resolution_override = module_resolution_override;
         Ok(resolver)
     }
 
     fn new_with_owned_paths(
         host: &'a dyn CompilerHost,
-        options: &'a CompilerOptions,
+        options: std::borrow::Cow<'a, CompilerOptions>,
         preserve_symlinks: bool,
         paths: Option<Arc<ProgramPathMappings>>,
         config_file_path: Option<&ProgramPath>,
@@ -768,6 +878,10 @@ impl<'a> ModuleResolver<'a> {
         };
         let root_dirs =
             validate_and_clone_root_dirs(root_dirs, normalized.as_js(), case_sensitive)?;
+        let record_package_json_realpaths =
+            options.incremental == Some(true) || options.composite == Some(true);
+        let trace =
+            (options.trace_resolution == Some(true)).then(|| std::cell::RefCell::new(Vec::new()));
         Ok(Self {
             host,
             options,
@@ -781,18 +895,17 @@ impl<'a> ModuleResolver<'a> {
             package_cache: BTreeMap::new(),
             package_cache_enabled: true,
             package_json_probes: std::cell::RefCell::new(BTreeMap::new()),
-            record_package_json_realpaths: options.incremental == Some(true)
-                || options.composite == Some(true),
+            record_package_json_realpaths,
             package_scope_by_directory: BTreeMap::new(),
             active_resolutions: Vec::new(),
             active_package_maps: Vec::new(),
             input_requests: Vec::new(),
             config_file_path: config_file_path.cloned(),
             candidate_ending_is_from_config: false,
-            trace: (options.trace_resolution == Some(true))
-                .then(|| std::cell::RefCell::new(Vec::new())),
+            trace,
             redirect_config: None,
             trace_suppressed: std::cell::Cell::new(0),
+            module_resolution_override: None,
         })
     }
 
@@ -808,7 +921,7 @@ impl<'a> ModuleResolver<'a> {
         let current_directory = path_context.current_directory().display();
         Ok(Self {
             host,
-            options,
+            options: std::borrow::Cow::Borrowed(options),
             preserve_symlinks: false,
             type_root_base_directory: current_directory.to_owned(),
             type_roots: None,
@@ -831,6 +944,7 @@ impl<'a> ModuleResolver<'a> {
                 .then(|| std::cell::RefCell::new(Vec::new())),
             redirect_config: None,
             trace_suppressed: std::cell::Cell::new(0),
+            module_resolution_override: None,
         })
     }
 
@@ -1434,10 +1548,49 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<HostModuleResolution, ResolutionError> {
         let containing_file = containing_file.into();
         let specifier = specifier.into();
-        self.validate_supported_module_configuration(mode)?;
         let containing_file =
             normalize_absolute_js_path(containing_file, Some(self.current_directory_text()), true)?;
         let containing_directory = js_directory_name(&containing_file);
+        if let Some(resolution) = &self.module_resolution_override {
+            match resolution.resolve(specifier, containing_directory.as_js(), mode) {
+                OverriddenResolution::Program => {}
+                OverriddenResolution::Unresolved => {
+                    return Ok(HostModuleResolution::new(ResolutionOutcome::NotFound));
+                }
+                OverriddenResolution::Resolved(module) => {
+                    return Ok(HostModuleResolution::new(ResolutionOutcome::Resolved(
+                        *module,
+                    )));
+                }
+            }
+        }
+        self.resolve_request(&containing_file, &containing_directory, specifier, mode)
+    }
+
+    /// tsgo `ResolveModuleNameFromDirectory`: a request from a directory,
+    /// which stands for the containing file in the trace.
+    pub fn resolve_from_directory<'j0, 'j1>(
+        &mut self,
+        containing_directory: impl Into<JsStr<'j0>>,
+        specifier: impl Into<JsStr<'j1>>,
+        mode: ResolutionMode,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        let directory = normalize_absolute_js_path(
+            containing_directory.into(),
+            Some(self.current_directory_text()),
+            true,
+        )?;
+        self.resolve_request(&directory, &directory, specifier.into(), mode)
+    }
+
+    fn resolve_request(
+        &mut self,
+        containing_file: &JsString,
+        containing_directory: &JsString,
+        specifier: JsStr<'_>,
+        mode: ResolutionMode,
+    ) -> Result<HostModuleResolution, ResolutionError> {
+        self.validate_supported_module_configuration(mode)?;
         let _ = self.take_trace();
         trace!(
             self,
@@ -1454,12 +1607,7 @@ impl<'a> ModuleResolver<'a> {
         }
         self.trace_module_resolution_kind();
         let (mut result, diagnostics) = self.with_input_request(true, |resolver| {
-            resolver.resolve_module_request(
-                &containing_file,
-                &containing_directory,
-                specifier,
-                mode,
-            )
+            resolver.resolve_module_request(containing_file, containing_directory, specifier, mode)
         })?;
         result.diagnostics = diagnostics;
         self.trace_module_resolution_result(specifier, &result);
@@ -5836,7 +5984,7 @@ impl<'a> ModuleResolver<'a> {
         context: ExportProbeContext,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let final_path = final_path.into();
-        let options = self.options;
+        let options = self.options.clone();
         let declaration_dir = options
             .declaration_dir
             .as_ref()

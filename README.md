@@ -126,7 +126,7 @@ it: `tsc-rs` replaces the compiler command and offers a
 [Rust compiler API](#compiler-api-for-rust-projects-experimental), but it
 does not provide TypeScript's language server, and its
 [API server](#api-server-experimental) answers only the snapshot, config,
-transpile and program-information requests so far.
+transpile, program-information and module-resolver requests so far.
 
 ### Use the name `tsc` in your shell
 
@@ -805,10 +805,13 @@ and transpiles (`transpileModule`, `transpileDeclaration` and their
 `FromFile` forms). It answers what a project's program has: its source
 files (`getSourceFile`, `getSourceFileNames`, `getSourceFileMetadata`),
 config files (`getConfigFileNames`, `getConfigSourceFile`), resolution
-modes and resolved modules and type reference directives. The flags and
-their errors are `tsgo`'s. The other requests (symbols and types,
-diagnostics, emit, the module resolver, the build orchestrator) answer
-that they are not implemented yet.
+modes and resolved modules and type reference directives. A client's module
+resolvers (`createModuleResolver`, `resolveModuleName`,
+`releaseModuleResolver`) resolve through static resolutions and the
+client's callback before the default resolver, for a request or for the
+programs a snapshot creates with them. The flags and their errors are
+`tsgo`'s. The other requests (symbols and types, diagnostics, emit, the
+build orchestrator) answer that they are not implemented yet.
 
 ## Performance
 

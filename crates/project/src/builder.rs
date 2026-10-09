@@ -315,13 +315,18 @@ impl<'a> ProjectCollectionBuilder<'a> {
         id: &ProjectId,
         program: &CreateProgramRequest,
     ) -> Result<(), ProjectError> {
-        let roots = ProgramRoots::new(
+        let mut roots = ProgramRoots::new(
             program.root_file_names.clone(),
             program.options.clone(),
             program.config_file_parsing_diagnostics.clone(),
             program.project_references.clone(),
             self.host.paths(),
         )?;
+        if let Some(resolution) = &program.module_resolution {
+            roots.program_options = roots
+                .program_options
+                .with_module_resolution_override(resolution.clone());
+        }
         let Some(project) = self.synthetic.get(id) else {
             let current_directory = self.host.options().current_directory.clone();
             self.insert(Project::new_synthetic(
