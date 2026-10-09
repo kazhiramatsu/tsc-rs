@@ -941,6 +941,7 @@ file）を持つ機能として入れ、型の id と生成順は port の check
 - **P4-7d api の encoder**（tsgo `api/encoder`）：source file の binary 形式（header、string table、extended data、structured data、
   node 28 byte）を port の AST から書き、tsgo の `formatEncodedSourceFile` で 2 baseline を比べる。tsgo の `Kind` の番号と名前の表、
   `ForEachChild` 順の NodeList。decoder と unit test も移す。
+  （decoder は P4-7d で API server と一緒に移すことに改めた。P4-7d の記録を参照。）
 - **API server**（tsgo `api` の session／protocol、`cmd/tsc --api`、TypeScript 側 client `packages/typescript/src/api`）は
   roadmap の P5（公開 API）と同じ大きさの別作業として、P4-7d の後に計画を立てて着手する（Go の session test 17 file を Rust の
   test として移すのが一致の基準）。
@@ -1234,3 +1235,78 @@ tsgo の build orchestrator の watch（`build/orchestrator.go` の `Watch`・`D
 - 計測（conformance の全体実行、suites、実 CLI と tsgo の比較、crate test）は上の記録のとおり、merge 前に最終 bytes で行った。実 project の
   比較と性能は計測していない（上の記録の理由と利用者の指示）。
 - 次：P4-7d（api の encoder）。branch `fix/ts71-api-encoder`（`6badbb3da` から）。
+
+## P4-7d api の encoder（2026-10-09）
+
+tsgo の API が client に送る source file の binary 形式（`internal/api/encoder`、protocol 9：64 byte の header、string table、
+extended data、msgpack の structured data、28 byte の node）を port の構文木から書く crate `crates/api`（`tsc-rs-api`、`tsc_api`）を
+加えた。api suite の 2 baseline（`encodeSourceFile.txt`・`encodeSourceFileWithUnicodeEscapes.txt`）が byte 一致。
+
+- **crate**：`tsc_api::encoder`（`encode_source_file`・`encode_node`・`build_node_index_table`、baseline の書式
+  `format_encoded_source_file`。kind は tsgo の番号、位置は UTF-16、flags は tsgo の NodeFlags。木は再帰でなく stack で歩く）、
+  `tsc_api::references`（tsgo `parser/references.go`：tsgo の parser が parse 時に記録する imports・module augmentation・ambient
+  module 名。dynamic import と `require` は tsgo どおり text の `import`／`require` から `GetNodeAtPosition` で探す）、
+  `tsc_api::parse_source_file`（API server が file を parse するとおり：script kind は拡張子から、JSDoc は全て）。
+- **表の生成**（`scripts/generate_api_encoder.py` → `crates/api/src/encoder/generated.rs`、`--check`）：vendored の
+  `internal/ast/kind_generated.go`（kind の番号と名前）と `internal/api/encoder/encoder_generated.go`（`getNodeDataType` と
+  `getChildrenPropertyMask`。mask の bit 順が visitor の順）を port の `kind.rs`・`nodes.rs` に対応させる。名前の違う property
+  （`PostfixToken` は `question_token`／`exclamation_token`、`DefaultType` は `default` など）、port に無い property（tsgo の JS reparser
+  が埋めるもの。mask の bit は残る）、tsgo に無い port の子（6.0.3 期の文法 error の受け皿）は表に明示し、それ以外の食い違いは
+  生成の error にした。vendoring に 2 file と `baselines/reference/api` を加えた（`scripts/vendor_typescript_native.py`）。
+- **tsgo の木の形**（tsgo の parser が tsc と違う木を作るところ。encoder は `View` で tsgo の形を書く）：
+  - interface の `extends` と class の `implements` の要素は TypeReference（tsgo `parseTypeHeritageClauseElement`。property access は
+    QualifiedName に）。class の `extends` は ExpressionWithTypeArguments のまま。
+  - `namespace A.B` の内側の宣言は暗黙の `export` modifier（位置は宣言の位置、flag は Reparsed）を持ち、NestedNamespace flag は
+    無い。JSDoc の typedef／callback の namespace 名は NestedNamespace のまま、keyword は `namespace`。
+  - array binding pattern の穴は子の無い BindingElement（tsc：OmittedExpression）、JSDoc link の `A#b` は QualifiedName
+    （tsc：JSDocMemberName）。
+  - JSDoc：node の位置は host の位置から（2 つ目からは前の JSDoc の end から）。comment は常に NodeList で、text だけの comment
+    は JSDocText 1 つ、link の後に空白だけが続けば空の JSDocText で終わる（tag が続くときは無い）。`@template` の型引数 list の範囲は
+    0（tsgo が設定しない）。type parameter には JSDoc を付けない。TypeScript の file では tsgo は JSDoc を最初に読む時に新しい parser
+    で parse する（`@see`／`@link` を含む comment は host と一緒）ので、JSDoc の node は host の context flag を持たない。
+    `PossiblyContainsDeprecatedTag` は TypeScript では tsgo の scanner の text 検査、file の `PossiblyContainsDynamicImport` は eager に
+    parse されるもの（`import(`／`import<`、import type）だけで決まる。
+  - NodeList の HasTrailingComma は tsgo の定義（最後の要素の end が list の end より前）。
+  - flags：tsc の NodeFlags を tsgo の番号に移す。tsgo は `Namespace`・`GlobalAugmentation`（keyword）と checker の cache を持たず、
+    `ThisNodeOrAnySubNodesHasError` を立てず、`HasJSDoc` を持つ。
+  - literal の token flags：tsgo は scanner の flags を literal の node に持つ（`SingleQuote` も）。port の scanner で token を scan し
+    直して求める（`tsc_syntax::literal_token_flags`。JSX の属性値は escape の無い scan）。tsgo は `\u` escape の数字を読む前に
+    `UnicodeEscape` を立てるので、不正な `\u` にも立つ。
+- **syntax の変更**：`JSDocComment::Text` が tsgo の comment list の範囲と JSDocText の end を持つ（parser は求めていて捨てていた。
+  tag の comment の範囲は tsc の文字列からは決まらない）。`literal_token_flags` を公開した。
+- **見つけて直したもの**：`parse_argument_list` が tsc `parseArgumentExpression` の `doOutsideOfContext(DisallowIn | Decorator)` を
+  欠いていた。decorator の呼び出しの引数の `a[0]` が element access にならず、`for (x = f("a" in o);;)` の引数で `in` が二項演算に
+  ならなかった（tsgo も tsc と同じ）。encoder の比較で decorator の引数の flags の差として見つけた。syntax の test 2 件（直す前は
+  2 件とも失敗することを確かめた）。
+- **decoder**：tsgo の `DecodeNodes` は API server が client から受けた node を印字する（`printNode` など）ためのもので、port では
+  node を作る factory と printer への接続が要る。P4-7 計画の「decoder も移す」を改め、API server（roadmap の P5）と一緒に移す。
+- **tests**：encoder_test.go の 4 件（baseline 2、`BuildNodeIndexTable`、protocol と content mapper の field）、module references 1 件、
+  tsgo の fixture 12 file（`crates/api/tests/fixtures/tsgo/`：heritage、namespace、ambient、imports、JSDoc（TypeScript と
+  JavaScript）、literal、pattern、decorator、JSX、`.d.ts`、script。`scripts/api_encoder_dump.py fixtures` が tsgo の binary で書いた
+  encoding と byte 一致）。
+- **corpus の比較**：vendored の compiler／conformance の case file 12,750 を 1 つの TypeScript file として tsgo と port で encode し
+  比べた（`scripts/api_encoder_dump.py corpus` と ignored test `tsgo_corpus`）。12,705 が byte 一致、8 は UTF-8 でない入力（UTF-16
+  の BOM などの case。port の parser は text を受ける）、37 が残り。始めは 5,491 だった。
+- **検証**（最終 bytes：vendoring `8f0de02df`、修正 `79e09284e`、encoder `7347caa26`、ratchet `7f4734f0b`。macOS、`nice -n 20`、
+  Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（api・syntax・checker・emitter・conformance・harness、`--all-targets -- -D
+  warnings`）は clean。`cargo test -p`：api（unit 5、fixture 12 file）、syntax 248、checker 1,797、emitter 635、conformance 52、program
+  602、compiler 452、binder 78、incremental 29、harness 31（vendored の数の pin を 59,166 に）、types 47、全て成功。生成の `--check`、
+  vendoring の `--check`（59,166 file）、fixture の `--check`（tsgo の encoder で 12／12）。`scripts/conformance_ts71.py --workers 2
+  --check`：12,748 case を 469 s、全ての数が変わらない（errors full 13,451／mismatch 0、emit full 13,443、types 12,677／90、symbols
+  12,715／52、sourcemap 13,451、trace 13,448／3、harness error 15）、ratchet の regression 0。`scripts/suites_ts71.py --update`、
+  `--check`：api 2／2（suites の ratchet に 2 行、732 行）、他の suite は変わらない（config 87、transpile 41、tsbuild 182／192、
+  tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）、regression 0。実 project と性能は計測していない（利用者の指示。
+  checker と emitter は変わらず、parser の変更は呼び出しの引数の context だけで conformance の出力は同じ）。
+- **残り**（記録）：
+  - JavaScript の file で tsgo の parser が JSDoc の tag から作る宣言と型（`@typedef`・`@callback`・`@import` の文、`@type`・`@param`・
+    `@returns` などの型の付け替え。Reparsed）。port の木は tsc の形で、checker は JSDoc を tsc どおり直接読む。corpus は TypeScript と
+    して encode したので現れない。
+  - parse error の回復：ThisNodeHasError の付く node（19：`a[]` で tsgo は element access、tsc は missing identifier）、位置（2）。
+    port の parse recovery の記録（emit の回復が使う）に関わるので変えない。top-level await の reparse の AwaitContext（3）。
+  - JSDoc の付く node（3：function type、回復中の if 文、arrow function の parameter）、JSDoc の text（6：tsgo は最後の断片だけを
+    trim するので、改行の前の空白が残る）、JSDoc の範囲（4：comment list の終わり 2、tag の comment の text の終わり 1、
+    backquote の `@param` 名の後の型の始まり 1）。
+- **README・CI**：Rust API に `tsc-rs-api` を加え、limitation に encoder の残りを書いた。古くなっていた `--noEmit -p` の limitation
+  （command line の emit override を受けない）を消した（`--target`・`--module` を tsgo と同じく受けることを確かめた）。CI の表に
+  watch と api の suite を書き足した。`rust` job が `scripts/generate_api_encoder.py --check` も走らせる（`.github/ci/replay.py`、
+  CLAUDE.md）。

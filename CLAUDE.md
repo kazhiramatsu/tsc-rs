@@ -161,13 +161,17 @@ independent task, not merely an available agent slot.
   results. Never raise a performance ceiling to compensate for interference.
 - The local equivalents of the hosted jobs are `python3 .github/ci/replay.py
   rust` (formatting, Clippy, `cargo test --workspace`, `cargo xtask codegen
-  diagnostics-check`) and, after `cargo build --release -p
+  diagnostics-check`, `scripts/generate_api_encoder.py --check`) and, after `cargo build --release -p
   tsc-rs-conformance --bin conformance-ts71`, `python3
   scripts/conformance_ts71.py --workers 4 --check`; the README's "Run CI"
   section describes both.
 - `cargo xtask codegen diagnostics` regenerates `crates/diagnostics/src/gen.rs`
   from the vendored 7.1 `diagnosticMessages.json`; it is the only xtask
-  command. The other generated sources (syntax nodes, enums, scanner tables)
+  command. `scripts/generate_api_encoder.py` regenerates
+  `crates/api/src/encoder/generated.rs` from the vendored tsgo kind and
+  encoder tables (`--check` runs in the `rust` job), and
+  `scripts/api_encoder_dump.py fixtures` re-records the encoder's tsgo
+  fixtures. The other generated sources (syntax nodes, enums, scanner tables)
   are hand-maintained since their 6.0.3 inputs left the tree.
 
 ## Retired tooling

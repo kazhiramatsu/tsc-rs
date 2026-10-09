@@ -29,12 +29,14 @@ DOCUMENTATION = ("README.md", "CONTRIBUTING.md", "LICENSE")
 CONFORMANCE_TS71_WORKERS = "4"
 JOBS = {"rust": "has_rust", "conformance-ts71": "has_conformance_ts71"}
 # The Rust checks the hosted job runs: formatting, Clippy over every target,
-# every workspace test target, and the generated diagnostic catalog.
+# every workspace test target, the generated diagnostic catalog and the API
+# encoder's generated tables.
 RUST_CHECKS = (
     ["cargo", "fmt", "--all", "--", "--check"],
     ["cargo", "clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
     ["cargo", "test", "--workspace"],
     ["cargo", "xtask", "codegen", "diagnostics-check"],
+    [sys.executable, "scripts/generate_api_encoder.py", "--check"],
 )
 
 

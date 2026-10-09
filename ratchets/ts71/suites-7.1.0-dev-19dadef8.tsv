@@ -1,5 +1,7 @@
 # TypeScript 7.1 suites outside the compiler runner: every baseline and its tier, `full` when tsc-rs's
 # baseline matches the reference byte for byte (scripts/suites_ts71.py --update). A tier is lowered only by a reviewed edit.
+api/encodeSourceFile.txt	full
+api/encodeSourceFileWithUnicodeEscapes.txt	full
 config/tsconfigParsing/Convert correctly format tsconfig.json to typeAcquisition  with json api.js	full
 config/tsconfigParsing/Convert correctly format tsconfig.json to typeAcquisition  with jsonSourceFile api.js	full
 config/tsconfigParsing/Convert default jsconfig.json to typeAcquisition  with json api.js	full

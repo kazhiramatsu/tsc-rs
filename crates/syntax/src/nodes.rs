@@ -5,7 +5,15 @@ use crate::SyntaxKind;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JSDocComment {
-    Text(String),
+    /// tsc's string comment (one without links). TypeScript 7.1 keeps it
+    /// as a list of one JSDocText: `pos..end` is that list's range and
+    /// `pos..text_end` the JSDocText's.
+    Text {
+        text: String,
+        pos: u32,
+        end: u32,
+        text_end: u32,
+    },
     Nodes(NodeArrayId),
 }
 
@@ -13,7 +21,7 @@ impl JSDocComment {
     pub fn nodes(&self) -> Option<NodeArrayId> {
         match self {
             Self::Nodes(nodes) => Some(*nodes),
-            Self::Text(_) => None,
+            Self::Text { .. } => None,
         }
     }
 }

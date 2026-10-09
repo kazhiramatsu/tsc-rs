@@ -1790,7 +1790,7 @@ where
     F: FnMut(&'static str, ObservableField<'a>),
 {
     match value {
-        JSDocComment::Text(text) => cb(name, ObservableField::String(text)),
+        JSDocComment::Text { text, .. } => cb(name, ObservableField::String(text)),
         JSDocComment::Nodes(nodes) => cb(name, ObservableField::NodeArray(*nodes)),
     }
 }

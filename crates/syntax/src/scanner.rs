@@ -2684,6 +2684,39 @@ pub fn scan_first_token_span(text: &str, variant: LanguageVariant) -> (usize, us
     (scanner.token_start(), scanner.pos())
 }
 
+/// The scanner's tsc TokenFlags on the literal token of `kind` that starts
+/// at byte `start` of `text`, scanned as the parser scanned it: a template
+/// middle or tail is rescanned from its `}`, a regular expression from its
+/// `/`, and a JSX attribute value as tsc scanJsxAttributeValue scans it
+/// (its backslashes are text). TypeScript 7.1 keeps these flags on its
+/// literal nodes, where tsc keeps only some of them.
+pub fn literal_token_flags(
+    text: &str,
+    start: usize,
+    kind: SyntaxKind,
+    jsx_attribute_value: bool,
+) -> u32 {
+    let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+    scanner.reset_token_state(start);
+    match kind {
+        SyntaxKind::StringLiteral if jsx_attribute_value => {
+            scanner.scan_jsx_attribute_value();
+        }
+        SyntaxKind::TemplateMiddle | SyntaxKind::TemplateTail => {
+            scanner.scan();
+            scanner.re_scan_template_token(false);
+        }
+        SyntaxKind::RegularExpressionLiteral => {
+            scanner.scan();
+            scanner.re_scan_slash_token(false);
+        }
+        _ => {
+            scanner.scan();
+        }
+    }
+    scanner.token_flags.0
+}
+
 /// Scan source tokens lazily in UTF-8 byte space without materializing token
 /// records or a UTF-16 offset map.
 pub fn scan_byte_tokens(text: &str, variant: LanguageVariant) -> ByteTokenIter<'_> {

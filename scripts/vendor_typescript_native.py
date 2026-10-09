@@ -29,6 +29,9 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/baselines/reference/{tsc,tsbuild}    every tsc and tsc -b baseline
   tsc/testdata/baselines/reference/{tscWatch,tsbuildWatch}
                                                     every tsc --watch and tsc -b --watch baseline
+  tsc/testdata/baselines/reference/api              the API encoder's baselines
+  tsc/internal/ast/kind_generated.go, tsc/internal/api/encoder/encoder_generated.go
+                                                    the kinds and the API encoder's tables
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
 each set's Git tree id (a single file's blob id; a filtered baseline set
@@ -66,6 +69,7 @@ TREES = [
     "tsc/testdata/baselines/reference/tsbuild",
     "tsc/testdata/baselines/reference/tscWatch",
     "tsc/testdata/baselines/reference/tsbuildWatch",
+    "tsc/testdata/baselines/reference/api",
 ]
 LOCALES = ["cs-CZ", "de-DE", "es-ES", "fr-FR", "it-IT", "ja-JP", "ko-KR", "pl-PL", "pt-BR",
            "ru-RU", "tr-TR", "zh-CN", "zh-TW"]
@@ -80,6 +84,10 @@ FILES = [
     "tsc/internal/tsoptions/enummaps.go",
     "tsc/internal/core/compileroptions.go",
     "tsc/internal/core/watchoptions.go",
+    # The kind numbers and the encoder's per-kind tables the API's source
+    # file encoder follows (scripts/generate_api_encoder.py).
+    "tsc/internal/ast/kind_generated.go",
+    "tsc/internal/api/encoder/encoder_generated.go",
     # The localized diagnostic messages tsgo embeds (gzip-compressed JSON).
     *[f"tsc/internal/diagnostics/loc/{locale}.json.gz" for locale in LOCALES],
 ]

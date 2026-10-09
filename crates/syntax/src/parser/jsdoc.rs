@@ -324,17 +324,25 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
     }
 
+    /// tsc's comment value: a list when it has links, else its text.
+    /// `text_end` ends TypeScript 7.1's JSDocText of a text comment.
     fn comment_value(
         &mut self,
         parts: Vec<NodeId>,
         text: String,
         pos: usize,
         end: usize,
+        text_end: usize,
     ) -> Option<JSDocComment> {
         if !parts.is_empty() {
             Some(JSDocComment::Nodes(self.alloc_array(parts, pos, end)))
         } else if !text.is_empty() {
-            Some(JSDocComment::Text(text))
+            Some(JSDocComment::Text {
+                text,
+                pos: pos as u32,
+                end: end as u32,
+                text_end: text_end as u32,
+            })
         } else {
             None
         }
@@ -525,6 +533,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             trimmed_comments,
             start,
             comments_pos.unwrap_or(scan_end),
+            comments_pos.unwrap_or(scan_end),
         );
         let tags = if self.tags.is_empty() {
             None
@@ -690,7 +699,8 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                 self.node_pos(),
             ));
         }
-        self.comment_value(parts, trimmed, comments_pos, self.token_end())
+        let text_end = self.node_pos();
+        self.comment_value(parts, trimmed, comments_pos, self.token_end(), text_end)
     }
 
     fn parse_trailing_tag_comments(

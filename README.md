@@ -370,7 +370,7 @@ A Rust project can depend on the same crates to load a TypeScript project,
 check it, and produce JavaScript, declaration files and source maps inside
 its own process, with no Node.js and no separate compiler executable.
 
-The API has four parts:
+The API has five parts:
 
 - `tsc-rs-host` (`tsc_host`): the read-only `CompilerHost` trait.
   `FsCompilerHost` implements it over the real filesystem and
@@ -407,6 +407,14 @@ The API has four parts:
 - `tsc-rs-diagnostics` (`tsc_diagnostics`): `Diagnostic`, with its code,
   category, message chain and UTF-16 location, and `TextSnapshot` for line
   and column lookup.
+- `tsc-rs-api` (`tsc_api`): the binary syntax tree format of TypeScript
+  7.1's API (protocol 9), which `tsgo`'s API server sends its clients.
+  `parse_source_file` parses a file as that server does,
+  `references::collect_external_module_references` finds its imports,
+  module augmentations and ambient modules, and
+  `encoder::encode_source_file`, `encode_node` and `build_node_index_table`
+  write the encoding and its node index table. The server itself (its
+  sessions and requests) is not implemented.
 
 The API reads the standard library declarations from the directory given to
 `LibraryCatalog::typescript_7_1`; the checked-in
@@ -1000,8 +1008,8 @@ their GitHub Actions logs.
 
 | Check | What it verifies |
 | --- | --- |
-| **TypeScript 7.1 conformance** (`conformance (TypeScript 7.1)`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the diagnostics (`.errors.txt`), the emitted JavaScript, declaration files and source maps (`.js`, `.js.map`) the type and symbol baselines (`.types`, `.symbols`: the type and the symbol at every expression and declaration name, as tsgo's test runner writes them) the source map records (`.sourcemap.txt`: every emitted line with its spans against the source text, as tsgo's recorder writes them) and the module resolution traces (`.trace.json`: the `--traceResolution` lines, sanitized as tsgo's harness does) with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). The ratchet `ratchets/ts71/` records the error tier, the emit tier and the type, symbol, source map record and trace tiers each configuration has reached and rejects regressions. A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. The configurations the native runner itself skips (`target: es5`, the `umd` and `system` module kinds, the `node10` and `classic` resolutions, `baseUrl`, `esModuleInterop: false`, `alwaysStrict: false`) or never produces baselines for (`amd`, `outFile`, its skip list) are not compared. The same job then runs the `transpile` test cases through single-file transpilation (`transpileModule` and `transpileDeclaration`) as the native transpile runner does, the command-line and tsconfig parsing tests (the arguments and configuration files the native Go tests keep in their tables), and the `tsc` and `tsc -b` tests (each scenario's command lines run over an in-memory system with its edits in between, as the native harness's test system does, recorded from the Go tests by `scripts/tsctests_scenarios.py`), and compares each of their baselines (`transpile`, `tsoptions/commandLineParsing`, `config/tsconfigParsing`, `tsc`, `tsbuild`) byte for byte (`scripts/suites_ts71.py --check`, ratchet `ratchets/ts71/suites-<profile>.tsv`). |
-| **Rust checks** (`rust`) | Checks formatting, runs Clippy over every target of the workspace, executes every workspace test target (`cargo test --workspace`) and verifies that the generated diagnostic catalog is current (`python3 .github/ci/replay.py rust`). |
+| **TypeScript 7.1 conformance** (`conformance (TypeScript 7.1)`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the diagnostics (`.errors.txt`), the emitted JavaScript, declaration files and source maps (`.js`, `.js.map`) the type and symbol baselines (`.types`, `.symbols`: the type and the symbol at every expression and declaration name, as tsgo's test runner writes them) the source map records (`.sourcemap.txt`: every emitted line with its spans against the source text, as tsgo's recorder writes them) and the module resolution traces (`.trace.json`: the `--traceResolution` lines, sanitized as tsgo's harness does) with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). The ratchet `ratchets/ts71/` records the error tier, the emit tier and the type, symbol, source map record and trace tiers each configuration has reached and rejects regressions. A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. The configurations the native runner itself skips (`target: es5`, the `umd` and `system` module kinds, the `node10` and `classic` resolutions, `baseUrl`, `esModuleInterop: false`, `alwaysStrict: false`) or never produces baselines for (`amd`, `outFile`, its skip list) are not compared. The same job then runs the `transpile` test cases through single-file transpilation (`transpileModule` and `transpileDeclaration`) as the native transpile runner does, the command-line and tsconfig parsing tests (the arguments and configuration files the native Go tests keep in their tables), the `tsc` and `tsc -b` tests (each scenario's command lines run over an in-memory system with its edits in between, as the native harness's test system does, recorded from the Go tests by `scripts/tsctests_scenarios.py`), the `tsc --watch` and `tsc -b --watch` tests (their edits as watch cycles) and the API encoder's dumps of two parsed sources, and compares each of their baselines (`transpile`, `tsoptions/commandLineParsing`, `config/tsconfigParsing`, `tsc`, `tsbuild`, `tscWatch`, `tsbuildWatch`, `api`) byte for byte (`scripts/suites_ts71.py --check`, ratchet `ratchets/ts71/suites-<profile>.tsv`). |
+| **Rust checks** (`rust`) | Checks formatting, runs Clippy over every target of the workspace, executes every workspace test target (`cargo test --workspace`) and verifies that the generated diagnostic catalog and the API encoder's tables are current (`python3 .github/ci/replay.py rust`). |
 
 The `gates` check requires both jobs to succeed; a change that touches only
 `docs/`, this file, `CONTRIBUTING.md` or `LICENSE` selects neither.
@@ -1086,9 +1094,6 @@ runs are listed under the repository's Actions tab.
   does: files the build info still covers are not checked again, only the
   files whose output may have changed are emitted, and the build info is
   rewritten only when it changed.
-- `--noEmit -p` does not accept command-line emit overrides such as
-  `--target` or `--module`; see the
-  [configuration for type checks](#configuration-for-type-checks).
 - `--diagnostics` and `--extendedDiagnostics` print the rows the port
   measures; `tsgo`'s identifier, symbol, type, instantiation and memory
   rows are not printed, and the check time covers the emit as well.
@@ -1103,6 +1108,12 @@ runs are listed under the repository's Actions tab.
   `xx`) and may match a related language or region by CLDR's distances;
   those cases print English here.
 - The compiler command does not provide a language server or editor service.
+- `tsc_api`'s encoding of a JavaScript file lacks the declarations and
+  types `tsgo`'s parser derives from its JSDoc tags (`@typedef`, `@type`,
+  `@param`, ...), and a few parse-error recoveries and JSDoc details keep
+  `tsc`'s flags, positions or text. Of TypeScript 7.1's 12,742 compiler and
+  conformance test files (each encoded as one TypeScript file), 12,705
+  encode byte for byte as `tsgo` encodes them.
 - Peak memory grows with the checker count (eight by default, twelve when
   writing declaration files); see [peak memory](#peak-memory). A lower
   `TSRS_CHECKERS` count reduces it at some cost in speed.
