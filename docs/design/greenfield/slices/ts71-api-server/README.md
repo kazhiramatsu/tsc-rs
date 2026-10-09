@@ -498,3 +498,14 @@ snapshot、option、module provider を借りる）。
 - **残り**：P5-1d（checker pool）、P5-1e（`SnapshotFS` の細部）。loader は cache を引かない（作り直す program は loader で全ての
   file を parse し、checker が cache の document を使う。tsgo は loader も cache を引くので parse しない。結果は同じで cost が
   違う）。
+
+### P5-1c の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `482d993f1`（コード `b638a482b`・packet の記録）の run 37957868864（`plan` 34s、`rust` 10m29s、
+  `conformance (TypeScript 7.1)` 17m55s、`gates` 15s。全て成功。suites の ratchet もこの job で確認）。merge → `a8d2e3875`
+  （merge commit、PR #723）。hosted の conformance は前の 2 回（20m16s、21m3s）より短い。lib bundle を text で照合して
+  再利用するようになったためと見られる（時間の比較は条件をそろえた測定ではない）。
+- 次：P5-1d（checker pool）。tsgo の API は diagnostics の request（syntactic／bind／semantic／suggestion／declaration／global）を
+  pool の diagnostics checker（`CheckerLifetimeDiagnostics`）で、型と symbol の query を API checker（`CheckerLifetimeAPI`、
+  消されない persistent な checker）で行う。port の `LiveProgram` は 1 つの checker で両方を行うので、query が後の診断に
+  影響しないよう、API checker を分ける。LSP の query checker と idle の後片付け（時間で決まる）は移さない。
