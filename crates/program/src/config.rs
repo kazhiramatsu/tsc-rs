@@ -47,9 +47,9 @@ use crate::config_options::{
     JsConfigDefaultValue,
 };
 use crate::json::{
-    convert_recoverable_json_node_to_value, convert_recoverable_json_source_file_to_value,
-    decode_user_object_key, is_double_quoted_json_string, json_number_as_f64, json_object_get,
-    json_object_own_get, json_parser_preflight, json_source_file_is_empty, JsonParserPreflight,
+    config_parser_preflight, convert_recoverable_json_node_to_value,
+    convert_recoverable_json_source_file_to_value, decode_user_object_key, json_number_as_f64,
+    json_object_get, json_object_own_get, json_source_file_is_empty, JsonParserPreflight,
     RecoverableJsonValue,
 };
 use crate::library::LibraryCatalog;
@@ -455,18 +455,13 @@ pub struct ConfigTypedObjectValue {
 }
 
 impl ConfigTypedObjectValue {
+    /// The properties in their source order: tsgo keeps an object value in
+    /// an ordered map, where a numeric key has no place of its own.
     fn new(
         shape: ConfigTypedObjectShape,
-        mut properties: Vec<ConfigTypedObjectProperty>,
+        properties: Vec<ConfigTypedObjectProperty>,
         inherits_proto_setter: bool,
     ) -> Self {
-        // Object.keys observes array-index properties first in ascending
-        // numeric order, followed by other strings in first-insertion order.
-        properties.sort_by_cached_key(|property| {
-            javascript_array_index(&property.name)
-                .map(|index| (0_u8, index))
-                .unwrap_or((1, 0))
-        });
         Self {
             shape,
             properties,
@@ -654,9 +649,8 @@ impl ConfigOptionBag {
         }
     }
 
-    /// Ordered own-property view for an object-like compiler option. Numeric
-    /// array-index keys follow JavaScript's ascending order; other keys retain
-    /// their first insertion slots, including own `undefined` values.
+    /// Ordered own-property view for an object-like compiler option: the
+    /// keys in their first insertion slots, including own `undefined` values.
     pub fn typed_object_properties(&self, name: &str) -> Option<&[ConfigTypedObjectProperty]> {
         self.typed_object_value(name)
             .map(ConfigTypedObjectValue::properties)
@@ -1906,6 +1900,36 @@ fn config_project_references<'j0>(
 /// tsgo `getProjectReferences`' checks of each reference: a missing or
 /// non-string `path` (TS5024), an empty one (TS18051), a non-boolean
 /// `circular` (TS5024), at the property's value or else the element.
+/// tsgo's notifier converts `references` as a list option
+/// (`convertJsonOption`): a value that is neither an array nor nil is TS5024.
+/// Whether `node` is written as an array literal: tsgo converts one none of
+/// whose elements converted to a nil slice, which its type checks still
+/// read as an array.
+fn is_array_literal(source: &SourceFile, node: NodeId) -> bool {
+    source.arena.node(node).kind == SyntaxKind::ArrayLiteralExpression
+}
+
+fn validate_references_value(source: &SourceFile, errors: &mut Vec<Diagnostic>) {
+    for property in config_root_object(source)
+        .into_iter()
+        .flat_map(|root| config_object_properties(source, root))
+        .filter(|property| property.name == "references")
+    {
+        let Some(RecoverableJsonValue::Defined(value)) =
+            convert_recoverable_json_node_to_value(source, property.initializer)
+        else {
+            continue;
+        };
+        if !value.is_array() && !value.is_null() {
+            errors.push(config_diagnostic(
+                &gen::Compiler_option_0_requires_a_value_of_type_1,
+                &["references", "Array"],
+                config_location(source, property.initializer),
+            ));
+        }
+    }
+}
+
 fn project_reference_diagnostics(source: &SourceFile, references: &[Value]) -> Vec<Diagnostic> {
     let elements = config_property_initializer(source, "references")
         .map(|array| config_array_elements(source, array))
@@ -2263,6 +2287,10 @@ const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
     "incremental",
     "tsBuildInfoFile",
     "assumeChangesOnlyAffectDirectDependencies",
+    // A program that does not emit has no output to withhold, and `outFile`
+    // is a removed option (TS5102) tsgo otherwise ignores.
+    "noEmitOnError",
+    "outFile",
 ];
 
 /// Declaration-product options a no-emit command admits: tsc's
@@ -2442,26 +2470,20 @@ pub fn parse_config_file_text_to_json(
     Ok((config_raw_projection(raw), errors))
 }
 
+/// tsgo parses a config as a JSON source file (`parseJSONText`), whose
+/// parse also validates the value: TS1327 for a name or string that is not
+/// double-quoted, TS1328 for a value JSON has no form for, TS1136 for a
+/// member that is not a property assignment.
 fn parse_config_source(source: &ConfigSourceText) -> Result<SourceFile, ConfigParseError> {
-    match json_parser_preflight(source.text()) {
-        JsonParserPreflight::Safe => {}
-        JsonParserPreflight::UnsafeSyntax => {
-            return Err(ConfigParseError::new_js(
-                ConfigParseErrorKind::Unsupported,
-                Some(source.file_name.clone()),
-                "config source uses syntax outside the bounded JSONC grammar",
-            ));
-        }
-        JsonParserPreflight::ResourceLimit => {
-            return Err(ConfigParseError::new_js(
-                ConfigParseErrorKind::ResourceLimit,
-                Some(source.file_name.clone()),
-                "config JSON nesting exceeds the 256-level parser limit",
-            ));
-        }
+    if config_parser_preflight(source.text()) == JsonParserPreflight::ResourceLimit {
+        return Err(ConfigParseError::new_js(
+            ConfigParseErrorKind::ResourceLimit,
+            Some(source.file_name.clone()),
+            "config JSON nesting exceeds the 256-level parser limit",
+        ));
     }
-    Ok(tsc_syntax::parse_json_text_from_snapshot(
-        &source.file_name,
+    Ok(tsc_syntax::parse_json_source_text_from_snapshot(
+        source.file_name.clone(),
         Arc::clone(source.snapshot()),
     ))
 }
@@ -2583,18 +2605,11 @@ impl ParseContext<'_> {
                     )
                 })?;
             }
-            let mut cycle = self.stack.clone();
-            cycle.push(cache_key);
-            let mut cycle_message = JsString::new();
-            for (index, path) in cycle.iter().enumerate() {
-                if index != 0 {
-                    cycle_message.push_str(" -> ");
-                }
-                cycle_message.push_js(path.as_js());
-            }
+            // tsgo reports the cycle without its argument, so the message
+            // keeps `{0}` (tsoptions/tsconfigparsing.go:1096).
             self.errors.push(config_diagnostic(
                 &gen::Circularity_detected_while_resolving_configuration_0,
-                &[cycle_message],
+                &[] as &[String],
                 None,
             ));
             self.errors
@@ -2665,11 +2680,13 @@ impl ParseContext<'_> {
             );
         }
         own_options.extend_from(&converted_own_options);
+        // tsgo's tsconfig root options do not declare `watchOptions`: its
+        // value is converted as plain JSON and nothing in it is diagnosed.
         let own_watch_options = config_option_group(
             base_path,
             ConfigOptionGroup::Watch,
             &parsed,
-            &mut own_errors,
+            &mut Vec::new(),
         )?;
         let own_watch_options =
             (!own_watch_options.typed_entries.is_empty()).then_some(own_watch_options);
@@ -2681,6 +2698,7 @@ impl ParseContext<'_> {
             &mut own_errors,
         )?);
         validate_compile_on_save(&parsed, base_path, &mut own_errors)?;
+        validate_references_value(&parsed, &mut own_errors);
         let own_files = specs("files", base_path, &parsed, &mut own_errors);
         let own_include = specs("include", base_path, &parsed, &mut own_errors);
         let own_exclude = specs("exclude", base_path, &parsed, &mut own_errors);
@@ -2725,16 +2743,16 @@ impl ParseContext<'_> {
                 .map(|extends| self.resolve_extends(&extends, base_path, &mut own_errors))
                 .collect::<Result<Vec<_>, _>>()?;
         }
-        let misplaced_root_option =
-            config_property_get(object, &raw_property_names, "compilerOptions")
-                .is_none()
-                .then(|| {
-                    config_root_object(&parsed)
-                        .into_iter()
-                        .flat_map(|root| config_object_properties(&parsed, root))
-                        .find(|property| is_command_option_without_build(&property.name))
-                })
-                .flatten();
+        // tsgo `!jsonObject.Has("compilerOptions")`: the key is set whatever
+        // its value converted to (nil included).
+        let misplaced_root_option = (!raw_property_names.contains("compilerOptions".as_bytes()))
+            .then(|| {
+                config_root_object(&parsed)
+                    .into_iter()
+                    .flat_map(|root| config_object_properties(&parsed, root))
+                    .find(|property| is_command_option_without_build(&property.name))
+            })
+            .flatten();
         order_config_conversion_and_notifier_diagnostics(
             &parsed,
             &mut own_errors,
@@ -3784,282 +3802,215 @@ fn config_span(source: &SourceFile, node: NodeId) -> Option<ConfigSpan> {
     })
 }
 
+/// tsgo `convertConfigFileToObject`'s conversion diagnostics: the root
+/// object (or the first object of a root array, which tsgo converts in its
+/// place) converted against the tsconfig root options.
 fn config_json_conversion_diagnostics(source: &SourceFile) -> Vec<Diagnostic> {
-    // convertConfigFileToObject recovers only the first object from a root
-    // array. Later array elements are not converted and therefore cannot
-    // produce JSON conversion diagnostics such as TS1327.
     let Some(root) = config_root_object(source) else {
         return Vec::new();
     };
-    config_json_conversion_diagnostics_from_root(source, root, ConfigJsonConversionContext::Root)
+    config_json_conversion_diagnostics_from_root(source, root, Some(JsonConversionOption::Root))
 }
 
+/// tsgo parseConfig's cycle arm: `convertToObject` converts the root
+/// expression without a notifier, so no option applies. TS5092 itself is
+/// not emitted a second time.
 fn config_json_cycle_conversion_diagnostics(source: &SourceFile) -> Vec<Diagnostic> {
-    // parseConfig's cycle arm calls convertToObject on the root expression,
-    // so unlike the ordinary root-array recovery it also converts later array
-    // elements. TS5092 itself is not emitted a second time.
     let Some(root) = config_root_expression(source) else {
         return Vec::new();
     };
-    config_json_conversion_diagnostics_from_root(source, root, ConfigJsonConversionContext::Generic)
+    config_json_conversion_diagnostics_from_root(source, root, None)
 }
 
+/// The option tsgo's `convertToJson` passes down with a value (a
+/// `CommandLineOption`): it names a value's TS5024 and holds the options an
+/// object value's properties look up (`ElementOptions`).
 #[derive(Clone, Copy)]
-enum ConfigJsonConversionContext {
-    /// No option schema applies, so an unsupported value is TS1328.
-    Generic,
-    /// The ordinary top-level tsconfig option map.
+enum JsonConversionOption {
+    /// `tsconfigRootOptionsMap`.
     Root,
-    /// The `compilerOptions` object and its known declaration lookup.
-    Options(ConfigOptionGroup),
-    /// A currently owned scalar option. Its direct invalid value is diagnosed
-    /// by the existing notifier conversion, while nested structures lose that
-    /// scalar schema and use ordinary JSON conversion diagnostics.
-    KnownValue,
-    /// A root string-list whose direct elements retain the named string
-    /// schema.
-    StringList(&'static str),
-    /// `extends` accepts either a string or an array of strings.
-    StringOrList(&'static str),
-    /// One direct element of a root string-list. Unsupported syntax is a
-    /// conversion-time TS5024 and is filtered before the later notifier.
-    StringListElement(&'static str),
-    /// The outer array of a known compiler list option. A direct invalid value
-    /// is owned by the later option notifier, while a real array passes the
-    /// element schema into `convertToJson`.
-    CompilerOptionList(CompilerOptionListDescriptor),
-    /// One direct compiler-list element. Unsupported syntax is diagnosed by
-    /// `convertToJson` before its filtered array reaches the option notifier.
-    CompilerOptionListElement(CompilerOptionListDescriptor),
-    /// A nested list/object schema or remaining root field belongs to a later
-    /// slice. Preserve TS1327 traversal without claiming its TS1328/TS5024
-    /// option conversion yet.
-    Unported,
+    /// `compilerOptions` or `typeAcquisition`.
+    Group(ConfigOptionGroup),
+    /// Any other option: its name and `getCompilerOptionValueTypeString`.
+    Declared {
+        name: &'static str,
+        value_type: &'static str,
+    },
 }
 
-#[derive(Clone, Copy)]
+impl JsonConversionOption {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Root => "undefined",
+            Self::Group(group) => group.name(),
+            Self::Declared { name, .. } => name,
+        }
+    }
+
+    /// tsgo `getCompilerOptionValueTypeString`.
+    fn value_type(self) -> &'static str {
+        match self {
+            Self::Root | Self::Group(_) => "object",
+            Self::Declared { value_type, .. } => value_type,
+        }
+    }
+
+    /// The option of an object value's property `key` (tsgo
+    /// `ElementOptions.Get` with its exact-name check). The root options
+    /// have no `watchOptions`, and no other option has element options.
+    fn element(self, key: &JsString) -> Option<Self> {
+        let declared = |name, value_type| Some(Self::Declared { name, value_type });
+        match self {
+            Self::Root => match key.as_str()? {
+                "compilerOptions" => Some(Self::Group(ConfigOptionGroup::Compiler)),
+                "typeAcquisition" => Some(Self::Group(ConfigOptionGroup::Acquisition)),
+                "extends" => declared("extends", "string or Array"),
+                "references" => declared("references", "Array"),
+                "contentMappers" => declared("contentMappers", "Array"),
+                "files" => declared("files", "Array"),
+                "include" => declared("include", "Array"),
+                "exclude" => declared("exclude", "Array"),
+                "compileOnSave" => declared("compileOnSave", "boolean"),
+                _ => None,
+            },
+            Self::Group(group) => group.declaration(key.as_js()).and_then(|declaration| {
+                declared(
+                    declaration.name(),
+                    compiler_option_expected_type(*declaration),
+                )
+            }),
+            Self::Declared { .. } => None,
+        }
+    }
+}
+
 enum ConfigJsonConversionTask {
     Visit {
         node: NodeId,
-        context: ConfigJsonConversionContext,
+        option: Option<JsonConversionOption>,
     },
-    PropertyName(NodeId),
+    Report(Box<Diagnostic>),
 }
 
+/// tsgo `convertPropertyValueToJson`'s diagnostics, at each node's whole
+/// range (leading trivia included): a member that is not a property
+/// assignment is TS1136, a `?` is TS8009, and a value JSON has no form for
+/// is TS5024 against the value's option, or TS1328 without one. An array's
+/// elements are converted with the array's own option. The parser reports
+/// the source's own JSON diagnostics (TS1327, TS1328, TS1136) separately.
 fn config_json_conversion_diagnostics_from_root(
     source: &SourceFile,
     root: NodeId,
-    context: ConfigJsonConversionContext,
+    option: Option<JsonConversionOption>,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
-    let mut stack = vec![ConfigJsonConversionTask::Visit {
-        node: root,
-        context,
-    }];
-    while let Some(task) = stack.pop() {
-        let ConfigJsonConversionTask::Visit {
-            node: node_id,
-            context,
-        } = task
-        else {
-            let ConfigJsonConversionTask::PropertyName(name) = task else {
-                unreachable!("conversion diagnostic task kind is exhaustive")
-            };
-            if !is_double_quoted_json_string(source, name) {
-                diagnostics.push(config_diagnostic(
-                    &gen::String_literal_with_double_quotes_expected,
-                    &[] as &[String],
-                    config_location(source, name),
-                ));
+    let mut tasks = vec![ConfigJsonConversionTask::Visit { node: root, option }];
+    while let Some(task) = tasks.pop() {
+        let (node_id, option) = match task {
+            ConfigJsonConversionTask::Report(diagnostic) => {
+                diagnostics.push(*diagnostic);
+                continue;
             }
-            continue;
+            ConfigJsonConversionTask::Visit { node, option } => (node, option),
         };
         let node = source.arena.node(node_id);
         match node.kind {
-            SyntaxKind::StringLiteral => {
-                if !is_double_quoted_json_string(source, node_id) {
-                    diagnostics.push(config_diagnostic(
-                        &gen::String_literal_with_double_quotes_expected,
-                        &[] as &[String],
-                        config_location(source, node_id),
-                    ));
-                }
-            }
-            SyntaxKind::ArrayLiteralExpression => {
-                if let Some(elements) = node
-                    .data
-                    .as_array_literal_expression()
-                    .and_then(|array| array.elements)
-                {
-                    let element_context = match context {
-                        ConfigJsonConversionContext::StringList(name)
-                        | ConfigJsonConversionContext::StringOrList(name) => {
-                            ConfigJsonConversionContext::StringListElement(name)
-                        }
-                        ConfigJsonConversionContext::CompilerOptionList(descriptor) => {
-                            ConfigJsonConversionContext::CompilerOptionListElement(descriptor)
-                        }
-                        ConfigJsonConversionContext::Unported => {
-                            ConfigJsonConversionContext::Unported
-                        }
-                        ConfigJsonConversionContext::Generic
-                        | ConfigJsonConversionContext::Root
-                        | ConfigJsonConversionContext::Options(_)
-                        | ConfigJsonConversionContext::KnownValue
-                        | ConfigJsonConversionContext::StringListElement(_)
-                        | ConfigJsonConversionContext::CompilerOptionListElement(_) => {
-                            ConfigJsonConversionContext::Generic
-                        }
-                    };
-                    stack.extend(
-                        source
-                            .arena
-                            .node_array(elements)
-                            .nodes
-                            .iter()
-                            .rev()
-                            .copied()
-                            .map(|node| ConfigJsonConversionTask::Visit {
-                                node,
-                                context: element_context,
-                            }),
-                    );
-                }
-            }
+            SyntaxKind::TrueKeyword
+            | SyntaxKind::FalseKeyword
+            | SyntaxKind::NullKeyword
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::StringLiteral => {}
+            SyntaxKind::PrefixUnaryExpression if is_negated_json_number(source, node_id) => {}
             SyntaxKind::ObjectLiteralExpression => {
-                if let Some(properties) = node
+                let members = node
                     .data
                     .as_object_literal_expression()
                     .and_then(|object| object.properties)
-                {
-                    for property in source.arena.node_array(properties).nodes.iter().rev() {
-                        let Some(property) =
-                            source.arena.node(*property).data.as_property_assignment()
-                        else {
-                            continue;
-                        };
-                        if let Some(initializer) = property.initializer {
-                            let property_name = property
-                                .name
-                                .and_then(|name| config_property_name(source, name));
-                            let initializer_context = match context {
-                                ConfigJsonConversionContext::Root => match property_name
-                                    .as_ref()
-                                    .and_then(JsString::as_str)
-                                {
-                                    Some("compilerOptions") => {
-                                        ConfigJsonConversionContext::Options(
-                                            ConfigOptionGroup::Compiler,
-                                        )
-                                    }
-                                    Some("files") => {
-                                        ConfigJsonConversionContext::StringList("files")
-                                    }
-                                    Some("include") => {
-                                        ConfigJsonConversionContext::StringList("include")
-                                    }
-                                    Some("exclude") => {
-                                        ConfigJsonConversionContext::StringList("exclude")
-                                    }
-                                    Some("extends") => {
-                                        ConfigJsonConversionContext::StringOrList("extends")
-                                    }
-                                    Some("watchOptions") => ConfigJsonConversionContext::Options(
-                                        ConfigOptionGroup::Watch,
-                                    ),
-                                    Some("typeAcquisition") => {
-                                        ConfigJsonConversionContext::Options(
-                                            ConfigOptionGroup::Acquisition,
-                                        )
-                                    }
-                                    Some("compileOnSave") => {
-                                        ConfigJsonConversionContext::KnownValue
-                                    }
-                                    Some("references") => ConfigJsonConversionContext::Unported,
-                                    Some(_) | None => ConfigJsonConversionContext::Generic,
-                                },
-                                ConfigJsonConversionContext::Options(group) => match property_name
-                                    .as_ref()
-                                    .and_then(|name| group.declaration(name))
-                                {
-                                    Some(declaration) => match declaration.value_kind() {
-                                        CompilerOptionValueKind::List(descriptor) => {
-                                            ConfigJsonConversionContext::CompilerOptionList(
-                                                descriptor,
-                                            )
-                                        }
-                                        _ => ConfigJsonConversionContext::KnownValue,
-                                    },
-                                    None => ConfigJsonConversionContext::Generic,
-                                },
-                                ConfigJsonConversionContext::Unported => {
-                                    ConfigJsonConversionContext::Unported
-                                }
-                                ConfigJsonConversionContext::Generic
-                                | ConfigJsonConversionContext::KnownValue
-                                | ConfigJsonConversionContext::StringList(_)
-                                | ConfigJsonConversionContext::StringOrList(_)
-                                | ConfigJsonConversionContext::StringListElement(_)
-                                | ConfigJsonConversionContext::CompilerOptionList(_)
-                                | ConfigJsonConversionContext::CompilerOptionListElement(_) => {
-                                    ConfigJsonConversionContext::Generic
-                                }
-                            };
-                            stack.push(ConfigJsonConversionTask::Visit {
-                                node: initializer,
-                                context: initializer_context,
-                            });
-                        }
-                        if let Some(name) = property.name {
-                            stack.push(ConfigJsonConversionTask::PropertyName(name));
-                        }
+                    .map(|members| source.arena.node_array(members).nodes.to_vec())
+                    .unwrap_or_default();
+                // Pushed last to first, so each member's diagnostics come out
+                // in source order.
+                for member in members.into_iter().rev() {
+                    let Some(property) = source.arena.node(member).data.as_property_assignment()
+                    else {
+                        tasks.push(ConfigJsonConversionTask::Report(Box::new(config_diagnostic(
+                            &gen::Property_assignment_expected,
+                            &[] as &[String],
+                            config_raw_location(source, member),
+                        ))));
+                        continue;
+                    };
+                    if let Some(initializer) = property.initializer {
+                        let element = property
+                            .name
+                            .and_then(|name| config_property_name(source, name))
+                            .and_then(|key| option.and_then(|option| option.element(&key)));
+                        tasks.push(ConfigJsonConversionTask::Visit {
+                            node: initializer,
+                            option: element,
+                        });
+                    }
+                    if let Some(question) = property.question_token {
+                        tasks.push(ConfigJsonConversionTask::Report(Box::new(config_diagnostic(
+                            &gen::The_0_modifier_can_only_be_used_in_TypeScript_files,
+                            &["?"],
+                            config_raw_location(source, question),
+                        ))));
                     }
                 }
             }
-            SyntaxKind::NumericLiteral
-            | SyntaxKind::TrueKeyword
-            | SyntaxKind::FalseKeyword
-            | SyntaxKind::NullKeyword
-            | SyntaxKind::PrefixUnaryExpression => {}
-            _ if matches!(context, ConfigJsonConversionContext::Generic) => {
-                diagnostics.push(config_diagnostic(
+            SyntaxKind::ArrayLiteralExpression => {
+                let elements = config_array_elements(source, node_id);
+                tasks.extend(
+                    elements
+                        .into_iter()
+                        .rev()
+                        .map(|node| ConfigJsonConversionTask::Visit { node, option }),
+                );
+            }
+            _ => diagnostics.push(match option {
+                Some(option) => config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &[option.name(), option.value_type()],
+                    config_raw_location(source, node_id),
+                ),
+                None => config_diagnostic(
                     &gen::Property_value_can_only_be_string_literal_numeric_literal_true_false_null_object_literal_or_array_literal,
                     &[] as &[String],
-                    config_location(source, node_id),
-                ));
-            }
-            _ if matches!(context, ConfigJsonConversionContext::StringListElement(_)) => {
-                let ConfigJsonConversionContext::StringListElement(name) = context else {
-                    unreachable!("string-list-element context was matched above")
-                };
-                diagnostics.push(config_diagnostic(
-                    &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[name.to_owned(), "string".to_owned()],
-                    config_location(source, node_id),
-                ));
-            }
-            _ if matches!(
-                context,
-                ConfigJsonConversionContext::CompilerOptionListElement(_)
-            ) =>
-            {
-                let ConfigJsonConversionContext::CompilerOptionListElement(descriptor) = context
-                else {
-                    unreachable!("list-element context was matched above")
-                };
-                diagnostics.push(config_diagnostic(
-                    &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[
-                        descriptor.element_name().to_owned(),
-                        compiler_option_list_element_expected_type(descriptor).to_owned(),
-                    ],
-                    config_location(source, node_id),
-                ));
-            }
-            _ => {}
+                    config_raw_location(source, node_id),
+                ),
+            }),
         }
     }
     diagnostics
+}
+
+/// `-` applied to a numeric literal, the one prefix expression JSON has.
+fn is_negated_json_number(source: &SourceFile, node: NodeId) -> bool {
+    source
+        .arena
+        .node(node)
+        .data
+        .as_prefix_unary_expression()
+        .filter(|unary| unary.operator == SyntaxKind::MinusToken)
+        .and_then(|unary| unary.operand)
+        .is_some_and(|operand| source.arena.node(operand).kind == SyntaxKind::NumericLiteral)
+}
+
+/// A node's whole range, leading trivia included: tsgo's `convertToJson`
+/// reports at a node's `Loc` (`ast.NewDiagnostic`), where a diagnostic about
+/// a node otherwise starts at its first token.
+fn config_raw_location(source: &SourceFile, node: NodeId) -> Option<ConfigLocation> {
+    let node = source.arena.node(node);
+    let end_byte = usize::try_from(node.end).ok()?.min(source.text().len());
+    let start_byte = (node.pos as usize).min(end_byte);
+    let start = source.positions().byte_to_utf16(start_byte as u32)?;
+    let end = source.positions().byte_to_utf16(end_byte as u32)?;
+    Some(ConfigLocation {
+        file_name: source.file_name.clone(),
+        start,
+        length: end.saturating_sub(start),
+    })
 }
 
 fn config_root_expression(source: &SourceFile) -> Option<NodeId> {
@@ -4125,6 +4076,8 @@ fn config_object_properties(source: &SourceFile, object: NodeId) -> Vec<ConfigPr
         .collect()
 }
 
+/// tsgo TryGetTextOfPropertyName: a string, numeric or identifier name, or
+/// a computed name whose expression is a string or numeric literal.
 fn config_property_name(source: &SourceFile, name: NodeId) -> Option<JsString> {
     let node = source.arena.node(name);
     match node.kind {
@@ -4140,6 +4093,17 @@ fn config_property_name(source: &SourceFile, name: NodeId) -> Option<JsString> {
             .data
             .as_numeric_literal()
             .map(|literal| literal.text.clone().into()),
+        SyntaxKind::ComputedPropertyName => node
+            .data
+            .as_computed_property_name()
+            .and_then(|computed| computed.expression)
+            .filter(|expression| {
+                matches!(
+                    source.arena.node(*expression).kind,
+                    SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral
+                )
+            })
+            .and_then(|expression| config_property_name(source, expression)),
         _ => None,
     }
 }
@@ -4626,14 +4590,17 @@ fn report_empty_files<'j0>(
         .get("files")
         .and_then(Value::as_array)
         .is_some_and(Vec::is_empty);
+    // tsgo getPropFromRaw (with a source file): only an array value is
+    // read; any other value counts as no property. `extends` counts by its
+    // value (`GetOrZero("extends") == nil`), so a null or missing value
+    // does not suppress the diagnostic.
     let references_are_zero_or_absent = match raw.get("references") {
-        None => true,
         Some(Value::Array(references)) => references.is_empty(),
-        Some(_) => false,
+        _ => true,
     };
     if files_are_empty
         && references_are_zero_or_absent
-        && !config.raw_property_names.contains("extends".as_bytes())
+        && raw.get("extends").is_none_or(Value::is_null)
     {
         errors.push(config_diagnostic(
             &gen::The_files_list_in_config_file_0_is_empty,
@@ -5117,16 +5084,17 @@ fn config_option_module_suffixes(options: &ConfigOptionBag) -> Option<Vec<Module
     let ConfigOptionValueState::List(values) = options.typed_value_state("moduleSuffixes") else {
         return None;
     };
+    // tsgo convertJsonOptionOfListType keeps the elements that converted
+    // (the strings, the empty one included), so no other value reaches the
+    // resolver.
     Some(
         values
             .iter()
-            .map(|value| match value {
+            .filter_map(|value| match value {
                 ConfigTypedListElement::Value(Value::String(value)) => {
-                    ModuleSuffix::value(value.clone())
+                    Some(ModuleSuffix::value(value.clone()))
                 }
-                ConfigTypedListElement::Value(_) | ConfigTypedListElement::Undefined => {
-                    ModuleSuffix::Undefined
-                }
+                ConfigTypedListElement::Value(_) | ConfigTypedListElement::Undefined => None,
             })
             .collect(),
     )
@@ -5449,12 +5417,8 @@ fn validate_compile_on_save<'j0>(
                     errors,
                 )?;
             }
-            Some(RecoverableJsonValue::Undefined) => errors.push(config_diagnostic(
-                &gen::Compiler_option_0_requires_a_value_of_type_1,
-                &["compileOnSave".to_owned(), "boolean".to_owned()],
-                config_location(source, property.initializer),
-            )),
-            None => {}
+            // The conversion reports a value JSON has no form for (TS5024).
+            Some(RecoverableJsonValue::Undefined) | None => {}
         }
     }
     Ok(())
@@ -5541,21 +5505,14 @@ fn config_option_group<'j0>(
         else {
             continue;
         };
+        // A value JSON has no form for is the conversion's TS5024; tsgo
+        // takes `null` for no value.
         let RecoverableJsonValue::Defined(value) = value else {
-            errors.push(config_diagnostic(
-                &gen::Compiler_option_0_requires_a_value_of_type_1,
-                &[group.name().to_owned(), "object".to_owned()],
-                config_location(source, compiler_options.initializer),
-            ));
             continue;
         };
-        if value.is_null() {
-            continue;
-        }
-        // convertOptionsFromJson receives JavaScript's broad `object` shape.
-        // Arrays have no named compiler-option properties, so TypeScript
-        // accepts them as an empty bag rather than issuing TS5024.
-        if value.is_array() {
+        // tsgo isCompilerOptionsValue: an object option takes an object (an
+        // array is not one, nor an array none of whose elements converted).
+        if value.is_null() && !is_array_literal(source, compiler_options.initializer) {
             continue;
         }
         let Some(options) = value.as_object() else {
@@ -5585,6 +5542,12 @@ fn config_option_group<'j0>(
             if matches!(&value, Some(RecoverableJsonValue::Undefined)) {
                 bag.remove(name);
             }
+            // tsgo converts `null` and a value JSON has no form for to nil,
+            // and its notifier checks no option name for a nil value.
+            let nil = matches!(
+                &value,
+                Some(RecoverableJsonValue::Undefined | RecoverableJsonValue::Defined(Value::Null))
+            );
             let value_location = config_location(source, property.initializer);
             let name_location = config_location(source, property.name_node);
             if let Some(declaration) = group.declaration(name) {
@@ -5605,15 +5568,8 @@ fn config_option_group<'j0>(
                         },
                         errors,
                     )?,
+                    // The conversion reports the value (TS5024).
                     Some(RecoverableJsonValue::Undefined) => {
-                        errors.push(config_diagnostic(
-                            &gen::Compiler_option_0_requires_a_value_of_type_1,
-                            &[
-                                name.to_owned(),
-                                compiler_option_expected_type(*declaration).to_owned(),
-                            ],
-                            value_location,
-                        ));
                         if declaration.is_command_line_only() {
                             errors.push(config_diagnostic(
                                 &gen::Option_0_can_only_be_specified_on_command_line,
@@ -5626,7 +5582,7 @@ fn config_option_group<'j0>(
                     None => None,
                 };
                 bag.insert_typed(name, typed);
-            } else {
+            } else if !nil {
                 let (message, args) = group.unknown(name);
                 errors.push(config_diagnostic(message, &args, name_location));
             }
@@ -5639,6 +5595,14 @@ fn config_option_group<'j0>(
             let Some(name) = decode_user_object_key(name) else {
                 continue;
             };
+            // tsgo convertJsonOption drops a command-line-only option's value
+            // (after TS6266), so a configuration never sets one.
+            if group
+                .declaration(name)
+                .is_some_and(|declaration| declaration.is_command_line_only())
+            {
+                continue;
+            }
             bag.insert(ConfigOption {
                 name: name.to_owned(),
                 value: config_raw_projection(value.clone()),
@@ -5688,6 +5652,20 @@ fn convert_compiler_option_value(
         return Ok(None);
     }
     if value.is_null() {
+        // An array none of whose elements converted is nil but still an
+        // array to tsgo's type check (isCompilerOptionsValue).
+        if is_array_literal(source, value_node)
+            && !matches!(declaration.value_kind(), CompilerOptionValueKind::List(_))
+        {
+            errors.push(config_diagnostic(
+                &gen::Compiler_option_0_requires_a_value_of_type_1,
+                &[
+                    name.to_owned(),
+                    compiler_option_expected_type(declaration).to_owned(),
+                ],
+                value_location,
+            ));
+        }
         return Ok(None);
     }
     let expected = compiler_option_expected_type(declaration);
@@ -5695,7 +5673,8 @@ fn convert_compiler_option_value(
         CompilerOptionValueKind::Boolean => value.is_boolean(),
         CompilerOptionValueKind::Number => value.is_number(),
         CompilerOptionValueKind::String | CompilerOptionValueKind::Named(_) => value.is_string(),
-        CompilerOptionValueKind::Object(_) => value.is_object() || value.is_array(),
+        // tsgo isCompilerOptionsValue: an array is not an object.
+        CompilerOptionValueKind::Object(_) => value.is_object(),
         CompilerOptionValueKind::List(_) => value.is_array(),
     };
     if !kind_matches {
@@ -5772,7 +5751,9 @@ fn compiler_option_expected_type(
     match declaration.value_kind() {
         CompilerOptionValueKind::Boolean => "boolean",
         CompilerOptionValueKind::Number => "number",
-        CompilerOptionValueKind::String | CompilerOptionValueKind::Named(_) => "string",
+        CompilerOptionValueKind::String => "string",
+        // tsgo names the kind of a map-valued option (`enum`).
+        CompilerOptionValueKind::Named(_) => "enum",
         CompilerOptionValueKind::Object(_) => "object",
         CompilerOptionValueKind::List(_) => "Array",
     }
@@ -5782,9 +5763,8 @@ fn compiler_option_list_element_expected_type(
     descriptor: CompilerOptionListDescriptor,
 ) -> &'static str {
     match descriptor.element_kind() {
-        CompilerOptionListElementKind::String
-        | CompilerOptionListElementKind::FilePath
-        | CompilerOptionListElementKind::NamedString(_) => "string",
+        CompilerOptionListElementKind::String | CompilerOptionListElementKind::FilePath => "string",
+        CompilerOptionListElementKind::NamedString(_) => "enum",
         CompilerOptionListElementKind::Object => "object",
     }
 }
@@ -5870,8 +5850,19 @@ fn convert_config_typed_json_node(
             }
             ConfigTypedJsonConversionTask::FinishArray(length) => {
                 let start = values.len().checked_sub(length)?;
-                let elements = values.split_off(start).into_iter().flatten().collect();
-                values.push(Some(ConfigTypedJsonValue::Array(elements)));
+                // tsgo convertArrayLiteralExpressionToJson keeps the elements
+                // that convert to a non-nil value (`null` converts to nil),
+                // and an array none of whose elements survive is nil.
+                let elements = values
+                    .split_off(start)
+                    .into_iter()
+                    .flatten()
+                    .filter(|element| !matches!(element, ConfigTypedJsonValue::Json(Value::Null)))
+                    .collect::<Vec<_>>();
+                values.push(
+                    (length == 0 || !elements.is_empty())
+                        .then_some(ConfigTypedJsonValue::Array(elements)),
+                );
             }
             ConfigTypedJsonConversionTask::FinishObject(keys) => {
                 let start = values.len().checked_sub(keys.len())?;
@@ -5973,7 +5964,10 @@ fn convert_compiler_option_list_element<'j0>(
             let Some(written) = value.as_js() else {
                 errors.push(config_diagnostic(
                     &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[descriptor.element_name().to_owned(), "string".to_owned()],
+                    &[
+                        descriptor.element_name().to_owned(),
+                        compiler_option_list_element_expected_type(descriptor).to_owned(),
+                    ],
                     location,
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
@@ -6006,7 +6000,10 @@ fn convert_compiler_option_list_element<'j0>(
             let Some(written) = value.as_js() else {
                 errors.push(config_diagnostic(
                     &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[descriptor.element_name().to_owned(), "string".to_owned()],
+                    &[
+                        descriptor.element_name().to_owned(),
+                        compiler_option_list_element_expected_type(descriptor).to_owned(),
+                    ],
                     location,
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
@@ -6025,10 +6022,15 @@ fn convert_compiler_option_list_element<'j0>(
             Value::String(mapped.into())
         }
         CompilerOptionListElementKind::Object => {
-            if !matches!(value, Value::Object(_) | Value::Array(_)) {
+            // tsgo isCompilerOptionsValue: an object option takes an object
+            // (an array is not one).
+            if !value.is_object() {
                 errors.push(config_diagnostic(
                     &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[descriptor.element_name().to_owned(), "object".to_owned()],
+                    &[
+                        descriptor.element_name().to_owned(),
+                        compiler_option_list_element_expected_type(descriptor).to_owned(),
+                    ],
                     location,
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
@@ -6143,15 +6145,8 @@ fn specs<'j0>(
                 Some(property.initializer),
                 errors,
             ),
-            Some(RecoverableJsonValue::Undefined) => {
-                errors.push(config_diagnostic(
-                    &gen::Compiler_option_0_requires_a_value_of_type_1,
-                    &[name.to_owned(), "Array".to_owned()],
-                    config_location(source, property.initializer),
-                ));
-                None
-            }
-            None => None,
+            // The conversion reports a value JSON has no form for (TS5024).
+            Some(RecoverableJsonValue::Undefined) | None => None,
         };
     }
     result
@@ -6290,17 +6285,24 @@ fn extends_value_occurrences(
                 return Vec::new();
             };
             match value {
+                // An array none of whose elements converted is a nil slice:
+                // tsgo reads no path from it and reports nothing more.
+                RecoverableJsonValue::Defined(Value::Null)
+                    if is_array_literal(source, property.initializer) =>
+                {
+                    Vec::new()
+                }
                 RecoverableJsonValue::Defined(value) => {
                     extends_values_from_value(&value, property.initializer, source, errors)
                 }
+                // The conversion reports the value at its whole range;
+                // tsgo getExtendsConfigPathOrArray reports it again.
                 RecoverableJsonValue::Undefined => {
-                    for _ in 0..2 {
-                        errors.push(config_diagnostic(
-                            &gen::Compiler_option_0_requires_a_value_of_type_1,
-                            &["extends".to_owned(), "string or Array".to_owned()],
-                            config_location(source, property.initializer),
-                        ));
-                    }
+                    errors.push(config_diagnostic(
+                        &gen::Compiler_option_0_requires_a_value_of_type_1,
+                        &["extends".to_owned(), "string or Array".to_owned()],
+                        config_location(source, property.initializer),
+                    ));
                     Vec::new()
                 }
             }

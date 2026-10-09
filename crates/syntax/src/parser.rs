@@ -10557,9 +10557,8 @@ pub fn parse_json_text_from_snapshot_with_bases(
     parse_json_text_with_options(file_name, snapshot, node_id_base, node_array_id_base, false)
 }
 
-/// A JSON source file of a Program (`resolveJsonModule`), whose value tsgo
-/// validates as it parses (parser/parser.go:218-221). Config files keep the
-/// conversion's own diagnostics for now.
+/// A JSON source file of a Program (`resolveJsonModule`) or a configuration
+/// file, whose value tsgo validates as it parses (parser/parser.go:218-221).
 pub fn parse_json_source_text_from_snapshot_with_bases(
     file_name: JsString,
     snapshot: Arc<TextSnapshot>,

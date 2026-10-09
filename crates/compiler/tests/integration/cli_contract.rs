@@ -5349,6 +5349,44 @@ fn unsupported_options_are_exit_two_and_version_is_lightweight() {
 }
 
 #[test]
+fn no_emit_reports_every_option_diagnostic_as_tsgo() {
+    // tsgo's program diagnostics never stop the program: the `paths` rows
+    // and the removed `outFile` are reported under `--noEmit` too, and the
+    // emit-only `noEmitOnError` and `outFile` do not stop a check.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{ "compilerOptions": { "paths": { "a": ["b"] }, "noEmitOnError": true, "outFile": "out.js" }, "files": ["a.ts"] }"#,
+    )
+    .expect("write config");
+    fs::write(tree.path("a.ts"), "export const a = 1;\n").expect("write source");
+    let output = run(&tree, &["--noEmit", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "tsconfig.json(1,41): error TS5090: Non-relative paths are not allowed. Did you forget a leading './'?\n\
+         tsconfig.json(1,72): error TS5102: Option 'outFile' has been removed. Please remove it from your configuration.\n"
+    );
+}
+
+#[test]
+fn malformed_config_reports_tsgo_diagnostics() {
+    // A configuration tsgo recovers from is diagnosed, not refused.
+    let tree = TempTree::new();
+    fs::write(tree.path("tsconfig.json"), "{ broken").expect("write config");
+    fs::write(tree.path("a.ts"), "export const a = 1;\n").expect("write source");
+    let output = run(&tree, &["--noEmit", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "tsconfig.json(1,2): error TS1136: Property assignment expected.\n\
+         tsconfig.json(1,3): error TS1136: Property assignment expected.\n\
+         tsconfig.json(1,9): error TS1005: '}' expected.\n"
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
 fn help_init_show_config_and_locale_follow_tsgo() {
     let tree = TempTree::new();
     // Without a configuration tsgo prints its version and help (exit 1).

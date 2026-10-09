@@ -410,7 +410,9 @@ fn duplicate_compiler_options_notify_in_source_order_before_raw_collapse() {
 }
 
 #[test]
-fn compiler_options_arrays_follow_javascripts_empty_object_compatibility() {
+fn compiler_options_arrays_are_not_option_objects() {
+    // tsgo isCompilerOptionsValue: an array is not an object (TS5024 at the
+    // array), and no option is read from it.
     for text in [
         r#"{"compilerOptions":[],"files":["x.ts"]}"#,
         r#"{"compilerOptions":[true,{"strict":true},"strict"],"files":["x.ts"]}"#,
@@ -419,8 +421,14 @@ fn compiler_options_arrays_follow_javascripts_empty_object_compatibility() {
             &MemoryConfigHost::default(),
             request("/project/tsconfig.json", text),
         )
-        .expect("compilerOptions arrays are accepted as empty option objects");
-        assert!(plan.errors().is_empty());
+        .expect("an array compilerOptions value returns a partial plan");
+        assert_eq!(
+            plan.errors()
+                .iter()
+                .map(|error| (error.code(), error.start))
+                .collect::<Vec<_>>(),
+            [(5024, Some(19))]
+        );
         assert!(plan.options().entries().is_empty());
         assert_eq!(plan.file_names(), ["/project/x.ts"]);
     }
@@ -499,12 +507,13 @@ fn missing_compiler_option_value_remains_a_partial_plan() {
     )
     .expect("a missing option value is recoverable config syntax");
 
+    // The parser also validates the missing value (TS1328), as tsgo's does.
     assert_eq!(
         plan.root_parse_diagnostics()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1109]
+        [1109, 1328]
     );
     assert_eq!(
         plan.errors()
@@ -568,12 +577,21 @@ fn missing_unknown_compiler_option_value_reports_conversion_then_unknown() {
     )
     .expect("an unknown missing option value remains recoverable");
 
+    // tsgo checks no option name for a nil value, so only the conversion's
+    // TS1328 is reported (the parser reports its own).
     assert_eq!(
         plan.errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1328, 5023]
+        [1328]
+    );
+    assert_eq!(
+        plan.root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1109, 1328]
     );
 }
 
@@ -777,14 +795,16 @@ fn first_misplaced_root_compiler_option_is_reported_after_conversion() {
             r#"{"__proto__":{"compilerOptions":{}},"strict":true,"compilerOptions":,"files":["x.ts"]}"#,
         ),
     )
-    .expect("an own undefined compilerOptions property shadows its JSONC prototype");
+    .expect("a compilerOptions key without a value returns a partial plan");
+    // tsgo sets the key whatever its value converts to, so the placement
+    // hint is not reported (`jsonObject.Has("compilerOptions")`).
     assert_eq!(
         own_undefined
             .root_parse_diagnostics()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1109]
+        [1109, 1328]
     );
     assert_eq!(
         own_undefined
@@ -792,7 +812,7 @@ fn first_misplaced_root_compiler_option_is_reported_after_conversion() {
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [5024, 6258]
+        [5024]
     );
 
     let common_build_option = parse_config_root_plan(
@@ -1012,7 +1032,15 @@ fn omitted_spec_element_is_diagnosed_then_filtered() {
     )
     .expect("an array hole is recoverable config syntax");
 
-    assert!(plan.root_parse_diagnostics().is_empty());
+    // The parser reports the hole as a value JSON has no form for (TS1328);
+    // the conversion reports it against the `files` option (TS5024).
+    assert_eq!(
+        plan.root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1328]
+    );
     assert_eq!(
         plan.errors()
             .iter()
@@ -1155,13 +1183,15 @@ fn invalid_own_option_masks_an_inherited_typed_value() {
         ),
     )
     .expect("own undefined values delete inherited raw option projections");
+    // tsgo checks no option name for a nil value: only the base config's
+    // `mystery` is unknown.
     assert_eq!(
         missing
             .errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [5024, 1328, 5023, 5023]
+        [5024, 1328, 5023]
     );
     assert_eq!(
         missing.options().typed_value_state("allowJs"),
@@ -1212,13 +1242,16 @@ fn circular_extends_reports_a_partial_plan_diagnostic() {
             r#"{"extends":"./a.json","files":["x.ts"]}"#,
         ),
     )
-    .expect("cycle conversion diagnostics remain observable after TS18000");
+    .expect("an extended config with parse diagnostics returns a partial plan");
+    // tsgo's parse of the extended config reports its single quotes
+    // (TS1327), and an extended config with parse diagnostics is not
+    // applied, so the cycle through it is never reached.
     assert_eq!(
         plan.errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1327, 1327, 18000, 1327, 1327]
+        [1327, 1327]
     );
 
     let array_cycle = MemoryConfigHost::default().with_file(
@@ -1232,15 +1265,13 @@ fn circular_extends_reports_a_partial_plan_diagnostic() {
             r#"{"extends":"./a.json","files":["x.ts"]}"#,
         ),
     )
-    .expect("cycle conversion walks the complete root expression after TS18000");
-    // A root array holding an object is recovered without TS5092
-    // (tsoptions/tsconfigparsing.go:319-335).
+    .expect("an extended config with parse diagnostics returns a partial plan");
     assert_eq!(
         plan.errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1327, 1327, 18000, 1327, 1327, 1327, 1327]
+        [1327, 1327, 1327, 1327]
     );
 
     let invalid_cycle = MemoryConfigHost::default()
@@ -1252,13 +1283,13 @@ fn circular_extends_reports_a_partial_plan_diagnostic() {
             r#"{"extends":"./a.json","files":["x.ts"]}"#,
         ),
     )
-    .expect("cycle conversion replays invalid-value diagnostics after TS18000");
+    .expect("an extended config with parse diagnostics returns a partial plan");
     assert_eq!(
         plan.errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1328, 18000, 1328]
+        [1328]
     );
 }
 
@@ -1351,14 +1382,16 @@ fn missing_extends_value_keeps_both_conversion_diagnostics() {
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1109]
+        [1109, 1328]
     );
+    // The conversion's TS5024 and getExtendsConfigPathOrArray's; a nil
+    // `extends` does not suppress TS18002 for the empty `files`.
     assert_eq!(
         plan.errors()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [5024, 5024]
+        [5024, 5024, 18002]
     );
     assert_eq!(plan.errors()[0].start, plan.errors()[1].start);
     assert_eq!(plan.errors()[0].length, plan.errors()[1].length);
@@ -1533,7 +1566,7 @@ fn jsonc_conversion_is_exercised_through_the_public_config_planner() {
 }
 
 #[test]
-fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
+fn non_json_string_spellings_recover_with_typescripts_parse_diagnostics() {
     let unquoted = parse_config_root_plan(
         &MemoryConfigHost::default(),
         request(
@@ -1542,9 +1575,10 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
         ),
     )
     .expect("unquoted JSONC names remain a recoverable config");
+    assert!(unquoted.errors().is_empty());
     assert_eq!(
         unquoted
-            .errors()
+            .root_parse_diagnostics()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
@@ -1564,9 +1598,10 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
         ),
     )
     .expect("keyword property names remain bounded recoverable JSONC");
+    assert!(keyword_name.errors().is_empty());
     assert_eq!(
         keyword_name
-            .errors()
+            .root_parse_diagnostics()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
@@ -1585,9 +1620,10 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
         ),
     )
     .expect("single-quoted JSONC names and values remain recoverable");
+    assert!(single_quoted.errors().is_empty());
     assert_eq!(
         single_quoted
-            .errors()
+            .root_parse_diagnostics()
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
@@ -1616,6 +1652,14 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
         [5024]
     );
     assert_eq!(
+        identifier_value
+            .root_parse_diagnostics()
+            .iter()
+            .map(|error| error.code())
+            .collect::<Vec<_>>(),
+        [1328]
+    );
+    assert_eq!(
         identifier_value.options().typed_value_state("strict"),
         tsc_program::ConfigOptionValueState::Undefined
     );
@@ -1623,22 +1667,25 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
 
 #[test]
 fn nested_conversion_diagnostics_precede_parent_option_notifiers() {
+    // The parser reports the JSON diagnostics (TS1327, TS1328); the
+    // conversion's and the notifier's are the plan's errors. An array none
+    // of whose elements converted is still an array to the notifier.
     for (text, expected) in [
         (
             r#"{"compilerOptions":{"strict":[foo]},"files":["x.ts"]}"#,
-            [(1328, Some(30)), (5024, Some(29))],
+            &[(5024, Some(30)), (5024, Some(29))][..],
         ),
         (
             r#"{"compilerOptions":{"wat":'x'},"files":["x.ts"]}"#,
-            [(1327, Some(26)), (5023, Some(20))],
+            &[(5023, Some(20))],
         ),
         (
             r#"{"compilerOptions":{"help":'x'},"files":["x.ts"]}"#,
-            [(1327, Some(27)), (6266, Some(20))],
+            &[(6266, Some(20))],
         ),
         (
             r#"{"compilerOptions":{"strict":{"x":'y'}},"files":["x.ts"]}"#,
-            [(1327, Some(34)), (5024, Some(29))],
+            &[(5024, Some(29))],
         ),
     ] {
         let plan = parse_config_root_plan(
@@ -1661,18 +1708,24 @@ fn nested_conversion_diagnostics_precede_parent_option_notifiers() {
         request("/project/tsconfig.json", r#"{"files":[foo,bar,{"x":'y'}]}"#),
     )
     .expect("filtered list values retain conversion-before-notifier ordering");
+    // The conversion converts the elements with the `files` option itself
+    // (TS5024 Array); the notifier's TS5024 for the remaining object lands
+    // on the first source element, as tsgo's does.
     assert_eq!(
         filtered
             .errors()
             .iter()
             .map(|diagnostic| (diagnostic.code(), diagnostic.start))
             .collect::<Vec<_>>(),
-        [
-            (5024, Some(10)),
-            (5024, Some(14)),
-            (1327, Some(23)),
-            (5024, Some(10)),
-        ]
+        [(5024, Some(10)), (5024, Some(14)), (5024, Some(10))]
+    );
+    assert_eq!(
+        filtered
+            .root_parse_diagnostics()
+            .iter()
+            .map(|diagnostic| (diagnostic.code(), diagnostic.start))
+            .collect::<Vec<_>>(),
+        [(1328, Some(10)), (1328, Some(14)), (1327, Some(23))]
     );
 }
 
@@ -1809,7 +1862,7 @@ fn jsonc_prototype_keys_neither_supply_nor_block_inheritance() {
             .iter()
             .map(|error| error.code())
             .collect::<Vec<_>>(),
-        [1109]
+        [1109, 1328]
     );
     assert_eq!(
         plan.errors()
@@ -2118,7 +2171,7 @@ fn inherited_paths_keep_their_defining_base_while_templates_use_the_root_base() 
 }
 
 #[test]
-fn paths_own_property_view_keeps_javascript_order_and_undefined_values() {
+fn paths_own_property_view_keeps_source_order_and_undefined_values() {
     let plan = parse_config_root_plan(
         &MemoryConfigHost::default(),
         request(
@@ -2142,13 +2195,21 @@ fn paths_own_property_view_keeps_javascript_order_and_undefined_values() {
     )
     .expect("paths own-property plan");
 
-    let error_codes = plan
-        .errors()
-        .iter()
-        .map(|diagnostic| diagnostic.code())
-        .collect::<Vec<_>>();
-    assert_eq!(error_codes.iter().filter(|code| **code == 1327).count(), 5);
-    assert_eq!(error_codes.iter().filter(|code| **code == 1328).count(), 2);
+    // The parser reports the five numeric names (TS1327) and both `foo`s
+    // (TS1328); the conversion reports the `foo`s again (`paths` has no
+    // element options).
+    let codes = |diagnostics: &[tsc_diagnostics::Diagnostic]| {
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>()
+    };
+    let parse_codes = codes(plan.root_parse_diagnostics());
+    assert_eq!(parse_codes.iter().filter(|code| **code == 1327).count(), 5);
+    assert_eq!(parse_codes.iter().filter(|code| **code == 1328).count(), 2);
+    assert_eq!(codes(plan.errors()), [1328, 1328]);
+    // tsgo keeps the object in source order (a numeric key has no place of
+    // its own); a numeric name is its literal's value.
     let properties = plan
         .options()
         .typed_object_properties("paths")
@@ -2158,15 +2219,15 @@ fn paths_own_property_view_keeps_javascript_order_and_undefined_values() {
             .iter()
             .map(|property| property.name())
             .collect::<Vec<_>>(),
-        ["1", "2", "10", "16", "100", "z", "drop", "a"]
+        ["z", "10", "drop", "2", "100", "16", "1", "a"]
     );
     assert_eq!(
-        properties[5]
+        properties[0]
             .value()
             .map(tsc_program::ConfigTypedJsonValue::json_projection),
         Some(json!(["ok"]).into())
     );
-    assert_eq!(properties[6].value(), None);
+    assert_eq!(properties[2].value(), None);
     assert_eq!(
         properties[7]
             .value()
@@ -2219,21 +2280,22 @@ fn nested_paths_objects_keep_undefined_identity_for_compiler_option_cache_keys()
     let Some(tsc_program::ConfigTypedJsonValue::Object(ordered)) = properties[0].value() else {
         panic!("ordered path value is a typed nested object")
     };
+    // tsgo keeps nested objects in source order too.
     assert_eq!(
         ordered
             .properties()
             .iter()
             .map(|property| property.name())
             .collect::<Vec<_>>(),
-        ["1", "2", "drop"]
+        ["2", "1", "drop"]
     );
+    assert_eq!(ordered.properties()[0].value(), None);
     assert_eq!(
-        ordered.properties()[0]
+        ordered.properties()[1]
             .value()
             .map(tsc_program::ConfigTypedJsonValue::json_projection),
         Some(json!(true).into())
     );
-    assert_eq!(ordered.properties()[1].value(), None);
     assert_eq!(ordered.properties()[2].value(), None);
 
     let undefined_only = properties[1].value().expect("undefined-only nested object");
@@ -2242,7 +2304,7 @@ fn nested_paths_objects_keep_undefined_identity_for_compiler_option_cache_keys()
     assert_ne!(undefined_only, empty);
     assert_eq!(
         paths.compiler_option_cache_identity(),
-        "{ordered: {1: true2: undefineddrop: undefined}undefinedOnly: {drop: undefined}empty: {}}"
+        "{ordered: {2: undefined1: truedrop: undefined}undefinedOnly: {drop: undefined}empty: {}}"
     );
 }
 
@@ -2622,10 +2684,9 @@ fn falsey_root_settings_preserve_watch_inheritance_and_raw_values() {
         plan.unsupported_root_scopes().collect::<Vec<_>>(),
         ["watchOptions"]
     );
-    assert_eq!(
-        plan.errors().iter().map(|d| d.code()).collect::<Vec<_>>(),
-        [5024]
-    );
+    // tsgo's root options do not declare `watchOptions`: its value is not
+    // diagnosed.
+    assert!(plan.errors().is_empty());
 }
 
 #[test]

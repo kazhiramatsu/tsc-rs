@@ -433,6 +433,15 @@ pub fn parse_json_text_from_snapshot(
     parser::parse_json_text_from_snapshot(file_name.into(), snapshot)
 }
 
+/// A configuration file: parsed like `parse_json_text`, with tsgo's value
+/// validation (TS1327, TS1328, TS1136), as tsgo parses every JSON source.
+pub fn parse_json_source_text_from_snapshot(
+    file_name: impl Into<JsString>,
+    snapshot: Arc<TextSnapshot>,
+) -> SourceFile {
+    parser::parse_json_source_text_from_snapshot_with_bases(file_name.into(), snapshot, 0, 0)
+}
+
 /// A Program's JSON source file (`resolveJsonModule`): parsed like
 /// `parse_json_text`, with tsgo's value validation (TS1327, TS1328, TS1136).
 pub fn parse_json_text_from_snapshot_in_identity_domain(

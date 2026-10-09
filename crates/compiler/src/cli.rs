@@ -23,13 +23,13 @@ use tsc_diagnostics::{gen, JsStr, JsString};
 use tsc_host::{CompilerHost, HostError};
 use tsc_incremental::{BuildInfo, OldState};
 use tsc_program::{
-    command_line_option_bag, command_line_program_inputs, decode_host_text,
-    is_non_fatal_option_diagnostic, load_config_program, load_config_program_with_no_emit_override,
-    load_emitting_config_program, load_emitting_program, load_program, parse_build_command_line,
-    parse_command_line, parse_config_root_plan_with_command_line, CompilerConfigHost,
-    CompilerOptions, ConfigExtendedCache, ConfigOptionBag, ConfigParseError,
-    ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
-    PreparedProgramMode, ProgramLoadLimits, ProgramOptions, WorkerBudget,
+    command_line_option_bag, command_line_program_inputs, decode_host_text, load_config_program,
+    load_config_program_with_no_emit_override, load_emitting_config_program, load_emitting_program,
+    load_program, parse_build_command_line, parse_command_line,
+    parse_config_root_plan_with_command_line, CompilerConfigHost, CompilerOptions,
+    ConfigExtendedCache, ConfigOptionBag, ConfigParseError, ConfigProgramLoadError, ConfigRootPlan,
+    ConfigRootPlanRequest, LibraryCatalog, PreparedProgramMode, ProgramLoadLimits, ProgramOptions,
+    WorkerBudget,
 };
 
 use crate::build::{self, BuildCommand};
@@ -1038,9 +1038,10 @@ fn run_config(
         .option_diagnostics()
         .iter()
         // Emitting config programs validate effective options themselves so
-        // noEmitOnError sees them. Only the no-emit route retains plan ownership.
+        // noEmitOnError sees them. Only the no-emit route retains plan
+        // ownership, of every option diagnostic (tsgo's program diagnostics
+        // never stop the program, the `paths` rows included).
         .filter(|_| prepared.mode() == PreparedProgramMode::NoEmit)
-        .filter(|diagnostic| is_non_fatal_option_diagnostic(diagnostic))
         .cloned()
         .collect::<Vec<_>>();
     // tsgo ReadBuildInfoProgram: the command reads the old build info of an
