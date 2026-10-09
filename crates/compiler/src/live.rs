@@ -64,6 +64,11 @@ impl LiveProgram {
         &self.prepared
     }
 
+    /// The prepared program, shared.
+    pub fn shared_prepared(&self) -> Arc<PreparedProgram> {
+        Arc::clone(&self.prepared)
+    }
+
     /// The checker's files, libraries first.
     pub fn file_count(&self) -> usize {
         self.checker.file_count()
@@ -73,20 +78,13 @@ impl LiveProgram {
     /// spells it).
     pub fn file_index<'n>(&self, file_name: impl Into<JsStr<'n>>) -> Option<usize> {
         let file_name = file_name.into();
-        self.checker
-            .snapshot()
-            .documents()
-            .iter()
-            .position(|document| document.source().file_name.as_js() == file_name)
+        (0..self.checker.file_count())
+            .find(|&index| self.checker.file_name(index) == Some(file_name))
     }
 
     /// The file name of the checker's file at `index`.
     pub fn file_name(&self, index: usize) -> Option<JsStr<'_>> {
-        self.checker
-            .snapshot()
-            .documents()
-            .get(index)
-            .map(|document| document.source().file_name.as_js())
+        self.checker.file_name(index)
     }
 
     /// tsgo `GetConfigFileParsingDiagnostics`.
@@ -155,8 +153,9 @@ impl LiveProgram {
         self.checker.global_diagnostics()
     }
 
-    /// Run `query` over the Program's checker.
-    pub fn with_checker<T>(&mut self, query: impl FnOnce(&mut CheckerState<'_>) -> T) -> T {
+    /// Run `query` over the Program's checker; none for a Program without
+    /// files, which has no checker.
+    pub fn with_checker<T>(&mut self, query: impl FnOnce(&mut CheckerState<'_>) -> T) -> Option<T> {
         self.checker.with_checker(query)
     }
 }

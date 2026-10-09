@@ -570,6 +570,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-project"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-compiler",
+ "tsc-rs-diagnostics",
+ "tsc-rs-host",
+ "tsc-rs-program",
+ "tsc-rs-types",
+]
+
+[[package]]
 name = "tsc-rs-syntax"
 version = "0.1.0"
 dependencies = [

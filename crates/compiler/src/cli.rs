@@ -1041,35 +1041,6 @@ fn run_config(
     drop(create_program);
     let prepared = match prepared {
         Ok(prepared) => prepared,
-        Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
-            let mut diagnostics = config;
-            diagnostics.extend(options);
-            let stdout = render_diagnostics(
-                route.format(current_directory),
-                &source_texts,
-                &diagnostics,
-                mode.summary,
-            )?;
-            return Ok(BuildProjectRun {
-                stdout,
-                exit_code: if diagnostics.is_empty() {
-                    EXIT_SUCCESS
-                } else {
-                    EXIT_DIAGNOSTIC
-                },
-                diagnostics,
-                emitted_files: Vec::new(),
-                has_changed_dts_file: false,
-                declarations_differing_only_in_map: Vec::new(),
-                stamped: Vec::new(),
-                write_times: Vec::new(),
-                sources: source_texts,
-                program_report: None,
-                statistics: None,
-                watch_state: None,
-                package_json_lookups: Vec::new(),
-            });
-        }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
             return Err(CliError::Load(format!(
                 "compilerOptions.noEmit must be true (observed {value:?}); pass --noEmit to override"
@@ -2357,27 +2328,12 @@ impl WatchTarget {
         }
     }
 
-    /// The include specs naming one file (no wildcard, an extension), made
-    /// absolute against the configuration's directory.
-    pub(crate) fn literal_includes(&self) -> Vec<String> {
-        let Self::Config { plan, .. } = self else {
-            return Vec::new();
-        };
-        let directory = PathBuf::from(crate::watch::config_directory(
-            &plan.config_file_name().to_string_lossy(),
-        ));
-        plan.include_specs()
-            .iter()
-            .map(|spec| spec.to_string_lossy().into_owned())
-            .filter(|spec| {
-                !spec.contains(['*', '?'])
-                    && spec
-                        .rsplit('/')
-                        .next()
-                        .is_some_and(|name| name.contains('.'))
-            })
-            .map(|spec| normalized_absolute(&directory, &spec))
-            .collect()
+    /// The configuration's parse, for a configuration target.
+    pub(crate) fn plan(&self) -> Option<&ConfigRootPlan> {
+        match self {
+            Self::Config { plan, .. } => Some(plan),
+            Self::Files { .. } => None,
+        }
     }
 
     /// tsgo `WildcardDirectories`: the include directories, recursive when

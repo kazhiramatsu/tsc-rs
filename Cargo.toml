@@ -14,6 +14,7 @@ members = [
     "crates/conformance",
     "crates/xtask",
     "crates/api",
+    "crates/project",
 ]
 resolver = "2"
 
@@ -40,6 +41,7 @@ tsc-harness = { package = "tsc-rs-harness", path = "crates/harness" }
 tsc-host = { package = "tsc-rs-host", path = "crates/host" }
 tsc-incremental = { package = "tsc-rs-incremental", path = "crates/incremental" }
 tsc-program = { package = "tsc-rs-program", path = "crates/program" }
+tsc-project = { package = "tsc-rs-project", path = "crates/project" }
 tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
 tsc-types = { package = "tsc-rs-types", path = "crates/types" }
 sha2 = "0.10"

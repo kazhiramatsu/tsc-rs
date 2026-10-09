@@ -1274,12 +1274,15 @@ fn compare_live_program(
                 report(&format!("walk: {unit} is not in the live Program"));
                 continue;
             };
-            let (live_types, live_symbols) = live.with_checker(|state| {
+            let Some((live_types, live_symbols)) = live.with_checker(|state| {
                 (
                     type_writer::write_types(state, file),
                     type_writer::write_symbols(state, file),
                 )
-            });
+            }) else {
+                report(&format!("walk: {unit} has no checker"));
+                continue;
+            };
             for (kind, live_lines, lines) in [
                 ("types", live_types, types),
                 ("symbols", live_symbols, symbols),

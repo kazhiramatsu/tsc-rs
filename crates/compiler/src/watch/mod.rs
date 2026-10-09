@@ -26,7 +26,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
-use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, MessageChain};
+use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, JsStr, MessageChain};
 use tsc_program::LibraryCatalog;
 
 use crate::cli::{self, CliError, CommandBudgets, WatchTarget};
@@ -569,9 +569,8 @@ impl<'a> Watcher<'a> {
         changed.keys().any(|path| {
             let key = self.canonical(path);
             self.seen.contains(&key)
-                || (self.target.is_config()
-                    && (self.possibly_matches_file_name(path)
-                        || self.possibly_matches_directory_name(&key)))
+                || self.possibly_matches_file_name(path)
+                || self.possibly_matches_directory_name(path)
                 || (self.directory_exists(path)
                     && self
                         .manager
@@ -579,56 +578,24 @@ impl<'a> Watcher<'a> {
         })
     }
 
-    /// tsgo `PossiblyMatchesFileName`: a root file, a literal include, or a
-    /// file with a source extension below an include directory.
+    /// tsgo `PossiblyMatchesFileName` of the configuration.
     fn possibly_matches_file_name(&self, path: &str) -> bool {
-        let key = self.canonical(path);
-        if self
-            .target
-            .file_names()
-            .iter()
-            .any(|file| self.canonical(file) == key)
-        {
-            return true;
-        }
-        for include in self.target.literal_includes() {
-            if self.canonical(&include) == key {
-                return true;
-            }
-        }
-        const EXTENSIONS: [&str; 9] = [
-            ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".json",
-        ];
-        if !EXTENSIONS.iter().any(|extension| key.ends_with(extension)) {
-            return false;
-        }
-        let parent = directory_path(&key);
-        self.target
-            .wildcard_directories()
-            .iter()
-            .any(|(directory, recursive)| {
-                let directory = self.canonical(directory);
-                if *recursive {
-                    contains_path(&directory, &parent, true)
-                } else {
-                    directory == parent
-                }
-            })
+        self.target.plan().is_some_and(|plan| {
+            plan.possibly_matches_file_name(
+                JsStr::from_str(&cli::normalized_absolute(&self.current_directory, path)),
+                self.case_sensitive(),
+            )
+        })
     }
 
-    /// tsgo `PossiblyMatchesDirectoryName`.
-    fn possibly_matches_directory_name(&self, key: &str) -> bool {
-        self.target
-            .wildcard_directories()
-            .iter()
-            .any(|(directory, recursive)| {
-                let directory = self.canonical(directory);
-                if *recursive {
-                    contains_path(&directory, key, true)
-                } else {
-                    directory == key
-                }
-            })
+    /// tsgo `PossiblyMatchesDirectoryName` of the configuration.
+    fn possibly_matches_directory_name(&self, path: &str) -> bool {
+        self.target.plan().is_some_and(|plan| {
+            plan.possibly_matches_directory_name(
+                JsStr::from_str(&cli::normalized_absolute(&self.current_directory, path)),
+                self.case_sensitive(),
+            )
+        })
     }
 
     /// tsgo `computeDesiredWatches` and `ReconcileWatches`.
@@ -682,11 +649,6 @@ pub(crate) enum ConfigError {
     /// be read).
     Diagnostics(Vec<Diagnostic>),
     Fatal(CliError),
-}
-
-/// The directory a configuration file is in.
-pub(crate) fn config_directory(path: &str) -> String {
-    directory_path(path)
 }
 
 #[cfg(not(target_family = "wasm"))]

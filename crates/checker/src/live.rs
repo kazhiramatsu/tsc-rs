@@ -73,7 +73,16 @@ self_cell!(
 
 /// One Program and its checker, owned together.
 pub struct LiveChecker {
-    cell: LiveCell,
+    live: Live,
+}
+
+enum Live {
+    /// A Program without files has no checker, as in the batch drivers.
+    Empty {
+        options: Box<CompilerOptions>,
+        program_diagnostics: Vec<Diagnostic>,
+    },
+    Checked(LiveCell),
 }
 
 impl LiveChecker {
@@ -156,6 +165,14 @@ impl LiveChecker {
             )
         };
 
+        if lib_documents.is_empty() && program_sources.is_empty() {
+            return Ok(Self {
+                live: Live::Empty {
+                    options: Box::new(options),
+                    program_diagnostics,
+                },
+            });
+        }
         let lib_count = lib_documents.len();
         let mut document_store = EphemeralDocumentStore::with_documents(
             identity_domain.clone(),
@@ -210,37 +227,65 @@ impl LiveChecker {
                 globals_by_file: vec![Vec::new(); file_count],
             }
         });
-        Ok(Self { cell })
+        Ok(Self {
+            live: Live::Checked(cell),
+        })
     }
 
-    /// The Program's files, libraries first.
-    pub fn snapshot(&self) -> &ProgramSnapshot {
-        &self.cell.borrow_owner().snapshot
+    /// The name of the file at `index` (libraries first).
+    pub fn file_name(&self, index: usize) -> Option<JsStr<'_>> {
+        match &self.live {
+            Live::Empty { .. } => None,
+            Live::Checked(cell) => cell
+                .borrow_owner()
+                .snapshot
+                .documents()
+                .get(index)
+                .map(|document| document.source().file_name.as_js()),
+        }
     }
 
     pub fn options(&self) -> &CompilerOptions {
-        &self.cell.borrow_owner().options
+        match &self.live {
+            Live::Empty { options, .. } => options,
+            Live::Checked(cell) => &cell.borrow_owner().options,
+        }
     }
 
     /// The number of files, libraries included.
     pub fn file_count(&self) -> usize {
-        self.cell.borrow_owner().snapshot.documents().len()
+        match &self.live {
+            Live::Empty { .. } => 0,
+            Live::Checked(cell) => cell.borrow_owner().snapshot.documents().len(),
+        }
     }
 
     /// The number of library files at the start of the Program.
     pub fn lib_count(&self) -> usize {
-        self.cell.borrow_owner().lib_count
+        match &self.live {
+            Live::Empty { .. } => 0,
+            Live::Checked(cell) => cell.borrow_owner().lib_count,
+        }
     }
 
     /// The Program's preparation diagnostics (the loader's program rows).
     pub fn program_diagnostics(&self) -> &[Diagnostic] {
-        &self.cell.borrow_owner().program_diagnostics
+        match &self.live {
+            Live::Empty {
+                program_diagnostics,
+                ..
+            } => program_diagnostics,
+            Live::Checked(cell) => &cell.borrow_owner().program_diagnostics,
+        }
     }
 
     /// The syntactic rows of a Program source (`file` counts the libraries;
     /// a library has none here, as in the batch drivers).
     pub fn syntactic_diagnostics(&self, file: usize) -> &[Diagnostic] {
-        let owner = self.cell.borrow_owner();
+        let Live::Checked(cell) = &self.live else {
+            return &[];
+        };
+        let owner = cell.borrow_owner();
         file.checked_sub(owner.lib_count)
             .and_then(|index| owner.passes.get(index))
             .map_or(&[][..], |passes| &passes.syntactic)
@@ -250,7 +295,10 @@ impl LiveChecker {
     /// `getSemanticDiagnosticsForFile` on the API checker). An index past the
     /// Program's files checks nothing.
     fn ensure_checked(&mut self, file: usize) -> Result<(), AuthoritativeModuleFailure> {
-        self.cell.with_dependent_mut(|_, live| {
+        let Live::Checked(cell) = &mut self.live else {
+            return Ok(());
+        };
+        cell.with_dependent_mut(|_, live| {
             if live.checked.get(file).copied().unwrap_or(true) {
                 return Ok(());
             }
@@ -274,7 +322,10 @@ impl LiveChecker {
         file: usize,
     ) -> Result<DiagnosticList, AuthoritativeModuleFailure> {
         self.ensure_checked(file)?;
-        Ok(self.cell.with_dependent(|owner, live| {
+        let Live::Checked(cell) = &self.live else {
+            return Ok(Vec::new());
+        };
+        Ok(cell.with_dependent(|owner, live| {
             if file >= live.checked.len()
                 || live.state.skip_type_checking_file(program_file_id(file))
             {
@@ -296,7 +347,10 @@ impl LiveChecker {
         file: usize,
     ) -> Result<DiagnosticList, AuthoritativeModuleFailure> {
         self.ensure_checked(file)?;
-        Ok(self.cell.with_dependent(|_, live| {
+        let Live::Checked(cell) = &self.live else {
+            return Ok(Vec::new());
+        };
+        Ok(cell.with_dependent(|_, live| {
             if file >= live.checked.len()
                 || live.state.skip_type_checking_file(program_file_id(file))
             {
@@ -316,23 +370,27 @@ impl LiveChecker {
     }
 
     /// The global rows the checker has published so far, sorted and
-    /// deduplicated (tsgo `getGlobalDiagnostics`).
+    /// deduplicated (tsgo `getGlobalDiagnostics`); a Program without files
+    /// reports the global types it lacks.
     pub fn global_diagnostics(&self) -> DiagnosticList {
-        self.cell.with_dependent(|owner, live| {
-            if owner.snapshot.documents().is_empty() {
-                return globals::missing_init_global_type_diagnostics(&owner.options);
-            }
-            let mut diagnostics = live.state.visible_global_diagnostics.clone();
-            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
-            diagnostics
-        })
+        match &self.live {
+            Live::Empty { options, .. } => globals::missing_init_global_type_diagnostics(options),
+            Live::Checked(cell) => cell.with_dependent(|_, live| {
+                let mut diagnostics = live.state.visible_global_diagnostics.clone();
+                tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+                diagnostics
+            }),
+        }
     }
 
     /// Run `query` over the checker (the API checker's queries: types,
-    /// symbols, signatures and the node builder).
-    pub fn with_checker<T>(&mut self, query: impl FnOnce(&mut CheckerState<'_>) -> T) -> T {
-        self.cell
-            .with_dependent_mut(|_, live| query(&mut live.state))
+    /// symbols, signatures and the node builder); none for a Program without
+    /// files.
+    pub fn with_checker<T>(&mut self, query: impl FnOnce(&mut CheckerState<'_>) -> T) -> Option<T> {
+        match &mut self.live {
+            Live::Empty { .. } => None,
+            Live::Checked(cell) => Some(cell.with_dependent_mut(|_, live| query(&mut live.state))),
+        }
     }
 
     /// The Program file id of the file at `index` (libraries first).

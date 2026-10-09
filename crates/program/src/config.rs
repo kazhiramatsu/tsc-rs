@@ -1176,51 +1176,112 @@ impl ConfigRootPlan {
     pub fn extended_source_files(&self) -> &[JsString] {
         &self.extended_source_files
     }
+
+    /// tsgo `PossiblyMatchesFileName`: whether the file at the absolute
+    /// `file_name` could be a root of this config: a root file, a literal
+    /// include, or a file with a supported extension below a wildcard
+    /// directory.
+    pub fn possibly_matches_file_name(&self, file_name: JsStr<'_>, case_sensitive: bool) -> bool {
+        let key = file_name_key(
+            crate::js_path::normalize_path(file_name).as_js(),
+            case_sensitive,
+        );
+        if self
+            .file_names
+            .iter()
+            .any(|file| file_name_key(file.as_js(), case_sensitive) == key)
+        {
+            return true;
+        }
+        let directory = js_directory_name(self.config_file_name());
+        let literal_include = self.include_specs.iter().any(|include| {
+            let spec = include.to_string_lossy();
+            !spec.contains(['*', '?'])
+                && spec
+                    .rsplit('/')
+                    .next()
+                    .is_some_and(|name| name.contains('.'))
+                && file_name_key(
+                    normalized_absolute_path(include.as_js(), directory.as_js()).as_js(),
+                    case_sensitive,
+                ) == key
+        });
+        if literal_include {
+            return true;
+        }
+        const EXTENSIONS: [&str; 9] = [
+            ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".json",
+        ];
+        let name = key.to_string_lossy();
+        EXTENSIONS.iter().any(|extension| name.ends_with(extension))
+            && self.possibly_matches_directory_name(
+                directory_name(key.as_js()).as_js(),
+                case_sensitive,
+            )
+    }
+
+    /// tsgo `PossiblyMatchesDirectoryName`: whether the absolute `directory`
+    /// is a wildcard directory of this config or below a recursive one.
+    pub fn possibly_matches_directory_name(
+        &self,
+        directory: JsStr<'_>,
+        case_sensitive: bool,
+    ) -> bool {
+        let key = file_name_key(
+            crate::js_path::normalize_path(directory).as_js(),
+            case_sensitive,
+        );
+        let key = key.to_string_lossy();
+        self.wildcard_directories.iter().any(|wildcard| {
+            let wildcard_key = file_name_key(wildcard.path.as_js(), case_sensitive);
+            let wildcard_key = wildcard_key.to_string_lossy();
+            let wildcard_key = wildcard_key.trim_end_matches('/');
+            if wildcard.recursive {
+                *key == *wildcard_key
+                    || key
+                        .strip_prefix(wildcard_key)
+                        .is_some_and(|rest| rest.starts_with('/') || wildcard_key.ends_with(':'))
+            } else {
+                *key == *wildcard_key
+            }
+        })
+    }
+
+    /// tsgo `GetMatchedFileSpec(fileName) != ""`: whether the absolute
+    /// `file_name` is one of the config's literal `files`.
+    pub fn lists_file(&self, file_name: JsStr<'_>, case_sensitive: bool) -> bool {
+        let key = file_name_key(
+            crate::js_path::normalize_path(file_name).as_js(),
+            case_sensitive,
+        );
+        let directory = js_directory_name(self.config_file_name());
+        self.files().unwrap_or_default().iter().any(|spec| {
+            file_name_key(
+                normalized_absolute_path(spec.as_js(), directory.as_js()).as_js(),
+                case_sensitive,
+            ) == key
+        })
+    }
 }
 
-/// A config plan cannot be turned into a prepared no-emit program when the
-/// config itself has diagnostics, when a fatal option diagnostic is present,
-/// when `noEmit` is absent/false, or when the filesystem loader rejects a
-/// typed host/resolution boundary. TypeScript 6.0 deprecation rows (5101 and
-/// 5107) are reportable but do not stop program construction. Keeping these
-/// cases distinct lets a CLI render those rows while treating the latter
-/// failures as fail-closed driver outcomes.
+/// A config plan cannot be turned into a prepared program when `noEmit`
+/// contradicts the loader (the no-emit loader without `noEmit: true`, the
+/// emitting loader with it), when the config needs an unsupported scope, or
+/// when the filesystem loader rejects a typed host/resolution boundary. The
+/// config's own diagnostics never stop the load (tsgo creates the Program
+/// whatever the config reports).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConfigProgramLoadError {
-    Diagnostics {
-        config: Vec<Diagnostic>,
-        options: Vec<Diagnostic>,
-    },
-    NoEmitRequired {
-        value: Option<bool>,
-    },
-    EmitRequired {
-        value: Option<bool>,
-    },
+    NoEmitRequired { value: Option<bool> },
+    EmitRequired { value: Option<bool> },
     Program(ProgramLoadError),
 }
 
 impl ConfigProgramLoadError {
-    pub fn config_diagnostics(&self) -> &[Diagnostic] {
-        match self {
-            Self::Diagnostics { config, .. } => config,
-            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } | Self::Program(_) => &[],
-        }
-    }
-
-    pub fn options_diagnostics(&self) -> &[Diagnostic] {
-        match self {
-            Self::Diagnostics { options, .. } => options,
-            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } | Self::Program(_) => &[],
-        }
-    }
-
     pub const fn program_error(&self) -> Option<&ProgramLoadError> {
         match self {
             Self::Program(error) => Some(error),
-            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => {
-                None
-            }
+            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => None,
         }
     }
 }
@@ -1228,12 +1289,6 @@ impl ConfigProgramLoadError {
 impl fmt::Display for ConfigProgramLoadError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Diagnostics { config, options } => write!(
-                formatter,
-                "config plan has {} config and {} option diagnostic(s)",
-                config.len(),
-                options.len()
-            ),
             Self::NoEmitRequired { value } => write!(
                 formatter,
                 "compilerOptions.noEmit must be explicitly true (observed {value:?})"
@@ -1251,9 +1306,7 @@ impl Error for ConfigProgramLoadError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Program(error) => Some(error),
-            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => {
-                None
-            }
+            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => None,
         }
     }
 }
@@ -1261,14 +1314,13 @@ impl Error for ConfigProgramLoadError {
 /// Turn a parsed config/root plan into the owned no-emit program consumed by
 /// [`tsc_compiler::ProgramSession`].
 ///
-/// Config diagnostics and fatal option diagnostics are a gate: no source host
-/// work is started while either collection is non-empty. TypeScript 6.0
-/// deprecation diagnostics are retained on the plan but do not block loading.
-/// A config without an explicit
-/// `noEmit: true` is rejected before `load_program`; this prevents an omitted
-/// or false value from accidentally entering an emitter-capable path. The
-/// input plan remains immutable and can be reused by a caller for rendering or
-/// for an independent MemoryHost/FsHost comparison.
+/// The config's diagnostics do not stop the load: they are the Program's
+/// config file parsing and options diagnostics, as in tsgo. A config
+/// without an explicit `noEmit: true` is rejected before `load_program`;
+/// this prevents an omitted or false value from accidentally entering an
+/// emitter-capable path. The input plan remains immutable and can be reused
+/// by a caller for rendering or for an independent MemoryHost/FsHost
+/// comparison.
 pub fn load_config_program(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
@@ -1330,20 +1382,6 @@ pub fn load_emitting_config_program_with_no_emit_override(
         limits,
         ConfigProgramMode::Emit { force: true },
     )
-}
-
-pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
-    let config = plan.diagnostics().cloned().collect::<Vec<_>>();
-    let options = plan
-        .option_diagnostics()
-        .iter()
-        .filter(|diagnostic| !is_non_fatal_option_diagnostic(diagnostic))
-        .cloned()
-        .collect::<Vec<_>>();
-    if !config.is_empty() || !options.is_empty() {
-        return Err(ConfigProgramLoadError::Diagnostics { config, options });
-    }
-    validate_config_plan_for_mode(plan, false)
 }
 
 /// The gate of a config Program load. tsgo creates the Program whatever the
