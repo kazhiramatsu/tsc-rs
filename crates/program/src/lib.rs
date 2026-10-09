@@ -89,6 +89,7 @@ mod config;
 mod config_host;
 mod config_matcher;
 mod config_options;
+mod dts_faking_host;
 mod error;
 mod js_path;
 pub use js_path::{
@@ -123,8 +124,8 @@ pub use command_line::{
 pub use config::{
     compiler_option_named_choices, is_non_fatal_option_diagnostic, load_config_program,
     load_config_program_with_no_emit_override, load_emitting_config_program,
-    load_emitting_config_program_with_no_emit_override, parse_config_file_text_to_json,
-    parse_config_root_plan, parse_config_root_plan_with_cache,
+    load_emitting_config_program_with_no_emit_override, load_project_config_program,
+    parse_config_file_text_to_json, parse_config_root_plan, parse_config_root_plan_with_cache,
     parse_config_root_plan_with_command_line, removed_base_url_paths_suggestion,
     ConfigDiscoveryOptions, ConfigExtendedCache, ConfigHostError, ConfigHostOperation,
     ConfigModuleResolutionOptions, ConfigOption, ConfigOptionBag, ConfigOptionValueState,
@@ -188,8 +189,8 @@ pub use prepared::{
 };
 pub use project_references::{
     resolve_config_file_name_of_project_reference, resolve_project_references,
-    ProjectReferenceSourceOutput, ResolvedProjectReference, ResolvedProjectReferences,
-    ResolvedReferenceEntry,
+    resolve_project_references_with, ProjectReferenceSourceOutput, ResolvedProjectReference,
+    ResolvedProjectReferences, ResolvedReferenceEntry,
 };
 pub use resolution::{
     MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,

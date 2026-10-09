@@ -1,13 +1,15 @@
-//! The project references of a `-p` compile.
+//! The project references of a Program.
 //!
 //! tsgo parses every config reachable through `references` (compiler/
-//! projectreferenceparser.go), maps each referenced project's source files
-//! to their output declaration files (tsoptions ParseInputOutputNames), and
-//! loads the output in place of the source when a resolution reaches one
-//! (compiler/projectreferencefilemapper.go getParseFileRedirect; the command
-//! never uses the sources of a referenced project, that is the language
-//! service's `UseSourceOfProjectReference`). The resolved graph is computed
-//! once per command and shared with the loader through [`ProgramOptions`].
+//! projectreferenceparser.go, each config through the host's
+//! `GetResolvedProjectReference`) and maps each referenced project's source
+//! files to their output declaration files (tsoptions ParseInputOutputNames).
+//! The command loads the output in place of the source when a resolution
+//! reaches one; the project system's programs read the sources instead and
+//! load a source in place of its output (compiler/
+//! projectreferencefilemapper.go getParseFileRedirect,
+//! `UseSourceOfProjectReference`). The resolved graph is computed once per
+//! Program and shared with the loader through [`ProgramOptions`].
 //!
 //! [`ProgramOptions`]: crate::ProgramOptions
 
@@ -35,7 +37,7 @@ use crate::path::CanonicalPath;
 pub struct ResolvedProjectReference {
     config_file_name: JsString,
     canonical: CanonicalPath,
-    plan: ConfigRootPlan,
+    plan: Arc<ConfigRootPlan>,
     build_info_file_name: Option<JsString>,
     /// What the project's files take from its options.
     options: Arc<crate::ReferencedProjectOptions>,
@@ -196,6 +198,11 @@ impl ResolvedProjectReferences {
         self.root_references.is_empty()
     }
 
+    /// Whether a referenced project has an output declaration file.
+    pub(crate) fn has_outputs(&self) -> bool {
+        !self.output_to_source.is_empty()
+    }
+
     /// Every parsed project, in canonical config path order.
     pub fn projects(&self) -> impl Iterator<Item = &Arc<ResolvedProjectReference>> {
         self.projects.values()
@@ -228,29 +235,66 @@ fn canonical_config_path(
     )
 }
 
-/// tsgo projectReferenceParser.parse + initMapper: parse every config
-/// reachable from `root`'s references (each once), then map the files of
-/// every project but the root to their outputs, parents before children so a
-/// file in several projects belongs to the last (deepest) one listed.
+/// tsgo projectReferenceParser.parse + initMapper for the command: parse
+/// every config reachable from `root`'s references (each once) through the
+/// host, then map the files of every project but the root to their outputs,
+/// parents before children so a file in several projects belongs to the
+/// last (deepest) one listed.
 pub fn resolve_project_references(
     host: &dyn ConfigParseHost,
     root: &ConfigRootPlan,
     current_directory: JsStr<'_>,
 ) -> Result<ResolvedProjectReferences, ConfigParseError> {
-    let case_sensitive = host.use_case_sensitive_file_names();
-    let Some(references) = root
-        .project_references()
-        .filter(|references| !references.is_empty())
-    else {
+    let mut cache = ConfigExtendedCache::default();
+    resolve_project_references_with(
+        Some(root.config_file_name()),
+        root.project_references().unwrap_or_default(),
+        current_directory,
+        host.use_case_sensitive_file_names(),
+        &mut |config_file_name| {
+            let Some(text) = host.read_file(config_file_name)? else {
+                return Ok(None);
+            };
+            parse_config_root_plan_with_cache(
+                host,
+                ConfigRootPlanRequest {
+                    file_name: config_file_name.to_owned(),
+                    text,
+                    base_path: current_directory.to_owned(),
+                },
+                &mut cache,
+            )
+            .map(|plan| Some(Arc::new(plan)))
+        },
+    )
+}
+
+/// The parse of a referenced config by its file name (tsgo's host
+/// `GetResolvedProjectReference`): `None` when no config exists there.
+pub type ReferencedConfigParse<'a, E> =
+    dyn FnMut(JsStr<'_>) -> Result<Option<Arc<ConfigRootPlan>>, E> + 'a;
+
+/// [`resolve_project_references`] with each referenced config's parse
+/// supplied by `parse`, for a root config or, with no
+/// `root_config_file_name`, for a Program made from root names.
+pub fn resolve_project_references_with<E: From<ConfigParseError>>(
+    root_config_file_name: Option<JsStr<'_>>,
+    references: &[ConfigProjectReference],
+    current_directory: JsStr<'_>,
+    case_sensitive: bool,
+    parse: &mut ReferencedConfigParse<'_, E>,
+) -> Result<ResolvedProjectReferences, E> {
+    if references.is_empty() {
         return Ok(ResolvedProjectReferences::default());
-    };
-    let root_canonical = canonical_config_path(root.config_file_name(), case_sensitive)?;
+    }
+    let root_canonical = root_config_file_name
+        .map(|file_name| canonical_config_path(file_name, case_sensitive))
+        .transpose()?;
     let mut parser = ReferenceParser {
-        host,
+        parse,
         current_directory,
         case_sensitive,
         root_canonical,
-        cache: ConfigExtendedCache::default(),
         parsed: BTreeMap::new(),
         resolved: ResolvedProjectReferences::default(),
     };
@@ -265,25 +309,25 @@ pub fn resolve_project_references(
     Ok(parser.resolved)
 }
 
-struct ReferenceParser<'a> {
-    host: &'a dyn ConfigParseHost,
+struct ReferenceParser<'a, E> {
+    parse: &'a mut ReferencedConfigParse<'a, E>,
     current_directory: JsStr<'a>,
     case_sensitive: bool,
-    root_canonical: CanonicalPath,
-    cache: ConfigExtendedCache,
+    /// The Program's own config, whose files are not mapped.
+    root_canonical: Option<CanonicalPath>,
     /// Every config parsed so far (tsgo `tasksByFileName`): `None` when the
     /// file does not exist.
     parsed: BTreeMap<CanonicalPath, Option<Arc<ResolvedProjectReference>>>,
     resolved: ResolvedProjectReferences,
 }
 
-impl ReferenceParser<'_> {
+impl<E: From<ConfigParseError>> ReferenceParser<'_, E> {
     /// Resolve the entries of one config's `references`, parsing each
     /// project the first time it is named.
     fn resolve_entries(
         &mut self,
         references: &[ConfigProjectReference],
-    ) -> Result<Vec<ResolvedReferenceEntry>, ConfigParseError> {
+    ) -> Result<Vec<ResolvedReferenceEntry>, E> {
         let mut entries = Vec::with_capacity(references.len());
         for reference in references {
             let config_file_name =
@@ -303,24 +347,15 @@ impl ReferenceParser<'_> {
         &mut self,
         config_file_name: JsStr<'_>,
         canonical: CanonicalPath,
-    ) -> Result<Option<Arc<ResolvedProjectReference>>, ConfigParseError> {
+    ) -> Result<Option<Arc<ResolvedProjectReference>>, E> {
         if let Some(parsed) = self.parsed.get(&canonical) {
             return Ok(parsed.clone());
         }
         // Mark before parsing: a cycle through `references` ends here.
         self.parsed.insert(canonical.clone(), None);
-        let Some(text) = self.host.read_file(config_file_name)? else {
+        let Some(plan) = (self.parse)(config_file_name)? else {
             return Ok(None);
         };
-        let plan = parse_config_root_plan_with_cache(
-            self.host,
-            ConfigRootPlanRequest {
-                file_name: config_file_name.to_owned(),
-                text,
-                base_path: self.current_directory.to_owned(),
-            },
-            &mut self.cache,
-        )?;
         let build_info_file_name = build_info_file_name(
             plan.compiler_options(),
             Some(plan.config_file_name()),
@@ -355,7 +390,7 @@ impl ReferenceParser<'_> {
 
     /// tsgo initMapperWorker: pre-order over the reference graph, each
     /// project once.
-    fn map_projects(&mut self, entries: &[ResolvedReferenceEntry]) -> Result<(), ConfigParseError> {
+    fn map_projects(&mut self, entries: &[ResolvedReferenceEntry]) -> Result<(), E> {
         let mut seen = std::collections::BTreeSet::new();
         let mut pending = entries
             .iter()
@@ -366,7 +401,7 @@ impl ReferenceParser<'_> {
             if !seen.insert(project.canonical.clone()) {
                 continue;
             }
-            if project.canonical != self.root_canonical {
+            if Some(&project.canonical) != self.root_canonical.as_ref() {
                 self.map_project_files(&project)?;
             }
             let children = self
@@ -388,10 +423,7 @@ impl ReferenceParser<'_> {
     /// tsoptions ParseInputOutputNames for one project: a declaration file
     /// or a JSON file has no output; every other file maps to its output
     /// declaration file.
-    fn map_project_files(
-        &mut self,
-        project: &Arc<ResolvedProjectReference>,
-    ) -> Result<(), ConfigParseError> {
+    fn map_project_files(&mut self, project: &Arc<ResolvedProjectReference>) -> Result<(), E> {
         let options = project.plan.compiler_options();
         let file_names = project
             .plan

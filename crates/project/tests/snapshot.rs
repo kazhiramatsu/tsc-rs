@@ -1,28 +1,35 @@
-//! tsgo's project tests on the standalone API path (P5-1b-1): synthetic
+//! tsgo's project tests on the standalone API path (P5-1b): synthetic
 //! programs (`project/snapshot_test.go`, `api/session_createprogram_test.go`
-//! at the snapshot layer), project IDs, and configured projects opened,
-//! changed and ensured through API requests (`configfilechanges_test.go`
-//! and `project_test.go` re-expressed with API requests instead of editor
-//! events).
+//! at the snapshot layer), project IDs, configured projects opened, changed
+//! and ensured through API requests (`configfilechanges_test.go` and
+//! `project_test.go` re-expressed with API requests instead of editor
+//! events), files opened through the API, and programs over project
+//! references (`projectreferencesprogram_test.go`).
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use tsc_host::vfs::{FileSystem, MemFs, Seed, SystemClock};
-use tsc_program::{CompilerOptions, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
+use tsc_program::{
+    CompilerOptions, ConfigProjectReference, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
+};
 use tsc_project::{
     ApiSnapshotRequest, CreateProgramRequest, FileChangeSummary, ProgramUpdateKind, ProjectId,
     ProjectKind, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotHost,
 };
 
 fn session(files: &[(&str, &str)]) -> (SnapshotHost, Arc<MemFs>) {
+    session_with(
+        files
+            .iter()
+            .map(|(name, text)| ((*name).to_owned(), Seed::file(text)))
+            .collect(),
+    )
+}
+
+fn session_with(entries: Vec<(String, Seed)>) -> (SnapshotHost, Arc<MemFs>) {
     let fs = Arc::new(
-        MemFs::from_entries(
-            files.iter().map(|(name, text)| (*name, Seed::file(text))),
-            false,
-            Arc::new(SystemClock),
-        )
-        .expect("build the file system"),
+        MemFs::from_entries(entries, false, Arc::new(SystemClock)).expect("build the file system"),
     );
     let host = SnapshotHost::new(
         SessionOptions {
@@ -974,4 +981,753 @@ fn an_opened_file_needs_a_project() {
     .err()
     .expect("no project takes the file");
     assert_eq!(error, "no project found for opened file: /p/readme.md");
+}
+
+const MY_PROJECT: &str = "/user/username/projects/myproject";
+
+/// tsgo `filesForReferencedProjectProgram`.
+fn files_for_referenced_project_program(
+    disable_source_of_project_reference_redirect: bool,
+) -> Vec<(String, Seed)> {
+    let disable = if disable_source_of_project_reference_redirect {
+        r#", "disableSourceOfProjectReferenceRedirect": true"#
+    } else {
+        ""
+    };
+    vec![
+        (
+            format!("{MY_PROJECT}/main/tsconfig.json"),
+            Seed::file(format!(
+                r#"{{ "compilerOptions": {{ "composite": true{disable} }}, "references": [{{ "path": "../dependency" }}] }}"#
+            )),
+        ),
+        (
+            format!("{MY_PROJECT}/main/main.ts"),
+            Seed::file(
+                "import { fn1, fn2, fn3, fn4, fn5 } from '../decls/fns'\nfn1();\nfn2();\nfn3();\nfn4();\nfn5();\n",
+            ),
+        ),
+        (
+            format!("{MY_PROJECT}/dependency/tsconfig.json"),
+            Seed::file(r#"{ "compilerOptions": { "composite": true, "declarationDir": "../decls" }, }"#),
+        ),
+        (
+            format!("{MY_PROJECT}/dependency/fns.ts"),
+            Seed::file(
+                "export function fn1() { }\nexport function fn2() { }\nexport function fn3() { }\nexport function fn4() { }\nexport function fn5() { }\n",
+            ),
+        ),
+    ]
+}
+
+/// tsgo `addConfigForPackage`.
+fn add_config_for_package(
+    files: &mut Vec<(String, Seed)>,
+    package_name: &str,
+    preserve_symlinks: bool,
+    references: &[&str],
+) {
+    let preserve = if preserve_symlinks {
+        r#", "preserveSymlinks": true"#
+    } else {
+        ""
+    };
+    let references = references
+        .iter()
+        .map(|path| format!(r#"{{ "path": "{path}" }}"#))
+        .collect::<Vec<_>>()
+        .join(", ");
+    files.push((
+        format!("{MY_PROJECT}/packages/{package_name}/tsconfig.json"),
+        Seed::file(format!(
+            r#"{{ "compilerOptions": {{ "outDir": "lib", "rootDir": "src", "composite": true{preserve} }}, "include": ["src"], "references": [{references}] }}"#
+        )),
+    ));
+}
+
+/// tsgo `filesForSymlinkReferences`: the test file, foo and bar.
+fn files_for_symlink_references(
+    preserve_symlinks: bool,
+    scope: &str,
+) -> (Vec<(String, Seed)>, String, String, String) {
+    let a_test = format!("{MY_PROJECT}/packages/A/src/index.ts");
+    let b_foo = format!("{MY_PROJECT}/packages/B/src/index.ts");
+    let b_bar = format!("{MY_PROJECT}/packages/B/src/bar.ts");
+    let mut files = vec![
+        (
+            format!("{MY_PROJECT}/packages/B/package.json"),
+            Seed::file(r#"{ "main": "lib/index.js", "types": "lib/index.d.ts" }"#),
+        ),
+        (
+            a_test.clone(),
+            Seed::file(format!(
+                "import {{ foo }} from '{scope}b';\nimport {{ bar }} from '{scope}b/lib/bar';\nfoo();\nbar();\n"
+            )),
+        ),
+        (b_foo.clone(), Seed::file("export function foo() { }")),
+        (b_bar.clone(), Seed::file("export function bar() { }")),
+        (
+            format!("{MY_PROJECT}/node_modules/{scope}b"),
+            Seed::symlink(format!("{MY_PROJECT}/packages/B")),
+        ),
+    ];
+    add_config_for_package(&mut files, "A", preserve_symlinks, &["../B"]);
+    add_config_for_package(&mut files, "B", preserve_symlinks, &[]);
+    (files, a_test, b_foo, b_bar)
+}
+
+/// tsgo `filesForSymlinkReferencesInSubfolder`.
+fn files_for_symlink_references_in_subfolder(
+    preserve_symlinks: bool,
+    scope: &str,
+) -> (Vec<(String, Seed)>, String, String, String) {
+    let a_test = format!("{MY_PROJECT}/packages/A/src/test.ts");
+    let b_foo = format!("{MY_PROJECT}/packages/B/src/foo.ts");
+    let b_bar = format!("{MY_PROJECT}/packages/B/src/bar/foo.ts");
+    let mut files = vec![
+        (
+            format!("{MY_PROJECT}/packages/B/package.json"),
+            Seed::file("{}"),
+        ),
+        (
+            a_test.clone(),
+            Seed::file(format!(
+                "import {{ foo }} from '{scope}b/lib/foo';\nimport {{ bar }} from '{scope}b/lib/bar/foo';\nfoo();\nbar();\n"
+            )),
+        ),
+        (b_foo.clone(), Seed::file("export function foo() { }")),
+        (b_bar.clone(), Seed::file("export function bar() { }")),
+        (
+            format!("{MY_PROJECT}/node_modules/{scope}b"),
+            Seed::symlink(format!("{MY_PROJECT}/packages/B")),
+        ),
+    ];
+    add_config_for_package(&mut files, "A", preserve_symlinks, &["../B"]);
+    add_config_for_package(&mut files, "B", preserve_symlinks, &[]);
+    (files, a_test, b_foo, b_bar)
+}
+
+/// tsgo `filesForDirectorySubpathSymlinkReferences`.
+fn files_for_directory_subpath_symlink_references(
+    scope: &str,
+) -> (Vec<(String, Seed)>, String, String) {
+    let a_index = format!("{MY_PROJECT}/packages/a/src/index.ts");
+    let b_file = format!("{MY_PROJECT}/packages/b/src/File/index.ts");
+    let mut files = vec![
+        (
+            format!("{MY_PROJECT}/packages/b/package.json"),
+            Seed::file(r#"{ "main": "lib/index.js", "types": "lib/index.d.ts" }"#),
+        ),
+        (
+            a_index.clone(),
+            Seed::file(format!(
+                "import {{ helper }} from \"{scope}b/lib/File\";\nexport const result: number = helper();\n"
+            )),
+        ),
+        (
+            b_file.clone(),
+            Seed::file("export function helper(): number { return 1; }"),
+        ),
+        (
+            format!("{MY_PROJECT}/node_modules/{scope}b"),
+            Seed::symlink(format!("{MY_PROJECT}/packages/b")),
+        ),
+    ];
+    add_config_for_package(&mut files, "a", false, &["../b"]);
+    add_config_for_package(&mut files, "b", false, &[]);
+    (files, a_index, b_file)
+}
+
+/// The only project of a snapshot that opened `file_name`.
+fn open_one(files: Vec<(String, Seed)>, file_name: &str) -> (SnapshotHost, Arc<MemFs>, Snapshot) {
+    let (host, fs) = session_with(files);
+    let opened =
+        update(&host, &host.new_root_snapshot(), open_files(&[file_name])).expect("open the file");
+    assert_eq!(opened.projects().count(), 1);
+    assert_eq!(
+        opened.projects().next().unwrap().kind(),
+        ProjectKind::Configured
+    );
+    (host, fs, opened)
+}
+
+fn has_file(snapshot: &Snapshot, file_name: &str) -> bool {
+    let program = snapshot.projects().next().unwrap().program().unwrap();
+    program
+        .prepared()
+        .source_files()
+        .iter()
+        .any(|source| source.path().display().to_string_lossy() == file_name)
+}
+
+#[test]
+fn a_program_reads_the_sources_of_its_referenced_project() {
+    // "program for referenced project".
+    let main = format!("{MY_PROJECT}/main/main.ts");
+    let (_, _, opened) = open_one(files_for_referenced_project_program(false), &main);
+    assert!(has_file(
+        &opened,
+        &format!("{MY_PROJECT}/dependency/fns.ts")
+    ));
+    assert!(!has_file(&opened, &format!("{MY_PROJECT}/decls/fns.d.ts")));
+}
+
+#[test]
+fn disabling_the_source_redirect_reads_the_outputs() {
+    // "program with disableSourceOfProjectReferenceRedirect".
+    let mut files = files_for_referenced_project_program(true);
+    files.push((
+        format!("{MY_PROJECT}/decls/fns.d.ts"),
+        Seed::file(
+            "export declare function fn1(): void;\nexport declare function fn2(): void;\nexport declare function fn3(): void;\nexport declare function fn4(): void;\nexport declare function fn5(): void;\n",
+        ),
+    ));
+    let main = format!("{MY_PROJECT}/main/main.ts");
+    let (_, _, opened) = open_one(files, &main);
+    assert!(!has_file(
+        &opened,
+        &format!("{MY_PROJECT}/dependency/fns.ts")
+    ));
+    assert!(has_file(&opened, &format!("{MY_PROJECT}/decls/fns.d.ts")));
+}
+
+#[test]
+fn references_through_symlinked_packages_reach_the_sources() {
+    // "references through symlink with index and typings" and "...
+    // referencing from subFolder", each with and without preserveSymlinks
+    // and with a scoped package.
+    for preserve_symlinks in [false, true] {
+        for scope in ["", "@issue/"] {
+            for subfolder in [false, true] {
+                let (files, a_test, b_foo, b_bar) = if subfolder {
+                    files_for_symlink_references_in_subfolder(preserve_symlinks, scope)
+                } else {
+                    files_for_symlink_references(preserve_symlinks, scope)
+                };
+                let (_, _, opened) = open_one(files, &a_test);
+                let case = format!(
+                    "preserveSymlinks {preserve_symlinks}, scope {scope:?}, subfolder {subfolder}"
+                );
+                assert!(has_file(&opened, &b_foo), "{case}: {b_foo}");
+                assert!(has_file(&opened, &b_bar), "{case}: {b_bar}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_directory_index_subpath_through_a_symlink_reaches_the_source() {
+    // "references through symlink with directory index subpath (issue
+    // 4373)" and its scoped package.
+    for scope in ["", "@issue/"] {
+        let (files, a_index, b_file) = files_for_directory_subpath_symlink_references(scope);
+        let (_, _, opened) = open_one(files, &a_index);
+        assert!(has_file(&opened, &b_file), "scope {scope:?}");
+        let program = opened.projects().next().unwrap().program().unwrap();
+        let diagnostics = program.with_live(|live| {
+            let file = live.file_index(a_index.as_str()).expect("the file");
+            live.semantic_diagnostics(file).expect("check the file")
+        });
+        assert_eq!(diagnostics, [], "scope {scope:?}");
+    }
+}
+
+#[test]
+fn a_file_added_to_a_referenced_project_rebuilds_the_program() {
+    // "when new file is added to referenced project".
+    let main = format!("{MY_PROJECT}/main/main.ts");
+    let (host, fs, opened) = open_one(files_for_referenced_project_program(false), &main);
+    let before = Arc::clone(opened.projects().next().unwrap().program().unwrap());
+    let added = format!("{MY_PROJECT}/dependency/fns2.ts");
+    fs.write(&added, b"export const x = 2;")
+        .expect("write the new file");
+    let created = host
+        .clone_snapshot(
+            &opened,
+            FileChangeSummary {
+                created: BTreeSet::from([added]),
+                ..FileChangeSummary::default()
+            },
+            None,
+        )
+        .expect("apply the creation");
+    let ensured = update(
+        &host,
+        &created,
+        ApiSnapshotRequest {
+            ensure_files: BTreeSet::from([main]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("ensure the file");
+    assert_eq!(ensured.projects().count(), 1);
+    assert!(!Arc::ptr_eq(
+        ensured.projects().next().unwrap().program().unwrap(),
+        &before
+    ));
+}
+
+#[test]
+fn a_dropped_reference_releases_the_referenced_config() {
+    // "dropped project reference does not crash on later change to the
+    // dropped config".
+    let main = format!("{MY_PROJECT}/main/main.ts");
+    let other = format!("{MY_PROJECT}/other/other.ts");
+    let main_config = format!("{MY_PROJECT}/main/tsconfig.json");
+    let dependency_config = format!("{MY_PROJECT}/dependency/tsconfig.json");
+    let (host, fs) = session(&[
+        (
+            &main_config,
+            r#"{ "compilerOptions": { "composite": true }, "references": [{ "path": "../dependency" }] }"#,
+        ),
+        (&main, "import { fn1 } from '../dependency/fns'\nfn1();\n"),
+        (
+            &dependency_config,
+            r#"{ "compilerOptions": { "composite": true } }"#,
+        ),
+        (
+            &format!("{MY_PROJECT}/dependency/fns.ts"),
+            "export function fn1() { }",
+        ),
+        (
+            &format!("{MY_PROJECT}/other/tsconfig.json"),
+            r#"{ "compilerOptions": { "composite": true } }"#,
+        ),
+        (&other, "export const y = 1;"),
+    ]);
+
+    // 1. The main project's program takes the dependency's config.
+    let opened =
+        update(&host, &host.new_root_snapshot(), open_files(&[&main])).expect("open main.ts");
+    assert_eq!(opened.projects().count(), 1);
+    assert!(opened.config(&dependency_config).is_some());
+
+    // 2. The reference goes from the config, and the program is built again.
+    fs.write(
+        &main_config,
+        br#"{ "compilerOptions": { "composite": true } }"#,
+    )
+    .expect("write the config");
+    let dropped = changed(&host, &opened, &[&main_config]);
+    let ensured = update(
+        &host,
+        &dropped,
+        ApiSnapshotRequest {
+            ensure_files: BTreeSet::from([main.clone()]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("ensure main.ts");
+    // Released, the config stays until a clean-up (tsgo, probed).
+    assert!(ensured.config(&dependency_config).is_some());
+
+    // 3. Closing main.ts and opening another file deletes the main project;
+    // nothing keeps the dependency's config.
+    let mut reopened = open_files(&[&other]);
+    reopened.close_files = Some(BTreeSet::from([main.clone()]));
+    let reopened = update(&host, &ensured, reopened).expect("close main.ts, open other.ts");
+    assert!(reopened.project(&configured(&main_config)).is_none());
+    assert!(reopened.config(&dependency_config).is_none());
+
+    // 4. A later change to the dropped config concerns no project.
+    fs.write(
+        &dependency_config,
+        br#"{ "compilerOptions": { "composite": true, "strict": true } }"#,
+    )
+    .expect("write the config");
+    let later = changed(&host, &reopened, &[&dependency_config]);
+    let later = update(
+        &host,
+        &later,
+        ApiSnapshotRequest {
+            ensure_files: BTreeSet::from([other.clone()]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("ensure other.ts");
+    assert_eq!(
+        later
+            .default_project(&other)
+            .map(|project| project.id().clone()),
+        Some(configured(&format!("{MY_PROJECT}/other/tsconfig.json")))
+    );
+}
+
+const DUMMY: &str = "/user/username/workspaces/dummy/dummy.ts";
+
+/// tsgo `filesForSolutionConfigFile`, with the dummy file the tests open
+/// last.
+fn files_for_solution_config_file(
+    solution_references: &[&str],
+    compiler_options: &str,
+    own_files: &[&str],
+) -> Vec<(String, Seed)> {
+    let compiler_options = if compiler_options.is_empty() {
+        String::new()
+    } else {
+        format!(r#""compilerOptions": {{ {compiler_options} }},"#)
+    };
+    let references = solution_references
+        .iter()
+        .map(|path| format!(r#"{{ "path": "{path}" }}"#))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let own_files = own_files.join(", ");
+    vec![
+        (
+            format!("{MY_PROJECT}/tsconfig.json"),
+            Seed::file(format!(
+                r#"{{ {compiler_options} "files": [{own_files}], "references": [{references}] }}"#
+            )),
+        ),
+        (
+            format!("{MY_PROJECT}/tsconfig-src.json"),
+            Seed::file(
+                r#"{ "compilerOptions": { "composite": true, "outDir": "./target", }, "include": ["./src/**/*"] }"#,
+            ),
+        ),
+        (
+            format!("{MY_PROJECT}/src/main.ts"),
+            Seed::file("import { foo } from './helpers/functions';\nexport { foo };"),
+        ),
+        (
+            format!("{MY_PROJECT}/src/helpers/functions.ts"),
+            Seed::file("export const foo = 1;"),
+        ),
+        (DUMMY.to_owned(), Seed::file("const x = 1;")),
+    ]
+}
+
+/// tsgo `applyIndirectProjectFiles`.
+fn add_indirect_project(files: &mut Vec<(String, Seed)>, index: usize, compiler_options: &str) {
+    files.push((
+        format!("{MY_PROJECT}/tsconfig-indirect{index}.json"),
+        Seed::file(format!(
+            r#"{{ "compilerOptions": {{ "composite": true, "outDir": "./target/", {compiler_options} }}, "files": ["./indirect{index}/main.ts"], "references": [{{ "path": "./tsconfig-src.json" }}] }}"#
+        )),
+    ));
+    files.push((
+        format!("{MY_PROJECT}/indirect{index}/main.ts"),
+        Seed::file("export const indirect = 1;"),
+    ));
+}
+
+/// The projects of a snapshot (IDs), its default project for `file_name`
+/// and which of `configs` it keeps.
+fn search_state(
+    snapshot: &Snapshot,
+    file_name: Option<&str>,
+    configs: &[&str],
+) -> (Vec<String>, Option<String>, Vec<bool>) {
+    (
+        snapshot
+            .projects()
+            .map(|project| project.id().as_str().to_owned())
+            .collect(),
+        file_name.and_then(|file_name| {
+            snapshot
+                .default_project(file_name)
+                .map(|project| project.id().as_str().to_owned())
+        }),
+        configs
+            .iter()
+            .map(|config| snapshot.config(config).is_some())
+            .collect(),
+    )
+}
+
+/// Open `file_name`, close it and open the dummy file, each through the API
+/// (tsgo's builder tests with API requests instead of editor events): the
+/// state after each request.
+fn open_close_and_open_dummy(
+    files: Vec<(String, Seed)>,
+    file_name: &str,
+    configs: &[&str],
+) -> [(Vec<String>, Option<String>, Vec<bool>); 3] {
+    let (host, _) = session_with(files);
+    let opened =
+        update(&host, &host.new_root_snapshot(), open_files(&[file_name])).expect("open the file");
+    let closed = update(
+        &host,
+        &opened,
+        ApiSnapshotRequest {
+            close_files: Some(BTreeSet::from([file_name.to_owned()])),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("close the file");
+    let dummy = update(&host, &closed, open_files(&[DUMMY])).expect("open the dummy file");
+    [
+        search_state(&opened, Some(file_name), configs),
+        search_state(&closed, None, configs),
+        search_state(&dummy, None, configs),
+    ]
+}
+
+fn ids(ids: &[&str]) -> Vec<String> {
+    ids.iter().map(|id| (*id).to_owned()).collect()
+}
+
+#[test]
+fn a_solution_leads_to_the_project_that_has_the_file() {
+    // projectcollectionbuilder_test "when project found is solution
+    // referencing default project directly" / "... indirectly" / "...
+    // through disableReferencedProjectLoad in one but without it in
+    // another", with API requests (tsgo, probed). A file the API opens
+    // keeps no config, so only the project's own config stays.
+    let src = format!("{MY_PROJECT}/tsconfig-src.json");
+    let configs = [
+        format!("{MY_PROJECT}/tsconfig.json"),
+        src.clone(),
+        format!("{MY_PROJECT}/tsconfig-indirect1.json"),
+        format!("{MY_PROJECT}/tsconfig-indirect2.json"),
+    ];
+    let configs = configs.iter().map(String::as_str).collect::<Vec<_>>();
+    let main = format!("{MY_PROJECT}/src/main.ts");
+
+    let direct = files_for_solution_config_file(&["./tsconfig-src.json"], "", &[]);
+    let mut indirect = files_for_solution_config_file(
+        &["./tsconfig-indirect1.json", "./tsconfig-indirect2.json"],
+        "",
+        &[],
+    );
+    add_indirect_project(&mut indirect, 1, "");
+    add_indirect_project(&mut indirect, 2, "");
+    let mut mixed = files_for_solution_config_file(
+        &["./tsconfig-indirect1.json", "./tsconfig-indirect2.json"],
+        "",
+        &[],
+    );
+    add_indirect_project(&mut mixed, 1, r#""disableReferencedProjectLoad": true"#);
+    add_indirect_project(&mut mixed, 2, "");
+
+    for (case, files) in [("direct", direct), ("indirect", indirect), ("mixed", mixed)] {
+        let [opened, closed, dummy] = open_close_and_open_dummy(files, &main, &configs);
+        assert_eq!(
+            opened,
+            (
+                ids(&[&src]),
+                Some(src.clone()),
+                vec![false, true, false, false]
+            ),
+            "{case}"
+        );
+        assert_eq!(closed, (ids(&[]), None, vec![false; 4]), "{case}");
+        assert_eq!(
+            dummy,
+            (ids(&["/dev/null/inferred"]), None, vec![false; 4]),
+            "{case}"
+        );
+    }
+}
+
+#[test]
+fn a_solution_that_does_not_load_its_references_leaves_the_file_inferred() {
+    // projectcollectionbuilder_test "... solution with
+    // disableReferencedProjectLoad referencing default project directly",
+    // "... indirectly through disableReferencedProjectLoad" and "project
+    // lookup terminates" (a cycle of references), with API requests. tsgo
+    // panics here: its first search deletes the configs it kept for no
+    // project, and the open's ensure acquires them again in the same build
+    // (tsgo, probed; opening without the ensure leaves the file inferred).
+    // The port keeps the file in the inferred project.
+    let main = format!("{MY_PROJECT}/src/main.ts");
+    let src = format!("{MY_PROJECT}/tsconfig-src.json");
+    let direct = files_for_solution_config_file(
+        &["./tsconfig-src.json"],
+        r#""disableReferencedProjectLoad": true"#,
+        &[],
+    );
+    let mut indirect = files_for_solution_config_file(&["./tsconfig-indirect1.json"], "", &[]);
+    add_indirect_project(&mut indirect, 1, r#""disableReferencedProjectLoad": true"#);
+    let cycle = vec![
+        (
+            "/tsconfig.json".to_owned(),
+            Seed::file(
+                r#"{ "files": [], "references": [ { "path": "./packages/pkg1" }, { "path": "./packages/pkg2" }, ] }"#,
+            ),
+        ),
+        (
+            "/packages/pkg1/tsconfig.json".to_owned(),
+            Seed::file(
+                r#"{ "include": ["src/**/*.ts"], "compilerOptions": { "composite": true, }, "references": [ { "path": "../pkg2" }, ] }"#,
+            ),
+        ),
+        (
+            "/packages/pkg2/tsconfig.json".to_owned(),
+            Seed::file(
+                r#"{ "include": ["src/**/*.ts"], "compilerOptions": { "composite": true, }, "references": [ { "path": "../pkg1" }, ] }"#,
+            ),
+        ),
+        ("/script.ts".to_owned(), Seed::file("export const a = 1;")),
+        (DUMMY.to_owned(), Seed::file("const x = 1;")),
+    ];
+    for (case, files, file_name) in [
+        ("direct", direct, main.as_str()),
+        ("indirect", indirect, main.as_str()),
+        ("cycle", cycle, "/script.ts"),
+    ] {
+        let [opened, _, dummy] = open_close_and_open_dummy(files, file_name, &[&src]);
+        assert_eq!(opened.0, ids(&["/dev/null/inferred"]), "{case}");
+        assert_eq!(opened.1.as_deref(), Some("/dev/null/inferred"), "{case}");
+        assert_eq!(opened.2, [false], "{case}");
+        assert_eq!(dummy.0, ids(&["/dev/null/inferred"]), "{case}");
+    }
+}
+
+#[test]
+fn a_project_that_reads_the_file_as_a_referenced_source_is_not_its_default() {
+    // projectcollectionbuilder_test "when project found is project with own
+    // files referencing the file from referenced project", with API
+    // requests (tsgo, probed): the solution's program has the file as a
+    // source of its referenced project, so the search goes on to that
+    // project; the solution stays as the path to it.
+    let solution = format!("{MY_PROJECT}/tsconfig.json");
+    let src = format!("{MY_PROJECT}/tsconfig-src.json");
+    let mut files =
+        files_for_solution_config_file(&["./tsconfig-src.json"], "", &[r#""./own/main.ts""#]);
+    files.push((
+        format!("{MY_PROJECT}/own/main.ts"),
+        Seed::file("import { foo } from '../src/main';\nfoo;\nexport function bar() {}\n"),
+    ));
+    let main = format!("{MY_PROJECT}/src/main.ts");
+    let [opened, closed, dummy] =
+        open_close_and_open_dummy(files, &main, &[solution.as_str(), src.as_str()]);
+    assert_eq!(
+        opened,
+        (ids(&[&src, &solution]), Some(src.clone()), vec![true, true])
+    );
+    assert_eq!(closed, (ids(&[]), None, vec![false, false]));
+    assert_eq!(
+        dummy,
+        (ids(&["/dev/null/inferred"]), None, vec![false, false])
+    );
+}
+
+#[test]
+fn a_declaration_file_beside_a_referenced_source_is_inferred() {
+    // projectcollectionbuilder_test "when dts file is next to ts file and
+    // included as root in referenced project", with API requests (tsgo,
+    // probed): the root config's index.d.ts is the referenced project's
+    // output of index.ts, so its program reads index.ts instead, and the
+    // referenced project lists only index.ts.
+    let root = "/home/src/projects/project/tsconfig.json";
+    let node = "/home/src/projects/project/tsconfig.node.json";
+    let declaration = "/home/src/projects/project/src/index.d.ts";
+    let files = vec![
+        (
+            declaration.to_owned(),
+            Seed::file(
+                "declare global {\n    interface Window {\n        electron: ElectronAPI\n        api: unknown\n    }\n}\n",
+            ),
+        ),
+        (
+            "/home/src/projects/project/src/index.ts".to_owned(),
+            Seed::file("const api = {}"),
+        ),
+        (
+            root.to_owned(),
+            Seed::file(
+                r#"{ "include": [ "src/*.d.ts", ], "references": [{ "path": "./tsconfig.node.json" }], }"#,
+            ),
+        ),
+        (
+            node.to_owned(),
+            Seed::file(r#"{ "include": ["src/**/*"], "compilerOptions": { "composite": true, }, }"#),
+        ),
+        (DUMMY.to_owned(), Seed::file("const x = 1;")),
+    ];
+    let [opened, closed, dummy] = open_close_and_open_dummy(files, declaration, &[root, node]);
+    assert_eq!(
+        opened,
+        (
+            ids(&[root, "/dev/null/inferred"]),
+            Some("/dev/null/inferred".to_owned()),
+            vec![true, true]
+        )
+    );
+    assert_eq!(closed.2, [false, false]);
+    assert_eq!(
+        dummy,
+        (ids(&["/dev/null/inferred"]), None, vec![false, false])
+    );
+}
+
+#[test]
+fn a_synthetic_program_reads_the_sources_of_its_references() {
+    // The client's "createProgram includes project references" fixture with
+    // an import of the referenced project (tsgo, probed): the program reads
+    // the source and does not check it; the config stays until a clean-up
+    // after the program goes.
+    let (host, _) = session(&[
+        (
+            "/src/index.ts",
+            "import { lib } from \"../lib/index\";\nexport const value = lib;\n",
+        ),
+        (
+            "/lib/tsconfig.json",
+            r#"{ "compilerOptions": { "composite": true, "noLib": true, "outDir": "out" }, "files": ["index.ts"] }"#,
+        ),
+        ("/lib/index.ts", "export const lib = 1;"),
+    ]);
+    let mut program = no_lib(&["/src/index.ts"]);
+    program.project_references = vec![ConfigProjectReference {
+        path: "/lib/tsconfig.json".into(),
+        original_path: "/lib/tsconfig.json".into(),
+        prepend: None,
+        circular: None,
+    }];
+    let created = update(
+        &host,
+        &host.new_root_snapshot(),
+        ApiSnapshotRequest {
+            create_programs: vec![program],
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("create the program");
+    let project = created.project(&ProjectId::synthetic(1)).unwrap();
+    let program = project.program().unwrap();
+    let files = program
+        .prepared()
+        .source_files()
+        .iter()
+        .map(|source| source.path().display().to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(files, ["/lib/index.ts", "/src/index.ts"]);
+    let diagnostics = program.with_live(|live| {
+        files
+            .iter()
+            .map(|file_name| {
+                let file = live.file_index(file_name.as_str()).expect("the file");
+                live.semantic_diagnostics(file)
+                    .expect("check the file")
+                    .len()
+            })
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(diagnostics, [0, 0]);
+    assert!(created.config("/lib/tsconfig.json").is_some());
+
+    let removed = update(
+        &host,
+        &created,
+        ApiSnapshotRequest {
+            remove_programs: BTreeSet::from([ProjectId::synthetic(1)]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("remove the program");
+    assert_eq!(removed.projects().count(), 0);
+    assert!(removed.config("/lib/tsconfig.json").is_some());
+    let cleaned = update(
+        &host,
+        &removed,
+        ApiSnapshotRequest {
+            close_files: Some(BTreeSet::new()),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("clean up");
+    assert!(cleaned.config("/lib/tsconfig.json").is_none());
 }

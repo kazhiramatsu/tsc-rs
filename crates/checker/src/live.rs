@@ -190,10 +190,11 @@ impl LiveChecker {
                 .publish(Arc::clone(source_file), data)
                 .expect("completed bind must belong to the ephemeral document domain");
         }
-        let mut file_facts = vec![ProgramFileFacts::DEFAULT_LIBRARY; lib_count];
-        file_facts.resize(
-            lib_count + program_sources.len(),
-            ProgramFileFacts::ORDINARY,
+        let file_facts = crate::program_file_facts(
+            ProgramFileFacts::DEFAULT_LIBRARY,
+            lib_count,
+            program_sources.len(),
+            &authoritative_program_metadata,
         );
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)

@@ -400,6 +400,13 @@ impl<'a> SourceFs<'a> {
         }
     }
 
+    /// tsgo `Track`: a file the program read without this file system.
+    pub(crate) fn track_file(&self, path: String) {
+        self.track(|seen| {
+            seen.files.insert(path);
+        });
+    }
+
     pub(crate) fn into_seen(self) -> SeenFiles {
         self.seen
             .map(|seen| seen.into_inner().unwrap_or_else(PoisonError::into_inner))

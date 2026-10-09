@@ -68,6 +68,7 @@ use crate::prepared::{
     PathsOptionViolationKind, PreparedAuxiliaryFile, PreparedProgram, ProgramConfigFile,
     ProgramConfigSpan, ProgramOptions,
 };
+use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
 
@@ -1334,6 +1335,7 @@ pub fn load_config_program(
         library_catalog,
         limits,
         ConfigProgramMode::NoEmit { force: false },
+        ConfigReferences::Parse,
     )
 }
 
@@ -1351,6 +1353,7 @@ pub fn load_config_program_with_no_emit_override(
         library_catalog,
         limits,
         ConfigProgramMode::NoEmit { force: true },
+        ConfigReferences::Parse,
     )
 }
 
@@ -1366,6 +1369,7 @@ pub fn load_emitting_config_program(
         library_catalog,
         limits,
         ConfigProgramMode::Emit { force: false },
+        ConfigReferences::Parse,
     )
 }
 
@@ -1382,6 +1386,40 @@ pub fn load_emitting_config_program_with_no_emit_override(
         library_catalog,
         limits,
         ConfigProgramMode::Emit { force: true },
+        ConfigReferences::Parse,
+    )
+}
+
+/// tsgo `compiler.NewProgram` for a configured project of the project
+/// system: the config's program (emitting unless `noEmit`) over the project
+/// references the caller resolved (tsgo's host `GetResolvedProjectReference`
+/// answered from the project system's configs), reading their sources in
+/// place of their outputs when `reference_sources` (tsgo
+/// `UseSourceOfProjectReference` without
+/// `disableSourceOfProjectReferenceRedirect`).
+pub fn load_project_config_program(
+    host: &dyn CompilerHost,
+    plan: &ConfigRootPlan,
+    references: Option<Arc<ResolvedProjectReferences>>,
+    reference_sources: bool,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ConfigProgramLoadError> {
+    let mode = if plan.compiler_options().no_emit == Some(true) {
+        ConfigProgramMode::NoEmit { force: false }
+    } else {
+        ConfigProgramMode::Emit { force: false }
+    };
+    load_config_program_inner(
+        host,
+        plan,
+        library_catalog,
+        limits,
+        mode,
+        ConfigReferences::Resolved {
+            references,
+            sources: reference_sources,
+        },
     )
 }
 
@@ -1423,12 +1461,25 @@ enum ConfigProgramMode {
     Emit { force: bool },
 }
 
+/// Where a config program's project references come from.
+enum ConfigReferences {
+    /// The command parses them through the host and loads their outputs.
+    Parse,
+    /// The project system resolved them; the program reads their sources
+    /// when `sources`.
+    Resolved {
+        references: Option<Arc<ResolvedProjectReferences>>,
+        sources: bool,
+    },
+}
+
 fn load_config_program_inner(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
     library_catalog: &LibraryCatalog,
     limits: ProgramLoadLimits,
     mode: ConfigProgramMode,
+    references: ConfigReferences,
 ) -> Result<PreparedProgram, ConfigProgramLoadError> {
     validate_config_plan_for_mode(plan, matches!(mode, ConfigProgramMode::Emit { .. }))?;
 
@@ -1458,7 +1509,16 @@ fn load_config_program_inner(
         .collect::<Vec<_>>();
     let mut compiler_options = plan.compiler_options().clone();
     let mut program_options = plan.program_options().clone();
-    if plan
+    if let ConfigReferences::Resolved {
+        references,
+        sources,
+    } = references
+    {
+        if let Some(references) = references {
+            program_options = program_options.with_project_references(references);
+        }
+        program_options = program_options.with_project_reference_sources(sources);
+    } else if plan
         .project_references()
         .is_some_and(|references| !references.is_empty())
     {
@@ -2350,8 +2410,16 @@ const H0_NO_EMIT_DECLARATION_CONFIG_OPTIONS: &[&str] = &[
 /// service", _tsc.js:37896) and no tsc code path outside the service reads
 /// `options.plugins`, so a check or an emit of a project that lists service
 /// plugins (VS Code's tsec, Effect's language service) reports and writes
-/// exactly what tsc does.
-const LANGUAGE_SERVICE_CONFIG_OPTIONS: &[&str] = &["plugins"];
+/// exactly what tsc does. The project system's options are the same: only
+/// its programs read `disableSourceOfProjectReferenceRedirect` (tsgo
+/// `canUseProjectReferenceSource`), and only its project search reads
+/// `disableSolutionSearching` and `disableReferencedProjectLoad`.
+const LANGUAGE_SERVICE_CONFIG_OPTIONS: &[&str] = &[
+    "plugins",
+    "disableSourceOfProjectReferenceRedirect",
+    "disableSolutionSearching",
+    "disableReferencedProjectLoad",
+];
 
 /// Checker-selecting emit options a no-emit command admits because the
 /// checker implements their diagnostics: `emitDecoratorMetadata` marks the

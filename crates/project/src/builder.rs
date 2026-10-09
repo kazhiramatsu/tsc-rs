@@ -9,17 +9,19 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use tsc_compiler::LiveProgram;
+use tsc_diagnostics::JsStr;
 use tsc_host::vfs::VfsCompilerHost;
 use tsc_program::{
-    load_config_program, load_emitting_config_program, load_emitting_program, load_program,
-    resolve_config_file_name_of_project_reference, ConfigRootPlan,
+    load_emitting_program, load_program, load_project_config_program,
+    resolve_config_file_name_of_project_reference, resolve_project_references_with, ConfigRootPlan,
 };
 
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
 use crate::fs::{FileChangeSummary, SeenFiles, SnapshotFsBuilder, SourceFs};
 use crate::id::{ProjectId, ProjectKind};
 use crate::project::{
-    inferred_project_roots, CommandLine, ProgramRoots, ProgramUpdateKind, Project, ProjectProgram,
+    default_project_from_program_inclusion, inferred_project_roots, CommandLine, ProgramRoots,
+    ProgramUpdateKind, Project, ProjectProgram,
 };
 use crate::snapshot::{
     ApiSnapshotRequest, ApiState, CreateProgramRequest, OpenedFile, ProjectCollection,
@@ -317,6 +319,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
             compiler_options: program.compiler_options.clone(),
             program_options: program.program_options.clone(),
             config_file_parsing_diagnostics: program.config_file_parsing_diagnostics.clone(),
+            project_references: program.project_references.clone(),
         };
         let Some(project) = self.synthetic.get(id) else {
             let current_directory = self.host.options().current_directory.clone();
@@ -376,6 +379,12 @@ impl<'a> ProjectCollectionBuilder<'a> {
             Some(old) if old.has_same_file_names(&program) => ProgramUpdateKind::SameFileNames,
             _ => ProgramUpdateKind::NewFiles,
         };
+        // tsgo `releaseDroppedProjectReferences`.
+        if let Some(old) = &project.program {
+            for path in old.references().difference(program.references()) {
+                self.configs.release_config_for_project(path, id);
+            }
+        }
         let snapshot_id = self.snapshot_id;
         self.change(id, |project| {
             project.program = Some(Arc::new(program));
@@ -391,31 +400,58 @@ impl<'a> ProjectCollectionBuilder<'a> {
     /// tsgo `CreateProgram` (`NewProgram` over the build's files): the
     /// program and what its build looked for.
     fn create_program(
-        &self,
+        &mut self,
         project: &Project,
     ) -> Result<(ProjectProgram, SeenFiles), ProjectError> {
         let options = self.host.options();
+        let paths = self.host.paths().clone();
         let source = SourceFs::tracking(self.fs);
-        let host = VfsCompilerHost::new(&source, project.current_directory.clone());
         let failed = |error: &dyn std::fmt::Display| {
             ProjectError::new(format!(
                 "cannot create the program of {}: {error}",
                 project.id
             ))
         };
-        let prepared = match project.command_line.as_ref() {
-            Some(CommandLine::Config(plan)) => if plan.compiler_options().no_emit == Some(true) {
-                load_config_program(&host, plan, &options.library_catalog, options.load_limits)
-            } else {
-                load_emitting_config_program(
-                    &host,
-                    plan,
-                    &options.library_catalog,
-                    options.load_limits,
-                )
-            }
+        let Some(command_line) = project.command_line.as_ref() else {
+            return Err(failed(&"the project has no command line"));
+        };
+        // tsgo's host `GetResolvedProjectReference`: each referenced config
+        // is the project's from the config registry, and a file the program
+        // read.
+        let mut references = BTreeSet::new();
+        let resolved = if command_line.project_references().is_empty() {
+            None
+        } else {
+            let configs = &mut self.configs;
+            let resolved = resolve_project_references_with(
+                command_line.config_file_name(),
+                command_line.project_references(),
+                JsStr::from_str(&project.current_directory),
+                paths.case_sensitive,
+                &mut |config_file_name| {
+                    let file_name = config_file_name.to_string_lossy().into_owned();
+                    let path = paths.to_path(&file_name);
+                    source.track_file(path.clone());
+                    references.insert(path.clone());
+                    configs.acquire_config_for_project(&file_name, &path, &project.id)
+                },
+            )?;
+            Some(Arc::new(resolved))
+        };
+        let host = VfsCompilerHost::new(&source, project.current_directory.clone());
+        let prepared = match command_line {
+            CommandLine::Config(plan) => load_project_config_program(
+                &host,
+                plan,
+                resolved,
+                plan.options()
+                    .option_bool("disableSourceOfProjectReferenceRedirect")
+                    != Some(true),
+                &options.library_catalog,
+                options.load_limits,
+            )
             .map_err(|error| failed(&format!("{error:?}")))?,
-            Some(CommandLine::Roots(roots)) => {
+            CommandLine::Roots(roots) => {
                 let root_names = roots
                     .root_file_names
                     .iter()
@@ -426,30 +462,40 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 } else {
                     load_emitting_program
                 };
+                let mut program_options = roots.program_options.clone();
+                if let Some(resolved) = resolved {
+                    program_options = program_options
+                        .with_project_references(resolved)
+                        .with_project_reference_sources(true);
+                }
                 load(
                     &host,
                     &root_names,
                     roots.compiler_options.clone(),
-                    roots.program_options.clone(),
+                    program_options,
                     &options.library_catalog,
                     options.load_limits,
                 )
                 .map_err(|error| failed(&error))?
             }
-            None => return Err(failed(&"the project has no command line")),
         };
         drop(host);
         let live = LiveProgram::new(prepared).map_err(|error| failed(&error))?;
-        Ok((ProjectProgram::new(live), source.into_seen()))
+        Ok((ProjectProgram::new(live, references), source.into_seen()))
     }
 
     /// tsgo `deleteProject`: a configured project releases its config.
     fn delete_project(&mut self, id: &ProjectId) {
-        if let Some(path) = self
-            .project(id)
-            .and_then(|project| project.config_file_path.clone())
-        {
-            self.configs.release_config_for_project(&path, id);
+        let Some(project) = self.project(id).cloned() else {
+            return;
+        };
+        if let Some(program) = &project.program {
+            for path in program.references() {
+                self.configs.release_config_for_project(path, id);
+            }
+        }
+        if let Some(path) = &project.config_file_path {
+            self.configs.release_config_for_project(path, id);
         }
         if id.kind() == Some(ProjectKind::Inferred) {
             // tsgo `deleteInferredProject`.
@@ -775,12 +821,15 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 id
             }
         };
-        let contains = self
+        let Some(project) = self
             .project(&id)
-            .is_some_and(|project| project.contains_file(path));
-        // A source of a referenced project is no direct inclusion; the port's
-        // programs read the references' outputs, so every inclusion is direct.
-        Ok((contains, contains))
+            .filter(|project| project.contains_file(path))
+        else {
+            return Ok((false, false));
+        };
+        // A source of a referenced project is no direct inclusion: the
+        // search goes on to the project that has it directly.
+        Ok((true, !project.is_source_from_project_reference(path)))
     }
 
     /// tsgo `cleanupConfiguredProjects`: the configured projects no opened
@@ -804,9 +853,15 @@ impl<'a> ProjectCollectionBuilder<'a> {
             .collect::<Vec<_>>();
         for (path, file_name) in opened {
             match self.find_default_configured_project(&file_name, &path)? {
-                // The references a program reads are kept too (P5-1b-3).
+                // tsgo `retainConfiguredProjectAndReferences`: the projects of
+                // the configs its program references stay too.
                 Some(id) => {
                     to_remove.remove(id.as_str());
+                    if let Some(program) = self.project(&id).and_then(|project| project.program()) {
+                        for reference in program.references() {
+                            to_remove.remove(reference);
+                        }
+                    }
                 }
                 None => inferred_project_files.push(file_name),
             }
@@ -842,13 +897,10 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 return Ok(Some(id.clone()));
             }
         }
-        let containing = self
-            .configured
-            .values()
-            .filter(|project| project.contains_file(path))
-            .map(|project| project.id.clone())
-            .collect::<Vec<_>>();
-        if containing.len() > 1 {
+        let (project, several_direct) =
+            default_project_from_program_inclusion(self.configured.values(), path);
+        let project = project.map(|project| project.id.clone());
+        if several_direct {
             if let Some(project) = self
                 .find_or_create_default_configured_project_for_file(
                     file_name,
@@ -860,7 +912,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 return Ok(Some(project));
             }
         }
-        Ok(containing.into_iter().next())
+        Ok(project)
     }
 
     /// tsgo `findDefaultProject`: the default configured project, else the

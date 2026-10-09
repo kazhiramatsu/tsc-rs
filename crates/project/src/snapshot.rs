@@ -8,13 +8,16 @@ use std::sync::Arc;
 
 use tsc_diagnostics::Diagnostic;
 use tsc_host::vfs::FileSystem;
-use tsc_program::{CompilerOptions, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
+use tsc_program::{
+    CompilerOptions, ConfigParseError, ConfigProjectReference, ConfigRootPlan, LibraryCatalog,
+    ProgramLoadLimits, ProgramOptions,
+};
 
 use crate::builder::ProjectCollectionBuilder;
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
 use crate::fs::{FileChangeSummary, Paths, SnapshotFs, SnapshotFsBuilder};
 use crate::id::{ProjectId, ProjectKind};
-use crate::project::Project;
+use crate::project::{default_project_from_program_inclusion, Project};
 
 /// What a session's projects are built with (tsgo `SessionOptions`).
 #[derive(Clone, Debug)]
@@ -51,6 +54,13 @@ impl fmt::Display for ProjectError {
 
 impl std::error::Error for ProjectError {}
 
+/// A referenced config's path that the reference graph cannot name.
+impl From<ConfigParseError> for ProjectError {
+    fn from(error: ConfigParseError) -> Self {
+        Self::new(format!("cannot resolve the project references: {error}"))
+    }
+}
+
 /// A synthetic program to create (tsgo `APICreateProgramRequest`).
 #[derive(Clone, Debug, Default)]
 pub struct CreateProgramRequest {
@@ -59,6 +69,9 @@ pub struct CreateProgramRequest {
     pub compiler_options: CompilerOptions,
     pub program_options: ProgramOptions,
     pub config_file_parsing_diagnostics: Vec<Diagnostic>,
+    /// The projects the program references (tsgo `ProjectReferences`), by
+    /// config path.
+    pub project_references: Vec<ConfigProjectReference>,
 }
 
 /// A synthetic program to configure again (tsgo
@@ -132,8 +145,10 @@ pub(crate) struct ProjectCollection {
 impl ProjectCollection {
     /// tsgo `ProjectCollection.GetDefaultProject` for a file without an
     /// editor's config lookup: the default project the build found, else
-    /// the first configured project (by ID) whose program has the file,
-    /// else the inferred project when it has the file.
+    /// the configured project (by ID) whose program has the file, preferring
+    /// one that has it directly (several that do leave the first: tsgo
+    /// settles them from the config of an editor's open file only), else the
+    /// inferred project when it has the file.
     pub(crate) fn default_project(&self, path: &str) -> Option<&Arc<Project>> {
         if let Some(id) = self.file_default_projects.get(path) {
             return match id.kind() {
@@ -141,9 +156,8 @@ impl ProjectCollection {
                 _ => self.configured.get(id),
             };
         }
-        self.configured
-            .values()
-            .find(|project| project.contains_file(path))
+        default_project_from_program_inclusion(self.configured.values(), path)
+            .0
             .or_else(|| {
                 self.inferred
                     .as_ref()
@@ -221,6 +235,12 @@ impl Snapshot {
     /// file system holds it.
     pub fn read_file(&self, file_name: &str) -> Option<Vec<u8>> {
         self.fs.read(file_name)
+    }
+
+    /// tsgo `ConfigFileRegistry.GetConfig`: the parse of the config the
+    /// snapshot keeps for `file_name`.
+    pub fn config(&self, file_name: &str) -> Option<&Arc<ConfigRootPlan>> {
+        self.configs.config(&self.fs.paths().to_path(file_name))
     }
 }
 

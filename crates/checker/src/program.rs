@@ -691,20 +691,33 @@ impl ProgramFileId {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ProgramFileFacts {
     default_library: bool,
+    source_from_project_reference: bool,
 }
 
 impl ProgramFileFacts {
     pub const ORDINARY: Self = Self {
         default_library: false,
+        source_from_project_reference: false,
     };
     pub const DEFAULT_LIBRARY: Self = Self {
         default_library: true,
+        source_from_project_reference: false,
+    };
+    /// A source of a referenced project that the Program reads in place of
+    /// the project's output (tsgo `IsSourceFromProjectReference`).
+    pub const SOURCE_FROM_PROJECT_REFERENCE: Self = Self {
+        default_library: false,
+        source_from_project_reference: true,
     };
 
     /// tsrs-native: reads Program-owned default-library membership instead of
     /// inferring it from a parsed document or path.
     pub const fn is_default_library(self) -> bool {
         self.default_library
+    }
+
+    pub const fn is_source_from_project_reference(self) -> bool {
+        self.source_from_project_reference
     }
 }
 

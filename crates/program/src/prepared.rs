@@ -295,6 +295,9 @@ impl ReferencedProjectOptions {
 pub struct ProjectReferenceFile {
     pub options: Arc<ReferencedProjectOptions>,
     pub output_declaration: bool,
+    /// A source of the project that the program reads in place of its
+    /// output (tsgo `IsSourceFromProjectReference`): it is not checked.
+    pub source_from_project_reference: bool,
 }
 
 impl PreparedSourceFile {
@@ -1333,6 +1336,11 @@ pub struct ProgramOptions {
     /// command (see [`ResolvedProjectReferences`]); absent for a program
     /// without references.
     project_references: Option<Arc<ResolvedProjectReferences>>,
+    /// The program reads the sources of its referenced projects in place of
+    /// their outputs (tsgo `canUseProjectReferenceSource`: the project
+    /// system's `UseSourceOfProjectReference` without
+    /// `disableSourceOfProjectReferenceRedirect`).
+    project_reference_sources: bool,
     /// The program is a project of `tsc -b` (tsgo `CompilerOptions.Build`):
     /// it writes a build info whether or not it is incremental.
     build_mode: bool,
@@ -1358,6 +1366,17 @@ impl ProgramOptions {
 
     pub fn project_references(&self) -> Option<&Arc<ResolvedProjectReferences>> {
         self.project_references.as_ref()
+    }
+
+    pub fn with_project_reference_sources(mut self, sources: bool) -> Self {
+        self.project_reference_sources = sources;
+        self
+    }
+
+    /// Whether the program reads the sources of its referenced projects
+    /// (see [`Self::with_project_reference_sources`]).
+    pub const fn project_reference_sources(&self) -> bool {
+        self.project_reference_sources
     }
 
     pub(crate) fn with_config_parsing_diagnostics(
@@ -1772,6 +1791,16 @@ impl PreparedProgram {
 
     pub fn program_options(&self) -> &ProgramOptions {
         &self.program_options
+    }
+
+    /// tsgo `IsSourceFromProjectReference`: whether `path` is a source of a
+    /// referenced project that the program reads in place of its output.
+    pub fn is_source_from_project_reference(&self, path: &CanonicalPath) -> bool {
+        self.program_options.project_reference_sources()
+            && self
+                .program_options
+                .project_references()
+                .is_some_and(|references| references.output_for_source(path).is_some())
     }
 
     pub fn source_files(&self) -> &[PreparedSourceFile] {
