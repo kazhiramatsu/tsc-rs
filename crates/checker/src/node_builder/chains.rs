@@ -324,6 +324,8 @@ pub(crate) struct BasicModuleSpecifierHost {
     /// (_tsc.js:45621-45631, 123503-123508).
     folded_files: HashMap<JsString, JsString>,
     modes: HashMap<u32, EmitResolutionMode>,
+    /// The Program's known symlinks (tsgo `GetSymlinkCache`).
+    symlinks: tsc_program::SymlinkFacts,
 }
 
 impl BasicModuleSpecifierHost {
@@ -369,11 +371,16 @@ impl BasicModuleSpecifierHost {
                 )
             })
             .collect();
+        let symlinks = checker
+            .authoritative_module_provider
+            .and_then(|provider| provider.symlink_facts())
+            .unwrap_or_default();
         Self {
             current_directory,
             files,
             folded_files,
             modes,
+            symlinks,
         }
     }
 
@@ -516,6 +523,14 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
         _index: u32,
     ) -> EmitResolutionMode {
         self.get_default_resolution_mode_for_file(file)
+    }
+
+    fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
+        self.symlinks.files.clone()
+    }
+
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
+        self.symlinks.directories.clone()
     }
 
     fn module_resolution_cache_available(&self) -> bool {

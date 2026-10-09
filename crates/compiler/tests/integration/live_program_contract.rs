@@ -36,12 +36,35 @@ fn prepared_with_lib(
     options: CompilerOptions,
     with_lib: bool,
 ) -> PreparedProgram {
+    prepared_with_links(files, &[], options, with_lib)
+}
+
+/// `links` are `(target, link)` directory symlinks (the harness's
+/// `@link: target -> link`): every file under the target is also read
+/// through the link, whose real path is the target's.
+fn prepared_with_links(
+    files: &[(&str, &str)],
+    links: &[(&str, &str)],
+    options: CompilerOptions,
+    with_lib: bool,
+) -> PreparedProgram {
     let mut builder = MemoryCompilerHost::builder("/work").file(
         "/typescript/lib/lib.es5.d.ts",
         MINIMAL_GLOBALS.as_bytes().to_vec(),
     );
     for (name, text) in files {
         builder = builder.file(*name, text.as_bytes().to_vec());
+    }
+    for (target, link) in links {
+        builder = builder.realpath(*link, *target);
+        for (name, text) in files {
+            if let Some(relative) = name.strip_prefix(&format!("{target}/")) {
+                let linked = format!("{link}/{relative}");
+                builder = builder
+                    .file(&linked, text.as_bytes().to_vec())
+                    .realpath(linked, *name);
+            }
+        }
     }
     let host = builder.build().expect("build the program host");
     let roots = files
@@ -78,7 +101,7 @@ fn sorted(mut diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
 /// Program order (libraries first, as the batch session checks them).
 struct LiveDiagnostics {
     config: Vec<Diagnostic>,
-    options: Vec<Diagnostic>,
+    program: Vec<Diagnostic>,
     syntactic: Vec<Diagnostic>,
     global: Vec<Diagnostic>,
     semantic: Vec<Diagnostic>,
@@ -103,16 +126,19 @@ fn live_diagnostics(prepared: PreparedProgram) -> LiveDiagnostics {
     }
     LiveDiagnostics {
         config: live.config_file_parsing_diagnostics().to_vec(),
-        options: live.options_diagnostics(),
+        program: live.program_diagnostics(),
         syntactic: sorted(syntactic),
         global: live.global_diagnostics(),
         semantic: sorted(semantic),
     }
 }
 
+/// A named Program: its files, its options and whether it has the library.
+type ProgramCase<'a> = (&'a str, Vec<(&'a str, &'a str)>, CompilerOptions, bool);
+
 #[test]
 fn live_diagnostics_equal_the_batch_session() {
-    let cases: Vec<(&str, Vec<(&str, &str)>, CompilerOptions, bool)> = vec![
+    let cases: Vec<ProgramCase<'_>> = vec![
         (
             "type errors across imports",
             vec![
@@ -196,7 +222,7 @@ fn live_diagnostics_equal_the_batch_session() {
         // rows behind the earlier kinds (getPreEmitDiagnostics); a Program's
         // getters do not. The native harness's union is ungated.
         let mut union = live.config.clone();
-        union.extend(live.options.iter().cloned());
+        union.extend(live.program.iter().cloned());
         union.extend(live.syntactic.iter().cloned());
         union.extend(live.semantic.iter().cloned());
         union.extend(live.global.iter().cloned());
@@ -206,7 +232,7 @@ fn live_diagnostics_equal_the_batch_session() {
             "{name}: every kind"
         );
         if live.syntactic.is_empty() {
-            assert_eq!(live.options, batch.options_diagnostics(), "{name}: options");
+            assert_eq!(live.program, batch.options_diagnostics(), "{name}: program");
             assert_eq!(live.global, batch.global_diagnostics(), "{name}: global");
         }
         assert!(
@@ -298,6 +324,97 @@ fn live_queries_equal_the_batch_walk() {
         }));
     }
     assert_eq!(live_lines, batch_lines, "queries after every check");
+}
+
+/// A module reached through a symlinked package is printed by the link's
+/// package name with no declaration emit before the query: tsgo's node
+/// builder takes the module specifiers from the Program, which knows its
+/// symlinks (nodebuilder.go:285, `Program.GetSymlinkCache`). The lines are
+/// tsgo's `symlinkedWorkspaceDependenciesNoDirectLinkGeneratesNonrelativeName.types`.
+#[test]
+fn a_printed_type_names_a_module_through_the_programs_symlinks() {
+    let files = [
+        (
+            "/work/packageA/index.d.ts",
+            "export declare class Foo {\n    private f: any;\n}\n",
+        ),
+        (
+            "/work/packageB/package.json",
+            r#"{ "private": true, "dependencies": { "package-a": "file:../packageA" } }"#,
+        ),
+        (
+            "/work/packageB/index.d.ts",
+            "import { Foo } from \"package-a\";\nexport declare function invoke(): Foo;\n",
+        ),
+        (
+            "/work/packageC/package.json",
+            r#"{ "private": true, "dependencies": { "package-b": "file:../packageB", "package-a": "file:../packageA" } }"#,
+        ),
+        (
+            "/work/packageC/index.ts",
+            "import * as pkg from \"package-b\";\n\nexport const a = pkg.invoke();\n",
+        ),
+    ];
+    let links = [
+        ("/work/packageA", "/work/packageC/node_modules/package-a"),
+        ("/work/packageA", "/work/packageB/node_modules/package-a"),
+        ("/work/packageB", "/work/packageC/node_modules/package-b"),
+    ];
+    let prepared = prepared_with_links(
+        &files,
+        &links,
+        CompilerOptions {
+            module: Some(1),
+            ..CompilerOptions::default()
+        },
+        true,
+    );
+    let unit = "/work/packageC/index.ts";
+    // The batch walk: `noEmit`, so no declaration emit precedes it.
+    let mut batch_lines = Vec::new();
+    let mut walk = |snapshot: &tsc_checker::program::ProgramSnapshot,
+                    session: &tsc_checker::emit::CheckerSession<'_>| {
+        let file = snapshot
+            .documents()
+            .iter()
+            .position(|document| document.source().file_name.to_string_lossy() == unit)
+            .expect("the unit is in the Program");
+        batch_lines.push(
+            session
+                .with_state_for_harness(|state| type_writer::write_types(state, file))
+                .expect("walk the batch session"),
+        );
+    };
+    ProgramSession::new(prepared.clone())
+        .run_for_native_harness_with_walk(
+            NativeHarnessCollection {
+                capture_suggestions: false,
+            },
+            &mut walk,
+        )
+        .expect("run the batch session");
+
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    let file = live.file_index(unit).expect("the unit is in the Program");
+    let live_lines = live
+        .with_checker(|state| type_writer::write_types(state, file))
+        .expect("write the types");
+    let printed = live_lines
+        .iter()
+        .map(|line| format!(">{} : {}", line.source_text, line.text))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        printed,
+        [
+            ">pkg : typeof pkg",
+            ">a : import(\"package-a\").Foo",
+            ">pkg.invoke() : import(\"package-a\").Foo",
+            ">pkg.invoke : () => import(\"package-a\").Foo",
+            ">pkg : typeof pkg",
+            ">invoke : () => import(\"package-a\").Foo",
+        ]
+    );
+    assert_eq!(batch_lines, [live_lines]);
 }
 
 #[test]

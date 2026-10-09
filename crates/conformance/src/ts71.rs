@@ -1216,7 +1216,7 @@ fn compare_live_program(
         }
     };
     let mut union = live.config_file_parsing_diagnostics().to_vec();
-    union.extend(live.options_diagnostics());
+    union.extend(live.program_diagnostics());
     for file in 0..live.file_count() {
         union.extend(live.syntactic_diagnostics(file));
     }
@@ -1265,8 +1265,31 @@ fn compare_live_program(
                     type_writer::write_symbols(state, file),
                 )
             });
-            if live_types.as_ref() != Ok(types) || live_symbols.as_ref() != Ok(symbols) {
-                report(&format!("walk: {unit}"));
+            for (kind, live_lines, lines) in [
+                ("types", live_types, types),
+                ("symbols", live_symbols, symbols),
+            ] {
+                let difference = match &live_lines {
+                    Err(error) => Some(format!("the live walk failed: {error}")),
+                    Ok(live_lines) => live_lines
+                        .iter()
+                        .zip(lines)
+                        .find(|(live_line, line)| live_line != line)
+                        .map(|(live_line, line)| {
+                            format!(
+                                "line {}: live `{}`, batch `{}`",
+                                line.line, live_line.text, line.text
+                            )
+                        })
+                        .or_else(|| {
+                            (live_lines.len() != lines.len()).then(|| {
+                                format!("{} live lines, {} batch", live_lines.len(), lines.len())
+                            })
+                        }),
+                };
+                if let Some(difference) = difference {
+                    report(&format!("walk {kind}: {unit}: {difference}"));
+                }
             }
         }
     }

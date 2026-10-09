@@ -543,6 +543,15 @@ pub trait AuthoritativeModuleProvider: Sync {
         None
     }
 
+    /// tsgo `Program.GetSymlinkCache()`: the Program's known symlinks. The
+    /// node builder's module-specifier host is the Program
+    /// (nodebuilder.go:285), so a printed type names a module through a
+    /// symlink as an emitted declaration does. Providers without a Program
+    /// report none.
+    fn symlink_facts(&self) -> Option<tsc_program::SymlinkFacts> {
+        None
+    }
+
     /// The program's `--generateTrace` session (tsgo `Program.Tracing`):
     /// its checkers record their events and types there. Providers without
     /// a session report none.

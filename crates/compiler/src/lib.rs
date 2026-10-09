@@ -1023,6 +1023,10 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
         Some(self.prepared().path_context())
     }
 
+    fn symlink_facts(&self) -> Option<tsc_program::SymlinkFacts> {
+        Some(tsc_program::discover_symlink_facts(self.prepared()))
+    }
+
     fn is_project_reference_source(&self, file_name: JsStr<'_>) -> bool {
         self.prepared()
             .project_reference_output_of_source(file_name)
@@ -1875,6 +1879,10 @@ impl ProgramSession {
 
             fn include_processor_diagnostics(&self) -> Vec<(AuthoritativeSourceToken, Diagnostic)> {
                 self.inner.include_processor_diagnostics()
+            }
+
+            fn symlink_facts(&self) -> Option<tsc_program::SymlinkFacts> {
+                self.inner.symlink_facts()
             }
 
             fn resolve_module(

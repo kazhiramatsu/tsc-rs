@@ -94,12 +94,13 @@ impl LiveProgram {
         self.prepared.diagnostics().config()
     }
 
-    /// tsgo `GetOptionsDiagnostics`: the options rows of the preparation,
+    /// tsgo `GetProgramDiagnostics`: the options rows of the preparation,
     /// the programmatic option rows, the program rows located outside the
-    /// sources and, for a Program that emits, the output-path rows tsgo's
-    /// `verifyCompilerOptions` adds (the batch session's emit preflight),
-    /// sorted and deduplicated.
-    pub fn options_diagnostics(&self) -> DiagnosticList {
+    /// sources (the include processor's global rows) and, for a Program
+    /// that emits, the output-path rows tsgo's `verifyCompilerOptions` adds
+    /// (the batch session's emit preflight), sorted and deduplicated. The
+    /// content mapper's rows are not ported.
+    pub fn program_diagnostics(&self) -> DiagnosticList {
         let mut options = self.prepared.diagnostics().options().to_vec();
         options.extend(programmatic_option_diagnostics(&self.prepared));
         options.extend(program_rows_outside_sources(&self.prepared));
