@@ -177,7 +177,7 @@ baseline と byte 一致した件数を ratchet に固定し、0 regressions」�
 | P4-4 | transpile（41） | `internal/transpile` への pin 直し、runner、vendoring（cases＋baselines） | emitter | 中 |
 | P4-5 | tsoptions（80）＋ config/tsconfigParsing（87） | Go 表の Rust 化、形式の描画、vendoring | P3-6g の parser、config parser | 中 |
 | P4-6 | tsc（224）＋ tsbuild（192） | `TestSys`（仮想 FS・時計・差分・sanitizer・readable buildinfo）、Go 表の Rust 化、`ExitStatus`、help／init／showConfig／locale の採用、vendoring | P3-6a〜g | 大 |
-| P4-7 | tscWatch／tsbuildWatch（107）、api（2） | watch mode、API server | 別計画（roadmap の P6／P5） | 後回し |
+| P4-7 | tscWatch／tsbuildWatch（107）、api（2） | watch mode、api の encoder（API server は roadmap の P5） | 下の「P4-7 計画」 | 大。P4-7a〜d に分ける |
 
 ## runner・report・ratchet・CI
 
@@ -1011,3 +1011,75 @@ file）を持つ機能として入れ、型の id と生成順は port の check
 - 計測（conformance の全体実行、suites、並列対照、crate test）は上の記録のとおり、merge 前に最終 bytes `d8903ccf3` で行った。実 project の
   比較と性能は計測していない（上の記録の理由と利用者の指示）。
 - 次：P4-7b（`tsc --watch`）。branch `fix/ts71-watch`（`386ad076e` から）。
+
+## P4-7b `tsc --watch`（2026-10-09）
+
+tsgo の `execute/watcher.go`（`Watcher`）と `execute/watchmanager`（`WatchManager`・`DirWatchSet`・`CanWatchDirectory`）を移した。
+`tsc-rs --watch`（`-w`）は compile の後、compile が読んだ・探した file と directory の directory を watch し、変更が来ると前回の状態の上で
+compile し直す。
+
+- **記録器と vendoring**：`scripts/tsctests_scenarios.py` の `RUN` に `TestWatch$`（`tscwatch_test.go`）を足し、`SKIP` を
+  `TestBuildWatchStopsWhenContextIsCancelled`（watcher を直接動かし baseline を書かない）だけにした。記録は 522 scenario（tsc 223、
+  tsbuild 192、tsbuildWatch 65、tscWatch 42。計画の「39」は誤りで 42）。`scripts/vendor_typescript_native.py` の TREES に
+  `reference/tscWatch`・`reference/tsbuildWatch` を足し、107 file を vendoring した（manifest を更新、harness の件数の pin は 59,162）。
+- **`Watcher`**（`crates/compiler/src/watch/mod.rs`、tsgo `Watcher`）：初回 build（`Starting compilation in watch mode...`）、
+  `do_cycle`（event の取り出し、`recheckTsConfig`（config と extends の mtime を比べ、変わったか前回失敗していれば parse し直す。
+  読めない config は診断を書いて cycle を止める）、`isRelevantChange`（build が触れた path、`PossiblyMatchesFileName`・
+  `PossiblyMatchesDirectoryName`、watch 下の directory）、関係しなければ前回の program を `OnProgram` に渡すだけ）、build（include の
+  pattern を毎回展開し直す。tsgo の full build の `ReloadFileNamesOfParsedCommandLine`。展開し直しても config の診断は最初の parse の
+  もの、つまり root が全て消えても TS18003 を出さない）、`Found N errors. Watching for file changes.`。tsgo の single-file の fast path
+  （`tryUpdateProgram`）は持たず、全ての build が tsgo の full build にあたる（出力は同じ。前回の状態を使うので check と emit は
+  変わった file の分だけ）。status は tsgo の watch status reporter どおり（`Starting…`／`File change detected…` の前に画面の clear
+  `\x1b[2J\x1b[3J\x1b[H`。`--preserveWatchOutput`・`--diagnostics`・`--extendedDiagnostics` では clear しない。pretty では
+  `[時刻] `、そうでなければ `時刻 - `）。`--preserveWatchOutput` を option として受ける。
+- **前回の状態**（`crates/compiler/src/incremental.rs`・`crates/incremental/src/snapshot.rs`）：build の後の snapshot を incremental な
+  build info の形（`to_watch_state`）で options と一緒に memory に持ち（`WatchState`）、次の build は `OldState::from_build_info` で
+  読む。build info を書かない project でも同じ（tsgo は watch 中 `incremental.Program` を memory に持つ）。`incremental`／`composite`
+  の project は `.tsbuildinfo` も書く。
+- **`WatchManager`**（`watch/manager.rs`）：build が触れた path（`TrackingHost`、tsgo `trackingvfs`。読んだ・有無を調べた・列挙した・
+  realpath した path を、並列の読み込みと解決の分も記録する）と include の directory・config の file から、望む directory の集合を
+  `resolve_desired_dirs`（存在しない directory は存在する最も近い祖先を非再帰で、watch できる祖先が無ければ watch しない）と
+  `DirWatchSet`（再帰の directory はその下を覆う。大文字小文字を区別しない FS では正規化した名前で 1 つにまとめ、最初の綴りを残す。
+  再帰を非再帰に戻さない）で作り、`reconcile` で backend の watch を足し・止め・再帰の変化を張り直す。`CanWatchDirectory`／
+  `PerceivedOsRootLengthForWatching`（`/home/<user>`・`c:/Users/<user>`・`//server/c$` を root とみなし、その 1 つ下より深い
+  directory だけ watch する）、`ShouldIgnoreWatchPath`（`.git`、`node_modules/.*`、`.#` の lock file）、debounce（50 ms 静かになるか、
+  最初の event から 500 ms）。
+- **backend**（`WatchBackend` trait）：process は OS の通知（`watch/native.rs`、`notify` 8.2 の推奨 backend：macOS FSEvents、Linux
+  inotify、Windows ReadDirectoryChangesW、BSD kqueue。WebAssembly の target では compile しない）。event の path は OS が返す実 path
+  （`/private/tmp/…`）を watch を頼んだ綴り（`/tmp/…`）に戻す。test の harness と WebAssembly の embedding は自分の backend を渡す
+  （`CommandLineTesting::watch_backend`）。
+- **command line**：`execute_command_line` は `CommandLineResult { status, watcher }` を返し、`run_cli` は watcher があれば
+  `Watcher::run`（戻らない）に入る。config・`-p`・command line の file のどれでも watch する（file の場合は include の pattern が無い）。
+  `-b --watch` は P4-7c まで `tsc-rs:` の usage error（exit 2）のまま。
+- **runner**（`crates/conformance/src/ts71/suites/tsc/system.rs`）：`TestSystem` が tsgo の `MockWatchBackend` を移した backend を持つ
+  （file の書き込み・削除で、watch 下の path とその親 directory の event を送る。`pathIsUnder`）。`-w` の scenario は edit ごとに
+  `do_cycle` を呼び、`Watch Registrations::` を書く。suites に `tscWatch`・`tsbuildWatch` を足した。
+- **tests**：compiler の unit test（`CanWatchDirectory` の深さの規則、存在しない directory の祖先への fallback、tsgo
+  `watchmanager_test.go` の `DirWatchSet` の test 5 件、無視する path、directory の path）、system contract 1 件（memory の backend
+  の上で初回 build・変更の無い cycle は何も書かない・file の変更で再 build・include に合う新しい file で再 build）。
+- **結果**：tscWatch 42／42 が byte 一致（full）。tsbuildWatch 65 は P4-7c（`-b --watch`）までは `none`。他の suites は変わらない。
+- **実 CLI と tsgo の比較**（tsgo は同じ commit の `tsc-19dadef8`、macOS、時刻を伏せて比べる）：2 file の project で型 error を入れて
+  戻す scenario は出力（画面の clear・status・診断）と emit した file が tsgo と byte 一致した。edit ごとに 2 回 cycle が走るのも tsgo と
+  同じ（2 回目は自分の出力 file の event。tsgo の `PossiblyMatchesDirectoryName` は再帰の include directory の下の全ての path を関係
+  ありとする）。module が現れる・file を足して消す・tsconfig を変える・入れ子の directory を足して消す、を続ける scenario でも emit
+  した file は一致した。違いは 2 つ：(1) cycle の回数。tsgo（`TS_WATCH_DEBUG=1` で確かめた）は FSEvents が watch を始める直前の自分の
+  初回出力の event を遅れて受け取り、余分な cycle を 1 回走らせる。OS の event の時機によるもので、決まった振る舞いではない。(2) 構文が
+  壊れた tsconfig（`{ broken` など）で、port は `tsc-rs: config failure: …` を出す（tsgo は TS1136・TS1005 などの診断と `Found N errors`）。
+  これは watch に限らず `-p` でも同じ既存の差で（壊れた tsconfig 6 形のうち 4 形が違う：構文の回復の後の JSONC の変換、preflight が
+  対応の取れない括弧を断る、変換の診断の位置、TS1328）、壊れた config からの回復として次の slice で直す。修正後の config で watch は
+  回復する（確かめた）。
+- 計測（code の最終 bytes `362eede39`（vendoring `8a4634d8d`、ratchet `0512e8555`）、macOS、`nice -n 20`、2 worker）：
+  conformance 12,748 case／467 s、errors full 13,451（mismatch 0）、emit full 13,443（not assessed 8）、types full 12,677／
+  mismatch 90、symbols full 12,715／mismatch 52、sourcemap full 13,451、trace full 13,448／mismatch 3、harness error 15（P4-7a と
+  同じ）、ratchet 0 regressions。suites（`--update` で tscWatch の
+  `full` 42 行と tsbuildWatch の `none` 65 行を足して 730 行 → `--check`）0 regressions、tscWatch 42／42・tsc 211／223・tsbuild 182／192・
+  tsbuildWatch 0／65・transpile 41・tsoptions 80・config 87。checker は変えていないので並列対照は行っていない。
+- local（`nice -n 20`、2 job）：最終 bytes で `cargo fmt --all -- --check`、clippy（`--all-targets -- -D warnings`）types／syntax／
+  binder／program／emitter／checker／incremental／compiler／conformance／harness、test program 601。他の crate の test は
+  `config.rs` の doc comment の位置を直す前の bytes（違いはその comment だけ）で、types 47、syntax 246、binder 78、emitter 635、
+  incremental 29、compiler 449、conformance 52、harness 31、checker 1,797（全て 0 失敗）。workspace 全体の test と clippy は hosted の
+  `rust` job に任せた。実 project の比較と性能は計測していない（watch でない compile の経路の変更は関数の切り出し
+  （`old_state`・`run_explicit_files`）と build info の直列化の引数化だけで、checker と emitter は変えていない。conformance と suites の
+  出力は変わらない。性能は利用者の指示）。
+- 依存：`notify` 8.2（CC0-1.0）と、その推奨 backend の crate（`fsevent-sys`・`inotify`・`kqueue`・`mio`・`walkdir` と Windows の
+  `windows-sys` 系）。WebAssembly の target には入らない。

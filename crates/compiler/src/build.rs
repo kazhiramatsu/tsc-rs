@@ -1615,7 +1615,7 @@ fn before(a: Option<SystemTime>, b: Option<SystemTime>) -> bool {
 }
 
 /// tsgo's status time: the system's local time as Go's `03:04:05 PM`.
-fn status_time(system: &dyn System) -> String {
+pub(crate) fn status_time(system: &dyn System) -> String {
     let now = system
         .now()
         .duration_since(SystemTime::UNIX_EPOCH)

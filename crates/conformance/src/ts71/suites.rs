@@ -35,7 +35,15 @@ mod tsconfig;
 mod tsoptions;
 
 /// The suites [`run`] knows.
-pub const SUITES: [&str; 5] = ["config", "transpile", "tsbuild", "tsc", "tsoptions"];
+pub const SUITES: [&str; 7] = [
+    "config",
+    "transpile",
+    "tsbuild",
+    "tsbuildWatch",
+    "tsc",
+    "tscWatch",
+    "tsoptions",
+];
 
 /// How one produced (or expected) baseline compares with its reference.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -112,7 +120,7 @@ pub fn run(workspace: &Path, options: &SuiteRunOptions) -> Result<Vec<SuiteResul
         &profile.upstream_root().join("tsc/internal/bundled/libs"),
     )?);
     let scenarios = tsc::cases(workspace, &options.profile)?;
-    for suite in ["tsc", "tsbuild"] {
+    for suite in ["tsc", "tsbuild", "tscWatch", "tsbuildWatch"] {
         let cases = scenarios
             .iter()
             .filter(|scenario| tsc::suite_and_name(scenario).0 == suite)
@@ -126,12 +134,13 @@ pub fn run(workspace: &Path, options: &SuiteRunOptions) -> Result<Vec<SuiteResul
                 )
             })
             .collect();
-        results.extend(run_rendered(
-            if suite == "tsc" { "tsc" } else { "tsbuild" },
-            &reference.join(suite),
-            cases,
-            options,
-        )?);
+        let suite: &'static str = match suite {
+            "tsc" => "tsc",
+            "tsbuild" => "tsbuild",
+            "tscWatch" => "tscWatch",
+            _ => "tsbuildWatch",
+        };
+        results.extend(run_rendered(suite, &reference.join(suite), cases, options)?);
     }
     results
         .sort_by(|left, right| (left.suite, &left.baseline).cmp(&(right.suite, &right.baseline)));

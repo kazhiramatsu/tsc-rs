@@ -5333,9 +5333,14 @@ fn pretty_configured_type_diagnostic_renders_ts1419_related_context() {
 #[test]
 fn unsupported_options_are_exit_two_and_version_is_lightweight() {
     let tree = TempTree::new();
-    let output = run(&tree, &["--watch"]);
+    let output = run(&tree, &["-b", "--watch"]);
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("unsupported option"));
+    // Without a project `--watch` has nothing to watch: tsgo prints its
+    // version and help (exit 1).
+    let watch = run(&tree, &["--watch"]);
+    assert_eq!(watch.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&watch.stdout).starts_with("Version 7.1.0-dev\n"));
 
     let version = run(&tree, &["--version"]);
     assert_eq!(version.status.code(), Some(0));

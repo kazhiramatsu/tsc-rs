@@ -461,6 +461,67 @@ pub(crate) struct AffectedPolicy {
     /// Versions and signatures carry their text (tsgo `hashWithText`, set
     /// under its test harness).
     pub(crate) hash_with_text: bool,
+    /// A watch run's cycle: the program is incremental in memory whatever
+    /// its options say, and its state is kept for the next cycle (tsgo's
+    /// watcher builds an `incremental.Program` every cycle).
+    pub(crate) watch: bool,
+}
+
+/// The state a watch run carries from one cycle to the next: the program's
+/// snapshot as an incremental build info, with the directory it is relative
+/// to and the options it was built with.
+#[derive(Clone, Debug)]
+pub struct WatchState {
+    info: tsc_incremental::BuildInfo,
+    directory: String,
+    options: tsc_program::CompilerOptions,
+}
+
+/// The name a watch run's state is relative to when the program writes no
+/// build info: the one a build would write, else one in the current
+/// directory.
+fn watch_state_file_name(prepared: &PreparedProgram) -> JsString {
+    build_info_file_name_for(prepared, true).unwrap_or_else(|| {
+        let mut name = prepared.current_directory().display().to_owned();
+        name.push_str("/tsconfig.tsbuildinfo");
+        name
+    })
+}
+
+/// The old state of a watch run's cycle: the previous cycle's (tsgo's
+/// watcher passes the previous incremental program), with its options.
+pub(crate) fn old_state_for_watch(
+    state: &WatchState,
+    prepared: &PreparedProgram,
+    default_library_directory: &str,
+) -> OldState {
+    let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
+    let absolute = |name: &str, directory: &str| {
+        tsc_program::normalize_absolute_js_path_lexical(name.into(), Some(directory.into()))
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| name.to_owned())
+    };
+    let canonical = |name: &str, directory: &str| {
+        let absolute = absolute(name, directory);
+        if case_sensitive {
+            absolute
+        } else {
+            tsc_host::to_file_name_lower_case_js(absolute.as_str().into())
+                .to_string_lossy()
+                .into_owned()
+        }
+    };
+    let mut old = OldState::from_build_info(
+        &state.info,
+        &OldStatePaths {
+            build_info_directory: &state.directory,
+            default_library_directory,
+            canonical: &canonical,
+            absolute: &absolute,
+        },
+    );
+    old.options = state.options.clone();
+    old
 }
 
 /// One file of an incremental program's run as tsgo's test harness sees it
@@ -506,9 +567,17 @@ pub(crate) struct IncrementalDriver<'p> {
     /// The host the planner's declaration signatures are computed over;
     /// `None` without an old state (no signature is computed then).
     emit_host: Option<PreparedEmitHost<'p>>,
-    build_info_file_name: Option<JsString>,
+    /// The build info the snapshot's paths are relative to: the one the
+    /// program writes, or a watch run's in-memory state's.
+    state_file_name: Option<JsString>,
+    /// The program writes its build info (an incremental or composite
+    /// program, every project of a build).
+    writes_build_info: bool,
     policy: AffectedPolicy,
     state: Mutex<Option<DriverState>>,
+    /// A watch run's state for its next cycle, kept when the build info is
+    /// assembled.
+    watch_state: Mutex<Option<WatchState>>,
 }
 
 impl<'p> IncrementalDriver<'p> {
@@ -523,13 +592,19 @@ impl<'p> IncrementalDriver<'p> {
             .is_some()
             .then(|| PreparedEmitHost::new_for_route(prepared, emit_route, source_api_facts).ok())
             .flatten();
+        let build_info_file_name = build_info_file_name_for(prepared, policy.build);
+        let writes_build_info = build_info_file_name.is_some();
+        let state_file_name =
+            build_info_file_name.or_else(|| policy.watch.then(|| watch_state_file_name(prepared)));
         Self {
             prepared,
             old,
             emit_host,
-            build_info_file_name: build_info_file_name_for(prepared, policy.build),
+            state_file_name,
+            writes_build_info,
             policy,
             state: Mutex::new(None),
+            watch_state: Mutex::new(None),
         }
     }
 
@@ -556,7 +631,7 @@ impl<'p> IncrementalDriver<'p> {
               session: &CheckerSession<'_>,
               facts: &[IncrementalFileFacts],
               check_runs: bool| {
-            let Some(file_name) = &self.build_info_file_name else {
+            let Some(file_name) = &self.state_file_name else {
                 return IncrementalPlan::default();
             };
             let assembly =
@@ -651,7 +726,7 @@ impl<'p> IncrementalDriver<'p> {
     /// diagnostics (`rows_cached`; nothing is cached under `noCheck` or
     /// when an earlier gate closed the getter).
     pub(crate) fn store_check(&self, facts: &IncrementalCheckFacts, rows_cached: bool) {
-        let Some(file_name) = &self.build_info_file_name else {
+        let Some(file_name) = &self.state_file_name else {
             return;
         };
         let mut guard = self.state();
@@ -704,7 +779,7 @@ impl<'p> IncrementalDriver<'p> {
             return Vec::new();
         }
         let mut guard = self.state();
-        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
+        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.state_file_name) else {
             return Vec::new();
         };
         let assembly = Assembly::new(
@@ -765,7 +840,7 @@ impl<'p> IncrementalDriver<'p> {
     /// for the report.
     pub(crate) fn record_declaration_diagnostics(&self, rows: &[Diagnostic]) -> Vec<Diagnostic> {
         let mut guard = self.state();
-        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
+        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.state_file_name) else {
             return Vec::new();
         };
         let assembly = Assembly::new(
@@ -913,7 +988,7 @@ impl<'p> IncrementalDriver<'p> {
         requests: Option<(&[UnitEmitRequest], &EmitPreflight)>,
     ) -> Vec<Diagnostic> {
         let mut guard = self.state();
-        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.build_info_file_name) else {
+        let (Some(state), Some(file_name)) = (guard.as_mut(), &self.state_file_name) else {
             return Vec::new();
         };
         state.differing_only_in_map = records
@@ -1029,7 +1104,7 @@ impl<'p> IncrementalDriver<'p> {
         if (state.check_global_rows && command.semantic_cached()) || state.planner_global_rows {
             return true;
         }
-        let Some(file_name) = &self.build_info_file_name else {
+        let Some(file_name) = &self.state_file_name else {
             return false;
         };
         let assembly = Assembly::new(
@@ -1065,6 +1140,15 @@ impl<'p> IncrementalDriver<'p> {
             .unwrap_or_default()
     }
 
+    /// A watch run's state for its next cycle (see [`WatchState`]), once
+    /// the build info was assembled.
+    pub(crate) fn take_watch_state(&self) -> Option<WatchState> {
+        self.watch_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+    }
+
     /// The program's files as the run left them (tsgo `GetTestingData`).
     pub(crate) fn program_report(&self) -> Option<Vec<ProgramFileReport>> {
         let guard = self.state();
@@ -1084,15 +1168,28 @@ impl<'p> IncrementalDriver<'p> {
     }
 
     pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {
-        // tsgo `emitBuildInfo`: nothing when a referenced project writes the
-        // same file (TS6377 blocks it).
-        if self.prepared.build_info_emit_blocked() {
-            return None;
-        }
-        let file_name = self.build_info_file_name.clone()?;
         let mut guard = self.state();
         let state = guard.as_mut()?;
         let outside = self.has_errors_outside_cache(state, command);
+        if self.policy.watch {
+            if let Some(file_name) = &self.state_file_name {
+                let info = state.snapshot.to_watch_state(outside);
+                *self
+                    .watch_state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(WatchState {
+                    info,
+                    directory: directory_of(&file_name.to_string_lossy()),
+                    options: self.prepared.compiler_options().clone(),
+                });
+            }
+        }
+        // tsgo `emitBuildInfo`: nothing when a referenced project writes the
+        // same file (TS6377 blocks it).
+        if !self.writes_build_info || self.prepared.build_info_emit_blocked() {
+            return None;
+        }
+        let file_name = self.state_file_name.clone()?;
         let info = state.snapshot.to_build_info(outside)?;
         Some(BuildInfoDocument {
             file_name,

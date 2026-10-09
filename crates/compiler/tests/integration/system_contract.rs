@@ -7,6 +7,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use tsc_compiler::system::{CommandLineTesting, ProgramReport, System};
+use tsc_compiler::watch::{
+    WatchBackend, WatchEvent, WatchEventKind, WatchEvents, WatchHandle, WatchRequest,
+};
 use tsc_compiler::{execute_command_line, SemanticDiagnosticsState};
 use tsc_host::vfs::{Clock, FileSystem, MemFs, Seed, SteppingClock};
 
@@ -21,6 +24,9 @@ struct MemorySystem {
     env: BTreeMap<String, String>,
     output: Mutex<String>,
     programs: Mutex<Vec<ProgramReport>>,
+    /// The directories a watch run watches, with their recursion and the
+    /// queue their events go to.
+    watches: Mutex<Vec<(String, bool, WatchEvents)>>,
 }
 
 impl MemorySystem {
@@ -47,6 +53,7 @@ impl MemorySystem {
             ]),
             output: Mutex::new(String::new()),
             programs: Mutex::new(Vec::new()),
+            watches: Mutex::new(Vec::new()),
         }
     }
 
@@ -101,6 +108,60 @@ impl CommandLineTesting for MemorySystem {
     fn on_program(&self, program: &ProgramReport) {
         self.programs.lock().unwrap().push(program.clone());
     }
+
+    fn watch_backend(&self) -> Option<&dyn WatchBackend> {
+        Some(self)
+    }
+}
+
+struct NoHandle;
+
+impl WatchHandle for NoHandle {}
+
+impl WatchBackend for MemorySystem {
+    fn watch_directories(
+        &self,
+        requests: Vec<WatchRequest>,
+    ) -> std::io::Result<Vec<Box<dyn WatchHandle>>> {
+        let mut watches = self.watches.lock().unwrap();
+        Ok(requests
+            .into_iter()
+            .map(|request| {
+                watches.push((request.directory, request.recursive, request.events));
+                Box::new(NoHandle) as Box<dyn WatchHandle>
+            })
+            .collect())
+    }
+}
+
+impl MemorySystem {
+    /// Reports a change of `path` to the watch whose directory holds it.
+    fn changed(&self, path: &str) {
+        for (directory, recursive, events) in self.watches.lock().unwrap().iter() {
+            let Some(rest) = path.strip_prefix(&format!("{directory}/")) else {
+                continue;
+            };
+            if *recursive || !rest.contains('/') {
+                events.send([WatchEvent {
+                    kind: WatchEventKind::Update,
+                    path: path.to_owned(),
+                }]);
+            }
+        }
+    }
+
+    fn take_output(&self) -> String {
+        std::mem::take(&mut *self.output.lock().unwrap())
+    }
+}
+
+/// The exit status of a command line over `system`.
+fn status_of(
+    system: &dyn System,
+    args: &[String],
+    testing: Option<&dyn CommandLineTesting>,
+) -> i32 {
+    execute_command_line(system, args, testing).status
 }
 
 fn args(args: &[&str]) -> Vec<String> {
@@ -116,7 +177,7 @@ fn a_project_compiles_into_the_memory_file_system() {
         ),
         ("/work/a.ts", "export const a: number = 1;\n"),
     ]);
-    let status = execute_command_line(&system, &[], None);
+    let status = status_of(&system, &[], None);
     assert_eq!(status, 0, "{}", system.output.lock().unwrap());
     assert_eq!(system.text("/work/out/a.js"), "export const a = 1;\n");
     assert!(system.output.lock().unwrap().is_empty());
@@ -125,7 +186,7 @@ fn a_project_compiles_into_the_memory_file_system() {
 #[test]
 fn diagnostics_follow_the_system_and_command_line_errors_have_no_summary() {
     let system = MemorySystem::new(&[("/work/a.ts", "const x: string = 1;\n")]);
-    let status = execute_command_line(&system, &args(&["a.ts", "--noEmit"]), None);
+    let status = status_of(&system, &args(&["a.ts", "--noEmit"]), None);
     assert_eq!(status, 2);
     assert_eq!(
         *system.output.lock().unwrap(),
@@ -135,7 +196,7 @@ fn diagnostics_follow_the_system_and_command_line_errors_have_no_summary() {
     // tsgo reports a command line's own errors and stops: no summary even
     // when the output is pretty.
     let system = MemorySystem::new(&[]);
-    let status = execute_command_line(&system, &args(&["--bogus", "--pretty"]), None);
+    let status = status_of(&system, &args(&["--bogus", "--pretty"]), None);
     assert_eq!(status, 1);
     let output = system.output.lock().unwrap().clone();
     assert!(output.contains("TS5023"), "{output}");
@@ -151,7 +212,7 @@ fn an_incremental_run_reports_its_program_and_writes_its_build_info() {
         ),
         ("/work/a.ts", "export const a = 1;\n"),
     ]);
-    assert_eq!(execute_command_line(&system, &[], Some(&system)), 0);
+    assert_eq!(status_of(&system, &[], Some(&system)), 0);
     assert!(system.fs.is_file("/work/out/tsconfig.tsbuildinfo"));
     let programs = system.programs.lock().unwrap().clone();
     assert_eq!(programs.len(), 1);
@@ -177,7 +238,7 @@ fn an_incremental_run_reports_its_program_and_writes_its_build_info() {
 
     // Nothing changed: the second run keeps every cached row.
     system.programs.lock().unwrap().clear();
-    assert_eq!(execute_command_line(&system, &[], Some(&system)), 0);
+    assert_eq!(status_of(&system, &[], Some(&system)), 0);
     let programs = system.programs.lock().unwrap().clone();
     assert!(programs[0]
         .files
@@ -206,10 +267,10 @@ fn a_build_takes_roots_in_a_referenced_project_from_its_output() {
         ),
     ]);
     let build = args(&["-b", "server", "--verbose", "--pretty", "false"]);
-    assert_eq!(execute_command_line(&system, &build, Some(&system)), 0);
+    assert_eq!(status_of(&system, &build, Some(&system)), 0);
     assert!(system.fs.is_file("/work/server/dist/server/src/b.js"));
     system.output.lock().unwrap().clear();
-    assert_eq!(execute_command_line(&system, &build, Some(&system)), 0);
+    assert_eq!(status_of(&system, &build, Some(&system)), 0);
     let output = system.output.lock().unwrap().clone();
     assert!(
         output.contains("Project 'server/tsconfig.json' is up to date"),
@@ -243,7 +304,7 @@ fn generate_trace_records_the_compilation_in_its_directory() {
     ]);
     // Under the test hooks the session is deterministic (tsgo's): the
     // timestamps count and no sampled event is written.
-    let status = execute_command_line(
+    let status = status_of(
         &system,
         &args(&["--generateTrace", "/work/trace", "--singleThreaded"]),
         Some(&system),
@@ -326,13 +387,93 @@ fn generate_trace_records_no_build() {
         ),
         ("/work/a.ts", "export const a = 1;\n"),
     ]);
-    let status = execute_command_line(&system, &args(&["-b"]), Some(&system));
+    let status = status_of(&system, &args(&["-b"]), Some(&system));
     assert_eq!(status, 0, "{}", system.output.lock().unwrap());
     assert!(system.fs.read("/work/a.js").is_ok());
     assert!(system.fs.read("/work/trace/trace.json").is_err());
 
     // The command records the option the config sets.
-    let status = execute_command_line(&system, &[], Some(&system));
+    let status = status_of(&system, &[], Some(&system));
     assert_eq!(status, 0, "{}", system.output.lock().unwrap());
     assert!(system.fs.read("/work/trace/trace.json").is_ok());
+}
+
+#[test]
+fn watch_builds_again_when_a_watched_file_changes() {
+    // tsgo watches no directory as shallow as `/work` (`CanWatchDirectory`).
+    const PROJECT: &str = "/home/src/workspaces/project";
+    let system = MemorySystem::new(&[
+        (
+            "/home/src/workspaces/project/tsconfig.json",
+            r#"{ "compilerOptions": { "outDir": "out", "rootDir": "." } }"#,
+        ),
+        (
+            "/home/src/workspaces/project/a.ts",
+            "export const a: number = 1;\n",
+        ),
+    ]);
+    let result = execute_command_line(&system, &args(&["--watch", "-p", PROJECT]), Some(&system));
+    assert_eq!(result.status, 0);
+    let mut watcher = result.watcher.expect("--watch starts a watch");
+    assert_eq!(
+        system.text("/home/src/workspaces/project/out/a.js"),
+        "export const a = 1;\n"
+    );
+    let output = system.take_output();
+    assert!(
+        output.starts_with("\x1b[2J\x1b[3J\x1b[H")
+            && output.contains("Starting compilation in watch mode...")
+            && output.contains("Found 0 errors. Watching for file changes."),
+        "{output}"
+    );
+    // The include directory, recursively.
+    let watched = system
+        .watches
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(directory, recursive, _)| (directory.clone(), *recursive))
+        .collect::<Vec<_>>();
+    assert_eq!(watched, [(PROJECT.to_owned(), true)]);
+
+    // A cycle without changes builds nothing and writes nothing.
+    watcher.do_cycle();
+    assert_eq!(system.take_output(), "");
+
+    system
+        .fs
+        .write(
+            "/home/src/workspaces/project/a.ts",
+            b"export const a: number = 2;\n",
+        )
+        .unwrap();
+    system.changed("/home/src/workspaces/project/a.ts");
+    watcher.do_cycle();
+    assert_eq!(
+        system.text("/home/src/workspaces/project/out/a.js"),
+        "export const a = 2;\n"
+    );
+    let output = system.take_output();
+    assert!(
+        output.contains("File change detected. Starting incremental compilation...")
+            && output.contains("Found 0 errors. Watching for file changes."),
+        "{output}"
+    );
+
+    // A file the include patterns match joins the program.
+    system
+        .fs
+        .write(
+            "/home/src/workspaces/project/b.ts",
+            b"export const b: string = 1;\n",
+        )
+        .unwrap();
+    system.changed("/home/src/workspaces/project/b.ts");
+    watcher.do_cycle();
+    let output = system.take_output();
+    assert!(
+        output.contains("b.ts(1,14): error TS2322")
+            && output.contains("Found 1 error. Watching for file changes."),
+        "{output}"
+    );
 }

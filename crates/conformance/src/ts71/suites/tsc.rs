@@ -161,17 +161,34 @@ pub(super) fn render(scenario: &Scenario, libraries: &[String]) -> Result<String
         !scenario.ignore_case
     ));
     system.baseline_fs_with_diff(&mut baseline);
-    execute(&system, &mut baseline, &scenario.args);
+    let mut watcher = execute(&system, &mut baseline, &scenario.args);
     system.serialize_state(&mut baseline);
+    if watcher.is_some() && system.has_watches() {
+        baseline.push_str(&system.watch_state());
+    }
     let mut unexpected = system.baseline_programs(&mut baseline, "Initial build");
     for (index, edit) in scenario.edits.iter().enumerate() {
         system.clear_output();
         let args = edit.args.as_ref().unwrap_or(&scenario.args);
         baseline.push_str(&format!("\n\nEdit [{index}]:: {}\n", edit.caption));
         system.apply(&edit.ops)?;
+        let changed = system.changed_paths();
         system.baseline_fs_with_diff(&mut baseline);
-        execute(&system, &mut baseline, args);
+        // A watch run sees the changes through its watches and runs a
+        // cycle; any other run runs the command again.
+        match &mut watcher {
+            Some(watcher) => {
+                system.send_changed_paths(&changed);
+                watcher.do_cycle();
+            }
+            None => {
+                execute(&system, &mut baseline, args);
+            }
+        }
         system.serialize_state(&mut baseline);
+        if watcher.is_some() && system.has_watches() {
+            baseline.push_str(&system.watch_state());
+        }
         unexpected.push_str(&system.baseline_programs(
             &mut baseline,
             &format!("Edit [{index}]:: {}\n", edit.caption),
@@ -183,7 +200,7 @@ pub(super) fn render(scenario: &Scenario, libraries: &[String]) -> Result<String
         for edit in &scenario.edits[..=index] {
             clean.apply(edit.non_incremental_ops.as_ref().unwrap_or(&edit.ops))?;
         }
-        let _ = tsc_compiler::execute_command_line(&clean, args, Some(&clean));
+        let _ = tsc_compiler::execute_command_line(&clean, args, Some(&clean)).status;
         let diff = system::diff_for_incremental(&system, &clean);
         if !diff.is_empty() {
             let explanation = if edit.expected_diff.is_empty() {
@@ -204,13 +221,18 @@ pub(super) fn render(scenario: &Scenario, libraries: &[String]) -> Result<String
     Ok(baseline)
 }
 
-/// tsgo `executeCommand`: the command line, its run and its exit status.
-fn execute(system: &TestSystem, baseline: &mut String, args: &[String]) {
+/// tsgo `executeCommand`: the command line, its run and its exit status;
+/// the watch a `--watch` command started.
+fn execute<'a>(
+    system: &'a TestSystem,
+    baseline: &mut String,
+    args: &[String],
+) -> Option<tsc_compiler::watch::Watcher<'a>> {
     baseline.push_str("tsgo ");
     baseline.push_str(&args.join(" "));
     baseline.push('\n');
-    let status = tsc_compiler::execute_command_line(system, args, Some(system));
-    baseline.push_str(match status {
+    let result = tsc_compiler::execute_command_line(system, args, Some(system));
+    baseline.push_str(match result.status {
         0 => "ExitStatus:: Success",
         1 => "ExitStatus:: DiagnosticsPresent_OutputsSkipped",
         2 => "ExitStatus:: DiagnosticsPresent_OutputsGenerated",
@@ -219,6 +241,7 @@ fn execute(system: &TestSystem, baseline: &mut String, args: &[String]) {
         5 => "ExitStatus:: NotImplemented",
         _ => "ExitStatus:: Unknown",
     });
+    result.watcher
 }
 
 fn decode_base64(encoded: &str) -> Result<Vec<u8>, String> {

@@ -38,6 +38,12 @@ tsc-incremental.workspace = true
 tsc-program.workspace = true
 tsc-types.workspace = true
 
+# --watch watches the operating system's file system through it (FSEvents,
+# inotify, ReadDirectoryChangesW, kqueue); a WebAssembly embedding supplies
+# its own watch backend.
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+notify = "8.2"
+
 [dev-dependencies]
 base64 = "0.22"
 serde = { version = "1.0", features = ["derive"] }

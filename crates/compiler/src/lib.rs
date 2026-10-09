@@ -78,8 +78,11 @@ pub mod system;
 pub use incremental::{BuildInfoDocument, ProgramFileReport};
 pub use tsc_incremental::{SemanticDiagnosticsState, SignatureUpdateKind};
 pub mod transpile;
+pub mod watch;
 
-pub use cli::{execute_command_line, run_cli, CliOutput, TYPESCRIPT_VERSION as CLI_VERSION};
+pub use cli::{
+    execute_command_line, run_cli, CliOutput, CommandLineResult, TYPESCRIPT_VERSION as CLI_VERSION,
+};
 pub use declaration_diagnostics::DeclarationSession;
 pub use tsc_checker::JSDocParsingMode;
 pub use tsc_emitter::EmitRouteKind;
@@ -144,6 +147,9 @@ pub struct ProgramSession {
     /// The command's `--generateTrace` session (tsgo
     /// `ProgramOptions.Tracing`): the checkers and the emit record into it.
     tracing: Option<Arc<Tracing>>,
+    /// A watch run's cycle: the program is incremental in memory and its
+    /// state is returned for the next cycle (see `incremental::WatchState`).
+    watch: bool,
 }
 
 /// Facts TypeScript assigns to a created `SourceFile` before `createProgram`
@@ -180,6 +186,8 @@ pub(crate) struct CliEmitSessionOutcome {
     /// The incremental program's files for tsgo's test harness (a testing
     /// session only).
     pub(crate) program_report: Option<Vec<incremental::ProgramFileReport>>,
+    /// A watch run's state for its next cycle.
+    pub(crate) watch_state: Option<incremental::WatchState>,
 }
 
 impl CliEmitSessionOutcome {
@@ -525,6 +533,7 @@ impl ProgramDiagnostics {
             checked_source_files: 0,
             build_emit: incremental::BuildEmitFacts::default(),
             program_report: None,
+            watch_state: None,
         }
     }
 }
@@ -1375,7 +1384,14 @@ impl ProgramSession {
             list_files_only: false,
             testing: false,
             tracing: None,
+            watch: false,
         }
+    }
+
+    /// The session is a watch run's cycle (see the `watch` field).
+    pub(crate) fn with_watch(mut self, watch: bool) -> Self {
+        self.watch = watch;
+        self
     }
 
     /// Records the session's checks and emit in a `--generateTrace`
@@ -1578,6 +1594,7 @@ impl ProgramSession {
             list_files_only: _,
             testing: _,
             tracing: _,
+            watch: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         tsc_emitter::validate_declaration_diagnostics_request(&emit_host)
@@ -1742,6 +1759,7 @@ impl ProgramSession {
                 checked_source_files: 0,
                 build_emit: incremental::BuildEmitFacts::default(),
                 program_report: None,
+                watch_state: None,
             };
             return Ok(EmitCommandOutcome::with_options_diagnostics(
                 reported,
@@ -1814,6 +1832,7 @@ impl ProgramSession {
             list_files_only: _,
             testing: _,
             tracing: _,
+            watch: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let inputs = project_checker_inputs(&prepared, &source_api_facts)?;
@@ -1943,6 +1962,7 @@ impl ProgramSession {
             list_files_only: _,
             testing: _,
             tracing: _,
+            watch: _,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?;
         let selection = EmitSelection::WholeProgram;
@@ -2052,6 +2072,7 @@ impl ProgramSession {
             list_files_only: _,
             testing,
             tracing,
+            watch,
         } = self;
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
             .with_collected_emitted_files(build_mode || testing)
@@ -2077,7 +2098,8 @@ impl ProgramSession {
         };
         let incremental_facts_requested = command_build_info
             && (tsc_incremental::options::is_incremental(prepared.compiler_options())
-                || build_mode);
+                || build_mode
+                || watch);
         // tsgo's semantic getter is gated by the program (options) rows,
         // which the planner cannot see from the checker.
         let options_rows = !prepared.diagnostics().options().is_empty()
@@ -2096,6 +2118,7 @@ impl ProgramSession {
                 options_diagnostics: options_rows,
                 build: build_mode,
                 hash_with_text: testing,
+                watch,
             },
         );
         let mut planner = driver.planner();
@@ -2263,6 +2286,7 @@ impl ProgramSession {
                     if testing {
                         outcome.program_report = driver.program_report();
                     }
+                    outcome.watch_state = driver.take_watch_state();
                     outcome
                 })
                 .map_err(DriverError::Emit)
@@ -2360,6 +2384,7 @@ impl ProgramSession {
             if testing {
                 outcome.program_report = driver.program_report();
             }
+            outcome.watch_state = driver.take_watch_state();
             outcome
         })
         .map_err(DriverError::Emit)
@@ -2386,6 +2411,7 @@ impl ProgramSession {
             list_files_only: _,
             testing,
             tracing,
+            watch,
         } = self;
         let setup_started = std::time::Instant::now();
         let emit_host = PreparedEmitHost::new_for_route(&prepared, emit_route, &source_api_facts)?
@@ -2395,7 +2421,8 @@ impl ProgramSession {
         tsc_types::trace::mark("emit: host and request validation", setup_started);
         let incremental_facts_requested = command_build_info
             && (tsc_incremental::options::is_incremental(prepared.compiler_options())
-                || build_mode);
+                || build_mode
+                || watch);
         let selection = EmitSelection::WholeProgram;
         let preflight_started = std::time::Instant::now();
         let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
@@ -2417,6 +2444,7 @@ impl ProgramSession {
                 options_diagnostics: options_rows,
                 build: build_mode,
                 hash_with_text: testing,
+                watch,
             },
         );
         let mut planner = driver.planner();
@@ -3103,6 +3131,7 @@ impl ProgramSession {
             if testing {
                 outcome.program_report = driver.program_report();
             }
+            outcome.watch_state = driver.take_watch_state();
             outcome
         });
         // The planner and the driver borrow the prepared program; both end
@@ -3400,7 +3429,8 @@ impl ProgramSession {
         let syntactic_diagnostics_gate = self.syntactic_diagnostics_gate(&available_options);
         let incremental_facts_requested = self.command_build_info
             && (tsc_incremental::options::is_incremental(self.prepared.compiler_options())
-                || self.build_mode);
+                || self.build_mode
+                || self.watch);
         let driver = incremental::IncrementalDriver::new(
             &self.prepared,
             self.old_build_info.clone(),
@@ -3412,6 +3442,7 @@ impl ProgramSession {
                     || self.command_options_diagnostics,
                 build: self.build_mode,
                 hash_with_text: self.testing,
+                watch: self.watch,
             },
         );
         let mut planner = driver.planner();
@@ -3768,6 +3799,7 @@ impl ProgramSession {
             driver.build_info(command)
         });
         let program_report = self.testing.then(|| driver.program_report()).flatten();
+        let watch_state = driver.take_watch_state();
         sort_and_dedupe_diagnostics(&mut available_semantic);
 
         // emitFilesAndReportErrors compares the aggregate length with the
@@ -3858,6 +3890,7 @@ impl ProgramSession {
                 work_counters,
                 build_info,
                 program_report,
+                watch_state,
             },
             first_emit,
         ))
@@ -3911,6 +3944,8 @@ pub struct NoEmitOutcome {
     /// The incremental program's files for tsgo's test harness (a testing
     /// session only).
     program_report: Option<Vec<incremental::ProgramFileReport>>,
+    /// A watch run's state for its next cycle.
+    watch_state: Option<incremental::WatchState>,
 }
 
 impl PartialEq for NoEmitOutcome {
@@ -4030,6 +4065,11 @@ impl NoEmitOutcome {
     /// session only).
     pub fn program_report(&self) -> Option<&[incremental::ProgramFileReport]> {
         self.program_report.as_deref()
+    }
+
+    /// A watch run's state for its next cycle.
+    pub(crate) fn take_watch_state(&mut self) -> Option<incremental::WatchState> {
+        self.watch_state.take()
     }
 
     /// Aggregate public-getter stream used only by differential conformance.

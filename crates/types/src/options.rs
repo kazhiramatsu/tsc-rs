@@ -238,6 +238,9 @@ pub struct CompilerOptions {
     /// `--generateTrace <directory>`: the command records the compilation
     /// in that directory (see [`crate::tracing`]).
     pub generate_trace: Option<JsString>,
+    /// `preserveWatchOutput`: a watch run does not clear the screen when a
+    /// build starts.
+    pub preserve_watch_output: Option<bool>,
     /// `--listFilesOnly` (command line only): the files are listed and the
     /// command neither emits nor asks for the global and semantic
     /// diagnostics.

@@ -34,12 +34,14 @@ use tsc_program::{
 
 use crate::build::{self, BuildCommand};
 use crate::help::Help;
+use crate::incremental::WatchState;
 use crate::locale::Locale;
 use crate::show_config::ShowConfig;
 use crate::statistics::Statistics;
 use crate::system::{
     CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
 };
+use crate::watch::Watcher;
 use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
 use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
 
@@ -280,7 +282,23 @@ pub fn run_cli(args: &[String]) -> CliOutput {
             }
         }
     };
-    let (exit_code, work_counters) = run(&system, args, None);
+    let mut watcher = None;
+    let (exit_code, work_counters) = run(&system, args, None, &mut watcher);
+    if let Some(watcher) = &mut watcher {
+        // tsgo `RunLoop`: the watch writes each cycle's output as it ends
+        // and runs until the process is stopped.
+        let mut flush = || {
+            use std::io::Write;
+            let (stdout, stderr) = system.take_output();
+            let mut out = std::io::stdout().lock();
+            let _ = out.write_all(stdout.as_bytes());
+            let _ = out.flush();
+            let mut err = std::io::stderr().lock();
+            let _ = err.write_all(stderr.as_bytes());
+            let _ = err.flush();
+        };
+        watcher.run(&mut flush);
+    }
     let (stdout, stderr) = system.take_output();
     CliOutput {
         stdout,
@@ -290,23 +308,33 @@ pub fn run_cli(args: &[String]) -> CliOutput {
     }
 }
 
+/// A command line's outcome (tsgo `CommandLineResult`): its exit status
+/// and, for `--watch`, the watch it started (its first build has run).
+pub struct CommandLineResult<'a> {
+    pub status: i32,
+    pub watcher: Option<Watcher<'a>>,
+}
+
 /// Runs a command line over `system` (tsgo `execute.CommandLine`): the
 /// output goes to the system, and the exit status is returned (tsgo
 /// `ExitStatus`: 0 success, 1 diagnostics with the outputs skipped, 2
 /// diagnostics with the outputs generated, 4 a project reference cycle).
 /// `testing` observes the run as tsgo's test harness does.
-pub fn execute_command_line(
-    system: &dyn System,
+pub fn execute_command_line<'a>(
+    system: &'a dyn System,
     args: &[String],
-    testing: Option<&dyn CommandLineTesting>,
-) -> i32 {
-    run(system, args, testing).0
+    testing: Option<&'a dyn CommandLineTesting>,
+) -> CommandLineResult<'a> {
+    let mut watcher = None;
+    let status = run(system, args, testing, &mut watcher).0;
+    CommandLineResult { status, watcher }
 }
 
-fn run(
-    system: &dyn System,
+fn run<'a>(
+    system: &'a dyn System,
     args: &[String],
-    testing: Option<&dyn CommandLineTesting>,
+    testing: Option<&'a dyn CommandLineTesting>,
+    watcher: &mut Option<Watcher<'a>>,
 ) -> (i32, NoEmitWorkCounters) {
     // tsc's command line never requests suggestion diagnostics, so the
     // unused-identifier suggestion pass (checkUnusedIdentifiers behind
@@ -318,7 +346,7 @@ fn run(
     // when they contain @see or @link, JS/JSX comments always.
     tsc_program::set_default_js_doc_parsing_mode(crate::JSDocParsingMode::ParseForTypeErrors);
     let execute_started = std::time::Instant::now();
-    let result = execute(system, testing, args);
+    let result = execute(system, testing, args, watcher);
     tsc_types::trace::mark("cli: execute", execute_started);
     // Measurement builds only (`perf-counters` feature): aggregate counters
     // are written to the sidecar file named by TSRS_PERF_COUNTERS (one
@@ -359,10 +387,11 @@ fn run(
     }
 }
 
-fn execute(
-    system: &dyn System,
-    testing: Option<&dyn CommandLineTesting>,
+fn execute<'a>(
+    system: &'a dyn System,
+    testing: Option<&'a dyn CommandLineTesting>,
     args: &[String],
+    watcher: &mut Option<Watcher<'a>>,
 ) -> Result<CliOutput, CliError> {
     // tsgo CommandLine (execute/tsc.go): the build command when the first
     // argument is -b/--b/-build/--build.
@@ -443,11 +472,7 @@ fn execute(
             EXIT_COMMAND_LINE,
         );
     }
-    if parsed.option_bool("watch") == Some(true) {
-        return Err(CliError::Usage(
-            "unsupported option \"--watch\" (watch mode)".to_owned(),
-        ));
-    }
+    let watch = parsed.option_bool("watch") == Some(true);
     let budgets = CommandBudgets::of(
         parsed.option_bool("singleThreaded"),
         parsed
@@ -546,6 +571,24 @@ fn execute(
         if show_config {
             return Ok(show_config_of_plan(&plan, case_sensitive));
         }
+        if watch {
+            *watcher = Some(start_watch(
+                system,
+                testing,
+                pretty,
+                locale,
+                budgets,
+                &current_directory,
+                catalog,
+                WatchTarget::Config {
+                    file: config_file,
+                    command_line,
+                    plan: Box::new(plan),
+                    source_texts,
+                },
+            ));
+            return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
+        }
         return execute_config(
             host,
             &current_directory,
@@ -603,6 +646,23 @@ fn execute(
             };
             return Ok(CliOutput::new(show.to_json(), EXIT_SUCCESS));
         }
+        if watch {
+            *watcher = Some(start_watch(
+                system,
+                testing,
+                pretty,
+                locale,
+                budgets,
+                &current_directory,
+                catalog,
+                WatchTarget::Files {
+                    roots: files,
+                    options: Box::new(options),
+                    program_options: Box::new(program_options),
+                },
+            ));
+            return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
+        }
         // Keep the caller's spelling for root-file diagnostics. The program
         // loader normalizes these against the host cwd for identity and I/O,
         // while TypeScript reports a missing explicit root as it was written
@@ -652,6 +712,24 @@ fn execute(
     route.config_time = elapsed_since(system, config_clock);
     if show_config {
         return Ok(show_config_of_plan(&plan, case_sensitive));
+    }
+    if watch {
+        *watcher = Some(start_watch(
+            system,
+            testing,
+            pretty,
+            locale,
+            budgets,
+            &current_directory,
+            catalog,
+            WatchTarget::Config {
+                file: config_file,
+                command_line,
+                plan: Box::new(plan),
+                source_texts,
+            },
+        ));
+        return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
     }
     execute_config(
         host,
@@ -769,6 +847,8 @@ pub(crate) struct BuildProjectRun {
     /// The run's statistics, when its options ask for them (a build
     /// aggregates them).
     pub(crate) statistics: Option<Statistics>,
+    /// A watch run's state for its next cycle.
+    pub(crate) watch_state: Option<WatchState>,
 }
 
 /// How a project is run: for `tsc -b` the session knows it is a build and
@@ -777,16 +857,26 @@ pub(crate) struct BuildProjectRun {
 struct ProjectRunMode {
     build: bool,
     summary: bool,
+    /// A watch run's cycle (`--watch`): the state is kept for the next
+    /// cycle and nothing is leaked.
+    watch: bool,
 }
 
 impl ProjectRunMode {
     const COMMAND: Self = Self {
         build: false,
         summary: true,
+        watch: false,
     };
     const BUILD: Self = Self {
         build: true,
         summary: false,
+        watch: false,
+    };
+    const WATCH: Self = Self {
+        build: false,
+        summary: true,
+        watch: true,
     };
 }
 
@@ -795,6 +885,10 @@ impl ProjectRunMode {
 enum OldBuildInfoSource<'a> {
     Read,
     Given(Option<&'a BuildInfo>),
+    /// A watch run's cycle: the previous cycle's state, or the build info
+    /// on disk for the first (tsgo `ReadBuildInfoProgram` at the watch's
+    /// start).
+    Watch(Option<&'a WatchState>),
 }
 
 /// tsgo `compileAndEmit`'s program run of one project of a build.
@@ -867,7 +961,7 @@ fn run_config(
     let limits = route.limits();
     let config_file_name = plan.config_file_name().to_string_lossy().into_owned();
     // tsgo `startTracingIfNeeded` (a command's compilation; never a build's).
-    let tracing = (!mode.build)
+    let tracing = (!mode.build && !mode.watch)
         .then(|| start_tracing(route, plan.compiler_options(), &config_file_name))
         .flatten();
     let create_program = begin_create_program(tracing.as_ref(), &config_file_name);
@@ -911,6 +1005,7 @@ fn run_config(
                 sources: source_texts,
                 program_report: None,
                 statistics: None,
+                watch_state: None,
             });
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
@@ -951,14 +1046,7 @@ fn run_config(
     // tsgo ReadBuildInfoProgram: the command reads the old build info of an
     // incremental program before it compiles; a build hands it over.
     let default_library_directory = catalog.directory().to_string_lossy();
-    let old_build_info = match old_source {
-        OldBuildInfoSource::Read => {
-            crate::incremental::read_old_build_info(host, &prepared, &default_library_directory)
-        }
-        OldBuildInfoSource::Given(info) => info.and_then(|info| {
-            crate::incremental::old_state_of(info, &prepared, &default_library_directory)
-        }),
-    };
+    let old_build_info = old_state(host, &prepared, &default_library_directory, old_source);
     let config_file = plan.config_file_name().to_string_lossy().into_owned();
     let resolution_trace = resolution_trace_text(&prepared, route, !mode.build);
     let statistics = wants_statistics(prepared.compiler_options()).then(|| Statistics {
@@ -1069,6 +1157,28 @@ fn stop_tracing(route: &CliRoute<'_>, tracing: Option<Arc<Tracing>>, stdout: &mu
     }
 }
 
+/// The state a project's run starts from (see [`OldBuildInfoSource`]).
+fn old_state(
+    host: &dyn CompilerHost,
+    prepared: &tsc_program::PreparedProgram,
+    default_library_directory: &str,
+    source: OldBuildInfoSource<'_>,
+) -> Option<OldState> {
+    match source {
+        OldBuildInfoSource::Read | OldBuildInfoSource::Watch(None) => {
+            crate::incremental::read_old_build_info(host, prepared, default_library_directory)
+        }
+        OldBuildInfoSource::Given(info) => info.and_then(|info| {
+            crate::incremental::old_state_of(info, prepared, default_library_directory)
+        }),
+        OldBuildInfoSource::Watch(Some(state)) => Some(crate::incremental::old_state_for_watch(
+            state,
+            prepared,
+            default_library_directory,
+        )),
+    }
+}
+
 /// tsgo `EmitAndReportStatistics`: under `--diagnostics` or
 /// `--extendedDiagnostics` a compilation that ran prints its statistics
 /// after its output.
@@ -1136,9 +1246,38 @@ fn execute_explicit_files(
     program_options: ProgramOptions,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
+    run_explicit_files(
+        host,
+        current_directory,
+        catalog,
+        roots,
+        options,
+        program_options,
+        route,
+        ProjectRunMode::COMMAND,
+        OldBuildInfoSource::Read,
+    )
+    .map(|run| CliOutput::new(run.stdout, run.exit_code))
+}
+
+/// tsgo's compilation of the files named on the command line.
+#[allow(clippy::too_many_arguments)]
+fn run_explicit_files(
+    host: &dyn CompilerHost,
+    current_directory: &Path,
+    catalog: &LibraryCatalog,
+    roots: &[PathBuf],
+    options: CompilerOptions,
+    program_options: ProgramOptions,
+    route: &mut CliRoute<'_>,
+    mode: ProjectRunMode,
+    old_source: OldBuildInfoSource<'_>,
+) -> Result<BuildProjectRun, CliError> {
     let limits = route.limits();
     let load_clock = route.system.now();
-    let tracing = start_tracing(route, &options, "");
+    let tracing = (!mode.watch)
+        .then(|| start_tracing(route, &options, ""))
+        .flatten();
     let create_program = begin_create_program(tracing.as_ref(), "");
     // tsgo runs no emit under --listFilesOnly: the no-emit route (whose
     // loader requires an explicit noEmit).
@@ -1162,10 +1301,11 @@ fn execute_explicit_files(
             Arc::clone(source.snapshot()),
         );
     }
-    let old_build_info = crate::incremental::read_old_build_info(
+    let old_build_info = old_state(
         host,
         &prepared,
         &catalog.directory().to_string_lossy(),
+        old_source,
     );
     let statistics = wants_statistics(prepared.compiler_options()).then(|| Statistics {
         parse_time: elapsed_since(route.system, load_clock),
@@ -1180,17 +1320,15 @@ fn execute_explicit_files(
         &[],
         route,
         old_build_info,
-        ProjectRunMode::COMMAND,
+        mode,
     );
     let tracing = route.tracing.take();
     let mut run = run?;
     report_program(route, None, &run);
     report_statistics(route, &mut run, statistics, check_clock);
     stop_tracing(route, tracing, &mut run.stdout);
-    Ok(CliOutput::new(
-        resolution_trace + &run.stdout,
-        run.exit_code,
-    ))
+    run.stdout.insert_str(0, &resolution_trace);
+    Ok(run)
 }
 
 fn execute_prepared(
@@ -1223,24 +1361,28 @@ fn execute_prepared(
     // config-file parsing diagnostics was reported. The command session runs
     // that getter over its own checker sessions
     // (`ProgramSession::run_no_emit_command`).
+    // A watch run keeps its process: nothing is leaked from one cycle to the
+    // next.
     let session = ProgramSession::new(prepared)
         .with_worker_budget(route.worker_budget())
-        .with_checker_budget(route.checker_budget())
-        .with_leaked_program(true)
+        .with_checker_budget(route.checker_budget().with_leaked_states(!mode.watch))
+        .with_leaked_program(!mode.watch)
         .with_command_options_diagnostics(!additional_diagnostics.is_empty())
         .with_build_mode(mode.build)
         .with_old_build_info(old_build_info)
         .with_testing(route.testing.is_some())
-        .with_tracing(route.tracing.clone());
+        .with_tracing(route.tracing.clone())
+        .with_watch(mode.watch);
     // tsgo EmitFilesAndReportErrors runs no emit under --listFilesOnly, so no
     // build info is written either; an incremental program is still created
     // from the old build info (its testing data reports the files).
     let session = session
         .with_list_files_only(list_files_only)
         .with_command_build_info();
-    let outcome = session
+    let mut outcome = session
         .run_no_emit_pass(false, tsc_checker::LibraryPrefixCompletion::Complete, true)
         .map_err(|error| CliError::Driver(error.to_string()))?;
+    let watch_state = outcome.take_watch_state();
     tsc_types::trace::mark("check session", session_started);
     tsc_checker::line_profile::write_report();
     // Config-owned non-fatal option rows are supplied separately from the
@@ -1352,6 +1494,7 @@ fn execute_prepared(
         sources: source_texts,
         program_report,
         statistics: None,
+        watch_state,
     })
 }
 
@@ -1459,7 +1602,10 @@ fn execute_emitting_prepared(
     // The real filesystem is stateless: its artifacts are written on the
     // worker budget; an injected (observing) filesystem keeps ordered writes.
     let write_workers = route.worker_budget().max_workers();
-    let (worker_budget, checker_budget) = (route.worker_budget(), route.checker_budget());
+    let (worker_budget, checker_budget) = (
+        route.worker_budget(),
+        route.checker_budget().with_leaked_states(!mode.watch),
+    );
     let testing = route.testing.is_some();
     let tracing = route.tracing.clone();
     let mut shared_sink;
@@ -1475,14 +1621,15 @@ fn execute_emitting_prepared(
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
     let listing = listing_lines(&prepared, current_directory);
     let session_started = std::time::Instant::now();
-    let outcome = ProgramSession::new(prepared)
+    let mut outcome = ProgramSession::new(prepared)
         .with_worker_budget(worker_budget)
         .with_checker_budget(checker_budget)
-        .with_leaked_program(true)
+        .with_leaked_program(!mode.watch)
         .with_build_mode(mode.build)
         .with_old_build_info(old_build_info)
         .with_testing(testing)
         .with_tracing(tracing)
+        .with_watch(mode.watch)
         .emit_for_cli(sink)
         .map_err(|error| CliError::Driver(error.to_string()))?;
     tsc_types::trace::mark("check + emit session", session_started);
@@ -1490,6 +1637,7 @@ fn execute_emitting_prepared(
 
     let build_emit = outcome.build_emit.clone();
     let program_report = outcome.program_report.clone();
+    let watch_state = outcome.watch_state.take();
     let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
 
     let cwd: JsStr<'_> = current_directory
@@ -1538,6 +1686,7 @@ fn execute_emitting_prepared(
         sources: source_texts,
         program_report,
         statistics: None,
+        watch_state,
     })
 }
 
@@ -2065,3 +2214,304 @@ fn config_error(error: ConfigParseError) -> CliError {
 #[cfg(test)]
 #[path = "../tests/unit/cli/tests.rs"]
 mod tests;
+
+// ----- watch mode -----------------------------------------------------------
+
+/// What a watch run compiles: a configuration (its file, the command line's
+/// options over it and its parse), or files named on the command line.
+pub(crate) enum WatchTarget {
+    Config {
+        file: PathBuf,
+        command_line: ConfigOptionBag,
+        plan: Box<ConfigRootPlan>,
+        source_texts: DiagnosticSourceMap,
+    },
+    Files {
+        roots: Vec<PathBuf>,
+        options: Box<CompilerOptions>,
+        program_options: Box<ProgramOptions>,
+    },
+}
+
+impl WatchTarget {
+    pub(crate) fn is_config(&self) -> bool {
+        matches!(self, Self::Config { .. })
+    }
+
+    pub(crate) fn options(&self) -> &CompilerOptions {
+        match self {
+            Self::Config { plan, .. } => plan.compiler_options(),
+            Self::Files { options, .. } => options,
+        }
+    }
+
+    /// The configuration file and the files it extends (tsgo
+    /// `configFilePaths`).
+    pub(crate) fn config_files(&self) -> Vec<String> {
+        match self {
+            Self::Config { plan, .. } => std::iter::once(plan.config_file_name())
+                .chain(plan.extended_source_files().iter().map(JsString::as_js))
+                .map(|file| file.to_string_lossy().into_owned())
+                .collect(),
+            Self::Files { .. } => Vec::new(),
+        }
+    }
+
+    /// The root files.
+    pub(crate) fn file_names(&self) -> Vec<String> {
+        match self {
+            Self::Config { plan, .. } => plan
+                .file_names()
+                .iter()
+                .map(|file| file.to_string_lossy().into_owned())
+                .collect(),
+            Self::Files { roots, .. } => roots
+                .iter()
+                .map(|root| root.to_string_lossy().into_owned())
+                .collect(),
+        }
+    }
+
+    /// The include specs naming one file (no wildcard, an extension), made
+    /// absolute against the configuration's directory.
+    pub(crate) fn literal_includes(&self) -> Vec<String> {
+        let Self::Config { plan, .. } = self else {
+            return Vec::new();
+        };
+        let directory = PathBuf::from(crate::watch::config_directory(
+            &plan.config_file_name().to_string_lossy(),
+        ));
+        plan.include_specs()
+            .iter()
+            .map(|spec| spec.to_string_lossy().into_owned())
+            .filter(|spec| {
+                !spec.contains(['*', '?'])
+                    && spec
+                        .rsplit('/')
+                        .next()
+                        .is_some_and(|name| name.contains('.'))
+            })
+            .map(|spec| normalized_absolute(&directory, &spec))
+            .collect()
+    }
+
+    /// tsgo `WildcardDirectories`: the include directories, recursive when
+    /// a pattern reaches below them.
+    pub(crate) fn wildcard_directories(&self) -> BTreeMap<String, bool> {
+        match self {
+            Self::Config { plan, .. } => plan
+                .wildcard_directories()
+                .iter()
+                .map(|directory| {
+                    (
+                        directory.path.to_string_lossy().into_owned(),
+                        directory.recursive,
+                    )
+                })
+                .collect(),
+            Self::Files { .. } => BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn has_wildcard_directories(&self) -> bool {
+        matches!(self, Self::Config { plan, .. } if !plan.wildcard_directories().is_empty())
+    }
+
+    /// tsgo `ReloadFileNamesOfParsedCommandLine`: the include patterns
+    /// matched again (the configuration parsed again); whether the root
+    /// files changed.
+    pub(crate) fn reload_file_names(&mut self, system: &dyn System) -> Result<bool, CliError> {
+        let Self::Config {
+            file,
+            command_line,
+            plan,
+            ..
+        } = self
+        else {
+            return Ok(false);
+        };
+        let host = system.compiler_host();
+        let current_directory = PathBuf::from(system.current_directory());
+        let (reloaded, _) = parse_config_file(&*host, &current_directory, file, command_line)?;
+        let changed = reloaded.file_names() != plan.file_names();
+        **plan = (**plan).clone().with_reloaded_file_names(reloaded);
+        Ok(changed)
+    }
+
+    /// tsgo `parseConfigFile` of `recheckTsConfig`: the configuration parsed
+    /// again; whether its parse changed (tsgo compares the
+    /// `ParsedConfig`s). A configuration that cannot be read is TS5083.
+    pub(crate) fn reparse(
+        &mut self,
+        system: &dyn System,
+    ) -> Result<bool, crate::watch::ConfigError> {
+        let Self::Config {
+            file,
+            command_line,
+            plan,
+            source_texts,
+        } = self
+        else {
+            return Ok(false);
+        };
+        let host = system.compiler_host();
+        let current_directory = PathBuf::from(system.current_directory());
+        if !host.file_exists(file).unwrap_or(false) {
+            let path = normalized_absolute_path(&current_directory, file);
+            return Err(crate::watch::ConfigError::Diagnostics(vec![
+                Diagnostic::new(
+                    None,
+                    None,
+                    None,
+                    MessageChain::new(&gen::Cannot_read_file_0, &[path]),
+                ),
+            ]));
+        }
+        let (new_plan, new_texts) =
+            parse_config_file(&*host, &current_directory, file, command_line)
+                .map_err(crate::watch::ConfigError::Fatal)?;
+        let changed = new_plan.compiler_options() != plan.compiler_options()
+            || new_plan.file_names() != plan.file_names()
+            || new_plan.include_specs() != plan.include_specs()
+            || new_plan.exclude_specs() != plan.exclude_specs();
+        **plan = new_plan;
+        *source_texts = new_texts;
+        Ok(changed)
+    }
+}
+
+/// What a watch run's build produced.
+pub(crate) struct WatchBuild {
+    /// The diagnostics, the error summary and the listings.
+    pub(crate) stdout: String,
+    /// The diagnostics reported (tsgo counts them for its status).
+    pub(crate) error_count: usize,
+    pub(crate) watch_state: Option<WatchState>,
+    pub(crate) program_report: Option<ProgramReport>,
+}
+
+/// One build of a watch run: the command's compilation of `target` over the
+/// previous build's state, through `host` (which records what it touched).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn watch_build(
+    system: &dyn System,
+    testing: Option<&dyn CommandLineTesting>,
+    pretty: bool,
+    locale: Locale,
+    budgets: CommandBudgets,
+    host: &dyn CompilerHost,
+    current_directory: &Path,
+    catalog: &LibraryCatalog,
+    target: &WatchTarget,
+    state: Option<&WatchState>,
+) -> Result<WatchBuild, CliError> {
+    let mut output_filesystem =
+        SystemEmitFileSystem::new(system.fs(), budgets.worker_budget(system).max_workers() > 1);
+    let mut route = CliRoute {
+        system,
+        testing,
+        pretty,
+        locale,
+        output_filesystem: &mut output_filesystem,
+        config_time: std::time::Duration::ZERO,
+        budgets,
+        tracing: None,
+    };
+    let (run, config_file) = match target {
+        WatchTarget::Config {
+            plan, source_texts, ..
+        } => (
+            run_config(
+                host,
+                current_directory,
+                catalog,
+                plan,
+                source_texts.clone(),
+                &mut route,
+                ProjectRunMode::WATCH,
+                OldBuildInfoSource::Watch(state),
+            )?,
+            Some(plan.config_file_name().to_string_lossy().into_owned()),
+        ),
+        WatchTarget::Files {
+            roots,
+            options,
+            program_options,
+        } => (
+            run_explicit_files(
+                host,
+                current_directory,
+                catalog,
+                roots,
+                (**options).clone(),
+                (**program_options).clone(),
+                &mut route,
+                ProjectRunMode::WATCH,
+                OldBuildInfoSource::Watch(state),
+            )?,
+            None,
+        ),
+    };
+    Ok(WatchBuild {
+        stdout: run.stdout,
+        error_count: run.diagnostics.len(),
+        watch_state: run.watch_state,
+        program_report: run
+            .program_report
+            .map(|files| ProgramReport { config_file, files }),
+    })
+}
+
+/// A watch run's own diagnostics (a configuration it cannot read), without
+/// an error summary.
+pub(crate) fn render_watch_diagnostics(
+    system: &dyn System,
+    pretty: bool,
+    locale: Locale,
+    current_directory: &Path,
+    diagnostics: &[Diagnostic],
+) -> Result<String, CliError> {
+    render_diagnostics(
+        Format {
+            current_directory,
+            case_sensitive: system.fs().case_sensitive(),
+            pretty,
+            locale,
+        },
+        &BTreeMap::new(),
+        diagnostics,
+        false,
+    )
+}
+
+/// `path` absolute against `current_directory` and normalized.
+pub(crate) fn normalized_absolute(current_directory: &Path, path: &str) -> String {
+    normalized_absolute_path(current_directory, Path::new(path))
+}
+
+/// Starts a watch run (tsgo `createWatcher` and `Watcher.start`): the first
+/// build is written to the system's output.
+#[allow(clippy::too_many_arguments)]
+fn start_watch<'a>(
+    system: &'a dyn System,
+    testing: Option<&'a dyn CommandLineTesting>,
+    pretty: bool,
+    locale: Locale,
+    budgets: CommandBudgets,
+    current_directory: &Path,
+    catalog: LibraryCatalog,
+    target: WatchTarget,
+) -> Watcher<'a> {
+    let mut watcher = Watcher::new(
+        system,
+        testing,
+        pretty,
+        locale,
+        budgets,
+        current_directory.to_path_buf(),
+        catalog,
+        target,
+    );
+    watcher.start();
+    watcher
+}

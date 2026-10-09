@@ -250,10 +250,11 @@ fn native_vendored_inputs_match_the_manifest() {
     // `.symbols` baselines vendored for the type and symbol comparison, the
     // 148 `.trace.json` baselines of the trace comparison, the 25 cases and
     // 41 baselines of the transpile suite, the 80 command-line and 87
-    // tsconfig parsing baselines, the 224 tsc and 192 tsc -b baselines, and
-    // the 7 Go sources of the option declarations and 13 message catalogs
-    // the help, `--init`, `--showConfig` and `--locale` read.
-    assert_eq!(vendored, 59_055);
+    // tsconfig parsing baselines, the 224 tsc and 192 tsc -b baselines, the
+    // 7 Go sources of the option declarations and 13 message catalogs the
+    // help, `--init`, `--showConfig` and `--locale` read, and the 42 tsc
+    // --watch and 65 tsc -b --watch baselines.
+    assert_eq!(vendored, 59_162);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()
