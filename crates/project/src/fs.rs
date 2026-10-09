@@ -556,6 +556,78 @@ pub(crate) struct SourceFs<'a> {
     seen: Option<Mutex<SeenFiles>>,
 }
 
+/// A snapshot's files as a file system (tsgo's snapshot as a resolver's
+/// host): a file reads as the snapshot read it, or once from its file
+/// system; anything else asks the file system.
+pub(crate) struct SnapshotView {
+    pub(crate) fs: SnapshotFs,
+}
+
+impl FileSystem for SnapshotView {
+    fn case_sensitive(&self) -> bool {
+        self.fs.base.case_sensitive()
+    }
+
+    fn read(&self, path: &str) -> io::Result<Vec<u8>> {
+        self.fs
+            .read(path)
+            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+    }
+
+    fn metadata(&self, path: &str) -> io::Result<Metadata> {
+        match self.fs.files.get(&self.fs.paths.to_path(path)) {
+            Some(file) => Ok(Metadata::new(
+                FileType::File,
+                file.content.len() as u64,
+                UNIX_EPOCH,
+            )),
+            None => self.fs.base.metadata(path),
+        }
+    }
+
+    fn read_dir(&self, path: &str) -> io::Result<Vec<DirEntry>> {
+        self.fs.base.read_dir(path)
+    }
+
+    fn canonicalize(&self, path: &str) -> io::Result<String> {
+        self.fs.base.canonicalize(path)
+    }
+
+    fn write(&self, _path: &str, _contents: &[u8]) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    fn append(&self, _path: &str, _contents: &[u8]) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    fn create_dir_all(&self, _path: &str) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    fn remove(&self, _path: &str) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    fn set_modified(&self, _path: &str, _modified: SystemTime) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    /// tsgo `SnapshotFS.FileExists`: a file the snapshot holds, or one its
+    /// file system has.
+    fn is_file(&self, path: &str) -> bool {
+        self.fs.files.contains_key(&self.fs.paths.to_path(path)) || self.fs.base.is_file(path)
+    }
+
+    fn is_dir(&self, path: &str) -> bool {
+        self.fs.base.is_dir(path)
+    }
+
+    fn accessible_entries(&self, path: &str) -> Entries {
+        self.fs.base.accessible_entries(path)
+    }
+}
+
 /// What a program build looked for.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SeenFiles {

@@ -10,6 +10,7 @@
 pub mod callback_fs;
 pub mod encoder;
 pub mod ipc;
+pub mod module_resolution;
 pub mod msgpack;
 pub mod proto;
 pub mod references;

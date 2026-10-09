@@ -161,6 +161,28 @@ pub enum ModuleExtension {
 }
 
 impl ModuleExtension {
+    /// tsgo `TryGetExtensionFromPath`: the supported extension a file name
+    /// ends with.
+    pub fn of_file_name(file_name: JsStr<'_>) -> Option<Self> {
+        [
+            (".d.ts", Self::Dts),
+            (".d.mts", Self::Dmts),
+            (".d.cts", Self::Dcts),
+            (".mjs", Self::Mjs),
+            (".mts", Self::Mts),
+            (".cjs", Self::Cjs),
+            (".cts", Self::Cts),
+            (".ts", Self::Ts),
+            (".js", Self::Js),
+            (".tsx", Self::Tsx),
+            (".jsx", Self::Jsx),
+            (".json", Self::Json),
+        ]
+        .into_iter()
+        .find(|(extension, _)| file_name.ends_with(extension))
+        .map(|(_, extension)| extension)
+    }
+
     pub fn as_js(&self) -> JsStr<'_> {
         match self {
             Self::Ts => ".ts".into(),
