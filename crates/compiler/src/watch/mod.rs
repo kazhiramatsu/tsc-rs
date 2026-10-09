@@ -1,6 +1,8 @@
 //! Watch mode (tsgo `execute/watcher.go`): `tsc --watch` builds the program,
 //! watches the directories it depends on, and builds again when a change
-//! arrives, reusing the previous build's incremental state.
+//! arrives, reusing the previous build's incremental state. `tsc -b --watch`
+//! is the build orchestrator's watch ([`BuildWatcher`], tsgo
+//! `build/orchestrator.go`).
 //!
 //! A cycle ([`Watcher::do_cycle`]) takes the changes the watches reported,
 //! checks whether the configuration files changed, decides whether the
@@ -33,10 +35,8 @@ use crate::locale::Locale;
 use crate::system::{CommandLineTesting, ProgramReport, System};
 
 pub(crate) use manager::Backend;
-use manager::{
-    can_watch_directory, contains_path, directory_path, resolve_desired_dirs, DirWatchSet,
-    WatchManager,
-};
+pub(crate) use manager::{can_watch_directory, contains_path, DirWatchSet};
+use manager::{directory_path, resolve_desired_dirs, WatchManager};
 pub use manager::{
     WatchBackend, WatchEvent, WatchEventKind, WatchEvents, WatchHandle, WatchRequest,
 };
@@ -47,6 +47,234 @@ pub(crate) use tracking::TrackingHost;
 const QUIET: Duration = Duration::from_millis(50);
 /// ...or this long after the first change.
 const LONGEST: Duration = Duration::from_millis(500);
+
+/// tsgo `CreateWatchStatusReporter`: the screen is cleared before a
+/// compilation starts (unless `preserveWatchOutput` or the statistics
+/// options keep it), then the time and the message.
+pub(crate) struct WatchStatus<'a> {
+    pub(crate) system: &'a dyn System,
+    pub(crate) testing: Option<&'a dyn CommandLineTesting>,
+    pub(crate) pretty: bool,
+    pub(crate) locale: Locale,
+    /// `preserveWatchOutput`, `diagnostics` or `extendedDiagnostics`.
+    pub(crate) keeps_screen: bool,
+}
+
+impl WatchStatus<'_> {
+    pub(crate) fn report(&self, message: &'static DiagnosticMessage, args: &[String]) {
+        let mut output = String::new();
+        if let Some(testing) = self.testing {
+            testing.on_watch_status_report_start(&mut output);
+        }
+        let clears = (message.code == gen::Starting_compilation_in_watch_mode.code
+            || message.code == gen::File_change_detected_Starting_incremental_compilation.code)
+            && !self.keeps_screen;
+        if clears {
+            output.push_str("\x1b[2J\x1b[3J\x1b[H");
+        }
+        let text = MessageChain::new(message, args)
+            .text_in(self.locale.messages())
+            .to_string_lossy()
+            .into_owned();
+        let time = crate::build::status_time(self.system);
+        if self.pretty {
+            output.push_str(&format!("[\x1b[90m{time}\x1b[0m] {text}\n\n"));
+        } else {
+            output.push_str(&format!("{time} - {text}\n\n"));
+        }
+        if let Some(testing) = self.testing {
+            testing.on_watch_status_report_end(&mut output);
+        }
+        self.system.write_output(&output);
+    }
+
+    /// `Found N errors. Watching for file changes.`
+    pub(crate) fn report_found_errors(&self, count: usize) {
+        if count == 1 {
+            self.report(&gen::Found_1_error_Watching_for_file_changes, &[]);
+        } else {
+            self.report(
+                &gen::Found_0_errors_Watching_for_file_changes,
+                &[count.to_string()],
+            );
+        }
+    }
+}
+
+/// The watch a command started (tsgo `tsc.Watcher`): a compilation's or a
+/// build's.
+pub enum CommandWatcher<'a> {
+    Program(Box<Watcher<'a>>),
+    Build(Box<BuildWatcher<'a>>),
+}
+
+impl CommandWatcher<'_> {
+    /// One cycle over the changes reported since the last.
+    pub fn do_cycle(&mut self) {
+        match self {
+            Self::Program(watcher) => watcher.do_cycle(),
+            Self::Build(watcher) => watcher.do_cycle(),
+        }
+    }
+
+    /// Runs the watch until the process ends.
+    pub fn run(&mut self, flush: &mut dyn FnMut()) -> ! {
+        match self {
+            Self::Program(watcher) => watcher.run(flush),
+            Self::Build(watcher) => watcher.run(flush),
+        }
+    }
+}
+
+/// tsgo's choice of a watch's backend: the harness's when it has one; the
+/// operating system's for the process.
+fn watch_backend<'a>(testing: Option<&'a dyn CommandLineTesting>) -> Option<Backend<'a>> {
+    match testing.and_then(CommandLineTesting::watch_backend) {
+        Some(backend) => Some(Backend::Borrowed(backend)),
+        None if testing.is_none() => native_backend(),
+        None => None,
+    }
+}
+
+/// `tsc -b --watch`: tsgo's build `Orchestrator` as the command's watcher.
+/// Each cycle builds the projects the changes concern (their configs,
+/// roots, the other files their build info lists, the package.json files
+/// they looked up, or a watched directory), over the tasks' state kept
+/// from the last cycle.
+pub struct BuildWatcher<'a> {
+    orchestrator: crate::build::Orchestrator<'a>,
+    manager: WatchManager<'a>,
+    system: &'a dyn System,
+    testing: Option<&'a dyn CommandLineTesting>,
+    pretty: bool,
+    locale: Locale,
+    budgets: CommandBudgets,
+}
+
+impl<'a> BuildWatcher<'a> {
+    /// tsgo `Orchestrator.start` with `--watch`: the first build, then the
+    /// watches. The first build's exit status comes back with the watcher.
+    pub(crate) fn start(
+        orchestrator: crate::build::Orchestrator<'a>,
+        system: &'a dyn System,
+        testing: Option<&'a dyn CommandLineTesting>,
+        pretty: bool,
+        locale: Locale,
+        budgets: CommandBudgets,
+    ) -> (Self, i32) {
+        let mut watcher = Self {
+            orchestrator,
+            manager: WatchManager::new(watch_backend(testing)),
+            system,
+            testing,
+            pretty,
+            locale,
+            budgets,
+        };
+        watcher
+            .status()
+            .report(&gen::Starting_compilation_in_watch_mode, &[]);
+        watcher.orchestrator.generate_initial_graph();
+        let status = watcher.build();
+        watcher.watch();
+        (watcher, status)
+    }
+
+    fn status(&self) -> WatchStatus<'a> {
+        WatchStatus {
+            system: self.system,
+            testing: self.testing,
+            pretty: self.pretty,
+            locale: self.locale,
+            keeps_screen: self.orchestrator.keeps_screen(),
+        }
+    }
+
+    /// tsgo `buildOrClean` and its report: the projects' output, then
+    /// `Found N errors. Watching for file changes.` and the statistics.
+    fn build(&mut self) -> i32 {
+        let orchestrator = &mut self.orchestrator;
+        let result = cli::with_build_route(
+            self.system,
+            self.testing,
+            self.pretty,
+            self.locale,
+            self.budgets,
+            |route| orchestrator.build_order(route),
+        );
+        match result {
+            Ok(cycle) => {
+                self.system.write_output(&cycle.stdout);
+                self.status().report_found_errors(cycle.errors.len());
+                self.system
+                    .write_output(&self.orchestrator.statistics_report());
+                cycle.exit_status
+            }
+            Err(error) => {
+                self.system.write_error(&format!("tsc-rs: {error}\n"));
+                1
+            }
+        }
+    }
+
+    /// tsgo `Watch` (and the end of `DoCycle`): the time cache moves on,
+    /// the watches follow the projects, and the cycle's caches go.
+    fn watch(&mut self) {
+        self.orchestrator.update_watch();
+        let mut set = DirWatchSet::new(self.orchestrator.case_sensitive());
+        self.orchestrator.desired_watches(&mut set);
+        let fs = self.system.fs();
+        let desired =
+            resolve_desired_dirs(&set.into_directories(), &|directory| fs.is_dir(directory));
+        if let Err(error) = self.manager.reconcile(&desired) {
+            self.system.write_output(&format!("{error}\n"));
+            self.manager.force_overflow();
+        }
+        self.orchestrator.reset_caches();
+    }
+
+    /// tsgo `Orchestrator.DoCycle`.
+    pub fn do_cycle(&mut self) {
+        let events = self.manager.drain_events();
+        if events.is_empty() {
+            return;
+        }
+        let (needs_config_update, needs_update) = if events.overflow {
+            self.orchestrator.reset_all_configs();
+            (true, true)
+        } else {
+            let case_sensitive = self.orchestrator.case_sensitive();
+            let manager = &self.manager;
+            self.orchestrator
+                .check_tasks_for_event_changes(&events.changed, &|path| {
+                    manager.is_path_under_watch(path, case_sensitive)
+                })
+        };
+        if !needs_update {
+            self.orchestrator.reset_caches();
+            return;
+        }
+        self.status().report(
+            &gen::File_change_detected_Starting_incremental_compilation,
+            &[],
+        );
+        if needs_config_update {
+            self.orchestrator.regenerate_graph();
+        }
+        self.build();
+        self.watch();
+    }
+
+    /// Runs the watch until the process ends.
+    pub fn run(&mut self, flush: &mut dyn FnMut()) -> ! {
+        flush();
+        loop {
+            self.manager.wait_for_events(QUIET, LONGEST);
+            self.do_cycle();
+            flush();
+        }
+    }
+}
 
 /// A `tsc --watch` run (tsgo `execute.Watcher`).
 pub struct Watcher<'a> {
@@ -85,11 +313,7 @@ impl<'a> Watcher<'a> {
     ) -> Self {
         // tsgo `createWatcher`: the harness's backend when it has one; the
         // run starts the operating system's at its start otherwise.
-        let backend = match testing.and_then(CommandLineTesting::watch_backend) {
-            Some(backend) => Some(Backend::Borrowed(backend)),
-            None if testing.is_none() => native_backend(),
-            None => None,
-        };
+        let backend = watch_backend(testing);
         let config_mtimes = target
             .config_files()
             .into_iter()
@@ -225,47 +449,24 @@ impl<'a> Watcher<'a> {
 
     /// tsgo's "Found N errors. Watching for file changes." status.
     fn report_found_errors(&self, count: usize) {
-        if count == 1 {
-            self.report_status(&gen::Found_1_error_Watching_for_file_changes, &[]);
-        } else {
-            self.report_status(
-                &gen::Found_0_errors_Watching_for_file_changes,
-                &[count.to_string()],
-            );
-        }
+        self.status().report_found_errors(count);
     }
 
-    /// tsgo `CreateWatchStatusReporter`: the screen is cleared before a
-    /// compilation starts (unless `preserveWatchOutput` or the statistics
-    /// options ask to keep it), then the time and the message.
     fn report_status(&self, message: &'static DiagnosticMessage, args: &[String]) {
-        let mut output = String::new();
-        if let Some(testing) = self.testing {
-            testing.on_watch_status_report_start(&mut output);
-        }
+        self.status().report(message, args);
+    }
+
+    fn status(&self) -> WatchStatus<'a> {
         let options = self.target.options();
-        let clears = (message.code == gen::Starting_compilation_in_watch_mode.code
-            || message.code == gen::File_change_detected_Starting_incremental_compilation.code)
-            && options.preserve_watch_output != Some(true)
-            && options.extended_diagnostics != Some(true)
-            && options.diagnostics != Some(true);
-        if clears {
-            output.push_str("\x1b[2J\x1b[3J\x1b[H");
+        WatchStatus {
+            system: self.system,
+            testing: self.testing,
+            pretty: self.pretty,
+            locale: self.locale,
+            keeps_screen: options.preserve_watch_output == Some(true)
+                || options.extended_diagnostics == Some(true)
+                || options.diagnostics == Some(true),
         }
-        let text = MessageChain::new(message, args)
-            .text_in(self.locale.messages())
-            .to_string_lossy()
-            .into_owned();
-        let time = crate::build::status_time(self.system);
-        if self.pretty {
-            output.push_str(&format!("[\x1b[90m{time}\x1b[0m] {text}\n\n"));
-        } else {
-            output.push_str(&format!("{time} - {text}\n\n"));
-        }
-        if let Some(testing) = self.testing {
-            testing.on_watch_status_report_end(&mut output);
-        }
-        self.system.write_output(&output);
     }
 
     /// tsgo `recheckTsConfig`: when a configuration file changed (or the

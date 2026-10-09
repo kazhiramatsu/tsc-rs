@@ -41,7 +41,7 @@ use crate::statistics::Statistics;
 use crate::system::{
     CommandLineTesting, NativeSystem, ProgramReport, System, SystemEmitFileSystem,
 };
-use crate::watch::Watcher;
+use crate::watch::{BuildWatcher, CommandWatcher, Watcher};
 use crate::{CheckerBudget, EmitFileSystem, FsOutputSink, NoEmitWorkCounters, ProgramSession};
 use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
 
@@ -194,7 +194,6 @@ impl CliOutput {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CliError {
-    Usage(String),
     Host(String),
     Config(String),
     Load(String),
@@ -214,6 +213,9 @@ pub(crate) struct CliRoute<'a> {
     pub(crate) budgets: CommandBudgets,
     /// The project's `--generateTrace` session while it runs.
     pub(crate) tracing: Option<Arc<Tracing>>,
+    /// A build watch's run: the time of each write is taken as the file is
+    /// written (tsgo `Sys.Now()` in `writeFile`), before a harness stamps it.
+    pub(crate) write_times: bool,
 }
 
 impl CliRoute<'_> {
@@ -256,7 +258,6 @@ pub(crate) struct Format<'a> {
 impl fmt::Display for CliError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Usage(detail) => write!(formatter, "{detail}"),
             Self::Host(detail) => write!(formatter, "filesystem host failure: {detail}"),
             Self::Config(detail) => write!(formatter, "config failure: {detail}"),
             Self::Load(detail) => write!(formatter, "program construction failure: {detail}"),
@@ -312,7 +313,7 @@ pub fn run_cli(args: &[String]) -> CliOutput {
 /// and, for `--watch`, the watch it started (its first build has run).
 pub struct CommandLineResult<'a> {
     pub status: i32,
-    pub watcher: Option<Watcher<'a>>,
+    pub watcher: Option<CommandWatcher<'a>>,
 }
 
 /// Runs a command line over `system` (tsgo `execute.CommandLine`): the
@@ -334,7 +335,7 @@ fn run<'a>(
     system: &'a dyn System,
     args: &[String],
     testing: Option<&'a dyn CommandLineTesting>,
-    watcher: &mut Option<Watcher<'a>>,
+    watcher: &mut Option<CommandWatcher<'a>>,
 ) -> (i32, NoEmitWorkCounters) {
     // tsc's command line never requests suggestion diagnostics, so the
     // unused-identifier suggestion pass (checkUnusedIdentifiers behind
@@ -391,7 +392,7 @@ fn execute<'a>(
     system: &'a dyn System,
     testing: Option<&'a dyn CommandLineTesting>,
     args: &[String],
-    watcher: &mut Option<Watcher<'a>>,
+    watcher: &mut Option<CommandWatcher<'a>>,
 ) -> Result<CliOutput, CliError> {
     // tsgo CommandLine (execute/tsc.go): the build command when the first
     // argument is -b/--b/-build/--build.
@@ -400,7 +401,7 @@ fn execute<'a>(
             first.to_ascii_lowercase().as_str(),
             "-b" | "--b" | "-build" | "--build"
         ) {
-            return execute_build(system, testing, &args[1..]);
+            return execute_build(system, testing, &args[1..], watcher);
         }
     }
     let prologue_started = std::time::Instant::now();
@@ -490,6 +491,7 @@ fn execute<'a>(
         config_time: std::time::Duration::ZERO,
         budgets,
         tracing: None,
+        write_times: false,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     // tsgo wraps the command line's options as `compilerOptions` and merges
@@ -572,7 +574,7 @@ fn execute<'a>(
             return Ok(show_config_of_plan(&plan, case_sensitive));
         }
         if watch {
-            *watcher = Some(start_watch(
+            *watcher = Some(CommandWatcher::Program(Box::new(start_watch(
                 system,
                 testing,
                 pretty,
@@ -586,7 +588,7 @@ fn execute<'a>(
                     plan: Box::new(plan),
                     source_texts,
                 },
-            ));
+            ))));
             return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
         }
         return execute_config(
@@ -647,7 +649,7 @@ fn execute<'a>(
             return Ok(CliOutput::new(show.to_json(), EXIT_SUCCESS));
         }
         if watch {
-            *watcher = Some(start_watch(
+            *watcher = Some(CommandWatcher::Program(Box::new(start_watch(
                 system,
                 testing,
                 pretty,
@@ -660,7 +662,7 @@ fn execute<'a>(
                     options: Box::new(options),
                     program_options: Box::new(program_options),
                 },
-            ));
+            ))));
             return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
         }
         // Keep the caller's spelling for root-file diagnostics. The program
@@ -714,7 +716,7 @@ fn execute<'a>(
         return Ok(show_config_of_plan(&plan, case_sensitive));
     }
     if watch {
-        *watcher = Some(start_watch(
+        *watcher = Some(CommandWatcher::Program(Box::new(start_watch(
             system,
             testing,
             pretty,
@@ -728,7 +730,7 @@ fn execute<'a>(
                 plan: Box::new(plan),
                 source_texts,
             },
-        ));
+        ))));
         return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
     }
     execute_config(
@@ -741,10 +743,11 @@ fn execute<'a>(
     )
 }
 
-fn execute_build(
-    system: &dyn System,
-    testing: Option<&dyn CommandLineTesting>,
+fn execute_build<'a>(
+    system: &'a dyn System,
+    testing: Option<&'a dyn CommandLineTesting>,
     args: &[String],
+    watcher: &mut Option<CommandWatcher<'a>>,
 ) -> Result<CliOutput, CliError> {
     let host = system.compiler_host();
     let host = &*host;
@@ -788,11 +791,6 @@ fn execute_build(
         stdout.push_str(&help.build_help());
         return Ok(CliOutput::new(stdout, EXIT_SUCCESS));
     }
-    if parsed.option_bool("watch") == Some(true) {
-        return Err(CliError::Usage(
-            "unsupported option \"--watch\" (watch mode)".to_owned(),
-        ));
-    }
     let budgets = CommandBudgets::of(
         parsed.option_bool("singleThreaded"),
         parsed
@@ -810,6 +808,7 @@ fn execute_build(
         config_time: std::time::Duration::ZERO,
         budgets,
         tracing: None,
+        write_times: false,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
     let command = BuildCommand {
@@ -819,9 +818,47 @@ fn execute_build(
         force: parsed.build_bool("force"),
         clean: parsed.build_bool("clean"),
         stop_build_on_errors: parsed.build_bool("stopBuildOnErrors"),
+        watch: parsed.option_bool("watch") == Some(true),
         command_line: command_line_option_bag(&parsed.options, current_directory_js.as_js()),
     };
-    build::run_build(host, &current_directory, &catalog, &command, &mut route)
+    if command.watch {
+        // tsgo `Orchestrator.start` with `--watch`: the first build and the
+        // watches; the status is the first build's.
+        let mut orchestrator =
+            build::Orchestrator::new(system, testing, catalog, command, current_directory, pretty);
+        orchestrator.set_locale(locale);
+        let (build_watcher, status) =
+            BuildWatcher::start(orchestrator, system, testing, pretty, locale, budgets);
+        *watcher = Some(CommandWatcher::Build(Box::new(build_watcher)));
+        return Ok(CliOutput::new(String::new(), status));
+    }
+    build::run_build(current_directory, catalog, command, &mut route)
+}
+
+/// The route of one build of a watch (`tsc -b --watch`): what a build's
+/// projects write and report through.
+pub(crate) fn with_build_route<R>(
+    system: &dyn System,
+    testing: Option<&dyn CommandLineTesting>,
+    pretty: bool,
+    locale: Locale,
+    budgets: CommandBudgets,
+    build: impl FnOnce(&mut CliRoute<'_>) -> R,
+) -> R {
+    let mut output_filesystem =
+        SystemEmitFileSystem::new(system.fs(), budgets.worker_budget(system).max_workers() > 1);
+    let mut route = CliRoute {
+        system,
+        testing,
+        pretty,
+        locale,
+        output_filesystem: &mut output_filesystem,
+        config_time: std::time::Duration::ZERO,
+        budgets,
+        tracing: None,
+        write_times: true,
+    };
+    build(&mut route)
 }
 
 /// What one project's run produced, for the command (`-p`) and for a
@@ -839,6 +876,9 @@ pub(crate) struct BuildProjectRun {
     /// The files a test harness stamped after the emit, with their time
     /// (tsgo `OnEmittedFiles`).
     pub(crate) stamped: Vec<(String, std::time::SystemTime)>,
+    /// A build watch's write times: one per file written, in order, taken
+    /// before a harness stamps them (empty otherwise).
+    pub(crate) write_times: Vec<(String, std::time::SystemTime)>,
     /// The texts the diagnostics were rendered from (a build summarizes
     /// them at its end).
     pub(crate) sources: DiagnosticSourceMap,
@@ -849,6 +889,26 @@ pub(crate) struct BuildProjectRun {
     pub(crate) statistics: Option<Statistics>,
     /// A watch run's state for its next cycle.
     pub(crate) watch_state: Option<WatchState>,
+    /// The package.json files the program looked up (tsgo
+    /// `PackageJsonLookupPaths`; a build watches them).
+    pub(crate) package_json_lookups: Vec<String>,
+}
+
+/// tsgo `PackageJsonLookupPaths`: every package.json the program looked
+/// up, existing or not, sorted (a program without a configuration file has
+/// none).
+fn package_json_lookup_paths(prepared: &tsc_program::PreparedProgram) -> Vec<String> {
+    if prepared.program_options().config_file_path().is_none() {
+        return Vec::new();
+    }
+    let mut paths = prepared
+        .package_json_probes()
+        .iter()
+        .map(|probe| probe.path.to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    paths.sort_unstable();
+    paths.dedup();
+    paths
 }
 
 /// How a project is run: for `tsc -b` the session knows it is a build and
@@ -1002,10 +1062,12 @@ fn run_config(
                 has_changed_dts_file: false,
                 declarations_differing_only_in_map: Vec::new(),
                 stamped: Vec::new(),
+                write_times: Vec::new(),
                 sources: source_texts,
                 program_report: None,
                 statistics: None,
                 watch_state: None,
+                package_json_lookups: Vec::new(),
             });
         }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
@@ -1356,6 +1418,7 @@ fn execute_prepared(
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
     let list_files_only = prepared.compiler_options().list_files_only == Some(true);
     let listing = listing_lines(&prepared, current_directory);
+    let package_json_lookups = package_json_lookup_paths(&prepared);
     // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): a --noEmit
     // command with getEmitDeclarations(options) reports the declaration
     // diagnostics after the semantic pass, only while nothing beyond the
@@ -1459,6 +1522,14 @@ fn execute_prepared(
             }
         }
     }
+    let write_times = if route.write_times {
+        emitted_files
+            .iter()
+            .map(|file| (file.clone(), route.system.now()))
+            .collect()
+    } else {
+        Vec::new()
+    };
     let stamped = route
         .testing
         .map(|testing| testing.on_emitted_files(&emitted_files))
@@ -1492,10 +1563,12 @@ fn execute_prepared(
         has_changed_dts_file: false,
         declarations_differing_only_in_map: Vec::new(),
         stamped,
+        write_times,
         sources: source_texts,
         program_report,
         statistics: None,
         watch_state,
+        package_json_lookups,
     })
 }
 
@@ -1621,6 +1694,7 @@ fn execute_emitting_prepared(
         };
     let list_emitted_files = prepared.compiler_options().list_emitted_files == Some(true);
     let listing = listing_lines(&prepared, current_directory);
+    let package_json_lookups = package_json_lookup_paths(&prepared);
     let session_started = std::time::Instant::now();
     let mut outcome = ProgramSession::new(prepared)
         .with_worker_budget(worker_budget)
@@ -1659,6 +1733,14 @@ fn execute_emitting_prepared(
                 .into_owned()
         })
         .collect::<Vec<String>>();
+    let write_times = if route.write_times {
+        emitted_files
+            .iter()
+            .map(|file| (file.clone(), route.system.now()))
+            .collect()
+    } else {
+        Vec::new()
+    };
     let stamped = route
         .testing
         .map(|testing| testing.on_emitted_files(&emitted_files))
@@ -1684,10 +1766,12 @@ fn execute_emitting_prepared(
             .map(|path| path.to_string_lossy().into_owned())
             .collect(),
         stamped,
+        write_times,
         sources: source_texts,
         program_report,
         statistics: None,
         watch_state,
+        package_json_lookups,
     })
 }
 
@@ -2417,6 +2501,7 @@ pub(crate) fn watch_build(
         config_time: std::time::Duration::ZERO,
         budgets,
         tracing: None,
+        write_times: false,
     };
     let (run, config_file) = match target {
         WatchTarget::Config {

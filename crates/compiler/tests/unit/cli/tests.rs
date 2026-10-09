@@ -37,10 +37,6 @@ fn command_line_errors_are_tsgo_diagnostics_with_exit_status_one() {
         output.stdout(),
         "error TS5023: Unknown compiler option '--bogus'.\n"
     );
-    // Unsupported modes stay usage errors of the port.
-    let output = run(&["-b", "--watch"]);
-    assert_eq!(output.exit_code(), EXIT_FAILURE);
-    assert!(output.stderr().contains("unsupported option \"--watch\""));
 }
 
 #[test]

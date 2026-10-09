@@ -227,7 +227,7 @@ fn execute<'a>(
     system: &'a TestSystem,
     baseline: &mut String,
     args: &[String],
-) -> Option<tsc_compiler::watch::Watcher<'a>> {
+) -> Option<tsc_compiler::watch::CommandWatcher<'a>> {
     baseline.push_str("tsgo ");
     baseline.push_str(&args.join(" "));
     baseline.push('\n');

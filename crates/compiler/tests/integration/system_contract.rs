@@ -477,3 +477,97 @@ fn watch_builds_again_when_a_watched_file_changes() {
         "{output}"
     );
 }
+
+#[test]
+fn build_watch_rebuilds_the_projects_a_change_concerns() {
+    const CORE: &str = "/home/src/workspaces/project/core";
+    const APP: &str = "/home/src/workspaces/project/app";
+    let system = MemorySystem::new(&[
+        (
+            "/home/src/workspaces/project/core/tsconfig.json",
+            r#"{ "compilerOptions": { "composite": true, "outDir": "out", "rootDir": "." } }"#,
+        ),
+        (
+            "/home/src/workspaces/project/core/index.ts",
+            "export const answer: number = 42;\n",
+        ),
+        (
+            "/home/src/workspaces/project/app/tsconfig.json",
+            r#"{ "compilerOptions": { "composite": true, "outDir": "out", "rootDir": "." }, "references": [{ "path": "../core" }] }"#,
+        ),
+        (
+            "/home/src/workspaces/project/app/index.ts",
+            "import { answer } from \"../core/index.js\";\nexport const doubled = answer * 2;\n",
+        ),
+    ]);
+    let result = execute_command_line(&system, &args(&["-b", APP, "--watch"]), Some(&system));
+    assert_eq!(result.status, 0);
+    let mut watcher = result.watcher.expect("-b --watch starts a watch");
+    assert_eq!(
+        system.text("/home/src/workspaces/project/core/out/index.d.ts"),
+        "export declare const answer: number;\n"
+    );
+    assert_eq!(
+        system.text("/home/src/workspaces/project/app/out/index.js"),
+        "import { answer } from \"../core/index.js\";\nexport const doubled = answer * 2;\n"
+    );
+    let output = system.take_output();
+    assert!(
+        output.starts_with("\x1b[2J\x1b[3J\x1b[H")
+            && output.contains("Starting compilation in watch mode...")
+            && output.contains("Found 0 errors. Watching for file changes."),
+        "{output}"
+    );
+    // Both projects' directories, recursively (their include patterns).
+    let watched = system
+        .watches
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(directory, recursive, _)| (directory.clone(), *recursive))
+        .collect::<Vec<_>>();
+    assert!(watched.contains(&(CORE.to_owned(), true)), "{watched:?}");
+    assert!(watched.contains(&(APP.to_owned(), true)), "{watched:?}");
+
+    // A cycle without changes builds nothing and writes nothing.
+    watcher.do_cycle();
+    assert_eq!(system.take_output(), "");
+
+    // A change to the referenced project's declarations builds both.
+    system
+        .fs
+        .write(
+            "/home/src/workspaces/project/core/index.ts",
+            b"export const answer: number = 43;\nexport const extra = 1;\n",
+        )
+        .unwrap();
+    system.changed("/home/src/workspaces/project/core/index.ts");
+    watcher.do_cycle();
+    assert_eq!(
+        system.text("/home/src/workspaces/project/core/out/index.d.ts"),
+        "export declare const answer: number;\nexport declare const extra = 1;\n"
+    );
+    let output = system.take_output();
+    assert!(
+        output.contains("File change detected. Starting incremental compilation...")
+            && output.contains("Found 0 errors. Watching for file changes."),
+        "{output}"
+    );
+
+    // An error in the referencing project is reported, and only it builds.
+    system
+        .fs
+        .write(
+            "/home/src/workspaces/project/app/index.ts",
+            b"import { answer } from \"../core/index.js\";\nexport const doubled: string = answer * 2;\n",
+        )
+        .unwrap();
+    system.changed("/home/src/workspaces/project/app/index.ts");
+    watcher.do_cycle();
+    let output = system.take_output();
+    assert!(
+        output.contains("index.ts(2,14): error TS2322")
+            && output.contains("Found 1 error. Watching for file changes."),
+        "{output}"
+    );
+}
