@@ -64,3 +64,53 @@ request は 170 種（`proto.go` の `Method*`）：snapshot と project（`crea
   確かめ、merge の基準は Go の session test の移植と Rust の test にする。hosted job は変えない。
 - この決定の前に、resolver の残り（削除済みの `node10`／`classic`／`baseUrl`、trace の順序と implied format）を先に片付けた
   （[ts71-suites](../ts71-suites/README.md) の 2 つの slice、#717・#718）。
+
+## P5-1 project system の計画（2026-10-09）
+
+### tsgo の構成（API server が使う部分）
+
+- standalone の API（`api/session.go` `NewStandaloneSession`）は `SnapshotHost` だけを使う：`NewRootSnapshot`、
+  `CloneSnapshot(base, FileChangeSummary, APISnapshotRequest)`、`AcquireSourceFile`、`Close`。LSP の `Session`（overlay、debounce、
+  watch、ATA、auto-import、content mapper、push diagnostics、telemetry）は使わない。
+- snapshot：`SnapshotFS`（host の FS か API の FS を層にし、snapshot ごとの cache）、`ProjectCollection`（configured：config の path、
+  synthetic：`/dev/null/synthetic/N`、inferred：1 つ）、`ConfigFileRegistry`（config の entry と保持者、extended config の owner 付き
+  cache）、ref count、program counter。
+- `Snapshot.Clone`：file の変更で project を dirty にし（config の変更は reload、program の 1 file の変更は `UpdateProgram` で
+  program を cloned に、他は作り直し）、API の request を順に適用する（close projects → open projects → close／open files →
+  synthetic の create／reconfigure／remove → ensure）。default project は tsconfig／jsconfig を上に探し、参照を BFS で辿る。不要な
+  configured project は後片付けで消す。program は求められたときだけ作る。
+- parse cache：content の hash と parse options を key に、同じ `*ast.SourceFile` を program と snapshot の間で共有する（ref
+  count）。checker pool：program ごとに diagnostics 用 1、query 用 N−1、API 用 1。module resolution の cache は program ごと。
+
+### port の対応
+
+- 新しい crate `crates/project`（`tsc-rs-project`／`tsc_project`）：`SnapshotHost`、`Snapshot`、`SnapshotFS`、
+  `ConfigFileRegistry`、`Project`、`ProjectCollection` とその builder。
+- program は既存の loader（`tsc_program::load_program`）と config の parse（`parse_config_root_plan`）を snapshot の FS の host で
+  使う。
+- **live program**：今の checker は scoped な callback（`CheckerSession<'program>` が snapshot を借りる）でしか使えない。prepared
+  program、bind 済みの document、option、module provider を持つ owner と、それを借りる `CheckerSession` を 1 つの値にする
+  （self-referential。`self_cell` か小さな内部の helper）。全 file を先に検査せず、query と file ごとの診断を遅延で行う schedule を
+  加える。WASM の build（thread が無い）でも動くよう、program ごとの thread は使わない。
+- parse cache：`ParsedDocument`（`Arc`）は program の間で共有できる。bind は symbol の id を program の順で予約するので、program
+  ごとにやり直す（tsgo は bind 済みの file を共有する。結果は同じで cost が違う）。
+
+### slice
+
+- **P5-1a live program**：owned な program と API の checker、遅延の query と file ごとの診断（batch の結果と同じであること）。
+- **P5-1b project の核**：crate、`SnapshotFS`、`ConfigFileRegistry`（extended config cache）、`Project`（configured／synthetic／
+  inferred）、`ProjectCollection` の builder（API の request、file の変更、default project、後片付け）、`Snapshot` の `Clone` と
+  ref count。
+- **P5-1c** parse cache と program の更新の種類（`UpdateProgram` の再利用、`SameFileNames`／`NewFiles`）。
+- **P5-1d** checker pool（diagnostics 用・query 用・API 用、global diagnostics の蓄積）。
+- **P5-1e** `SnapshotFS` の細部（大量の変更、realpath の alias、cache の掃除）。
+
+### test
+
+- tsgo の `internal/project` の test のうち API の経路で通るもの（`snapshot_test`、`refcountcache_test`、
+  `extendedconfigcache_test`、`configfilechanges_test`、`projectreferencesprogram_test`、`projectcollectiondefaultproject_test`、
+  `project_test` の update kind、`checkerpool_test`、`snapshotfs_test`、`bulkcache_test`、`dirty` の test）を移す。
+- LSP の open file で進む test（`session_test`、`projectlifetime_test`、`projectcollectionbuilder_test`）は API の open と file の
+  変更に置き換える。期待値は tsgo の `SnapshotHost` に同じ操作をする Go の probe で確かめる（API で開いた file は祖先の solution
+  を探さないなど、LSP の open と違うところがある）。
+- LSP・LS・content mapper・ATA・watch・push diagnostics・preference の test は移さない。
