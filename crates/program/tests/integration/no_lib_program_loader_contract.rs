@@ -14,7 +14,7 @@ use tsc_program::{
     ModuleExtension, PathMapping, PreparedProgram, ProgramLoadError, ProgramLoadErrorKind,
     ProgramLoadLimit, ProgramLoadLimits, ProgramLoadOperation, ProgramOptions, ProgramPath,
     ResolutionError, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
-    TypeReferenceResolutionKey, UnloadedModuleReason,
+    TypeReferenceResolutionKey, UnloadedModuleReason, WorkerBudget,
 };
 
 const GENEROUS_LIMIT: usize = 1_024;
@@ -4869,3 +4869,129 @@ fn later_root_promotes_its_own_emit_eligibility_but_not_external_relative_childr
 }
 
 use super::utf16_scalar_path::ScalarTestPath as _;
+
+#[test]
+fn traced_loads_look_up_each_package_scope_before_resolving_like_tsgo() {
+    // tsgo looks up a file's package scope in its parse task
+    // (`loadSourceFileMetaData`) before resolving its imports, so the
+    // resolution trace reports those package.json files "according to
+    // earlier cached lookups". A traced load therefore follows the walk alone:
+    // with parallel workers (and two roots, so the roots are read ahead) it
+    // traces exactly what the serial load does.
+    let host = MemoryCompilerHost::builder("/p")
+        .file(
+            "/p/src/main.ts",
+            b"import { which } from 'pkg';\nexport const value = which;\n".to_vec(),
+        )
+        .file("/p/src/other.ts", b"export {};\n".to_vec())
+        .file(
+            "/p/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","types":"./index.d.ts"}"#.to_vec(),
+        )
+        .file(
+            "/p/node_modules/pkg/index.d.ts",
+            b"export declare const which: 1;".to_vec(),
+        )
+        .build()
+        .expect("build traced package host");
+    let options = CompilerOptions {
+        module: Some(1),
+        trace_resolution: Some(true),
+        ..compiler_options()
+    };
+    let traced = |limits: ProgramLoadLimits| {
+        load_with_options(
+            &host,
+            &["/p/src/main.ts", "/p/src/other.ts"],
+            options.clone(),
+            program_options(),
+            limits,
+        )
+        .expect("load a traced program")
+        .resolution_trace()
+        .to_vec()
+    };
+    let serial = traced(generous_limits());
+    let parallel = traced(generous_limits().with_workers(WorkerBudget::new(
+        std::num::NonZeroUsize::new(4).expect("four workers"),
+    )));
+    assert_eq!(parallel, serial);
+    for directory in ["/p/src", "/p"] {
+        let cached = format!(
+            "File '{directory}/package.json' does not exist according to earlier cached lookups."
+        );
+        assert!(serial.contains(&cached), "{serial:#?}");
+    }
+}
+
+#[test]
+fn implied_formats_follow_tsgo_metadata_outside_node_resolutions() {
+    // tsgo `loadSourceFileMetaData` consults the package `type` only under a
+    // node16/nodenext resolution or inside node_modules, and
+    // `GetImpliedNodeFormatForFile` makes a `.ts` file CommonJS otherwise.
+    // The emit format is the implied format under a node module kind and
+    // follows only a consulted type otherwise
+    // (`GetImpliedNodeFormatForEmitWorker`): tsgo's bundlerDirectoryModule
+    // baselines (`module: nodenext`, `moduleResolution: bundler`) resolve in
+    // CJS mode with the `require` condition, and `module: esnext` with a
+    // `type: commonjs` scope emits ESM.
+    for (module, package_type, emit_format, request_mode) in [
+        (
+            199,
+            "module",
+            Some(ResolutionMode::CommonJs),
+            ResolutionMode::CommonJs,
+        ),
+        (99, "commonjs", None, ResolutionMode::EsNext),
+    ] {
+        let host = MemoryCompilerHost::builder("/p")
+            .file(
+                "/p/package.json",
+                format!(r#"{{"name":"p","type":"{package_type}"}}"#).into_bytes(),
+            )
+            .file("/p/main.ts", b"import { which } from 'pkg';\n".to_vec())
+            .file(
+                "/p/node_modules/pkg/package.json",
+                br#"{"name":"pkg","version":"1.0.0","types":"./index.d.ts"}"#.to_vec(),
+            )
+            .file(
+                "/p/node_modules/pkg/index.d.ts",
+                b"export declare const which: 1;".to_vec(),
+            )
+            .build()
+            .expect("build package-type host");
+        let options = CompilerOptions {
+            module: Some(module),
+            module_resolution: Some(100),
+            ..compiler_options()
+        };
+        let program = load_with_options(
+            &host,
+            &["/p/main.ts"],
+            options,
+            program_options(),
+            generous_limits(),
+        )
+        .expect("load a bundler program");
+        let source = program
+            .source_files()
+            .iter()
+            .find(|source| source.path().display().scalar_test_path() == Path::new("/p/main.ts"))
+            .expect("main source");
+        assert_eq!(
+            source.implied_node_format(),
+            Some(ResolutionMode::CommonJs),
+            "module={module}"
+        );
+        assert_eq!(
+            source.implied_node_format_for_emit(),
+            emit_format,
+            "module={module}"
+        );
+        assert_eq!(
+            module_key(&program, "/p/main.ts", "pkg").mode(),
+            request_mode,
+            "module={module}"
+        );
+    }
+}

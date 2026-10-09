@@ -869,11 +869,22 @@ fn load_program_worker(
     if root_names.len() != 0 {
         prefetch_roots.extend(graph.read_ahead_seeds());
     }
-    graph.prefetch_roots(&prefetch_roots);
+    // `--traceResolution` reports each package.json lookup as fresh or
+    // "according to earlier cached lookups", which depends on the order of
+    // the lookups. The read-ahead resolves and looks up package scopes ahead
+    // of the walk (on workers with their own caches, or before the file's
+    // visit), so a traced load follows the walk alone: the order of tsgo's
+    // single-threaded work group. The results are the same either way.
+    let read_ahead = compiler_options.trace_resolution != Some(true);
+    if read_ahead {
+        graph.prefetch_roots(&prefetch_roots);
+    }
     drop(prefetch_roots);
     tsc_types::trace::mark("load: read-ahead parse of roots", phase_started);
     let phase_started = std::time::Instant::now();
-    graph.prefetch_dependencies();
+    if read_ahead {
+        graph.prefetch_dependencies();
+    }
     tsc_types::trace::mark("load: read-ahead of dependencies", phase_started);
     let phase_started = std::time::Instant::now();
     // tsgo processRootFiles: the root tasks are the root files, then the
@@ -6701,6 +6712,32 @@ fn wildcard_package_has_null_typings(
     Ok(json_object_get(&object, "typings").is_some_and(crate::JsonValue::is_null))
 }
 
+/// tsgo `loadSourceFileMetaData`'s `PackageJsonType`: the package scope's
+/// `type` counts only under a node16/nodenext resolution (not for an
+/// explicit `.mts`/`.cts`/`.mjs`/`.cjs` file) or inside `node_modules`.
+fn metadata_package_json_type(
+    file_name: JsStr<'_>,
+    package_scope: Option<&PackageMetadata>,
+    options: &CompilerOptions,
+) -> Option<PackageJsonType> {
+    let explicit_format = [".mts", ".cts", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| file_name.ends_with(extension));
+    let consulted = (!explicit_format && matches!(options.emit_module_resolution_kind(), 3..=99))
+        || file_name
+            .split_ascii(b'/')
+            .any(|segment| segment == "node_modules");
+    if consulted {
+        package_scope.map(PackageMetadata::module_type)
+    } else {
+        None
+    }
+}
+
+/// tsgo `GetImpliedNodeFormatForFile` over the metadata's package type: a
+/// `.ts`-like file is ESM only in a `type: module` scope and CommonJS
+/// otherwise, also when the type is not consulted (tsc 6.0 left it
+/// undefined then).
 pub(crate) fn implied_node_format(
     file_name: JsStr<'_>,
     package_scope: Option<&PackageMetadata>,
@@ -6718,15 +6755,10 @@ pub(crate) fn implied_node_format(
         || file_name.ends_with(".js")
         || file_name.ends_with(".jsx")
     {
-        let package_lookup = matches!(options.emit_module_resolution_kind(), 3..=99)
-            || file_name
-                .split_ascii(b'/')
-                .any(|segment| segment == "node_modules");
-        if !package_lookup {
-            return None;
-        }
         return Some(
-            if package_scope.is_some_and(|scope| scope.module_type() == PackageJsonType::Module) {
+            if metadata_package_json_type(file_name, package_scope, options)
+                == Some(PackageJsonType::Module)
+            {
                 ResolutionMode::EsNext
             } else {
                 ResolutionMode::CommonJs
@@ -6761,22 +6793,35 @@ fn implied_node_format_needs_package_scope(
                 .any(|segment| segment == "node_modules"))
 }
 
+/// tsgo `GetImpliedNodeFormatForEmitWorker`: under a node16..nodenext
+/// module kind the implied format itself; otherwise CommonJS or ESM only
+/// when the metadata's package type (or the extension) says so.
 fn implied_node_format_for_emit(
     file_name: JsStr<'_>,
     package_scope: Option<&PackageMetadata>,
     options: &CompilerOptions,
 ) -> Option<ResolutionMode> {
     let implied = implied_node_format(file_name, package_scope, options)?;
-    if (100..=199).contains(&options.emit_module_kind())
-        || [".mts", ".mjs", ".cts", ".cjs"]
-            .iter()
-            .any(|extension| file_name.ends_with(extension))
-    {
+    if (100..=199).contains(&options.emit_module_kind()) {
         return Some(implied);
     }
-    match package_scope.map(PackageMetadata::module_type) {
-        Some(PackageJsonType::Module | PackageJsonType::CommonJs) => Some(implied),
-        Some(PackageJsonType::Other | PackageJsonType::Unspecified) | None => None,
+    let package_type = metadata_package_json_type(file_name, package_scope, options);
+    match implied {
+        ResolutionMode::CommonJs
+            if package_type == Some(PackageJsonType::CommonJs)
+                || file_name.ends_with(".cjs")
+                || file_name.ends_with(".cts") =>
+        {
+            Some(ResolutionMode::CommonJs)
+        }
+        ResolutionMode::EsNext
+            if package_type == Some(PackageJsonType::Module)
+                || file_name.ends_with(".mjs")
+                || file_name.ends_with(".mts") =>
+        {
+            Some(ResolutionMode::EsNext)
+        }
+        _ => None,
     }
 }
 

@@ -7456,36 +7456,47 @@ impl<'a> CheckerState<'a> {
                     crate::AuthoritativeResolutionMode::Unspecified => None,
                 });
         }
-        let should_lookup_from_package_json = (3..=99)
-            .contains(&self.options.emit_module_resolution_kind())
-            || normalized
-                .as_js()
-                .split_ascii(b'/')
-                .any(|segment| segment == "node_modules");
         let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
             .iter()
             .any(|extension| file_name.ends_with(extension));
-        if !should_lookup_from_package_json || !package_eligible {
+        if !package_eligible {
             return None;
         }
+        // tsgo `GetImpliedNodeFormatForFile`: ESM only in a `type: module`
+        // scope the metadata consults, CommonJS otherwise (also when the
+        // type is not consulted; tsc 6.0 left it undefined then).
         Some(
-            self.package_scope_node_format_for_file_name(file_name)
-                .unwrap_or(ModuleResolutionMode::CommonJs),
+            if self.metadata_package_module_type(file_name) == Some(PackageJsonModuleType::Module) {
+                ModuleResolutionMode::EsNext
+            } else {
+                ModuleResolutionMode::CommonJs
+            },
         )
     }
 
-    fn package_scope_node_format_for_file_name<'n>(
+    /// tsgo `loadSourceFileMetaData`'s `PackageJsonType`: the package
+    /// scope's `type` counts only under a node16/nodenext resolution (not
+    /// for an explicit `.mts`/`.cts`/`.mjs`/`.cjs` file) or inside
+    /// `node_modules`.
+    fn metadata_package_module_type<'n>(
         &self,
         file_name: impl Into<JsStr<'n>>,
-    ) -> Option<ModuleResolutionMode> {
+    ) -> Option<PackageJsonModuleType> {
         let file_name = file_name.into();
-        self.package_scope_module_type_for_file_name(file_name)
-            .map(|module_type| match module_type {
-                PackageJsonModuleType::Module => ModuleResolutionMode::EsNext,
-                PackageJsonModuleType::CommonJs
-                | PackageJsonModuleType::Other
-                | PackageJsonModuleType::Missing => ModuleResolutionMode::CommonJs,
-            })
+        let explicit_format = [".mts", ".cts", ".mjs", ".cjs"]
+            .iter()
+            .any(|extension| file_name.ends_with(extension));
+        let consulted = (!explicit_format
+            && (3..=99).contains(&self.options.emit_module_resolution_kind()))
+            || Self::normalize_js_program_path(file_name, "")
+                .as_js()
+                .split_ascii(b'/')
+                .any(|segment| segment == "node_modules");
+        if consulted {
+            self.package_scope_module_type_for_file_name(file_name)
+        } else {
+            None
+        }
     }
 
     fn package_scope_module_type_for_file_name<'n>(
@@ -7619,7 +7630,7 @@ impl<'a> CheckerState<'a> {
             ModuleResolutionMode::CommonJs
                 if file_name.ends_with(".cts")
                     || file_name.ends_with(".cjs")
-                    || self.package_scope_module_type_for_file_name(file_name)
+                    || self.metadata_package_module_type(file_name)
                         == Some(PackageJsonModuleType::CommonJs) =>
             {
                 Some(ModuleResolutionMode::CommonJs)
@@ -7627,7 +7638,7 @@ impl<'a> CheckerState<'a> {
             ModuleResolutionMode::EsNext
                 if file_name.ends_with(".mts")
                     || file_name.ends_with(".mjs")
-                    || self.package_scope_module_type_for_file_name(file_name)
+                    || self.metadata_package_module_type(file_name)
                         == Some(PackageJsonModuleType::Module) =>
             {
                 Some(ModuleResolutionMode::EsNext)
