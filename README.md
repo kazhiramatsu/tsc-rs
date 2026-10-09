@@ -125,8 +125,8 @@ as well. Keep the `typescript` dependency if your editor or other tools use
 it: `tsc-rs` replaces the compiler command and offers a
 [Rust compiler API](#compiler-api-for-rust-projects-experimental), but it
 does not provide TypeScript's language server, and its
-[API server](#api-server-experimental) answers only the snapshot, config
-and transpile requests so far.
+[API server](#api-server-experimental) answers only the snapshot, config,
+transpile and program-information requests so far.
 
 ### Use the name `tsc` in your shell
 
@@ -802,10 +802,13 @@ removals it names. It parses command lines and configs
 `parseJsonConfigFileContent`), creates and releases a client's source
 files (`createSourceFile`, `createSourceFileFromFile`, `releaseSourceFile`)
 and transpiles (`transpileModule`, `transpileDeclaration` and their
-`FromFile` forms). The flags and their errors are `tsgo`'s. The other
-requests (a program's source files, symbols and types, diagnostics, emit,
-module resolution, the build orchestrator) answer that they are not
-implemented yet.
+`FromFile` forms). It answers what a project's program has: its source
+files (`getSourceFile`, `getSourceFileNames`, `getSourceFileMetadata`),
+config files (`getConfigFileNames`, `getConfigSourceFile`), resolution
+modes and resolved modules and type reference directives. The flags and
+their errors are `tsgo`'s. The other requests (symbols and types,
+diagnostics, emit, the module resolver, the build orchestrator) answer
+that they are not implemented yet.
 
 ## Performance
 

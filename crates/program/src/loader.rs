@@ -6422,6 +6422,7 @@ fn publish_program(
                 staged_source.prepared.may_emit_forced_declaration()
                     && staged_source.has_non_external_reason,
             )
+            .with_found_searching_node_modules(!staged_source.has_non_external_reason)
             .with_inclusion_reasons(staged_source.inclusion_reasons.clone());
         let source_id = builder.add_source_file(prepared.clone()).map_err(|error| {
             ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)

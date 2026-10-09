@@ -117,6 +117,15 @@ pub struct AmdDependency {
     pub name: Option<String>,
 }
 
+/// tsgo `ast.ExternalModuleIndicatorOptions`: what the parse was told about
+/// the file's module detection: a JSX tag makes it a module (`jsx`), or it
+/// is one by option or format (`force`). Empty for a declaration file.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ExternalModuleIndicatorOptions {
+    pub jsx: bool,
+    pub force: bool,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
     pub file_name: JsString,
@@ -131,6 +140,9 @@ pub struct SourceFile {
     pub arena: NodeArena,
     pub root: NodeId,
     pub external_module_indicator: Option<NodeId>,
+    /// The module detection the file was parsed with (tsgo keeps it in the
+    /// source file's parse options).
+    pub external_module_indicator_options: ExternalModuleIndicatorOptions,
     pub parse_diagnostics: DiagnosticList,
     parse_recovery: ParseRecovery,
     /// tsc SourceFile.jsDocDiagnostics: diagnostics produced while

@@ -31,24 +31,35 @@ use tsc_program::{
     parse_command_line, parse_config_file_text_to_json, parse_config_root_plan, CompilerConfigHost,
     ConfigProjectReference, ConfigRootPlan, ConfigRootPlanRequest, JsonValue,
 };
+use tsc_program::{
+    CanonicalPath, ModuleResolution, PackageId, PackageJsonType, ResolutionKey, ResolutionMode,
+    ResolutionOutcome, TypeReferenceResolution, TypeReferenceResolutionKey,
+};
 use tsc_project::{
     ApiSnapshotRequest, CommandLine, CreateProgramRequest, FileChangeSummary, Project, ProjectId,
     ProjectKind, ProjectProgram, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotHost,
 };
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 
 use crate::encoder::{
-    encode_source_file, ScriptKind, SourceFileFacts, HEADER_OFFSET_SOURCE_FILE_LEASE,
+    build_node_index_table, encode_source_file, ScriptKind, SourceFileFacts,
+    HEADER_OFFSET_SOURCE_FILE_LEASE,
 };
 use crate::ipc::{panic_message, Handler, Payload};
 use crate::proto::{
     BatchRequest, BatchRequestsParams, ConfigFileParams, ConfigFileResponse, CreateProgramOptions,
     CreateSnapshotParams, CreateSnapshotResponse, CreateSourceFileFromFileParams,
     CreateSourceFileOptions, CreateSourceFileParams, DiagnosticResponse, DocumentIdentifier,
-    EnsurePrograms, FileNotifications, GetDefaultProjectForFileParams, InitializeResponse,
-    OpenedFileOperationResult, ParseCommandLineParams, ParseJsonConfigFileContentParams,
-    ProjectFileChanges, ProjectReference, ProjectResponse, ReadConfigFileResponse, ReleaseParams,
-    ReleaseSourceFileParams, SnapshotChanges, SnapshotId, SnapshotOperationResponse,
-    SnapshotRequestChanges, SourceFileResponse, TranspileFromFileParams, TranspileOptions,
+    EnsurePrograms, FileNotifications, GetDefaultProjectForFileParams,
+    GetModeForResolutionAtIndexParams, GetModeForUsageLocationParams,
+    GetResolvedModuleFromModuleSpecifierParams, GetResolvedModuleParams,
+    GetResolvedTypeReferenceDirectiveFromReferenceParams, GetResolvedTypeReferenceDirectiveParams,
+    GetSourceFileParams, InitializeResponse, OpenedFileOperationResult, PackageIdResponse,
+    ParseCommandLineParams, ParseJsonConfigFileContentParams, ProjectFileChanges, ProjectParams,
+    ProjectReference, ProjectResponse, ReadConfigFileResponse, ReleaseParams,
+    ReleaseSourceFileParams, ResolvedModuleResponse, ResolvedTypeReferenceDirectiveResponse,
+    SnapshotChanges, SnapshotId, SnapshotOperationResponse, SnapshotRequestChanges,
+    SourceFileMetadata, SourceFileResponse, TranspileFromFileParams, TranspileOptions,
     TranspileOutputResponse, TranspileParams, UpdateSnapshotParams,
 };
 use crate::references::collect_external_module_references;
@@ -259,6 +270,170 @@ impl Session {
                 self.transpile(&input, &options, method == "transpileDeclarationFromFile")
                     .map(|response| json(&response))
             }
+            "getSourceFile" => {
+                let params = parse::<GetSourceFileParams>("GetSourceFileParams", params)?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                Ok(
+                    match self.source_file(&program, &document_file_name(&params.file)?) {
+                        Some(file) => self.encode_program_file(&file),
+                        None => self.no_source_file(),
+                    },
+                )
+            }
+            "getSourceFileNames" => {
+                let params = parse::<ProjectParams>("GetSourceFileNamesParams", params)?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                Ok(json(&program.with_live(|live| {
+                    (0..live.file_count())
+                        .filter_map(|index| live.file_name(index))
+                        .map(|name| name.to_string_lossy().into_owned())
+                        .collect::<Vec<_>>()
+                })))
+            }
+            "getSourceFileMetadata" => {
+                let params = parse::<GetSourceFileParams>("GetSourceFileParams", params)?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                Ok(json(
+                    &self
+                        .source_file(&program, &document_file_name(&params.file)?)
+                        .and_then(|file| source_file_metadata(&program, &file)),
+                ))
+            }
+            "getConfigFileNames" => {
+                let params = parse::<ProjectParams>("GetProjectDiagnosticsParams", params)?;
+                let (project, _) = self.program(params.snapshot, &params.project)?;
+                // tsgo answers a program without a config with a nil slice,
+                // which Go writes as `[]`.
+                Ok(json(&match project.command_line() {
+                    Some(CommandLine::Config(plan)) => {
+                        std::iter::once(plan.config_file_name().to_owned())
+                            .chain(plan.extended_source_files().iter().cloned())
+                            .map(|name| name.to_string_lossy().into_owned())
+                            .collect::<Vec<_>>()
+                    }
+                    _ => Vec::new(),
+                }))
+            }
+            "getConfigSourceFile" => {
+                let params = parse::<GetSourceFileParams>("GetSourceFileParams", params)?;
+                let (project, program) = self.program(params.snapshot, &params.project)?;
+                self.handle_get_config_source_file(&project, &program, &params)
+            }
+            "getModeForUsageLocation" => {
+                let params = parse::<GetModeForUsageLocationParams>(
+                    "GetModeForUsageLocationParams",
+                    params,
+                )?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                self.required_source_file(&program, &params.file)?;
+                let (_, usage) = self.resolve_node_handle(&program, &params.usage)?;
+                if !is_string_literal_like(&program, usage) {
+                    return Err(client_error("usage must be a StringLiteralLike node"));
+                }
+                Ok(json(&mode_for_usage_location(&program, usage)))
+            }
+            "getModeForResolutionAtIndex" => {
+                let params = parse::<GetModeForResolutionAtIndexParams>(
+                    "GetModeForResolutionAtIndexParams",
+                    params,
+                )?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                let file = self.required_source_file(&program, &params.file)?;
+                let references = collect_external_module_references(file.document.source());
+                let source = file.document.source();
+                let usages =
+                    references
+                        .imports
+                        .iter()
+                        .chain(references.module_augmentations.iter().filter(|&&name| {
+                            source.arena.node(name).kind == SyntaxKind::StringLiteral
+                        }))
+                        .copied()
+                        .collect::<Vec<_>>();
+                let usage = usize::try_from(params.index)
+                    .ok()
+                    .and_then(|index| usages.get(index).copied())
+                    .ok_or_else(|| client_error("invalid resolution index"))?;
+                Ok(json(&mode_for_usage_location(&program, usage)))
+            }
+            "getResolvedModule" => {
+                let params = parse::<GetResolvedModuleParams>("GetResolvedModuleParams", params)?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                let file = self.required_source_file(&program, &params.file)?;
+                Ok(json(&resolved_module(
+                    &program,
+                    &file,
+                    &params.module_name,
+                    params.mode,
+                )))
+            }
+            "getResolvedModuleFromModuleSpecifier" => {
+                let params = parse::<GetResolvedModuleFromModuleSpecifierParams>(
+                    "GetResolvedModuleFromModuleSpecifierParams",
+                    params,
+                )?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                let (file, specifier) =
+                    self.resolve_node_handle(&program, &params.module_specifier)?;
+                if !is_string_literal_like(&program, specifier) {
+                    return Err(client_error(
+                        "moduleSpecifier must be a StringLiteralLike node",
+                    ));
+                }
+                let file = match &params.source_file {
+                    Some(source_file) => self.required_source_file(&program, source_file)?,
+                    None => file,
+                };
+                let text = literal_text(file.document.source(), specifier)
+                    .or_else(|| {
+                        self.resolve_node_handle(&program, &params.module_specifier)
+                            .ok()
+                            .and_then(|(own, _)| literal_text(own.document.source(), specifier))
+                    })
+                    .unwrap_or_default();
+                let mode = mode_for_usage_location(&program, specifier);
+                Ok(json(&resolved_module(&program, &file, &text, mode)))
+            }
+            "getResolvedTypeReferenceDirective" => {
+                let params = parse::<GetResolvedTypeReferenceDirectiveParams>(
+                    "GetResolvedTypeReferenceDirectiveParams",
+                    params,
+                )?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                let file = self.required_source_file(&program, &params.file)?;
+                Ok(json(&resolved_type_reference_directive(
+                    &program,
+                    &file,
+                    &params.type_directive_name,
+                    params.mode,
+                )))
+            }
+            "getResolvedTypeReferenceDirectiveFromTypeReferenceDirective" => {
+                let params = parse::<GetResolvedTypeReferenceDirectiveFromReferenceParams>(
+                    "GetResolvedTypeReferenceDirectiveFromReferenceParams",
+                    params,
+                )?;
+                let (_, program) = self.program(params.snapshot, &params.project)?;
+                let file = self.required_source_file(&program, &params.source_file)?;
+                let mode = match params.resolution_mode {
+                    0 => program
+                        .with_live(|live| {
+                            live.with_checker(|checker| {
+                                checker.api_default_resolution_mode_for_file(
+                                    file.document.source().root,
+                                )
+                            })
+                        })
+                        .unwrap_or(0),
+                    mode => mode,
+                };
+                Ok(json(&resolved_type_reference_directive(
+                    &program,
+                    &file,
+                    &params.type_directive_name,
+                    mode,
+                )))
+            }
             // A standalone session has no language server to share.
             "getCurrentLanguageServerSnapshot" => Err(client_error(
                 "getCurrentLanguageServerSnapshot requires an LSP-connected API session",
@@ -464,13 +639,7 @@ impl Session {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .insert(lease);
-        Ok(if self.use_binary_responses {
-            Payload::Binary(data)
-        } else {
-            json(&SourceFileResponse {
-                data: base64::engine::general_purpose::STANDARD.encode(data),
-            })
-        })
+        Ok(self.source_file_payload(data))
     }
 
     /// tsgo `handleReleaseSourceFile`.
@@ -527,6 +696,193 @@ impl Session {
                 .collect(),
             source_map_text: output.source_map_text.unwrap_or_default(),
         })
+    }
+
+    /// tsgo `getProgram`: the project of a snapshot the client holds, and
+    /// its program.
+    fn program(
+        &self,
+        snapshot: SnapshotId,
+        project: &str,
+    ) -> Result<(Arc<Project>, Arc<ProjectProgram>), String> {
+        let snapshot = self.snapshot(snapshot)?;
+        let found = snapshot
+            .project(&ProjectId::new(project))
+            .ok_or_else(|| client_error(format!("project {project} not found")))?;
+        let program = found
+            .program()
+            .cloned()
+            .ok_or_else(|| client_error("project has no program"))?;
+        Ok((Arc::clone(found), program))
+    }
+
+    /// tsgo `Program.GetSourceFile`: the file named `file_name` against the
+    /// program's current directory, by path.
+    fn source_file(&self, program: &ProjectProgram, file_name: &str) -> Option<ProgramFile> {
+        let absolute = tsc_program::get_normalized_absolute_path(
+            JsStr::from_str(file_name),
+            program.prepared().current_directory().display(),
+        );
+        self.source_file_by_path(program, &self.host.to_path(&absolute.to_string_lossy()))
+    }
+
+    /// tsgo `Program.GetSourceFileByPath`.
+    fn source_file_by_path(&self, program: &ProjectProgram, path: &str) -> Option<ProgramFile> {
+        program.with_live(|live| {
+            (0..live.file_count()).find_map(|index| {
+                let file_name = live.file_name(index)?.to_string_lossy().into_owned();
+                if self.host.to_path(&file_name) != path {
+                    return None;
+                }
+                Some(ProgramFile {
+                    document: Arc::clone(live.document(index)?),
+                    path: path.to_owned(),
+                    file_name,
+                })
+            })
+        })
+    }
+
+    /// tsgo `resolveOptionalSourceFile` with a file: the program's file, or
+    /// the client's error.
+    fn required_source_file(
+        &self,
+        program: &ProjectProgram,
+        file: &DocumentIdentifier,
+    ) -> Result<ProgramFile, String> {
+        self.source_file(program, &document_file_name(file)?)
+            .ok_or_else(|| {
+                client_error(format!(
+                    "source file not found: {}",
+                    if file.uri.is_empty() {
+                        &file.file_name
+                    } else {
+                        &file.uri
+                    }
+                ))
+            })
+    }
+
+    /// tsgo `resolveNodeHandle`: the node of a handle `index.kind.path`, by
+    /// its index in the encoding of the program's file at `path`.
+    fn resolve_node_handle(
+        &self,
+        program: &ProjectProgram,
+        handle: &str,
+    ) -> Result<(ProgramFile, NodeId), String> {
+        let invalid = || client_error(format!("invalid node handle {handle:?}"));
+        let (index, rest) = handle.split_once('.').ok_or_else(invalid)?;
+        let (_, path) = rest.split_once('.').ok_or_else(invalid)?;
+        let index = go_parse_uint32(index)
+            .map_err(|error| client_error(format!("invalid node handle {handle:?}: {error}")))?;
+        let stale = || {
+            client_error(format!(
+                "node handle {handle:?} could not be resolved (file may not be loaded or handle may be stale)"
+            ))
+        };
+        let file = self.source_file_by_path(program, path).ok_or_else(stale)?;
+        let node = build_node_index_table(file.document.source())
+            .nodes()
+            .get(index as usize)
+            .copied()
+            .flatten()
+            .ok_or_else(stale)?;
+        Ok((file, node))
+    }
+
+    /// tsgo `encodeSourceFileResponse` of a program's file.
+    fn encode_program_file(&self, file: &ProgramFile) -> Payload {
+        let source = file.document.source();
+        let references = collect_external_module_references(source);
+        let (data, _) = encode_source_file(
+            source,
+            &SourceFileFacts {
+                path: Some(&file.path),
+                script_kind: script_kind_of(&file.file_name),
+                imports: &references.imports,
+                module_augmentations: &references.module_augmentations,
+                ambient_module_names: &references.ambient_module_names,
+                bind_data: Some(&file.document.data),
+                ..SourceFileFacts::default()
+            },
+        );
+        self.source_file_payload(data)
+    }
+
+    /// A source file response: MessagePack sends the encoding, JSON its
+    /// base64.
+    fn source_file_payload(&self, data: Vec<u8>) -> Payload {
+        if self.use_binary_responses {
+            Payload::Binary(data)
+        } else {
+            json(&SourceFileResponse {
+                data: base64::engine::general_purpose::STANDARD.encode(data),
+            })
+        }
+    }
+
+    /// tsgo `encodeSourceFileResponse(nil)`: no bytes, or JSON `null`.
+    fn no_source_file(&self) -> Payload {
+        if self.use_binary_responses {
+            Payload::Binary(Vec::new())
+        } else {
+            json(&())
+        }
+    }
+
+    /// tsgo `handleGetConfigSourceFile`: the project's config file or one
+    /// it extends, parsed as a tsconfig source.
+    fn handle_get_config_source_file(
+        &self,
+        project: &Project,
+        program: &ProjectProgram,
+        params: &GetSourceFileParams,
+    ) -> Result<Payload, String> {
+        let Some(CommandLine::Config(plan)) = project.command_line() else {
+            return Ok(self.no_source_file());
+        };
+        let absolute = tsc_program::get_normalized_absolute_path(
+            JsStr::from_str(&document_file_name(&params.file)?),
+            program.prepared().current_directory().display(),
+        );
+        let requested = self.host.to_path(&absolute.to_string_lossy());
+        let root = plan.config_file_name().to_string_lossy().into_owned();
+        let (file_name, text) = if self.host.to_path(&root) == requested {
+            (root, plan.source().text().to_owned())
+        } else {
+            let Some(file_name) = plan
+                .extended_source_files()
+                .iter()
+                .map(|name| name.to_string_lossy().into_owned())
+                .find(|name| self.host.to_path(name) == requested)
+            else {
+                return Ok(self.no_source_file());
+            };
+            let snapshot = self.snapshot(params.snapshot)?;
+            let Some(text) = snapshot
+                .read_file(&file_name)
+                .and_then(|bytes| tsc_program::decode_host_text(bytes).ok())
+            else {
+                return Ok(self.no_source_file());
+            };
+            (file_name, text)
+        };
+        // tsgo `NewTsconfigSourceFileFromFilePath`: a JSON source the parse
+        // cache did not hash.
+        let source = tsc_syntax::parse_json_source_text_from_snapshot(
+            file_name.as_str(),
+            tsc_diagnostics::TextSnapshot::new(text, Default::default()),
+        );
+        let (data, _) = encode_source_file(
+            &source,
+            &SourceFileFacts {
+                path: Some(&requested),
+                script_kind: ScriptKind::Json,
+                unhashed: true,
+                ..SourceFileFacts::default()
+            },
+        );
+        Ok(self.source_file_payload(data))
     }
 
     /// tsgo `handleBatchRequests`: each request in order, the encoded
@@ -1197,6 +1553,226 @@ fn is_source_file_response_method(method: &str) -> bool {
             | "typeToTypeNode"
             | "signatureToSignatureDeclaration"
     )
+}
+
+/// A file of a program the API asks about.
+struct ProgramFile {
+    document: Arc<BoundDocument>,
+    /// The file name as the program spells it.
+    file_name: String,
+    path: String,
+}
+
+/// tsgo `DocumentIdentifier.ToFileName`: a URI's file name, or the file name
+/// as given.
+fn document_file_name(document: &DocumentIdentifier) -> Result<String, String> {
+    if document.uri.is_empty() {
+        Ok(document.file_name.clone())
+    } else {
+        crate::proto::uri_to_file_name(&document.uri).map_err(client_error)
+    }
+}
+
+/// tsgo `core.GetScriptKindFromFileName`, a name without a known extension
+/// being TypeScript (`EnsureScriptKind`).
+fn script_kind_of(file_name: &str) -> ScriptKind {
+    match ScriptKind::from_file_name(file_name) {
+        ScriptKind::Unknown => ScriptKind::Ts,
+        kind => kind,
+    }
+}
+
+/// Go's `strconv.ParseUint(text, 10, 32)` and the text of its error.
+fn go_parse_uint32(text: &str) -> Result<u32, String> {
+    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(format!(
+            "strconv.ParseUint: parsing {text:?}: invalid syntax"
+        ));
+    }
+    text.parse::<u32>()
+        .map_err(|_| format!("strconv.ParseUint: parsing {text:?}: value out of range"))
+}
+
+fn is_string_literal_like(program: &ProjectProgram, node: NodeId) -> bool {
+    program
+        .with_live(|live| {
+            live.with_checker(|checker| {
+                matches!(
+                    checker.binder.source_of_node(node).arena.node(node).kind,
+                    SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+                )
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// The text of a string literal of `source`.
+fn literal_text(source: &tsc_syntax::SourceFile, node: NodeId) -> Option<String> {
+    if !source.arena.contains_node(node) {
+        return None;
+    }
+    match &source.arena.node(node).data {
+        NodeData::StringLiteral(literal) => Some(literal.text.to_string_lossy().into_owned()),
+        NodeData::NoSubstitutionTemplateLiteral(literal) => {
+            Some(literal.text.to_string_lossy().into_owned())
+        }
+        _ => None,
+    }
+}
+
+/// tsgo `Program.GetModeForUsageLocation`.
+fn mode_for_usage_location(program: &ProjectProgram, usage: NodeId) -> u32 {
+    program
+        .with_live(|live| live.with_checker(|checker| checker.api_mode_for_usage_location(usage)))
+        .unwrap_or(0)
+}
+
+/// tsgo's `core.ResolutionMode` number as the resolution tables key it.
+fn resolution_mode(mode: u32) -> Option<ResolutionMode> {
+    match mode {
+        0 => Some(ResolutionMode::Unspecified),
+        1 => Some(ResolutionMode::CommonJs),
+        99 => Some(ResolutionMode::EsNext),
+        _ => None,
+    }
+}
+
+fn package_id(package_id: Option<&PackageId>) -> Option<PackageIdResponse> {
+    package_id.map(|id| PackageIdResponse {
+        name: id.name().to_string_lossy().into_owned(),
+        sub_module_name: id.submodule_name().to_string_lossy().into_owned(),
+        version: id.version().to_string_lossy().into_owned(),
+        peer_dependencies: id
+            .peer_dependencies()
+            .map(|peers| peers.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+    })
+}
+
+/// tsgo `Program.GetResolvedModule` and `newResolvedModuleResponse`.
+fn resolved_module(
+    program: &ProjectProgram,
+    file: &ProgramFile,
+    module_name: &str,
+    mode: u32,
+) -> Option<ResolvedModuleResponse> {
+    let key = ResolutionKey::new(
+        CanonicalPath::from_js_normalized(JsStr::from_str(&file.path)).ok()?,
+        JsStr::from_str(module_name).to_owned(),
+        resolution_mode(mode)?,
+    );
+    let resolution: &ModuleResolution =
+        program.prepared().resolutions().require_module(&key).ok()?;
+    let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+        return None;
+    };
+    Some(ResolvedModuleResponse {
+        resolved_file_name: module
+            .target()
+            .resolved_file()
+            .display()
+            .to_string_lossy()
+            .into_owned(),
+        original_path: module
+            .original_path()
+            .map(|path| path.display().to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        extension: module.extension().as_js().to_string_lossy().into_owned(),
+        resolved_using_ts_extension: module.resolved_using_ts_extension(),
+        resolved_using_extra_extensions: false,
+        package_id: package_id(module.package_id()),
+        is_external_library_import: module.is_external_library_import(),
+        alternate_result: resolution
+            .alternate_result()
+            .map(|path| path.display().to_string_lossy().into_owned())
+            .unwrap_or_default(),
+    })
+}
+
+/// tsgo `Program.GetResolvedTypeReferenceDirective` and
+/// `newResolvedTypeReferenceDirectiveResponse`.
+fn resolved_type_reference_directive(
+    program: &ProjectProgram,
+    file: &ProgramFile,
+    name: &str,
+    mode: u32,
+) -> Option<ResolvedTypeReferenceDirectiveResponse> {
+    let key = TypeReferenceResolutionKey::source(
+        CanonicalPath::from_js_normalized(JsStr::from_str(&file.path)).ok()?,
+        JsStr::from_str(name).to_owned(),
+        resolution_mode(mode)?,
+    );
+    let resolution: &TypeReferenceResolution = program
+        .prepared()
+        .resolutions()
+        .require_type_reference(&key)
+        .ok()?;
+    let ResolutionOutcome::Resolved(directive) = resolution.outcome() else {
+        return None;
+    };
+    Some(ResolvedTypeReferenceDirectiveResponse {
+        primary: directive.primary(),
+        resolved_file_name: directive.target().display().to_string_lossy().into_owned(),
+        original_path: directive
+            .original_path()
+            .map(|path| path.display().to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        package_id: package_id(directive.package_id()),
+        is_external_library_import: directive.is_external_library_import(),
+    })
+}
+
+/// tsgo `handleGetSourceFileMetadata`: the program's facts of a file.
+fn source_file_metadata(
+    program: &ProjectProgram,
+    file: &ProgramFile,
+) -> Option<SourceFileMetadata> {
+    let prepared = program.prepared();
+    let id = prepared
+        .source_id(&CanonicalPath::from_js_normalized(JsStr::from_str(&file.path)).ok()?)?;
+    let source = prepared.source_file(id)?;
+    let package = source
+        .package_scope()
+        .and_then(|scope| prepared.package(scope));
+    // tsgo `loadSourceFileMetaData` keeps the `type` field for a file whose
+    // extension leaves its format open under node16 to nodenext resolution,
+    // and for a file in node_modules.
+    let resolution_kind = prepared.compiler_options().emit_module_resolution_kind();
+    let format_open = ![".mts", ".cts", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| file.file_name.ends_with(extension));
+    let keeps_type = format_open && (3..=99).contains(&resolution_kind)
+        || file.file_name.contains("/node_modules/");
+    let package_json_type = match package
+        .filter(|_| keeps_type)
+        .map(|package| package.module_type())
+    {
+        Some(PackageJsonType::Module) => "module".to_owned(),
+        Some(PackageJsonType::CommonJs) => "commonjs".to_owned(),
+        // tsgo keeps any other string of the `type` field.
+        Some(PackageJsonType::Other) => package
+            .and_then(|package| serde_json::from_str::<serde_json::Value>(package.text()).ok())
+            .and_then(|json| json.get("type")?.as_str().map(str::to_owned))
+            .unwrap_or_default(),
+        Some(PackageJsonType::Unspecified) | None => String::new(),
+    };
+    Some(SourceFileMetadata {
+        is_default_library: prepared.library_files().contains(&id),
+        is_from_external_library: source.found_searching_node_modules(),
+        package_json_type,
+        package_json_directory: package
+            .map(|package| {
+                tsc_program::get_directory_path(package.package_json().display())
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .unwrap_or_default(),
+        implied_node_format: match source.implied_node_format() {
+            Some(ResolutionMode::CommonJs) => 1,
+            Some(ResolutionMode::EsNext) => 99,
+            Some(ResolutionMode::Unspecified) | None => 0,
+        },
+    })
 }
 
 /// tsgo `NewConfigFileResponse` of a config's parse.

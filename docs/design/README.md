@@ -106,7 +106,7 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   slices from P5-2 (P5-2a: the transport, the session's snapshot requests
   and `tsc-rs --api`; P5-2b: the request file system and the client's
   callbacks; P5-3a: the command line, config, source file and transpile
-  requests).
+  requests; P5-3b: the program's information).
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,
