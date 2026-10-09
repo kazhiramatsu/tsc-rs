@@ -898,3 +898,10 @@ snapshot、option、module provider を借りる）。
   - workspace 全体の test と Clippy は hosted の `rust` job に任せた。
 - **残り**：P5-3b（program の情報：`getSourceFile` ほか。bind 済みの program の file を、program が集めた import と binder の
   flag で encode する）、P5-3c（module resolver）。
+
+### P5-3a の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `93b470a86`（コード `bcf05f435`、packet の記録）の run 37987382457（`plan` 33s、`rust` 8m12s、
+  `conformance (TypeScript 7.1)` 19m21s、`gates` 13s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。
+  merge → `7ba946f74`（merge commit、PR #728）。
+- 次：P5-3b（program の情報）。
