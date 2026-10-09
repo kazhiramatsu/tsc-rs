@@ -77,6 +77,34 @@ pub struct ProgramRoots {
     pub config_file_parsing_diagnostics: Vec<Diagnostic>,
 }
 
+/// The inferred project's roots and options (tsgo `NewInferredProject`'s
+/// defaults: `allowJs`, `module: esnext`, `moduleResolution: bundler`, the
+/// latest standard target, `jsx: react-jsx`, `allowImportingTsExtensions`,
+/// `strictNullChecks`, `strictFunctionTypes`, `sourceMap`,
+/// `allowNonTsExtensions` and `resolveJsonModule`).
+pub(crate) fn inferred_project_roots(root_file_names: Vec<String>) -> ProgramRoots {
+    ProgramRoots {
+        root_file_names,
+        compiler_options: CompilerOptions {
+            allow_js: true,
+            allow_js_specified: Some(true),
+            module: Some(99),
+            module_resolution: Some(100),
+            target: Some(13),
+            jsx: Some(4),
+            allow_importing_ts_extensions: Some(true),
+            strict_null_checks: Some(true),
+            strict_function_types: Some(true),
+            source_map: Some(true),
+            allow_non_ts_extensions: Some(true),
+            resolve_json_module: Some(true),
+            ..CompilerOptions::default()
+        },
+        program_options: ProgramOptions::default(),
+        config_file_parsing_diagnostics: Vec::new(),
+    }
+}
+
 /// A project's program: the prepared program and its checker, which one
 /// caller uses at a time.
 pub struct ProjectProgram {
@@ -185,6 +213,20 @@ impl Project {
         let mut project = Self::new(id, ProjectKind::Configured, current_directory);
         project.config_file_name = Some(file_name.to_owned());
         project.config_file_path = Some(path.to_owned());
+        project
+    }
+
+    /// tsgo `NewInferredProject` with the session's default options (no
+    /// `compilerOptionsForInferredProjects` reaches the API's sessions).
+    pub(crate) fn new_inferred(current_directory: String, root_file_names: Vec<String>) -> Self {
+        let mut project = Self::new(
+            ProjectId::inferred(),
+            ProjectKind::Inferred,
+            current_directory,
+        );
+        project.command_line = Some(CommandLine::Roots(Arc::new(inferred_project_roots(
+            root_file_names,
+        ))));
         project
     }
 

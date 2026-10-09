@@ -13,7 +13,7 @@ use tsc_program::{CompilerOptions, LibraryCatalog, ProgramLoadLimits, ProgramOpt
 use crate::builder::ProjectCollectionBuilder;
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
 use crate::fs::{FileChangeSummary, Paths, SnapshotFs, SnapshotFsBuilder};
-use crate::id::ProjectId;
+use crate::id::{ProjectId, ProjectKind};
 use crate::project::Project;
 
 /// What a session's projects are built with (tsgo `SessionOptions`).
@@ -83,6 +83,16 @@ pub struct ApiSnapshotRequest {
     /// Projects whose programs to bring up to date (never created here).
     pub ensure_programs: BTreeSet<ProjectId>,
     pub ensure_all_programs: bool,
+    /// Files (absolute names) to open, each placed in its default project
+    /// (tsgo `OpenFiles`). An empty set, unlike none, still asks for the
+    /// clean-up an open does.
+    pub open_files: Option<BTreeSet<String>>,
+    /// Files (absolute names) to close (tsgo `CloseFiles`).
+    pub close_files: Option<BTreeSet<String>>,
+    /// Files (absolute names) whose default project to bring up to date,
+    /// created when missing (tsgo `EnsureFiles`; the API ensures every file
+    /// it opens).
+    pub ensure_files: BTreeSet<String>,
     /// A file system that replaces the host's for this snapshot and its
     /// updates (tsgo's request file system).
     pub file_system: Option<Arc<dyn FileSystem>>,
@@ -90,11 +100,19 @@ pub struct ApiSnapshotRequest {
     pub replace_file_system: bool,
 }
 
-/// The API's open state (tsgo `APIState`): projects opened through the API,
-/// with their open counts.
+/// The API's open state (tsgo `APIState`): the projects and files opened
+/// through the API, with their open counts, by path.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ApiState {
     pub(crate) open_projects: BTreeMap<String, usize>,
+    pub(crate) open_files: BTreeMap<String, OpenedFile>,
+}
+
+/// A file opened through the API (tsgo `apiOpenedFile`).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct OpenedFile {
+    pub(crate) file_name: String,
+    pub(crate) ref_count: usize,
 }
 
 type Projects = Arc<BTreeMap<ProjectId, Arc<Project>>>;
@@ -104,7 +122,34 @@ type Projects = Arc<BTreeMap<ProjectId, Arc<Project>>>;
 pub(crate) struct ProjectCollection {
     pub(crate) configured: Projects,
     pub(crate) synthetic: Projects,
+    pub(crate) inferred: Option<Arc<Project>>,
+    /// tsgo `fileDefaultProjects`: the default projects the build that made
+    /// the snapshot found, by file path.
+    pub(crate) file_default_projects: BTreeMap<String, ProjectId>,
     pub(crate) api_state: ApiState,
+}
+
+impl ProjectCollection {
+    /// tsgo `ProjectCollection.GetDefaultProject` for a file without an
+    /// editor's config lookup: the default project the build found, else
+    /// the first configured project (by ID) whose program has the file,
+    /// else the inferred project when it has the file.
+    pub(crate) fn default_project(&self, path: &str) -> Option<&Arc<Project>> {
+        if let Some(id) = self.file_default_projects.get(path) {
+            return match id.kind() {
+                Some(ProjectKind::Inferred) => self.inferred.as_ref(),
+                _ => self.configured.get(id),
+            };
+        }
+        self.configured
+            .values()
+            .find(|project| project.contains_file(path))
+            .or_else(|| {
+                self.inferred
+                    .as_ref()
+                    .filter(|project| project.contains_file(path))
+            })
+    }
 }
 
 /// An immutable state of the projects (tsgo `Snapshot`).
@@ -129,21 +174,36 @@ impl Snapshot {
     }
 
     /// tsgo `Projects()`: the configured projects, then the synthetic
-    /// programs, each by ID.
+    /// programs, each by ID, then the inferred project.
     pub fn projects(&self) -> impl Iterator<Item = &Arc<Project>> {
         self.projects
             .configured
             .values()
             .chain(self.projects.synthetic.values())
+            .chain(self.projects.inferred.iter())
     }
 
     /// tsgo `GetProject`.
     pub fn project(&self, id: &ProjectId) -> Option<&Arc<Project>> {
         let id = id.canonical();
+        match id.kind() {
+            Some(ProjectKind::Inferred) => self.projects.inferred.as_ref(),
+            _ => self
+                .projects
+                .configured
+                .get(&id)
+                .or_else(|| self.projects.synthetic.get(&id)),
+        }
+    }
+
+    pub fn inferred_project(&self) -> Option<&Arc<Project>> {
+        self.projects.inferred.as_ref()
+    }
+
+    /// tsgo `GetDefaultProject`: the project a file belongs to.
+    pub fn default_project(&self, file_name: &str) -> Option<&Arc<Project>> {
         self.projects
-            .configured
-            .get(&id)
-            .or_else(|| self.projects.synthetic.get(&id))
+            .default_project(&self.fs.paths().to_path(file_name))
     }
 
     /// The synthetic programs the update created, in request order (tsgo

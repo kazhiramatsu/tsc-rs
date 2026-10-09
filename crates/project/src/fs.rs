@@ -104,6 +104,10 @@ impl SnapshotFs {
         }
     }
 
+    pub(crate) fn paths(&self) -> &Paths {
+        &self.paths
+    }
+
     /// tsgo `SnapshotFS.GetFile`: the file as the snapshot read it, or as
     /// its file system holds it.
     pub(crate) fn read(&self, file_name: &str) -> Option<Vec<u8>> {
@@ -188,7 +192,7 @@ impl SnapshotFsBuilder {
 
     /// tsgo `FileExists`: a cached file exists while it can be read; others
     /// as the base says.
-    fn file_exists(&self, file_name: &str) -> bool {
+    pub(crate) fn file_exists(&self, file_name: &str) -> bool {
         let cached = self.with_files(|files| files.contains_key(&self.paths.to_path(file_name)));
         if cached {
             self.get(file_name).is_some()
