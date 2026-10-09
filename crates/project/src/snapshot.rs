@@ -6,6 +6,7 @@ use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+use tsc_compiler::DocumentRegistry;
 use tsc_diagnostics::Diagnostic;
 use tsc_host::vfs::FileSystem;
 use tsc_program::{
@@ -250,6 +251,9 @@ pub struct SnapshotHost {
     fs: Arc<dyn FileSystem>,
     paths: Paths,
     snapshot_id: AtomicU64,
+    /// tsgo `parseCache`: the parsed and bound sources the snapshots'
+    /// programs share.
+    documents: DocumentRegistry,
 }
 
 impl SnapshotHost {
@@ -263,11 +267,17 @@ impl SnapshotHost {
             fs,
             paths,
             snapshot_id: AtomicU64::new(0),
+            documents: DocumentRegistry::new(),
         }
     }
 
     pub fn options(&self) -> &SessionOptions {
         &self.options
+    }
+
+    /// The documents the programs share (tsgo's parse cache).
+    pub fn documents(&self) -> &DocumentRegistry {
+        &self.documents
     }
 
     /// tsgo `NewRootSnapshot`: an empty snapshot with ID 0.
@@ -292,6 +302,9 @@ impl SnapshotHost {
         mut file_changes: FileChangeSummary,
         request: Option<&ApiSnapshotRequest>,
     ) -> Result<Snapshot, ProjectError> {
+        // The documents of the programs that are gone (tsgo releases a
+        // program's files when its snapshot goes).
+        self.documents.purge();
         let file_system = request.and_then(|request| request.file_system.clone());
         let file_system_override = file_system.is_some();
         // A total replacement, and a return from a request's file system to

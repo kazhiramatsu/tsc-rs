@@ -480,7 +480,8 @@ impl<'a> ProjectCollectionBuilder<'a> {
             }
         };
         drop(host);
-        let live = LiveProgram::new(prepared).map_err(|error| failed(&error))?;
+        let live = LiveProgram::with_documents(prepared, self.host.documents())
+            .map_err(|error| failed(&error))?;
         Ok((ProjectProgram::new(live, references), source.into_seen()))
     }
 

@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use tsc_checker::live::{LiveChecker, LiveCheckerInputs};
 use tsc_checker::state::CheckerState;
+use tsc_checker::{BoundDocument, DocumentRegistry};
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
 use tsc_emitter::{preflight_emit, validate_emit_request, EmitRouteKind, EmitSelection};
 use tsc_program::{PreparedProgram, PreparedProgramMode, WorkerBudget};
@@ -29,13 +30,22 @@ impl LiveProgram {
     /// Parse and bind the Program's sources and initialize its checker; no
     /// source is checked until its diagnostics or a query asks for it.
     pub fn new(prepared: PreparedProgram) -> Result<Self, DriverError> {
-        Self::with_workers(prepared, WorkerBudget::serial())
+        Self::build(prepared, None)
     }
 
-    /// [`Self::new`] with the workers that parse and bind the sources.
-    pub fn with_workers(
+    /// [`Self::new`] over the documents Programs share (tsgo's parse cache):
+    /// a source whose text and parse a Program already holds is that
+    /// document, and a new one is recorded in `documents`.
+    pub fn with_documents(
         prepared: PreparedProgram,
-        workers: WorkerBudget,
+        documents: &DocumentRegistry,
+    ) -> Result<Self, DriverError> {
+        Self::build(prepared, Some(documents))
+    }
+
+    fn build(
+        prepared: PreparedProgram,
+        documents: Option<&DocumentRegistry>,
     ) -> Result<Self, DriverError> {
         let prepared = Arc::new(prepared);
         let inputs = project_checker_inputs(&prepared, &BTreeMap::new())?;
@@ -54,7 +64,8 @@ impl LiveProgram {
                 current_directory: inputs.current_directory,
             },
             Box::new(provider),
-            workers,
+            WorkerBudget::serial(),
+            documents,
         )
         .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
         Ok(Self { prepared, checker })
@@ -80,6 +91,13 @@ impl LiveProgram {
         let file_name = file_name.into();
         (0..self.checker.file_count())
             .find(|&index| self.checker.file_name(index) == Some(file_name))
+    }
+
+    /// The parsed and bound document of the checker's file at `index`: the
+    /// same one in every Program built over the same [`DocumentRegistry`]
+    /// while the file's text and parse do not change.
+    pub fn document(&self, index: usize) -> Option<&Arc<BoundDocument>> {
+        self.checker.document(index)
     }
 
     /// The file name of the checker's file at `index`.

@@ -190,10 +190,8 @@ use tsc_types::{IdentityDomain, IdentityLease, JsStr, JsString};
 use crate::emit::CheckerSession;
 
 pub use crate::program::{
-    BoundDocument, DocumentAddress, DocumentLease, DocumentRegistry, DocumentRegistryError,
-    DocumentScriptKind, EphemeralDocumentStore, EphemeralDocumentStoreError,
-    IncrementalDocumentOptions, IncrementalDocumentUpdate, ParsedDocument, ProgramFileFacts,
-    ProgramFileId, ProgramSnapshot,
+    BoundDocument, DocumentAddress, DocumentRegistry, EphemeralDocumentStore,
+    EphemeralDocumentStoreError, ParsedDocument, ProgramFileFacts, ProgramFileId, ProgramSnapshot,
 };
 
 pub use tsc_syntax::JSDocParsingMode;
@@ -2660,9 +2658,24 @@ struct HostFacts {
 /// bind result is created here.
 struct ParsedProgramInputs {
     program_sources: Vec<Arc<tsc_syntax::SourceFile>>,
+    /// With a [`DocumentRegistry`], each source's document: the one a
+    /// Program already holds, or the address the new one is recorded at
+    /// (empty without a registry).
+    shared_documents: Vec<SharedDocument>,
     authoritative_program_metadata: Vec<AuthoritativeSourceMetadata>,
     program_diagnostics: Vec<Diagnostic>,
     host: HostFacts,
+}
+
+/// A program source's document in a [`DocumentRegistry`].
+pub(crate) enum SharedDocument {
+    /// The document a Program already holds for the file's text and address.
+    Found(Arc<BoundDocument>),
+    /// A new parse, to bind and record at this address.
+    New(DocumentAddress),
+    /// A new parse that is not recorded (a transpile source with the API's
+    /// module name or renamed dependencies).
+    Unshared,
 }
 
 /// Stage 1: fixture shadowing, root admission, JSON/TS parsing or adoption of
@@ -2674,12 +2687,14 @@ struct ParsedProgramInputs {
 enum PendingProgramSource {
     Ready(tsc_syntax::SourceFile),
     Leased(tsc_syntax::SourceFile, IdentityLease, IdentityLease),
+    /// The source of a document a Program already holds.
+    Shared(Arc<tsc_syntax::SourceFile>),
 }
 
 impl PendingProgramSource {
     fn weight(&self) -> usize {
         match self {
-            Self::Ready(_) => 0,
+            Self::Ready(_) | Self::Shared(_) => 0,
             Self::Leased(source, _, _) => source.arena.nodes().len(),
         }
     }
@@ -2687,6 +2702,7 @@ impl PendingProgramSource {
     fn source_mut(&mut self) -> &mut tsc_syntax::SourceFile {
         match self {
             Self::Ready(source) | Self::Leased(source, _, _) => source,
+            Self::Shared(_) => unreachable!("a shared source is not edited"),
         }
     }
 
@@ -2699,6 +2715,16 @@ impl PendingProgramSource {
                     .expect("source identity relocation failed");
                 source
             }
+            Self::Shared(_) => unreachable!("a shared source is not relocated"),
+        }
+    }
+
+    /// The program source: a new parse at its leased identities, or the
+    /// source of the shared document.
+    fn into_program_source(self) -> Arc<tsc_syntax::SourceFile> {
+        match self {
+            Self::Shared(source) => source,
+            pending => Arc::new(pending.relocate()),
         }
     }
 }
@@ -2713,6 +2739,7 @@ fn parse_program_inputs(
     authoritative_run: Option<&AuthoritativeRun<'_>>,
     work_counters: &mut CheckWorkCounters,
     workers: WorkerBudget,
+    documents: Option<&DocumentRegistry>,
 ) -> ParsedProgramInputs {
     // Every host package.json, parsed once (a later input with the same
     // path replaces an earlier one).
@@ -2769,6 +2796,29 @@ fn parse_program_inputs(
     // module's default/export= property.
     let serial_started = std::time::Instant::now();
     let mut pending_sources: Vec<PendingProgramSource> = Vec::new();
+    let mut shared_documents = Vec::new();
+    let bind_options = documents.map(|_| lib_bundle_options(options));
+    // tsgo's parse cache: a source whose text and address a Program already
+    // holds is that Program's document; another is parsed and recorded.
+    let share = |file_name: JsStr<'_>,
+                 text: &str,
+                 parse_options: &tsc_syntax::ParseOptions,
+                 shared_documents: &mut Vec<SharedDocument>|
+     -> Option<Arc<tsc_syntax::SourceFile>> {
+        let (documents, bind_options) = documents.zip(bind_options.as_ref())?;
+        let address = DocumentAddress::new(parse_options, bind_options.clone(), identity_domain);
+        match documents.get(file_name, text, &address) {
+            Some(document) => {
+                let source = Arc::clone(&document.parsed.source);
+                shared_documents.push(SharedDocument::Found(document));
+                Some(source)
+            }
+            None => {
+                shared_documents.push(SharedDocument::New(address));
+                None
+            }
+        }
+    };
     let mut authoritative_program_metadata = Vec::new();
     let mut authoritative_file_index = 0;
     for (index, file) in files.iter().enumerate() {
@@ -2799,6 +2849,15 @@ fn parse_program_inputs(
         }
         // tsc ensureScriptKind: .json programs parse as JSON values.
         if file.name.ends_with(".json") {
+            if let Some(source) = share(
+                file.name.as_js(),
+                file.text(),
+                &tsc_syntax::ParseOptions::default(),
+                &mut shared_documents,
+            ) {
+                pending_sources.push(PendingProgramSource::Shared(source));
+                continue;
+            }
             let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain(
                 file.name.clone(),
                 Arc::clone(file.snapshot()),
@@ -2897,6 +2956,23 @@ fn parse_program_inputs(
                 .js_doc_parsing_mode
                 .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
         };
+        // A source with the API's module name or renamed dependencies
+        // (transpile) is never shared.
+        if file.module_name.is_none() && file.renamed_dependencies.is_empty() {
+            if let Some(source) = share(
+                file.name.as_js(),
+                file.text(),
+                &parse_options,
+                &mut shared_documents,
+            ) {
+                // The loader's parse of the same text is not needed.
+                drop(file.take_preparsed_source(&parse_options));
+                pending_sources.push(PendingProgramSource::Shared(source));
+                continue;
+            }
+        } else if documents.is_some() {
+            shared_documents.push(SharedDocument::Unshared);
+        }
         // An adopted tree takes its identity lease here, in program order,
         // and is rewritten on a worker below; a fresh parse allocates in
         // the domain directly, in the same order.
@@ -2943,15 +3019,11 @@ fn parse_program_inputs(
         serial_started,
     );
     let rewrite_started = std::time::Instant::now();
-    let program_sources: Vec<Arc<tsc_syntax::SourceFile>> = workers
-        .map_ordered(
-            pending_sources,
-            PendingProgramSource::weight,
-            PendingProgramSource::relocate,
-        )
-        .into_iter()
-        .map(Arc::new)
-        .collect();
+    let program_sources: Vec<Arc<tsc_syntax::SourceFile>> = workers.map_ordered(
+        pending_sources,
+        PendingProgramSource::weight,
+        PendingProgramSource::into_program_source,
+    );
     tsc_types::trace::mark("checker: adopt (parallel rewrite)", rewrite_started);
 
     let host_current_directory = resolve_host_current_directory(current_directory);
@@ -3027,6 +3099,7 @@ fn parse_program_inputs(
         .collect();
     ParsedProgramInputs {
         program_sources,
+        shared_documents,
         authoritative_program_metadata,
         program_diagnostics,
         host: HostFacts {
@@ -4011,6 +4084,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         authoritative_program_metadata,
         program_diagnostics,
         host,
+        ..
     } = parse_program_inputs(
         libs,
         files,
@@ -4020,6 +4094,7 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
         Some(run),
         &mut work_counters,
         workers,
+        None,
     );
     tsc_types::trace::mark("checker: parse/adopt program sources", phase_started);
     if let Some(result) = syntactic_diagnostics_close_the_check(
@@ -4888,6 +4963,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         authoritative_program_metadata,
         program_diagnostics,
         host,
+        ..
     } = parse_program_inputs(
         libs,
         files,
@@ -4897,6 +4973,7 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         authoritative_run,
         &mut work_counters,
         workers,
+        None,
     );
 
     if let Some(result) = authoritative_run.and_then(|run| {
@@ -5694,12 +5771,18 @@ impl PreparedHarnessLibBundle {
 pub struct HarnessLibBundleOptionsKey(CompilerOptions);
 
 impl LibBundle {
+    /// The same libraries (names and full texts) and projected options. A
+    /// Program loaded again reads the library files again, so its snapshots
+    /// are other objects with the same text (the project system's Programs);
+    /// matching them reuses the bundle instead of building and leaking another.
     fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
         self.options == options
             && self.documents.len() == libs.len()
             && self.documents.iter().zip(libs).all(|(document, lib)| {
                 let source = document.source();
-                source.file_name == lib.name && Arc::ptr_eq(source.snapshot(), lib.snapshot())
+                source.file_name == lib.name
+                    && (Arc::ptr_eq(source.snapshot(), lib.snapshot())
+                        || source.text() == lib.text())
             })
     }
 }

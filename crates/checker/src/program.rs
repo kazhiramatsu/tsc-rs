@@ -12,17 +12,12 @@
 
 use rustc_hash::FxHashMap as HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError, Weak};
 
-use tsc_binder::{BindData, Binder, BinderWorker, Symbol, SymbolArena, SymbolId, SymbolTable};
-use tsc_diagnostics::{ByteTextChangeRange, DocumentVersion, TextSnapshot};
-use tsc_syntax::{
-    IncrementalParseError, IncrementalParseOptions, IncrementalParseStats, NodeArray, NodeArrayId,
-    NodeId, ParseOptions, SourceFile,
-};
+use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
+use tsc_syntax::{NodeArray, NodeArrayId, NodeId, ParseOptions, SourceFile};
 use tsc_types::{
-    CompilerOptions, IdentityDomain, IdentityError, JsStr, JsString, SymbolFlags,
-    TRANSIENT_SYMBOL_BIT,
+    CompilerOptions, IdentityDomain, JsStr, JsString, SymbolFlags, TRANSIENT_SYMBOL_BIT,
 };
 
 /// Immutable parsed source handle retained by a Program snapshot.
@@ -58,501 +53,150 @@ impl BoundDocument {
     }
 }
 
-/// The script-kind part of a document-registry address.
-///
-/// A path alone is not a sufficient cache key: a host may assign a different
-/// script kind to the same extension, and JSON has a different parser entry
-/// point from TypeScript. `Other` is retained instead of collapsing unknown
-/// extensions into one bucket so a future host override cannot reuse a tree
-/// produced for another kind.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum DocumentScriptKind {
-    TypeScript,
-    Tsx,
-    JavaScript,
-    Jsx,
-    Json,
-    Other(String),
-}
-
-/// Complete address of one registry document variant.
-///
-/// The registry namespace is deliberately part of the address even though a
-/// `DocumentRegistry` also checks it. This keeps an address self-describing
-/// when it is recorded in a Program-building trace. The current implementation
-/// stores the full compiler-option bag as the source/bind bucket. That is
-/// conservative (checker-only option projections can be split for now), but
-/// it cannot reuse stale parse or bind state when a new source-affecting read
-/// is added before the generated projection is tightened.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+/// What a program source's parse and bind depend on besides its file name
+/// and text (tsgo `ParseCacheKey` without the hash): the parse options at
+/// base-zero identities, the options the binder reads (the projection the
+/// library bundle uses; tsgo's binder reads none), and the identity domain
+/// the document's nodes and symbols belong to.
+#[derive(Clone, Debug)]
 pub struct DocumentAddress {
-    namespace: String,
-    path: JsString,
-    script_kind: DocumentScriptKind,
-    compiler_options: CompilerOptions,
-    implied_node_format: Option<i32>,
-    force_external_module: bool,
-    detect_external_module_from_jsx: bool,
+    parse: ParseOptions,
+    bind: CompilerOptions,
+    identity_domain: IdentityDomain,
 }
 
 impl DocumentAddress {
-    /// tsrs-native: constructs an address for the pinned registry namespace.
+    /// tsrs-native: the address of a source parsed with `parse` and bound
+    /// with the binder's projection `bind` in `identity_domain`.
     pub fn new(
-        namespace: impl Into<String>,
-        path: impl Into<JsString>,
-        script_kind: DocumentScriptKind,
-        compiler_options: CompilerOptions,
+        parse: &ParseOptions,
+        bind: CompilerOptions,
+        identity_domain: &IdentityDomain,
     ) -> Self {
         Self {
-            namespace: namespace.into(),
-            path: path.into(),
-            script_kind,
-            compiler_options,
-            implied_node_format: None,
-            force_external_module: false,
-            detect_external_module_from_jsx: false,
+            parse: ParseOptions {
+                node_id_base: 0,
+                node_array_id_base: 0,
+                ..parse.clone()
+            },
+            bind,
+            identity_domain: identity_domain.clone(),
         }
     }
+}
 
-    /// tsrs-native: adds the module-format facts that complete the address key.
-    pub fn with_module_facts(
-        mut self,
-        implied_node_format: Option<i32>,
-        force_external_module: bool,
-        detect_external_module_from_jsx: bool,
-    ) -> Self {
-        self.implied_node_format = implied_node_format;
-        self.force_external_module = force_external_module;
-        self.detect_external_module_from_jsx = detect_external_module_from_jsx;
-        self
-    }
-
-    /// tsrs-native: returns the registry namespace component.
-    pub fn namespace(&self) -> &str {
-        &self.namespace
-    }
-
-    /// tsrs-native: returns the host path component.
-    pub fn path(&self) -> JsStr<'_> {
-        self.path.as_js()
-    }
-
-    /// tsrs-native: returns the parser script-kind component.
-    pub fn script_kind(&self) -> &DocumentScriptKind {
-        &self.script_kind
-    }
-
-    /// tsrs-native: returns the conservative source/bind option bucket.
-    pub fn compiler_options(&self) -> &CompilerOptions {
-        &self.compiler_options
-    }
-
-    /// tsrs-native: returns the implied module format component.
-    pub const fn implied_node_format(&self) -> Option<i32> {
-        self.implied_node_format
-    }
-
-    /// tsrs-native: returns the forced external-module fact.
-    pub const fn force_external_module(&self) -> bool {
-        self.force_external_module
-    }
-
-    /// tsrs-native: returns the JSX external-module detection fact.
-    pub const fn detect_external_module_from_jsx(&self) -> bool {
-        self.detect_external_module_from_jsx
+impl PartialEq for DocumentAddress {
+    fn eq(&self, other: &Self) -> bool {
+        self.parse == other.parse
+            && self.bind == other.bind
+            && self.identity_domain.same_domain(&other.identity_domain)
     }
 }
 
-/// A reference-counted immutable document handle returned by
-/// [`DocumentRegistry::acquire`] or [`DocumentRegistry::update`].
-///
-/// The handle is intentionally not `Clone`: each active Program snapshot must
-/// acquire its own reference and release it exactly once. Cloning the inner
-/// `Arc<BoundDocument>` is allowed for the snapshot itself and does not alter
-/// registry accounting.
+/// tsgo's parse cache (`project/parsecache.go`): the parsed and bound
+/// sources Programs hold, found again by file name, text and
+/// [`DocumentAddress`], so a Program built again shares the documents of the
+/// files that did not change. An entry lives while a Program holds its
+/// document: tsgo counts the Programs that acquired it, and the `Weak` here
+/// follows the Programs' `Arc`s.
 #[derive(Debug)]
-pub struct DocumentLease {
-    generation: u64,
-    address: DocumentAddress,
-    document: Arc<BoundDocument>,
-}
-
-impl DocumentLease {
-    /// tsrs-native: returns the immutable document retained by this lease.
-    pub fn document(&self) -> &Arc<BoundDocument> {
-        &self.document
-    }
-
-    /// tsrs-native: returns the address retained by this lease.
-    pub fn address(&self) -> &DocumentAddress {
-        &self.address
-    }
-
-    /// tsrs-native: returns the host version retained by this lease.
-    pub fn version(&self) -> &DocumentVersion {
-        self.document.source().snapshot().document_version()
-    }
-
-    fn generation(&self) -> u64 {
-        self.generation
-    }
+pub struct DocumentRegistry {
+    /// The domain of Programs without libraries (a library bundle has its
+    /// own), so their sources can be shared too.
+    identity_domain: IdentityDomain,
+    entries: Mutex<HashMap<(JsString, u64), Vec<RegistryEntry>>>,
 }
 
 #[derive(Debug)]
 struct RegistryEntry {
-    generation: u64,
-    snapshot: Arc<TextSnapshot>,
-    document: Arc<BoundDocument>,
-    references: usize,
-}
-
-/// Fail-closed errors for the minimal L0 document registry.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DocumentRegistryError {
-    NamespaceMismatch {
-        expected: String,
-        actual: String,
-    },
-    VersionTextMismatch {
-        path: JsString,
-        version: DocumentVersion,
-    },
-    BuiltDocumentDoesNotOwnSnapshot {
-        path: JsString,
-    },
-    BuiltDocumentPathMismatch {
-        expected: JsString,
-        actual: JsString,
-    },
-    UnknownLease {
-        generation: u64,
-    },
-    PreviousLeaseAddressMismatch,
-    IncrementalParse(IncrementalParseError),
-    BindIdentity(IdentityError),
-}
-
-impl std::fmt::Display for DocumentRegistryError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NamespaceMismatch { expected, actual } => write!(
-                formatter,
-                "document registry namespace mismatch: expected {expected:?}, got {actual:?}"
-            ),
-            Self::VersionTextMismatch { path, version } => write!(
-                formatter,
-                "document {path:?} changed text without changing host version {:?}",
-                version.as_str()
-            ),
-            Self::BuiltDocumentDoesNotOwnSnapshot { path } => write!(
-                formatter,
-                "built document {path:?} does not retain the supplied snapshot"
-            ),
-            Self::BuiltDocumentPathMismatch { expected, actual } => write!(
-                formatter,
-                "built document path mismatch: expected {expected:?}, got {actual:?}"
-            ),
-            Self::UnknownLease { generation } => {
-                write!(
-                    formatter,
-                    "unknown or already released document lease {generation}"
-                )
-            }
-            Self::PreviousLeaseAddressMismatch => formatter
-                .write_str("incremental document update used a previous lease for another address"),
-            Self::IncrementalParse(error) => error.fmt(formatter),
-            Self::BindIdentity(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for DocumentRegistryError {}
-
-impl From<IncrementalParseError> for DocumentRegistryError {
-    fn from(error: IncrementalParseError) -> Self {
-        Self::IncrementalParse(error)
-    }
-}
-
-#[derive(Debug)]
-pub struct IncrementalDocumentUpdate {
-    pub lease: DocumentLease,
-    pub parse_stats: IncrementalParseStats,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct IncrementalDocumentOptions {
-    pub parse: ParseOptions,
-    pub incremental: IncrementalParseOptions,
-}
-
-/// Minimal non-global registry for immutable parsed/bound documents.
-///
-/// Entries are retained only while at least one explicit lease is active.
-/// Different versions of one address may coexist while an older Program is
-/// still alive; each version is removed as soon as its last lease is released.
-/// This is deliberately a synchronous building block. Synchronization belongs
-/// to the future service/project owner, not to the immutable syntax or bind
-/// records.
-#[derive(Debug)]
-pub struct DocumentRegistry {
-    namespace: String,
-    entries: HashMap<DocumentAddress, Vec<RegistryEntry>>,
-    next_generation: u64,
+    address: DocumentAddress,
+    document: Weak<BoundDocument>,
 }
 
 impl DocumentRegistry {
-    /// tsrs-native: constructs a synchronous, non-global registry namespace.
-    pub fn new(namespace: impl Into<String>) -> Self {
+    pub fn new() -> Self {
         Self {
-            namespace: namespace.into(),
-            entries: HashMap::default(),
-            next_generation: 0,
+            identity_domain: IdentityDomain::reclaiming(),
+            entries: Mutex::default(),
         }
     }
 
-    /// tsrs-native: returns the namespace owned by this registry.
-    pub fn namespace(&self) -> &str {
-        &self.namespace
+    /// The identity domain of Programs without libraries.
+    pub fn identity_domain(&self) -> &IdentityDomain {
+        &self.identity_domain
     }
 
-    /// tsrs-native: acquires or atomically publishes an exact document variant.
-    /// Acquire an existing exact `(address, host version, text)` record, or
-    /// build and publish one atomically from the supplied closure.
-    pub fn acquire(
-        &mut self,
-        address: DocumentAddress,
-        snapshot: Arc<TextSnapshot>,
-        build: impl FnOnce() -> Arc<BoundDocument>,
-    ) -> Result<DocumentLease, DocumentRegistryError> {
-        self.check_namespace(&address)?;
-        if let Some(entries) = self.entries.get_mut(&address) {
-            for entry in entries.iter_mut() {
-                if entry.snapshot.document_version() == snapshot.document_version() {
-                    if entry.snapshot.text() != snapshot.text() {
-                        return Err(DocumentRegistryError::VersionTextMismatch {
-                            path: address.path.clone(),
-                            version: snapshot.document_version().clone(),
-                        });
-                    }
-                    entry.references = entry
-                        .references
-                        .checked_add(1)
-                        .expect("document registry reference count overflow");
-                    return Ok(DocumentLease {
-                        generation: entry.generation,
-                        address,
-                        document: Arc::clone(&entry.document),
-                    });
-                }
-            }
-        }
-
-        let document = build();
-        if document.source().file_name != address.path {
-            return Err(DocumentRegistryError::BuiltDocumentPathMismatch {
-                expected: address.path,
-                actual: document.source().file_name.clone(),
-            });
-        }
-        if !Arc::ptr_eq(document.source().snapshot(), &snapshot) {
-            return Err(DocumentRegistryError::BuiltDocumentDoesNotOwnSnapshot {
-                path: document.source().file_name.clone(),
-            });
-        }
-
-        self.next_generation = self
-            .next_generation
-            .checked_add(1)
-            .expect("document registry generation overflow");
-        let generation = self.next_generation;
-        self.entries
-            .entry(address.clone())
-            .or_default()
-            .push(RegistryEntry {
-                generation,
-                snapshot: Arc::clone(&snapshot),
-                document: Arc::clone(&document),
-                references: 1,
-            });
-        Ok(DocumentLease {
-            generation,
-            address,
-            document,
-        })
-    }
-
-    /// tsrs-native: updates an address through the same fail-closed acquire path.
-    /// Publish a new host version at an existing address. The exact same
-    /// version still follows the acquire path and therefore cannot silently
-    /// replace text under an equal host version.
-    pub fn update(
-        &mut self,
-        address: DocumentAddress,
-        snapshot: Arc<TextSnapshot>,
-        build: impl FnOnce() -> Arc<BoundDocument>,
-    ) -> Result<DocumentLease, DocumentRegistryError> {
-        self.acquire(address, snapshot, build)
-    }
-
-    /// tsrs-native: publish one immutable successor by incrementally reparsing
-    /// and fully rebinding the changed document. The previous lease remains
-    /// live until its owning Program explicitly releases it; no old tree is
-    /// mutated.
-    pub fn update_incrementally(
-        &mut self,
-        previous: &DocumentLease,
-        address: DocumentAddress,
-        snapshot: Arc<TextSnapshot>,
-        change: ByteTextChangeRange,
-        options: IncrementalDocumentOptions,
-        domain: &IdentityDomain,
-    ) -> Result<IncrementalDocumentUpdate, DocumentRegistryError> {
-        self.check_namespace(&address)?;
-        if previous.address != address {
-            return Err(DocumentRegistryError::PreviousLeaseAddressMismatch);
-        }
-        let previous_is_live = self.entries.get(&address).is_some_and(|entries| {
-            entries.iter().any(|entry| {
-                entry.generation == previous.generation()
-                    && Arc::ptr_eq(&entry.document, previous.document())
-            })
-        });
-        if !previous_is_live {
-            return Err(DocumentRegistryError::UnknownLease {
-                generation: previous.generation(),
-            });
-        }
-
-        if let Some(entries) = self.entries.get_mut(&address) {
-            for entry in entries.iter_mut() {
-                if entry.snapshot.document_version() == snapshot.document_version() {
-                    if entry.snapshot.text() != snapshot.text() {
-                        return Err(DocumentRegistryError::VersionTextMismatch {
-                            path: address.path.clone(),
-                            version: snapshot.document_version().clone(),
-                        });
-                    }
-                    entry.references = entry
-                        .references
-                        .checked_add(1)
-                        .expect("document registry reference count overflow");
-                    return Ok(IncrementalDocumentUpdate {
-                        lease: DocumentLease {
-                            generation: entry.generation,
-                            address,
-                            document: Arc::clone(&entry.document),
-                        },
-                        parse_stats: IncrementalParseStats::default(),
-                    });
-                }
-            }
-        }
-
-        let updated = tsc_syntax::update_language_service_source_file_in_identity_domain(
-            Arc::clone(&previous.document.parsed.source),
-            Arc::clone(&snapshot),
-            change,
-            options.parse,
-            options.incremental,
-            domain,
-        )?;
-        let worker = BinderWorker::bind_in_identity_domain(
-            &updated.source,
-            address.compiler_options(),
-            domain,
-        )
-        .map_err(DocumentRegistryError::BindIdentity)?;
-        let parsed = Arc::new(ParsedDocument::new(Arc::clone(&updated.source)));
-        let document = Arc::new(BoundDocument::new(parsed, worker.into_bind_data()));
-
-        self.next_generation = self
-            .next_generation
-            .checked_add(1)
-            .expect("document registry generation overflow");
-        let generation = self.next_generation;
-        self.entries
-            .entry(address.clone())
-            .or_default()
-            .push(RegistryEntry {
-                generation,
-                snapshot,
-                document: Arc::clone(&document),
-                references: 1,
-            });
-        Ok(IncrementalDocumentUpdate {
-            lease: DocumentLease {
-                generation,
-                address,
-                document,
-            },
-            parse_stats: updated.stats,
-        })
-    }
-
-    /// tsrs-native: releases one lease and reclaims its final live variant.
-    /// Release exactly one acquired reference. When the last reference to a
-    /// version is released, its registry entry disappears immediately.
-    pub fn release(&mut self, lease: DocumentLease) -> Result<(), DocumentRegistryError> {
-        self.check_namespace(&lease.address)?;
-        let Some(entries) = self.entries.get_mut(&lease.address) else {
-            return Err(DocumentRegistryError::UnknownLease {
-                generation: lease.generation(),
-            });
-        };
-        let Some(index) = entries
+    /// The document a Program holds for `file_name` with `text` at
+    /// `address` (tsgo `Acquire` finding the key).
+    pub fn get(
+        &self,
+        file_name: JsStr<'_>,
+        text: &str,
+        address: &DocumentAddress,
+    ) -> Option<Arc<BoundDocument>> {
+        let entries = self.lock();
+        entries
+            .get(&(file_name.to_owned(), text_hash(text)))?
             .iter()
-            .position(|entry| entry.generation == lease.generation())
-        else {
-            return Err(DocumentRegistryError::UnknownLease {
-                generation: lease.generation(),
-            });
-        };
-        let entry = &mut entries[index];
-        if entry.references == 0 {
-            return Err(DocumentRegistryError::UnknownLease {
-                generation: lease.generation(),
-            });
-        }
-        entry.references -= 1;
-        if entry.references == 0 {
-            entries.remove(index);
-        }
-        if entries.is_empty() {
-            self.entries.remove(&lease.address);
-        }
-        Ok(())
+            .filter(|entry| entry.address == *address)
+            .find_map(|entry| entry.document.upgrade())
+            .filter(|document| document.source().text() == text)
     }
 
-    /// tsrs-native: returns the number of live address/version variants.
-    pub fn active_entry_count(&self) -> usize {
-        self.entries.values().map(Vec::len).sum()
+    /// Record a document a Program parsed and bound at `address`, and forget
+    /// the entries of the same file and text no Program holds any more.
+    pub fn insert(&self, address: DocumentAddress, document: &Arc<BoundDocument>) {
+        let source = document.source();
+        let key = (source.file_name.clone(), text_hash(source.text()));
+        let mut entries = self.lock();
+        let slot = entries.entry(key).or_default();
+        slot.retain(|entry| entry.document.strong_count() > 0);
+        slot.push(RegistryEntry {
+            address,
+            document: Arc::downgrade(document),
+        });
     }
 
-    /// tsrs-native: returns the number of explicit live leases.
-    pub fn active_reference_count(&self) -> usize {
-        self.entries
+    /// Forget the entries no Program holds (tsgo deletes an entry when its
+    /// count reaches zero).
+    pub fn purge(&self) {
+        self.lock().retain(|_, slot| {
+            slot.retain(|entry| entry.document.strong_count() > 0);
+            !slot.is_empty()
+        });
+    }
+
+    /// The number of documents a Program still holds.
+    pub fn len(&self) -> usize {
+        self.lock()
             .values()
-            .flat_map(|entries| entries.iter())
-            .map(|entry| entry.references)
-            .sum()
+            .flatten()
+            .filter(|entry| entry.document.strong_count() > 0)
+            .count()
     }
 
-    fn check_namespace(&self, address: &DocumentAddress) -> Result<(), DocumentRegistryError> {
-        if address.namespace != self.namespace {
-            return Err(DocumentRegistryError::NamespaceMismatch {
-                expected: self.namespace.clone(),
-                actual: address.namespace.clone(),
-            });
-        }
-        Ok(())
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(JsString, u64), Vec<RegistryEntry>>> {
+        self.entries.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
 impl Default for DocumentRegistry {
     fn default() -> Self {
-        Self::new("tsc-rs")
+        Self::new()
     }
+}
+
+/// The hash a document's text is found by (tsgo hashes file contents with
+/// xxh3); a hit still compares the text.
+fn text_hash(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// Typed publication failures for the one-shot store. A failed source or bind
@@ -640,6 +284,22 @@ impl EphemeralDocumentStore {
         let document = Arc::new(BoundDocument::new(parsed, data));
         self.documents.push(Arc::clone(&document));
         Ok(document)
+    }
+
+    /// tsrs-native: adds a completed document a Program already holds (tsgo's
+    /// parse cache), after ownership validation.
+    pub fn adopt(
+        &mut self,
+        document: Arc<BoundDocument>,
+    ) -> Result<(), EphemeralDocumentStoreError> {
+        if !document.source().identity_owned_by(&self.identity_domain) {
+            return Err(EphemeralDocumentStoreError::SourceIdentityDomainMismatch);
+        }
+        if !document.data.identity_owned_by(&self.identity_domain) {
+            return Err(EphemeralDocumentStoreError::BindIdentityDomainMismatch);
+        }
+        self.documents.push(document);
+        Ok(())
     }
 
     /// tsrs-native: transfers the one-shot slots into an immutable Program snapshot.

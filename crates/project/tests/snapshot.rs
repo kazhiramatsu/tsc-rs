@@ -1731,3 +1731,50 @@ fn a_synthetic_program_reads_the_sources_of_its_references() {
     .expect("clean up");
     assert!(cleaned.config("/lib/tsconfig.json").is_none());
 }
+
+#[test]
+fn a_program_built_again_keeps_the_documents_of_unchanged_files() {
+    // tsgo's parse cache through the snapshots: the program built after a
+    // change has the same parsed and bound file for every file that did not
+    // change (the API reports the files whose documents differ), and the
+    // documents go with the snapshots that hold them.
+    let config = "/src/tsconfig.json";
+    let (host, fs) = session(&[
+        (config, r#"{ "compilerOptions": { "noLib": true } }"#),
+        ("/src/a.ts", "export const a = 1;"),
+        ("/src/b.ts", "export const b = 1;"),
+    ]);
+    let id = configured(config);
+    let opened = update(&host, &host.new_root_snapshot(), open_projects(&[config]))
+        .expect("open the project");
+    fs.write("/src/b.ts", b"export const b = 2;")
+        .expect("write the file");
+    let marked = changed(&host, &opened, &["/src/b.ts"]);
+    let ensured = update(&host, &marked, ensure(&[&id])).expect("ensure the project");
+    let document = |snapshot: &Snapshot, file_name: &str| {
+        let program = snapshot.project(&id).unwrap().program().unwrap();
+        program
+            .with_live(|live| {
+                live.file_index(file_name)
+                    .and_then(|index| live.document(index))
+                    .cloned()
+            })
+            .expect("the file's document")
+    };
+    assert!(!Arc::ptr_eq(
+        opened.project(&id).unwrap().program().unwrap(),
+        ensured.project(&id).unwrap().program().unwrap()
+    ));
+    assert!(Arc::ptr_eq(
+        &document(&opened, "/src/a.ts"),
+        &document(&ensured, "/src/a.ts")
+    ));
+    assert!(!Arc::ptr_eq(
+        &document(&opened, "/src/b.ts"),
+        &document(&ensured, "/src/b.ts")
+    ));
+    assert_eq!(host.documents().len(), 3);
+    drop((opened, marked, ensured));
+    host.documents().purge();
+    assert!(host.documents().is_empty());
+}

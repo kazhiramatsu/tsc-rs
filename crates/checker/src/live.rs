@@ -16,7 +16,10 @@ use self_cell::self_cell;
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, DiagnosticList};
 use tsc_types::{IdentityDomain, JsStr, JsString};
 
-use crate::program::{EphemeralDocumentStore, ProgramFileFacts, ProgramFileId, ProgramSnapshot};
+use crate::program::{
+    BoundDocument, DocumentRegistry, EphemeralDocumentStore, ProgramFileFacts, ProgramFileId,
+    ProgramSnapshot,
+};
 use crate::state::CheckerState;
 use crate::{
     bind_sources_in_program_order, check_program_file, globals, init_checker_state, lib_bundle,
@@ -25,7 +28,7 @@ use crate::{
     validate_authoritative_metadata, AuthoritativeModuleFailure, AuthoritativeModuleProvider,
     AuthoritativeProviderSource, AuthoritativeRun, AuthoritativeSourceMetadata, CheckWorkCounters,
     CompilerOptions, DiagnosticSchedule, FileDiagnosticPasses, HostFacts, InputFile,
-    LibraryPrefixCompletion, ParsedProgramInputs, WorkerBudget,
+    LibraryPrefixCompletion, ParsedProgramInputs, SharedDocument, WorkerBudget,
 };
 
 /// The owned inputs of a [`LiveChecker`]: the Program's library and source
@@ -88,11 +91,14 @@ enum Live {
 impl LiveChecker {
     /// Parse and bind the Program's sources and initialize the checker
     /// (globals merged, no source checked): the on-demand schedule of the
-    /// batch drivers, kept instead of handed to a callback.
+    /// batch drivers, kept instead of handed to a callback. With `documents`
+    /// (tsgo's parse cache), a source whose text and address a Program
+    /// already holds is that document, and a new one is recorded there.
     pub fn new(
         inputs: LiveCheckerInputs,
         provider: Box<dyn AuthoritativeModuleProvider + Send>,
         workers: WorkerBudget,
+        documents: Option<&DocumentRegistry>,
     ) -> Result<Self, AuthoritativeModuleFailure> {
         let LiveCheckerInputs {
             libs,
@@ -134,11 +140,13 @@ impl LiveChecker {
         let lib_documents = bundle.map_or(&[][..], |bundle| bundle.documents);
         let identity_domain = bundle
             .map(|bundle| bundle.identity_domain.clone())
+            .or_else(|| documents.map(|documents| documents.identity_domain().clone()))
             .unwrap_or_else(IdentityDomain::ephemeral);
 
         let mut work_counters = CheckWorkCounters::default();
         let ParsedProgramInputs {
             program_sources,
+            shared_documents,
             authoritative_program_metadata,
             program_diagnostics,
             host,
@@ -162,6 +170,7 @@ impl LiveChecker {
                 Some(&run),
                 &mut work_counters,
                 workers,
+                documents,
             )
         };
 
@@ -178,17 +187,39 @@ impl LiveChecker {
             identity_domain.clone(),
             lib_documents.iter().cloned(),
         );
-        let bind_data = bind_sources_in_program_order(
-            &program_sources,
-            &options,
-            &identity_domain,
-            workers,
-            None,
-        );
-        for (source_file, data) in program_sources.iter().zip(bind_data) {
-            document_store
-                .publish(Arc::clone(source_file), data)
+        // The sources no Program holds a document for are bound, in program
+        // order; the others are those documents.
+        let found = |index: usize| match shared_documents.get(index) {
+            Some(SharedDocument::Found(document)) => Some(document),
+            _ => None,
+        };
+        let new_sources = program_sources
+            .iter()
+            .enumerate()
+            .filter(|&(index, _)| found(index).is_none())
+            .map(|(_, source_file)| Arc::clone(source_file))
+            .collect::<Vec<_>>();
+        let mut bind_data =
+            bind_sources_in_program_order(&new_sources, &options, &identity_domain, workers, None)
+                .into_iter();
+        for (index, source_file) in program_sources.iter().enumerate() {
+            if let Some(document) = found(index) {
+                document_store
+                    .adopt(Arc::clone(document))
+                    .expect("a shared document must belong to the Program's identity domain");
+                continue;
+            }
+            let document = document_store
+                .publish(
+                    Arc::clone(source_file),
+                    bind_data.next().expect("a bind of every new source"),
+                )
                 .expect("completed bind must belong to the ephemeral document domain");
+            if let (Some(documents), Some(SharedDocument::New(address))) =
+                (documents, shared_documents.get(index))
+            {
+                documents.insert(address.clone(), &document);
+            }
         }
         let file_facts = crate::program_file_facts(
             ProgramFileFacts::DEFAULT_LIBRARY,
@@ -231,6 +262,16 @@ impl LiveChecker {
         Ok(Self {
             live: Live::Checked(cell),
         })
+    }
+
+    /// The parsed and bound document of the file at `index` (libraries
+    /// first); a Program built again over a [`DocumentRegistry`] has the
+    /// same one for a file that did not change.
+    pub fn document(&self, index: usize) -> Option<&Arc<BoundDocument>> {
+        match &self.live {
+            Live::Empty { .. } => None,
+            Live::Checked(cell) => cell.borrow_owner().snapshot.documents().get(index),
+        }
     }
 
     /// The name of the file at `index` (libraries first).
