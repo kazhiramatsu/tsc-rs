@@ -1,0 +1,22 @@
+[package]
+name = "tsc-rs-project"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[package.metadata.tsc-rs]
+role = "project"
+
+[lib]
+name = "tsc_project"
+path = "src/lib.rs"
+
+[dependencies]
+tsc-compiler.workspace = true
+tsc-diagnostics.workspace = true
+tsc-host.workspace = true
+tsc-program.workspace = true
+tsc-types.workspace = true
+
+[lints]
+workspace = true
