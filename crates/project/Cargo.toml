@@ -12,6 +12,8 @@ name = "tsc_project"
 path = "src/lib.rs"
 
 [dependencies]
+# The inferred project's options are written as tsgo's API form.
+serde_json = "1.0"
 tsc-compiler.workspace = true
 tsc-diagnostics.workspace = true
 tsc-host.workspace = true

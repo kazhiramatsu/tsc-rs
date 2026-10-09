@@ -1,0 +1,29 @@
+[package]
+name = "tsc-rs-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[package.metadata.tsc-rs]
+role = "cli"
+
+# The command (tsgo cmd/tsc): the compiler's command line, and `--api` for
+# the API server.
+[[bin]]
+name = "tsc-rs"
+path = "src/main.rs"
+
+[dependencies]
+libc.workspace = true
+libmimalloc-sys = { version = "0.1", features = ["extended"] }
+mimalloc = "0.1"
+tsc-api.workspace = true
+tsc-compiler.workspace = true
+tsc-program.workspace = true
+tsc-types.workspace = true
+
+[dev-dependencies]
+serde_json = "1.0"
+
+[lints]
+workspace = true

@@ -18,11 +18,11 @@ use tsc_program::{
 };
 
 use super::errors_baseline::flatten_with;
-use super::go_json::{
-    enum_number, FieldKind, GoJson, BUILD_OPTIONS_FIELDS, COMPILER_OPTIONS_FIELDS,
-};
 use super::tables::{
     ExtraOptionKind, PARSE_BUILD_OPTIONS, PARSE_COMMAND_LINE, PARSE_COMMAND_LINE_FALSE, VERIFY_NULL,
+};
+use tsc_program::go_json::{
+    enum_number, FieldKind, GoJson, BUILD_OPTIONS_FIELDS, COMPILER_OPTIONS_FIELDS,
 };
 
 /// The tests' tsconfig-only `optionName` of each kind.

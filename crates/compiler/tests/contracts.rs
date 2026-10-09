@@ -4,8 +4,6 @@ mod utf16_scalar_path;
 
 #[path = "integration/automatic_type_directive_session_contract.rs"]
 mod automatic_type_directive_session_contract;
-#[path = "integration/cli_contract.rs"]
-mod cli_contract;
 #[path = "integration/declaration_emit_resolver_members.rs"]
 mod declaration_emit_resolver_members;
 #[path = "integration/declaration_import_attributes.rs"]

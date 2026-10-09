@@ -426,7 +426,14 @@ dependencies = [
 name = "tsc-rs-api"
 version = "0.1.0"
 dependencies = [
+ "base64",
+ "serde",
+ "serde_json",
+ "tsc-rs-compiler",
  "tsc-rs-diagnostics",
+ "tsc-rs-host",
+ "tsc-rs-program",
+ "tsc-rs-project",
  "tsc-rs-syntax",
  "tsc-rs-types",
  "xxhash-rust",
@@ -462,13 +469,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-cli"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "libmimalloc-sys",
+ "mimalloc",
+ "serde_json",
+ "tsc-rs-api",
+ "tsc-rs-compiler",
+ "tsc-rs-program",
+ "tsc-rs-types",
+]
+
+[[package]]
 name = "tsc-rs-compiler"
 version = "0.1.0"
 dependencies = [
  "base64",
- "libc",
- "libmimalloc-sys",
- "mimalloc",
  "miniz_oxide",
  "notify",
  "serde",
@@ -573,6 +591,7 @@ dependencies = [
 name = "tsc-rs-project"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
  "tsc-rs-host",

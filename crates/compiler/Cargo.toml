@@ -3,7 +3,6 @@ name = "tsc-rs-compiler"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-default-run = "tsc-rs"
 
 [package.metadata.tsc-rs]
 role = "compiler"
@@ -12,19 +11,12 @@ role = "compiler"
 name = "tsc_compiler"
 path = "src/lib.rs"
 
-[[bin]]
-name = "tsc-rs"
-path = "src/bin/tsc-rs.rs"
-
 [features]
 # Measurement builds only: aggregate cache/phase counters printed at exit when
 # TSRS_PERF_COUNTERS is set (see crates/types/src/perf.rs).
 perf-counters = ["tsc-checker/perf-counters", "tsc-types/perf-counters"]
 
 [dependencies]
-libc.workspace = true
-libmimalloc-sys = { version = "0.1", features = ["extended"] }
-mimalloc = "0.1"
 # tsgo's localized message catalogs are embedded gzip-compressed, as tsgo
 # embeds them.
 miniz_oxide = "0.8"

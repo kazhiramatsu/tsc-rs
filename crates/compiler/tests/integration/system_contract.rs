@@ -571,3 +571,32 @@ fn build_watch_rebuilds_the_projects_a_change_concerns() {
         "{output}"
     );
 }
+
+#[test]
+fn the_bundled_file_system_serves_the_embedded_libraries_read_only() {
+    // tsgo `bundled.WrapFS`: the libraries are files of `bundled:///libs`
+    // over the base file system, which keeps everything else.
+    use tsc_compiler::system::{BundledFs, EMBEDDED_LIBRARY_DIRECTORY};
+    use tsc_host::vfs::{FileType, SystemClock};
+
+    let base = MemFs::from_entries([("/a.ts", Seed::file("x"))], true, Arc::new(SystemClock))
+        .expect("build the file system");
+    let fs = BundledFs::new(base);
+    let library = format!("{EMBEDDED_LIBRARY_DIRECTORY}/lib.es5.d.ts");
+    let text = fs.read(&library).expect("read the library");
+    assert!(String::from_utf8_lossy(&text).contains("interface Array<T>"));
+    assert!(fs.is_file(&library));
+    assert!(fs.is_dir(EMBEDDED_LIBRARY_DIRECTORY));
+    assert_eq!(fs.canonicalize(&library).unwrap(), library);
+    let entries = fs.read_dir(EMBEDDED_LIBRARY_DIRECTORY).unwrap();
+    assert!(entries
+        .iter()
+        .any(|entry| entry.name() == "lib.dom.d.ts" && entry.file_type() == FileType::File));
+    assert!(fs
+        .read(&format!("{EMBEDDED_LIBRARY_DIRECTORY}/lib.none.d.ts"))
+        .is_err());
+    assert!(fs.write(&library, b"").is_err());
+    assert_eq!(fs.read("/a.ts").unwrap(), b"x");
+    fs.write("/b.ts", b"y").unwrap();
+    assert_eq!(fs.read("/b.ts").unwrap(), b"y");
+}

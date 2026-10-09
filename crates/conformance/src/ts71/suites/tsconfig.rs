@@ -14,15 +14,12 @@ use std::collections::BTreeMap;
 
 use tsc_diagnostics::{Diagnostic, FormatDiagnosticsHost, JsString};
 use tsc_host::MemoryCompilerHost;
+use tsc_program::go_json::{compiler_options_json, struct_json, GoJson, TYPE_ACQUISITION_FIELDS};
 use tsc_program::{
-    parse_config_file_text_to_json, parse_config_root_plan, CompilerConfigHost, ConfigOptionBag,
-    ConfigOptionValueState, ConfigRootPlan, ConfigRootPlanRequest, ConfigTypedJsonValue,
-    ConfigTypedListElement,
+    parse_config_file_text_to_json, parse_config_root_plan, CompilerConfigHost, ConfigRootPlan,
+    ConfigRootPlanRequest,
 };
 
-use super::go_json::{
-    enum_number, FieldKind, GoJson, COMPILER_OPTIONS_FIELDS, TYPE_ACQUISITION_FIELDS,
-};
 use super::tables::{TestConfig, JSON_PARSE, PARSE_JSON_CONFIG, TYPE_ACQUISITION};
 
 /// Which of tsgo's two entry points a baseline exercises.
@@ -257,92 +254,6 @@ fn pretty_errors(
     tsc_diagnostics::format_diagnostics_with_color_and_context(errors, &host, new_line)
         .map(|text| text.to_string_lossy().into_owned())
         .map_err(|error| format!("{error:?}"))
-}
-
-/// `ParsedConfig.CompilerOptions` in tsgo's struct order: the merged config
-/// options, the config file's path and the directory `paths` is based on.
-fn compiler_options_json(plan: &ConfigRootPlan) -> GoJson {
-    let options = plan.options();
-    let mut entries = Vec::new();
-    for (field, kind) in COMPILER_OPTIONS_FIELDS {
-        let value = match *field {
-            "configFilePath" => Some(GoJson::String(
-                plan.config_file_name().to_string_lossy().into_owned(),
-            )),
-            "pathsBasePath" => options
-                .stored_paths_base_path()
-                .map(|base| GoJson::String(base.to_string_lossy().into_owned())),
-            _ => field_json(options, field, *kind),
-        };
-        if let Some(value) = value {
-            entries.push(((*field).to_owned(), value));
-        }
-    }
-    GoJson::Object(entries)
-}
-
-/// A struct of tsgo's (`fields` in declaration order) with the bag's
-/// converted values; `omitzero` leaves out what the bag does not set.
-fn struct_json(fields: &[(&str, FieldKind)], options: &ConfigOptionBag) -> GoJson {
-    GoJson::Object(
-        fields
-            .iter()
-            .filter_map(|(field, kind)| {
-                field_json(options, field, *kind).map(|value| ((*field).to_owned(), value))
-            })
-            .collect(),
-    )
-}
-
-/// One field's value, `None` when `omitzero` leaves it out.
-fn field_json(options: &ConfigOptionBag, field: &str, kind: FieldKind) -> Option<GoJson> {
-    Some(match options.typed_value_state(field) {
-        ConfigOptionValueState::Absent | ConfigOptionValueState::Undefined => return None,
-        ConfigOptionValueState::Value(value) => match kind {
-            FieldKind::Enum => {
-                let spelling = options
-                    .get(field)
-                    .and_then(|option| option.value.as_js())
-                    .and_then(|spelling| spelling.as_str().map(str::to_owned));
-                match spelling.and_then(|spelling| enum_number(field, &spelling)) {
-                    Some(number) => GoJson::number(number),
-                    None => GoJson::from_json(value),
-                }
-            }
-            FieldKind::String if value.as_js().is_some_and(|text| text.is_empty()) => return None,
-            _ => GoJson::from_json(value),
-        },
-        ConfigOptionValueState::List(elements) => GoJson::Array(
-            elements
-                .iter()
-                .filter_map(|element| match element {
-                    ConfigTypedListElement::Value(value) => Some(GoJson::from_json(value)),
-                    ConfigTypedListElement::Undefined => None,
-                })
-                .collect(),
-        ),
-        ConfigOptionValueState::Object(object) => GoJson::Object(
-            object
-                .properties()
-                .iter()
-                .filter_map(|property| {
-                    property.value().map(|value| {
-                        (
-                            property.name().to_string_lossy().into_owned(),
-                            typed_json(value),
-                        )
-                    })
-                })
-                .collect(),
-        ),
-        ConfigOptionValueState::PositiveInfinity | ConfigOptionValueState::NegativeInfinity => {
-            GoJson::Null
-        }
-    })
-}
-
-fn typed_json(value: &ConfigTypedJsonValue) -> GoJson {
-    GoJson::from_json(&value.json_projection())
 }
 
 /// `tspath.GetNormalizedAbsolutePath(path, base)` for the table's paths.

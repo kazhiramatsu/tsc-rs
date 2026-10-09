@@ -40,7 +40,7 @@ need to do both.
 From the cloned repository:
 
 ```sh
-cargo build --release --locked --manifest-path crates/compiler/Cargo.toml
+cargo build --release --locked --manifest-path crates/cli/Cargo.toml
 ```
 
 The executable is `target/release/tsc-rs` (`tsc-rs.exe` on Windows):
@@ -63,7 +63,7 @@ From the cloned repository, build and install the executable into Cargo's
 binary directory:
 
 ```sh
-cargo install --locked --path crates/compiler
+cargo install --locked --path crates/cli
 ```
 
 Make sure Cargo's binary directory, normally `~/.cargo/bin`, is on your
@@ -124,7 +124,9 @@ the compiler of the installed `typescript` package, and `npx tsc`
 as well. Keep the `typescript` dependency if your editor or other tools use
 it: `tsc-rs` replaces the compiler command and offers a
 [Rust compiler API](#compiler-api-for-rust-projects-experimental), but it
-does not provide TypeScript's JavaScript API or language server.
+does not provide TypeScript's language server, and its
+[API server](#api-server-experimental) answers only the snapshot requests
+so far.
 
 ### Use the name `tsc` in your shell
 
@@ -423,8 +425,10 @@ The API has five parts:
   `references::collect_external_module_references` finds its imports,
   module augmentations and ambient modules, and
   `encoder::encode_source_file`, `encode_node` and `build_node_index_table`
-  write the encoding and its node index table. The server itself (its
-  sessions and requests) is not implemented.
+  write the encoding and its node index table. `session::Session` answers
+  the API's requests over the project system, `ipc::Conn` serves it over
+  the MessagePack (`msgpack`) or JSON-RPC (`ipc::jsonrpc`) protocol, and
+  `server::run_server` is [`tsc-rs --api`](#api-server-experimental).
 
 The API reads the standard library declarations from the directory given to
 `LibraryCatalog::typescript_7_1`; the checked-in
@@ -769,6 +773,30 @@ the projects whose dependencies failed. The compiler options accepted by
 written) or `4` (the references form a cycle). `--watch` keeps building as
 files change (see [watch mode](#watch-mode)), and a project whose
 configuration file has errors is reported without being built.
+
+## API server (experimental)
+
+`tsc-rs --api` is `tsgo --api`, the server behind TypeScript 7.1's
+JavaScript API client: it serves one client over standard input and
+output (MessagePack, requests handled one at a time), or over JSON-RPC
+with `--async`, and keeps the client's projects in snapshots of `tsgo`'s
+project system.
+
+```sh
+tsc-rs --api --cwd /path/to/workspace
+tsc-rs --api --async --timing --cwd /path/to/workspace
+tsc-rs --api --pipe /tmp/tsc-rs-api.sock --cwd /path/to/workspace
+```
+
+It answers `initialize`, `createSnapshot`, `updateSnapshot`, `release`,
+`getDefaultProjectForFile`, `batchRequests`, `ping`, `echo`,
+`getServerTiming` and `resetServerTiming` as `tsgo` does: snapshots open
+configured projects, create synthetic programs and open files (into their
+default or the inferred project), and an update reports the projects and
+files that changed. The flags and their errors are `tsgo`'s. The other
+requests (source files, symbols and types, diagnostics, emit, module
+resolution, configuration parsing, the build orchestrator) answer that they
+are not implemented yet.
 
 ## Performance
 
@@ -1118,6 +1146,11 @@ runs are listed under the repository's Actions tab.
   `xx`) and may match a related language or region by CLDR's distances;
   those cases print English here.
 - The compiler command does not provide a language server or editor service.
+- `tsc-rs --api` answers the snapshot requests listed under
+  [API server](#api-server-experimental) only. File system callbacks to the
+  client (`--callbacks`), a request's own file system, Windows named pipes
+  and content mappers are not implemented; an invalid request's decoding
+  error is worded by the Rust decoder rather than Go's `encoding/json`.
 - `tsc_api`'s encoding of a JavaScript file lacks the declarations and
   types `tsgo`'s parser derives from its JSDoc tags (`@typedef`, `@type`,
   `@param`, ...), and a few parse-error recoveries and JSDoc details keep

@@ -102,7 +102,9 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   the referenced projects' sources; P5-1c: the document cache, tsgo's parse
   cache, and the reuse of a program for a one-file change; P5-1d: the API
   checker, kept apart from the diagnostics checker; P5-1e: the snapshot file
-  system's realpath aliases, cache clean-up and reads).
+  system's realpath aliases, cache clean-up and reads), and the API server's
+  slices from P5-2 (P5-2a: the transport, the session's snapshot requests
+  and `tsc-rs --api`).
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,

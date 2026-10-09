@@ -12,7 +12,15 @@ name = "tsc_api"
 path = "src/lib.rs"
 
 [dependencies]
+# Binary payloads travel as base64 in JSON (Go's []byte encoding).
+base64 = "0.22"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["raw_value"] }
+tsc-compiler.workspace = true
 tsc-diagnostics.workspace = true
+tsc-host.workspace = true
+tsc-program.workspace = true
+tsc-project.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
 xxhash-rust = { version = "0.8", features = ["xxh3"] }

@@ -32,7 +32,6 @@ use super::errors_baseline::{self, InputFile};
 use super::{declaration_emit_extension, output_extension, panic_text, CASE_STACK_BYTES};
 
 mod api;
-mod go_json;
 mod tables;
 mod tsc;
 mod tsconfig;

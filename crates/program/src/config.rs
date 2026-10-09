@@ -358,6 +358,10 @@ pub struct ConfigTypedObjectProperty {
 }
 
 impl ConfigTypedObjectProperty {
+    pub(crate) fn new(name: JsString, value: Option<ConfigTypedJsonValue>) -> Self {
+        Self { name, value }
+    }
+
     pub fn name(&self) -> JsStr<'_> {
         self.name.as_js()
     }
@@ -458,7 +462,7 @@ pub struct ConfigTypedObjectValue {
 impl ConfigTypedObjectValue {
     /// The properties in their source order: tsgo keeps an object value in
     /// an ordered map, where a numeric key has no place of its own.
-    fn new(
+    pub(crate) fn new(
         shape: ConfigTypedObjectShape,
         properties: Vec<ConfigTypedObjectProperty>,
         inherits_proto_setter: bool,
@@ -4936,9 +4940,11 @@ pub(crate) fn bag_compiler_options(
         lib: config_option_lib(options),
         lib_replacement: config_option_bool(options, "libReplacement"),
         jsx: config_option_i32(options, "jsx"),
-        no_emit_for_js_files: None, // internal Program API option, not a tsconfig setting
-        suppress_output_path_check: None, // internal harness option, not a tsconfig setting
-        allow_non_ts_extensions: None, // internal transpile API option, not a tsconfig setting
+        // tsgo's internal options: no tsconfig or command line declares
+        // them, only tsgo's API form of the options sets them.
+        no_emit_for_js_files: config_option_bool(options, "noEmitForJsFiles"),
+        suppress_output_path_check: config_option_bool(options, "suppressOutputPathCheck"),
+        allow_non_ts_extensions: config_option_bool(options, "allowNonTsExtensions"),
         no_emit: config_option_bool(options, "noEmit"),
         list_emitted_files: config_option_bool(options, "listEmittedFiles"),
         list_files: config_option_bool(options, "listFiles"),

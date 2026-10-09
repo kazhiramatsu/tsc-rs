@@ -15,6 +15,7 @@ members = [
     "crates/xtask",
     "crates/api",
     "crates/project",
+    "crates/cli",
 ]
 resolver = "2"
 
@@ -33,6 +34,7 @@ iter_over_hash_type = "deny"
 tsc-api = { package = "tsc-rs-api", path = "crates/api" }
 tsc-binder = { package = "tsc-rs-binder", path = "crates/binder" }
 tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
+tsc-cli = { package = "tsc-rs-cli", path = "crates/cli" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
 tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
 tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }

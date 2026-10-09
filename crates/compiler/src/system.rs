@@ -6,10 +6,10 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tsc_diagnostics::{JsStr, JsString};
-use tsc_host::vfs::{FileSystem, OsFs, VfsCompilerHost};
+use tsc_host::vfs::{DirEntry, FileSystem, FileType, Metadata, OsFs, VfsCompilerHost};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, ParallelSourceReader};
 
 use crate::EmitFileSystem;
@@ -290,7 +290,131 @@ fn stable_io_message(error: &io::Error, operation: &str, path: JsStr<'_>) -> JsS
 /// no filesystem path equals. Diagnostics and `--listFiles` name a library
 /// file `bundled:///libs/lib.dom.d.ts`, as tsgo does, and such a name sorts
 /// after every absolute path, which orders the diagnostics as tsgo's.
-const EMBEDDED_LIBRARY_DIRECTORY: &str = "bundled:///libs";
+pub const EMBEDDED_LIBRARY_DIRECTORY: &str = "bundled:///libs";
+
+/// tsgo `bundled.WrapFS`: `base` with the embedded standard library, read
+/// only, as the files of [`EMBEDDED_LIBRARY_DIRECTORY`].
+#[derive(Debug)]
+pub struct BundledFs<F> {
+    base: F,
+}
+
+impl<F: FileSystem> BundledFs<F> {
+    pub fn new(base: F) -> Self {
+        Self { base }
+    }
+
+    fn library(path: &str) -> Option<&'static [u8]> {
+        embedded_library(
+            path.strip_prefix(EMBEDDED_LIBRARY_DIRECTORY)?
+                .strip_prefix('/')?,
+        )
+    }
+
+    fn is_library_directory(path: &str) -> bool {
+        path.trim_end_matches('/') == EMBEDDED_LIBRARY_DIRECTORY
+    }
+
+    fn is_bundled(path: &str) -> bool {
+        path.starts_with(EMBEDDED_LIBRARY_DIRECTORY)
+    }
+
+    fn read_only(path: &str) -> io::Error {
+        io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("{path} is in the embedded standard library"),
+        )
+    }
+}
+
+impl<F: FileSystem> FileSystem for BundledFs<F> {
+    fn case_sensitive(&self) -> bool {
+        self.base.case_sensitive()
+    }
+
+    fn read(&self, path: &str) -> io::Result<Vec<u8>> {
+        match Self::library(path) {
+            Some(bytes) => Ok(bytes.to_vec()),
+            None if Self::is_bundled(path) => Err(io::Error::from(io::ErrorKind::NotFound)),
+            None => self.base.read(path),
+        }
+    }
+
+    fn metadata(&self, path: &str) -> io::Result<Metadata> {
+        if let Some(bytes) = Self::library(path) {
+            return Ok(Metadata::new(
+                FileType::File,
+                bytes.len() as u64,
+                UNIX_EPOCH,
+            ));
+        }
+        if Self::is_library_directory(path) {
+            return Ok(Metadata::new(FileType::Directory, 0, UNIX_EPOCH));
+        }
+        if Self::is_bundled(path) {
+            return Err(io::Error::from(io::ErrorKind::NotFound));
+        }
+        self.base.metadata(path)
+    }
+
+    fn read_dir(&self, path: &str) -> io::Result<Vec<DirEntry>> {
+        if Self::is_library_directory(path) {
+            return Ok(embedded_libraries::EMBEDDED_LIBRARIES
+                .iter()
+                .map(|(name, _)| DirEntry::new(*name, FileType::File))
+                .collect());
+        }
+        if Self::is_bundled(path) {
+            return Err(io::Error::from(io::ErrorKind::NotFound));
+        }
+        self.base.read_dir(path)
+    }
+
+    fn canonicalize(&self, path: &str) -> io::Result<String> {
+        if Self::library(path).is_some() || Self::is_library_directory(path) {
+            return Ok(path.to_owned());
+        }
+        if Self::is_bundled(path) {
+            return Err(io::Error::from(io::ErrorKind::NotFound));
+        }
+        self.base.canonicalize(path)
+    }
+
+    fn write(&self, path: &str, contents: &[u8]) -> io::Result<()> {
+        if Self::is_bundled(path) {
+            return Err(Self::read_only(path));
+        }
+        self.base.write(path, contents)
+    }
+
+    fn append(&self, path: &str, contents: &[u8]) -> io::Result<()> {
+        if Self::is_bundled(path) {
+            return Err(Self::read_only(path));
+        }
+        self.base.append(path, contents)
+    }
+
+    fn create_dir_all(&self, path: &str) -> io::Result<()> {
+        if Self::is_bundled(path) {
+            return Err(Self::read_only(path));
+        }
+        self.base.create_dir_all(path)
+    }
+
+    fn remove(&self, path: &str) -> io::Result<()> {
+        if Self::is_bundled(path) {
+            return Err(Self::read_only(path));
+        }
+        self.base.remove(path)
+    }
+
+    fn set_modified(&self, path: &str, modified: SystemTime) -> io::Result<()> {
+        if Self::is_bundled(path) {
+            return Err(Self::read_only(path));
+        }
+        self.base.set_modified(path, modified)
+    }
+}
 
 /// The native system's compiler host: the process filesystem with the
 /// immutable, binary-owned TypeScript 7.1 standard-library directory. User/config/package paths retain ordinary
@@ -317,12 +441,16 @@ impl NativeCompilerHost {
     }
 
     fn embedded_bytes(&self, path: &Path) -> Option<&'static [u8]> {
-        let name = self.embedded_file_name(path)?;
-        embedded_libraries::EMBEDDED_LIBRARIES
-            .binary_search_by_key(&name, |(candidate, _)| *candidate)
-            .ok()
-            .map(|index| embedded_libraries::EMBEDDED_LIBRARIES[index].1)
+        embedded_library(self.embedded_file_name(path)?)
     }
+}
+
+/// The embedded library file named `name` (`lib.es5.d.ts`).
+fn embedded_library(name: &str) -> Option<&'static [u8]> {
+    embedded_libraries::EMBEDDED_LIBRARIES
+        .binary_search_by_key(&name, |(candidate, _)| *candidate)
+        .ok()
+        .map(|index| embedded_libraries::EMBEDDED_LIBRARIES[index].1)
 }
 
 impl CompilerHost for NativeCompilerHost {

@@ -252,13 +252,13 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let mut created = Vec::with_capacity(request.create_programs.len());
         for program in &request.create_programs {
             let id = self.next_synthetic_project_id();
-            self.update_or_create_synthetic_project(&id, program);
+            self.update_or_create_synthetic_project(&id, program)?;
             created.push(id);
         }
         let mut updated = created.clone();
         for program in &request.reconfigure_programs {
             let id = program.program_id.canonical();
-            self.update_or_create_synthetic_project(&id, &program.program);
+            self.update_or_create_synthetic_project(&id, &program.program)?;
             updated.push(id);
         }
         for id in &updated {
@@ -314,14 +314,14 @@ impl<'a> ProjectCollectionBuilder<'a> {
         &mut self,
         id: &ProjectId,
         program: &CreateProgramRequest,
-    ) {
-        let roots = ProgramRoots {
-            root_file_names: program.root_file_names.clone(),
-            compiler_options: program.compiler_options.clone(),
-            program_options: program.program_options.clone(),
-            config_file_parsing_diagnostics: program.config_file_parsing_diagnostics.clone(),
-            project_references: program.project_references.clone(),
-        };
+    ) -> Result<(), ProjectError> {
+        let roots = ProgramRoots::new(
+            program.root_file_names.clone(),
+            program.options.clone(),
+            program.config_file_parsing_diagnostics.clone(),
+            program.project_references.clone(),
+            self.host.paths(),
+        )?;
         let Some(project) = self.synthetic.get(id) else {
             let current_directory = self.host.options().current_directory.clone();
             self.insert(Project::new_synthetic(
@@ -329,7 +329,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 current_directory,
                 Arc::new(roots),
             ));
-            return;
+            return Ok(());
         };
         let changed = !matches!(
             &project.command_line,
@@ -340,6 +340,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 project.set_command_line(CommandLine::Roots(Arc::new(roots)));
             });
         }
+        Ok(())
     }
 
     /// tsgo `updateProgram`: a configured project takes its config again (a
@@ -1053,11 +1054,12 @@ impl<'a> ProjectCollectionBuilder<'a> {
         roots.sort();
         let current_directory = self.host.options().current_directory.clone();
         let Some(project) = &self.inferred else {
+            let roots = inferred_project_roots(roots, self.host.paths());
             self.insert(Project::new_inferred(current_directory, roots));
             return;
         };
         if project.root_file_names() != roots {
-            let roots = Arc::new(inferred_project_roots(roots));
+            let roots = Arc::new(inferred_project_roots(roots, self.host.paths()));
             self.change(&ProjectId::inferred(), |project| {
                 project.set_command_line(CommandLine::Roots(roots));
             });
