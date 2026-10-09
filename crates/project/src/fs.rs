@@ -83,16 +83,38 @@ pub(crate) struct CachedFile {
     /// The file may have changed: read it again before use (tsgo
     /// `needsReload`).
     pub(crate) needs_reload: bool,
+    /// tsgo `realpathPath`: the path of the file's real name, for a file in
+    /// `node_modules` read through a link.
+    pub(crate) realpath_path: Option<String>,
+}
+
+impl CachedFile {
+    /// The same file with `content`, read again.
+    fn reloaded(&self, content: Arc<[u8]>) -> Self {
+        Self {
+            file_name: self.file_name.clone(),
+            content,
+            needs_reload: false,
+            realpath_path: self.realpath_path.clone(),
+        }
+    }
 }
 
 type Files = Arc<BTreeMap<String, Arc<CachedFile>>>;
+
+/// tsgo `nodeModulesRealpathAliases`: the path of a real file, to the paths
+/// of `node_modules` links it was read through.
+pub(crate) type Aliases = Arc<BTreeMap<String, BTreeSet<String>>>;
 
 /// A snapshot's view of the files (tsgo `SnapshotFS`).
 #[derive(Clone)]
 pub(crate) struct SnapshotFs {
     pub(crate) base: Arc<dyn FileSystem>,
     pub(crate) files: Files,
+    pub(crate) aliases: Aliases,
     paths: Paths,
+    /// tsgo `readFiles`: the files the snapshot did not cache, read once.
+    reads: Arc<Mutex<BTreeMap<String, Option<Arc<CachedFile>>>>>,
 }
 
 impl SnapshotFs {
@@ -100,7 +122,9 @@ impl SnapshotFs {
         Self {
             base,
             files: Arc::default(),
+            aliases: Arc::default(),
             paths,
+            reads: Arc::default(),
         }
     }
 
@@ -109,12 +133,52 @@ impl SnapshotFs {
     }
 
     /// tsgo `SnapshotFS.GetFile`: the file as the snapshot read it, or as
-    /// its file system holds it.
-    pub(crate) fn read(&self, file_name: &str) -> Option<Vec<u8>> {
-        match self.files.get(&self.paths.to_path(file_name)) {
-            Some(file) => Some(file.content.to_vec()),
-            None => self.base.read(file_name).ok(),
+    /// its file system holds it, read once per snapshot.
+    pub(crate) fn file(&self, file_name: &str) -> Option<Arc<CachedFile>> {
+        let path = self.paths.to_path(file_name);
+        if let Some(file) = self.files.get(&path) {
+            return Some(Arc::clone(file));
         }
+        self.reads
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .entry(path)
+            .or_insert_with(|| {
+                self.base.read(file_name).ok().map(|content| {
+                    Arc::new(CachedFile {
+                        file_name: file_name.to_owned(),
+                        content: content.into(),
+                        needs_reload: false,
+                        realpath_path: None,
+                    })
+                })
+            })
+            .clone()
+    }
+
+    pub(crate) fn read(&self, file_name: &str) -> Option<Vec<u8>> {
+        self.file(file_name).map(|file| file.content.to_vec())
+    }
+
+    /// tsgo `expandRealpathAliases`: a change or deletion of a real file
+    /// also names the `node_modules` links the snapshot read it through.
+    pub(crate) fn expand_realpath_aliases(
+        &self,
+        mut changes: FileChangeSummary,
+    ) -> FileChangeSummary {
+        if self.aliases.is_empty() {
+            return changes;
+        }
+        for names in [&mut changes.changed, &mut changes.deleted] {
+            let links = names
+                .iter()
+                .filter_map(|file_name| self.aliases.get(&self.paths.to_path(file_name)))
+                .flatten()
+                .cloned()
+                .collect::<Vec<_>>();
+            names.extend(links);
+        }
+        changes
     }
 }
 
@@ -125,14 +189,21 @@ pub(crate) struct SnapshotFsBuilder {
     base: Arc<dyn FileSystem>,
     paths: Paths,
     files: Mutex<Files>,
+    aliases: Mutex<Aliases>,
 }
 
 impl SnapshotFsBuilder {
-    pub(crate) fn new(base: Arc<dyn FileSystem>, files: Files, paths: Paths) -> Self {
+    pub(crate) fn new(
+        base: Arc<dyn FileSystem>,
+        files: Files,
+        aliases: Aliases,
+        paths: Paths,
+    ) -> Self {
         Self {
             base,
             paths,
             files: Mutex::new(files),
+            aliases: Mutex::new(aliases),
         }
     }
 
@@ -147,7 +218,12 @@ impl SnapshotFsBuilder {
                 .files
                 .into_inner()
                 .unwrap_or_else(PoisonError::into_inner),
+            aliases: self
+                .aliases
+                .into_inner()
+                .unwrap_or_else(PoisonError::into_inner),
             paths: self.paths,
+            reads: Arc::default(),
         }
     }
 
@@ -155,30 +231,161 @@ impl SnapshotFsBuilder {
         operation(&mut self.files.lock().unwrap_or_else(PoisonError::into_inner))
     }
 
+    /// tsgo `recordRealpathAlias`: a file in `node_modules` first read
+    /// through a link is recorded under its real path.
+    fn realpath_alias(&self, file_name: &str, path: &str) -> Option<String> {
+        if !path.contains("/node_modules/") {
+            return None;
+        }
+        let real = self.base.canonicalize(file_name).ok()?;
+        let real_path = self.paths.to_path(&real);
+        if real_path == path {
+            return None;
+        }
+        let mut aliases = self.aliases.lock().unwrap_or_else(PoisonError::into_inner);
+        Arc::make_mut(&mut aliases)
+            .entry(real_path.clone())
+            .or_default()
+            .insert(path.to_owned());
+        Some(real_path)
+    }
+
+    /// Drop a cached file (tsgo deletes the entry). Its link stops being an
+    /// alias of its real path (tsgo `Finalize` prunes the aliases of deleted
+    /// entries), unless `source_backed` and the file is still there (tsgo
+    /// `deleteCacheEntry`'s source-backed replacements).
+    fn remove_entry(&self, files: &mut Files, path: &str, source_backed: bool) {
+        let Some(entry) = Arc::make_mut(files).remove(path) else {
+            return;
+        };
+        let Some(real_path) = &entry.realpath_path else {
+            return;
+        };
+        if source_backed && self.base.is_file(&entry.file_name) {
+            return;
+        }
+        let mut aliases = self.aliases.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(links) = aliases.get(real_path) {
+            if links.contains(path) {
+                let aliases = Arc::make_mut(&mut aliases);
+                let links = aliases.get_mut(real_path).expect("present above");
+                links.remove(path);
+                if links.is_empty() {
+                    aliases.remove(real_path);
+                }
+            }
+        }
+    }
+
+    /// tsgo `Clone`'s file cache clean-up: drop the cached files `keep`
+    /// does not keep.
+    pub(crate) fn retain_files(&self, keep: impl Fn(&str) -> bool) {
+        self.with_files(|files| {
+            let dropped = files
+                .keys()
+                .filter(|path| !keep(path))
+                .cloned()
+                .collect::<Vec<_>>();
+            for path in dropped {
+                self.remove_entry(files, &path, false);
+            }
+        });
+    }
+
+    /// tsgo `GetAccessibleEntries`: the base's entries, with the files and
+    /// directories the snapshot cached there first (a cached file is in
+    /// the snapshot's view whatever the disk now holds).
+    pub(crate) fn accessible_entries(&self, directory: &str) -> Entries {
+        let lower = self.base.accessible_entries(directory);
+        let prefix = format!("{}/", self.paths.to_path(directory).trim_end_matches('/'));
+        let mut entries = Entries {
+            symlinks: lower.symlinks.clone(),
+            ..Entries::default()
+        };
+        let mut cached = BTreeSet::new();
+        self.with_files(|files| {
+            for (path, file) in files
+                .range(prefix.clone()..)
+                .take_while(|(path, _)| path.starts_with(&prefix))
+            {
+                let rest = &path[prefix.len()..];
+                let (child, is_file) = match rest.find('/') {
+                    Some(end) => (&rest[..end], false),
+                    None => (rest, true),
+                };
+                if !cached.insert(child.to_owned()) {
+                    continue;
+                }
+                // The name as the file was read (the path folds case).
+                let name = file
+                    .file_name
+                    .rsplit('/')
+                    .nth(rest.matches('/').count())
+                    .unwrap_or(child)
+                    .to_owned();
+                entries.symlinks.retain(|link| !self.same_name(link, &name));
+                if is_file {
+                    entries.files.push(name);
+                } else {
+                    entries.directories.push(name);
+                }
+            }
+        });
+        let listed = |entries: &Entries, name: &str| {
+            entries
+                .files
+                .iter()
+                .chain(&entries.directories)
+                .any(|listed| self.same_name(listed, name))
+        };
+        for name in lower.files {
+            if !listed(&entries, &name) {
+                entries.files.push(name);
+            }
+        }
+        for name in lower.directories {
+            if !listed(&entries, &name) {
+                entries.directories.push(name);
+            }
+        }
+        entries
+    }
+
+    fn same_name(&self, left: &str, right: &str) -> bool {
+        if self.paths.case_sensitive {
+            left == right
+        } else {
+            tsc_host::to_file_name_lower_case(left) == tsc_host::to_file_name_lower_case(right)
+        }
+    }
+
     /// tsgo `GetFileByPath`: the cached file (read again when marked, dropped
     /// when gone), or the file read from the base and cached.
     pub(crate) fn get(&self, file_name: &str) -> Option<Arc<CachedFile>> {
         let path = self.paths.to_path(file_name);
         self.with_files(|files| {
-            let read_name = match files.get(&path) {
+            let cached = files.get(&path).cloned();
+            let read_name = match &cached {
                 Some(entry) if !entry.needs_reload => return Some(Arc::clone(entry)),
                 Some(entry) => entry.file_name.clone(),
                 None => file_name.to_owned(),
             };
             match self.base.read(&read_name) {
                 Ok(content) => {
-                    let entry = Arc::new(CachedFile {
-                        file_name: read_name,
-                        content: content.into(),
-                        needs_reload: false,
+                    let entry = Arc::new(match &cached {
+                        Some(entry) => entry.reloaded(content.into()),
+                        None => CachedFile {
+                            realpath_path: self.realpath_alias(&read_name, &path),
+                            file_name: read_name,
+                            content: content.into(),
+                            needs_reload: false,
+                        },
                     });
                     Arc::make_mut(files).insert(path, Arc::clone(&entry));
                     Some(entry)
                 }
                 Err(_) => {
-                    if files.contains_key(&path) {
-                        Arc::make_mut(files).remove(&path);
-                    }
+                    self.remove_entry(files, &path, false);
                     None
                 }
             }
@@ -203,7 +410,11 @@ impl SnapshotFsBuilder {
 
     /// tsgo `processFileChanges` (snapshot.go:134-191) for a build without
     /// open files: the changes a build acts on, the cache updated for them.
-    pub(crate) fn process_file_changes(&self, mut changes: FileChangeSummary) -> FileChangeSummary {
+    pub(crate) fn process_file_changes(
+        &self,
+        mut changes: FileChangeSummary,
+        base: &SnapshotFs,
+    ) -> FileChangeSummary {
         if changes.has_excessive_watch_events() {
             if changes.invalidate_all || self.changes_overlap_cache(&changes) {
                 // The API's notifications always count as changes outside
@@ -216,6 +427,7 @@ impl SnapshotFsBuilder {
             return changes;
         }
         self.expand_and_filter(&mut changes);
+        let mut changes = base.expand_realpath_aliases(changes);
         self.mark_dirty_files(&mut changes);
         changes
     }
@@ -238,9 +450,8 @@ impl SnapshotFsBuilder {
                 .iter()
                 .map(|(path, entry)| {
                     let entry = Arc::new(CachedFile {
-                        file_name: entry.file_name.clone(),
-                        content: Arc::clone(&entry.content),
                         needs_reload: true,
+                        ..entry.reloaded(Arc::clone(&entry.content))
                     });
                     (path.clone(), entry)
                 })
@@ -296,35 +507,25 @@ impl SnapshotFsBuilder {
                 match base.read(&entry.file_name) {
                     Ok(content) if *content == *entry.content => {
                         if entry.needs_reload {
-                            let entry = Arc::new(CachedFile {
-                                file_name: entry.file_name.clone(),
-                                content: Arc::clone(&entry.content),
-                                needs_reload: false,
-                            });
+                            let entry = Arc::new(entry.reloaded(Arc::clone(&entry.content)));
                             Arc::make_mut(files).insert(path, entry);
                         }
                         false
                     }
                     Ok(content) => {
-                        let entry = Arc::new(CachedFile {
-                            file_name: entry.file_name.clone(),
-                            content: content.into(),
-                            needs_reload: false,
-                        });
+                        let entry = Arc::new(entry.reloaded(content.into()));
                         Arc::make_mut(files).insert(path, entry);
                         true
                     }
                     Err(_) => {
-                        Arc::make_mut(files).remove(&path);
+                        self.remove_entry(files, &path, false);
                         true
                     }
                 }
             });
             for file_name in &changes.deleted {
                 let path = self.paths.to_path(file_name);
-                if files.contains_key(&path) {
-                    Arc::make_mut(files).remove(&path);
-                }
+                self.remove_entry(files, &path, true);
             }
         });
     }
@@ -490,6 +691,10 @@ impl FileSystem for SourceFs<'_> {
     }
 
     fn accessible_entries(&self, path: &str) -> Entries {
-        self.builder.base.accessible_entries(path)
+        self.builder.accessible_entries(path)
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/fs.rs"]
+mod tests;

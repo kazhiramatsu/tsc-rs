@@ -18,7 +18,7 @@ use crate::builder::ProjectCollectionBuilder;
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
 use crate::fs::{FileChangeSummary, Paths, SnapshotFs, SnapshotFsBuilder};
 use crate::id::{ProjectId, ProjectKind};
-use crate::project::{default_project_from_program_inclusion, Project};
+use crate::project::{default_project_from_program_inclusion, ProgramUpdateKind, Project};
 
 /// What a session's projects are built with (tsgo `SessionOptions`).
 #[derive(Clone, Debug)]
@@ -317,9 +317,10 @@ impl SnapshotHost {
         let fs = SnapshotFsBuilder::new(
             file_system.unwrap_or_else(|| Arc::clone(&self.fs)),
             Arc::clone(&base.fs.files),
+            Arc::clone(&base.fs.aliases),
             self.paths.clone(),
         );
-        let file_changes = fs.process_file_changes(file_changes);
+        let file_changes = fs.process_file_changes(file_changes, &base.fs);
         let id = self.snapshot_id.fetch_add(1, Ordering::Relaxed) + 1;
         let (projects, configs, created_programs) = {
             let configs = ConfigFileRegistryBuilder::new(&fs, &base.configs);
@@ -332,6 +333,22 @@ impl SnapshotHost {
             }
             builder.finish()
         };
+        // tsgo `Clone`: after a deletion, the files no project's last build
+        // read go, when a program was built (not reused) here.
+        let built = |project: &Arc<Project>| {
+            project.program_last_update == id
+                && project.program_update_kind != ProgramUpdateKind::Cloned
+        };
+        let all_projects = || {
+            projects
+                .configured
+                .values()
+                .chain(projects.synthetic.values())
+                .chain(projects.inferred.iter())
+        };
+        if !file_changes.deleted.is_empty() && all_projects().any(built) {
+            fs.retain_files(|path| all_projects().any(|project| project.seen.seen_file(path)));
+        }
         Ok(Snapshot {
             id,
             parent_id: base.id,
