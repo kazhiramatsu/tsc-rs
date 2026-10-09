@@ -1438,3 +1438,41 @@ source と binary で確かめた。
   27／27。P4-3 の trace の残り 3 件は別の原因（上）。
 - 次：上の 2 つの残り（既定の loader の trace の順序と、node の module kind の implied format）の slice。その後 API server の決定
   （[ts71-api-server](../ts71-api-server/README.md)）。
+
+## resolver の trace と implied format（2026-10-09）
+
+削除済みの module 解決の設定の slice が残した 2 つ（その記録の「残り」）。
+
+- **既定の loader の `--traceResolution`**：port の loader は、walk が file を visit する前に root と依存を読み、その request を
+  解決する read-ahead を持つ（32 未満の request は loading thread で visit の package.json scope の lookup より前に、32 以上は空の
+  cache から始まる worker の resolver で）。tsgo は file の parse task で metadata の package scope を読んでから import を解決する
+  （`loadSourceFileMetaData`）ので、trace はその package.json を「according to earlier cached lookups」と書く。trace の表記は lookup
+  の順で決まり、解決の結果は順に依らないので、`--traceResolution` の load は read-ahead をせず walk だけで進める（tsgo の
+  single-threaded の work group の順。port の `--singleThreaded` は既にこの順で tsgo と一致していた）。trace の無い load は変わらない。
+- **implied node format**：tsgo の `loadSourceFileMetaData` は package の `type` を node16／nodenext の解決（明示の `.mts`・`.cts`・
+  `.mjs`・`.cjs` を除く）か node_modules の file でだけ使い、`GetImpliedNodeFormatForFile` は `.ts` 系の file を `type: module` なら
+  ESM、他は CommonJS にする（type を使わない file も CommonJS。tsc 6.0 は未定にした）。emit の形式
+  （`GetImpliedNodeFormatForEmitWorker`）は node の module kind では implied format そのもの、他では使われた type（か拡張子）が言う
+  ときだけ。port の loader と、checker の fallback（authoritative な metadata の無い program）をこれにした。変わるのは node の
+  module kind に bundler の解決の設定（TS5095）で、file は CommonJS になり `require` の condition で解決する（P4-3 の trace の残り
+  3 件：`bundlerDirectoryModule` の `module` node18／node20／nodenext と `moduleResolution: bundler`）。他の設定の emit の形式は
+  変わらない（`"type": "commonjs"` の bundler の project も ESM のまま。tsgo の binary で確かめた）。tsbuildinfo の
+  `impliedNodeFormat` は既に tsgo の値を書いていた（incremental の `stored_implied_node_format`）。
+- **tests**：adjacent test 2 件。parallel の worker の traced load が serial の load と同じ trace を書き、file の directory の
+  package.json を cached と書く（read-ahead を残すと失敗することを確かめた）。nodenext／bundler と esnext／bundler の program の
+  metadata（implied format、emit の形式、request の mode。未定の format に戻すと失敗することを確かめた）。
+- **tsgo との比較**（前の slice の 9 project × 3 に、bundler の plain な project と `outFile` の project を加えた 33）：既定の loader で
+  30／33 が一致（stdout、exit status、出力）、3 は `outFile` の project の出力の場所だけ（tsgo は削除済みの `outFile` を無視して
+  file ごとに出し、port は意図的に残す `outFile` の出力をする）。stdout と trace は 33／33 が一致。
+- **検証**（最終 bytes：修正 `c9b93dd6b`、ratchet `414276cae`。macOS、`nice -n 20`、Cargo の job 2）：
+  `cargo fmt --all -- --check`、Clippy（program・checker・compiler、`--all-targets -- -D warnings`）は clean。`cargo test -p`：program 599
+  （新しい 2 件を含む）、checker 1,796、compiler 452、incremental 29、emitter 635、harness 31、conformance 52、全て成功。
+  `scripts/conformance_ts71.py --workers 2 --check`：12,748 case を 467 s、trace full 13,451／mismatch 0（13,448／3 から）、他の数は
+  変わらない（errors full 13,451／mismatch 0、emit full 13,443、types 12,677／90、symbols 12,715／52、sourcemap 13,451、harness error
+  15）、regression 0、3 構成が tier を上回った。`--update`（457 s、同じ数）で ratchet の 3 行（`bundlerDirectoryModule` の 3 構成の
+  trace の tier を none から full）を上げた。並列対照（`--checkers 4`、451 s、`scripts/conformance_ts71_compare.py`）：15,224 構成が
+  一致、違う 4 構成は記録済みの partition 依存の構成（`mutuallyRecursiveInference`、`incorrectRecursiveMappedTypeConstraint`、
+  `typeParameterWithInvalidConstraintType`、`recursiveMappedTypes`）。前の slice（#717）は checker を変えたが並列対照を走らせて
+  いなかった。その変更もこの対照に含まれる。`scripts/suites_ts71.py --check`：全ての suite が変わらず（api 2、config 87、transpile 41、
+  tsbuild 182／192、tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）、regression 0。tsgo との比較は上のとおり最終 bytes
+  の release binary で 30／33。実 project と性能は計測していない（利用者の指示）。
