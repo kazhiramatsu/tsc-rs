@@ -354,3 +354,44 @@ snapshot、option、module provider を借りる）。
   `conformance (TypeScript 7.1)` 21m3s、`gates` 15s。全て成功）。この slice は local で conformance と suites を走らせていない
   （batch の compile の経路を変えていない）ので、その確認はこの hosted の job による。merge → `6ad4b317b`（merge commit、PR #721）。
 - 次：P5-1b-3（project system の project 参照）。
+
+## P5-1b-3 project system の project 参照（2026-10-09）
+
+- **参照先の config**（tsgo の compiler host `GetResolvedProjectReference`）：`resolve_project_references_with` が参照先の config
+  の解析を呼び出し側から受け取る（command は今までどおり host で読んで解析する）。project system は各参照先の config を registry
+  から project のものとして acquire し、program が読んだ file として記録する。作り直した program が参照しなくなった config と、
+  削除する project の program の参照先は release する（tsgo `releaseDroppedProjectReferences`、`deleteProject`）。これで参照先
+  の config の変更と、参照先の project に作られた file が、参照する project に届く。
+- **参照先の source を読む program**（tsgo `UseSourceOfProjectReference`、`disableSourceOfProjectReferenceRedirect` で無効）：
+  `load_project_config_program` と `ProgramOptions::with_project_reference_sources`。loader は参照先の出力の d.ts（とその
+  symlink の綴り）の代わりに source を読み、module 解決は tsgo `projectReferenceDtsFakingHost` の移植（`dts_faking_host.rs`：
+  未 build の出力の d.ts は source があれば在る、宣言の directory を持つ・その中の directory は在る、`node_modules` の package の
+  link を辿る）を通す。checker は参照先の source を検査しない（tsgo `SkipTypeChecking` の `IsSourceFromProjectReference`。
+  `ProgramFileFacts` の bit）。
+- **default project**：参照先の source として file を持つ project は direct な inclusion ではないので、探索はその先へ進む。
+  snapshot と builder の default project は tsgo `findDefaultConfiguredProjectFromProgramInclusion` の規則で direct な project を
+  選ぶ。後片付けは default project の program の参照先の project も残す（tsgo `retainConfiguredProjectAndReferences`）。
+- **synthetic program**：project 参照を受け取る（tsgo `APICreateProgramRequest.ProjectReferences`。`CreateProgramRequest` と
+  `ProgramRoots` の `project_references`）。
+- **option**：`disableSourceOfProjectReferenceRedirect`、`disableSolutionSearching`、`disableReferencedProjectLoad` は command も
+  受け付ける language service の option にした（tsgo では project system だけが読む。今までの port は emit する program で
+  unsupported として拒んでいた）。
+- **command の経路**：command が解決した参照先の file は、source でも出力でも JavaScript として読まない判定にした（tsgo
+  fileloader.go:911。JavaScript の file では今までの判定と同じなので結果は変わらない）。他は source を読む program だけの経路。
+- **tsgo と違う所**：API で開いた file の探索が project を見つけず、探索した config を保持する project も無いとき（solution の
+  `disableReferencedProjectLoad`、参照の循環）、tsgo は open の ensure が、同じ build の後片付けが消した config を acquire し直して
+  落ちる（Go probe で確認。ensure の無い open なら file は inferred project）。port は file を inferred project に置く。
+- **test**（`crates/project/tests/snapshot.rs`、37 件。新しい 11 件）：`projectreferencesprogram_test.go` の 14 case（参照先の
+  source を読むこと、redirect の無効化、symlink の package 8 通り、directory index の subpath 2 通りと file の semantic diagnostics
+  が 0、参照先への file の追加で program が変わること、参照の削除と registry）、`projectcollectionbuilder_test.go` の参照の case
+  を API の request で（solution の direct／indirect／混在、`disableReferencedProjectLoad` の direct／indirect と参照の循環、own
+  files を持つ solution、d.ts と ts の隣接）、synthetic program の参照。期待値は tsgo の test と、tsgo の `SnapshotHost` の Go
+  probe（API の open／close と後の open。registry に残る config を含む）。
+- **検証**（最終 bytes `7fcd3f94d`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（program・checker・
+  compiler・conformance・emitter・harness・incremental・project、`--all-targets -- -D warnings`）は clean。`cargo test -p`：
+  program 599、project 37、compiler の `live_program` 8、全て成功。loader と checker の batch の経路に触れたので、release build
+  （2m31s）の full conformance を local で 1 回（`--workers 2 --check`、518s）：0 regressions、accepted tier を超える構成 0。
+  errors full 13,451、emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness
+  error 15（main と同じ）。suites の ratchet は hosted の `conformance (TypeScript 7.1)` に任せた。
+- **残り**：synthetic program は常に参照先の source を読む（`CompilerOptions` に `disableSourceOfProjectReferenceRedirect` が
+  無いので、API の createProgram の option の変換の slice で決める）。P5-1c〜P5-1e。

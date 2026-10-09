@@ -98,7 +98,8 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   `LiveProgram`, a Program kept with its checker; P5-1b-1: the
   `tsc-rs-project` crate's snapshots, configured projects and synthetic
   programs; P5-1b-2: files opened through the API, the default project and
-  the inferred project).
+  the inferred project; P5-1b-3: project references, with programs that read
+  the referenced projects' sources).
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,
