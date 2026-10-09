@@ -1014,3 +1014,53 @@ snapshot、option、module provider を借りる）。
   `conformance (TypeScript 7.1)` 20m34s、`gates` 20s。全て成功。workspace 全体の test と Clippy はこの `rust` job に
   よる）。merge → `cfbd71ecf`（merge commit、PR #730）。
 - P5-3（project の要らない request、program の情報、module resolver）はこれで終わる。次は P5-4（checker の query）の計画。
+
+## P5-4 checker の query の計画（2026-10-10）
+
+### tsgo の構成（`19dadef8`）
+
+- `setupChecker(snapshot, project)` で project の program の API checker（P5-1d）を取る。query は handle を使う：symbol は
+  snapshot の registry（`ast.GetSymbolId`）、type と signature は project の registry（checker の id）。handle は数で、空か
+  未登録なら client error。
+- response：`SymbolResponse`（id、project、name、flags、checkFlags、declarations と valueDeclaration の node handle、parent、
+  exportSymbol）、`TypeResponse`（flags、objectFlags、literal の value、target、type parameter、tuple、indexed access、
+  conditional、substitution、mapped、template literal、freshable、this、intrinsic、alias、symbol）、`SignatureResponse`、
+  `IndexInfo`。
+- method（約 110）：
+  - **symbol**：`getSymbolAtPosition`(s)、`getSymbolAtLocation`(s)、`getSymbolOfSourceFile`(s)、parent・members・exports・export
+    symbol、alias（aliased・immediate・target・export specifier の local target）、shorthand assignment、fully qualified name、
+    module の exports、`resolveName`、`getSymbolsInScope`、`isReadonlySymbol`、`getConstantValue`、well-known symbol。
+  - **type**：`getTypeOfSymbol`(s)、declared・non-missing・at location の type、`getTypeAtLocation`(s)、`getTypeAtPosition`(s)、
+    `getTypeFromTypeNode`、type の部分（target、types、type parameter、this、alias、indexed access・conditional・mapped の部分、
+    fresh／regular、symbol）、base types、properties、index infos、apparent・reduced・widened・non-nullable・awaited・literal の
+    base、constraint・default、type arguments、contextual type、assignability、array（like）、context sensitive、intrinsic の
+    12、`typeToString`。
+  - **signature**：signatures of type、resolved signature、declaration からの signature、type parameter・parameter・this・
+    target・return・rest・type predicate、parameter type、well-known signature。
+  - **node builder**：`typeToTypeNode`、`signatureToSignatureDeclaration`（作った node を encode する）。
+  - **diagnostics**：syntactic・bind・semantic・suggestion・declaration・program・global・config file parsing。
+  - **emit**：`emit`、`emitToString`、`getJavaScriptEmit`、`getDeclarationEmit`。
+  - LS（completion、references、signature usage、import adder、documentation comment・JSDoc tag）と profile（Go の
+    profiler）。
+
+### port の状態
+
+- checker：P5-1d の API checker（`LiveProgram::with_checker`）。types と symbols の baseline のために、型の文字列と symbol
+  の照会は既にある。
+- flag：`TypeFlags` は tsgo と同じ並び。`SymbolFlags` は 28/32 が同じで、違うのは内部の 3 と `All`。`ObjectFlags`（違う
+  ものが 19）、`CheckFlags`（16）、`SignatureFlags`（7）は並びが違うので、名前で tsgo の番号に写す。type の cache を表す内部の
+  bit は port に無いものがある。
+- position からの node（tsgo `astnav.GetTouchingPropertyName`）は移す。
+
+### slice
+
+- **P5-4a handle と symbol**：registry、position と node handle からの symbol、symbol の response と flag の写し、symbol の
+  照会、`getTypeOfSymbol` 系と `getTypeAtLocation` 系、type の response（基本の field）、`typeToString`、intrinsic の type。
+  client の test で最初に足りない method が `getSymbolAtPosition` のものは 90。
+- **P5-4b type の構造**：type の部分の照会、base・properties・index info・apparent・reduced・widened・awaited ほか、
+  assignability、contextual type。
+- **P5-4c signature と node builder**：signature の照会、`resolveName`・`getSymbolsInScope`、well-known、
+  `typeToTypeNode`・`signatureToSignatureDeclaration`。
+- **P5-4d diagnostics と emit**。
+- LS の handler と profile は LSP の作業に回す（それまでは未実装の error のまま）。P5-4 の後は P5-5（`printNode` と decoder）
+  と P5-6（build orchestrator）。
