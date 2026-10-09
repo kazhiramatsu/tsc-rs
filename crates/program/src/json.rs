@@ -525,17 +525,25 @@ fn convert_jsonc_value_worker(
                     }
                     SyntaxKind::PrefixUnaryExpression => {
                         let unary = node.data.as_prefix_unary_expression()?;
-                        if unary.operator != SyntaxKind::MinusToken {
-                            return None;
+                        let negated = unary
+                            .operand
+                            .filter(|_| unary.operator == SyntaxKind::MinusToken)
+                            .map(|operand| source.arena.node(operand))
+                            .filter(|operand| operand.kind == SyntaxKind::NumericLiteral)
+                            .and_then(|operand| operand.data.as_numeric_literal())
+                            .and_then(|literal| json_number(&literal.text))
+                            .and_then(|number| negate_json_number(&number));
+                        match negated {
+                            Some(number) => {
+                                values.push(RecoverableJsonValue::Defined(Value::Number(number)));
+                            }
+                            // tsgo convertPropertyValueToJson: any other
+                            // operator or operand is not a JSON value.
+                            None if recover_undefined => {
+                                values.push(RecoverableJsonValue::Undefined);
+                            }
+                            None => return None,
                         }
-                        let operand = source.arena.node(unary.operand?);
-                        if operand.kind != SyntaxKind::NumericLiteral {
-                            return None;
-                        }
-                        let number = json_number(&operand.data.as_numeric_literal()?.text)?;
-                        values.push(RecoverableJsonValue::Defined(Value::Number(
-                            negate_json_number(&number)?,
-                        )));
                     }
                     SyntaxKind::ArrayLiteralExpression => {
                         let child_depth = structural_depth.checked_add(1)?;
@@ -568,16 +576,31 @@ fn convert_jsonc_value_worker(
                         let mut keys = Vec::with_capacity(properties.len());
                         let mut initializers = Vec::with_capacity(properties.len());
                         for property in properties {
-                            let property =
-                                source.arena.node(property).data.as_property_assignment()?;
-                            // convertToJson diagnoses `?`, but deliberately
-                            // ignores TypeScript-only `!` and modifiers on a
-                            // property assignment in the JSONC fallback.
-                            if property.question_token.is_some() {
+                            // tsgo convertObjectLiteralExpressionToJson skips
+                            // a member that is not a property assignment
+                            // (TS1136), diagnoses `?` (TS8009) and converts
+                            // the property, and sets no key for a name with
+                            // no text; a recovered config does the same.
+                            let Some(property) =
+                                source.arena.node(property).data.as_property_assignment()
+                            else {
+                                if recover_undefined {
+                                    continue;
+                                }
+                                return None;
+                            };
+                            if property.question_token.is_some() && !recover_undefined {
                                 return None;
                             }
                             let name = property.name?;
-                            keys.push(jsonc_property_name(source, name, recover_undefined)?);
+                            let Some(key) = jsonc_property_name(source, name, recover_undefined)
+                            else {
+                                if recover_undefined {
+                                    continue;
+                                }
+                                return None;
+                            };
+                            keys.push(key);
                             initializers.push(property.initializer?);
                         }
                         tasks.push(ConversionTask::FinishObject(keys));
@@ -598,11 +621,22 @@ fn convert_jsonc_value_worker(
                     .split_off(start)
                     .into_iter()
                     .filter_map(|value| match value {
+                        // tsgo convertArrayLiteralExpressionToJson keeps the
+                        // elements that convert to a non-nil value, and
+                        // `null` converts to nil.
+                        RecoverableJsonValue::Defined(Value::Null) if recover_undefined => None,
                         RecoverableJsonValue::Defined(value) => Some(value),
                         RecoverableJsonValue::Undefined => None,
                     })
-                    .collect();
-                values.push(RecoverableJsonValue::Defined(Value::Array(elements)));
+                    .collect::<Vec<_>>();
+                // An array none of whose elements survive is nil there (an
+                // empty array stays empty).
+                let value = if recover_undefined && length > 0 && elements.is_empty() {
+                    Value::Null
+                } else {
+                    Value::Array(elements)
+                };
+                values.push(RecoverableJsonValue::Defined(value));
             }
             ConversionTask::FinishObject(keys) => {
                 let start = values.len().checked_sub(keys.len())?;
@@ -810,6 +844,38 @@ pub(crate) fn json_parser_preflight(text: &str) -> JsonParserPreflight {
     JsonParserPreflight::Safe
 }
 
+/// The config parser's bound. tsgo parses a tsconfig of any shape and
+/// reports what it recovered from; the parser here runs on the same large
+/// stack as every source file, so a config keeps only a nesting limit:
+/// objects, arrays and parentheses nested deeper than the package-JSON
+/// ceiling are a resource limit. A closing token closes the nearest open
+/// token of its kind and every one opened inside it (tsgo's list recovery
+/// aborts the inner lists); one with nothing to close is skipped.
+pub(crate) fn config_parser_preflight(text: &str) -> JsonParserPreflight {
+    let mut open = Vec::new();
+    for kind in scan_token_kinds(text, LanguageVariant::Standard) {
+        let opener = match kind {
+            SyntaxKind::OpenBraceToken
+            | SyntaxKind::OpenBracketToken
+            | SyntaxKind::OpenParenToken => {
+                open.push(kind);
+                if open.len() > MAX_PACKAGE_JSON_DEPTH {
+                    return JsonParserPreflight::ResourceLimit;
+                }
+                continue;
+            }
+            SyntaxKind::CloseBraceToken => SyntaxKind::OpenBraceToken,
+            SyntaxKind::CloseBracketToken => SyntaxKind::OpenBracketToken,
+            SyntaxKind::CloseParenToken => SyntaxKind::OpenParenToken,
+            _ => continue,
+        };
+        if let Some(index) = open.iter().rposition(|kind| *kind == opener) {
+            open.truncate(index);
+        }
+    }
+    JsonParserPreflight::Safe
+}
+
 fn is_jsonc_keyword(kind: SyntaxKind) -> bool {
     (kind as u16) >= (SyntaxKind::FirstKeyword as u16)
         && (kind as u16) <= (SyntaxKind::LastKeyword as u16)
@@ -939,6 +1005,19 @@ fn jsonc_property_name(
             .data
             .as_numeric_literal()
             .map(|literal| literal.text.clone().into()),
+        // tsgo TryGetTextOfPropertyName: `["name"]` and `[1]` name their
+        // literal (a name with any other expression has no text).
+        SyntaxKind::ComputedPropertyName if allow_recovery => node
+            .data
+            .as_computed_property_name()
+            .and_then(|computed| computed.expression)
+            .filter(|expression| {
+                matches!(
+                    source.arena.node(*expression).kind,
+                    SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral
+                )
+            })
+            .and_then(|expression| jsonc_property_name(source, expression, allow_recovery)),
         _ => None,
     }
 }

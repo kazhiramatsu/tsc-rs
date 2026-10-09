@@ -326,7 +326,7 @@ fn config_number_projection_drives_javascript_depth_admission_without_narrowing(
 }
 
 #[test]
-fn module_suffix_projection_preserves_empty_and_undefined_runtime_slots() {
+fn module_suffix_projection_keeps_the_converted_strings() {
     let text = r#"{
         "compilerOptions": {
             "moduleSuffixes": [".ios", "", "  .raw ", null, 1]
@@ -343,13 +343,13 @@ fn module_suffix_projection_preserves_empty_and_undefined_runtime_slots() {
             .compiler_options()
             .module_suffixes
             .as_deref(),
+        // tsgo drops `null` as it converts the array and the element that
+        // is not a string as it converts the option (TS5024).
         Some(
             [
                 ModuleSuffix::value(".ios"),
                 ModuleSuffix::value(""),
                 ModuleSuffix::value("  .raw "),
-                ModuleSuffix::Undefined,
-                ModuleSuffix::Undefined,
             ]
             .as_slice()
         )

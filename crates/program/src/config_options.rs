@@ -670,7 +670,7 @@ pub const TYPES_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionLi
 
 pub const MODULE_SUFFIXES_LIST_DESCRIPTOR: CompilerOptionListDescriptor =
     CompilerOptionListDescriptor {
-        element_name: "suffix",
+        element_name: "moduleSuffixes",
         element_kind: CompilerOptionListElementKind::String,
         preserve_falsy_values: true,
         allow_config_dir_template_substitution: false,

@@ -5,7 +5,7 @@
   "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe()",
-    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show."
+    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show. Re-recorded on 2026-10-09 (ts71-suites P4-5b) for the cases whose configuration diagnostics TypeScript 7.1 reports differently, after the tsgo binary of the vendored commit printed the same diagnostics as the port for each case's files: tsgo's parse validates the JSON value (TS1327, TS1328, TS1136 are parse diagnostics), the conversion reports at a node's whole range and drops null array elements, `watchOptions` is not a tsconfig root option (nothing in it is diagnosed), an array is not an object option's value, and an extended config with parse diagnostics is not applied."
   },
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-root-boundaries-inputs.json",
@@ -2295,64 +2295,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 46,
-            "length": 11,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          },
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 58,
-            "length": 17,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          },
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 93,
-            "length": 14,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 46,
-            "length": 11,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          },
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 58,
-            "length": 17,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          },
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 93,
-            "length": 14,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -3192,28 +3136,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 5078,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 17,
-            "length": 11,
-            "message": "Unknown watch option '__proto__'.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 5078,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 17,
-            "length": 11,
-            "message": "Unknown watch option '__proto__'.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -3543,8 +3467,7 @@
             "state": "absent"
           }
         ],
-        "root_parse_diagnostics": [],
-        "parsed_errors": [
+        "root_parse_diagnostics": [
           {
             "code": 1327,
             "category": "error",
@@ -3564,12 +3487,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 25,
             "length": 5,
-            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -3582,21 +3505,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 45,
             "length": 7,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 45,
-            "length": 7,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -3618,15 +3532,6 @@
             "related_information": []
           },
           {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 81,
-            "length": 1,
-            "message": "Compiler option 'target' requires a value of type string.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -3645,21 +3550,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 110,
             "length": 5,
-            "message": "Compiler option 'include' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 110,
-            "length": 5,
-            "message": "Compiler option 'include' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -3672,15 +3568,6 @@
             "related_information": []
           },
           {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 126,
-            "length": 5,
-            "message": "Compiler option 'enable' requires a value of type boolean.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -3690,21 +3577,77 @@
             "related_information": []
           },
           {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 147,
-            "length": 3,
-            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 151,
             "length": 5,
             "message": "String literal with double quotes expected.",
+            "related_information": []
+          }
+        ],
+        "parsed_errors": [
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 25,
+            "length": 5,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 45,
+            "length": 7,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 81,
+            "length": 1,
+            "message": "Compiler option 'target' requires a value of type enum.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 110,
+            "length": 5,
+            "message": "Compiler option 'include' requires a value of type Array.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 110,
+            "length": 5,
+            "message": "Compiler option 'include' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 126,
+            "length": 5,
+            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 147,
+            "length": 3,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
             "related_information": []
           }
         ],
@@ -3728,12 +3671,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 25,
             "length": 5,
-            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -3746,21 +3689,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 45,
             "length": 7,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 45,
-            "length": 7,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -3782,15 +3716,6 @@
             "related_information": []
           },
           {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 81,
-            "length": 1,
-            "message": "Compiler option 'target' requires a value of type string.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -3809,21 +3734,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 110,
             "length": 5,
-            "message": "Compiler option 'include' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 110,
-            "length": 5,
-            "message": "Compiler option 'include' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -3836,15 +3752,6 @@
             "related_information": []
           },
           {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 126,
-            "length": 5,
-            "message": "Compiler option 'enable' requires a value of type boolean.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -3854,21 +3761,75 @@
             "related_information": []
           },
           {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 147,
-            "length": 3,
-            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 151,
             "length": 5,
             "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 25,
+            "length": 5,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 45,
+            "length": 7,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 81,
+            "length": 1,
+            "message": "Compiler option 'target' requires a value of type enum.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 110,
+            "length": 5,
+            "message": "Compiler option 'include' requires a value of type Array.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 110,
+            "length": 5,
+            "message": "Compiler option 'include' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 126,
+            "length": 5,
+            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 147,
+            "length": 3,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
             "related_information": []
           }
         ]
@@ -4030,8 +3991,7 @@
             "state": "absent"
           }
         ],
-        "root_parse_diagnostics": [],
-        "parsed_errors": [
+        "root_parse_diagnostics": [
           {
             "code": 1327,
             "category": "error",
@@ -4042,12 +4002,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 15,
             "length": 5,
-            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4069,12 +4029,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 45,
             "length": 5,
-            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4087,21 +4047,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 62,
             "length": 5,
-            "message": "Compiler option 'include' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 60,
-            "length": 1,
-            "message": "Compiler option 'include' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4123,12 +4074,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 94,
             "length": 5,
-            "message": "Compiler option 'target' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4150,15 +4101,6 @@
             "related_information": []
           },
           {
-            "code": 6046,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 125,
-            "length": 7,
-            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -4168,21 +4110,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 149,
             "length": 5,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 147,
-            "length": 1,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4192,6 +4125,62 @@
             "start": 157,
             "length": 5,
             "message": "String literal with double quotes expected.",
+            "related_information": []
+          }
+        ],
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 15,
+            "length": 5,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 45,
+            "length": 5,
+            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 62,
+            "length": 5,
+            "message": "Compiler option 'include' requires a value of type Array.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 60,
+            "length": 1,
+            "message": "Compiler option 'include' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 94,
+            "length": 5,
+            "message": "Compiler option 'target' requires a value of type enum.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 149,
+            "length": 5,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           }
         ],
@@ -4206,12 +4195,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 15,
             "length": 5,
-            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4233,12 +4222,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 45,
             "length": 5,
-            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4251,21 +4240,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 62,
             "length": 5,
-            "message": "Compiler option 'include' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 60,
-            "length": 1,
-            "message": "Compiler option 'include' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4287,12 +4267,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 94,
             "length": 5,
-            "message": "Compiler option 'target' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4314,15 +4294,6 @@
             "related_information": []
           },
           {
-            "code": 6046,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 125,
-            "length": 7,
-            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
-            "related_information": []
-          },
-          {
             "code": 1327,
             "category": "error",
             "file": "/project/tsconfig.json",
@@ -4332,21 +4303,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 149,
             "length": 5,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 147,
-            "length": 1,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -4356,6 +4318,60 @@
             "start": 157,
             "length": 5,
             "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 15,
+            "length": 5,
+            "message": "Compiler option 'compileOnSave' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 45,
+            "length": 5,
+            "message": "Compiler option 'enable' requires a value of type boolean.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 62,
+            "length": 5,
+            "message": "Compiler option 'include' requires a value of type Array.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 60,
+            "length": 1,
+            "message": "Compiler option 'include' requires a value of type string.",
+            "related_information": []
+          },
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 94,
+            "length": 5,
+            "message": "Compiler option 'target' requires a value of type enum.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 149,
+            "length": 5,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           }
         ]
@@ -4696,46 +4712,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 6046,
-            "category": "error",
-            "file": "/project/base.json",
-            "start": 29,
-            "length": 5,
-            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
-            "related_information": []
-          },
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/base.json",
-            "start": 51,
-            "length": 14,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 6046,
-            "category": "error",
-            "file": "/project/base.json",
-            "start": 29,
-            "length": 5,
-            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
-            "related_information": []
-          },
-          {
-            "code": 5065,
-            "category": "error",
-            "file": "/project/base.json",
-            "start": 51,
-            "length": 14,
-            "message": "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -5700,28 +5678,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 5078,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 17,
-            "length": 9,
-            "message": "Unknown watch option 'unknown'.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 5078,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 17,
-            "length": 9,
-            "message": "Unknown watch option 'unknown'.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {

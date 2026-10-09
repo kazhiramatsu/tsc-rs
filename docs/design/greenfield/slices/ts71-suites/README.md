@@ -1093,3 +1093,69 @@ compile し直す。
   いない（上の記録の理由と利用者の指示）。
 - 次：壊れた・型の違う tsconfig の診断を tsgo に合わせる slice（P4-5b。実 CLI の比較で見つけた：構文の回復、変換の診断（位置・型名）、
   値の無い property、command line 専用の option、`watchOptions`、`paths` の検証）。その後に P4-7c（`tsc -b --watch`）。
+
+## P4-5b tsconfig の診断（壊れた・型の違う tsconfig、`paths` の検証）（2026-10-09）
+
+P4-7b の実 CLI の比較で、構文の壊れた tsconfig が `tsc-rs: config failure: …` になる（tsgo は TS1136・TS1005 などの診断）ことを
+見つけた。tsgo の binary（vendoring の commit）と port に同じ tsconfig を渡す probe（`-p . --noEmit` と `-p . --outDir out`）で範囲を
+確かめると、壊れた構文だけでなく、型の違う値・値の無い property・`watchOptions`・`paths` の検証にも差があった（6.0.3 の規則と、
+H0／H1 の段階の制限が残っていた）。tsgo の `parseJSONText`・`convertToJson`・`onPropertySet`・`getFileNames`・`verifyCompilerOptions`
+に合わせた。
+
+- **parse**：config も値の検証（TS1327・TS1328・TS1136）込みで parse する（tsgo の parser は JSON source を常に検証する。
+  `tsc_syntax::parse_json_source_text_from_snapshot`）。preflight（`config_parser_preflight`）は入れ子の深さ（object・array・括弧で
+  256）だけを制限し、式の種類では断らない（tsgo は形を問わず parse する。parser は全ての source と同じく compiler の 1 GB の stack の
+  上で動く）。閉じ括弧は同じ種類の最も近い開き括弧とその内側を閉じ、対応が無ければ飛ばす（tsgo の list の回復）。package.json の
+  preflight は従来どおり。
+- **変換**（`convert_jsonc_value_worker` の回復の mode、config だけが使う）：property assignment でない member は飛ばし、`?` 付きも
+  読み、`["name"]`・`[1]` の名前は literal の文字列（tsgo `TryGetTextOfPropertyName`）、`-数値` 以外の前置の式は値なし。配列は `null`
+  の要素を落とし、要素が一つも残らない配列は nil（`null`。空の配列 `[]` は空のまま）。
+- **変換の診断**（`config_json_conversion_diagnostics_from_root` を書き直した。tsgo `convertPropertyValueToJson`）：node の全範囲
+  （先頭の trivia を含む `Loc`）に、property assignment でない member は TS1136、`?` は TS8009、JSON に形の無い値は渡された option の
+  TS5024（型名は tsgo の `getCompilerOptionValueTypeString`：`enum`・`Array`・`string or Array`）か、option が無ければ TS1328。option は
+  root の表（`compilerOptions`・`typeAcquisition`・`extends`・`references`・`files`・`include`・`exclude`・`compileOnSave`。
+  `watchOptions` は無い）と各 group の宣言から引き、配列の要素は配列自身の option で変換する（`"files": [tru]` は 'files' requires Array）。
+  parser の診断を真似ていた TS1327 は parser に移った。
+- **notifier**（tsgo `onPropertySet`）：nil の値（`null`、JSON に形の無い値）には option 名の検査をせず（TS5023・TS5025 なし）、TS5024 は
+  変換に任せる（`extends` は `getExtendsConfigPathOrArray` がもう一度報告する）。command line 専用の option は TS6266 の後で値を設定
+  しない（`"help": true` が program の構築を止めていた）。object の option（`compilerOptions`・`typeAcquisition`・`paths`・list の object
+  要素）は配列を受けず TS5024、要素が全て落ちた配列（Go の nil の slice）も配列として型を検査する。`references` は配列でなければ
+  TS5024 Array。enum の option と enum の要素の型名は `enum`、list の要素名は tsgo の表（`moduleSuffixes` は 'moduleSuffixes'）。
+  `watchOptions` は診断しない（tsgo の root の option に無い）。
+- **その他の config の規則**：TS6258（root に置いた compiler option）は `compilerOptions` の key があれば値が何でも出さない
+  （`jsonObject.Has`）。TS18002（空の `files`）は `extends` の値が nil なら抑えず、`references` は配列でなければ無いものとみなす
+  （`getPropFromRaw`）。TS18000 は引数を渡さない（文面に `{0}` が残る。tsgo と同じ）。parse が値を検証するので、単引用符などのある
+  拡張元の config は parse の診断を出して適用しない（tsgo `getExtendedConfig`）。object の値（`paths` など）は source の順（tsgo の
+  ordered map。数値の key を先に並べる JavaScript の順を止めた）。`moduleSuffixes` に変換できなかった要素を残さない（`undefined` の
+  suffix で探さない）。
+- **`--noEmit` の経路**：plan の option の診断を全て報告する（これまで 5 つの code だけで、`paths` の TS5061・TS5062・TS5063・TS5066・
+  TS5090 などが落ちていた。emit する経路は自分で検証していた）。config の `noEmitOnError`・`outFile` を受ける（`--noEmit` では効かず、
+  `outFile` は削除済みの TS5102）。
+- **README**：command line で compiler option を受けないという記述と、`--noEmit` と emit の flag を併せられないという記述が P3-6g
+  以来古かった（tsgo と同じ出力を確かめた）ので直し、壊れた config も tsgo どおり診断することを書いた。
+- **残り**（記録。この slice では直さない）：削除済みの `moduleResolution: node10`／`classic` と `resolvePackageJsonExports` などを
+  書いた config の TS5098（tsgo は module から決めた解決方式で判定する。port の実効値の helper は書かれた値を返し、解決そのものに
+  関わるので別の slice）。`declaration` の無い `emitDeclarationOnly` の exit status（tsgo 2、port 1。診断は同じ）。
+- **tests**：program の contract `config_tsgo_diagnostics_contract`（22 形。期待値は tsgo の binary の出力そのもの：code・UTF-16 の
+  位置・文面）と `rejected_values_set_no_option`。keyword recovery の contract を書き直した（深い式は compiler の stack の上で parse
+  され tsgo と同じ診断になる。入れ子の上限は残る）。期待値を tsgo の振る舞いに直した test：root plan の contract 13 件、`paths` の
+  projection 1 件、option の catalog 1 件、UTF-16 の cycle 1 件（どれも入力を tsgo の binary で確かめた）。h2-8b の fixture 4 file の
+  20 case・40 field を再記録（各 case の file で tsgo と port の CLI の出力が byte 一致することを確かめてから。各 file の
+  `source.verification` に記録。6.0.3 の観測を P4-5 で一部だけ 7.1 にした fixture で、今回の差はすべて 6.0.3 の振る舞いだった）。
+  compiler の CLI contract 2 件（`--noEmit` の option の診断、壊れた config）。
+- **probe**（tsgo の binary `tsc-19dadef8` と port に同じ tsconfig と `a.ts` を渡し、出力と exit status を byte で比べた）：壊れた構文
+  50 形・option と値 32 形・root の形と object の option 20 形・`null` の値 20 形の 122 形が、`-p . --noEmit` と `-p . --outDir out` の
+  両方で一致（slice の前は `--noEmit` で 27・5・6・16 形）。option の関係の診断 24 形は残りの 2 形（上の「残り」）を除いて一致。他に
+  keyword の式 10 形、nil の配列・`references`・`extends`・TS18002・TS6258・`paths` の順序などを 30 形ほど確かめた。h2-8b の fixture の
+  失敗 20 case は全て tsgo と port の CLI の出力が一致した。実 CLI の watch（FSEvents）で tsconfig を壊して直す scenario は、壊れた間の
+  診断と `Found 3 errors` が tsgo と一致し、直すと回復した（違いは P4-7b に記録した OS の event の時機の cycle だけ）。
+- 計測（code の最終 bytes `dc1385033`、fixture `82762e5ae`、macOS、`nice -n 20`、2 worker）：conformance 12,748 case／479 s、
+  errors full 13,451（mismatch 0）、emit full 13,443（not assessed 8）、types full 12,677／mismatch 90、symbols full 12,715／mismatch 52、
+  sourcemap full 13,451、trace full 13,448／mismatch 3、harness error 15（P4-7b と同じ）、ratchet 0 regressions。suites の `--check`
+  0 regressions（config 87・tsoptions 80・tsc 211／223・tsbuild 182／192・tscWatch 42 は変わらない。ratchet の変更なし）。checker は
+  変えていないので並列対照は行っていない。
+- local（`nice -n 20`、2 job、最終 bytes）：`cargo fmt --all -- --check`、clippy（`--all-targets -- -D warnings`）types／syntax／
+  binder／program／emitter／checker／incremental／compiler／conformance／harness、test types 47、syntax 246、binder 78、program 602、
+  emitter 635、incremental 29、compiler 451、conformance 52、harness 31、checker 1,797（全て 0 失敗）。workspace 全体の test と clippy は
+  hosted の `rust` job に任せた。実 project の比較は行っていない（実 project の tsconfig は正しい JSON で、変わるのは誤った値の診断と
+  `--noEmit` の option の診断だけ。conformance の出力は変わらない）。性能は計測していない（利用者の指示）。

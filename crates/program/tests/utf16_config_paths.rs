@@ -62,7 +62,7 @@ fn extends_cache_and_inherited_option_origins_keep_distinct_js_directories() {
 }
 
 #[test]
-fn circular_extends_diagnostic_keeps_each_js_filename() {
+fn circular_extends_keeps_each_js_filename() {
     let file = path("/work/", 0xd800, ".json");
     let contents = r#"{"extends":"./\ud800.json","files":[]}"#;
     let host = MemoryCompilerHost::builder("/work")
@@ -80,12 +80,22 @@ fn circular_extends_diagnostic_keeps_each_js_filename() {
         &mut cache,
     )
     .unwrap();
+    // tsgo reports the cycle without its argument (the text keeps `{0}`);
+    // the lone surrogate survives in the config's extended source files.
     let cycle = plan
         .errors()
         .iter()
         .find(|diagnostic| diagnostic.code() == 18000)
         .unwrap();
-    let message = cycle.message_text();
-    assert!(message.code_units().any(|unit| unit == 0xd800));
-    assert!(!message.code_units().any(|unit| unit == 0xfffd));
+    assert_eq!(
+        cycle.message_text().as_str(),
+        Some("Circularity detected while resolving configuration: {0}")
+    );
+    let extended = plan.extended_source_files();
+    assert!(extended
+        .iter()
+        .any(|name| name.code_units().any(|unit| unit == 0xd800)));
+    assert!(!extended
+        .iter()
+        .any(|name| name.code_units().any(|unit| unit == 0xfffd)));
 }

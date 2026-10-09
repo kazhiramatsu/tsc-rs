@@ -148,7 +148,7 @@ fn structured_metadata_and_the_shared_lib_map_match_typescript_7_1() {
         ("rootDirs", "rootDirs", "path", false, true),
         ("typeRoots", "typeRoots", "path", false, true),
         ("types", "types", "string", false, false),
-        ("moduleSuffixes", "suffix", "string", true, false),
+        ("moduleSuffixes", "moduleSuffixes", "string", true, false),
         ("customConditions", "condition", "string", false, false),
         ("plugins", "plugin", "object", false, false),
     ];

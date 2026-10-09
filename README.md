@@ -74,18 +74,14 @@ substitute the absolute path to the executable built above.
 
 `tsc-rs` reads the same `tsconfig.json` as `tsc`, and the project commands
 are the same: `tsc-rs -p .` compiles a project and `tsc-rs --noEmit -p .`
-type-checks it. Two differences matter when you switch:
-
-- Compiler settings such as `outDir`, `strict`, `sourceMap` and
-  `declaration` are read from `tsconfig.json` only. `tsc-rs` rejects them
-  as command-line flags, so move any such flags from your scripts into
-  `compilerOptions`. The accepted flags are listed under
-  [common command-line options](#common-command-line-options).
-- `--noEmit` cannot be combined with the emit flags `--target`, `--module`,
-  `--newLine`, `--emitBOM` and `--noEmitOnError`; keep those settings in
-  `tsconfig.json` as well. The type check reads the whole file, including
-  `rootDir` and `declaration`, and writes nothing but the build info of an
-  `incremental` project (`--listEmittedFiles` lists it).
+type-checks it. The command line takes every compiler option as `tsgo`'s
+does (see [common command-line options](#common-command-line-options)). The
+type check reads the whole configuration, including `rootDir` and
+`declaration`, and writes nothing but the build info of an `incremental`
+project (`--listEmittedFiles` lists it). A configuration file is diagnosed
+as `tsgo` diagnoses it, a malformed one included: its JSON errors, values of
+the wrong type and misplaced options are reported, and the compilation goes
+on with what could be read.
 
 `tsc-rs --watch` compiles, watches the files and directories the
 compilation depended on, and compiles again when they change, as
@@ -292,13 +288,9 @@ and `declaration`. As with `tsc --noEmit`, declaration settings still
 produce declaration diagnostics; no files are written apart from an
 `incremental` project's build info.
 
-Emit settings cannot be overridden on the command line together with
-`--noEmit -p`: flags such as `--target`, `--module`, `--newLine`,
-`--emitBOM` and `--noEmitOnError` are rejected with an error on that
-route. Put those settings in `tsconfig.json`. The example
-project can be checked at any point with `tsc-rs --noEmit -p .`, including
-after adding the source map and [declaration](#declaration-files) settings
-below.
+The example project can be checked at any point with
+`tsc-rs --noEmit -p .`, including after adding the source map and
+[declaration](#declaration-files) settings below.
 
 ### Reference
 

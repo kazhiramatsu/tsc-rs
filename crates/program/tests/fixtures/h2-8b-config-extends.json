@@ -43,7 +43,8 @@
         "end_line": 39499,
         "sha256": "d6a0778d1dedcc271c83111fc4ca4971c2678229cb046c61059c326889ff6f7c"
       }
-    ]
+    ],
+    "verification": "Re-recorded on 2026-10-09 (ts71-suites P4-5b) for the cases whose configuration diagnostics TypeScript 7.1 reports differently, after the tsgo binary of the vendored commit printed the same diagnostics as the port for each case's files: tsgo's parse validates the JSON value (TS1327, TS1328, TS1136 are parse diagnostics), the conversion reports at a node's whole range and drops null array elements, `watchOptions` is not a tsconfig root option (nothing in it is diagnosed), an array is not an object option's value, and an extended config with parse diagnostics is not applied."
   },
   "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
   "observer_sha256": "9686b56d4b5be879e5a90088a030d8a8c2a4099721110dd4f275067ede22e5e9",
@@ -2853,7 +2854,7 @@
             "file": null,
             "start": null,
             "length": null,
-            "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/loop.json -> /project/tsconfig.json",
+            "message": "Circularity detected while resolving configuration: {0}",
             "related_information": []
           }
         ],
@@ -2864,7 +2865,7 @@
             "file": null,
             "start": null,
             "length": null,
-            "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/loop.json -> /project/tsconfig.json",
+            "message": "Circularity detected while resolving configuration: {0}",
             "related_information": []
           }
         ]
@@ -2877,8 +2878,7 @@
           "extends": [
             42,
             "./missing.json",
-            "./good.json",
-            null
+            "./good.json"
           ],
           "compilerOptions": {},
           "files": [
@@ -2994,15 +2994,6 @@
             "related_information": []
           },
           {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 46,
-            "length": 4,
-            "message": "Compiler option 'extends' requires a value of type string.",
-            "related_information": []
-          },
-          {
             "code": 5083,
             "category": "error",
             "file": null,
@@ -3019,15 +3010,6 @@
             "file": "/project/tsconfig.json",
             "start": 12,
             "length": 2,
-            "message": "Compiler option 'extends' requires a value of type string.",
-            "related_information": []
-          },
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 46,
-            "length": 4,
             "message": "Compiler option 'extends' requires a value of type string.",
             "related_information": []
           },
