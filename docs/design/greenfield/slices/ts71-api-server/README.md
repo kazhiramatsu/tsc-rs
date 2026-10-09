@@ -198,3 +198,63 @@ snapshot、option、module provider を借りる）。
 - hosted：最終候補 `771463d14`（修正 `9eb9861ec`・ratchet `19bd8151c`・packet の記録）の run 37924497777（`plan` 39s、`rust` 11m34s、
   `conformance (TypeScript 7.1)` 16m23s、`gates` 18s。全て成功）。merge → `ec4dd6c34`（merge commit、PR #719）。
 - 次：P5-1b（project の核）。
+
+## P5-1b project の核の設計（2026-10-09）
+
+### tsgo の API の経路（`19dadef8` で読み、Go の probe で確かめた）
+
+- standalone の API の session は `SnapshotHost` の `NewRootSnapshot`、`CloneSnapshot(base, FileChangeSummary, APISnapshotRequest)`、
+  `Snapshot.Deref`、`AcquireSourceFile` だけを使う。LSP の overlay は無く（全ての snapshot の overlay が空）、LS の resource request
+  も空。
+- `Snapshot.Clone`（`snapshot.go:431-727`）：base の FS を決め（request の FS があればそれ。全置換なら全ての cache を無効にする）、
+  file の変更を処理し（§FS）、builder で `DidChangeFiles`（変更が空でなければ）→ `HandleAPIRequest` → `Finalize`。何も変わらな
+  ければ base の project collection と config registry をそのまま使う。新しい snapshot の id は host の counter（root は 0）。
+  `HandleAPIRequest` が失敗した snapshot は登録されず、clone もされない。
+- `HandleAPIRequest`（`projectcollectionbuilder.go:186-377`）の順：closeProjects を数える → openProjects（configured project を
+  作るか探し、program を更新し、open の数を足す。同じ request の close は取り消す）→ closeFiles／openFiles を数える → close
+  する project を削除 → 新しく開いた file の置き場（default project の探索。見つからず inferred に置けなければ
+  `no project found for opened file: %s`。後片付け）→ reconfigure／remove の検証 → remove → create（synthetic の id は空いて
+  いる最小の `/dev/null/synthetic/<n>`）→ 作った／変えた synthetic program の更新 → ensureFiles → ensurePrograms →
+  ensureAll → program の module 解決のエラー。
+- program を作り直すのは request の open／ensure／create／reconfigure だけで、file の変更の通知は project を dirty にする
+  だけ（dirty は次の更新まで残る）。configured project の program は config の `ParsedCommandLine` から作り、config の
+  診断があっても作る（`GetConfigFileParsingDiagnostics` で返す）。
+- tsgo の癖（どれも probe で確かめた）：API で開いた inferred の file は root が 2 回入る（`[a, a]`、同じ build で program を
+  2 回作る）。API で開いた file には祖先の（solution の）tsconfig を探さない。存在しない config の openProjects はエラーに
+  ならず project も残らない。closeProjects は API で開いた file の default project でも消す。ensurePrograms は project を
+  作らない。file の default project の記録はその build だけで、後の snapshot は program に含まれるかで探す。同じ request の
+  remove と create、tsconfig に含まれない file の開き直しは、tsgo では nil の参照で server が落ちる。
+
+### port の方針（利用者の指示：既存の動作は変えてよい、余計な処理を足さない）
+
+- 新しい crate `crates/project`（`tsc-rs-project`／`tsc_project`）は、上の経路の `SnapshotHost`、`Snapshot`、`ProjectCollection`
+  とその builder、`Project`、`ConfigFileRegistry`、`SnapshotFs` だけを持つ。LSP の overlay、ATA、auto-import、content mapper、
+  log、watch、preference、client への progress は移さない。
+- FS は `tsc_host::vfs::FileSystem`（tsgo の `vfs.FS`）。`SnapshotFs` はその上に、program が読んだ file の cache（内容と
+  hash）を持ち、`VfsCompilerHost` を通して既存の loader（`load_config_program`／`load_emitting_config_program`、
+  `load_program`）と config の解析に渡す。project system 用の読み込みの経路は作らない。
+- tsgo の `dirty` package（並行の copy-on-write の map）は移さない。snapshot の map は `Arc<BTreeMap>` で、builder は変える
+  ときだけ複製する。変わらない project は同じ `Arc` のまま（API の応答の差分は pointer の同一性で、tsgo と同じ）。普通の
+  map なので同じ build で消した key を作り直せ、tsgo の 2 つの crash は起きない。
+- thread は使わない（WASM）。tsgo の default project の BFS は level ごとに最小の index の結果を選ぶので、順に辿っても同じ
+  結果になる。
+- 寿命は `Arc`。tsgo の program の数え（`programCounter`）と parse cache の参照の数えは P5-1c（parse cache）で扱う。
+- project の program は `LiveProgram`（P5-1a）。更新の種類は P5-1b では NewFiles と SameFileNames（file 名が同じ）だけで、
+  1 file の変更で program を再利用する Cloned は P5-1c。
+- config の entry は自分の extends の path を持ち（tsgo の `retainingConfigs`）、extends の file の変更で拡張する config を
+  reload する。tsgo の extended config の cache（snapshot の id で所有を数える共有の cache）は移さず、reload ごとに既存の
+  `ConfigExtendedCache` で解析する。
+- tsgo の癖は手順どおりに移して同じにする（root の重複も含む）。
+
+### slice
+
+- **P5-1b-1**：crate、ID（`/dev/null/inferred`、`/dev/null/synthetic/<n>` の解析と正規化、他は configured）、`SnapshotHost`／
+  `Snapshot`、`SnapshotFs`（cache、changed／created／deleted と全ての無効化）、`ConfigFileRegistry`（acquire／release、reload の
+  印、extends、cleanup）、synthetic program（create／reconfigure／remove と検証）、openProjects／closeProjects、
+  ensurePrograms／ensureAll、file の変更（`DidChangeFiles`：dirty と config の reload の印）、`Finalize`。test：tsgo の
+  `TestSnapshot`（synthetic program の作成と削除、失敗した update、存在しない file）、`TestProjectIDNarrowing`、
+  `session_createprogram_test.go`（snapshot の層で）、`configfilechanges_test.go` と `project_test.go` の NewFiles／SameFileNames
+  （open／changed／ensure に書き換え、期待値は tsgo の `SnapshotHost` の Go probe で確かめる）。
+- **P5-1b-2**：openFiles／closeFiles／ensureFiles：default project の探索（祖先の tsconfig／jsconfig、参照の BFS、file の無い
+  config、composite の早い否定、`disableReferencedProjectLoad`／`disableSolutionSearching`）、後片付け、inferred project（既定の
+  option）、`GetDefaultProject`。test：`projectreferencesprogram_test.go`、default project の case（API の open に書き換え）。
