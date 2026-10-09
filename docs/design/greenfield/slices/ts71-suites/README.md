@@ -1310,3 +1310,12 @@ extended data、msgpack の structured data、28 byte の node）を port の構
   （command line の emit override を受けない）を消した（`--target`・`--module` を tsgo と同じく受けることを確かめた）。CI の表に
   watch と api の suite を書き足した。`rust` job が `scripts/generate_api_encoder.py --check` も走らせる（`.github/ci/replay.py`、
   CLAUDE.md）。
+
+### P4-7dのhostedの記録とmerge（2026-10-09）
+
+- hosted：最終候補 `bcc0b0bab`（vendoring `8f0de02df`・修正 `79e09284e`・encoder `7347caa26`・ratchet `7f4734f0b`・packet の記録）の
+  run 37878680826（`plan` 24s、`rust` 11m13s（`scripts/generate_api_encoder.py --check` を含む）、`conformance (TypeScript 7.1)` 12m24s
+  （lane A の後に suites の `--check`、api 2／2）、`gates` 14s。全て成功）。merge → `774312f8d`（merge commit）。
+- 計測（conformance の全体実行、suites、tsgo の encoder との corpus と fixture の比較、crate test）は上の記録のとおり、merge 前に最終
+  bytes で行った。実 project の比較と性能は計測していない（上の記録の理由と利用者の指示）。
+- P4-7（`--generateTrace`、watch、api の encoder）はこれで終わり。API server（roadmap の P5）は計画から始める別作業。
