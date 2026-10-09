@@ -544,3 +544,27 @@ snapshot、option、module provider を借りる）。
   project も読んでいない file を消す）、作った snapshot の file system の読み（cache に無い file の読みを snapshot ごとに 1 回に
   する memo、directory の一覧に cache の file を合わせる）。API の通知は常に `node_modules` の外の変更として扱われる
   （`toFileChangeSummary`）ので、`node_modules` だけの無効化は API の経路では使われない。
+
+## P5-1e `SnapshotFS` の細部（2026-10-10）
+
+- **realpath の alias**（tsgo `nodeModulesRealpathAliases`、`recordRealpathAlias`、`expandRealpathAliases`）：`node_modules` の中の
+  file を link を通して初めて読んだとき、その real path に link の path を記録する。real path の file の変更と削除の通知は、
+  link の path にも広げてから（`markDirtyFiles` の前）cache に当てる。削除した entry は alias から外す（file がまだ在る
+  `deleteCacheEntry` は除く。tsgo の `sourceBackedReplacements`）。
+- **cache の掃除**（tsgo `Clone` の `shouldCleanFileCache`）：削除の通知があり、program を作り直した（再利用ではない）project が
+  あるとき、どの project の最後の build も読んでいない cache の file を消す（registry が解析した config も読んだ file には
+  入らないので消える）。
+- **読み**：build の directory の一覧は、snapshot が cache した file と directory を先に並べ、disk の一覧で足りないものを足す
+  （tsgo `GetAccessibleEntries` と `cacheDirectories`。cache の path の並びから求める）。作った snapshot は cache に無い file を
+  snapshot ごとに 1 回だけ読む（tsgo `readFiles`）。
+- API の通知は常に `node_modules` の外の変更として扱われる（tsgo `toFileChangeSummary`）ので、`node_modules` だけを無効にする
+  経路（`invalidateNodeModulesCache`）は API の経路に無い。LSP の overlay、open／close の変換、content mapper は移さない。
+- **test**（`crates/project/tests/unit/fs.rs`、10 件）：tsgo `TestRealpathAliasLifecycle` の case（link で読んだ file の記録と
+  link でない file、`node_modules` の外、snapshot をまたいだ持ち越し、削除で外れること、1 つの real file への複数の link と
+  個別に外れること・前の snapshot が変わらないこと、変更と削除の通知の広がり・alias が無いとき、real path の変更で link の
+  file が読み直されること）、cache した file を残す一覧、cache に無い file の 1 回の読み、削除の後の cache の掃除（tsgo の
+  `SnapshotHost` の Go probe：open の後は `a.ts`・`b.ts`・`tsconfig.json`、`b.ts` の削除と ensure の後は `a.ts` だけ）。
+- **検証**（最終 bytes `be1246806`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（project、
+  `--all-targets -- -D warnings`）は clean。`cargo test -p tsc-rs-project`：unit 10、snapshot 40、全て成功。変えたのは project の
+  crate だけなので、conformance は local では走らせず hosted の job に任せた。
+- **P5-1 の完了**：project system の核（P5-1a〜P5-1e）はこれで揃う。次は API の transport と session（P5-2 以降）。
