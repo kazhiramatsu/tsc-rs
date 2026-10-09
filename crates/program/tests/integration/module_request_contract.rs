@@ -910,10 +910,14 @@ fn expanded_javascript_require_calls_use_the_effective_commonjs_mode() {
         "const templated = require(`templated`);\n",
         "import \"static\";\n",
     );
-    for (label, module_resolution, expected_modes) in [
+    // tsgo getModeForUsageLocation: a require call is CommonJS whenever
+    // import syntax affects resolution; bundler without package maps
+    // records no mode for any request.
+    for (label, module_resolution, package_maps, expected_modes) in [
         (
             "Bundler",
             100,
+            true,
             [
                 ResolutionMode::CommonJs,
                 ResolutionMode::CommonJs,
@@ -923,6 +927,7 @@ fn expanded_javascript_require_calls_use_the_effective_commonjs_mode() {
         (
             "Node16",
             3,
+            true,
             [
                 ResolutionMode::CommonJs,
                 ResolutionMode::CommonJs,
@@ -930,17 +935,9 @@ fn expanded_javascript_require_calls_use_the_effective_commonjs_mode() {
             ],
         ),
         (
-            "Classic",
-            1,
-            [
-                ResolutionMode::Unspecified,
-                ResolutionMode::Unspecified,
-                ResolutionMode::Unspecified,
-            ],
-        ),
-        (
-            "Node10",
-            2,
+            "Bundler without package maps",
+            100,
+            false,
             [
                 ResolutionMode::Unspecified,
                 ResolutionMode::Unspecified,
@@ -948,9 +945,12 @@ fn expanded_javascript_require_calls_use_the_effective_commonjs_mode() {
             ],
         ),
     ] {
+        let package_maps = (!package_maps).then_some(false);
         let options = CompilerOptions {
             module: Some(99),
             module_resolution: Some(module_resolution),
+            resolve_package_json_exports: package_maps,
+            resolve_package_json_imports: package_maps,
             allow_js: true,
             check_js: Some(true),
             ..CompilerOptions::default()
@@ -1338,7 +1338,7 @@ fn nested_string_named_module_is_a_collection_boundary() {
 }
 
 #[test]
-fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
+fn import_types_retain_explicit_modes_and_use_unspecified_fallback() {
     let source = source_at(
         "/app.ts",
         concat!(
@@ -1350,13 +1350,18 @@ fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
         ),
         None,
     );
-    let classic = CompilerOptions {
+    // Without package maps, bundler import syntax does not affect resolution
+    // (tsgo importSyntaxAffectsModuleResolution).
+    let no_package_maps = CompilerOptions {
         module: Some(99),
-        module_resolution: Some(1),
+        module_resolution: Some(100),
+        resolve_package_json_exports: Some(false),
+        resolve_package_json_imports: Some(false),
         ..CompilerOptions::default()
     };
 
-    let requests = plan_module_requests(&source, &classic).expect("plan Classic import types");
+    let requests =
+        plan_module_requests(&source, &no_package_maps).expect("plan unmapped import types");
     assert_eq!(
         requests
             .iter()
@@ -1378,8 +1383,9 @@ fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
     );
 
     let bundler = CompilerOptions {
+        module: Some(99),
         module_resolution: Some(100),
-        ..classic
+        ..CompilerOptions::default()
     };
     let requests = plan_module_requests(&source, &bundler).expect("plan Bundler import types");
     assert_eq!(
@@ -1404,7 +1410,7 @@ fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
 }
 
 #[test]
-fn classic_type_only_imports_retain_explicit_modes_and_use_unspecified_fallback() {
+fn type_only_imports_retain_explicit_modes_and_use_unspecified_fallback() {
     let source = source_at(
         "/app.ts",
         concat!(
@@ -1416,13 +1422,18 @@ fn classic_type_only_imports_retain_explicit_modes_and_use_unspecified_fallback(
         ),
         None,
     );
-    let classic = CompilerOptions {
+    // Without package maps, bundler import syntax does not affect resolution
+    // (tsgo importSyntaxAffectsModuleResolution).
+    let no_package_maps = CompilerOptions {
         module: Some(99),
-        module_resolution: Some(1),
+        module_resolution: Some(100),
+        resolve_package_json_exports: Some(false),
+        resolve_package_json_imports: Some(false),
         ..CompilerOptions::default()
     };
 
-    let requests = plan_module_requests(&source, &classic).expect("plan Classic type imports");
+    let requests =
+        plan_module_requests(&source, &no_package_maps).expect("plan unmapped type imports");
     assert_eq!(
         requests
             .iter()
@@ -1444,8 +1455,9 @@ fn classic_type_only_imports_retain_explicit_modes_and_use_unspecified_fallback(
     );
 
     let bundler = CompilerOptions {
+        module: Some(99),
         module_resolution: Some(100),
-        ..classic
+        ..CompilerOptions::default()
     };
     let requests = plan_module_requests(&source, &bundler).expect("plan Bundler type imports");
     assert_eq!(
@@ -1470,46 +1482,56 @@ fn classic_type_only_imports_retain_explicit_modes_and_use_unspecified_fallback(
 }
 
 #[test]
-fn node10_static_import_uses_the_unspecified_resolution_mode() {
+fn unmapped_bundler_static_import_uses_the_unspecified_resolution_mode() {
     let source = source_at("/index.ts", "import { pkg } from \"pkg\";\n", None);
     let options = CompilerOptions {
         module: Some(99),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
+        resolve_package_json_exports: Some(false),
+        resolve_package_json_imports: Some(false),
         ..CompilerOptions::default()
     };
 
-    let requests = plan_module_requests(&source, &options).expect("plan Node10 static import");
+    let requests = plan_module_requests(&source, &options).expect("plan unmapped static import");
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].specifier(), "pkg");
     assert_eq!(requests[0].mode(), ResolutionMode::Unspecified);
 }
 
 #[test]
-fn node10_amd_projects_plan_static_imports_and_javascript_requires() {
-    let sources = [
-        ("/root.ts", "import * as m1 from \"m1\";\n", "m1"),
-        (
-            "/node_modules/m1/index.js",
-            "var m2 = require(\"m2\");\n",
-            "m2",
-        ),
-    ];
-    for module in [1, 2] {
+fn commonjs_and_amd_projects_plan_static_imports_and_javascript_requires() {
+    // tsgo getEmitSyntaxForUsageLocationWorker under the default (bundler)
+    // resolution: a require call is CommonJS; a static import follows the
+    // file's emit format, CommonJS for commonjs and none for AMD (neither
+    // CommonJS nor a non-node ESM format).
+    for (module, static_mode) in [
+        (1, ResolutionMode::CommonJs),
+        (2, ResolutionMode::Unspecified),
+    ] {
         let options = CompilerOptions {
             allow_js: true,
             module: Some(module),
-            module_resolution: Some(2),
             ..CompilerOptions::default()
         };
-        for (file_name, text, specifier) in sources {
+        for (file_name, text, specifier, mode) in [
+            (
+                "/root.ts",
+                "import * as m1 from \"m1\";\n",
+                "m1",
+                static_mode,
+            ),
+            (
+                "/node_modules/m1/index.js",
+                "var m2 = require(\"m2\");\n",
+                "m2",
+                ResolutionMode::CommonJs,
+            ),
+        ] {
             let plan = plan_source_requests(&source_at(file_name, text, None), &options)
-                .expect("plan CommonJS/AMD Node10 project requests");
+                .expect("plan CommonJS/AMD project requests");
             assert_eq!(plan.module_requests().len(), 1);
             assert_eq!(plan.module_requests()[0].specifier(), specifier);
-            assert_eq!(
-                plan.module_requests()[0].mode(),
-                ResolutionMode::Unspecified
-            );
+            assert_eq!(plan.module_requests()[0].mode(), mode, "module {module}");
         }
     }
 }
@@ -1589,7 +1611,9 @@ fn legacy_emit_module_kinds_keep_static_requests_unspecified() {
 fn resolution_mode_attributes_do_not_block_static_source_discovery() {
     let options = CompilerOptions {
         module: Some(99),
-        module_resolution: Some(1),
+        module_resolution: Some(100),
+        resolve_package_json_exports: Some(false),
+        resolve_package_json_imports: Some(false),
         ..CompilerOptions::default()
     };
     for text in [

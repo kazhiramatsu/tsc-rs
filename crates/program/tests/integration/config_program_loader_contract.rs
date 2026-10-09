@@ -1428,9 +1428,13 @@ fn module_option_relationship_diagnostics_match_the_effective_kinds() {
         codes
     };
 
+    // tsgo maps a removed classic/node10 value to the module's default
+    // resolution (`GetModuleResolutionKind`), so neither TS5109 nor TS5098
+    // follows the TS5108 row; TS5098 needs a resolution other than node16,
+    // nodenext or bundler, which TypeScript 7.1 no longer has.
     assert_eq!(
         codes(r#""module":"node16","moduleResolution":"node10""#),
-        [5108, 5109]
+        [5108]
     );
     assert_eq!(codes(r#""moduleResolution":"node16""#), [5110]);
     assert_eq!(
@@ -1439,11 +1443,11 @@ fn module_option_relationship_diagnostics_match_the_effective_kinds() {
     );
     assert_eq!(
         codes(r#""resolvePackageJsonExports":true,"moduleResolution":"classic""#),
-        [5098, 5108]
+        [5108]
     );
     assert_eq!(
         codes(r#""customConditions":[],"moduleResolution":"classic""#),
-        [5098, 5108]
+        [5108]
     );
     // TypeScript 7.1 has no verbatimModuleSyntax/amd row; the default
     // moduleResolution for amd is bundler, whose relationship row remains.

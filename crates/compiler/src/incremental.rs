@@ -1596,9 +1596,6 @@ impl<'p> Assembly<'p> {
                         package_bundles_types: resolution
                             .is_some_and(|resolution| resolution.package_bundles_types()),
                     },
-                    self.prepared
-                        .compiler_options()
-                        .emit_module_resolution_kind(),
                 ))
             }
             _ => None,

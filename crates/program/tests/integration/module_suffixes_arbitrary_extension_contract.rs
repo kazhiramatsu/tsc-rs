@@ -16,7 +16,7 @@ fn compiler_options(module_suffix: ModuleSuffix) -> CompilerOptions {
     CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         allow_arbitrary_extensions: Some(true),
         module_suffixes: Some(vec![module_suffix]),
         ..CompilerOptions::default()

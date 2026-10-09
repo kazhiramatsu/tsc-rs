@@ -321,7 +321,7 @@ fn loads_dependencies_postorder_while_preserving_root_order_and_duplicates() {
 }
 
 #[test]
-fn paths_and_base_url_candidates_join_recursive_source_membership() {
+fn paths_candidates_join_recursive_source_membership_and_base_url_is_ignored() {
     let host = MemoryCompilerHost::builder("/work")
         .file(
             "/work/root.ts",
@@ -338,13 +338,15 @@ fn paths_and_base_url_candidates_join_recursive_source_membership() {
         )
         .build()
         .expect("build paths host");
+    // TypeScript 7.1 removed `baseUrl` (TS5102): the paths base is the
+    // current directory and `based` finds no baseUrl candidate.
     let options = CompilerOptions {
         base_url: Some("/work/base".to_owned().into()),
         ..compiler_options()
     };
     let program_options = program_options().with_paths(vec![PathMapping::new(
         "@app/*",
-        vec!["../src/*".to_owned().into()],
+        vec!["./src/*".to_owned().into()],
     )]);
 
     let program = load_with_options(
@@ -354,36 +356,33 @@ fn paths_and_base_url_candidates_join_recursive_source_membership() {
         program_options,
         generous_limits(),
     )
-    .expect("load paths and baseUrl candidates");
+    .expect("load paths candidates");
 
     assert_eq!(
         source_paths(&program),
-        [
-            Path::new("/work/src/mapped.ts"),
-            Path::new("/work/base/based.ts"),
-            Path::new("/work/root.ts"),
-        ]
+        [Path::new("/work/src/mapped.ts"), Path::new("/work/root.ts")]
     );
-    for (specifier, expected) in [
-        ("@app/mapped", "/work/src/mapped.ts"),
-        ("based", "/work/base/based.ts"),
-    ] {
-        let key = module_key(&program, "/work/root.ts", specifier);
-        let resolution = program
-            .resolutions()
-            .require_module(&key)
-            .expect("mapped request has an authoritative row");
-        let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
-            panic!("{specifier} must resolve");
-        };
-        let ResolvedModuleTarget::Source { resolved_file, .. } = resolved.target() else {
-            panic!("mapped TypeScript target must join source membership");
-        };
-        assert_eq!(
-            resolved_file.display().scalar_test_path(),
-            Path::new(expected)
-        );
-    }
+    let key = module_key(&program, "/work/root.ts", "@app/mapped");
+    let resolution = program
+        .resolutions()
+        .require_module(&key)
+        .expect("mapped request has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("@app/mapped must resolve");
+    };
+    let ResolvedModuleTarget::Source { resolved_file, .. } = resolved.target() else {
+        panic!("mapped TypeScript target must join source membership");
+    };
+    assert_eq!(
+        resolved_file.display().scalar_test_path(),
+        Path::new("/work/src/mapped.ts")
+    );
+    let key = module_key(&program, "/work/root.ts", "based");
+    let resolution = program
+        .resolutions()
+        .require_module(&key)
+        .expect("the bare request has an authoritative row");
+    assert!(matches!(resolution.outcome(), ResolutionOutcome::NotFound));
 }
 
 #[test]
@@ -487,7 +486,7 @@ fn windows_root_dirs_dependencies_retain_emit_eligibility() {
         &["c:/root/src/file1.ts", "c:/root/src/file2.d.ts"],
         CompilerOptions {
             module: Some(2),
-            module_resolution: Some(1),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options().with_root_dirs(root_dirs),
@@ -527,7 +526,7 @@ fn windows_root_dirs_dependencies_retain_emit_eligibility() {
 }
 
 #[test]
-fn a_matched_paths_miss_suppresses_base_url_but_keeps_package_fallback() {
+fn a_matched_paths_miss_keeps_the_package_fallback_and_base_url_is_ignored() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"import { value } from 'pkg';".to_vec())
         .file(
@@ -544,6 +543,8 @@ fn a_matched_paths_miss_suppresses_base_url_but_keeps_package_fallback() {
         )
         .build()
         .expect("build fallback host");
+    // TypeScript 7.1 removed `baseUrl`: the `base/pkg.ts` candidate is never
+    // probed.
     let options = CompilerOptions {
         base_url: Some("/work/base".to_owned().into()),
         ..compiler_options()
@@ -608,7 +609,7 @@ fn discovers_path_then_type_then_module_and_skips_lib_references_under_no_lib() 
 }
 
 #[test]
-fn classic_and_node10_load_triple_slash_types_into_the_authoritative_table() {
+fn triple_slash_types_load_into_the_authoritative_table() {
     let root_text = "/// <reference types=\"legacy-types\" />\nexport {};\n";
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", root_text.as_bytes().to_vec())
@@ -621,9 +622,9 @@ fn classic_and_node10_load_triple_slash_types_into_the_authoritative_table() {
             b"declare const legacyTypes: true;".to_vec(),
         )
         .build()
-        .expect("build legacy type-reference program");
+        .expect("build type-reference program");
 
-    for module_resolution in [1, 2] {
+    for module_resolution in [3, 99, 100] {
         let options = CompilerOptions {
             no_emit: Some(true),
             module_resolution: Some(module_resolution),
@@ -636,7 +637,7 @@ fn classic_and_node10_load_triple_slash_types_into_the_authoritative_table() {
             program_options(),
             generous_limits(),
         )
-        .expect("load a legacy type-reference program");
+        .expect("load a type-reference program");
 
         assert_eq!(
             source_paths(&program),
@@ -1109,12 +1110,14 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
         ))
         .build()
         .expect("build unsupported-root host");
+    // The default (bundler) resolution enables resolveJsonModule (tsgo
+    // `GetResolveJsonModule`), so a disabled JSON root needs the option.
     let disabled = load_with_options(
         &disabled_host,
         &["/work/data.json", "/work/notes.txt"],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            resolve_json_module: Some(false),
             ..compiler_options()
         },
         program_options(),
@@ -1145,7 +1148,7 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
         CompilerOptions {
             allow_js: true,
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -1168,7 +1171,7 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
         &["/work/data.json"],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             resolve_json_module: Some(true),
             ..compiler_options()
         },
@@ -1185,7 +1188,7 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
         &["/work/data.json"],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             resolve_json_module: Some(true),
             out_dir: Some("/work/dist".to_owned().into()),
             ..compiler_options()
@@ -2144,7 +2147,7 @@ fn no_resolve_keeps_module_resolution_but_skips_reference_source_discovery() {
         &["/work/root.ts"],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             no_resolve: Some(true),
             ..compiler_options()
         },
@@ -2240,7 +2243,7 @@ fn allow_js_loads_local_javascript_dependencies_in_postorder_and_binds_source_ro
         CompilerOptions {
             allow_js: true,
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -2375,7 +2378,7 @@ fn arbitrary_declaration_twins_follow_the_resolution_diagnostic_admission_bounda
         .expect("build arbitrary declaration-twin loader host");
     let base_options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         resolve_json_module: Some(false),
         ..compiler_options()
     };
@@ -2527,7 +2530,7 @@ fn jsx_without_mode_stays_unloaded_and_gates_tsx_jsx_and_package_reads() {
         CompilerOptions {
             allow_js: true,
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -2596,7 +2599,7 @@ fn allow_js_keeps_default_depth_external_package_javascript_unloaded() {
         CompilerOptions {
             allow_js: true,
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -2684,7 +2687,7 @@ fn max_node_module_js_depth_admits_each_external_javascript_layer_in_tsc_postord
                 allow_js: true,
                 max_node_module_js_depth: Some(max_depth.into()),
                 module: Some(1),
-                module_resolution: Some(2),
+                module_resolution: Some(100),
                 ..compiler_options()
             },
             program_options(),
@@ -2823,7 +2826,7 @@ fn external_type_reference_source_owns_the_next_node_module_js_depth_layer() {
                 allow_js: true,
                 max_node_module_js_depth: Some(max_depth.into()),
                 module: Some(1),
-                module_resolution: Some(2),
+                module_resolution: Some(100),
                 ..compiler_options()
             },
             program_options(),
@@ -2921,7 +2924,7 @@ fn shared_dependency_runs_at_its_first_depth_like_tsgo() {
             allow_js: true,
             max_node_module_js_depth: Some(2.into()),
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -2986,7 +2989,7 @@ fn depth_zero_root_promotion_reprocesses_path_reference_descendants() {
             allow_js: true,
             max_node_module_js_depth: Some(1.into()),
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -3066,7 +3069,7 @@ fn negative_max_node_module_js_depth_elides_every_external_javascript_target() {
             allow_js: true,
             max_node_module_js_depth: Some((-1).into()),
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -3140,7 +3143,7 @@ fn javascript_number_depth_limits_preserve_fraction_infinity_and_nan_comparisons
                 allow_js: true,
                 max_node_module_js_depth: Some(CompilerOptionNumber::new(maximum)),
                 module: Some(1),
-                module_resolution: Some(2),
+                module_resolution: Some(100),
                 ..compiler_options()
             },
             program_options(),
@@ -3184,7 +3187,7 @@ fn max_node_module_js_depth_does_not_override_allow_js_false() {
             allow_js: false,
             max_node_module_js_depth: Some(1.into()),
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -3229,7 +3232,7 @@ fn allow_js_marks_augmentation_only_javascript_as_resolution_only() {
         CompilerOptions {
             allow_js: true,
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -3691,7 +3694,7 @@ fn loaded_package_uses_lexical_extension_for_an_extensionless_physical_source() 
     let options = CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
 
@@ -3908,7 +3911,7 @@ fn local_actual_then_bare_symlink_share_one_physical_source_id() {
         &["/src/local-consumer.ts", "/src/bare-consumer.ts"],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -4013,7 +4016,7 @@ fn two_local_symlink_spellings_remain_two_lexical_sources() {
         &["/src/root.ts"],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -4210,7 +4213,7 @@ fn equal_package_ids_retain_resolution_path_but_share_one_source_id() {
         &["/src/root.ts"],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..compiler_options()
         },
         program_options(),
@@ -4543,9 +4546,8 @@ fn memory_and_filesystem_hosts_build_identical_prepared_programs() {
         vec!["src/*".to_owned().into()],
     )]);
 
-    for module_resolution in [1, 2, 100] {
+    for module_resolution in [3, 99, 100] {
         let options = CompilerOptions {
-            base_url: Some(tree.root().to_string_lossy().into_owned().into()),
             module_resolution: Some(module_resolution),
             ..compiler_options()
         };

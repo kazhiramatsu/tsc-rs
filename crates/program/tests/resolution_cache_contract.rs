@@ -770,7 +770,7 @@ fn fresh_value(
         }
         "library" => {
             let library_options = CompilerOptions {
-                module_resolution: Some(2),
+                module_resolution: Some(100),
                 ..CompilerOptions::default()
             };
             let mut resolver = ModuleResolver::new(host, &library_options).expect("fresh resolver");

@@ -491,7 +491,7 @@ fn rooted_disk_resolution_matrix() -> Vec<(String, Option<String>, Vec<String>)>
         calls: RefCell::new(Vec::new()),
     };
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create rooted-disk resolver");
@@ -652,7 +652,7 @@ fn paths_exact_longest_prefix_and_substitution_order_are_stable() {
 }
 
 #[test]
-fn optional_settings_preserve_legacy_passes_and_modern_substitution_order() {
+fn optional_settings_preserve_the_substitution_order() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file("/work/first/priority.js", b"module.exports = {};".to_vec())
@@ -674,8 +674,6 @@ fn optional_settings_preserve_legacy_passes_and_modern_substitution_order() {
     ]);
 
     for (resolution_kind, expected_priority) in [
-        (1, "/work/second/priority.ts"),
-        (2, "/work/second/priority.ts"),
         (3, "/work/first/priority.js"),
         (99, "/work/first/priority.js"),
         (100, "/work/first/priority.js"),
@@ -750,8 +748,7 @@ fn optional_node_candidates_preserve_trailing_directory_spelling() {
         .build()
         .expect("build trailing optional-candidate host");
     let options = CompilerOptions {
-        module_resolution: Some(2),
-        base_url: Some("/work".to_owned().into()),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
 
@@ -768,18 +765,6 @@ fn optional_node_candidates_preserve_trailing_directory_spelling() {
     );
     assert_eq!(
         mapped.resolved_file().display().scalar_test_path(),
-        Path::new("/work/directory/index.ts")
-    );
-
-    let mut resolver =
-        ModuleResolver::new(&host, &options).expect("create trailing baseUrl resolver");
-    let base_url = resolved(
-        resolver
-            .resolve("/work/main.ts", "directory/", ResolutionMode::CommonJs)
-            .expect("resolve a trailing baseUrl candidate as a directory"),
-    );
-    assert_eq!(
-        base_url.resolved_file().display().scalar_test_path(),
         Path::new("/work/directory/index.ts")
     );
 }
@@ -970,13 +955,15 @@ fn no_dts_resolution_removes_types_conditions_from_package_exports() {
 
 #[test]
 fn commonjs_implicit_addition_follows_replacement_and_clears_ts_provenance() {
+    // tsgo `--module commonjs` (bundler, CJS mode) probes every replacement
+    // extension before the implicit `.js.ts` addition.
     for (module, module_resolution, mode, expected_path, expected_probes) in [
         (
             1,
-            2,
+            100,
             ResolutionMode::CommonJs,
-            "/work/value.js.ts",
-            &[".ts", ".tsx", ".d.ts", ".js.ts"][..],
+            "/work/value.js",
+            &[".ts", ".tsx", ".d.ts", ".js"][..],
         ),
         (
             99,
@@ -1046,7 +1033,7 @@ fn implicit_addition_reobserves_its_parent_after_replacement_misses() {
     };
     let options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let mut resolver =
@@ -1060,7 +1047,7 @@ fn implicit_addition_reobserves_its_parent_after_replacement_misses() {
 }
 
 #[test]
-fn node_esm_blocks_the_second_implicit_stage_but_node10_keeps_it() {
+fn node_esm_blocks_the_second_implicit_stage_but_bundler_keeps_it() {
     let resolve = |module: i32,
                    module_resolution: i32,
                    mode: ResolutionMode|
@@ -1088,20 +1075,23 @@ fn node_esm_blocks_the_second_implicit_stage_but_node10_keeps_it() {
         (outcome, probes)
     };
 
-    let (node10, probes) = resolve(1, 2, ResolutionMode::CommonJs);
-    let node10 = resolved(node10);
+    // tsgo `--module commonjs` (bundler, CJS mode).
+    let (bundler, probes) = resolve(1, 100, ResolutionMode::CommonJs);
+    let bundler = resolved(bundler);
     assert_eq!(
-        node10.resolved_file().display().scalar_test_path(),
+        bundler.resolved_file().display().scalar_test_path(),
         Path::new("/work/value.d.ts.ts")
     );
-    assert_eq!(node10.extension(), &ModuleExtension::Ts);
-    assert!(!node10.resolved_using_ts_extension());
+    assert_eq!(bundler.extension(), &ModuleExtension::Ts);
+    assert!(!bundler.resolved_using_ts_extension());
     assert_eq!(
         probes,
         [
             "/work/value.ts",
             "/work/value.tsx",
             "/work/value.d.ts",
+            "/work/value.js",
+            "/work/value.jsx",
             "/work/value.d.ts.ts",
         ]
     );
@@ -1739,7 +1729,7 @@ fn types_versions_use_normalized_root_names_and_replace_only_the_first_star() {
         .expect("build normalized typesVersions host");
     let options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let mut resolver =
@@ -2086,7 +2076,7 @@ fn legacy_package_fields_and_types_versions_may_escape_the_package_root() {
 }
 
 #[test]
-fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
+fn root_dirs_preserve_the_candidate_order_and_relative_gate() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/src/app/main.ts", b"export {};".to_vec())
         .file("/work/src/app/value.js", b"module.exports = {};".to_vec())
@@ -2111,8 +2101,6 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
         ]);
 
     for (resolution_kind, expected_value) in [
-        (1, "/work/gen/app/value.ts"),
-        (2, "/work/gen/app/value.ts"),
         (3, "/work/src/app/value.js"),
         (99, "/work/src/app/value.js"),
         (100, "/work/src/app/value.js"),
@@ -2179,15 +2167,21 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
             paths_first.resolved_file().display().scalar_test_path(),
             Path::new("/work/mapped/priority.ts")
         );
-        assert_eq!(
+        // tsgo `tryLoadModuleUsingPaths` continues searching after the
+        // substitutions miss, so the rooted name reaches `rootDirs` (tsgo
+        // traces the substitution, then the rootDirs hit).
+        let path_miss = resolved(
             resolver
                 .resolve(
                     "/work/src/app/main.ts",
                     "/work/src/app/path-miss",
                     ResolutionMode::CommonJs,
                 )
-                .expect("a matching paths miss owns rooted optional settings"),
-            ResolutionOutcome::NotFound
+                .expect("a matching paths miss continues to rootDirs"),
+        );
+        assert_eq!(
+            path_miss.resolved_file().display().scalar_test_path(),
+            Path::new("/work/gen/app/path-miss.ts")
         );
 
         let bare = resolver
@@ -2264,7 +2258,18 @@ fn rooted_disk_module_names_follow_typescript_windows_and_unc_lexical_semantics(
                 Some("C:/drive.ts".to_owned()),
                 vec!["C:/drive.ts".to_owned()],
             ),
-            ("C:relative".to_owned(), None, Vec::new()),
+            // A drive-relative name is not rooted: bundler's self-name
+            // lookup reads the package scope (tsgo
+            // `loadModuleFromSelfNameReference`) before the URI-like name
+            // stops the node_modules walk.
+            (
+                "C:relative".to_owned(),
+                None,
+                vec![
+                    "C:/work/package.json".to_owned(),
+                    "C:/package.json".to_owned()
+                ],
+            ),
         ]
     );
 }
@@ -2287,7 +2292,7 @@ fn root_dirs_use_the_longest_prefix_then_declared_alternate_order() {
         program_path("/mirror/second"),
     ]);
 
-    for resolution_kind in [1, 2, 3, 99, 100] {
+    for resolution_kind in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(resolution_kind),
             ..CompilerOptions::default()
@@ -2317,7 +2322,7 @@ fn rooted_final_dot_components_keep_node_directory_spelling() {
     let program_options = ProgramOptions::default()
         .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")]);
 
-    for resolution_kind in [1, 2, 3, 99, 100] {
+    for resolution_kind in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(resolution_kind),
             ..CompilerOptions::default()
@@ -2332,21 +2337,11 @@ fn rooted_final_dot_components_keep_node_directory_spelling() {
                 ResolutionMode::CommonJs,
             )
             .expect("resolve rooted final dot component");
-        if resolution_kind == 1 {
-            assert_eq!(
-                resolved(outcome)
-                    .resolved_file()
-                    .display()
-                    .scalar_test_path(),
-                Path::new("/work/src/app/dir.ts")
-            );
-        } else {
-            assert_eq!(
-                outcome,
-                ResolutionOutcome::NotFound,
-                "moduleResolution={resolution_kind}"
-            );
-        }
+        assert_eq!(
+            outcome,
+            ResolutionOutcome::NotFound,
+            "moduleResolution={resolution_kind}"
+        );
     }
 }
 
@@ -2365,8 +2360,6 @@ fn root_dirs_reuse_each_resolvers_directory_rules() {
         .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")]);
 
     for (resolution_kind, mode, should_resolve) in [
-        (1, ResolutionMode::CommonJs, false),
-        (2, ResolutionMode::CommonJs, true),
         (3, ResolutionMode::CommonJs, true),
         (3, ResolutionMode::EsNext, false),
         (99, ResolutionMode::CommonJs, true),
@@ -2397,7 +2390,7 @@ fn root_dirs_reuse_each_resolvers_directory_rules() {
 }
 
 #[test]
-fn matched_paths_miss_suppresses_base_url_but_keeps_ordinary_fallbacks() {
+fn matched_paths_miss_keeps_ordinary_fallbacks_and_base_url_is_ignored() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file("/work/base/pkg.ts", b"export const wrong = true;".to_vec())
@@ -2414,7 +2407,7 @@ fn matched_paths_miss_suppresses_base_url_but_keeps_ordinary_fallbacks() {
         vec!["missing/pkg".to_owned().into()],
     )]);
 
-    for resolution_kind in [1, 2, 3, 99, 100] {
+    for resolution_kind in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(resolution_kind),
             base_url: Some("./base".to_owned().into()),
@@ -2428,40 +2421,33 @@ fn matched_paths_miss_suppresses_base_url_but_keeps_ordinary_fallbacks() {
                 .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs)
                 .expect("fall through from matched paths miss"),
         );
-        let expected = if resolution_kind == 1 {
-            "/work/node_modules/@types/pkg/index.d.ts"
-        } else {
-            "/work/node_modules/pkg/index.d.ts"
-        };
         assert_eq!(
             module
                 .resolved_file()
                 .canonical()
                 .as_js()
                 .scalar_test_path(),
-            Path::new(expected),
+            Path::new("/work/node_modules/pkg/index.d.ts"),
             "moduleResolution={resolution_kind}"
         );
 
-        let base_url = resolved(
+        // TypeScript 7.1 removed `baseUrl` (TS5102): tsgo's
+        // `tryLoadModuleUsingOptionalResolutionSettings` has no baseUrl
+        // lookup, and a `--baseUrl ./base` probe leaves `unmapped`
+        // unresolved.
+        assert_eq!(
             resolver
                 .resolve("/work/main.ts", "unmapped", ResolutionMode::CommonJs)
-                .expect("a paths non-match continues to baseUrl"),
-        );
-        assert_eq!(
-            base_url
-                .resolved_file()
-                .canonical()
-                .as_js()
-                .scalar_test_path(),
-            Path::new("/work/base/unmapped.ts")
+                .expect("a paths non-match continues to node_modules"),
+            ResolutionOutcome::NotFound,
+            "moduleResolution={resolution_kind}"
         );
     }
 }
 
 #[test]
 fn optional_settings_preserve_each_observable_parent_directory_latch() {
-    for use_paths in [false, true] {
+    {
         let inner = MemoryCompilerHost::builder("/")
             .file("/main.ts", b"export {};".to_vec())
             .file("/base/pkg.ts", b"export const found = true;".to_vec())
@@ -2475,17 +2461,12 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
         };
         let options = CompilerOptions {
             module_resolution: Some(100),
-            base_url: (!use_paths).then(|| "/base".into()),
             ..CompilerOptions::default()
         };
-        let program_options = if use_paths {
-            ProgramOptions::default().with_paths(vec![PathMapping::new(
-                "pkg",
-                vec!["base/pkg".to_owned().into()],
-            )])
-        } else {
-            ProgramOptions::default()
-        };
+        let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
+            "pkg",
+            vec!["base/pkg".to_owned().into()],
+        )]);
         let mut resolver =
             ModuleResolver::new_with_program_options(&host, &options, &program_options)
                 .expect("create sequenced Node optional-settings resolver");
@@ -2493,48 +2474,9 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
             resolver
                 .resolve("/main.ts", "pkg", ResolutionMode::EsNext)
                 .expect("observe every Node parent-directory latch"),
-            ResolutionOutcome::NotFound,
-            "use_paths={use_paths}"
+            ResolutionOutcome::NotFound
         );
-        assert_eq!(host.calls.get(), 3, "use_paths={use_paths}");
-    }
-
-    for use_paths in [false, true] {
-        let inner = MemoryCompilerHost::builder("/")
-            .file("/main.ts", b"export {};".to_vec())
-            .file("/base/pkg.ts", b"export const found = true;".to_vec())
-            .build()
-            .expect("build sequenced Classic optional-settings host");
-        let host = SequencedDirectoryExistsHost {
-            inner,
-            watched_path: PathBuf::from("/base"),
-            answers: vec![true, false],
-            calls: Cell::new(0),
-        };
-        let options = CompilerOptions {
-            module_resolution: Some(1),
-            base_url: (!use_paths).then(|| "/base".into()),
-            ..CompilerOptions::default()
-        };
-        let program_options = if use_paths {
-            ProgramOptions::default().with_paths(vec![PathMapping::new(
-                "pkg",
-                vec!["base/pkg".to_owned().into()],
-            )])
-        } else {
-            ProgramOptions::default()
-        };
-        let mut resolver =
-            ModuleResolver::new_with_program_options(&host, &options, &program_options)
-                .expect("create sequenced Classic optional-settings resolver");
-        assert_eq!(
-            resolver
-                .resolve("/main.ts", "pkg", ResolutionMode::CommonJs)
-                .expect("observe both Classic parent-directory latches"),
-            ResolutionOutcome::NotFound,
-            "use_paths={use_paths}"
-        );
-        assert_eq!(host.calls.get(), 3, "use_paths={use_paths}");
+        assert_eq!(host.calls.get(), 3);
     }
 
     let inner = MemoryCompilerHost::builder("/")
@@ -2557,7 +2499,7 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
         vec!["base/pkg.ts".to_owned().into()],
     )]);
     assert_eq!(
-        validate_paths_option_diagnostics(&options, &program_options)
+        validate_paths_option_diagnostics(&program_options)
             .into_iter()
             .map(|diagnostic| diagnostic.code())
             .collect::<Vec<_>>(),
@@ -2643,31 +2585,10 @@ fn paths_without_base_url_use_cwd_and_path_matching_remains_case_sensitive() {
             .expect("case-distinct pattern is a supported miss"),
         ResolutionOutcome::NotFound
     );
-
-    let base_options = CompilerOptions {
-        module_resolution: Some(100),
-        base_url: Some("./base/../src".to_owned().into()),
-        ..CompilerOptions::default()
-    };
-    let mut base_resolver =
-        ModuleResolver::new(&host, &base_options).expect("normalize relative baseUrl from cwd");
-    let module = resolved(
-        base_resolver
-            .resolve("/Work/Project/main.ts", "Value", ResolutionMode::CommonJs)
-            .expect("resolve normalized baseUrl candidate"),
-    );
-    assert_eq!(
-        module
-            .resolved_file()
-            .canonical()
-            .as_js()
-            .scalar_test_path(),
-        Path::new("/work/project/src/value.ts")
-    );
 }
 
 #[test]
-fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate() {
+fn config_paths_use_their_declaring_base_and_ignore_base_url() {
     let host = MemoryCompilerHost::builder("/project")
         .file("/project/main.ts", b"export {};".to_vec())
         .file("/project/lib/cwd.ts", b"export {};".to_vec())
@@ -2716,6 +2637,8 @@ fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate(
         ResolutionOutcome::NotFound
     );
 
+    // TypeScript 7.1 removed `baseUrl`: tsgo `GetPathsBasePath` keeps the
+    // declaring config's directory and nothing falls back to the baseUrl.
     let with_base_url = CompilerOptions {
         module_resolution: Some(100),
         base_url: Some("/base".to_owned().into()),
@@ -2723,28 +2646,22 @@ fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate(
     };
     let mut resolver =
         ModuleResolver::new_with_program_options(&host, &with_base_url, &config_paths)
-            .expect("create baseUrl-overridden paths resolver");
-    let overridden = resolved(
+            .expect("create a paths resolver with an ignored baseUrl");
+    assert_eq!(
         resolver
             .resolve(
                 "/project/main.ts",
                 "@config/override",
                 ResolutionMode::CommonJs,
             )
-            .expect("baseUrl overrides pathsBasePath"),
+            .expect("baseUrl does not override pathsBasePath"),
+        ResolutionOutcome::NotFound
     );
     assert_eq!(
-        overridden.resolved_file().display().scalar_test_path(),
-        Path::new("/base/lib/override.ts")
-    );
-    let fallback = resolved(
         resolver
             .resolve("/project/main.ts", "unmatched", ResolutionMode::CommonJs)
-            .expect("baseUrl remains the non-matching paths fallback"),
-    );
-    assert_eq!(
-        fallback.resolved_file().display().scalar_test_path(),
-        Path::new("/base/unmatched.ts")
+            .expect("baseUrl is no non-matching paths fallback"),
+        ResolutionOutcome::NotFound
     );
 
     let programmatic = config_paths.clone().with_paths(vec![PathMapping::new(
@@ -2814,7 +2731,7 @@ fn root_dirs_reprobe_the_original_candidate_and_propagate_host_failures() {
         program_path("/work/gen"),
     ]);
 
-    for resolution_kind in [1, 2, 3, 99, 100] {
+    for resolution_kind in [3, 99, 100] {
         let failure = HostError::new(
             HostErrorKind::PermissionDenied,
             HostOperation::FileExists,
@@ -2907,7 +2824,7 @@ fn root_dirs_preflight_containing_directories_before_candidate_probes() {
     let program_options = ProgramOptions::default()
         .with_root_dirs(vec![program_path("/work/src"), program_path("/work/gen")]);
 
-    for resolution_kind in [1, 2, 3, 99, 100] {
+    for resolution_kind in [3, 99, 100] {
         let denied = HostError::new(
             HostErrorKind::PermissionDenied,
             HostOperation::DirectoryExists,
@@ -2993,16 +2910,14 @@ fn root_dirs_preflight_containing_directories_before_candidate_probes() {
 fn diagnostic_class_paths_errors_remain_recoverable_during_resolution() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
-        .file("/base.ts", b"export {};".to_vec())
-        .file("/base/wildcard.ts", b"export {};".to_vec())
-        .file("/base/two**.ts", b"export {};".to_vec())
-        .file("/base/value**.ts", b"export {};".to_vec())
-        .file("/base/empty.ts", b"export {};".to_vec())
+        .file("/work/wildcard.ts", b"export {};".to_vec())
+        .file("/work/two**.ts", b"export {};".to_vec())
+        .file("/work/value**.ts", b"export {};".to_vec())
+        .file("/work/empty.ts", b"export {};".to_vec())
         .build()
         .expect("build recoverable paths validation host");
     let options = CompilerOptions {
         module_resolution: Some(100),
-        base_url: Some("/base".to_owned().into()),
         ..CompilerOptions::default()
     };
     let empty_key_options = ProgramOptions::default().with_paths(vec![
@@ -3012,18 +2927,12 @@ fn diagnostic_class_paths_errors_remain_recoverable_during_resolution() {
     let mut empty_key_resolver =
         ModuleResolver::new_with_program_options(&host, &options, &empty_key_options)
             .expect("create empty-key shadow resolver");
-    let empty_key_falls_through = resolved(
+    assert_eq!(
         empty_key_resolver
             .resolve("/work/main.ts", "", ResolutionMode::CommonJs)
-            .expect("an empty exact key is falsey and shadows wildcard selection"),
-    );
-    assert_eq!(
-        empty_key_falls_through
-            .resolved_file()
-            .display()
-            .scalar_test_path(),
-        Path::new("/base.ts"),
-        "the wildcard candidate /base/wildcard.ts must not be selected"
+            .expect("an empty exact key shadows wildcard selection"),
+        ResolutionOutcome::NotFound,
+        "the wildcard candidate /work/wildcard.ts must not be selected"
     );
 
     let program_options = ProgramOptions::default().with_paths(vec![
@@ -3035,21 +2944,19 @@ fn diagnostic_class_paths_errors_remain_recoverable_during_resolution() {
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("option-diagnostic paths rows must not abort resolver construction");
 
-    let skipped_pattern = resolved(
+    // TypeScript 7.1 has no `baseUrl` fallback: a skipped multi-star
+    // pattern and an empty substitution list continue to node_modules.
+    assert_eq!(
         resolver
             .resolve("/work/main.ts", "two**", ResolutionMode::CommonJs)
-            .expect("a multi-star pattern is skipped before baseUrl fallback"),
-    );
-    assert_eq!(
-        skipped_pattern.resolved_file().display().scalar_test_path(),
-        Path::new("/base/two**.ts")
+            .expect("a multi-star pattern is skipped"),
+        ResolutionOutcome::NotFound
     );
     assert_eq!(
         resolver
             .resolve("/work/main.ts", "empty", ResolutionMode::CommonJs,)
             .expect("an empty substitution list remains a supported miss"),
-        ResolutionOutcome::NotFound,
-        "a matched empty list owns the miss instead of falling back to baseUrl"
+        ResolutionOutcome::NotFound
     );
     // tsgo tryLoadModuleUsingPaths replaces the first `*` of the substitution
     // with the matched text even for an exact key (empty): `value**` becomes
@@ -3106,30 +3013,13 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
             .expect("TypeScript permits UNC and drive-relative paths substitutions");
     }
 
-    {
-        let base_url = "\0";
-        let options = CompilerOptions {
-            base_url: Some(base_url.to_owned().into()),
-            ..CompilerOptions::default()
-        };
-        let error = match ModuleResolver::new(&host, &options) {
-            Ok(_) => panic!("malformed baseUrl must fail closed"),
-            Err(error) => error,
-        };
-        assert!(matches!(
-            error,
-            ResolutionError::InvalidData(_) | ResolutionError::Unsupported { .. }
-        ));
-    }
-
-    for base_url in [r"\\server\share", "C:relative"] {
-        let options = CompilerOptions {
-            base_url: Some(base_url.to_owned().into()),
-            ..CompilerOptions::default()
-        };
-        ModuleResolver::new(&host, &options)
-            .expect("TypeScript normalizes UNC and drive-relative baseUrl spellings");
-    }
+    // TypeScript 7.1 removed `baseUrl`; the resolver never reads it, so even
+    // a malformed value constructs.
+    let options = CompilerOptions {
+        base_url: Some("\0".to_owned().into()),
+        ..CompilerOptions::default()
+    };
+    ModuleResolver::new(&host, &options).expect("the resolver ignores baseUrl");
 }
 
 #[test]
@@ -3520,7 +3410,7 @@ fn optional_directory_targets_classify_the_final_path_before_realpath() {
         .build()
         .expect("build optional final-path classification host");
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
@@ -3573,7 +3463,7 @@ fn optional_directory_targets_classify_the_final_path_before_realpath() {
 }
 
 #[test]
-fn arbitrary_extension_twins_resolve_in_legacy_and_node_esm_modes() {
+fn arbitrary_extension_twins_resolve_in_bundler_and_node_esm_modes() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(
@@ -3587,7 +3477,7 @@ fn arbitrary_extension_twins_resolve_in_legacy_and_node_esm_modes() {
         vec!["src/theme.css".to_owned().into()],
     )]);
 
-    for resolution_kind in [1, 2, 3, 99, 100] {
+    for resolution_kind in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(resolution_kind),
             ..CompilerOptions::default()
@@ -3682,420 +3572,6 @@ fn empty_captures_replace_the_star_and_paths_precede_modern_package_maps() {
 }
 
 #[test]
-fn classic_resolution_is_bounded_to_legacy_files_and_at_types() {
-    let host = MemoryCompilerHost::builder("/work")
-        .file("/work/src/app.ts", b"export {};".to_vec())
-        .file("/work/src/other.ts", b"export const x = 1;".to_vec())
-        .file("/work/src/legacy.ts", b"export const x = 1;".to_vec())
-        .file(
-            "/work/node_modules/direct/index.d.ts",
-            b"export const x: 1;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/@types/traditional/package.json",
-            br#"{"name":"@types/traditional","version":"1.0.0","types":"index.d.ts"}"#.to_vec(),
-        )
-        .file(
-            "/work/node_modules/@types/traditional/index.d.ts",
-            b"export const x: 1;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/@types/foo/package.json",
-            br#"{
-                "name":"@types/foo",
-                "version":"1.0.0",
-                "exports":{
-                    ".":{
-                        "import":"./index.d.mts",
-                        "require":"./index.d.cts"
-                    }
-                }
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/@types/foo/index.d.mts",
-            b"export const x: \"module\";".to_vec(),
-        )
-        .file(
-            "/work/node_modules/@types/foo/index.d.cts",
-            b"export const x: \"script\";".to_vec(),
-        )
-        .build()
-        .expect("build Classic resolver host");
-    let options = CompilerOptions {
-        module: Some(99),
-        module_resolution: Some(1),
-        ..CompilerOptions::default()
-    };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Classic resolver");
-
-    for (specifier, expected) in [
-        ("./other", "/work/src/other.ts"),
-        ("legacy", "/work/src/legacy.ts"),
-        (
-            "traditional",
-            "/work/node_modules/@types/traditional/index.d.ts",
-        ),
-    ] {
-        let module = resolved(
-            resolver
-                .resolve("/work/src/app.ts", specifier, ResolutionMode::EsNext)
-                .expect("resolve a Classic legacy target"),
-        );
-        assert_eq!(
-            module
-                .resolved_file()
-                .canonical()
-                .as_js()
-                .scalar_test_path(),
-            Path::new(expected)
-        );
-    }
-
-    assert_eq!(
-        resolver
-            .resolve("/work/src/app.ts", "direct", ResolutionMode::EsNext,)
-            .expect("ordinary node_modules packages are outside Classic"),
-        ResolutionOutcome::NotFound
-    );
-    for mode in [
-        ResolutionMode::Unspecified,
-        ResolutionMode::EsNext,
-        ResolutionMode::CommonJs,
-    ] {
-        let facts = resolver
-            .resolve_with_facts("/work/src/app.ts", "foo", mode)
-            .expect("Classic exports-only @types package is an authoritative miss");
-        assert_eq!(facts.outcome(), &ResolutionOutcome::NotFound);
-        assert_eq!(facts.alternate_result(), None);
-    }
-}
-
-#[test]
-fn node10_primary_miss_retains_the_bundler_declaration_alternate() {
-    let host = MemoryCompilerHost::builder("/")
-        .file("/index.ts", b"import { pkg } from 'pkg';".to_vec())
-        .file(
-            "/node_modules/pkg/package.json",
-            br#"{
-                "name":"pkg",
-                "version":"1.0.0",
-                "exports":{".":"./definitely-not-index.js"}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/node_modules/pkg/definitely-not-index.d.ts",
-            b"export {};".to_vec(),
-        )
-        .build()
-        .expect("build Node10 alternate host");
-    let options = CompilerOptions {
-        module_resolution: Some(2),
-        ..CompilerOptions::default()
-    };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
-
-    let facts = resolver
-        .resolve_with_facts("/index.ts", "pkg", ResolutionMode::Unspecified)
-        .expect("resolve Node10 primary and diagnostic alternate");
-    assert_eq!(facts.outcome(), &ResolutionOutcome::NotFound);
-    assert_eq!(
-        facts
-            .alternate_result()
-            .expect("Bundler preferred retry finds the declaration twin")
-            .canonical()
-            .as_js()
-            .scalar_test_path(),
-        Path::new("/node_modules/pkg/definitely-not-index.d.ts")
-    );
-
-    assert_eq!(
-        resolver
-            .resolve("/index.ts", "pkg", ResolutionMode::Unspecified)
-            .expect("legacy wrapper keeps the primary outcome"),
-        ResolutionOutcome::NotFound
-    );
-}
-
-#[test]
-fn node10_legacy_primary_and_bundler_retry_keep_their_exact_boundaries() {
-    let host = MemoryCompilerHost::builder("/")
-        .file("/index.ts", b"export {};".to_vec())
-        .file(
-            "/node_modules/typed/package.json",
-            br#"{
-                "name":"typed",
-                "version":"1.0.0",
-                "types":"./legacy.d.ts",
-                "exports":{".":"./modern.js"}
-            }"#
-            .to_vec(),
-        )
-        .file("/node_modules/typed/legacy.d.ts", b"export {};".to_vec())
-        .file("/node_modules/typed/modern.d.ts", b"export {};".to_vec())
-        .file(
-            "/node_modules/untyped/package.json",
-            br#"{
-                "name":"untyped",
-                "version":"1.0.0",
-                "main":"./legacy.js",
-                "exports":{".":"./modern.js"}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/node_modules/untyped/legacy.js",
-            b"module.exports = {};".to_vec(),
-        )
-        .file("/node_modules/untyped/modern.d.ts", b"export {};".to_vec())
-        .file(
-            "/node_modules/js-only/package.json",
-            br#"{
-                "name":"js-only",
-                "version":"1.0.0",
-                "exports":{".":"./modern.js"}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/node_modules/js-only/modern.js",
-            b"module.exports = {};".to_vec(),
-        )
-        .file(
-            "/node_modules/conditions/package.json",
-            br#"{
-                "name":"conditions",
-                "version":"1.0.0",
-                "exports":{
-                    ".":{
-                        "node":"./node.js",
-                        "import":"./import.js",
-                        "require":"./require.js"
-                    }
-                }
-            }"#
-            .to_vec(),
-        )
-        .file("/node_modules/conditions/node.d.ts", b"export {};".to_vec())
-        .file(
-            "/node_modules/conditions/import.d.ts",
-            b"export {};".to_vec(),
-        )
-        .file(
-            "/node_modules/conditions/require.d.ts",
-            b"export {};".to_vec(),
-        )
-        .file(
-            "/node_modules/manifestless/placeholder.txt",
-            b"package directory without a manifest".to_vec(),
-        )
-        .file(
-            "/node_modules/@types/manifestless/package.json",
-            br#"{
-                "name":"@types/manifestless",
-                "version":"1.0.0",
-                "exports":{".":"./modern.js"}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/node_modules/@types/manifestless/modern.d.ts",
-            b"export {};".to_vec(),
-        )
-        .file(
-            "/node_modules/no-manifests/placeholder.txt",
-            b"package directory without a manifest".to_vec(),
-        )
-        .file(
-            "/node_modules/@types/no-manifests/placeholder.txt",
-            b"types package directory without a manifest".to_vec(),
-        )
-        .build()
-        .expect("build bounded Node10 host");
-    let options = CompilerOptions {
-        module_resolution: Some(2),
-        ..CompilerOptions::default()
-    };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
-
-    let typed = resolver
-        .resolve_with_facts("/index.ts", "typed", ResolutionMode::Unspecified)
-        .expect("Node10 legacy types field wins");
-    let ResolutionOutcome::Resolved(typed_primary) = typed.outcome() else {
-        panic!("expected typed legacy primary: {typed:#?}");
-    };
-    assert_eq!(
-        typed_primary
-            .resolved_file()
-            .canonical()
-            .as_js()
-            .scalar_test_path(),
-        Path::new("/node_modules/typed/legacy.d.ts")
-    );
-    assert_eq!(typed.alternate_result(), None);
-
-    let untyped = resolver
-        .resolve_with_facts("/index.ts", "untyped", ResolutionMode::Unspecified)
-        .expect("Node10 JavaScript primary retains a declaration alternate");
-    let ResolutionOutcome::Resolved(untyped_primary) = untyped.outcome() else {
-        panic!("expected untyped legacy primary: {untyped:#?}");
-    };
-    assert_eq!(untyped_primary.extension(), &ModuleExtension::Js);
-    assert_eq!(
-        untyped
-            .alternate_result()
-            .expect("Bundler retry finds modern types")
-            .canonical()
-            .as_js()
-            .scalar_test_path(),
-        Path::new("/node_modules/untyped/modern.d.ts")
-    );
-
-    let js_only = resolver
-        .resolve_with_facts("/index.ts", "js-only", ResolutionMode::Unspecified)
-        .expect("preferred-only retry does not accept JavaScript");
-    assert_eq!(js_only.outcome(), &ResolutionOutcome::NotFound);
-    assert_eq!(js_only.alternate_result(), None);
-
-    let conditions = resolver
-        .resolve_with_facts("/index.ts", "conditions", ResolutionMode::Unspecified)
-        .expect("Bundler retry uses Bundler default conditions");
-    assert_eq!(conditions.outcome(), &ResolutionOutcome::NotFound);
-    assert_eq!(
-        conditions
-            .alternate_result()
-            .expect("Bundler defaults select import and exclude node")
-            .canonical()
-            .as_js()
-            .scalar_test_path(),
-        Path::new("/node_modules/conditions/import.d.ts")
-    );
-
-    let manifestless = resolver
-        .resolve_with_facts("/index.ts", "manifestless", ResolutionMode::Unspecified)
-        .expect("an observed @types package manifest enables Bundler retry");
-    assert_eq!(manifestless.outcome(), &ResolutionOutcome::NotFound);
-    assert_eq!(
-        manifestless
-            .alternate_result()
-            .expect("Bundler retry honors the observed @types exports")
-            .canonical()
-            .as_js()
-            .scalar_test_path(),
-        Path::new("/node_modules/@types/manifestless/modern.d.ts")
-    );
-
-    let no_manifests = resolver
-        .resolve_with_facts("/index.ts", "no-manifests", ResolutionMode::Unspecified)
-        .expect("manifestless package directories do not enable Bundler retry");
-    assert_eq!(no_manifests.outcome(), &ResolutionOutcome::NotFound);
-    assert_eq!(no_manifests.alternate_result(), None);
-}
-
-#[test]
-fn node10_explicit_modes_enable_all_features_and_select_conditions() {
-    let host = MemoryCompilerHost::builder("/work")
-        .file("/work/main.ts", b"export {};".to_vec())
-        .file(
-            "/work/node_modules/pkg/package.json",
-            br#"{
-                "name":"pkg","version":"1.0.0","types":"./legacy.d.ts",
-                "exports":{".":{
-                    "import":"./import.js","require":"./require.js"
-                }}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/pkg/legacy.d.ts",
-            b"export const selected: 'legacy';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/pkg/import.d.ts",
-            b"export const selected: 'import';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/pkg/require.d.ts",
-            b"export const selected: 'require';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/diagnostic/package.json",
-            br#"{
-                "name":"diagnostic","version":"1.0.0",
-                "exports":{".":{
-                    "import":"./import.js","require":"./require.js"
-                }}
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/diagnostic/require.js",
-            b"exports.selected = 'require';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/diagnostic/import.d.ts",
-            b"export const selected: 'import';".to_vec(),
-        )
-        .build()
-        .expect("build Node10 explicit-mode host");
-    let options = CompilerOptions {
-        module_resolution: Some(2),
-        ..CompilerOptions::default()
-    };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
-
-    for (mode, expected) in [
-        (
-            ResolutionMode::Unspecified,
-            "/work/node_modules/pkg/legacy.d.ts",
-        ),
-        (
-            ResolutionMode::CommonJs,
-            "/work/node_modules/pkg/require.d.ts",
-        ),
-        (ResolutionMode::EsNext, "/work/node_modules/pkg/import.d.ts"),
-    ] {
-        let module = resolved(
-            resolver
-                .resolve("/work/main.ts", "pkg", mode)
-                .expect("resolve a Node10 mode-aware package"),
-        );
-        assert_eq!(
-            module.resolved_file().display().scalar_test_path(),
-            Path::new(expected),
-            "{mode:?}"
-        );
-    }
-
-    let exports_disabled = CompilerOptions {
-        module_resolution: Some(2),
-        resolve_package_json_exports: Some(false),
-        ..CompilerOptions::default()
-    };
-    let mut resolver =
-        ModuleResolver::new(&host, &exports_disabled).expect("create explicit Node10 resolver");
-    let facts = resolver
-        .resolve_with_facts("/work/main.ts", "diagnostic", ResolutionMode::CommonJs)
-        .expect("explicit Node10 and its Bundler retry force package exports");
-    let ResolutionOutcome::Resolved(primary) = facts.outcome() else {
-        panic!("expected the CommonJS exports implementation: {facts:#?}");
-    };
-    assert_eq!(
-        primary.resolved_file().display().scalar_test_path(),
-        Path::new("/work/node_modules/diagnostic/require.js")
-    );
-    assert_eq!(
-        facts
-            .alternate_result()
-            .map(ProgramPath::display)
-            .map(|path| path.scalar_test_path()),
-        Some(Path::new("/work/node_modules/diagnostic/import.d.ts"))
-    );
-}
-
-#[test]
 fn node16_and_nodenext_keep_fixed_package_map_features_but_bundler_applies_overrides() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.mts", b"export {};".to_vec())
@@ -4143,7 +3619,7 @@ fn node16_and_nodenext_keep_fixed_package_map_features_but_bundler_applies_overr
 }
 
 #[test]
-fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spine() {
+fn type_references_use_the_node_style_primary_secondary_spine() {
     let linked = b"declare const linked: true;".to_vec();
     let host = MemoryCompilerHost::builder("/work/project")
         .file("/work/project/src/main.ts", b"export {};".to_vec())
@@ -4188,7 +3664,7 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
         .expect("create custom type root");
     let no_primary_roots: Vec<ProgramPath> = Vec::new();
 
-    for module_resolution in [1, 2] {
+    for module_resolution in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(module_resolution),
             ..CompilerOptions::default()
@@ -4344,7 +3820,7 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
 }
 
 #[test]
-fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
+fn type_reference_modes_enable_exports_only_for_secondary_lookup() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(
@@ -4402,17 +3878,21 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
             b"export declare const selected: 'secondary-require';".to_vec(),
         )
         .build()
-        .expect("build legacy conditional type-reference host");
+        .expect("build conditional type-reference host");
     let type_root = ProgramPath::from_trusted_parts("/work/types", "/work/types")
         .expect("create custom type root");
 
-    for module_resolution in [1, 2] {
+    // tsgo `--module esnext --typeRoots ./types` (bundler): a type root
+    // lookup ignores `exports` in every mode; the node_modules lookup uses
+    // them, an unspecified mode selecting the `import` condition.
+    {
         let options = CompilerOptions {
-            module_resolution: Some(module_resolution),
+            module: Some(99),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         };
         let mut resolver =
-            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
+            ModuleResolver::new(&host, &options).expect("create bundler type resolver");
         for mode in [
             ResolutionMode::Unspecified,
             ResolutionMode::CommonJs,
@@ -4425,9 +3905,9 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
                     mode,
                     Some(std::slice::from_ref(&type_root)),
                 )
-                .expect("resolve a legacy conditional type reference")
+                .expect("resolve a type-root conditional type reference")
             else {
-                panic!("expected legacy conditional type reference");
+                panic!("expected a type-root conditional type reference");
             };
             assert_eq!(
                 reference
@@ -4447,8 +3927,8 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
         for (mode, expected, extension) in [
             (
                 ResolutionMode::Unspecified,
-                "/work/node_modules/secondary-conditional/legacy.d.ts",
-                ModuleExtension::Dts,
+                "/work/node_modules/secondary-conditional/import.d.mts",
+                ModuleExtension::Dmts,
             ),
             (
                 ResolutionMode::CommonJs,
@@ -4463,9 +3943,9 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
         ] {
             let ResolutionOutcome::Resolved(reference) = resolver
                 .resolve_type_reference("/work/main.ts", "secondary-conditional", mode, Some(&[]))
-                .expect("resolve a secondary legacy conditional type reference")
+                .expect("resolve a secondary conditional type reference")
             else {
-                panic!("expected secondary legacy conditional type reference");
+                panic!("expected a secondary conditional type reference");
             };
             assert_eq!(
                 reference
@@ -4482,86 +3962,6 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
             );
             assert!(!reference.primary());
         }
-    }
-}
-
-#[test]
-fn node10_unspecified_type_reference_exports_use_an_empty_condition_set() {
-    let host = MemoryCompilerHost::builder("/work")
-        .file("/work/main.ts", b"export {};".to_vec())
-        .file(
-            "/work/node_modules/conditions/package.json",
-            br#"{
-                "name":"conditions",
-                "version":"1.0.0",
-                "types":"legacy.d.ts",
-                "exports":{
-                    ".":{
-                        "types":"./types.d.ts",
-                        "require":"./require.d.cts",
-                        "custom":"./custom.d.ts",
-                        "default":"./default.d.ts"
-                    }
-                }
-            }"#
-            .to_vec(),
-        )
-        .file(
-            "/work/node_modules/conditions/legacy.d.ts",
-            b"declare const selected: 'legacy';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/conditions/types.d.ts",
-            b"declare const selected: 'types';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/conditions/require.d.cts",
-            b"export declare const selected: 'require';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/conditions/custom.d.ts",
-            b"declare const selected: 'custom';".to_vec(),
-        )
-        .file(
-            "/work/node_modules/conditions/default.d.ts",
-            b"declare const selected: 'default';".to_vec(),
-        )
-        .build()
-        .expect("build legacy condition-set host");
-    let no_primary_roots: Vec<ProgramPath> = Vec::new();
-
-    for (module_resolution, expected) in [
-        (1, "/work/node_modules/conditions/types.d.ts"),
-        (2, "/work/node_modules/conditions/default.d.ts"),
-    ] {
-        let options = CompilerOptions {
-            module_resolution: Some(module_resolution),
-            resolve_package_json_exports: Some(true),
-            custom_conditions: Some(vec!["custom".to_owned().into()]),
-            ..CompilerOptions::default()
-        };
-        let mut resolver =
-            ModuleResolver::new(&host, &options).expect("create legacy type resolver");
-        let ResolutionOutcome::Resolved(reference) = resolver
-            .resolve_type_reference(
-                "/work/main.ts",
-                "conditions",
-                ResolutionMode::Unspecified,
-                Some(&no_primary_roots),
-            )
-            .expect("resolve an unspecified legacy conditional type reference")
-        else {
-            panic!("expected legacy conditional type reference");
-        };
-        assert_eq!(
-            reference
-                .resolved_file()
-                .canonical()
-                .as_js()
-                .scalar_test_path(),
-            Path::new(expected)
-        );
-        assert!(!reference.primary());
     }
 }
 
@@ -4616,7 +4016,7 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
         .expect("build exports pattern feature host");
     let no_primary_roots: Vec<ProgramPath> = Vec::new();
 
-    for resolution_kind in [1, 2, 3, 99, 100] {
+    for resolution_kind in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(resolution_kind),
             resolve_package_json_exports: Some(true),
@@ -4638,30 +4038,22 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
                     Some(&no_primary_roots),
                 )
                 .expect("resolve a trailer-pattern type reference");
-            let trailers_enabled =
-                mode != ResolutionMode::Unspecified || matches!(resolution_kind, 3 | 99 | 100);
-            if trailers_enabled {
-                let ResolutionOutcome::Resolved(reference) = trailer else {
-                    panic!(
-                        "expected trailer pattern for moduleResolution={resolution_kind}, mode={mode:?}"
-                    );
-                };
-                assert_eq!(
-                    reference
-                        .resolved_file()
-                        .canonical()
-                        .as_js()
-                        .scalar_test_path(),
-                    Path::new("/work/node_modules/trailer/types/entry.d.ts"),
-                    "moduleResolution={resolution_kind}, mode={mode:?}"
+            // tsgo: node16, nodenext and bundler all carry
+            // `NodeResolutionFeaturesExportsPatternTrailers`.
+            let ResolutionOutcome::Resolved(reference) = trailer else {
+                panic!(
+                    "expected trailer pattern for moduleResolution={resolution_kind}, mode={mode:?}"
                 );
-            } else {
-                assert_eq!(
-                    trailer,
-                    ResolutionOutcome::NotFound,
-                    "moduleResolution={resolution_kind}, mode={mode:?}"
-                );
-            }
+            };
+            assert_eq!(
+                reference
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
+                Path::new("/work/node_modules/trailer/types/entry.d.ts"),
+                "moduleResolution={resolution_kind}, mode={mode:?}"
+            );
 
             let ResolutionOutcome::Resolved(terminal) = resolver
                 .resolve_type_reference(
@@ -4713,7 +4105,7 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
 }
 
 #[test]
-fn legacy_secondary_subpaths_honor_nested_packages_for_ordinary_and_at_types_lookups() {
+fn secondary_type_reference_subpaths_honor_nested_packages_for_ordinary_and_at_types_lookups() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(
@@ -4783,7 +4175,7 @@ fn legacy_secondary_subpaths_honor_nested_packages_for_ordinary_and_at_types_loo
         .expect("build nested secondary type-reference host");
     let no_primary_roots: Vec<ProgramPath> = Vec::new();
 
-    for module_resolution in [1, 2] {
+    for module_resolution in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(module_resolution),
             ..CompilerOptions::default()
@@ -4952,7 +4344,7 @@ fn nested_type_module_extensionless_entries_are_blocked_only_in_node_esm_modes()
 }
 
 #[test]
-fn legacy_secondary_subpath_manifest_failures_precede_root_exports() {
+fn secondary_subpath_manifest_failures_precede_root_exports() {
     let denied = HostError::new(
         HostErrorKind::PermissionDenied,
         HostOperation::FileExists,
@@ -4984,10 +4376,10 @@ fn legacy_secondary_subpath_manifest_failures_precede_root_exports() {
         .build()
         .expect("build nested-manifest failure host");
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 type resolver");
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Bundler type resolver");
     let no_primary_roots: Vec<ProgramPath> = Vec::new();
     let error = resolver
         .resolve_type_reference(
@@ -5001,7 +4393,7 @@ fn legacy_secondary_subpath_manifest_failures_precede_root_exports() {
 }
 
 #[test]
-fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() {
+fn direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() {
     let unrelated_manifest = HostError::new(
         HostErrorKind::PermissionDenied,
         HostOperation::FileExists,
@@ -5024,7 +4416,7 @@ fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() 
     let type_root = ProgramPath::from_trusted_parts("/work/types", "/work/types")
         .expect("create custom type root");
 
-    for module_resolution in [1, 2] {
+    for module_resolution in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(module_resolution),
             ..CompilerOptions::default()
@@ -5078,7 +4470,7 @@ fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() 
 }
 
 #[test]
-fn legacy_external_custom_root_direct_hits_use_the_actual_package_root_before_realpath() {
+fn external_custom_root_direct_hits_use_the_actual_package_root_before_realpath() {
     let declaration = b"declare const direct: true;".to_vec();
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
@@ -5107,7 +4499,7 @@ fn legacy_external_custom_root_direct_hits_use_the_actual_package_root_before_re
     )
     .expect("create external custom type root");
 
-    for module_resolution in [1, 2] {
+    for module_resolution in [3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(module_resolution),
             ..CompilerOptions::default()
@@ -5529,7 +4921,6 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
         .expect("build package-imports host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/base.ts".to_owned().into()),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
@@ -5587,14 +4978,14 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
         "tsgo: a bare imports target under node_modules is external"
     );
 
-    let empty = resolved(
+    // An empty imports target re-enters resolution as the bare name ``,
+    // which misses (tsgo traces the nested `Resolving module ''` and leaves
+    // `#empty` unresolved; TypeScript 7.1 has no baseUrl lookup).
+    assert_eq!(
         resolver
             .resolve("/index.ts", "#empty", ResolutionMode::EsNext)
-            .expect("an empty imports target re-enters baseUrl resolution"),
-    );
-    assert_eq!(
-        empty.resolved_file().display().scalar_test_path(),
-        Path::new("/base.ts")
+            .expect("an empty imports target re-enters resolution"),
+        ResolutionOutcome::NotFound
     );
 
     for specifier in ["#blocked", "#cycle-a", "#cycle-b", "#self"] {
@@ -5626,7 +5017,7 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
 }
 
 #[test]
-fn empty_package_import_target_reaches_node_modules_after_base_url_misses() {
+fn empty_package_import_target_reaches_node_modules() {
     let host = MemoryCompilerHost::builder("/work")
         .file(
             "/work/package.json",
@@ -5645,7 +5036,6 @@ fn empty_package_import_target_reaches_node_modules_after_base_url_misses() {
         .expect("build empty imports node_modules target host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/base".to_owned().into()),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create NodeNext resolver");
@@ -5738,7 +5128,7 @@ fn package_imports_growing_wildcard_chain_fails_with_a_typed_resource_limit() {
 }
 
 #[test]
-fn deep_conditional_import_rewrites_probe_base_url_before_every_map_step() {
+fn deep_conditional_import_rewrites_follow_every_map_step() {
     let mut imports = serde_json::Map::new();
     for index in 0..300 {
         let next = if index == 299 {
@@ -5769,20 +5159,17 @@ fn deep_conditional_import_rewrites_probe_base_url_before_every_map_step() {
         .file("/work/package.json", package_json)
         .file("/work/index.ts", b"export {};".to_vec())
         .file("/work/wrong.d.ts", b"export const wrong: true;".to_vec())
-        .file(
-            "/base/#300.d.ts",
-            b"export const fromBaseUrl: true;".to_vec(),
-        )
         .build()
-        .expect("build conditional imports and baseUrl host");
-    let mut options = options_for_module(199);
-    options.base_url = Some("/base".to_owned().into());
+        .expect("build conditional imports host");
+    let options = options_for_module(199);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
+    // tsgo `--module nodenext`: `#0` was successfully resolved to
+    // `/work/wrong.d.ts` with Package ID `root/wrong.d.ts@1.0.0`.
     let module = resolved(
         resolver
             .resolve("/work/index.ts", "#0", ResolutionMode::CommonJs)
-            .expect("resolve a deep conditional chain through baseUrl"),
+            .expect("resolve a deep conditional chain"),
     );
     assert_eq!(
         module
@@ -5790,9 +5177,11 @@ fn deep_conditional_import_rewrites_probe_base_url_before_every_map_step() {
             .canonical()
             .as_js()
             .scalar_test_path(),
-        Path::new("/base/#300.d.ts")
+        Path::new("/work/wrong.d.ts")
     );
-    assert_eq!(module.package_id(), None);
+    let package_id = module.package_id().expect("the imports owner's package id");
+    assert_eq!(package_id.name(), "root");
+    assert_eq!(package_id.submodule_name(), "wrong.d.ts");
 }
 
 #[test]
@@ -6104,7 +5493,6 @@ fn imports_backslash_targets_keep_raw_paths_matching_before_normalized_fallbacks
         .file("/work/index.ts", b"export {};".to_vec())
         .file("/mapped/raw.ts", b"export const raw: true;".to_vec())
         .file("/mapped/slash.ts", b"export const slash: true;".to_vec())
-        .file("/base/dep/sub.ts", b"export const base: true;".to_vec())
         .file(
             "/work/node_modules/dep/sub/package.json",
             br#"{"name":"dep\\sub","version":"4.5.6","types":"index.d.ts"}"#.to_vec(),
@@ -6116,8 +5504,7 @@ fn imports_backslash_targets_keep_raw_paths_matching_before_normalized_fallbacks
         .build()
         .expect("build backslash imports-target host");
 
-    let mut optional = options_for_module(199);
-    optional.base_url = Some("/base".to_owned().into());
+    let optional = options_for_module(199);
     let paths = ProgramOptions::default().with_paths(vec![
         PathMapping::new("dep\\sub", vec!["/mapped/raw.ts".to_owned().into()]),
         PathMapping::new("dep/sub", vec!["/mapped/slash.ts".to_owned().into()]),
@@ -6133,18 +5520,6 @@ fn imports_backslash_targets_keep_raw_paths_matching_before_normalized_fallbacks
     assert_eq!(
         raw.resolved_file().canonical().as_js().scalar_test_path(),
         Path::new("/mapped/raw.ts")
-    );
-
-    let mut resolver = ModuleResolver::new(&host, &optional).expect("create baseUrl resolver");
-    let base_outcome = resolver
-        .resolve("/work/index.ts", "#back", ResolutionMode::CommonJs)
-        .expect("baseUrl backslash target has a typed outcome");
-    let ResolutionOutcome::Resolved(base) = base_outcome else {
-        panic!("baseUrl must normalize a backslash target after paths");
-    };
-    assert_eq!(
-        base.resolved_file().canonical().as_js().scalar_test_path(),
-        Path::new("/base/dep/sub.ts")
     );
 
     let options = options_for_module(199);
@@ -6426,7 +5801,6 @@ fn package_imports_reject_rooted_disk_targets_before_paths_lookup() {
         .expect("build rooted imports-target host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/work".to_owned().into()),
         ..CompilerOptions::default()
     };
     let paths = ProgramOptions::default().with_paths(vec![
@@ -6484,7 +5858,6 @@ fn uri_like_names_run_optional_imports_and_self_name_before_the_node_uri_gate() 
         .expect("build URI ordering host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/work".to_owned().into()),
         ..CompilerOptions::default()
     };
     let paths = ProgramOptions::default().with_paths(vec![PathMapping::new(
@@ -6530,29 +5903,6 @@ fn uri_like_names_run_optional_imports_and_self_name_before_the_node_uri_gate() 
             .resolve("/work/main.mts", "node:missing", ResolutionMode::EsNext,)
             .expect("a URI-looking optional/imports/SelfName miss is supported"),
         ResolutionOutcome::NotFound
-    );
-
-    let classic_host = MemoryCompilerHost::builder("/work")
-        .file("/work/main.ts", b"export {};".to_vec())
-        .file("/work/node:fs.ts", b"export const classic = true;".to_vec())
-        .build()
-        .expect("build Classic URI spelling host");
-    let classic_options = CompilerOptions {
-        module_resolution: Some(1),
-        ..CompilerOptions::default()
-    };
-    let mut resolver = ModuleResolver::new(&classic_host, &classic_options)
-        .expect("create Classic URI spelling resolver");
-    assert_eq!(
-        resolved(
-            resolver
-                .resolve("/work/main.ts", "node:fs", ResolutionMode::CommonJs,)
-                .expect("Classic keeps URI-looking names in ancestor file search"),
-        )
-        .resolved_file()
-        .display()
-        .scalar_test_path(),
-        Path::new("/work/node:fs.ts")
     );
 }
 
@@ -6692,19 +6042,23 @@ fn bare_import_targets_preserve_the_current_extension_mask_and_features() {
         .build()
         .expect("build bare imports extension-mask host");
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Bundler resolver");
 
+    // tsgo `--module esnext`: the `imports` target `dep` resolves within
+    // the request with its whole extension mask (the JavaScript of the
+    // fallback pass), and the imports match ends the lookup, so the
+    // `node_modules/#x` package is never consulted.
     let module = resolved(
         resolver
             .resolve("/work/main.ts", "#x", ResolutionMode::EsNext)
-            .expect("a preferred imports rewrite must not consume JavaScript"),
+            .expect("resolve a bare imports target"),
     );
     assert_eq!(
         module.resolved_file().display().scalar_test_path(),
-        Path::new("/work/node_modules/#x/index.d.ts")
+        Path::new("/work/node_modules/dep/index.js")
     );
     assert!(module.is_external_library_import());
 }
@@ -6753,61 +6107,6 @@ fn bare_import_targets_search_preferred_extensions_across_all_ancestors_first() 
     );
     // tsgo createResolvedModuleHandlingSymlink: external by path.
     assert!(module.is_external_library_import());
-}
-
-#[test]
-fn nested_node10_fallback_runs_the_zero_extension_bundler_retry() {
-    let failure = HostError::new(
-        HostErrorKind::Other,
-        HostOperation::DirectoryExists,
-        Some(PathBuf::from("/work/mapped")),
-        "fourth mapped-directory observation from the zero-extension retry",
-    );
-    let inner = MemoryCompilerHost::builder("/work")
-        .file("/work/main.cts", b"export {};".to_vec())
-        .file(
-            "/work/package.json",
-            br##"{"name":"workspace","imports":{"#x":"dep"}}"##.to_vec(),
-        )
-        .file(
-            "/work/node_modules/dep/package.json",
-            br#"{"name":"dep","version":"1.0.0","types":"missing.d.ts","main":"missing.js"}"#
-                .to_vec(),
-        )
-        .build()
-        .expect("build nested zero-extension retry host");
-    let host = NthDirectoryExistsFailureHost {
-        inner,
-        watched_path: PathBuf::from("/work/mapped"),
-        fail_on: 4,
-        calls: RefCell::new(Vec::new()),
-        failure: failure.clone(),
-    };
-    let options = CompilerOptions {
-        module: Some(1),
-        module_resolution: Some(2),
-        base_url: Some("/work".to_owned().into()),
-        ..CompilerOptions::default()
-    };
-    let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
-        "dep",
-        vec!["mapped/missing".to_owned().into()],
-    )]);
-    let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
-        .expect("create nested Node10 resolver");
-
-    let error = resolver
-        .resolve("/work/main.cts", "#x", ResolutionMode::CommonJs)
-        .expect_err("the zero-extension Bundler retry must observe the fourth host failure");
-    assert_eq!(error, ResolutionError::Host(failure));
-    assert_eq!(
-        host.calls
-            .borrow()
-            .iter()
-            .filter(|path| path.as_path() == Path::new("/work/mapped"))
-            .count(),
-        4
-    );
 }
 
 #[test]
@@ -6866,10 +6165,10 @@ fn nested_exports_disabled_retry_retains_the_bundler_condition_profile() {
     };
     let options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Bundler resolver");
 
     let module = resolved(
         resolver
@@ -6888,7 +6187,7 @@ fn nested_exports_disabled_retry_retains_the_bundler_condition_profile() {
             .borrow()
             .iter()
             .any(|path| path == Path::new("/work/danger.d.ts")),
-        "the Bundler diagnostic must not re-enable Node10's node condition"
+        "Bundler resolution never selects the node condition"
     );
 }
 
@@ -8196,10 +7495,10 @@ fn self_name_observes_the_empty_secondary_extension_mask() {
         failure: failure.clone(),
     };
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Bundler resolver");
     let error = resolver
         .resolve("/work/main.cts", "workspace", ResolutionMode::CommonJs)
         .expect_err("the empty SelfName secondary mask must propagate its host failure");
@@ -8954,10 +8253,10 @@ fn relative_directory_spellings_reenter_the_root_package_entry_field() {
         .expect("build a package-root directory-spelling host");
     let options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Bundler resolver");
 
     for specifier in ["..", "../"] {
         let outcome = resolver
@@ -9057,7 +8356,7 @@ fn relative_directory_spellings_skip_direct_files_for_modules_and_type_reference
         .expect("build relative trailing-directory host");
     let options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
@@ -9382,10 +8681,10 @@ fn types_versions_targets_follow_tsgo_get_paths() {
         .build()
         .expect("build tsgo typesVersions value packages");
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create Bundler resolver");
 
     // A value that is not an array is no mapping: the request falls to the
     // ordinary lookup.
@@ -9586,7 +8885,7 @@ fn malformed_types_versions_objects_fall_back_to_legacy_package_fields() {
         .build()
         .expect("build malformed typesVersions packages");
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
@@ -9732,47 +9031,53 @@ fn direct_legacy_files_use_actual_node_package_roots_without_local_scope_reads()
         Some(PathBuf::from("/work/package.json")),
         "a local direct-file resolution must not read its ancestor manifest",
     );
-    let host = MemoryCompilerHost::builder("/work")
-        .file(
-            "/work/package.json",
-            br#"{"name":"workspace","version":"1.0.0"}"#.to_vec(),
-        )
-        .file("/work/main.ts", b"export {};".to_vec())
-        .file("/work/local.ts", b"export const local: true;".to_vec())
-        .file(
-            "/work/node_modules/outer/package.json",
-            br#"{"name":"outer","version":"1.0.0"}"#.to_vec(),
-        )
-        .file("/work/node_modules/outer/index.ts", b"export {};".to_vec())
-        .file(
-            "/work/node_modules/outer/nested/package.json",
-            br#"{"name":"nested","version":"2.0.0"}"#.to_vec(),
-        )
-        .file(
-            "/work/node_modules/outer/nested/value.ts",
-            b"export const value: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/direct/package.json",
-            br#"{"name":"direct","version":"1.0.0"}"#.to_vec(),
-        )
-        .file(
-            "/work/node_modules/direct.ts",
-            b"export const sibling: true;".to_vec(),
-        )
-        .file(
-            "/work/node_modules/direct/index.d.ts",
-            b"export const wrongIndex: true;".to_vec(),
-        )
-        .failure(forbidden_scope_read)
-        .build()
-        .expect("build direct-file provenance host");
+    let host = |forbid_scope_read: bool| {
+        let builder = MemoryCompilerHost::builder("/work")
+            .file(
+                "/work/package.json",
+                br#"{"name":"workspace","version":"1.0.0"}"#.to_vec(),
+            )
+            .file("/work/main.ts", b"export {};".to_vec())
+            .file("/work/local.ts", b"export const local: true;".to_vec())
+            .file(
+                "/work/node_modules/outer/package.json",
+                br#"{"name":"outer","version":"1.0.0"}"#.to_vec(),
+            )
+            .file("/work/node_modules/outer/index.ts", b"export {};".to_vec())
+            .file(
+                "/work/node_modules/outer/nested/package.json",
+                br#"{"name":"nested","version":"2.0.0"}"#.to_vec(),
+            )
+            .file(
+                "/work/node_modules/outer/nested/value.ts",
+                b"export const value: true;".to_vec(),
+            )
+            .file(
+                "/work/node_modules/direct/package.json",
+                br#"{"name":"direct","version":"1.0.0"}"#.to_vec(),
+            )
+            .file(
+                "/work/node_modules/direct.ts",
+                b"export const sibling: true;".to_vec(),
+            )
+            .file(
+                "/work/node_modules/direct/index.d.ts",
+                b"export const wrongIndex: true;".to_vec(),
+            );
+        let builder = if forbid_scope_read {
+            builder.failure(forbidden_scope_read.clone())
+        } else {
+            builder
+        };
+        builder.build().expect("build direct-file provenance host")
+    };
     let options = CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
-    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let scoped_host = host(true);
+    let mut resolver = ModuleResolver::new(&scoped_host, &options).expect("create resolver");
 
     let local = resolved(
         resolver
@@ -9799,9 +9104,14 @@ fn direct_legacy_files_use_actual_node_package_roots_without_local_scope_reads()
         Some(Into::into("nested/value.ts"))
     );
 
+    // A bare name first reads the nearest package scope for the self-name
+    // lookup (tsgo traces `/work/package.json` before the node_modules
+    // walk), then the root direct file precedes the package directory.
+    let unscoped_host = host(false);
+    let mut resolver = ModuleResolver::new(&unscoped_host, &options).expect("create resolver");
     let sibling = resolved(
         resolver
-            .resolve("/work/main.ts", "direct", ResolutionMode::Unspecified)
+            .resolve("/work/main.ts", "direct", ResolutionMode::CommonJs)
             .expect("root direct file precedes the package directory worker"),
     );
     assert_eq!(
@@ -9841,7 +9151,7 @@ fn optional_direct_files_preserve_parse_node_module_package_slices() {
         .build()
         .expect("build parseNodeModuleFromPath direct-file host");
     let options = CompilerOptions {
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
@@ -9928,7 +9238,7 @@ fn bare_package_trailing_separators_retain_candidate_and_package_id_spelling() {
 }
 
 #[test]
-fn external_relative_root_dirs_keep_lexical_paths_in_node_and_classic_modes() {
+fn external_relative_root_dirs_keep_lexical_paths() {
     let source = b"export const linked: true;".to_vec();
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/src/main.ts", b"export {};".to_vec())
@@ -9942,7 +9252,7 @@ fn external_relative_root_dirs_keep_lexical_paths_in_node_and_classic_modes() {
         program_path("/work/node_modules/pkg"),
     ]);
 
-    for resolution_kind in [1, 2] {
+    for resolution_kind in [3, 99, 100] {
         let options = CompilerOptions {
             module: Some(1),
             module_resolution: Some(resolution_kind),
@@ -10528,4 +9838,170 @@ fn declaration_reached_by_appending_ts_to_a_d_js_specifier_keeps_the_ts_extensio
     )
     .expect("the program admits the `.ts` record on a declaration path");
     assert_eq!(program.source_files().len(), 2);
+}
+
+fn exports_and_types_package_host() -> MemoryCompilerHost {
+    MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","types":"./legacy.d.ts","exports":{".":{"types":"./modern.d.ts","default":"./index.js"}}}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/legacy.d.ts",
+            b"export declare const which: 1;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/modern.d.ts",
+            b"export declare const which: 2;".to_vec(),
+        )
+        .file("/work/node_modules/pkg/index.js", b"exports.which = 2;".to_vec())
+        .build()
+        .expect("build exports-and-types package host")
+}
+
+#[test]
+fn removed_resolution_kinds_take_the_module_default_and_trace_it_as_unspecified() {
+    // tsgo `GetModuleResolutionKind` maps a removed classic/node10 value to
+    // the module kind's default; its trace says the kind is not specified
+    // (tsgo `--traceResolution` on this package for each row).
+    let host = exports_and_types_package_host();
+    for (module, module_resolution, mode, kind_line) in [
+        (
+            Some(1),
+            Some(2),
+            ResolutionMode::CommonJs,
+            "Module resolution kind is not specified, using 'Bundler'.",
+        ),
+        (
+            Some(100),
+            Some(2),
+            ResolutionMode::CommonJs,
+            "Module resolution kind is not specified, using 'Node16'.",
+        ),
+        (
+            Some(99),
+            Some(1),
+            ResolutionMode::EsNext,
+            "Module resolution kind is not specified, using 'Bundler'.",
+        ),
+        (
+            Some(99),
+            Some(100),
+            ResolutionMode::EsNext,
+            "Explicitly specified module resolution kind: 'Bundler'.",
+        ),
+    ] {
+        let options = CompilerOptions {
+            module,
+            module_resolution,
+            trace_resolution: Some(true),
+            ..CompilerOptions::default()
+        };
+        let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+        let resolution = resolver
+            .resolve_with_facts("/work/main.ts", "pkg", mode)
+            .expect("resolve through the default resolution");
+        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+            panic!("module={module:?} moduleResolution={module_resolution:?} must resolve");
+        };
+        // The package's `exports` types, not Node10's `types` field.
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new("/work/node_modules/pkg/modern.d.ts")
+        );
+        let trace = resolution
+            .trace()
+            .iter()
+            .map(|line| line.text())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            trace.get(1).map(String::as_str),
+            Some(kind_line),
+            "module={module:?} moduleResolution={module_resolution:?}"
+        );
+    }
+}
+
+#[test]
+fn type_references_use_the_module_features_without_widening_explicit_modes() {
+    // tsgo `newResolutionState` gives a type reference the features of a
+    // module request: bundler applies `resolvePackageJsonExports: false`
+    // even with an explicit resolution mode, while node16 and nodenext keep
+    // their fixed masks (tsgo `--resolvePackageJsonExports false` with a
+    // `/// <reference types="cond" />` in each mode).
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/cond/package.json",
+            br#"{"name":"cond","version":"1.0.0","types":"./legacy.d.ts","exports":{".":{"import":"./import.d.mts","require":"./require.d.cts"}}}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/cond/legacy.d.ts",
+            b"declare const legacyTypes: 1;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/cond/import.d.mts",
+            b"declare const importTypes: 1; export {};".to_vec(),
+        )
+        .file(
+            "/work/node_modules/cond/require.d.cts",
+            b"declare const requireTypes: 1; export {};".to_vec(),
+        )
+        .build()
+        .expect("build conditional type-reference host");
+    let no_primary_roots: Vec<ProgramPath> = Vec::new();
+    for (module, expected) in [
+        (
+            99,
+            [
+                "/work/node_modules/cond/legacy.d.ts",
+                "/work/node_modules/cond/legacy.d.ts",
+                "/work/node_modules/cond/legacy.d.ts",
+            ],
+        ),
+        (
+            100,
+            [
+                "/work/node_modules/cond/require.d.cts",
+                "/work/node_modules/cond/require.d.cts",
+                "/work/node_modules/cond/import.d.mts",
+            ],
+        ),
+        (
+            199,
+            [
+                "/work/node_modules/cond/require.d.cts",
+                "/work/node_modules/cond/require.d.cts",
+                "/work/node_modules/cond/import.d.mts",
+            ],
+        ),
+    ] {
+        let options = CompilerOptions {
+            module: Some(module),
+            resolve_package_json_exports: Some(false),
+            ..CompilerOptions::default()
+        };
+        let mut resolver = ModuleResolver::new(&host, &options).expect("create type resolver");
+        for (mode, expected) in [
+            ResolutionMode::Unspecified,
+            ResolutionMode::CommonJs,
+            ResolutionMode::EsNext,
+        ]
+        .into_iter()
+        .zip(expected)
+        {
+            let ResolutionOutcome::Resolved(reference) = resolver
+                .resolve_type_reference("/work/main.ts", "cond", mode, Some(&no_primary_roots))
+                .expect("resolve a conditional type reference")
+            else {
+                panic!("module={module}, mode={mode:?} must resolve");
+            };
+            assert_eq!(
+                reference.resolved_file().display().scalar_test_path(),
+                Path::new(expected),
+                "module={module}, mode={mode:?}"
+            );
+        }
+    }
 }

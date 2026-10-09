@@ -542,20 +542,17 @@ impl CompilerOptions {
             && self.emit_script_target() >= ScriptTarget::ES2022
     }
 
-    /// tsc _computedOptions.moduleResolution.computeValue (18040):
-    /// explicit value wins; else None(0)/AMD(2)/UMD(3)/System(4) →
-    /// Classic(1), NodeNext(199) → NodeNext(99), Node16(100)..<199 →
-    /// Node16(3), else Bundler(100). TS6 dropped the Node10 default —
-    /// CommonJS computes Bundler.
+    /// tsgo `GetModuleResolutionKind` @7.1 (core/compileroptions.go): an
+    /// explicit node16, nodenext or bundler is used; an unset (unknown, 0)
+    /// and a removed classic(1) or node10(2) value (TS5108) take the default
+    /// from the module kind, node16/nodenext for those and bundler for every
+    /// other one. TypeScript 7.1 has no classic or node10 resolver.
     pub fn emit_module_resolution_kind(&self) -> i32 {
-        if let Some(module_resolution) = self.module_resolution {
+        if let Some(module_resolution) =
+            self.module_resolution.filter(|kind| !matches!(kind, 0..=2))
+        {
             return module_resolution;
         }
-        // tsgo `GetModuleResolutionKind` @7.1 (core/compileroptions.go): the
-        // default is node16/nodenext for those module kinds and bundler for
-        // every other one (TypeScript 6.0 defaulted amd/umd/system to
-        // classic). An explicit classic/node10 value still selects that
-        // resolver here; 7.1 maps it to the default as well (next class).
         match self.emit_module_kind() {
             199 => 99,
             100..=198 => 3,

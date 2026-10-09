@@ -220,52 +220,13 @@ fn consume(session: ProgramSession) -> NoEmitOutcome {
     session.run().expect("one-shot session")
 }
 
-/// The semantic rows of a program whose options carry a removed-option row.
-/// TypeScript 7.1 reports `moduleResolution=node10` (TS5108) and, like its
-/// command line, gates the semantic bucket behind that row; the native
-/// harness union is ungated, like `getPreEmitDiagnostics`.
-struct UngatedOutcome {
-    semantic: Vec<Diagnostic>,
-}
-
-impl UngatedOutcome {
-    fn semantic_diagnostics(&self) -> &[Diagnostic] {
-        &self.semantic
-    }
-}
-
-/// The native harness run of a program whose options carry a removed-option
-/// row: tsc's command, and the session's `run`, then bind the files and
-/// initialize the checker for the global diagnostics but check no source, so
-/// the authoritative table is never consulted and the suggestion rows never
-/// produced. The harness checks every source.
-fn run_ungated(session: ProgramSession) -> Result<NoEmitOutcome, DriverError> {
+/// The native harness run: unlike the command, which closes the check of
+/// the sources behind an options diagnostic and leaves suggestions out, the
+/// harness checks every source and collects the suggestion rows.
+fn run_native_harness(session: ProgramSession) -> Result<NoEmitOutcome, DriverError> {
     session.run_for_native_harness(NativeHarnessCollection {
         capture_suggestions: true,
     })
-}
-
-fn consume_ungated(session: ProgramSession) -> UngatedOutcome {
-    let outcome = session
-        .run_for_native_harness(NativeHarnessCollection {
-            capture_suggestions: false,
-        })
-        .expect("one-shot session");
-    assert_eq!(
-        codes(outcome.options_diagnostics()),
-        [5108],
-        "{:?}",
-        outcome.options_diagnostics()
-    );
-    assert!(outcome.syntactic_diagnostics().is_empty());
-    assert!(outcome.semantic_diagnostics().is_empty());
-    let semantic = outcome
-        .native_harness_diagnostics()
-        .iter()
-        .filter(|diagnostic| diagnostic.file_name.is_some())
-        .cloned()
-        .collect();
-    UngatedOutcome { semantic }
 }
 
 fn assert_one_cached_library_saved_work(
@@ -602,15 +563,14 @@ fn programmatic_node_module_resolution_relationships_keep_exact_module_names() {
             PreparationDiagnostics::default(),
             |options| {
                 options.module = Some(module);
-                options.module_resolution = Some(1);
+                options.module_resolution = Some(100);
             },
         )));
         let diagnostics = outcome.options_diagnostics();
-        // TypeScript 7.1 adds the removed `moduleResolution=Classic` row and
-        // has no resolveJsonModule/classic row. (tsgo also maps an explicit
-        // classic to the default resolution, which removes the TS5109 row;
-        // that mapping is the next class.)
-        let expected_codes: &[u32] = &[5108, 5109];
+        // tsgo `--module node18 --moduleResolution bundler`: TS5095 and the
+        // TS5109 relationship row. A removed classic/node10 value maps to
+        // the module's default resolution and reports TS5108 alone.
+        let expected_codes: &[u32] = &[5095, 5109];
         assert_eq!(codes(diagnostics), expected_codes, "module {module}");
         for diagnostic in diagnostics {
             assert!(diagnostic.file_name.is_none());
@@ -667,7 +627,7 @@ fn located_program_diagnostics_route_by_text_owner() {
     assert!(outcome.conformance_diagnostics().is_empty());
     // The native harness collects every kind: the row the source owns is
     // joined to that source's semantic diagnostics.
-    let harness = run_ungated(ProgramSession::new(prepared)).expect("one-shot session");
+    let harness = run_native_harness(ProgramSession::new(prepared)).expect("one-shot session");
     assert_eq!(codes(harness.options_diagnostics()), [9501]);
     let mut routed = harness
         .native_harness_diagnostics()
@@ -1110,20 +1070,19 @@ fn authoritative_not_found_does_not_fall_through_to_a_relative_probe_hit() {
         &[1],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             ..CompilerOptions::default()
         },
         |builder, _| {
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./dep", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./dep", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::not_found()),
                 )
                 .expect("add authoritative relative miss");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(
         outcome
             .semantic_diagnostics()
@@ -1152,13 +1111,12 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
         &[3],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             ..CompilerOptions::default()
         },
         |builder, ids| {
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./decoy", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./decoy", ResolutionMode::CommonJs),
                     Ok(source_resolution(
                         ids[2],
                         "/types/hidden.d.ts",
@@ -1169,7 +1127,7 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(
         outcome
             .semantic_diagnostics()
@@ -1322,7 +1280,6 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             roots,
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
                 rewrite_relative_import_extensions: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1342,7 +1299,7 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
                 .with_external_library_import(case.is_external_library_import);
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", case.specifier, ResolutionMode::Unspecified),
+                        module_key("/main.ts", case.specifier, ResolutionMode::CommonJs),
                         Ok(ModuleResolution::resolved(module)),
                     )
                     .expect("add authoritative rewrite resolution");
@@ -1355,7 +1312,7 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             .expect("cached authoritative rewrite session");
         assert_eq!(owned, cached, "{} cache mode", case.name);
         assert_one_cached_library_saved_work(&owned, &cached, MINIMAL_GLOBALS.len());
-        let outcome = consume_ungated(ProgramSession::new(prepared));
+        let outcome = consume(ProgramSession::new(prepared));
         let diagnostics = outcome
             .semantic_diagnostics()
             .iter()
@@ -1389,7 +1346,7 @@ fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
         &[1],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         },
         |_, _| {},
@@ -1411,13 +1368,13 @@ fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
         &[1],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         },
         |builder, _| {
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./theme.css", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./theme.css", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::not_found()),
                 )
                 .expect("add pattern ambient miss");
@@ -1440,7 +1397,7 @@ fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
         &[1],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
         },
@@ -1456,7 +1413,7 @@ fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
             .with_package_id(PackageId::new("pkg-js", "index.js", "1.0.0"));
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "pkg-js", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "pkg-js", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add pattern-over-untyped row");
@@ -1514,21 +1471,20 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
             &[1],
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
                 import_helpers: Some(true),
                 ..CompilerOptions::default()
             },
             |builder, ids| {
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", "./a", ResolutionMode::Unspecified),
+                        module_key("/main.ts", "./a", ResolutionMode::CommonJs),
                         Ok(source_resolution(ids[0], "/a.ts", ModuleExtension::Ts)),
                     )
                     .expect("add source row");
                 if include_tslib_miss {
                     builder
                         .add_module_resolution(
-                            module_key("/main.ts", "tslib", ResolutionMode::Unspecified),
+                            module_key("/main.ts", "tslib", ResolutionMode::CommonJs),
                             Ok(ModuleResolution::not_found()),
                         )
                         .expect("add tslib miss");
@@ -1537,16 +1493,16 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
         )
     };
 
-    let error = run_ungated(ProgramSession::new(make_program(false)))
+    let error = run_native_harness(ProgramSession::new(make_program(false)))
         .expect_err("missing synthetic tslib row must fail the session");
     let DriverError::MissingResolution(missing) = error else {
         panic!("unexpected driver error: {error:?}");
     };
     assert_eq!(missing.origin(), path("/main.ts").canonical());
     assert_eq!(missing.specifier(), "tslib");
-    assert_eq!(missing.mode(), ResolutionMode::Unspecified);
+    assert_eq!(missing.mode(), ResolutionMode::CommonJs);
 
-    let outcome = consume_ungated(ProgramSession::new(make_program(true)));
+    let outcome = consume(ProgramSession::new(make_program(true)));
     assert!(codes(outcome.semantic_diagnostics()).contains(&2354));
 }
 
@@ -2082,19 +2038,18 @@ fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
             &[0],
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
                 ..CompilerOptions::default()
             },
             |builder, _| {
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                         Ok(resolution),
                     )
                     .expect("add unsupported record");
             },
         );
-        let error = run_ungated(ProgramSession::new(prepared))
+        let error = run_native_harness(ProgramSession::new(prepared))
             .expect_err("unsupported row must fail the session");
         let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
             source_token,
@@ -2109,69 +2064,9 @@ fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
         assert_eq!(source_token.0, 1);
         assert_eq!(containing_file, "/main.ts");
         assert_eq!(specifier, "pkg");
-        assert_eq!(mode, tsc_checker::AuthoritativeResolutionMode::Unspecified);
+        assert_eq!(mode, tsc_checker::AuthoritativeResolutionMode::CommonJs);
         assert_eq!(actual, expected);
     }
-}
-
-#[test]
-fn authoritative_not_found_preserves_node10_alternate_result_chain() {
-    let source = "import { pkg } from \"pkg\";\n";
-    let alternate_result = "/node_modules/pkg/definitely-not-index.d.ts";
-    let prepared = authoritative_program(
-        &[("/index.ts", source)],
-        &[0],
-        CompilerOptions {
-            module_resolution: Some(2),
-            ..CompilerOptions::default()
-        },
-        |builder, _| {
-            builder
-                .add_module_resolution(
-                    module_key("/index.ts", "pkg", ResolutionMode::Unspecified),
-                    Ok(ModuleResolution::not_found().with_alternate_result(path(alternate_result))),
-                )
-                .expect("add authoritative alternate-result miss");
-        },
-    );
-
-    let outcome = consume_ungated(ProgramSession::new(prepared));
-    let diagnostics = outcome.semantic_diagnostics();
-    assert_eq!(codes(diagnostics), [2307]);
-    let diagnostic = &diagnostics[0];
-    assert_eq!(
-        (
-            diagnostic
-                .file_name
-                .as_ref()
-                .map(|value| value.as_str().expect("scalar legacy option observation")),
-            diagnostic.start,
-            diagnostic.length,
-            diagnostic
-                .message_text()
-                .as_str()
-                .expect("scalar diagnostic observation"),
-        ),
-        (
-            Some("/index.ts"),
-            Some(source.find("\"pkg\"").expect("module specifier") as u32),
-            Some("\"pkg\"".len() as u32),
-            "Cannot find module 'pkg' or its corresponding type declarations.",
-        )
-    );
-    assert_eq!(diagnostic.message.next.len(), 1);
-    assert_eq!(
-        (
-            diagnostic.message.next[0].code,
-            diagnostic.message.next[0].category,
-            diagnostic.message.next[0].text.as_str().expect("scalar diagnostic detail"),
-        ),
-        (
-            6280,
-            DiagnosticCategory::Message,
-            "There are types at '/node_modules/pkg/definitely-not-index.d.ts', but this result could not be resolved under your current 'moduleResolution' setting. Consider updating to 'node16', 'nodenext', or 'bundler'.",
-        )
-    );
 }
 
 #[test]
@@ -2239,7 +2134,6 @@ fn authoritative_unloaded_javascript_keeps_suggestions_out_of_cli_output() {
             &[0],
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
                 no_implicit_any: Some(false),
                 ..CompilerOptions::default()
             },
@@ -2255,14 +2149,14 @@ fn authoritative_unloaded_javascript_keeps_suggestions_out_of_cli_output() {
                 .with_package_id(PackageId::new("pkg", "index.js", "1.0.0"));
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                         Ok(ModuleResolution::resolved(module)),
                     )
                     .expect("add unloaded authoritative row");
             },
         );
 
-        let outcome = run_ungated(ProgramSession::new(prepared)).expect("one-shot session");
+        let outcome = run_native_harness(ProgramSession::new(prepared)).expect("one-shot session");
         assert!(outcome.semantic_diagnostics().is_empty());
         assert!(outcome
             .diagnostics()
@@ -2282,7 +2176,7 @@ fn authoritative_unloaded_javascript_keeps_suggestions_out_of_cli_output() {
 #[test]
 fn loaded_external_javascript_preserves_authoritative_package_detail_precedence() {
     for (alternate, types_package_exists, package_bundles_types, expected_tail) in [
-        (Some("/types/pkg.d.ts"), true, true, 6280),
+        (Some("/types/pkg.d.ts"), true, true, 6278),
         (None, true, true, 7040),
         (None, false, true, 7058),
         (None, false, false, 7035),
@@ -2298,7 +2192,6 @@ fn loaded_external_javascript_preserves_authoritative_package_detail_precedence(
             &[1],
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
                 allow_js: true,
                 no_implicit_any: Some(true),
                 ..CompilerOptions::default()
@@ -2321,14 +2214,14 @@ fn loaded_external_javascript_preserves_authoritative_package_detail_precedence(
                 }
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", "pkg/subpath", ResolutionMode::Unspecified),
+                        module_key("/main.ts", "pkg/subpath", ResolutionMode::CommonJs),
                         Ok(resolution),
                     )
                     .expect("add loaded external JavaScript row");
             },
         );
 
-        let outcome = run_ungated(ProgramSession::new(prepared)).expect("one-shot session");
+        let outcome = run_native_harness(ProgramSession::new(prepared)).expect("one-shot session");
         assert!(outcome.semantic_diagnostics().is_empty());
         assert!(outcome
             .diagnostics()
@@ -2361,7 +2254,6 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2377,14 +2269,14 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
             .with_package_id(PackageId::new("pkg", "index.js", "1.0.0"));
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add untyped augmentation row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [2665]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2400,7 +2292,6 @@ fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() 
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
         },
@@ -2415,14 +2306,14 @@ fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() 
             .with_package_id(PackageId::new("inapplicable", "impl.js", "1.0.0"));
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./impl.js", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./impl.js", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module).with_package_bundles_types(true)),
                 )
                 .expect("add relative untyped row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     let diagnostics = outcome.semantic_diagnostics();
     assert_eq!(codes(diagnostics), [7016]);
     let mut chain_codes = vec![diagnostics[0].message.code];
@@ -2443,7 +2334,6 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             allow_js: true,
             no_implicit_any: Some(true),
             jsx: Some(1),
@@ -2460,14 +2350,14 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
             .with_external_library_import(true);
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add unloaded JSX row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [7016]);
 }
 
@@ -2478,7 +2368,6 @@ fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritativ
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             allow_js: true,
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
@@ -2495,14 +2384,14 @@ fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritativ
             .with_package_id(PackageId::new("pkg", "index.js", "1.0.0"));
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add depth-elided JavaScript row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [7016]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2518,7 +2407,6 @@ fn unloaded_jsx_without_mode_reports_6142() {
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2533,14 +2421,14 @@ fn unloaded_jsx_without_mode_reports_6142() {
             .with_external_library_import(true);
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add JSX resolution-diagnostic row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6142]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2556,7 +2444,6 @@ fn unloaded_arbitrary_declaration_reports_6263() {
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2569,14 +2456,14 @@ fn unloaded_arbitrary_declaration_reports_6263() {
             );
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./data.json", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./data.json", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add arbitrary-extension resolution-diagnostic row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6263]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2595,7 +2482,6 @@ fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2608,14 +2494,14 @@ fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
             );
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./data.json", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./data.json", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add augmentation-only arbitrary-extension row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6263]);
 }
 
@@ -2629,7 +2515,6 @@ fn declaration_augmentation_may_introduce_a_resolution_only_arbitrary_target() {
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2642,7 +2527,7 @@ fn declaration_augmentation_may_introduce_a_resolution_only_arbitrary_target() {
             );
             builder
                 .add_module_resolution(
-                    module_key("/main.d.ts", "./data.json", ResolutionMode::Unspecified),
+                    module_key("/main.d.ts", "./data.json", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add declaration augmentation arbitrary-extension row");
@@ -2663,7 +2548,6 @@ fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() 
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             allow_arbitrary_extensions: Some(true),
             ..CompilerOptions::default()
         },
@@ -2677,14 +2561,14 @@ fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() 
             );
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./data.css", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./data.css", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add enabled arbitrary augmentation row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [2664]);
 }
 
@@ -2701,7 +2585,6 @@ fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
         &[0, 1],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2715,14 +2598,14 @@ fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
             );
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "./dependency.jsx", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "./dependency.jsx", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add owned JSX row");
         },
     );
 
-    let outcome = consume_ungated(ProgramSession::new(prepared));
+    let outcome = consume(ProgramSession::new(prepared));
     assert_eq!(codes(outcome.semantic_diagnostics()), [6142, 2322]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
@@ -2788,7 +2671,6 @@ fn malformed_unloaded_reasons_fail_closed() {
             &[0],
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
                 allow_js,
                 ..CompilerOptions::default()
             },
@@ -2800,14 +2682,14 @@ fn malformed_unloaded_reasons_fail_closed() {
                 .with_external_library_import(external);
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                         Ok(ModuleResolution::resolved(module)),
                     )
                     .expect("add unloaded authoritative row");
             },
         );
 
-        let error = run_ungated(ProgramSession::new(prepared))
+        let error = run_native_harness(ProgramSession::new(prepared))
             .expect_err("unsupported unloaded target must fail the session");
         let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
             failure: AuthoritativeModuleLookupFailure::Unsupported(actual),
@@ -2827,7 +2709,7 @@ fn loaded_original_path_projects_the_validated_source_token() {
         &[0],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         },
         |builder, ids| {
@@ -2842,7 +2724,7 @@ fn loaded_original_path_projects_the_validated_source_token() {
             .with_original_path(path("/alias/main.ts"));
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add metadata-bearing source row");
@@ -2869,7 +2751,7 @@ fn loaded_package_identity_is_consumed_at_the_authoritative_boundary() {
         &[1],
         CompilerOptions {
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         },
         |builder, ids| {
@@ -2884,7 +2766,7 @@ fn loaded_package_identity_is_consumed_at_the_authoritative_boundary() {
             .with_package_id(PackageId::new("pkg", "index.d.ts", "1.0.0"));
             builder
                 .add_module_resolution(
-                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                     Ok(ModuleResolution::resolved(module)),
                 )
                 .expect("add package-identified source row");
@@ -3004,13 +2886,13 @@ fn external_library_source_metadata_is_consumed_authoritatively() {
             &[1],
             CompilerOptions {
                 module: Some(1),
-                module_resolution: Some(2),
+                module_resolution: Some(100),
                 ..CompilerOptions::default()
             },
             |builder, ids| {
                 builder
                     .add_module_resolution(
-                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
                         Ok(ModuleResolution::resolved(
                             ResolvedModule::new(
                                 ResolvedModuleTarget::Source {
@@ -3141,7 +3023,7 @@ fn physical_resolved_file_identity_projects_its_validated_source_id() {
         CompilerOptions {
             no_emit: Some(true),
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         },
     );
@@ -3164,7 +3046,7 @@ fn physical_resolved_file_identity_projects_its_validated_source_id() {
     builder.add_root_file(main).expect("add root");
     builder
         .add_module_resolution(
-            module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+            module_key("/main.ts", "pkg", ResolutionMode::CommonJs),
             Ok(ModuleResolution::resolved(
                 ResolvedModule::new(
                     ResolvedModuleTarget::Source {

@@ -85,7 +85,7 @@ fn native_filesystem_and_memory_hosts_build_the_same_small_program() {
     let options = CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default()

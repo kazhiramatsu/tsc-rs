@@ -97,7 +97,7 @@ impl CompilerHost for FailingFileHost {
 fn options(module_suffixes: Option<Vec<ModuleSuffix>>) -> CompilerOptions {
     CompilerOptions {
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         resolve_json_module: Some(true),
         module_suffixes,
         ..CompilerOptions::default()
@@ -468,7 +468,7 @@ fn recursive_loader_admits_only_the_selected_suffixed_source() {
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         module_suffixes: Some(vec![ModuleSuffix::value(".native")]),
         ..CompilerOptions::default()
     };
@@ -495,36 +495,6 @@ fn recursive_loader_admits_only_the_selected_suffixed_source() {
         .source_files()
         .iter()
         .all(|source| source.path().display().scalar_test_path() != Path::new("/dep.ts")));
-}
-
-#[test]
-fn separator_suffix_classifies_the_selected_classic_path_before_realpath() {
-    let selected = PathBuf::from("/foo/node_modules/native.ts");
-    let host = RecordingFileHost {
-        inner: MemoryCompilerHost::builder("/")
-            .file("/index.ts", b"import 'foo';".to_vec())
-            .file(&selected, b"export const native = true;".to_vec())
-            .build()
-            .expect("Classic separator suffix fixture"),
-        calls: RefCell::new(Vec::new()),
-        realpath_calls: RefCell::new(Vec::new()),
-    };
-    let compiler_options = CompilerOptions {
-        module: Some(1),
-        module_resolution: Some(1),
-        module_suffixes: Some(vec![ModuleSuffix::value("/node_modules/native")]),
-        ..CompilerOptions::default()
-    };
-    let outcome = resolve(&host, &compiler_options, &ProgramOptions::default(), "foo");
-    let ResolutionOutcome::Resolved(module) = outcome else {
-        panic!("separator-bearing Classic suffix must resolve")
-    };
-    assert_eq!(
-        module.resolved_file().display().scalar_test_path(),
-        selected
-    );
-    assert!(module.is_external_library_import());
-    assert_eq!(host.realpath_calls.borrow().as_slice(), [selected]);
 }
 
 #[test]
@@ -641,7 +611,7 @@ fn loader_deduplicates_dot_segment_suffix_spellings_by_normalized_program_identi
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
         module: Some(1),
-        module_resolution: Some(2),
+        module_resolution: Some(100),
         module_suffixes: Some(vec![
             ModuleSuffix::value("/../native"),
             ModuleSuffix::value(""),

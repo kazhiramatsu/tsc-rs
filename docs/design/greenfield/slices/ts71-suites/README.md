@@ -1353,3 +1353,69 @@ P4-5b と P4-7c の記録に残した項目を確かめた。
   7.1)` 19m52s、`gates` 14s。全て成功）。merge → `2fdedb42f`（merge commit）。
 - 次：API server の計画（[ts71-api-server](../ts71-api-server/README.md)、決定待ち）。削除済みの `node10`／`classic` の slice は
   その後か並行で（上の記録）。
+
+## 削除済みの module 解決の設定（`node10`／`classic`／`baseUrl`）（2026-10-09）
+
+P4-7 の後の小修正の記録に残した slice（利用者の判断で API server より先に。resolver は API server も使う）。TypeScript 7.1 には
+classic と node10 の resolver も `baseUrl` の lookup も無い。tsgo の test runner はこれらの設定の case を skip する
+（`SkipUnsupportedCompilerOptions`：node10／classic、`baseUrl`、UMD／System、ES5 など）ので、conformance では比べられない。tsgo の
+source と binary で確かめた。
+
+- **resolution kind**：tsgo `GetModuleResolutionKind` は未指定（unknown）と削除済みの classic／node10 を `module` から決まる既定
+  （node16／node18／node20 は node16、nodenext は nodenext、他は bundler）にする。port の `emit_module_resolution_kind` は書かれた値を
+  返していた。tsgo どおりにし、trace の「Explicitly specified module resolution kind」は書かれた値が使われる値のときだけ（削除済みの
+  値は「Module resolution kind is not specified, using 'X'」）。TS5108 は書かれた値で出す（変えない）。見える差：program の file と
+  宣言の出力（`exports` と `types` の違う package で tsgo は `exports` の file）、trace、TS5098（tsgo では出ない：使われる kind は常に
+  node16／nodenext／bundler）、TS5109（`module: node16` に `node10` を書いても出ない）、TS5095（`amd`／`system` に `node10` を書くと既定の
+  bundler に対して出る）。
+- **消したもの**（約 2,400 行）：classic と node10 の resolver（`resolve_classic`、`resolve_node10` と非相対の lookup、classic の `@types`
+  の lookup、Node10 の bundler の再試行と NotFound の alternate result）、optional settings の loader の区別、checker の classic／node10
+  の分岐（JSX の import source と `resolveExternalModuleName` の TS2792、`createModuleNotFoundChain` の TS6280、host probe の classic の
+  祖先の探索、node10 の条件）、module specifier の classic の分岐、`module_not_found_details` の kind の引数、`HostModuleResolution` の
+  NotFound の alternate result（tsgo の alternate result は解決した JavaScript にだけ付く）。
+- **同じ 6.0.3 の規則で残っていたもの**：
+  - `baseUrl`：tsgo は parse するが resolver も module specifier も読まない（`tryLoadModuleUsingOptionalResolutionSettings` の
+    「No more tryLoadModuleUsingBaseUrl」、`paths` の base は `GetPathsBasePath`：config の directory、無ければ current directory）。
+    port は bare 名を `baseUrl` から探し、`paths` の base も `baseUrl` にしていた。両方消した（checker の host probe と augmentation の
+    照合、宣言の module specifier も）。`outFile` の宣言の emit が common source directory を base にする tsc 6.0 の仕組みは残す
+    （`outFile` は意図的に残す出力で、tsgo に参照が無い）。
+  - TS5090：tsgo は `baseUrl` があっても非相対の置換を全て報告する。port は `baseUrl` があると出さなかった。
+  - `paths` の pattern が合って置換が全て外れたとき：tsgo の `tryLoadModuleUsingPaths` は探索を続けるので、rooted な名前は
+    `rootDirs` に進む（tsgo の trace で確かめた）。port は `rootDirs` を飛ばしていた。
+  - type reference の features：tsgo は module と同じ features（node16／nodenext は固定、bundler は `resolvePackageJsonExports` を適用）
+    で、resolution-mode の明示で AllFeatures を足さない（tsc 6.0 は足した）。`resolvePackageJsonExports: false` の bundler と、
+    node16／nodenext で結果が変わる（tsgo の binary で 3 kind × 3 mode を確かめた）。exports の pattern trailer は 3 つの resolver の
+    全てにあるので flag を消した。
+  - resolution cache の libReplacement：tsc 6.0 の孤立した Node10 の options から、tsgo の `resolveLibrary`（program の resolver、
+    CommonJS）に（program の loader は既にそうだった）。
+- **tests**：classic／node10・`baseUrl` の解決を前提にした test は 7.1 の結果に書き直し（変わる期待値は tsgo の binary の trace と出力で
+  確かめた）、その振る舞いが 7.1 に無いものは消した（resolver 6、suffix 1、checker 1、compiler 1）。全ての kind の loop から 1／2 を
+  外し、単独の `Some(1|2)` は同じ振る舞いの `Some(100)`（bundler）に、classic／node10 を名に持つ test は名を直した。TS5108 が意味の
+  検査を閉じていたために authoritative の row を見ずに通っていた compiler の session test 5 件は、7.1 の mode（CommonJS）の row に
+  して検査を通すようにした。config の診断の fixture（`h2-8b-config-diagnostics.json`）の 13 行は 2026-10-02 の記録で「tsgo と違う、
+  次の class」としていたもので、port の新しい値に記録し直し、76 case 全てを tsgo の binary（`tsgo -p <config> --pretty false`）と
+  比べて一致（config の全ての行：file、行、列、code、message）。adjacent test 2 件（削除済みの kind の既定と trace、type reference の
+  features。どちらも tsgo の trace の値）。
+- **tsgo との比較**（`tsgo -p … --pretty false`、`--listFiles`、`--traceResolution` と出力の file）：node10（`commonjs`／`node16` の
+  module）、classic（祖先の file、`resolvePackageJsonExports`・`customConditions`）、`baseUrl` と `paths`、`paths` の miss と
+  `rootDirs`、type reference（bundler／node16、`resolvePackageJsonExports: false`）、libReplacement と node10 と `paths` の 9 project ×
+  3。27 のうち 22 が一致（stdout、exit status、出力）、5 は下の残りの 1 つ目（`--traceResolution` だけ）。
+- **残り**（記録）：
+  - bundler の file の package.json scope：tsgo（`loadSourceFileMetaData`、`GetPackageJsonScopeIfApplicable`）は全ての file
+    （`.mts`・`.cts`・`.mjs`・`.cjs` を除く）で package.json scope を読み implied node format を決める。port は tsc 6.0 どおり
+    node16／nodenext か node_modules の file だけ読む。この slice の前からの差（removed option の無い bundler の project でも出る）で、
+    trace では最初の解決の package.json の lookup を tsgo は「according to earlier cached lookups」と書く（P4-3 の trace の残り 3 件と
+    同じ）。`"type": "module"` の package の module 判定などにも関わるので、別の slice にする。
+  - resolution cache の fixture（`resolution_cache/manifest.v1.json`）は node10 の options の世代と 6.0.3 と書かれた expected を持つ。
+    通るが、7.1 では bundler として解決する。
+- **README**：削除済みの option の段落を直した（`baseUrl`・`node10`・`classic`・`esModuleInterop: false`・
+  `allowSyntheticDefaultImports: false` は tsgo と同じく効かない。他は効く）。
+- **検証**（最終 bytes：`14d61b948`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（types・program・checker・
+  compiler、`--all-targets -- -D warnings`）は clean。`cargo test -p`：program 597（新しい 2 件を含む）、compiler 452、checker 1,796、
+  emitter 635、harness 31、conformance 52、incremental 29、types 47、全て成功。`scripts/conformance_ts71.py --workers 2 --check`：
+  12,748 case を 477 s、全ての数が変わらない（errors full 13,451／mismatch 0、emit full 13,443、types 12,677／90、symbols 12,715／52、
+  sourcemap 13,451、trace 13,448／3、harness error 15）、ratchet の regression 0（tsgo の runner が skip する設定なので、conformance は
+  この slice の差を見ない）。`scripts/suites_ts71.py --check`：全ての suite が変わらず（api 2、config 87、transpile 41、tsbuild
+  182／192、tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）、regression 0。tsgo との比較は上のとおり最終 bytes の
+  release binary で 22／27（残り 5 の差は package.json の lookup の行の表記だけで、全 100 行を確かめた）。実 project と性能は計測して
+  いない（利用者の指示。checker と emitter の出力は conformance で変わらず、変わるのは削除済みの設定の解決）。

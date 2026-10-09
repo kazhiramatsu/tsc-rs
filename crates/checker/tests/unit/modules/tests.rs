@@ -1,6 +1,6 @@
 use crate::state::test_support::with_program_state;
 use crate::{check_program, check_program_with_libs_at, CompilerOptions, InputFile};
-use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, MessageChain};
+use tsc_diagnostics::DiagnosticCategory;
 use tsc_emitter::EmitExportContainerMode;
 use tsc_syntax::{for_each_child, NodeData, SyntaxKind};
 
@@ -2423,66 +2423,6 @@ fn recovered_bare_import_type_and_dynamic_import_use_package_meaning() {
 }
 
 #[test]
-fn implicit_any_module_uses_node10_alternate_result_chain() {
-    let source = "import { pkg } from \"pkg\";\n";
-    let result = check_program(
-        &[
-            InputFile::new(
-                "/node_modules/pkg/package.json".to_owned(),
-                r#"{
-                        "name": "pkg",
-                        "version": "1.0.0",
-                        "main": "./untyped.js",
-                        "exports": { ".": "./definitely-not-index.js" }
-                    }"#
-                .to_owned(),
-            ),
-            InputFile::new(
-                "/node_modules/pkg/untyped.js".to_owned(),
-                "export {};\n".to_owned(),
-            ),
-            InputFile::new(
-                "/node_modules/pkg/definitely-not-index.d.ts".to_owned(),
-                "export {};\n".to_owned(),
-            ),
-            InputFile::new("/index.ts".to_owned(), source.to_owned()),
-        ],
-        &CompilerOptions {
-            module_resolution: Some(2),
-            no_implicit_any: Some(true),
-            ..CompilerOptions::default()
-        },
-    );
-    let diagnostic = result
-        .diagnostics
-        .iter()
-        .find(|diagnostic| diagnostic.code() == 7016)
-        .expect("implicit-any module diagnostic");
-    assert_eq!(diagnostic.category(), DiagnosticCategory::Error);
-    assert_eq!(
-            (
-                diagnostic.file_name.as_ref().map(|value| value.as_js().as_str().expect("scalar name observation")),
-                diagnostic.start,
-                diagnostic.length,
-                diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
-            ),
-            (
-                Some("/index.ts"),
-                Some(source.find("\"pkg\"").expect("specifier") as u32),
-                Some("\"pkg\"".len() as u32),
-                "Could not find a declaration file for module 'pkg'. '/node_modules/pkg/untyped.js' implicitly has an 'any' type.",
-            )
-        );
-    assert_eq!(
-            diagnostic.message.next,
-            [MessageChain::new(
-                &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
-                &["/node_modules/pkg/definitely-not-index.d.ts".to_owned()],
-            )]
-        );
-}
-
-#[test]
 fn implicit_any_module_suggestion_is_published_from_checked_js() {
     let source = "const u = require('untyped');\nu.assignment.nested = true;\n";
     let result = check_program(
@@ -2927,7 +2867,7 @@ fn commonjs_require_property_variable_reports_the_deprecated_reexport() {
             allow_js: true,
             check_js: Some(true),
             module: Some(1),
-            module_resolution: Some(2),
+            module_resolution: Some(100),
             ..CompilerOptions::default()
         },
     );

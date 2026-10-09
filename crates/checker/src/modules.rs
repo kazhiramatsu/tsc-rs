@@ -71,7 +71,7 @@ pub(crate) struct ResolvedProgramModule {
 
 /// The resolver's verdict. `Missed` may retain diagnostic-only host facts;
 /// `Suppressed` marks a miss that unmodeled machinery (node_modules,
-/// baseUrl/paths, allowJs targets, mode-dependent extensions) might turn into
+/// paths, allowJs targets, mode-dependent extensions) might turn into
 /// a hit for tsc — the error tail stays silent (FN-side) instead of
 /// fabricating 2307.
 #[derive(Clone, Debug)]
@@ -182,21 +182,13 @@ pub struct ModuleNotFoundFacts<'a> {
     pub package_bundles_types: bool,
 }
 
-/// tsgo `CreateModuleNotFoundChain`, with tsc's arm for
-/// `moduleResolution: node10` (kind 2).
+/// tsgo `CreateModuleNotFoundChain`.
 pub fn module_not_found_details(
     module_reference: JsStr<'_>,
     package_name: JsStr<'_>,
     facts: ModuleNotFoundFacts<'_>,
-    module_resolution_kind: i32,
 ) -> MessageChain {
     if let Some(alternate_result) = facts.alternate_result {
-        if module_resolution_kind == 2 {
-            return MessageChain::new_js_parts(
-                &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
-                &[alternate_result],
-            );
-        }
         let library_name = if alternate_result.contains("/node_modules/@types/") {
             crate::concat_js(&[
                 &"@types/",
@@ -3962,16 +3954,9 @@ impl<'a> CheckerState<'a> {
         module_reference_expression: NodeId,
         ignore_errors: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let is_classic = self.options.emit_module_resolution_kind() == 1;
-        let error_message = match self
+        let error_message = self
             .get_cannot_resolve_module_name_error_for_specific_module(module_reference_expression)
-        {
-            Some(message) => message,
-            None if is_classic => {
-                &diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_nodenext_or_to_add_aliases_to_the_paths_option
-            }
-            None => &diagnostics::Cannot_find_module_0_or_its_corresponding_type_declarations,
-        };
+            .unwrap_or(&diagnostics::Cannot_find_module_0_or_its_corresponding_type_declarations);
         self.resolve_external_module_name_worker(
             location,
             module_reference_expression,
@@ -4791,7 +4776,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             // tsrs-native FP=0 rule: the miss sits behind unmodeled
-            // resolution machinery (node_modules/baseUrl-paths/allowJs
+            // resolution machinery (node_modules/paths/allowJs
             // targets) — tsc may resolve, so the 2307 tail stays
             // silent (FN-side; ledger).
             if is_for_augmentation {
@@ -5043,8 +5028,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: whether a declaration source is a plausible target
     /// of an unresolved module reference. Bare specifiers are anchored
     /// to their node_modules package (including DefinitelyTyped
-    /// layout); relative/baseUrl-like references compare normalized TS
-    /// stems.
+    /// layout); relative references compare normalized TS stems.
     pub(crate) fn unresolved_module_reference_matches_source<'n, 'path_text>(
         &self,
         augmentation_file: impl Into<JsStr<'path_text>>,
@@ -5096,28 +5080,20 @@ impl<'a> CheckerState<'a> {
                     return true;
                 }
             }
-            // Without baseUrl, a bare specifier cannot directly name a
-            // same-spelled workspace file. package.json self-name and
-            // paths mappings remain genuinely unidentified; treating
-            // every `pkg.ts` as their target recreates the name-only
-            // false-negative this provenance gate exists to prevent.
-            if self.options.base_url.is_none() {
-                return false;
-            }
+            // A bare specifier cannot directly name a same-spelled
+            // workspace file (TypeScript 7.1 has no `baseUrl`).
+            // package.json self-name and paths mappings remain genuinely
+            // unidentified; treating every `pkg.ts` as their target
+            // recreates the name-only false-negative this provenance gate
+            // exists to prevent.
+            return false;
         }
 
         let augmentation_dir = augmentation
             .as_js()
             .rsplit_once("/")
             .map_or("".into(), |(directory, _)| directory);
-        let candidate =
-            if Self::is_external_module_name_relative(reference) || reference.starts_with("/") {
-                Self::normalize_program_path(reference, augmentation_dir)
-            } else if let Some(base_url) = &self.options.base_url {
-                Self::normalize_program_path(reference, base_url)
-            } else {
-                Self::normalize_program_path(reference, "")
-            };
+        let candidate = Self::normalize_program_path(reference, augmentation_dir);
         Self::module_source_stem(&source) == Self::module_source_stem(&candidate)
     }
 
@@ -5509,11 +5485,9 @@ impl<'a> CheckerState<'a> {
     /// specifiers resolve against the importing file's directory with
     /// the TS-first candidate order (exact TS extension first, marking
     /// resolvedUsingTsExtension, then allowJs implementation files);
-    /// directory candidates probe the index.* family (non-Classic
-    /// only); .js-family specifiers substitute their TS twins before
-    /// their written JS file (non-Classic only); non-relative
-    /// specifiers walk up the directory tree under Classic and probe
-    /// baseUrl. Modern Node/Bundler modes additionally consume an
+    /// directory candidates probe the index.* family; .js-family
+    /// specifiers substitute their TS twins before their written JS
+    /// file. Node16/NodeNext/Bundler additionally consume an
     /// exact in-program package `exports`/`imports` target when that
     /// target names a loaded source; unresolved package machinery
     /// (including paths mappings) stays SUPPRESSED rather than
@@ -5556,7 +5530,6 @@ impl<'a> CheckerState<'a> {
             .rsplit_once("/")
             .map(|(directory, _)| directory.to_owned())
             .unwrap_or_default();
-        let is_classic = self.options.emit_module_resolution_kind() == 1;
         let relative = Self::is_external_module_name_relative(module_reference)
             || module_reference.starts_with("/");
         if relative {
@@ -5598,8 +5571,29 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if directory_reference {
-                if !is_classic {
-                    for extension in [".ts", ".tsx", ".d.ts"] {
+                for extension in [".ts", ".tsx", ".d.ts"] {
+                    let probed = crate::concat_js(&[
+                        &(Self::trim_module_path_end((&candidate).into())),
+                        &"/index",
+                        &(extension),
+                    ]);
+                    if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
+                        return ProgramModuleResolution::Resolved(ResolvedProgramModule {
+                            file_index: index,
+                            resolved_file_name: probed.clone(),
+                            resolved_using_ts_extension: false,
+                            is_tsx: probed.ends_with(".tsx"),
+                            is_arbitrary_extension: false,
+                            is_external_library_import: false,
+                            package_name: None,
+                            alternate_result: None,
+                            types_package_exists: false,
+                            package_bundles_types: false,
+                        });
+                    }
+                }
+                if self.options.allow_js {
+                    for extension in [".js", ".jsx"] {
                         let probed = crate::concat_js(&[
                             &(Self::trim_module_path_end((&candidate).into())),
                             &"/index",
@@ -5610,7 +5604,7 @@ impl<'a> CheckerState<'a> {
                                 file_index: index,
                                 resolved_file_name: probed.clone(),
                                 resolved_using_ts_extension: false,
-                                is_tsx: probed.ends_with(".tsx"),
+                                is_tsx: probed.ends_with(".jsx"),
                                 is_arbitrary_extension: false,
                                 is_external_library_import: false,
                                 package_name: None,
@@ -5620,36 +5614,13 @@ impl<'a> CheckerState<'a> {
                             });
                         }
                     }
-                    if self.options.allow_js {
-                        for extension in [".js", ".jsx"] {
-                            let probed = crate::concat_js(&[
-                                &(Self::trim_module_path_end((&candidate).into())),
-                                &"/index",
-                                &(extension),
-                            ]);
-                            if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
-                                return ProgramModuleResolution::Resolved(ResolvedProgramModule {
-                                    file_index: index,
-                                    resolved_file_name: probed.clone(),
-                                    resolved_using_ts_extension: false,
-                                    is_tsx: probed.ends_with(".jsx"),
-                                    is_arbitrary_extension: false,
-                                    is_external_library_import: false,
-                                    package_name: None,
-                                    alternate_result: None,
-                                    types_package_exists: false,
-                                    package_bundles_types: false,
-                                });
-                            }
-                        }
-                    }
                 }
                 if self.miss_is_undecidable(&candidate) {
                     return ProgramModuleResolution::Suppressed;
                 }
                 return ProgramModuleResolution::missed();
             }
-            if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
+            if let Some(resolved) = self.probe_module_candidates(&candidate) {
                 return ProgramModuleResolution::Resolved(resolved);
             }
             if self.miss_is_undecidable(&candidate) {
@@ -5657,41 +5628,6 @@ impl<'a> CheckerState<'a> {
             }
             ProgramModuleResolution::missed()
         } else {
-            if is_classic {
-                // Classic non-relative: walk up from the importing
-                // directory probing the candidate at each level.
-                let mut dir = importer_dir;
-                loop {
-                    let candidate = Self::normalize_program_path(module_reference, &dir);
-                    if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
-                        return ProgramModuleResolution::Resolved(resolved);
-                    }
-                    match dir.as_js().rsplit_once("/") {
-                        Some((parent, _)) if parent.is_empty() && dir != "/" => dir = "/".into(),
-                        Some((parent, _)) if !parent.is_empty() => dir = parent.to_owned(),
-                        _ if !dir.is_empty() && dir != "/" => dir = "/".into(),
-                        _ => break,
-                    }
-                }
-            }
-            // baseUrl-relative candidate (classic + node-ish + bundler
-            // all honor baseUrl; paths mapping stays unmodeled).
-            if let Some(base_url) = &self.options.base_url {
-                let base = Self::normalize_program_path(base_url, "");
-                let candidate = Self::normalize_program_path(module_reference, &base);
-                if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
-                    return ProgramModuleResolution::Resolved(resolved);
-                }
-                let candidate_prefix =
-                    crate::concat_js(&[&(Self::trim_module_path_end((&candidate).into())), &"/"]);
-                if self
-                    .host_file_paths
-                    .iter()
-                    .any(|path| path.as_js().starts_with_js(candidate_prefix.as_js()))
-                {
-                    return ProgramModuleResolution::Suppressed;
-                }
-            }
             // tsc's resolveModuleNameUsingMode consumes the usage
             // mode before selecting a package condition. The
             // in-memory host has enough evidence for an authoritative
@@ -5783,7 +5719,7 @@ impl<'a> CheckerState<'a> {
             || module_reference.starts_with("/")
         {
             let candidate = Self::normalize_program_path(module_reference, importer_dir);
-            self.probe_module_candidates(&candidate, /*is_classic*/ false)
+            self.probe_module_candidates(&candidate)
         } else {
             self.resolve_node_package_target(&importer, location, module_reference)
         }?;
@@ -5920,9 +5856,6 @@ impl<'a> CheckerState<'a> {
             return true;
         }
         let module_resolution = self.options.emit_module_resolution_kind();
-        if resolution_mode == ModuleResolutionMode::Unknown && module_resolution == 2 {
-            return false;
-        }
         let resolution_mode =
             if resolution_mode == ModuleResolutionMode::Unknown && module_resolution == 100 {
                 ModuleResolutionMode::EsNext
@@ -5983,7 +5916,6 @@ impl<'a> CheckerState<'a> {
                 alternate_result: Some(alternate_result.into()),
                 ..ModuleNotFoundFacts::default()
             },
-            self.options.emit_module_resolution_kind(),
         )
     }
 
@@ -6022,7 +5954,6 @@ impl<'a> CheckerState<'a> {
                         types_package_exists: resolution.types_package_exists,
                         package_bundles_types: resolution.package_bundles_types,
                     },
-                    self.options.emit_module_resolution_kind(),
                 )
                 .with_repopulate(Repopulate::ModuleNotFound {
                     module_reference: module_reference.to_owned(),
@@ -6086,7 +6017,7 @@ impl<'a> CheckerState<'a> {
             });
         }
         if module_reference.starts_with("#")
-            || !matches!(self.options.emit_module_resolution_kind(), 2 | 3 | 99 | 100)
+            || !matches!(self.options.emit_module_resolution_kind(), 3 | 99 | 100)
         {
             return None;
         }
@@ -6195,10 +6126,7 @@ impl<'a> CheckerState<'a> {
         let types_package_exists = types_package_root.is_some();
         let package_bundles_types = self.package_root_bundles_types(&package_root);
         let resolution_mode = self.resolution_mode_for_usage(location);
-        let alternate_result = if self.options.emit_module_resolution_kind() == 2 {
-            self.resolve_host_package_exports_target(&package_root, &subpath, resolution_mode)
-                .and_then(Self::typed_target_path)
-        } else if resolution_mode == ModuleResolutionMode::EsNext {
+        let alternate_result = if resolution_mode == ModuleResolutionMode::EsNext {
             self.resolve_host_package_legacy_target(&package_root, &subpath)
                 .and_then(Self::typed_target_path)
                 .or_else(|| {
@@ -6704,7 +6632,7 @@ impl<'a> CheckerState<'a> {
             return None;
         }
         let candidate = Self::normalize_program_path(target, package_root);
-        self.probe_module_candidates(&candidate, /*is_classic*/ false)
+        self.probe_module_candidates(&candidate)
             .map(|mut resolved| {
                 // resolvedUsingTsExtension describes the written module
                 // specifier, not an extension selected behind a package
@@ -6973,7 +6901,6 @@ impl<'a> CheckerState<'a> {
     fn probe_module_candidates<'n>(
         &self,
         candidate: impl Into<JsStr<'n>>,
-        is_classic: bool,
     ) -> Option<ResolvedProgramModule> {
         let candidate = candidate.into();
         const TS_EXTENSIONS: &[&str] =
@@ -7045,8 +6972,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         // Known-extension SUBSTITUTION (loadModuleFromFile's
-        // tryAddingExtensions over the stripped base — classic shares
-        // it): "./tsx.d.ts" resolves to tsx.tsx, "./dts.js" to
+        // tryAddingExtensions over the stripped base): "./tsx.d.ts"
+        // resolves to tsx.tsx, "./dts.js" to
         // dts.d.ts (allowImportingTsExtensions fixture pins all
         // faces).
         for (known, subs) in [
@@ -7105,23 +7032,20 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // Directory → index.* family (Classic has no directory
-        // resolution). Trailing-slash specifiers ("./") collapse to
-        // the bare directory.
-        if !is_classic {
-            let base = Self::trim_module_path_end(candidate);
-            for extension in [".ts", ".tsx", ".d.ts"] {
+        // Directory → index.* family. Trailing-slash specifiers ("./")
+        // collapse to the bare directory.
+        let base = Self::trim_module_path_end(candidate);
+        for extension in [".ts", ".tsx", ".d.ts"] {
+            let probed = crate::concat_js(&[&(base), &"/index", &(extension)]);
+            if let Some(index) = lookup(probed.as_js()) {
+                return Some(make(index, false, probed.as_js()));
+            }
+        }
+        if self.options.allow_js {
+            for extension in [".js", ".jsx"] {
                 let probed = crate::concat_js(&[&(base), &"/index", &(extension)]);
                 if let Some(index) = lookup(probed.as_js()) {
                     return Some(make(index, false, probed.as_js()));
-                }
-            }
-            if self.options.allow_js {
-                for extension in [".js", ".jsx"] {
-                    let probed = crate::concat_js(&[&(base), &"/index", &(extension)]);
-                    if let Some(index) = lookup(probed.as_js()) {
-                        return Some(make(index, false, probed.as_js()));
-                    }
                 }
             }
         }
