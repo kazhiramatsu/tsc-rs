@@ -335,9 +335,9 @@ pub struct CreateSnapshotParams {
     pub changes: SnapshotRequestChanges,
     #[serde(default)]
     pub file_notifications: Option<FileNotifications>,
-    /// tsgo's request file system (`requestfilesystem`), kept as JSON.
+    /// tsgo's request file system (`requestfilesystem`).
     #[serde(default)]
-    pub file_system: Option<Box<RawValue>>,
+    pub file_system: Option<crate::request_fs::RequestFileSystemParams>,
 }
 
 /// tsgo `UpdateSnapshotParams`.

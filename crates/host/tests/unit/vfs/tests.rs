@@ -608,4 +608,27 @@ fn the_compiler_host_reads_what_the_file_system_holds() {
     );
 }
 
+#[test]
+fn the_compiler_host_lists_files_then_directories_in_the_file_systems_order() {
+    // tsgo vfsmatch matches a listing's files, then its directories, in the
+    // order the file system gives them (a disk's is sorted by name).
+    let fs = fs_of(
+        &[
+            ("/work/z.ts", Seed::file("z")),
+            ("/work/m/c.ts", Seed::file("c")),
+            ("/work/a.ts", Seed::file("a")),
+        ],
+        true,
+    );
+    let host = VfsCompilerHost::new(&fs, "/work");
+    assert_eq!(
+        host.read_directory_js(JsStr::from_str("/work"))
+            .unwrap()
+            .iter()
+            .map(|path| path.to_string_lossy().into_owned())
+            .collect::<Vec<_>>(),
+        ["/work/a.ts", "/work/z.ts", "/work/m"]
+    );
+}
+
 use crate::DirectoryListingKind;

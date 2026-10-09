@@ -793,7 +793,11 @@ It answers `initialize`, `createSnapshot`, `updateSnapshot`, `release`,
 `getServerTiming` and `resetServerTiming` as `tsgo` does: snapshots open
 configured projects, create synthetic programs and open files (into their
 default or the inferred project), and an update reports the projects and
-files that changed. The flags and their errors are `tsgo`'s. The other
+files that changed. A snapshot can read a file system the request supplies
+(`fileSystem`: a full one, or a layer over the disk, with files, directory
+listings, links and removed paths), and with `--callbacks` the client
+answers the file reads, existence checks, listings, real paths, writes and
+removals it names. The flags and their errors are `tsgo`'s. The other
 requests (source files, symbols and types, diagnostics, emit, module
 resolution, configuration parsing, the build orchestrator) answer that they
 are not implemented yet.
@@ -1147,10 +1151,9 @@ runs are listed under the repository's Actions tab.
   those cases print English here.
 - The compiler command does not provide a language server or editor service.
 - `tsc-rs --api` answers the snapshot requests listed under
-  [API server](#api-server-experimental) only. File system callbacks to the
-  client (`--callbacks`), a request's own file system, Windows named pipes
-  and content mappers are not implemented; an invalid request's decoding
-  error is worded by the Rust decoder rather than Go's `encoding/json`.
+  [API server](#api-server-experimental) only. Windows named pipes and
+  content mappers are not implemented; an invalid request's decoding error
+  is worded by the Rust decoder rather than Go's `encoding/json`.
 - `tsc_api`'s encoding of a JavaScript file lacks the declarations and
   types `tsgo`'s parser derives from its JSDoc tags (`@typedef`, `@type`,
   `@param`, ...), and a few parse-error recoveries and JSDoc details keep

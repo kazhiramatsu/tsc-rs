@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use tsc_diagnostics::{JsStr, JsString};
 
 use super::{normalize, FileSystem};
-use crate::ordering::compare_utf16;
 use crate::{
     CompilerHost, DirectoryListingEntry, DirectoryListingKind, HostError, HostErrorKind,
     HostOperation,
@@ -65,8 +64,10 @@ impl<F: FileSystem> VfsCompilerHost<F> {
         }
     }
 
-    /// The accessible entries of a directory, ordered by name in UTF-16
-    /// code-unit order, with their kinds.
+    /// The accessible entries of a directory, files then directories, each
+    /// in the file system's order, with their kinds. tsgo matches config
+    /// globs in the listing's order: a disk's is sorted by name
+    /// (`os.ReadDir`), an API client's keeps its own.
     fn listing(
         &self,
         path: JsStr<'_>,
@@ -78,7 +79,7 @@ impl<F: FileSystem> VfsCompilerHost<F> {
             return Ok(Vec::new());
         }
         let entries = self.fs.accessible_entries(&directory);
-        let mut listing = entries
+        Ok(entries
             .files
             .iter()
             .map(|name| (name, DirectoryListingKind::File))
@@ -88,10 +89,6 @@ impl<F: FileSystem> VfsCompilerHost<F> {
                     .iter()
                     .map(|name| (name, DirectoryListingKind::Directory)),
             )
-            .collect::<Vec<_>>();
-        listing.sort_by(|(left, _), (right, _)| compare_utf16(left, right));
-        Ok(listing
-            .into_iter()
             .map(|(name, kind)| DirectoryListingEntry {
                 path: crate::js_path::join_observed_name(path, name),
                 kind,

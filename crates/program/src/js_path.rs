@@ -103,7 +103,7 @@ pub fn base_file_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
 
 /// `getDirectoryPath`: trim one trailing separator, then retain the prefix
 /// through the last component boundary without truncating a disk/URL root.
-pub(crate) fn directory_name(path: JsStr<'_>) -> JsString {
+pub fn directory_name(path: JsStr<'_>) -> JsString {
     // The loader asks per module request; an already-slashed path (every
     // canonical path) skips the normalizing copy.
     let normalized;
@@ -176,7 +176,7 @@ pub(crate) fn uppercase(value: JsStr<'_>) -> JsString {
 }
 
 /// combinePaths, _tsc.js:5474–5487; root recognition precedes concatenation.
-pub(crate) fn combine_paths(parent: JsStr<'_>, child: JsStr<'_>) -> JsString {
+pub fn combine_paths(parent: JsStr<'_>, child: JsStr<'_>) -> JsString {
     let child = normalize_slashes(child);
     if parent.is_empty() || root_end_byte(child.as_js()) != 0 {
         return child;

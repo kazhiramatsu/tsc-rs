@@ -9,11 +9,12 @@ use std::sync::Arc;
 
 use tsc_compiler::system::{BundledFs, EMBEDDED_LIBRARY_DIRECTORY};
 use tsc_compiler::DEFAULT_LOAD_LIMITS;
-use tsc_host::vfs::OsFs;
+use tsc_host::vfs::{FileSystem, OsFs};
 use tsc_host::{CompilerHost, FsCompilerHost};
 use tsc_program::LibraryCatalog;
 use tsc_project::SessionOptions;
 
+use crate::callback_fs::CallbackFs;
 use crate::ipc::jsonrpc::JsonRpcProtocol;
 use crate::ipc::{Conn, Mode, Protocol};
 use crate::msgpack::MessagePackProtocol;
@@ -28,7 +29,7 @@ pub struct ServerOptions {
     /// input and output.
     pub pipe_path: Option<String>,
     /// The file system operations the client answers (tsgo's callback file
-    /// system, not ported yet).
+    /// system).
     pub callbacks: Vec<String>,
     /// JSON-RPC instead of MessagePack.
     pub async_protocol: bool,
@@ -39,13 +40,20 @@ pub struct ServerOptions {
 
 /// tsgo `StdioServer.Run`: serves one client until its input ends.
 pub fn run_server(options: &ServerOptions) -> Result<(), String> {
-    if !options.callbacks.is_empty() {
-        return Err("--callbacks is not supported yet".to_owned());
-    }
     let case_sensitive = FsCompilerHost::from_process()
         .map_err(|error| format!("{error:?}"))?
         .use_case_sensitive_file_names();
-    let fs = Arc::new(BundledFs::new(OsFs::new(case_sensitive)));
+    let bundled = BundledFs::new(OsFs::new(case_sensitive));
+    // tsgo wraps the file system with the client's callbacks when asked.
+    let (fs, callback_fs): (Arc<dyn FileSystem>, _) = if options.callbacks.is_empty() {
+        (Arc::new(bundled), None)
+    } else {
+        let callback_fs = Arc::new(CallbackFs::new(bundled, &options.callbacks)?);
+        (
+            Arc::clone(&callback_fs) as Arc<dyn FileSystem>,
+            Some(callback_fs),
+        )
+    };
     let session = Arc::new(Session::new(
         SessionOptions {
             current_directory: options.current_directory.clone(),
@@ -73,6 +81,10 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
     };
     let mut conn = Conn::new(protocol, session, mode);
     conn.set_collect_timing(options.collect_timing);
+    let conn = Arc::new(conn);
+    if let Some(callback_fs) = &callback_fs {
+        callback_fs.set_connection(&conn);
+    }
     let result = conn.run().map_err(|error| error.to_string());
     // Go's listener removes its socket when it closes.
     if let Some(path) = &options.pipe_path {
