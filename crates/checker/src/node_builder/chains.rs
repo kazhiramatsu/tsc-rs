@@ -517,12 +517,19 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
             .unwrap_or(EmitResolutionMode::None)
     }
 
+    /// No mode, as the declaration emitter's host answers: the specifier
+    /// code then takes an import call's mode from the literal
+    /// (`module_literal_resolution_mode`). Both hosts fill the same
+    /// specifier cache, so they must agree; the file's default mode made a
+    /// CommonJS file reuse its `import("package/cjs")` where tsgo, which
+    /// asks the Program for the usage mode (`GetModeForUsageLocation`),
+    /// writes `"./index.cjs"`.
     fn get_mode_for_resolution_at_index(
         &self,
-        file: EmitResolverNode,
+        _file: EmitResolverNode,
         _index: u32,
     ) -> EmitResolutionMode {
-        self.get_default_resolution_mode_for_file(file)
+        EmitResolutionMode::None
     }
 
     fn symlinked_files(&self) -> Vec<(JsString, JsString)> {

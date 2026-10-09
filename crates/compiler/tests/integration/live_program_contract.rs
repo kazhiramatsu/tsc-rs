@@ -417,6 +417,91 @@ fn a_printed_type_names_a_module_through_the_programs_symlinks() {
     assert_eq!(batch_lines, [live_lines]);
 }
 
+/// A CommonJS file that imports its own package dynamically does not reuse
+/// that ESM-mode specifier for a CommonJS-mode one: tsgo asks the Program
+/// for the existing import's usage mode (`GetModeForUsageLocation`). The
+/// lines are tsgo's
+/// `nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=nodenext).types`.
+#[test]
+fn a_printed_type_does_not_reuse_an_import_of_another_mode() {
+    let files = [
+        (
+            "/work/package.json",
+            r#"{ "name": "package", "private": true, "type": "module", "exports": { "./cjs": "./index.cjs", "./mjs": "./index.mjs", ".": "./index.js" } }"#,
+        ),
+        ("/work/index.cts", "// cjs format file\nexport {};\n"),
+        (
+            "/work/other.cts",
+            "// cjs format file, no TLA\nexport const a = import(\"package/cjs\");\n",
+        ),
+        ("/work/promise.d.ts", "interface Promise<T> { value: T; }\n"),
+    ];
+    let prepared = prepared(
+        &files,
+        CompilerOptions {
+            module: Some(199),
+            ..CompilerOptions::default()
+        },
+    );
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    let file = live
+        .file_index("/work/other.cts")
+        .expect("the file is in the Program");
+    let printed = live
+        .with_checker(|state| type_writer::write_types(state, file))
+        .expect("write the types")
+        .iter()
+        .map(|line| format!(">{} : {}", line.source_text, line.text))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        printed,
+        [
+            ">a : Promise<{ default: typeof import(\"./index.cjs\"); }>",
+            ">import(\"package/cjs\") : Promise<{ default: typeof import(\"./index.cjs\"); }>",
+            ">\"package/cjs\" : \"package/cjs\"",
+        ]
+    );
+}
+
+/// A file's semantic rows are those the checker holds when the file is
+/// asked (tsgo `Checker.GetDiagnostics`), so checking a later file can add
+/// rows to an earlier one. A global interface merged with a library
+/// declaration has its duplicate index signatures checked with the first
+/// declaration (`checkTypeForDuplicateIndexSignatures`): the script's row
+/// appears once the library is checked. The batch run collects after every
+/// file is checked (duplicateNumericIndexers.errors.txt).
+#[test]
+fn a_file_asked_again_reports_the_rows_a_later_check_added() {
+    let prepared = prepared(
+        &[(
+            "/work/a.ts",
+            "interface Array<T> {\n    [x: number]: T;\n}\n",
+        )],
+        CompilerOptions::default(),
+    );
+    let codes = |rows: &[Diagnostic]| rows.iter().map(Diagnostic::code).collect::<Vec<_>>();
+    let batch = ProgramSession::new(prepared.clone())
+        .run_for_native_harness(NativeHarnessCollection {
+            capture_suggestions: false,
+        })
+        .expect("run the batch session");
+    assert_eq!(codes(batch.native_harness_diagnostics()), [2374, 2374]);
+
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    let script = live.file_index("/work/a.ts").expect("the script");
+    let library = live
+        .file_index("/typescript/lib/lib.es5.d.ts")
+        .expect("the library");
+    let first = live.semantic_diagnostics(script).expect("check the script");
+    assert_eq!(codes(&first), [0_u32; 0]);
+    let library_rows = live
+        .semantic_diagnostics(library)
+        .expect("check the library");
+    assert_eq!(codes(&library_rows), [2374]);
+    let again = live.semantic_diagnostics(script).expect("ask again");
+    assert_eq!(codes(&again), [2374]);
+}
+
 #[test]
 fn a_live_program_moves_between_threads() {
     fn assert_send<T: Send>() {}

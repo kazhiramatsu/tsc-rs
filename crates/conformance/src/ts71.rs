@@ -1196,10 +1196,11 @@ fn dump_file(directory: &Path, suite: NativeSuite, file_name: &str, content: &st
 }
 
 /// `TSRS_LIVE_CHECK`: the live Program's diagnostics of every kind, every
-/// file asked in the batch session's order, against the batch run's ungated
-/// union (without the declaration rows, which are no Program getter here),
-/// and the type and symbol walk over the live checker against the batch
-/// walk. A difference is written to stderr (the shard's `.stderr`).
+/// file checked in the batch session's order and then asked, against the
+/// batch run's ungated union (without the declaration rows, which are no
+/// Program getter here), and the type and symbol walk over the live checker
+/// against the batch walk. A difference is written to stderr (the shard's
+/// `.stderr`).
 fn compare_live_program(
     (case_path, stem): (&str, &str),
     prepared: tsc_program::PreparedProgram,
@@ -1221,7 +1222,21 @@ fn compare_live_program(
         union.extend(live.syntactic_diagnostics(file));
     }
     let lib_count = live.prepared().library_files().len();
-    for file in (lib_count..live.file_count()).chain(0..lib_count) {
+    // A file's rows are those the checker holds when the file is asked
+    // (tsgo `GetDiagnostics`), and checking a later file can add rows to an
+    // earlier one: a global interface merged with a library declaration is
+    // checked with its first declaration. The batch run collects once every
+    // file is checked, so every file is checked before any is asked.
+    let order = (lib_count..live.file_count())
+        .chain(0..lib_count)
+        .collect::<Vec<_>>();
+    for &file in &order {
+        if let Err(error) = live.semantic_diagnostics(file) {
+            report(&format!("check: {error}"));
+            return;
+        }
+    }
+    for &file in &order {
         match live.semantic_diagnostics(file) {
             Ok(diagnostics) => union.extend(diagnostics),
             Err(error) => {
