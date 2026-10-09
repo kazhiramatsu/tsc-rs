@@ -100,7 +100,8 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   programs; P5-1b-2: files opened through the API, the default project and
   the inferred project; P5-1b-3: project references, with programs that read
   the referenced projects' sources; P5-1c: the document cache, tsgo's parse
-  cache, and the reuse of a program for a one-file change).
+  cache, and the reuse of a program for a one-file change; P5-1d: the API
+  checker, kept apart from the diagnostics checker).
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,
