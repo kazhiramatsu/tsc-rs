@@ -13,7 +13,8 @@ use tsc_diagnostics::JsStr;
 use tsc_host::vfs::VfsCompilerHost;
 use tsc_program::{
     load_emitting_program, load_program, load_project_config_program,
-    resolve_config_file_name_of_project_reference, resolve_project_references_with, ConfigRootPlan,
+    resolve_config_file_name_of_project_reference, resolve_project_references_with, CanonicalPath,
+    ConfigRootPlan,
 };
 
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
@@ -374,6 +375,23 @@ impl<'a> ProjectCollectionBuilder<'a> {
         if !update && !project.dirty {
             return Ok(false);
         }
+        // tsgo `CreateProgram`: a program dirty from one changed file, with
+        // the same command line, takes the file read again in place
+        // (`UpdateProgram`); it keeps what the previous build read.
+        if let (false, Some(path), Some(old)) = (update, &project.dirty_file_path, &project.program)
+        {
+            if let Some(program) = self.reuse_program(old, path)? {
+                let snapshot_id = self.snapshot_id;
+                self.change(id, |project| {
+                    project.program = Some(Arc::new(program));
+                    project.program_update_kind = ProgramUpdateKind::Cloned;
+                    project.program_last_update = snapshot_id;
+                    project.dirty = false;
+                    project.dirty_file_path = None;
+                });
+                return Ok(false);
+            }
+        }
         let (program, seen) = self.create_program(&project)?;
         let update_kind = match &project.program {
             Some(old) if old.has_same_file_names(&program) => ProgramUpdateKind::SameFileNames,
@@ -395,6 +413,41 @@ impl<'a> ProjectCollectionBuilder<'a> {
             project.dirty_file_path = None;
         });
         Ok(update_kind == ProgramUpdateKind::NewFiles)
+    }
+
+    /// tsgo `UpdateProgram`'s reuse: `old` with the file at `path` read
+    /// again, when the file can be replaced in place (see
+    /// [`LiveProgram::reuse`]).
+    fn reuse_program(
+        &self,
+        old: &ProjectProgram,
+        path: &str,
+    ) -> Result<Option<ProjectProgram>, ProjectError> {
+        let Ok(canonical) = CanonicalPath::from_js_normalized(JsStr::from_str(path)) else {
+            return Ok(None);
+        };
+        let prepared = old.prepared();
+        let Some(source) = prepared
+            .source_id(&canonical)
+            .and_then(|id| prepared.source_file(id))
+        else {
+            return Ok(None);
+        };
+        let file_name = source.path().display().to_string_lossy().into_owned();
+        let Some(text) = self
+            .fs
+            .get(&file_name)
+            .and_then(|file| tsc_program::decode_host_text(file.content.to_vec()).ok())
+        else {
+            return Ok(None);
+        };
+        match LiveProgram::reuse(prepared, &canonical, text, self.host.documents()) {
+            Some(Ok(live)) => Ok(Some(ProjectProgram::new(live, old.references().clone()))),
+            Some(Err(error)) => Err(ProjectError::new(format!(
+                "cannot reuse the program for {file_name}: {error}"
+            ))),
+            None => Ok(None),
+        }
     }
 
     /// tsgo `CreateProgram` (`NewProgram` over the build's files): the
@@ -480,7 +533,8 @@ impl<'a> ProjectCollectionBuilder<'a> {
             }
         };
         drop(host);
-        let live = LiveProgram::new(prepared).map_err(|error| failed(&error))?;
+        let live = LiveProgram::with_documents(prepared, self.host.documents())
+            .map_err(|error| failed(&error))?;
         Ok((ProjectProgram::new(live, references), source.into_seen()))
     }
 

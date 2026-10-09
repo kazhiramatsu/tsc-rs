@@ -2,9 +2,9 @@ use super::*;
 use crate::state::CheckerState;
 use std::sync::Arc;
 use tsc_binder::BinderWorker;
-use tsc_diagnostics::{ByteTextChangeRange, ByteTextSpan, DocumentVersion, TextSnapshot};
-use tsc_syntax::{parse_source_file, IncrementalParseOptions, ParseOptions};
-use tsc_types::{CompilerOptions, IdentityDomain, IdentitySpace};
+use tsc_diagnostics::{DocumentVersion, TextSnapshot};
+use tsc_syntax::{parse_source_file, ParseOptions};
+use tsc_types::{CompilerOptions, IdentityDomain};
 
 fn bound_document_for_snapshot(
     path: &str,
@@ -351,231 +351,94 @@ fn ephemeral_store_publishes_only_completed_owned_documents() {
     assert_eq!(program.file_count(), 1);
     assert!(Arc::ptr_eq(program.document(0), &document));
 }
-
 #[test]
-fn registry_reuses_unchanged_parse_and_bind_and_releases_versions() {
-    let domain = IdentityDomain::reclaiming();
-    let path = "/registry.ts";
-    let snapshot_v1 = TextSnapshot::new("export const value = 1;", DocumentVersion::new("1"));
-    let snapshot_v2 = TextSnapshot::new("export const value = 2;", DocumentVersion::new("2"));
-    let address = DocumentAddress::new(
-        "test-registry",
-        path,
-        DocumentScriptKind::TypeScript,
-        CompilerOptions::default(),
+fn registry_shares_a_document_while_a_program_holds_it() {
+    // tsgo's parse cache: the same file, text and address find the document
+    // a Program holds; once no Program holds it, nothing is found.
+    let registry = DocumentRegistry::new();
+    let domain = registry.identity_domain().clone();
+    let text = "export const value = 1;";
+    let document = bound_document_for_snapshot(
+        "/registry.ts",
+        TextSnapshot::new(text, DocumentVersion::default()),
+        &domain,
     );
-    let mut registry = DocumentRegistry::new("test-registry");
-    let mut parses = 0u32;
-    let mut binds = 0u32;
+    let address = DocumentAddress::new(
+        &ParseOptions::default(),
+        CompilerOptions::default(),
+        &domain,
+    );
+    registry.insert(address.clone(), &document);
+    assert_eq!(registry.len(), 1);
 
-    let first = registry
-        .acquire(address.clone(), Arc::clone(&snapshot_v1), || {
-            parses += 1;
-            binds += 1;
-            bound_document_for_snapshot(path, Arc::clone(&snapshot_v1), &domain)
-        })
-        .expect("first version publishes");
-    let second = registry
-        .acquire(address.clone(), Arc::clone(&snapshot_v1), || {
-            parses += 1;
-            binds += 1;
-            bound_document_for_snapshot(path, Arc::clone(&snapshot_v1), &domain)
-        })
-        .expect("same version reuses");
-    assert_eq!(parses, 1);
-    assert_eq!(binds, 1);
-    assert!(Arc::ptr_eq(first.document(), second.document()));
-    assert_eq!(registry.active_entry_count(), 1);
-    assert_eq!(registry.active_reference_count(), 2);
+    let found = registry
+        .get("/registry.ts".into(), text, &address)
+        .expect("the held document");
+    assert!(Arc::ptr_eq(&found, &document));
+    assert!(registry
+        .get("/registry.ts".into(), "export const value = 2;", &address)
+        .is_none());
+    assert!(registry.get("/other.ts".into(), text, &address).is_none());
 
-    let first_program =
-        ProgramSnapshot::new(vec![first.document().clone()], 0).expect("first snapshot");
-    let second_program =
-        ProgramSnapshot::new(vec![second.document().clone()], 0).expect("second snapshot");
-    assert!(Arc::ptr_eq(
-        first_program.document(0),
-        second_program.document(0)
-    ));
-
-    let newer = registry
-        .update(address.clone(), Arc::clone(&snapshot_v2), || {
-            parses += 1;
-            binds += 1;
-            bound_document_for_snapshot(path, Arc::clone(&snapshot_v2), &domain)
-        })
-        .expect("new version publishes beside the live old version");
-    assert_eq!(parses, 2);
-    assert_eq!(binds, 2);
-    assert_eq!(registry.active_entry_count(), 2);
-    assert_eq!(registry.active_reference_count(), 3);
-
-    registry.release(first).expect("release first snapshot");
-    assert_eq!(registry.active_reference_count(), 2);
-    registry.release(second).expect("release second snapshot");
-    assert_eq!(registry.active_entry_count(), 1);
-    registry.release(newer).expect("release updated snapshot");
-    assert_eq!(registry.active_entry_count(), 0);
-    assert_eq!(registry.active_reference_count(), 0);
+    drop(found);
+    drop(document);
+    assert!(registry
+        .get("/registry.ts".into(), text, &address)
+        .is_none());
+    assert_eq!(registry.len(), 0);
+    registry.purge();
+    assert!(registry.is_empty());
 }
 
 #[test]
-fn registry_rejects_same_version_text_replacement() {
-    let domain = IdentityDomain::reclaiming();
-    let path = "/registry-version.ts";
-    let snapshot = TextSnapshot::new("export const value = 1;", DocumentVersion::new("1"));
-    let replacement = TextSnapshot::new("export const value = 2;", DocumentVersion::new("1"));
-    let document = bound_document_for_snapshot(path, Arc::clone(&snapshot), &domain);
+fn registry_tells_parse_bind_and_domain_addresses_apart() {
+    let registry = DocumentRegistry::new();
+    let domain = registry.identity_domain().clone();
+    let text = "export const value = 1;";
+    let document = bound_document_for_snapshot(
+        "/registry.ts",
+        TextSnapshot::new(text, DocumentVersion::default()),
+        &domain,
+    );
     let address = DocumentAddress::new(
-        "test-registry",
-        path,
-        DocumentScriptKind::TypeScript,
+        &ParseOptions::default(),
         CompilerOptions::default(),
+        &domain,
     );
-    let mut registry = DocumentRegistry::new("test-registry");
-    let lease = registry
-        .acquire(address.clone(), Arc::clone(&snapshot), || {
-            Arc::clone(&document)
-        })
-        .expect("initial document");
-    let error = registry
-        .acquire(address, replacement, || Arc::clone(&document))
-        .expect_err("equal host versions cannot fork text");
-    assert!(matches!(
-        error,
-        DocumentRegistryError::VersionTextMismatch { .. }
-    ));
-    registry.release(lease).expect("release initial document");
-}
+    registry.insert(address, &document);
 
-#[test]
-fn registry_incrementally_reparses_only_the_changed_document_and_reclaims_versions() {
-    let domain = IdentityDomain::reclaiming();
-    let changed_path = "/changed.ts";
-    let stable_path = "/stable.ts";
-    let changed_v1_text = concat!(
-        "export const before = 1;\n",
-        "export function value() { return 1; }\n",
-        "export const after = 3;\n",
-    );
-    let edit_start = changed_v1_text.rfind("return 1").unwrap() + "return ".len();
-    let mut changed_v2_text = changed_v1_text.to_owned();
-    changed_v2_text.replace_range(edit_start..edit_start + 1, "2");
-    let changed_v1 = TextSnapshot::new(changed_v1_text, DocumentVersion::new("changed-1"));
-    let changed_v2 = TextSnapshot::new(changed_v2_text, DocumentVersion::new("changed-2"));
-    let stable = TextSnapshot::new(
-        "export interface Stable { value: string }",
-        DocumentVersion::new("stable-1"),
-    );
-    let options = CompilerOptions::default();
-    let changed_address = DocumentAddress::new(
-        "incremental-registry",
-        changed_path,
-        DocumentScriptKind::TypeScript,
-        options.clone(),
-    );
-    let stable_address = DocumentAddress::new(
-        "incremental-registry",
-        stable_path,
-        DocumentScriptKind::TypeScript,
-        options,
-    );
-    let mut registry = DocumentRegistry::new("incremental-registry");
-
-    let changed_old = registry
-        .acquire(changed_address.clone(), Arc::clone(&changed_v1), || {
-            bound_document_for_snapshot(changed_path, Arc::clone(&changed_v1), &domain)
-        })
-        .unwrap();
-    let stable_old = registry
-        .acquire(stable_address.clone(), Arc::clone(&stable), || {
-            bound_document_for_snapshot(stable_path, Arc::clone(&stable), &domain)
-        })
-        .unwrap();
-    let old_program = ProgramSnapshot::new(
-        vec![
-            Arc::clone(changed_old.document()),
-            Arc::clone(stable_old.document()),
-        ],
-        2,
-    )
-    .unwrap();
-
-    let changed_new = registry
-        .update_incrementally(
-            &changed_old,
-            changed_address,
-            Arc::clone(&changed_v2),
-            ByteTextChangeRange {
-                span: ByteTextSpan::new(edit_start as u32, 1),
-                new_length: 1,
-            },
-            IncrementalDocumentOptions {
-                parse: ParseOptions::default(),
-                incremental: IncrementalParseOptions {
-                    record_reuse_lineage: true,
-                },
-            },
-            &domain,
-        )
-        .unwrap();
-    let stable_new = registry
-        .acquire(stable_address, Arc::clone(&stable), || {
-            panic!("an unchanged document must reuse its parsed and bound entry")
-        })
-        .unwrap();
-    let new_program = ProgramSnapshot::new(
-        vec![
-            Arc::clone(changed_new.lease.document()),
-            Arc::clone(stable_new.document()),
-        ],
-        2,
-    )
-    .unwrap();
-
-    assert!(changed_new.parse_stats.incremental);
-    assert!(!changed_new.parse_stats.full_parse_fallback);
-    assert!(changed_new.parse_stats.reused_list_elements >= 2);
-    assert!(!changed_new.parse_stats.lineage.is_empty());
-    assert!(!Arc::ptr_eq(
-        old_program.document(0),
-        new_program.document(0)
-    ));
-    assert!(Arc::ptr_eq(
-        old_program.document(1),
-        new_program.document(1)
-    ));
-    assert!(Arc::ptr_eq(
-        old_program.document(0).source().snapshot(),
-        &changed_v1
-    ));
-    assert!(Arc::ptr_eq(
-        new_program.document(0).source().snapshot(),
-        &changed_v2
-    ));
-    assert_eq!(old_program.document(0).source().text(), changed_v1_text);
-    assert_eq!(new_program.document(0).source().text(), changed_v2.text());
-    assert_eq!(registry.active_entry_count(), 3);
-
-    registry.release(changed_old).unwrap();
-    registry.release(stable_old).unwrap();
-    registry.release(changed_new.lease).unwrap();
-    registry.release(stable_new).unwrap();
-    assert_eq!(registry.active_entry_count(), 0);
-    assert_eq!(registry.active_reference_count(), 0);
-
-    // Registry release is explicit, while identity leases remain valid for
-    // the immutable Programs that still expose the old and new IDs.
-    let live = domain.stats().unwrap();
-    assert!(live.space(IdentitySpace::Node).active_ranges >= 3);
-    drop(old_program);
-    drop(new_program);
-    let reclaimed = domain.stats().unwrap();
-    for space in [
-        IdentitySpace::Node,
-        IdentitySpace::NodeArray,
-        IdentitySpace::Symbol,
-        IdentitySpace::PrivateNameSerial,
+    let other_parse = ParseOptions {
+        javascript_file: true,
+        ..ParseOptions::default()
+    };
+    let other_bind = CompilerOptions {
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    for address in [
+        DocumentAddress::new(&other_parse, CompilerOptions::default(), &domain),
+        DocumentAddress::new(&ParseOptions::default(), other_bind, &domain),
+        DocumentAddress::new(
+            &ParseOptions::default(),
+            CompilerOptions::default(),
+            &IdentityDomain::reclaiming(),
+        ),
     ] {
-        assert_eq!(reclaimed.space(space).active_ranges, 0, "{space:?}");
+        assert!(registry
+            .get("/registry.ts".into(), text, &address)
+            .is_none());
     }
+    // Identity bases do not take part in the address.
+    let based = ParseOptions {
+        node_id_base: 7,
+        node_array_id_base: 3,
+        ..ParseOptions::default()
+    };
+    assert!(registry
+        .get(
+            "/registry.ts".into(),
+            text,
+            &DocumentAddress::new(&based, CompilerOptions::default(), &domain)
+        )
+        .is_some());
 }

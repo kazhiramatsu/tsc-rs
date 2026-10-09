@@ -352,6 +352,16 @@ impl PreparedSourceFile {
         self
     }
 
+    /// This source read again as `snapshot`, its Program facts unchanged
+    /// (tsgo `ReuseProgram`'s new file).
+    pub fn with_snapshot(&self, snapshot: Arc<TextSnapshot>) -> Self {
+        Self {
+            snapshot,
+            preparsed_syntax: PreparsedSyntax::empty(),
+            ..self.clone()
+        }
+    }
+
     /// The retained planner parse slot (empty unless this source was loaded
     /// through a parse that recorded one and no session has adopted it yet).
     pub fn preparsed_syntax(&self) -> &PreparsedSyntax {
@@ -1791,6 +1801,14 @@ impl PreparedProgram {
 
     pub fn program_options(&self) -> &ProgramOptions {
         &self.program_options
+    }
+
+    /// tsgo `ReuseProgram`: this Program with the source `id` replaced by
+    /// `source` (the same file read again), sharing everything else.
+    pub fn with_replaced_source(&self, id: SourceFileId, source: PreparedSourceFile) -> Self {
+        let mut program = self.clone();
+        program.source_files[id.index()] = source;
+        program
     }
 
     /// tsgo `IsSourceFromProjectReference`: whether `path` is a source of a

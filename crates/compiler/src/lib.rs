@@ -19,7 +19,6 @@ use tsc_incremental::OldState;
 use tsc_types::tracing::{Args as TraceArgs, Phase as TracePhase, Tracing};
 
 use tsc_checker::emit::CheckerSession;
-pub use tsc_checker::CheckerBudget;
 use tsc_checker::{
     check_program_with_authoritative_modules_at_emit_first_with_workers,
     check_program_with_authoritative_modules_at_for_emit_with_checkers,
@@ -38,6 +37,7 @@ use tsc_checker::{
     OwnedHarnessLibBundle, ProgramSnapshot, ShardEmission, ShardedEmit, SyntacticDiagnosticsGate,
     UnsupportedAuthoritativeResolution,
 };
+pub use tsc_checker::{BoundDocument, CheckerBudget, DocumentRegistry};
 use tsc_diagnostics::{
     gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, JsStr, JsString, MessageChain,
 };

@@ -5,8 +5,10 @@
 
 use std::path::PathBuf;
 
+use std::sync::Arc;
 use tsc_checker::type_writer::{self, TypeWriterLine};
-use tsc_compiler::{LiveProgram, NativeHarnessCollection, ProgramSession};
+
+use tsc_compiler::{DocumentRegistry, LiveProgram, NativeHarnessCollection, ProgramSession};
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
@@ -108,7 +110,10 @@ struct LiveDiagnostics {
 }
 
 fn live_diagnostics(prepared: PreparedProgram) -> LiveDiagnostics {
-    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    diagnostics_of(&mut LiveProgram::new(prepared).expect("create the live program"))
+}
+
+fn diagnostics_of(live: &mut LiveProgram) -> LiveDiagnostics {
     let mut syntactic = Vec::new();
     let mut semantic = Vec::new();
     for file in 0..live.file_count() {
@@ -588,5 +593,126 @@ fn a_live_program_moves_between_threads() {
     assert_eq!(
         diagnostics.iter().map(Diagnostic::code).collect::<Vec<_>>(),
         [2322]
+    );
+}
+
+/// The file names of a live Program, with whether each file's document is
+/// the same object as the one of the same name in `other`.
+fn shared_with(live: &LiveProgram, other: &LiveProgram) -> Vec<(String, bool)> {
+    (0..live.file_count())
+        .map(|index| {
+            let name = live
+                .file_name(index)
+                .expect("a file")
+                .to_string_lossy()
+                .into_owned();
+            let shared = other
+                .file_index(name.as_str())
+                .and_then(|other_index| other.document(other_index))
+                .zip(live.document(index))
+                .is_some_and(|(left, right)| Arc::ptr_eq(left, right));
+            (name, shared)
+        })
+        .collect()
+}
+
+#[test]
+fn a_program_built_again_shares_the_documents_of_unchanged_files() {
+    // tsgo's parse cache: a Program built again over the same documents has
+    // the parsed and bound file of every source whose text and parse did not
+    // change; the changed source is parsed again. The Program's diagnostics
+    // are those of a Program built alone.
+    let documents = DocumentRegistry::new();
+    let a = "import { b } from './b';\nexport const a: string = b;\n";
+    let first = LiveProgram::with_documents(
+        prepared(
+            &[("/work/a.ts", a), ("/work/b.ts", "export const b = 1;\n")],
+            CompilerOptions::default(),
+        ),
+        &documents,
+    )
+    .expect("create the first program");
+    let changed = [
+        ("/work/a.ts", a),
+        ("/work/b.ts", "export const b = 'b';\nlet n: number = b;\n"),
+    ];
+    let mut second =
+        LiveProgram::with_documents(prepared(&changed, CompilerOptions::default()), &documents)
+            .expect("create the second program");
+    assert_eq!(
+        shared_with(&second, &first),
+        [
+            ("/typescript/lib/lib.es5.d.ts".to_owned(), true),
+            ("/work/b.ts".to_owned(), false),
+            ("/work/a.ts".to_owned(), true),
+        ]
+    );
+
+    let shared = diagnostics_of(&mut second);
+    let alone = live_diagnostics(prepared(&changed, CompilerOptions::default()));
+    assert_eq!(shared.syntactic, alone.syntactic);
+    assert_eq!(shared.semantic, alone.semantic);
+    assert_eq!(shared.global, alone.global);
+    assert!(!shared.semantic.is_empty());
+
+    // An option the parse reads gives other documents; one it does not read
+    // (tsgo's parse cache key has no checker option) keeps them.
+    let strict = LiveProgram::with_documents(
+        prepared(
+            &changed,
+            CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        ),
+        &documents,
+    )
+    .expect("create the strict program");
+    assert!(shared_with(&strict, &second)
+        .iter()
+        .all(|(_, shared)| *shared));
+    let forced = LiveProgram::with_documents(
+        prepared(
+            &changed,
+            CompilerOptions {
+                module_detection: Some(3),
+                ..CompilerOptions::default()
+            },
+        ),
+        &documents,
+    )
+    .expect("create the module-detection program");
+    assert_eq!(
+        shared_with(&forced, &second),
+        [
+            ("/typescript/lib/lib.es5.d.ts".to_owned(), true),
+            ("/work/b.ts".to_owned(), false),
+            ("/work/a.ts".to_owned(), false),
+        ]
+    );
+
+    // A document lives while a Program holds it.
+    drop((first, second, strict, forced));
+    documents.purge();
+    assert!(documents.is_empty());
+}
+
+#[test]
+fn programs_without_libraries_share_documents_too() {
+    let documents = DocumentRegistry::new();
+    let files = [("/work/a.ts", "export const a = 1;\n")];
+    let first = LiveProgram::with_documents(
+        prepared_with_lib(&files, CompilerOptions::default(), false),
+        &documents,
+    )
+    .expect("create the first program");
+    let second = LiveProgram::with_documents(
+        prepared_with_lib(&files, CompilerOptions::default(), false),
+        &documents,
+    )
+    .expect("create the second program");
+    assert_eq!(
+        shared_with(&second, &first),
+        [("/work/a.ts".to_owned(), true)]
     );
 }
