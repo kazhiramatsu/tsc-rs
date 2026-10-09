@@ -56,7 +56,8 @@ const CONFIG_FILE_NAME: &str = "tsconfig.json";
 /// profile.
 pub const TYPESCRIPT_VERSION: &str = tsc_types::TYPESCRIPT_VERSION;
 pub(crate) type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
-const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
+/// The bounds of a program the command builds (and the API server's).
+pub const DEFAULT_LOAD_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
     2_000_000,
     256,
@@ -229,7 +230,7 @@ impl CliRoute<'_> {
 
     /// The program load limits with the run's worker budget.
     fn limits(&self) -> ProgramLoadLimits {
-        DEFAULT_LIMITS.with_workers(self.worker_budget())
+        DEFAULT_LOAD_LIMITS.with_workers(self.worker_budget())
     }
 
     /// How this run writes diagnostics from `current_directory`.

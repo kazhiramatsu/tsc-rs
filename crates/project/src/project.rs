@@ -5,13 +5,15 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use tsc_compiler::LiveProgram;
 use tsc_diagnostics::{Diagnostic, JsStr};
+use tsc_program::go_json::compiler_options_bag;
 use tsc_program::{
-    CanonicalPath, CompilerOptions, ConfigProjectReference, ConfigRootPlan, PreparedProgram,
-    ProgramOptions,
+    command_line_program_inputs, CanonicalPath, CompilerOptions, ConfigOptionBag,
+    ConfigProjectReference, ConfigRootPlan, PreparedProgram, ProgramOptions,
 };
 
-use crate::fs::SeenFiles;
+use crate::fs::{Paths, SeenFiles};
 use crate::id::{ProjectId, ProjectKind};
+use crate::snapshot::ProjectError;
 
 /// How a project's program was last built (tsgo `ProgramUpdateKind`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -82,11 +84,14 @@ impl CommandLine {
 }
 
 /// The root files and options of a program without a config (tsgo
-/// `NewParsedCommandLine`): a synthetic program's.
+/// `NewParsedCommandLine`): a synthetic program's or the inferred project's.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProgramRoots {
     /// Absolute file names, in the client's order.
     pub root_file_names: Vec<String>,
+    /// tsgo `CompilerOptions`, in the form tsgo's API takes them.
+    pub options: ConfigOptionBag,
+    /// The program's options, from `options`.
     pub compiler_options: CompilerOptions,
     pub program_options: ProgramOptions,
     /// tsgo `CommandLine.Errors`: rows the client reports as the program's
@@ -96,33 +101,59 @@ pub struct ProgramRoots {
     pub project_references: Vec<ConfigProjectReference>,
 }
 
+impl ProgramRoots {
+    /// The roots with the program's options taken from `options` (the
+    /// command line's conversion, relative paths against the session's
+    /// current directory).
+    pub(crate) fn new(
+        root_file_names: Vec<String>,
+        options: ConfigOptionBag,
+        config_file_parsing_diagnostics: Vec<Diagnostic>,
+        project_references: Vec<ConfigProjectReference>,
+        paths: &Paths,
+    ) -> Result<Self, ProjectError> {
+        let (compiler_options, program_options) = command_line_program_inputs(
+            &options,
+            JsStr::from_str(&paths.current_directory),
+            paths.case_sensitive,
+        )
+        .map_err(|error| ProjectError::new(format!("invalid compiler options: {error:?}")))?;
+        Ok(Self {
+            root_file_names,
+            options,
+            compiler_options,
+            program_options,
+            config_file_parsing_diagnostics,
+            project_references,
+        })
+    }
+}
+
 /// The inferred project's roots and options (tsgo `NewInferredProject`'s
 /// defaults: `allowJs`, `module: esnext`, `moduleResolution: bundler`, the
 /// latest standard target, `jsx: react-jsx`, `allowImportingTsExtensions`,
 /// `strictNullChecks`, `strictFunctionTypes`, `sourceMap`,
 /// `allowNonTsExtensions` and `resolveJsonModule`).
-pub(crate) fn inferred_project_roots(root_file_names: Vec<String>) -> ProgramRoots {
-    ProgramRoots {
-        root_file_names,
-        compiler_options: CompilerOptions {
-            allow_js: true,
-            allow_js_specified: Some(true),
-            module: Some(99),
-            module_resolution: Some(100),
-            target: Some(13),
-            jsx: Some(4),
-            allow_importing_ts_extensions: Some(true),
-            strict_null_checks: Some(true),
-            strict_function_types: Some(true),
-            source_map: Some(true),
-            allow_non_ts_extensions: Some(true),
-            resolve_json_module: Some(true),
-            ..CompilerOptions::default()
-        },
-        program_options: ProgramOptions::default(),
-        config_file_parsing_diagnostics: Vec::new(),
-        project_references: Vec::new(),
-    }
+pub(crate) fn inferred_project_roots(root_file_names: Vec<String>, paths: &Paths) -> ProgramRoots {
+    let options = serde_json::json!({
+        "allowJs": true,
+        "module": 99,
+        "moduleResolution": 100,
+        "target": 13,
+        "jsx": 4,
+        "allowImportingTsExtensions": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "sourceMap": true,
+        "allowNonTsExtensions": true,
+        "resolveJsonModule": true,
+    });
+    let options = options
+        .as_object()
+        .and_then(|options| compiler_options_bag(options).ok())
+        .expect("the inferred project's options convert");
+    ProgramRoots::new(root_file_names, options, Vec::new(), Vec::new(), paths)
+        .expect("the inferred project's options convert")
 }
 
 /// A project's program: the prepared program and its checker, which one
@@ -281,15 +312,13 @@ impl Project {
 
     /// tsgo `NewInferredProject` with the session's default options (no
     /// `compilerOptionsForInferredProjects` reaches the API's sessions).
-    pub(crate) fn new_inferred(current_directory: String, root_file_names: Vec<String>) -> Self {
+    pub(crate) fn new_inferred(current_directory: String, roots: ProgramRoots) -> Self {
         let mut project = Self::new(
             ProjectId::inferred(),
             ProjectKind::Inferred,
             current_directory,
         );
-        project.command_line = Some(CommandLine::Roots(Arc::new(inferred_project_roots(
-            root_file_names,
-        ))));
+        project.command_line = Some(CommandLine::Roots(Arc::new(roots)));
         project
     }
 

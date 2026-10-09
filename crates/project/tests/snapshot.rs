@@ -10,9 +10,8 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use tsc_host::vfs::{FileSystem, MemFs, Seed, SystemClock};
-use tsc_program::{
-    CompilerOptions, ConfigProjectReference, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
-};
+use tsc_program::go_json::compiler_options_bag;
+use tsc_program::{ConfigOptionBag, ConfigProjectReference, LibraryCatalog, ProgramLoadLimits};
 use tsc_project::{
     ApiSnapshotRequest, CreateProgramRequest, FileChangeSummary, ProgramUpdateKind, ProjectId,
     ProjectKind, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotHost,
@@ -42,13 +41,19 @@ fn session_with(entries: Vec<(String, Seed)>) -> (SnapshotHost, Arc<MemFs>) {
     (host, fs)
 }
 
+/// tsgo `core.CompilerOptions` from its JSON, as the API takes them.
+fn options(json: serde_json::Value) -> ConfigOptionBag {
+    compiler_options_bag(json.as_object().expect("options are an object"))
+        .expect("the options convert")
+}
+
 fn no_lib(root_file_names: &[&str]) -> CreateProgramRequest {
     CreateProgramRequest {
         root_file_names: root_file_names
             .iter()
             .map(|name| (*name).to_owned())
             .collect(),
-        program_options: ProgramOptions::default().with_no_lib(true),
+        options: options(serde_json::json!({ "noLib": true })),
         ..CreateProgramRequest::default()
     }
 }
@@ -230,10 +235,7 @@ fn created_programs_keep_their_roots_and_options() {
     let b = "/home/projects/p/b.ts";
     let (host, _) = session(&[(a, "export const a = 1;"), (b, "export const b = 1;")]);
     let mut strict = no_lib(&[a, b]);
-    strict.compiler_options = CompilerOptions {
-        strict: Some(true),
-        ..CompilerOptions::default()
-    };
+    strict.options = options(serde_json::json!({ "noLib": true, "strict": true }));
     let snapshot = update(
         &host,
         &host.new_root_snapshot(),
@@ -278,7 +280,7 @@ fn a_reconfigured_program_keeps_its_id() {
     .expect("create the program");
     let id = created.created_programs()[0].clone();
     let mut program = no_lib(&[b]);
-    program.compiler_options.strict = Some(true);
+    program.options = options(serde_json::json!({ "noLib": true, "strict": true }));
     let reconfigured = update(
         &host,
         &created,

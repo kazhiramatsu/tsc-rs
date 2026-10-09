@@ -44,6 +44,29 @@ fn memory_sample() -> tsc_types::trace::MemorySample {
     sample
 }
 
+/// Runs `work` on a thread with the compiler's stack reservation
+/// (`WORKER_STACK_BYTES`, the same as every worker and checker shard). The
+/// compiler recurses in proportion to the nesting depth of a source, and the
+/// main thread's stack (8 MiB on macOS and Linux) is the one size the
+/// process cannot choose. A refused thread leaves the work on the main
+/// thread.
+fn run_on_worker_stack<T: Send>(work: impl Fn() -> T + Sync) -> T {
+    std::thread::scope(|scope| {
+        match std::thread::Builder::new()
+            .name("tsc-rs-main".to_owned())
+            .stack_size(tsc_program::WORKER_STACK_BYTES)
+            .spawn_scoped(scope, || {
+                tsc_program::run_thread_start_hook();
+                work()
+            }) {
+            Ok(handle) => handle
+                .join()
+                .unwrap_or_else(|payload| std::panic::resume_unwind(payload)),
+            Err(_) => work(),
+        }
+    })
+}
+
 fn main() {
     // Return freed pages to the OS 10 ms after they empty (mimalloc v2's
     // default, pinned here). A large program's arenas and tables outgrow
@@ -60,26 +83,16 @@ fn main() {
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
     prefer_interactive_scheduling();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    // The command's work runs on a thread with the compiler's stack
-    // reservation (`WORKER_STACK_BYTES`, the same as every worker and
-    // checker shard). The compiler recurses in proportion to the nesting
-    // depth of a source, and the main thread's stack (8 MiB on macOS and
-    // Linux) is the one size the process cannot choose. A refused thread
-    // leaves the work on the main thread.
-    let output = std::thread::scope(|scope| {
-        match std::thread::Builder::new()
-            .name("tsc-rs-main".to_owned())
-            .stack_size(tsc_program::WORKER_STACK_BYTES)
-            .spawn_scoped(scope, || {
-                tsc_program::run_thread_start_hook();
-                tsc_compiler::run_cli(&arguments)
-            }) {
-            Ok(handle) => handle
-                .join()
-                .unwrap_or_else(|payload| std::panic::resume_unwind(payload)),
-            Err(_) => tsc_compiler::run_cli(&arguments),
-        }
-    });
+    // tsgo `runMain`: `--api` first serves the API (cmd/tsc/api.go).
+    if arguments
+        .first()
+        .is_some_and(|argument| argument == "--api")
+    {
+        let code = run_on_worker_stack(|| tsc_api::server::run_api(&arguments[1..]));
+        // SAFETY: as below; the server flushed every response it wrote.
+        unsafe { libc::_exit(code) }
+    }
+    let output = run_on_worker_stack(|| tsc_compiler::run_cli(&arguments));
     {
         use std::io::Write;
         let mut stdout = std::io::stdout().lock();

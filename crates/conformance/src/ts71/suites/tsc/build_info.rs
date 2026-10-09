@@ -5,7 +5,7 @@
 
 use serde_json::Value;
 
-use super::super::go_json::GoJson;
+use tsc_program::go_json::GoJson;
 
 /// The readable text of a parsed build info whose (sanitized) text is
 /// `text`.

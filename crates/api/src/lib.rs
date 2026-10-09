@@ -1,12 +1,19 @@
-//! TypeScript 7.1's API surface for tsc-rs.
+//! TypeScript 7.1's API (tsgo `internal/api` and `internal/ipc`) for
+//! tsc-rs.
 //!
+//! [`server`] runs `tsc-rs --api`: a [`session::Session`] over tsgo's
+//! project system ([`tsc_project`]), reached through an [`ipc::Conn`] with
+//! the MessagePack ([`msgpack`]) or JSON-RPC ([`ipc::jsonrpc`]) protocol.
 //! [`encoder`] writes a source file in the binary format tsgo's API sends
-//! its clients (`internal/api/encoder`, protocol 9). The API server itself
-//! (tsgo `internal/api`'s session and protocol) is planned separately
-//! (docs/design/greenfield/post-emitter-roadmap.md, P5).
+//! its clients (`internal/api/encoder`, protocol 9).
 
 pub mod encoder;
+pub mod ipc;
+pub mod msgpack;
+pub mod proto;
 pub mod references;
+pub mod server;
+pub mod session;
 
 use encoder::ScriptKind;
 use tsc_syntax::{LanguageVariant, ParseOptions, SourceFile};

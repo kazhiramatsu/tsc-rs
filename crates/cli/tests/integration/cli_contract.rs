@@ -21646,3 +21646,123 @@ TSFILE: <ROOT>/out/a.d.ts
 }
 
 // === end of the incremental steps ===
+
+/// One exchange with `tsc-rs --api` over MessagePack (tsgo's tuple
+/// `[type, method, payload]`): each request's response type and payload.
+fn api_exchange(tree: &TempTree, requests: &[(&str, &str)]) -> Vec<(u8, String)> {
+    use std::io::{Read, Write};
+
+    fn bin(data: &[u8]) -> Vec<u8> {
+        assert!(data.len() < 256, "the test messages are short");
+        let mut bytes = vec![0xC4, data.len() as u8];
+        bytes.extend_from_slice(data);
+        bytes
+    }
+
+    let mut input = Vec::new();
+    for (method, payload) in requests {
+        input.extend([0x93, 1]);
+        input.extend(bin(method.as_bytes()));
+        input.extend(bin(payload.as_bytes()));
+    }
+    let mut child = Command::new(env!("CARGO_BIN_EXE_tsc-rs"))
+        .args(["--api", "--cwd"])
+        .arg(&tree.root)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("run tsc-rs --api");
+    child.stdin.take().unwrap().write_all(&input).unwrap();
+    let mut output = Vec::new();
+    child
+        .stdout
+        .take()
+        .unwrap()
+        .read_to_end(&mut output)
+        .unwrap();
+    assert!(child.wait().unwrap().success());
+    let mut responses = Vec::new();
+    let mut rest = output.as_slice();
+    let read_bin = |rest: &mut &[u8]| {
+        let length = match rest[0] {
+            0xC4 => {
+                let length = usize::from(rest[1]);
+                *rest = &rest[2..];
+                length
+            }
+            0xC5 => {
+                let length = usize::from(u16::from_be_bytes([rest[1], rest[2]]));
+                *rest = &rest[3..];
+                length
+            }
+            marker => panic!("unexpected marker {marker:#x}"),
+        };
+        let (data, tail) = rest.split_at(length);
+        *rest = tail;
+        data.to_vec()
+    };
+    while !rest.is_empty() {
+        assert_eq!(rest[0], 0x93);
+        let message_type = rest[1];
+        rest = &rest[2..];
+        read_bin(&mut rest);
+        let payload = read_bin(&mut rest);
+        responses.push((message_type, String::from_utf8(payload).unwrap()));
+    }
+    responses
+}
+
+#[test]
+fn the_api_server_answers_over_message_pack() {
+    // tsgo `tsc --api`: requests answered in order (type 4), an error as
+    // type 5, the configured project with its parsed config.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export const a = 1;\n").expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"strict":true}}"#,
+    )
+    .expect("write tsconfig.json");
+    let root = tree.root.to_string_lossy().replace('\\', "/");
+    let responses = api_exchange(
+        &tree,
+        &[
+            ("ping", ""),
+            ("createSnapshot", r#"{"openProjects":["tsconfig.json"]}"#),
+            (
+                "getDefaultProjectForFile",
+                r#"{"snapshot":1,"file":"a.ts"}"#,
+            ),
+            ("release", r#"{"snapshot":7}"#),
+        ],
+    );
+    assert_eq!(responses[0], (4, r#""pong""#.to_owned()));
+    assert_eq!(responses[1].0, 4);
+    let snapshot: serde_json::Value = serde_json::from_str(&responses[1].1).unwrap();
+    assert_eq!(snapshot["snapshot"], 1);
+    let project = &snapshot["projects"][0];
+    assert_eq!(project["configFileName"], format!("{root}/tsconfig.json"));
+    assert_eq!(
+        project["rootFiles"],
+        serde_json::json!([format!("{root}/a.ts")])
+    );
+    assert_eq!(project["compilerOptions"]["strict"], true);
+    let default: serde_json::Value = serde_json::from_str(&responses[2].1).unwrap();
+    assert_eq!(default["id"], project["id"]);
+    assert_eq!(
+        responses[3],
+        (5, "api: client error: snapshot 7 not found".to_owned())
+    );
+}
+
+#[test]
+fn the_api_server_rejects_unknown_flags_like_tsgo() {
+    let tree = TempTree::new();
+    let output = run(&tree, &["--api", "--nope"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.starts_with("flag provided but not defined: -nope\nUsage of api:\n  -async\n"),
+        "{stderr}"
+    );
+}

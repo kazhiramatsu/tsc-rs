@@ -82,7 +82,8 @@ pub mod transpile;
 pub mod watch;
 
 pub use cli::{
-    execute_command_line, run_cli, CliOutput, CommandLineResult, TYPESCRIPT_VERSION as CLI_VERSION,
+    execute_command_line, run_cli, CliOutput, CommandLineResult, DEFAULT_LOAD_LIMITS,
+    TYPESCRIPT_VERSION as CLI_VERSION,
 };
 pub use declaration_diagnostics::DeclarationSession;
 pub use live::LiveProgram;

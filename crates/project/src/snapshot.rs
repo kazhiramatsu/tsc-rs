@@ -10,8 +10,8 @@ use tsc_compiler::DocumentRegistry;
 use tsc_diagnostics::Diagnostic;
 use tsc_host::vfs::FileSystem;
 use tsc_program::{
-    CompilerOptions, ConfigParseError, ConfigProjectReference, ConfigRootPlan, LibraryCatalog,
-    ProgramLoadLimits, ProgramOptions,
+    ConfigOptionBag, ConfigParseError, ConfigProjectReference, ConfigRootPlan, LibraryCatalog,
+    ProgramLoadLimits,
 };
 
 use crate::builder::ProjectCollectionBuilder;
@@ -67,8 +67,9 @@ impl From<ConfigParseError> for ProjectError {
 pub struct CreateProgramRequest {
     /// Absolute file names, in order.
     pub root_file_names: Vec<String>,
-    pub compiler_options: CompilerOptions,
-    pub program_options: ProgramOptions,
+    /// tsgo `CompilerOptions`, in the form tsgo's API takes them
+    /// ([`tsc_program::go_json::compiler_options_bag`]).
+    pub options: ConfigOptionBag,
     pub config_file_parsing_diagnostics: Vec<Diagnostic>,
     /// The projects the program references (tsgo `ProjectReferences`), by
     /// config path.
@@ -358,6 +359,23 @@ impl SnapshotHost {
             file_system_override,
             created_programs,
         })
+    }
+
+    /// tsgo `GetNormalizedAbsolutePath` against the session's current
+    /// directory.
+    pub fn absolute_file_name(&self, file_name: &str) -> String {
+        self.paths.absolute(file_name)
+    }
+
+    /// tsgo `tspath.ToPath` against the session's current directory and
+    /// file system.
+    pub fn to_path(&self, file_name: &str) -> String {
+        self.paths.to_path(file_name)
+    }
+
+    /// Whether the session's file system tells upper from lower case.
+    pub fn case_sensitive(&self) -> bool {
+        self.paths.case_sensitive
     }
 
     pub(crate) fn paths(&self) -> &Paths {

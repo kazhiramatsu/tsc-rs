@@ -91,6 +91,7 @@ mod config_matcher;
 mod config_options;
 mod dts_faking_host;
 mod error;
+pub mod go_json;
 mod js_path;
 pub use js_path::{
     base_file_name, normalize_path, normalized_absolute_path as get_normalized_absolute_path,

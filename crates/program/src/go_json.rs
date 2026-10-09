@@ -1,12 +1,21 @@
-//! The JSON tsgo's tests write (`encoding/json/v2` through
-//! `tsc/internal/json`): compact and two-space indented text, the field
-//! order of `core.CompilerOptions`, `core.BuildOptions` and
-//! `core.TypeAcquisition` (`omitzero` leaves out unset fields), and the
-//! numbers of tsgo's option enums.
+//! The JSON tsgo writes (`encoding/json/v2` through `tsc/internal/json`)
+//! for its options: compact and two-space indented text, the field order
+//! of `core.CompilerOptions`, `core.BuildOptions` and `core.TypeAcquisition`
+//! (`omitzero` leaves out unset fields), and the numbers of tsgo's option
+//! enums. tsgo's API sends a project's options in this form, and its tests
+//! print them so.
+
+use std::sync::Arc;
+
+use crate::config::{ConfigTypedObjectProperty, ConfigTypedObjectShape, ConfigTypedOptionValue};
+use crate::{
+    ConfigOptionBag, ConfigOptionValueState, ConfigRootPlan, ConfigTypedJsonValue,
+    ConfigTypedListElement, ConfigTypedObjectValue, JsonValue,
+};
 
 /// A JSON value in the order tsgo writes it.
 #[derive(Clone, Debug, PartialEq)]
-pub(super) enum GoJson {
+pub enum GoJson {
     Null,
     Bool(bool),
     /// The decimal text of a number.
@@ -17,14 +26,13 @@ pub(super) enum GoJson {
 }
 
 impl GoJson {
-    pub(super) fn number(value: i64) -> Self {
+    pub fn number(value: i64) -> Self {
         Self::Number(value.to_string())
     }
 
     /// A tsc-rs JSON value; a number takes Go's shortest form (an integral
     /// `float64` has no fraction).
-    pub(super) fn from_json(value: &tsc_program::JsonValue) -> Self {
-        use tsc_program::JsonValue;
+    pub fn from_json(value: &JsonValue) -> Self {
         match value {
             JsonValue::Null => Self::Null,
             JsonValue::Bool(value) => Self::Bool(*value),
@@ -43,14 +51,14 @@ impl GoJson {
     }
 
     /// `json.Marshal`.
-    pub(super) fn compact(&self) -> String {
+    pub fn compact(&self) -> String {
         let mut out = String::new();
         self.write(&mut out, None, 0);
         out
     }
 
     /// `json.MarshalIndent(value, "", "  ")`.
-    pub(super) fn indented(&self) -> String {
+    pub fn indented(&self) -> String {
         let mut out = String::new();
         self.write(&mut out, Some("  "), 0);
         out
@@ -128,7 +136,7 @@ fn quote(text: &str) -> String {
 
 /// How a struct field is written.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum FieldKind {
+pub enum FieldKind {
     /// `Tristate`: `true` or `false`.
     Tristate,
     /// `string`: left out when empty.
@@ -146,7 +154,7 @@ pub(super) enum FieldKind {
 }
 
 /// `core.CompilerOptions`' fields in declaration order (core/compileroptions.go).
-pub(super) const COMPILER_OPTIONS_FIELDS: &[(&str, FieldKind)] = &[
+pub const COMPILER_OPTIONS_FIELDS: &[(&str, FieldKind)] = &[
     ("allowJs", FieldKind::Tristate),
     ("allowArbitraryExtensions", FieldKind::Tristate),
     ("allowImportingTsExtensions", FieldKind::Tristate),
@@ -288,7 +296,7 @@ pub(super) const COMPILER_OPTIONS_FIELDS: &[(&str, FieldKind)] = &[
 ];
 
 /// `core.BuildOptions`' fields in declaration order (core/buildoptions.go).
-pub(super) const BUILD_OPTIONS_FIELDS: &[(&str, FieldKind)] = &[
+pub const BUILD_OPTIONS_FIELDS: &[(&str, FieldKind)] = &[
     ("dry", FieldKind::Tristate),
     ("force", FieldKind::Tristate),
     ("verbose", FieldKind::Tristate),
@@ -299,7 +307,7 @@ pub(super) const BUILD_OPTIONS_FIELDS: &[(&str, FieldKind)] = &[
 
 /// `core.TypeAcquisition`'s fields in declaration order
 /// (core/typeacquisition.go).
-pub(super) const TYPE_ACQUISITION_FIELDS: &[(&str, FieldKind)] = &[
+pub const TYPE_ACQUISITION_FIELDS: &[(&str, FieldKind)] = &[
     ("enable", FieldKind::Tristate),
     ("include", FieldKind::StringList),
     ("exclude", FieldKind::StringList),
@@ -308,7 +316,7 @@ pub(super) const TYPE_ACQUISITION_FIELDS: &[(&str, FieldKind)] = &[
 
 /// tsgo's number for the spelling of an enum option (tsoptions/enummaps.go
 /// with the core and watch-option constants), case-insensitively.
-pub(super) fn enum_number(option: &str, spelling: &str) -> Option<i64> {
+pub fn enum_number(option: &str, spelling: &str) -> Option<i64> {
     let table: &[(&str, i64)] = match option {
         "target" => &[
             ("es5", 1),
@@ -387,6 +395,196 @@ pub(super) fn enum_number(option: &str, spelling: &str) -> Option<i64> {
         .iter()
         .find(|(name, _)| *name == spelling)
         .map(|(_, number)| *number)
+}
+
+/// `ParsedConfig.CompilerOptions` in tsgo's struct order: the merged config
+/// options, the config file's path and the directory `paths` is based on.
+pub fn compiler_options_json(plan: &ConfigRootPlan) -> GoJson {
+    let options = plan.options();
+    let mut entries = Vec::new();
+    for (field, kind) in COMPILER_OPTIONS_FIELDS {
+        let value = match *field {
+            "configFilePath" => Some(GoJson::String(
+                plan.config_file_name().to_string_lossy().into_owned(),
+            )),
+            "pathsBasePath" => options
+                .stored_paths_base_path()
+                .map(|base| GoJson::String(base.to_string_lossy().into_owned())),
+            _ => field_json(options, field, *kind),
+        };
+        if let Some(value) = value {
+            entries.push(((*field).to_owned(), value));
+        }
+    }
+    GoJson::Object(entries)
+}
+
+/// A struct of tsgo's (`fields` in declaration order) with the bag's
+/// converted values; `omitzero` leaves out what the bag does not set.
+pub fn struct_json(fields: &[(&str, FieldKind)], options: &ConfigOptionBag) -> GoJson {
+    GoJson::Object(
+        fields
+            .iter()
+            .filter_map(|(field, kind)| {
+                field_json(options, field, *kind).map(|value| ((*field).to_owned(), value))
+            })
+            .collect(),
+    )
+}
+
+/// One field's value, `None` when `omitzero` leaves it out.
+fn field_json(options: &ConfigOptionBag, field: &str, kind: FieldKind) -> Option<GoJson> {
+    Some(match options.typed_value_state(field) {
+        ConfigOptionValueState::Absent | ConfigOptionValueState::Undefined => return None,
+        ConfigOptionValueState::Value(value) => match kind {
+            FieldKind::Enum => {
+                let spelling = options
+                    .get(field)
+                    .and_then(|option| option.value.as_js())
+                    .and_then(|spelling| spelling.as_str().map(str::to_owned));
+                match spelling.and_then(|spelling| enum_number(field, &spelling)) {
+                    Some(number) => GoJson::number(number),
+                    None => GoJson::from_json(value),
+                }
+            }
+            FieldKind::String if value.as_js().is_some_and(|text| text.is_empty()) => return None,
+            _ => GoJson::from_json(value),
+        },
+        ConfigOptionValueState::List(elements) => GoJson::Array(
+            elements
+                .iter()
+                .filter_map(|element| match element {
+                    ConfigTypedListElement::Value(value) => Some(GoJson::from_json(value)),
+                    ConfigTypedListElement::Undefined => None,
+                })
+                .collect(),
+        ),
+        ConfigOptionValueState::Object(object) => GoJson::Object(
+            object
+                .properties()
+                .iter()
+                .filter_map(|property| {
+                    property.value().map(|value| {
+                        (
+                            property.name().to_string_lossy().into_owned(),
+                            typed_json(value),
+                        )
+                    })
+                })
+                .collect(),
+        ),
+        ConfigOptionValueState::PositiveInfinity | ConfigOptionValueState::NegativeInfinity => {
+            GoJson::Null
+        }
+    })
+}
+
+fn typed_json(value: &ConfigTypedJsonValue) -> GoJson {
+    GoJson::from_json(&value.json_projection())
+}
+
+/// tsgo's `core.CompilerOptions` from its JSON, as tsgo's API receives a
+/// program's options: each field of the struct (`COMPILER_OPTIONS_FIELDS`)
+/// that the JSON sets, in the form the config converter stores (enum
+/// numbers, `lib` file names, `paths` as an object). As Go's
+/// `json.Unmarshal` does, unknown keys are ignored, `null` and a zero enum,
+/// an empty string or a tristate that is neither `true` nor `false` leave a
+/// field unset, and a value of another JSON type is an error.
+pub fn compiler_options_bag(
+    options: &serde_json::Map<String, serde_json::Value>,
+) -> Result<ConfigOptionBag, String> {
+    use serde_json::Value;
+
+    let mut bag = ConfigOptionBag::default();
+    for (field, kind) in COMPILER_OPTIONS_FIELDS {
+        let Some(value) = options.get(*field) else {
+            continue;
+        };
+        let mismatch = || {
+            format!(
+                "cannot unmarshal JSON {} into the compiler option {field}",
+                json_kind(value)
+            )
+        };
+        let strings = |values: &[Value]| {
+            values
+                .iter()
+                .map(|value| match value {
+                    Value::String(text) => Ok(JsonValue::String(text.as_str().into())),
+                    _ => Err(mismatch()),
+                })
+                .collect::<Result<Vec<_>, _>>()
+        };
+        let typed = match (kind, value) {
+            (_, Value::Null) | (FieldKind::Tristate, _) => match value {
+                Value::Bool(value) => Some(ConfigTypedOptionValue::Json(JsonValue::Bool(*value))),
+                _ => None,
+            },
+            (FieldKind::String, Value::String(text)) => (!text.is_empty())
+                .then(|| ConfigTypedOptionValue::Json(JsonValue::String(text.as_str().into()))),
+            (FieldKind::Enum, Value::Number(number)) if number.as_i64().is_some() => {
+                (number.as_i64() != Some(0))
+                    .then(|| ConfigTypedOptionValue::Json(JsonValue::Number(number.clone())))
+            }
+            (FieldKind::Int, Value::Number(number)) if number.as_i64().is_some() => Some(
+                ConfigTypedOptionValue::Json(JsonValue::Number(number.clone())),
+            ),
+            (FieldKind::StringList, Value::Array(values)) => Some(ConfigTypedOptionValue::List(
+                strings(values)?
+                    .into_iter()
+                    .map(ConfigTypedListElement::Value)
+                    .collect(),
+            )),
+            (FieldKind::Paths, Value::Object(paths)) => {
+                let properties = paths
+                    .iter()
+                    .map(|(key, value)| match value {
+                        Value::Array(values) => Ok(ConfigTypedObjectProperty::new(
+                            key.as_str().into(),
+                            Some(ConfigTypedJsonValue::Array(
+                                strings(values)?
+                                    .into_iter()
+                                    .map(ConfigTypedJsonValue::Json)
+                                    .collect(),
+                            )),
+                        )),
+                        _ => Err(mismatch()),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(ConfigTypedOptionValue::Object(Arc::new(
+                    ConfigTypedObjectValue::new(ConfigTypedObjectShape::Object, properties, true),
+                )))
+            }
+            (FieldKind::Plugins, Value::Array(plugins)) => Some(ConfigTypedOptionValue::List(
+                plugins
+                    .iter()
+                    .map(|plugin| match plugin {
+                        Value::Object(_) => Ok(ConfigTypedListElement::Value(JsonValue::from(
+                            plugin.clone(),
+                        ))),
+                        _ => Err(mismatch()),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            _ => return Err(mismatch()),
+        };
+        if let Some(typed) = typed {
+            bag.insert_typed(*field, Some(typed));
+        }
+    }
+    Ok(bag)
+}
+
+/// Go's name of a JSON value's kind (`jsontext.Kind`).
+fn json_kind(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
 }
 
 #[cfg(test)]
