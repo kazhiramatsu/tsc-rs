@@ -35,6 +35,7 @@ use crate::proto::{
     ReleaseParams, SnapshotChanges, SnapshotId, SnapshotOperationResponse, SnapshotRequestChanges,
     SourceFileResponse, UpdateSnapshotParams,
 };
+use crate::request_fs::{RequestFileSystem, SnapshotFileSystem};
 
 /// tsgo `ErrInvalidRequest`.
 pub const INVALID_REQUEST: &str = "api: invalid request";
@@ -73,17 +74,21 @@ struct OpenState {
 }
 
 /// tsgo `snapshotData`: a snapshot the client holds, with the number of
-/// times it was handed out.
+/// times it was handed out and the request file system it reads, which its
+/// updates read too.
 struct SnapshotData {
     snapshot: Arc<Snapshot>,
     ref_count: usize,
     open: OpenState,
+    file_system: Option<Arc<RequestFileSystem>>,
 }
 
 /// tsgo `api.Session`.
 pub struct Session {
     id: String,
     host: SnapshotHost,
+    /// The session's file system (tsgo `FS()`), under a request's.
+    fs: Arc<dyn FileSystem>,
     /// MessagePack sends binary responses as they are (tsgo
     /// `UseBinaryResponses`).
     use_binary_responses: bool,
@@ -104,7 +109,8 @@ impl Session {
         let id = SESSION_IDS.fetch_add(1, Ordering::Relaxed) + 1;
         Self {
             id: format!("api-session-{id}"),
-            host: SnapshotHost::new(options, fs),
+            host: SnapshotHost::new(options, Arc::clone(&fs)),
+            fs,
             use_binary_responses,
             snapshots: Mutex::default(),
             batch_pages: Mutex::default(),
@@ -314,17 +320,30 @@ impl Session {
         &self,
         params: &CreateSnapshotParams,
     ) -> Result<CreateSnapshotResponse, String> {
-        reject_file_system(params)?;
         let mut request = self.to_api_snapshot_request(&params.changes)?;
         let open = self.reconcile_snapshot_opens(&mut request, OpenState::default());
-        let file_changes = self.to_file_change_summary(params.file_notifications.as_ref())?;
+        let mut file_changes = self.to_file_change_summary(params.file_notifications.as_ref())?;
+        let mut file_system = None;
+        if let Some(supplied) = &params.file_system {
+            file_system = Some(
+                RequestFileSystem::new_for_update(
+                    supplied,
+                    &SnapshotFileSystem::Host(Arc::clone(&self.fs)),
+                    self.current_directory(),
+                    &mut file_changes,
+                )
+                .map_err(client_error)?,
+            );
+            request.replace_file_system = supplied.is_full();
+        }
+        let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
         let root = self.host.new_root_snapshot();
         let snapshot = self
             .host
             .clone_snapshot(&root, file_changes, Some(&request))
             .map_err(|error| client_error(format!("failed to create snapshot: {error}")))?;
         let response = self.create_snapshot_response(&snapshot, None, &params.changes)?;
-        self.register_snapshot(snapshot, open);
+        self.register_snapshot(snapshot, open, file_system);
         Ok(response)
     }
 
@@ -334,24 +353,47 @@ impl Session {
         &self,
         params: UpdateSnapshotParams,
     ) -> Result<CreateSnapshotResponse, String> {
-        let (base, base_open) = {
+        let (base, base_open, mut file_system) = {
             let snapshots = self.lock_snapshots();
             let data = snapshots
                 .get(&params.snapshot)
                 .ok_or_else(|| client_error(format!("snapshot {} not found", params.snapshot)))?;
-            (Arc::clone(&data.snapshot), data.open.clone())
+            (
+                Arc::clone(&data.snapshot),
+                data.open.clone(),
+                data.file_system.clone(),
+            )
         };
         let changes = params.changes.unwrap_or_default();
-        reject_file_system(&changes)?;
         let mut request = self.to_api_snapshot_request(&changes.changes)?;
         let open = self.reconcile_snapshot_opens(&mut request, base_open);
-        let file_changes = self.to_file_change_summary(changes.file_notifications.as_ref())?;
+        let mut file_changes = self.to_file_change_summary(changes.file_notifications.as_ref())?;
+        if let Some(supplied) = &changes.file_system {
+            let base_file_system = match &file_system {
+                Some(request_fs) => SnapshotFileSystem::Request(Arc::clone(request_fs)),
+                None => SnapshotFileSystem::Host(Arc::clone(&self.fs)),
+            };
+            file_system = Some(
+                RequestFileSystem::new_for_update(
+                    supplied,
+                    &base_file_system,
+                    self.current_directory(),
+                    &mut file_changes,
+                )
+                .map_err(client_error)?,
+            );
+        }
+        request.replace_file_system = changes
+            .file_system
+            .as_ref()
+            .is_some_and(|supplied| supplied.is_full());
+        let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
         let snapshot = self
             .host
             .clone_snapshot(&base, file_changes, Some(&request))
             .map_err(|error| client_error(format!("failed to update snapshot: {error}")))?;
         let response = self.create_snapshot_response(&snapshot, Some(&base), &changes.changes)?;
-        self.register_snapshot(snapshot, open);
+        self.register_snapshot(snapshot, open, file_system);
         Ok(response)
     }
 
@@ -376,13 +418,19 @@ impl Session {
     }
 
     /// tsgo `registerSnapshot`.
-    fn register_snapshot(&self, snapshot: Snapshot, open: OpenState) {
+    fn register_snapshot(
+        &self,
+        snapshot: Snapshot,
+        open: OpenState,
+        file_system: Option<Arc<RequestFileSystem>>,
+    ) {
         self.lock_snapshots().insert(
             snapshot.id(),
             SnapshotData {
                 snapshot: Arc::new(snapshot),
                 ref_count: 1,
                 open,
+                file_system,
             },
         );
     }
@@ -777,11 +825,20 @@ fn compact_json(text: &str) -> String {
     compact
 }
 
-/// A request's file system (tsgo `requestfilesystem`) is not ported yet.
-fn reject_file_system(params: &CreateSnapshotParams) -> Result<(), String> {
-    match &params.file_system {
-        Some(_) => Err(client_error("a request's file system is not supported yet")),
-        None => Ok(()),
+/// A snapshot read through a request's file system: the request carries
+/// it, and the file changes reach the files' other names through its links
+/// (tsgo's snapshot expands them with `ExpandFileChanges`).
+fn read_through(
+    request: &mut ApiSnapshotRequest,
+    file_changes: FileChangeSummary,
+    file_system: Option<&Arc<RequestFileSystem>>,
+) -> FileChangeSummary {
+    match file_system {
+        Some(file_system) => {
+            request.file_system = Some(Arc::clone(file_system) as Arc<dyn FileSystem>);
+            file_system.expand_file_changes(file_changes)
+        }
+        None => file_changes,
     }
 }
 

@@ -94,8 +94,8 @@ mod error;
 pub mod go_json;
 mod js_path;
 pub use js_path::{
-    base_file_name, normalize_path, normalized_absolute_path as get_normalized_absolute_path,
-    root_parts as path_root_parts,
+    base_file_name, combine_paths, directory_name as get_directory_path, normalize_path,
+    normalized_absolute_path as get_normalized_absolute_path, root_parts as path_root_parts,
 };
 pub use tsc_host::to_file_name_lower_case_js;
 mod js_string_ops;

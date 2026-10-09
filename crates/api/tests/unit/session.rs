@@ -644,26 +644,617 @@ fn a_method_tsgo_has_is_not_implemented_yet_and_another_is_unknown() {
     assert!(TSGO_METHODS.windows(2).all(|pair| pair[0] < pair[1]));
 }
 
+// session_requestfilesystem_test.go: the cases a standalone session has (the
+// others drive the language server's open files). tsgo's `GetFile` identity
+// checks become content checks.
+
+fn program_of(
+    session: &Session,
+    snapshot: &Value,
+    project: &str,
+) -> Arc<tsc_project::ProjectProgram> {
+    let snapshot = session.snapshot(snapshot.as_u64().unwrap()).unwrap();
+    let project = snapshot.project(&ProjectId::new(project)).unwrap();
+    Arc::clone(project.program().unwrap())
+}
+
+fn source_text(program: &tsc_project::ProjectProgram, file_name: &str) -> Option<String> {
+    program
+        .prepared()
+        .source_files()
+        .iter()
+        .find(|file| file.path().display().to_string_lossy() == file_name)
+        .map(|file| file.text().to_owned())
+}
+
+fn read_snapshot(session: &Session, snapshot: &Value, file_name: &str) -> Option<String> {
+    session
+        .snapshot(snapshot.as_u64().unwrap())
+        .unwrap()
+        .read_file(file_name)
+        .map(|bytes| String::from_utf8(bytes).unwrap())
+}
+
 #[test]
-fn a_request_file_system_is_not_supported_yet() {
-    // tsgo's request file system (`requestfilesystem`) comes with P5-2b.
+fn a_full_file_system_answers_for_the_snapshot() {
+    // TestCreateSnapshotUsesFullFileSystem.
+    let (session, _) = session(&[("/host.ts", "host")]);
+    let response = call(
+        &session,
+        "createSnapshot",
+        json!({
+            "openProjects": ["/tsconfig.json"],
+            "fileSystem": { "kind": "full", "files": {
+                "/tsconfig.json": r#"{ "compilerOptions": { "noLib": true }, "files": ["src/index.ts"] }"#,
+                "/src/index.ts": r#"export const value = "memory";"#,
+                "/src/other.ts": "export const other = true;",
+            } },
+        }),
+    )
+    .unwrap();
+    assert_eq!(ids(&response), ["/tsconfig.json"]);
+    assert_eq!(response["projects"][0]["configFileName"], "/tsconfig.json");
+    let snapshot = &response["snapshot"];
+    assert_eq!(
+        read_snapshot(&session, snapshot, "/src/index.ts").as_deref(),
+        Some(r#"export const value = "memory";"#)
+    );
+    assert_eq!(read_snapshot(&session, snapshot, "/host.ts"), None);
+    // The same file system without a change keeps the program.
+    let program = program_of(&session, snapshot, "/tsconfig.json");
+    let unchanged = call(&session, "updateSnapshot", json!({ "snapshot": snapshot })).unwrap();
+    assert!(Arc::ptr_eq(
+        &program_of(&session, &unchanged["snapshot"], "/tsconfig.json"),
+        &program
+    ));
+    // A new file system replaces what the snapshots read before.
+    let updated = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": unchanged["snapshot"], "changes": {
+            "ensurePrograms": true,
+            "fileSystem": { "kind": "full", "files": {
+                "/tsconfig.json": r#"{ "compilerOptions": { "noLib": true }, "files": ["src/index.ts", "src/other.ts"] }"#,
+                "/src/index.ts": r#"export const value = "updated";"#,
+                "/src/other.ts": "export const other = true;",
+            } },
+        } }),
+    )
+    .unwrap();
+    assert_eq!(
+        read_snapshot(&session, &updated["snapshot"], "/src/index.ts").as_deref(),
+        Some(r#"export const value = "updated";"#)
+    );
+    // A layer keeps the base's files except its own.
+    let temporary = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": updated["snapshot"], "changes": {
+            "fileSystem": { "kind": "layer", "files": { "/src/index.ts": r#"export const value = "temporary";"# } },
+        } }),
+    )
+    .unwrap();
+    assert_eq!(
+        read_snapshot(&session, &temporary["snapshot"], "/src/index.ts").as_deref(),
+        Some(r#"export const value = "temporary";"#)
+    );
+    assert_eq!(
+        read_snapshot(&session, &temporary["snapshot"], "/src/other.ts").as_deref(),
+        Some("export const other = true;")
+    );
+}
+
+#[test]
+fn a_created_program_reads_the_full_file_system() {
+    // TestCreateProgramRetainsFullFileSystem.
     let (session, _) = session(&[]);
-    for (method, params) in [
+    let base = call(
+        &session,
+        "createSnapshot",
+        json!({
+            "openFiles": ["/old.ts"],
+            "fileSystem": { "kind": "full", "files": {
+                "/old.ts": "export const oldValue = 1;",
+                "/new.ts": "export const newValue = 2;",
+            } },
+        }),
+    )
+    .unwrap();
+    assert_eq!(ids(&base).len(), 1);
+    let created = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": base["snapshot"], "changes": {
+            "createPrograms": [{ "rootFiles": ["/new.ts"], "compilerOptions": { "noLib": true } }],
+        } }),
+    )
+    .unwrap();
+    let program = program_of(
+        &session,
+        &created["snapshot"],
+        created["operation"]["createdPrograms"][0].as_str().unwrap(),
+    );
+    assert!(source_text(&program, "/new.ts").is_some());
+}
+
+#[test]
+fn an_update_to_a_full_file_system_is_total() {
+    // TestSnapshotUpdateFullFileSystemIsTotal.
+    let (session, _) = session(&[("/host.ts", "host")]);
+    let base = call(&session, "createSnapshot", json!({})).unwrap();
+    let replaced = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": base["snapshot"], "changes": {
+            "fileSystem": { "kind": "full", "files": { "/memory.ts": "memory" } },
+        } }),
+    )
+    .unwrap();
+    assert_eq!(
+        read_snapshot(&session, &replaced["snapshot"], "/memory.ts").as_deref(),
+        Some("memory")
+    );
+    assert_eq!(
+        read_snapshot(&session, &replaced["snapshot"], "/host.ts"),
+        None
+    );
+}
+
+#[test]
+fn an_update_without_a_file_system_keeps_the_hosts_program() {
+    // TestSnapshotUpdateCarriesHostFileSystemWithoutOverride.
+    let (session, _) = session(&[
         (
-            "createSnapshot",
-            json!({ "fileSystem": { "kind": "full", "files": {} } }),
+            "/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "files": ["index.ts"] }"#,
         ),
+        ("/index.ts", "export const value = true;"),
+    ]);
+    let base = call(
+        &session,
+        "createSnapshot",
+        json!({ "openProjects": ["/tsconfig.json"] }),
+    )
+    .unwrap();
+    let program = program_of(&session, &base["snapshot"], "/tsconfig.json");
+    let updated = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": base["snapshot"] }),
+    )
+    .unwrap();
+    assert!(Arc::ptr_eq(
+        &program_of(&session, &updated["snapshot"], "/tsconfig.json"),
+        &program
+    ));
+}
+
+#[test]
+fn file_system_layers_keep_the_incremental_state() {
+    // TestSnapshotFileSystemLayersPreserveIncrementalState.
+    let files = [
         (
-            "updateSnapshot",
-            json!({ "snapshot": 1, "changes": { "fileSystem": { "kind": "layer" } } }),
+            "/a/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "include": ["**/*.ts"] }"#,
         ),
-    ] {
-        if method == "updateSnapshot" {
-            call(&session, "createSnapshot", json!({})).unwrap();
+        ("/a/index.ts", "export const value = 1;"),
+        ("/a/removed/nested.ts", "export const nested = true;"),
+        ("/a/removed/deep/file.ts", "export const deep = true;"),
+        (
+            "/b/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "files": ["index.ts"] }"#,
+        ),
+        ("/b/index.ts", "export const unrelated = true;"),
+    ];
+    let file_map = files
+        .iter()
+        .map(|(name, text)| ((*name).to_owned(), json!(text)))
+        .collect::<serde_json::Map<_, _>>();
+    for base_kind in ["host", "full", "layer"] {
+        let (session, _) = session(&files);
+        let mut params = json!({ "openProjects": ["/a/tsconfig.json", "/b/tsconfig.json"] });
+        if base_kind != "host" {
+            params["fileSystem"] = json!({ "kind": base_kind, "files": file_map });
         }
+        let base = call(&session, "createSnapshot", params).unwrap();
+        let base_program = program_of(&session, &base["snapshot"], "/a/tsconfig.json");
+        let unrelated = program_of(&session, &base["snapshot"], "/b/tsconfig.json");
+        let layer = |snapshot: &Value, file_system: Value| {
+            call(
+                &session,
+                "updateSnapshot",
+                json!({ "snapshot": snapshot, "changes": { "ensurePrograms": true, "fileSystem": file_system } }),
+            )
+            .unwrap()
+        };
+        let unchanged = layer(
+            &base["snapshot"],
+            json!({ "kind": "layer", "files": { "/a/index.ts": "export const value = 1;" } }),
+        );
+        assert!(
+            Arc::ptr_eq(
+                &program_of(&session, &unchanged["snapshot"], "/a/tsconfig.json"),
+                &base_program
+            ),
+            "{base_kind}"
+        );
+        assert!(Arc::ptr_eq(
+            &program_of(&session, &unchanged["snapshot"], "/b/tsconfig.json"),
+            &unrelated
+        ));
+        let updated = layer(
+            &unchanged["snapshot"],
+            json!({ "kind": "layer", "files": { "/a/index.ts": "export const value = 2;" } }),
+        );
+        let snapshot = session
+            .snapshot(updated["snapshot"].as_u64().unwrap())
+            .unwrap();
+        let project = snapshot
+            .project(&ProjectId::new("/a/tsconfig.json"))
+            .unwrap();
+        assert!(!Arc::ptr_eq(project.program().unwrap(), &base_program));
         assert_eq!(
-            call(&session, method, params).unwrap_err(),
-            "api: client error: a request's file system is not supported yet"
+            project.program_update_kind(),
+            tsc_project::ProgramUpdateKind::Cloned,
+            "{base_kind}"
+        );
+        assert_eq!(
+            source_text(project.program().unwrap(), "/a/index.ts").as_deref(),
+            Some("export const value = 2;")
+        );
+        assert!(Arc::ptr_eq(
+            &program_of(&session, &updated["snapshot"], "/b/tsconfig.json"),
+            &unrelated
+        ));
+        let removed = layer(
+            &updated["snapshot"],
+            json!({ "kind": "layer", "removedPaths": ["/a/removed"] }),
+        );
+        let removed_program = program_of(&session, &removed["snapshot"], "/a/tsconfig.json");
+        for path in ["/a/removed/nested.ts", "/a/removed/deep/file.ts"] {
+            assert_eq!(source_text(&removed_program, path), None, "{path}");
+            assert_eq!(
+                read_snapshot(&session, &removed["snapshot"], path),
+                None,
+                "{path}"
+            );
+            assert!(source_text(&base_program, path).is_some(), "{path}");
+        }
+        assert!(Arc::ptr_eq(
+            &program_of(&session, &removed["snapshot"], "/b/tsconfig.json"),
+            &unrelated
+        ));
+        // A request without a base snapshot returns to the host, without
+        // the old layer's contents and removals.
+        let restored = call(
+            &session,
+            "createSnapshot",
+            json!({ "openProjects": ["/a/tsconfig.json", "/b/tsconfig.json"] }),
+        )
+        .unwrap();
+        let restored_snapshot = session
+            .snapshot(restored["snapshot"].as_u64().unwrap())
+            .unwrap();
+        assert!(!restored_snapshot.has_file_system_override());
+        let restored_program = program_of(&session, &restored["snapshot"], "/a/tsconfig.json");
+        assert_eq!(
+            source_text(&restored_program, "/a/index.ts").as_deref(),
+            Some("export const value = 1;")
+        );
+        assert!(source_text(&restored_program, "/a/removed/deep/file.ts").is_some());
+    }
+}
+
+#[test]
+fn a_layer_without_a_base_snapshot_builds_over_the_host() {
+    // TestSnapshotFileSystemLayerWithoutBaseUpdatesHostState.
+    let (session, _) = session(&[
+        (
+            "/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "files": ["index.ts"] }"#,
+        ),
+        ("/index.ts", "export const value = 1;"),
+    ]);
+    call(
+        &session,
+        "createSnapshot",
+        json!({ "openProjects": ["/tsconfig.json"] }),
+    )
+    .unwrap();
+    let updated = call(
+        &session,
+        "createSnapshot",
+        json!({
+            "openProjects": ["/tsconfig.json"],
+            "fileSystem": { "kind": "layer", "files": { "/index.ts": "export const value = 2;" } },
+        }),
+    )
+    .unwrap();
+    let snapshot = session
+        .snapshot(updated["snapshot"].as_u64().unwrap())
+        .unwrap();
+    let project = snapshot.project(&ProjectId::new("/tsconfig.json")).unwrap();
+    assert_eq!(
+        source_text(project.program().unwrap(), "/index.ts").as_deref(),
+        Some("export const value = 2;")
+    );
+    assert_eq!(
+        project.program_update_kind(),
+        tsc_project::ProgramUpdateKind::NewFiles
+    );
+}
+
+fn snapshot_file_system(session: &Session, snapshot: &Value) -> Arc<RequestFileSystem> {
+    session.lock_snapshots()[&snapshot.as_u64().unwrap()]
+        .file_system
+        .clone()
+        .expect("the snapshot reads a request's file system")
+}
+
+#[test]
+fn releasing_the_base_leaves_a_layered_file_system_whole() {
+    // TestReleaseSnapshotCompactsSoleLayeredFileSystem.
+    let (session, _) = session(&[("/host.ts", "host")]);
+    let base = call(
+        &session,
+        "createSnapshot",
+        json!({ "fileSystem": { "kind": "full", "files": {
+            "/inherited.ts": "inherited", "/changed.ts": "old", "/removed.ts": "removed",
+        } } }),
+    )
+    .unwrap();
+    snapshot_file_system(&session, &base["snapshot"]);
+    let layered = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": base["snapshot"], "changes": { "fileSystem": {
+            "kind": "layer",
+            "files": { "/changed.ts": "new", "/added.ts": "added" },
+            "removedPaths": ["/removed.ts"],
+        } } }),
+    )
+    .unwrap();
+    let file_system = snapshot_file_system(&session, &layered["snapshot"]);
+    assert_eq!(
+        session.lock_snapshots()[&base["snapshot"].as_u64().unwrap()].ref_count,
+        1
+    );
+    assert_eq!(
+        call(&session, "release", json!({ "snapshot": base["snapshot"] })).unwrap(),
+        true
+    );
+    assert!(!session
+        .lock_snapshots()
+        .contains_key(&base["snapshot"].as_u64().unwrap()));
+    for (path, expected) in [
+        ("/inherited.ts", "inherited"),
+        ("/changed.ts", "new"),
+        ("/added.ts", "added"),
+    ] {
+        assert_eq!(
+            read_snapshot(&session, &layered["snapshot"], path).as_deref(),
+            Some(expected),
+            "{path}"
         );
     }
+    assert_eq!(
+        read_snapshot(&session, &layered["snapshot"], "/removed.ts"),
+        None
+    );
+    assert_eq!(
+        read_snapshot(&session, &layered["snapshot"], "/host.ts"),
+        None
+    );
+    assert!(file_system.is_full());
+}
+
+#[test]
+fn releasing_each_base_keeps_no_history() {
+    // TestEagerSnapshotReleaseDoesNotRetainFileSystemHistory.
+    let (session, _) = session(&[]);
+    let mut response = call(
+        &session,
+        "createSnapshot",
+        json!({ "fileSystem": { "kind": "full", "files": { "/pkg/index.ts": "" } } }),
+    )
+    .unwrap();
+    let mut content = String::new();
+    for character in "export const x = 1".chars() {
+        let old = response["snapshot"].clone();
+        content.push(character);
+        response = call(
+            &session,
+            "updateSnapshot",
+            json!({ "snapshot": old, "changes": { "fileSystem": {
+                "kind": "layer", "files": { "/pkg/index.ts": content },
+            } } }),
+        )
+        .unwrap();
+        call(&session, "release", json!({ "snapshot": old })).unwrap();
+        assert_eq!(session.lock_snapshots().len(), 1);
+        assert_eq!(
+            session.lock_snapshots()[&response["snapshot"].as_u64().unwrap()].ref_count,
+            1
+        );
+        assert!(snapshot_file_system(&session, &response["snapshot"]).is_full());
+        assert_eq!(
+            read_snapshot(&session, &response["snapshot"], "/pkg/index.ts").as_deref(),
+            Some(content.as_str())
+        );
+    }
+}
+
+#[test]
+fn releasing_the_first_of_a_chain_keeps_the_others() {
+    // TestSnapshotReleaseCompactsChainedFileSystems.
+    let (session, _) = session(&[]);
+    let mut responses = vec![call(
+        &session,
+        "createSnapshot",
+        json!({ "fileSystem": { "kind": "full", "files": { "/pkg/index.ts": "0" } } }),
+    )
+    .unwrap()];
+    for index in 1..4 {
+        let previous = responses[index - 1]["snapshot"].clone();
+        responses.push(
+            call(
+                &session,
+                "updateSnapshot",
+                json!({ "snapshot": previous, "changes": { "fileSystem": {
+                    "kind": "layer", "files": { "/pkg/index.ts": index.to_string() },
+                } } }),
+            )
+            .unwrap(),
+        );
+    }
+    call(
+        &session,
+        "release",
+        json!({ "snapshot": responses[0]["snapshot"] }),
+    )
+    .unwrap();
+    assert!(!session
+        .lock_snapshots()
+        .contains_key(&responses[0]["snapshot"].as_u64().unwrap()));
+    for (index, response) in responses.iter().enumerate().skip(1) {
+        assert_eq!(
+            session.lock_snapshots()[&response["snapshot"].as_u64().unwrap()].ref_count,
+            1
+        );
+        assert!(snapshot_file_system(&session, &response["snapshot"]).is_full());
+        assert_eq!(
+            read_snapshot(&session, &response["snapshot"], "/pkg/index.ts"),
+            Some(index.to_string())
+        );
+    }
+}
+
+#[test]
+fn a_temporary_snapshot_keeps_its_layers() {
+    // TestTemporarySnapshotRetainsLayeredFileSystemHistory.
+    let (session, _) = session(&[]);
+    let base = call(
+        &session,
+        "createSnapshot",
+        json!({ "fileSystem": { "kind": "full", "files": { "/pkg/index.ts": "base" } } }),
+    )
+    .unwrap();
+    let layer = |snapshot: &Value, text: &str| {
+        call(
+            &session,
+            "updateSnapshot",
+            json!({ "snapshot": snapshot, "changes": { "fileSystem": {
+                "kind": "layer", "files": { "/pkg/index.ts": text },
+            } } }),
+        )
+        .unwrap()
+    };
+    let layered = layer(&base["snapshot"], "layered");
+    let temporary = layer(&layered["snapshot"], "temporary");
+    call(
+        &session,
+        "release",
+        json!({ "snapshot": layered["snapshot"] }),
+    )
+    .unwrap();
+    call(&session, "release", json!({ "snapshot": base["snapshot"] })).unwrap();
+    assert!(snapshot_file_system(&session, &temporary["snapshot"]).is_full());
+    assert_eq!(
+        read_snapshot(&session, &temporary["snapshot"], "/pkg/index.ts").as_deref(),
+        Some("temporary")
+    );
+}
+
+#[test]
+fn a_release_does_not_disturb_readers() {
+    // TestSnapshotReleaseCompactionSupportsConcurrentReaders.
+    let (session, _) = session(&[]);
+    let files = (0..1024)
+        .map(|index| (format!("/pkg/file{index}.ts"), json!(index.to_string())))
+        .collect::<serde_json::Map<_, _>>();
+    let base = call(
+        &session,
+        "createSnapshot",
+        json!({ "fileSystem": { "kind": "full", "files": files } }),
+    )
+    .unwrap();
+    let layered = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": base["snapshot"], "changes": { "fileSystem": {
+            "kind": "layer", "files": { "/pkg/file0.ts": "updated" },
+        } } }),
+    )
+    .unwrap();
+    let file_system = snapshot_file_system(&session, &layered["snapshot"]);
+    let done = std::sync::atomic::AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        let reader = scope.spawn(|| {
+            while !done.load(std::sync::atomic::Ordering::Relaxed) {
+                assert_eq!(file_system.read("/pkg/file0.ts").unwrap(), b"updated");
+                assert!(file_system.is_file("/pkg/file1023.ts"));
+            }
+        });
+        call(&session, "release", json!({ "snapshot": base["snapshot"] })).unwrap();
+        done.store(true, std::sync::atomic::Ordering::Relaxed);
+        reader.join().unwrap();
+    });
+}
+
+#[test]
+fn a_large_layer_update_keeps_its_changes() {
+    // TestLargeRequestLayerUpdateRetainsChanges, the open file a host file:
+    // over a thousand changes make the snapshot drop what it read.
+    let (session, _) = session(&[
+        (
+            "/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "files": ["index.ts"] }"#,
+        ),
+        ("/index.ts", "old"),
+    ]);
+    let filler = |text: &str| {
+        (0..1000)
+            .map(|index| (format!("/unused/file{index}.ts"), json!(text)))
+            .collect::<serde_json::Map<_, _>>()
+    };
+    let base = call(
+        &session,
+        "createSnapshot",
+        json!({
+            "openProjects": ["/tsconfig.json"],
+            "fileSystem": { "kind": "layer", "files": filler("old") },
+        }),
+    )
+    .unwrap();
+    let mut updated_files = filler("new");
+    updated_files.insert("/index.ts".to_owned(), json!("new"));
+    let updated = call(
+        &session,
+        "updateSnapshot",
+        json!({ "snapshot": base["snapshot"], "changes": {
+            "ensurePrograms": true,
+            "fileSystem": { "kind": "layer", "files": updated_files },
+        } }),
+    )
+    .unwrap();
+    assert_eq!(
+        read_snapshot(&session, &updated["snapshot"], "/index.ts").as_deref(),
+        Some("new")
+    );
+    let program = program_of(&session, &updated["snapshot"], "/tsconfig.json");
+    assert_eq!(source_text(&program, "/index.ts").as_deref(), Some("new"));
+}
+
+#[test]
+fn an_invalid_request_file_system_is_a_client_error() {
+    let (session, _) = session(&[]);
+    assert_eq!(
+        call(
+            &session,
+            "createSnapshot",
+            json!({ "fileSystem": { "kind": "memory" } }),
+        )
+        .unwrap_err(),
+        r#"api: client error: unknown request filesystem kind "memory""#
+    );
 }

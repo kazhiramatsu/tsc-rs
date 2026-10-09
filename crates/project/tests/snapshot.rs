@@ -1908,3 +1908,33 @@ fn a_change_to_a_files_requests_builds_the_program_again() {
         );
     }
 }
+
+#[test]
+fn a_config_at_the_root_has_the_root_as_its_directory() {
+    // tsgo `GetDirectoryPath("/tsconfig.json")` is `/`: the project's
+    // directory, which its program resolves from.
+    let (host, _) = session(&[
+        (
+            "/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "files": ["index.ts"] }"#,
+        ),
+        ("/index.ts", "export const value = 1;"),
+    ]);
+    let snapshot = update(
+        &host,
+        &host.new_root_snapshot(),
+        open_projects(&["/tsconfig.json"]),
+    )
+    .expect("open the project");
+    let project = snapshot
+        .project(&ProjectId::new("/tsconfig.json"))
+        .expect("the project");
+    assert_eq!(project.current_directory(), "/");
+    assert!(project.program().is_some());
+    assert_eq!(
+        snapshot
+            .default_project("/index.ts")
+            .map(|project| project.id().clone()),
+        Some(ProjectId::new("/tsconfig.json"))
+    );
+}

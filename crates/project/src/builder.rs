@@ -292,9 +292,9 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let id = ProjectId::configured(path)
             .unwrap_or_else(|| panic!("invalid configured project ID: {path}"));
         if !self.configured.contains_key(&id) {
-            let directory = file_name
-                .rsplit_once('/')
-                .map_or_else(String::new, |(directory, _)| directory.to_owned());
+            let directory = tsc_program::get_directory_path(JsStr::from_str(file_name))
+                .to_string_lossy()
+                .into_owned();
             self.insert(Project::new_configured(file_name, path, directory));
         }
         id
@@ -692,22 +692,33 @@ impl<'a> ProjectCollectionBuilder<'a> {
         if file_name.starts_with("^/") {
             return None;
         }
-        let mut directory = self.host.paths().absolute(file_name);
+        let directory_of = |path: &str| {
+            tsc_program::get_directory_path(JsStr::from_str(path))
+                .to_string_lossy()
+                .into_owned()
+        };
+        // tsgo `ForEachAncestorDirectory` from the file's directory.
+        let mut directory = directory_of(&self.host.paths().absolute(file_name));
         loop {
-            directory = match directory.rfind('/') {
-                Some(0) if directory.len() > 1 => "/".to_owned(),
-                Some(index) if index > 0 => directory[..index].to_owned(),
-                _ => return None,
-            };
             for config in ["tsconfig.json", "jsconfig.json"] {
-                let candidate = format!("{}/{config}", directory.trim_end_matches('/'));
+                let candidate = tsc_program::combine_paths(
+                    JsStr::from_str(&directory),
+                    JsStr::from_str(config),
+                )
+                .to_string_lossy()
+                .into_owned();
                 if self.fs.file_exists(&candidate) {
                     return Some(candidate);
                 }
             }
-            if directory.ends_with("/node_modules") || directory == "/" {
+            if directory.ends_with("/node_modules") {
                 return None;
             }
+            let parent = directory_of(&directory);
+            if parent == directory {
+                return None;
+            }
+            directory = parent;
         }
     }
 
