@@ -70,6 +70,7 @@ mod declaration_diagnostics;
 mod help;
 mod incremental;
 mod init;
+mod live;
 pub mod locale;
 mod options;
 mod show_config;
@@ -84,6 +85,7 @@ pub use cli::{
     execute_command_line, run_cli, CliOutput, CommandLineResult, TYPESCRIPT_VERSION as CLI_VERSION,
 };
 pub use declaration_diagnostics::DeclarationSession;
+pub use live::LiveProgram;
 pub use tsc_checker::JSDocParsingMode;
 pub use tsc_emitter::EmitRouteKind;
 
@@ -538,8 +540,11 @@ impl ProgramDiagnostics {
     }
 }
 
-struct PreparedModuleProvider<'a> {
-    prepared: &'a PreparedProgram,
+/// The module provider over one [`PreparedProgram`], borrowed by a batch
+/// session (`P = &PreparedProgram`) or owned by a [`LiveProgram`]
+/// (`P = Arc<PreparedProgram>`).
+struct PreparedModuleProvider<P: std::borrow::Borrow<PreparedProgram>> {
+    prepared: P,
     request_plans: std::sync::Mutex<BTreeMap<SourceFileId, SourceRequestPlan>>,
     tracing: Option<Arc<Tracing>>,
 }
@@ -940,7 +945,11 @@ fn common_emit_source_directory(
     )
 }
 
-impl PreparedModuleProvider<'_> {
+impl<P: std::borrow::Borrow<PreparedProgram>> PreparedModuleProvider<P> {
+    fn prepared(&self) -> &PreparedProgram {
+        self.prepared.borrow()
+    }
+
     fn source_request_plan(
         &self,
         source_file: SourceFileId,
@@ -955,7 +964,7 @@ impl PreparedModuleProvider<'_> {
             return Ok(plan.clone());
         }
         let plan =
-            plan_source_requests(source, self.prepared.compiler_options()).map_err(|_| {
+            plan_source_requests(source, self.prepared().compiler_options()).map_err(|_| {
                 AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
                 )
@@ -999,9 +1008,11 @@ impl PreparedModuleProvider<'_> {
     }
 }
 
-impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
+impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
+    for PreparedModuleProvider<P>
+{
     fn common_source_directory(&self) -> Option<JsString> {
-        Some(self.prepared.common_source_directory())
+        Some(self.prepared().common_source_directory())
     }
 
     fn tracing(&self) -> Option<Arc<Tracing>> {
@@ -1009,21 +1020,21 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
     }
 
     fn path_context(&self) -> Option<&tsc_program::PathContext> {
-        Some(self.prepared.path_context())
+        Some(self.prepared().path_context())
     }
 
     fn is_project_reference_source(&self, file_name: JsStr<'_>) -> bool {
-        self.prepared
+        self.prepared()
             .project_reference_output_of_source(file_name)
             .is_some()
     }
 
     fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
-        Some(self.prepared.program_options())
+        Some(self.prepared().program_options())
     }
 
     fn include_processor_diagnostics(&self) -> Vec<(AuthoritativeSourceToken, Diagnostic)> {
-        include_processor_rows(self.prepared)
+        include_processor_rows(self.prepared())
             .into_iter()
             .map(|(source, diagnostic)| (AuthoritativeSourceToken(source.raw()), diagnostic))
             .collect()
@@ -1034,7 +1045,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         request: AuthoritativeModuleRequest<'_>,
     ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
         let source_file = SourceFileId::from_raw(request.source_token.0);
-        let Some(source) = self.prepared.source_file(source_file) else {
+        let Some(source) = self.prepared().source_file(source_file) else {
             return Err(AuthoritativeModuleLookupFailure::InvalidSourceToken);
         };
         let key = ResolutionKey::new(
@@ -1042,7 +1053,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             request.specifier,
             program_resolution_mode(request.mode),
         );
-        let resolution = match self.prepared.resolutions().require_module(&key) {
+        let resolution = match self.prepared().resolutions().require_module(&key) {
             Ok(resolution) => resolution,
             Err(_) => {
                 let plan = self.source_request_plan(source_file, source)?;
@@ -1134,7 +1145,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 // declaration file (tsgo getParseFileRedirect); without the
                 // output nothing was loaded, and the checker reports TS6305.
                 let project_reference_output = self
-                    .prepared
+                    .prepared()
                     .program_options()
                     .project_references()
                     .and_then(|references| references.output_for_source(resolved_file.canonical()))
@@ -1160,7 +1171,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 ));
             }
             if jsx_syntax_extension
-                && self.prepared.compiler_options().jsx.unwrap_or(0) == 0
+                && self.prepared().compiler_options().jsx.unwrap_or(0) == 0
                 && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
             {
                 return Err(AuthoritativeModuleLookupFailure::Unsupported(
@@ -1171,7 +1182,11 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 && matches!(reason, UnloadedModuleReason::ResolutionOnly)
                 && !loads_source
                 && (is_declaration_file_name(source.path().display())
-                    || self.prepared.compiler_options().allow_arbitrary_extensions == Some(true))
+                    || self
+                        .prepared()
+                        .compiler_options()
+                        .allow_arbitrary_extensions
+                        == Some(true))
             {
                 // A declaration-file module declaration may introduce an
                 // otherwise unowned augmentation target, while an ordinary
@@ -1197,32 +1212,39 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             // testing maximum's sign, also preserves NaN and fractional
             // precedence for authoritative unloaded rows.
             let first_node_modules_javascript_layer_is_admitted = !self
-                .prepared
+                .prepared()
                 .compiler_options()
                 .node_modules_depth_exceeds_limit(1);
             let resolution_diagnostic = match reason {
                 UnloadedModuleReason::NoResolve
-                    if self.prepared.compiler_options().no_resolve == Some(true) =>
+                    if self.prepared().compiler_options().no_resolve == Some(true) =>
                 {
                     None
                 }
                 UnloadedModuleReason::JsxWithoutJsxOption
                     if jsx_syntax_extension
-                        && self.prepared.compiler_options().jsx.unwrap_or(0) == 0 =>
+                        && self.prepared().compiler_options().jsx.unwrap_or(0) == 0 =>
                 {
                     Some(AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption)
                 }
                 UnloadedModuleReason::ArbitraryExtensionWithoutOption
                     if arbitrary_declaration
                         && loads_source
-                        && self.prepared.compiler_options().allow_arbitrary_extensions
+                        && self
+                            .prepared()
+                            .compiler_options()
+                            .allow_arbitrary_extensions
                             != Some(true)
                         && !is_declaration_file_name(source.path().display()) =>
                 {
                     Some(AuthoritativeModuleResolutionDiagnostic::ArbitraryExtensionWithoutOption)
                 }
                 UnloadedModuleReason::ResolutionOnly if !loads_source => (arbitrary_declaration
-                    && self.prepared.compiler_options().allow_arbitrary_extensions != Some(true)
+                    && self
+                        .prepared()
+                        .compiler_options()
+                        .allow_arbitrary_extensions
+                        != Some(true)
                     && !is_declaration_file_name(source.path().display()))
                 .then_some(
                     AuthoritativeModuleResolutionDiagnostic::ArbitraryExtensionWithoutOption,
@@ -1237,7 +1259,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 UnloadedModuleReason::JavaScriptNotAdmitted
                     if module.extension().is_javascript()
                         && loads_source
-                        && !self.prepared.compiler_options().allow_js
+                        && !self.prepared().compiler_options().allow_js
                         && (!node_modules_depth_applies
                             || first_node_modules_javascript_layer_is_admitted) =>
                 {
@@ -1284,7 +1306,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         else {
             unreachable!("unloaded target returned above")
         };
-        if self.prepared.source_file(*source).is_none() {
+        if self.prepared().source_file(*source).is_none() {
             return Err(AuthoritativeModuleLookupFailure::InvalidSourceToken);
         }
         Ok(AuthoritativeModuleResolution::Resolved(
@@ -1841,7 +1863,7 @@ impl ProgramSession {
         // well: the delegate owns every resolution rule, this wrapper only
         // retains the first exact failed request for the outer driver result.
         struct ObservedProvider<'a> {
-            inner: PreparedModuleProvider<'a>,
+            inner: PreparedModuleProvider<&'a PreparedProgram>,
             failure: std::sync::Mutex<Option<AuthoritativeModuleFailure>>,
         }
         impl AuthoritativeModuleProvider for ObservedProvider<'_> {

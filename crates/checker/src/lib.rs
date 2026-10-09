@@ -123,6 +123,7 @@ pub mod jsx;
 pub mod line_profile;
 pub mod links;
 pub mod literals;
+pub mod live;
 pub mod mapped;
 pub mod member_table;
 pub mod merge;

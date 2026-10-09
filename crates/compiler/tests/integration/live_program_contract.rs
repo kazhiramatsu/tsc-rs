@@ -1,0 +1,323 @@
+//! P5-1a: a [`LiveProgram`] keeps a Program and its checker between
+//! requests. Its diagnostics, asked file by file, equal the batch session's
+//! (the native harness run, which checks every file), and a query over its
+//! checker equals the batch harness walk.
+
+use std::path::PathBuf;
+
+use tsc_checker::type_writer::{self, TypeWriterLine};
+use tsc_compiler::{LiveProgram, NativeHarnessCollection, ProgramSession};
+use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic};
+use tsc_host::MemoryCompilerHost;
+use tsc_program::{
+    load_program, CompilerOptions, LibraryCatalog, PreparedProgram, ProgramLoadLimits,
+    ProgramOptions,
+};
+
+const MINIMAL_GLOBALS: &str = r#"
+interface IArguments { length: number; callee: Function; }
+interface Array<T> { length: number; [index: number]: T; push(...items: T[]): number; }
+interface Object {}
+interface Function {}
+interface CallableFunction extends Function {}
+interface NewableFunction extends Function {}
+interface String { readonly length: number; }
+interface Number {}
+interface Boolean {}
+interface RegExp {}
+"#;
+
+fn prepared(files: &[(&str, &str)], options: CompilerOptions) -> PreparedProgram {
+    prepared_with_lib(files, options, true)
+}
+
+fn prepared_with_lib(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    with_lib: bool,
+) -> PreparedProgram {
+    let mut builder = MemoryCompilerHost::builder("/work").file(
+        "/typescript/lib/lib.es5.d.ts",
+        MINIMAL_GLOBALS.as_bytes().to_vec(),
+    );
+    for (name, text) in files {
+        builder = builder.file(*name, text.as_bytes().to_vec());
+    }
+    let host = builder.build().expect("build the program host");
+    let roots = files
+        .iter()
+        .filter(|(name, _)| !name.ends_with(".json"))
+        .map(|(name, _)| PathBuf::from(name))
+        .collect::<Vec<_>>();
+    let program_options = ProgramOptions::default().with_types(Vec::new());
+    load_program(
+        &host,
+        &roots,
+        CompilerOptions {
+            no_emit: Some(true),
+            lib: with_lib.then(|| vec!["es5".to_owned()]),
+            ..options
+        },
+        if with_lib {
+            program_options
+        } else {
+            program_options.with_no_lib(true)
+        },
+        &LibraryCatalog::typescript_7_1("/typescript/lib"),
+        ProgramLoadLimits::new(64, 256, 16, 256 * 1_024, 1_024 * 1_024),
+    )
+    .expect("load the prepared program")
+}
+
+fn sorted(mut diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    diagnostics
+}
+
+/// The live Program's diagnostics of every kind, every file asked in
+/// Program order (libraries first, as the batch session checks them).
+struct LiveDiagnostics {
+    config: Vec<Diagnostic>,
+    options: Vec<Diagnostic>,
+    syntactic: Vec<Diagnostic>,
+    global: Vec<Diagnostic>,
+    semantic: Vec<Diagnostic>,
+}
+
+fn live_diagnostics(prepared: PreparedProgram) -> LiveDiagnostics {
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    let mut syntactic = Vec::new();
+    let mut semantic = Vec::new();
+    for file in 0..live.file_count() {
+        syntactic.extend(live.syntactic_diagnostics(file));
+    }
+    // The batch session checks the Program's sources, then completes the
+    // library prefix.
+    let lib_count = live.prepared().library_files().len();
+    let order = (lib_count..live.file_count()).chain(0..lib_count);
+    for file in order {
+        semantic.extend(
+            live.semantic_diagnostics(file)
+                .expect("check the file on demand"),
+        );
+    }
+    LiveDiagnostics {
+        config: live.config_file_parsing_diagnostics().to_vec(),
+        options: live.options_diagnostics(),
+        syntactic: sorted(syntactic),
+        global: live.global_diagnostics(),
+        semantic: sorted(semantic),
+    }
+}
+
+#[test]
+fn live_diagnostics_equal_the_batch_session() {
+    let cases: Vec<(&str, Vec<(&str, &str)>, CompilerOptions, bool)> = vec![
+        (
+            "type errors across imports",
+            vec![
+                (
+                    "/work/a.ts",
+                    "import { b } from './b';\nexport const a: string = b;\nconst c: number = 'c';\n",
+                ),
+                (
+                    "/work/b.ts",
+                    "export const b = 1;\nexport function f(x: number) { return x.length; }\n",
+                ),
+            ],
+            CompilerOptions::default(),
+            true,
+        ),
+        (
+            "missing globals without a library",
+            vec![("/work/a.ts", "const values = [1, 2];\nexport {};\n")],
+            CompilerOptions::default(),
+            false,
+        ),
+        (
+            "parse errors",
+            vec![
+                ("/work/a.ts", "const x = ;\nlet y: number = 'y';\n"),
+                ("/work/b.ts", "function (\n"),
+            ],
+            CompilerOptions::default(),
+            true,
+        ),
+        (
+            "checked JavaScript",
+            vec![
+                ("/work/a.js", "/** @type {number} */\nconst n = 'n';\nmodule.exports = n;\n"),
+                ("/work/b.ts", "const s: string = 1;\nexport {};\n"),
+            ],
+            CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+            true,
+        ),
+        (
+            "an options row and semantic rows",
+            vec![("/work/a.ts", "const z: boolean = 0;\nexport {};\n")],
+            CompilerOptions {
+                base_url: Some("/work".to_owned().into()),
+                ..CompilerOptions::default()
+            },
+            true,
+        ),
+        (
+            "a skipped declaration file",
+            vec![
+                ("/work/types.d.ts", "declare const q: number = 'q';\n"),
+                ("/work/a.ts", "const r: string = q;\nexport {};\n"),
+            ],
+            CompilerOptions {
+                skip_lib_check: Some(true),
+                ..CompilerOptions::default()
+            },
+            true,
+        ),
+    ];
+    for (name, files, options, with_lib) in cases {
+        let prepared = prepared_with_lib(&files, options, with_lib);
+        let batch = ProgramSession::new(prepared.clone())
+            .run_for_native_harness(NativeHarnessCollection {
+                capture_suggestions: false,
+            })
+            .expect("run the batch session");
+        let live = live_diagnostics(prepared);
+        assert_eq!(live.config, batch.config_diagnostics(), "{name}: config");
+        assert_eq!(
+            live.syntactic,
+            batch.syntactic_diagnostics(),
+            "{name}: syntactic"
+        );
+        // The batch outcome's getters gate the options, global and semantic
+        // rows behind the earlier kinds (getPreEmitDiagnostics); a Program's
+        // getters do not. The native harness's union is ungated.
+        let mut union = live.config.clone();
+        union.extend(live.options.iter().cloned());
+        union.extend(live.syntactic.iter().cloned());
+        union.extend(live.semantic.iter().cloned());
+        union.extend(live.global.iter().cloned());
+        assert_eq!(
+            sorted(union),
+            batch.native_harness_diagnostics(),
+            "{name}: every kind"
+        );
+        if live.syntactic.is_empty() {
+            assert_eq!(live.options, batch.options_diagnostics(), "{name}: options");
+            assert_eq!(live.global, batch.global_diagnostics(), "{name}: global");
+        }
+        assert!(
+            !(live.syntactic.is_empty() && live.semantic.is_empty() && live.global.is_empty()),
+            "{name}: the case reports something"
+        );
+    }
+}
+
+#[test]
+fn live_queries_equal_the_batch_walk() {
+    let files = [
+        (
+            "/work/a.ts",
+            "import { make } from './b';\nconst box = make(1);\nexport const value = box.value + 1;\nexport type Pair<T> = [T, T];\nconst pair: Pair<string> = ['x', 'y'];\n",
+        ),
+        (
+            "/work/b.ts",
+            "export interface Box<T> { value: T }\nexport function make<T>(value: T): Box<T> { return { value }; }\n",
+        ),
+    ];
+    let prepared = prepared(&files, CompilerOptions::default());
+    let mut batch_lines: Vec<(Vec<TypeWriterLine>, Vec<TypeWriterLine>)> = Vec::new();
+    let mut walk = |snapshot: &tsc_checker::program::ProgramSnapshot,
+                    session: &tsc_checker::emit::CheckerSession<'_>| {
+        for (file, document) in snapshot.documents().iter().enumerate() {
+            if !document.source().file_name.as_js().starts_with("/work/") {
+                continue;
+            }
+            batch_lines.push(
+                session
+                    .with_state_for_harness(|state| {
+                        Ok::<_, String>((
+                            type_writer::write_types(state, file)?,
+                            type_writer::write_symbols(state, file)?,
+                        ))
+                    })
+                    .expect("walk the batch session"),
+            );
+        }
+    };
+    ProgramSession::new(prepared.clone())
+        .run_for_native_harness_with_walk(
+            NativeHarnessCollection {
+                capture_suggestions: false,
+            },
+            &mut walk,
+        )
+        .expect("run the batch session");
+    assert_eq!(batch_lines.len(), 2);
+
+    // Unchecked: the queries resolve what they need.
+    let mut live = LiveProgram::new(prepared.clone()).expect("create the live program");
+    let mut live_lines = Vec::new();
+    for file in 0..live.file_count() {
+        if !live
+            .file_name(file)
+            .is_some_and(|name| name.starts_with("/work/"))
+        {
+            continue;
+        }
+        live_lines.push(live.with_checker(|state| {
+            (
+                type_writer::write_types(state, file).expect("write the types"),
+                type_writer::write_symbols(state, file).expect("write the symbols"),
+            )
+        }));
+    }
+    assert_eq!(live_lines, batch_lines, "queries before any check");
+
+    // Checked first, as the batch walk is.
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    for file in 0..live.file_count() {
+        live.semantic_diagnostics(file).expect("check the file");
+    }
+    let mut live_lines = Vec::new();
+    for file in 0..live.file_count() {
+        if !live
+            .file_name(file)
+            .is_some_and(|name| name.starts_with("/work/"))
+        {
+            continue;
+        }
+        live_lines.push(live.with_checker(|state| {
+            (
+                type_writer::write_types(state, file).expect("write the types"),
+                type_writer::write_symbols(state, file).expect("write the symbols"),
+            )
+        }));
+    }
+    assert_eq!(live_lines, batch_lines, "queries after every check");
+}
+
+#[test]
+fn a_live_program_moves_between_threads() {
+    fn assert_send<T: Send>() {}
+    assert_send::<LiveProgram>();
+    let prepared = prepared(
+        &[("/work/a.ts", "const n: number = 's';\nexport {};\n")],
+        CompilerOptions::default(),
+    );
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    let file = live
+        .file_index("/work/a.ts")
+        .expect("the file is in the Program");
+    let diagnostics = std::thread::spawn(move || live.semantic_diagnostics(file))
+        .join()
+        .expect("the thread finishes")
+        .expect("check the file");
+    assert_eq!(
+        diagnostics.iter().map(Diagnostic::code).collect::<Vec<_>>(),
+        [2322]
+    );
+}

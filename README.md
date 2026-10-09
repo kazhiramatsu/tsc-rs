@@ -399,7 +399,13 @@ The API has five parts:
   collects the files in memory, and `FsOutputSink` writes them through an
   `EmitFileSystem` implementation. `CheckerBudget` and `WorkerBudget` set
   the parallelism; the API defaults are serial, and the command uses
-  `CheckerBudget::automatic()` and `WorkerBudget::automatic()`. The
+  `CheckerBudget::automatic()` and `WorkerBudget::automatic()`.
+  `LiveProgram` keeps one prepared program and its checker between calls,
+  as the API server planned on top of it will: a file's syntactic,
+  semantic and suggestion diagnostics are produced when they are asked for
+  (each file is checked on its first request), the options and global
+  diagnostics follow the program's getters, and `with_checker` runs a query
+  over the checker. The
   compiler recurses on the native stack in proportion to the nesting depth
   of a source. The command runs its work, and every worker and checker
   thread, on a stack reservation of 1 GiB (`tsc_program::WORKER_STACK_BYTES`;

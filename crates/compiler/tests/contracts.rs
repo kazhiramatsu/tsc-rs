@@ -20,6 +20,8 @@ mod h2_7a_ca_controls;
 mod h2_7a_m4_controls;
 #[path = "integration/library_loader_session_contract.rs"]
 mod library_loader_session_contract;
+#[path = "integration/live_program_contract.rs"]
+mod live_program_contract;
 #[path = "integration/no_resolve_session_contract.rs"]
 mod no_resolve_session_contract;
 #[path = "integration/original_path_session_contract.rs"]

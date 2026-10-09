@@ -1195,6 +1195,94 @@ fn dump_file(directory: &Path, suite: NativeSuite, file_name: &str, content: &st
     }
 }
 
+/// `TSRS_LIVE_CHECK`: the live Program's diagnostics of every kind, every
+/// file asked in the batch session's order, against the batch run's ungated
+/// union (without the declaration rows, which are no Program getter here),
+/// and the type and symbol walk over the live checker against the batch
+/// walk. A difference is written to stderr (the shard's `.stderr`).
+fn compare_live_program(
+    (case_path, stem): (&str, &str),
+    prepared: tsc_program::PreparedProgram,
+    outcome: &tsc_compiler::NoEmitOutcome,
+    walk: Option<&Result<WalkLines, String>>,
+    capture_suggestions: bool,
+) {
+    let report = |what: &str| eprintln!("live mismatch: {case_path} [{stem}]: {what}");
+    let mut live = match tsc_compiler::LiveProgram::new(prepared) {
+        Ok(live) => live,
+        Err(error) => {
+            report(&format!("create: {error}"));
+            return;
+        }
+    };
+    let mut union = live.config_file_parsing_diagnostics().to_vec();
+    union.extend(live.options_diagnostics());
+    for file in 0..live.file_count() {
+        union.extend(live.syntactic_diagnostics(file));
+    }
+    let lib_count = live.prepared().library_files().len();
+    for file in (lib_count..live.file_count()).chain(0..lib_count) {
+        match live.semantic_diagnostics(file) {
+            Ok(diagnostics) => union.extend(diagnostics),
+            Err(error) => {
+                report(&format!("check: {error}"));
+                return;
+            }
+        }
+        if capture_suggestions && file >= lib_count {
+            if let Ok(diagnostics) = live.suggestion_diagnostics(file) {
+                union.extend(diagnostics);
+            }
+        }
+    }
+    union.extend(live.global_diagnostics());
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut union);
+    let declaration = outcome.declaration_diagnostics();
+    let expected = outcome
+        .native_harness_diagnostics()
+        .iter()
+        .filter(|diagnostic| !declaration.contains(diagnostic))
+        .cloned()
+        .collect::<Vec<_>>();
+    if union != expected {
+        let missing = expected.iter().filter(|row| !union.contains(row)).count();
+        let extra = union.iter().filter(|row| !expected.contains(row)).count();
+        report(&format!(
+            "diagnostics ({} live, {} batch; {missing} missing, {extra} extra)",
+            union.len(),
+            expected.len()
+        ));
+    }
+    if let Some(Ok(walk)) = walk {
+        for (unit, types, symbols) in walk {
+            let Some(file) = live.file_index(unit.as_str()) else {
+                report(&format!("walk: {unit} is not in the live Program"));
+                continue;
+            };
+            let (live_types, live_symbols) = live.with_checker(|state| {
+                (
+                    type_writer::write_types(state, file),
+                    type_writer::write_symbols(state, file),
+                )
+            });
+            if live_types.as_ref() != Ok(types) || live_symbols.as_ref() != Ok(symbols) {
+                report(&format!("walk: {unit}"));
+            }
+        }
+    }
+    if std::env::var("TSRS_LIVE_CHECK").as_deref() == Ok("verbose") {
+        eprintln!(
+            "live checked: {case_path} [{stem}] ({} rows, walk {})",
+            union.len(),
+            if matches!(walk, Some(Ok(_))) {
+                "compared"
+            } else {
+                "absent"
+            }
+        );
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn run_lane_a(
     workspace: &Path,
@@ -1258,11 +1346,24 @@ fn run_lane_a(
         && prepared.mode() == PreparedProgramMode::Emit
         && prepared.compiler_options().no_emit_on_error != Some(true);
     let mut first_walk = None;
+    // `TSRS_LIVE_CHECK`: compare the live Program of the API (P5-1a) with
+    // this batch run (development check; one checker).
+    let live_prepared =
+        (checkers == 1 && std::env::var_os("TSRS_LIVE_CHECK").is_some()).then(|| prepared.clone());
+    // The live check walks the first Program for every case (after its
+    // diagnostics, so the run is unchanged); only the comparison reads it.
+    let mut live_walk = None;
+    let live_walks = live_prepared.is_some() && walk_allowed && walk_in_second;
     let outcome = {
         let session = ProgramSession::new(prepared).with_checker_budget(budget());
         let run = if walk_allowed && !walk_in_second {
             let mut walk = |snapshot: &ProgramSnapshot, session: &CheckerSession<'_>| {
                 first_walk = Some(walk_program(snapshot, session, &walk_units));
+            };
+            session.run_for_native_harness_with_walk(collection, &mut walk)
+        } else if live_walks {
+            let mut walk = |snapshot: &ProgramSnapshot, session: &CheckerSession<'_>| {
+                live_walk = Some(walk_program(snapshot, session, &walk_units));
             };
             session.run_for_native_harness_with_walk(collection, &mut walk)
         } else {
@@ -1277,6 +1378,15 @@ fn run_lane_a(
             }
         }
     };
+    if let Some(live_prepared) = live_prepared {
+        compare_live_program(
+            (case_path, stem),
+            live_prepared,
+            &outcome,
+            first_walk.as_ref().or(live_walk.as_ref()),
+            collection.capture_suggestions,
+        );
+    }
     let files = baseline_input_files(plan);
     // A fixture that mentions `/.lib/` compiles the profile's test library
     // too (the loader mounts it), and the native baseline locates rows and
