@@ -123,6 +123,7 @@ pub mod jsx;
 pub mod line_profile;
 pub mod links;
 pub mod literals;
+pub mod live;
 pub mod mapped;
 pub mod member_table;
 pub mod merge;
@@ -539,6 +540,15 @@ pub trait AuthoritativeModuleProvider: Sync {
 
     /// The program's current directory and file-name case sensitivity.
     fn path_context(&self) -> Option<&tsc_program::PathContext> {
+        None
+    }
+
+    /// tsgo `Program.GetSymlinkCache()`: the Program's known symlinks. The
+    /// node builder's module-specifier host is the Program
+    /// (nodebuilder.go:285), so a printed type names a module through a
+    /// symlink as an emitted declaration does. Providers without a Program
+    /// report none.
+    fn symlink_facts(&self) -> Option<tsc_program::SymlinkFacts> {
         None
     }
 

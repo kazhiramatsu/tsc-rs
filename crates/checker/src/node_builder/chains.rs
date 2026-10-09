@@ -324,6 +324,8 @@ pub(crate) struct BasicModuleSpecifierHost {
     /// (_tsc.js:45621-45631, 123503-123508).
     folded_files: HashMap<JsString, JsString>,
     modes: HashMap<u32, EmitResolutionMode>,
+    /// The Program's known symlinks (tsgo `GetSymlinkCache`).
+    symlinks: tsc_program::SymlinkFacts,
 }
 
 impl BasicModuleSpecifierHost {
@@ -369,11 +371,16 @@ impl BasicModuleSpecifierHost {
                 )
             })
             .collect();
+        let symlinks = checker
+            .authoritative_module_provider
+            .and_then(|provider| provider.symlink_facts())
+            .unwrap_or_default();
         Self {
             current_directory,
             files,
             folded_files,
             modes,
+            symlinks,
         }
     }
 
@@ -510,12 +517,25 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
             .unwrap_or(EmitResolutionMode::None)
     }
 
+    /// No mode, as the declaration emitter's host answers: both hosts fill
+    /// the same specifier cache, so they must agree. An enclosing
+    /// declaration's specifier then leaves the file's default mode and the
+    /// ending inference reads every import; an existing import's usage mode
+    /// comes from the checker (tsgo `GetModeForUsageLocation`).
     fn get_mode_for_resolution_at_index(
         &self,
-        file: EmitResolverNode,
+        _file: EmitResolverNode,
         _index: u32,
     ) -> EmitResolutionMode {
-        self.get_default_resolution_mode_for_file(file)
+        EmitResolutionMode::None
+    }
+
+    fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
+        self.symlinks.files.clone()
+    }
+
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
+        self.symlinks.directories.clone()
     }
 
     fn module_resolution_cache_available(&self) -> bool {

@@ -1150,102 +1150,56 @@ pub(crate) fn compute_module_specifiers(
             }
         }
 
-        // The upstream host obtains these facts from the module-
-        // resolution cache. The declaration host's optional cache face
-        // may be absent, while the checker still owns the same ordered
-        // module-name literals and their resolved module symbols.
-        for (specifier_index, literal) in module_name_literals(state, importing_index)
-            .0
-            .into_iter()
-            .enumerate()
-        {
-            let existing_mode = module_literal_resolution_mode(
+        // tsgo computeModuleSpecifiers (specifiers.go:376-404): the first
+        // import of the file that resolves to the module path is the only
+        // candidate. It is reused unless a non-relative preference excludes
+        // a relative specifier or its usage mode (GetModeForUsageLocation)
+        // differs from the mode generated for; then the next module path is
+        // tried. The upstream host answers the resolution from the
+        // Program; here the provider or the checker resolves the checker's
+        // ordered module-name literals.
+        let mut existing_import = None;
+        for literal in module_name_literals(state, importing_index).0 {
+            let usage_mode = literal_usage_mode(state, literal);
+            let target = existing_import_target(
                 state,
                 importing_index,
+                importing_node,
                 literal,
-                u32::try_from(specifier_index)
-                    .map(|index| host.get_mode_for_resolution_at_index(importing_node, index))
-                    .unwrap_or(EmitResolutionMode::None),
-            );
-            let mut resolved_module = if let Some(provider) = state.authoritative_module_provider {
-                let Some(specifier) = literal_text_in_source(state, importing_index, literal)
-                else {
-                    continue;
-                };
-                let mode = match existing_mode {
-                    EmitResolutionMode::CommonJs => crate::AuthoritativeResolutionMode::CommonJs,
-                    EmitResolutionMode::EsNext => crate::AuthoritativeResolutionMode::EsNext,
-                    EmitResolutionMode::None => crate::AuthoritativeResolutionMode::Unspecified,
-                };
-                match provider.resolve_module(crate::AuthoritativeModuleRequest {
-                    source_token: crate::AuthoritativeSourceToken(importing_node.source().raw()),
-                    containing_file: (&state.binder.source(importing_index).file_name).into(),
-                    specifier,
-                    mode,
-                }) {
-                    Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => state
-                        .authoritative_source_index_by_token
-                        .get(&resolved.target_token)
-                        .copied(),
-                    Ok(
-                        crate::AuthoritativeModuleResolution::Untyped(_)
-                        | crate::AuthoritativeModuleResolution::ResolutionDiagnostic(_)
-                        | crate::AuthoritativeModuleResolution::NotFound(_),
-                    )
-                    | Err(_) => None,
-                }
-            } else {
-                state
-                    .resolve_external_module_name(literal, literal, true)?
-                    .and_then(|module| source_file_index_of_module(state, module))
-            };
-            // tsc-port: computeModuleSpecifiers reuses the source literal's
-            // already-resolved module when host include reasons are absent.
-            // The authoritative provider can legitimately have no fresh
-            // answer (for example after an invalid package metadata field),
-            // while the checker node still owns the semantic resolution
-            // (_tsc.js:45493-45510,124100-124117).
-            // Preserve the literal as the resolution location: its require or
-            // import context selects the cached mode. A source-file location
-            // instead selects the file default (_tsc.js:49489-49492), which
-            // can miss a require entry and poison later alias queries.
-            if resolved_module.is_none() {
-                resolved_module = state
-                    .resolve_external_module_name(literal, literal, true)?
-                    .and_then(|module| source_file_index_of_module(state, module));
-            }
-            let Some(resolved_module) = resolved_module else {
-                continue;
-            };
-            let resolved_path =
-                canonical_host_path(&state.binder.source(resolved_module).file_name, host);
-            if resolved_path != imported_path {
-                continue;
-            }
-            let target_mode = options
-                .effective_override_import_mode()
-                .unwrap_or_else(|| host.get_default_resolution_mode_for_file(importing_node));
-            if existing_mode != target_mode
-                && existing_mode != EmitResolutionMode::None
-                && target_mode != EmitResolutionMode::None
-            {
-                continue;
-            }
-            let Some(specifier) = literal_text(state, literal).filter(|text| !text.is_empty())
-            else {
-                continue;
-            };
-            if preferences.relative_preference != RelativePreference::NonRelative
-                || !path_is_relative(specifier)
-            {
-                return Ok(ModuleSpecifiersWithCacheInfo {
-                    kind: None,
-                    module_specifiers: vec![specifier.to_owned()],
-                    computed_without_cache: true,
-                    ambient_module_symbol: None,
-                });
+                usage_mode,
+                host,
+            )?;
+            if target.is_some_and(|target| target == imported_path) {
+                existing_import = Some((literal, usage_mode));
+                break;
             }
         }
+        let Some((literal, existing_mode)) = existing_import else {
+            continue;
+        };
+        let Some(specifier) = literal_text(state, literal).filter(|text| !text.is_empty()) else {
+            continue;
+        };
+        if preferences.relative_preference == RelativePreference::NonRelative
+            && path_is_relative(specifier)
+        {
+            continue;
+        }
+        let target_mode = options
+            .effective_override_import_mode()
+            .unwrap_or_else(|| host.get_default_resolution_mode_for_file(importing_node));
+        if existing_mode != target_mode
+            && existing_mode != EmitResolutionMode::None
+            && target_mode != EmitResolutionMode::None
+        {
+            continue;
+        }
+        return Ok(ModuleSpecifiersWithCacheInfo {
+            kind: None,
+            module_specifiers: vec![specifier.to_owned()],
+            computed_without_cache: true,
+            ambient_module_symbol: None,
+        });
     }
 
     let imported_file_is_in_node_modules = module_paths.iter().any(|path| path.is_in_node_modules);
@@ -1349,28 +1303,77 @@ fn literal_text_in_source<'a>(
     }
 }
 
-fn module_literal_resolution_mode(
-    state: &CheckerState<'_>,
-    file_index: usize,
+/// tsgo `Program.GetModeForUsageLocation` for one of the file's module
+/// names, from the checker's port of it: a type-only import's or an import
+/// type's `resolution-mode`, CommonJS for `require` and import equals, an
+/// import call's mode, else the file's emit syntax.
+fn literal_usage_mode(state: &CheckerState<'_>, literal: NodeId) -> EmitResolutionMode {
+    match state.resolution_mode_for_usage(literal) {
+        crate::modules::ModuleResolutionMode::CommonJs => EmitResolutionMode::CommonJs,
+        crate::modules::ModuleResolutionMode::EsNext => EmitResolutionMode::EsNext,
+        crate::modules::ModuleResolutionMode::Unknown => EmitResolutionMode::None,
+    }
+}
+
+/// The canonical path of the file one of the file's module names resolves
+/// to (tsgo `GetResolvedModuleFromModuleSpecifier`): the provider's
+/// resolution under the name's usage mode, else the checker's.
+fn existing_import_target(
+    state: &mut CheckerState<'_>,
+    importing_index: usize,
+    importing_node: EmitResolverNode,
     literal: NodeId,
-    host_mode: EmitResolutionMode,
-) -> EmitResolutionMode {
-    if host_mode != EmitResolutionMode::None {
-        return host_mode;
-    }
-    let source = state.binder.source(file_index);
-    let mut current = source.arena.node(literal).parent;
-    while let Some(node) = current {
-        if let NodeData::CallExpression(data) = &source.arena.node(node).data {
-            if data.expression.is_some_and(|expression| {
-                source.arena.node(expression).kind == SyntaxKind::ImportKeyword
-            }) {
-                return EmitResolutionMode::EsNext;
-            }
+    usage_mode: EmitResolutionMode,
+    host: &dyn EmitModuleSpecifierHost,
+) -> CheckResult<Option<JsString>> {
+    let mut resolved_module = if let Some(provider) = state.authoritative_module_provider {
+        let Some(specifier) = literal_text_in_source(state, importing_index, literal) else {
+            return Ok(None);
+        };
+        let mode = match usage_mode {
+            EmitResolutionMode::CommonJs => crate::AuthoritativeResolutionMode::CommonJs,
+            EmitResolutionMode::EsNext => crate::AuthoritativeResolutionMode::EsNext,
+            EmitResolutionMode::None => crate::AuthoritativeResolutionMode::Unspecified,
+        };
+        match provider.resolve_module(crate::AuthoritativeModuleRequest {
+            source_token: crate::AuthoritativeSourceToken(importing_node.source().raw()),
+            containing_file: (&state.binder.source(importing_index).file_name).into(),
+            specifier,
+            mode,
+        }) {
+            Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => state
+                .authoritative_source_index_by_token
+                .get(&resolved.target_token)
+                .copied(),
+            Ok(
+                crate::AuthoritativeModuleResolution::Untyped(_)
+                | crate::AuthoritativeModuleResolution::ResolutionDiagnostic(_)
+                | crate::AuthoritativeModuleResolution::NotFound(_),
+            )
+            | Err(_) => None,
         }
-        current = source.arena.node(node).parent;
+    } else {
+        state
+            .resolve_external_module_name(literal, literal, true)?
+            .and_then(|module| source_file_index_of_module(state, module))
+    };
+    // tsc-port: computeModuleSpecifiers reuses the source literal's
+    // already-resolved module when host include reasons are absent.
+    // The authoritative provider can legitimately have no fresh
+    // answer (for example after an invalid package metadata field),
+    // while the checker node still owns the semantic resolution
+    // (_tsc.js:45493-45510,124100-124117).
+    // Preserve the literal as the resolution location: its require or
+    // import context selects the cached mode. A source-file location
+    // instead selects the file default (_tsc.js:49489-49492), which
+    // can miss a require entry and poison later alias queries.
+    if resolved_module.is_none() {
+        resolved_module = state
+            .resolve_external_module_name(literal, literal, true)?
+            .and_then(|module| source_file_index_of_module(state, module));
     }
-    EmitResolutionMode::None
+    Ok(resolved_module
+        .map(|resolved| canonical_host_path(&state.binder.source(resolved).file_name, host)))
 }
 
 /// tsc-port: getInfo @6.0.3

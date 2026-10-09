@@ -19,6 +19,7 @@ perf-counters = ["tsc-binder/perf-counters", "tsc-types/perf-counters"]
 hashbrown = { version = "0.16", default-features = false, features = ["inline-more"] }
 indexmap = "2"
 rustc-hash.workspace = true
+self_cell.workspace = true
 tsc-binder.workspace = true
 tsc-diagnostics.workspace = true
 tsc-emitter.workspace = true
