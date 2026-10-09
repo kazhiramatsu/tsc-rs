@@ -1225,3 +1225,12 @@ tsgo の build orchestrator の watch（`build/orchestrator.go` の `Watch`・`D
   hosted の `rust` job に任せた。実 project の比較と性能は計測していない（watch でない build の経路の変更は、orchestrator の持ち方、
   task の結果の cycle ごとの初期化、errors を消さずに集めること、build info を file system から読むことで、checker と emitter は変えて
   いない。conformance と suites の出力は変わらない。性能は利用者の指示）。
+
+### P4-7cのhostedの記録とmerge（2026-10-09）
+
+- hosted：最終候補 `15c95c8b7`（code `fa54ded99`・ratchet `fa45b9ee9`・main の merge `2636dc3b1`・packet の記録）の run 37872424752
+  （`plan` 24s、`rust` 11m17s、`conformance (TypeScript 7.1)` 13m34s（lane A の後に suites の `--check`）、`gates` 13s。全て成功）。
+  merge → `6badbb3da`（merge commit）。
+- 計測（conformance の全体実行、suites、実 CLI と tsgo の比較、crate test）は上の記録のとおり、merge 前に最終 bytes で行った。実 project の
+  比較と性能は計測していない（上の記録の理由と利用者の指示）。
+- 次：P4-7d（api の encoder）。branch `fix/ts71-api-encoder`（`6badbb3da` から）。
