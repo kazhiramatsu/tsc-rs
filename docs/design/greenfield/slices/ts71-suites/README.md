@@ -1319,3 +1319,30 @@ extended data、msgpack の structured data、28 byte の node）を port の構
 - 計測（conformance の全体実行、suites、tsgo の encoder との corpus と fixture の比較、crate test）は上の記録のとおり、merge 前に最終
   bytes で行った。実 project の比較と性能は計測していない（上の記録の理由と利用者の指示）。
 - P4-7（`--generateTrace`、watch、api の encoder）はこれで終わり。API server（roadmap の P5）は計画から始める別作業。
+
+## P4-7 の後の小修正（2026-10-09）
+
+P4-5b と P4-7c の記録に残した項目を確かめた。
+
+- **`emitDeclarationOnly` だけの exit status**（P4-5b の残り）：`declaration`（か `composite`）の無い `--emitDeclarationOnly` は、tsgo
+  では TS5069 を出して exit 2（出力あり）、port は exit 1（出力を飛ばした）だった。tsgo の `emitDeclarationFile` は declaration の
+  path が無ければ何もせずに戻り、emit を飛ばしたとはしない（tsc 6.0 の `emitDeclarationFileOrBundle` は `emitDeclarationOnly` なら
+  飛ばしたとしていた）。emitter の分岐を消した。CLI の contract 1 件（出力と exit status は tsgo の binary のもの、file は書かれない）。
+- **build の watch の package.json の lookup の realpath**（P4-7c の残り）：差ではなかった。port の lookup は既に実の path にある
+  （symlink の package は解決した directory で、link を通って開いた project は実の path で読まれる）。memory の system で link の
+  package と link の project directory を試し、realpath にしても watch も結果も変わらないことを確かめた。P4-7c の記録の「realpath に
+  しない」は誤りだった。
+- **削除済みの `moduleResolution: node10`／`classic`**（P4-5b の残り）：小修正ではなく別の slice にする。tsgo
+  （`GetModuleResolutionKind`）は削除済みの値を `module` から決まる既定（bundler／node16／nodenext）として扱い、trace は「not
+  specified」と書き、解決そのものもそれで行う（`exports` と `types` の違う package で、tsgo は `exports` の file を、port は Node10 の
+  解決で `types` の file を program に入れる。`--listFiles` で確かめた）。TS5108 が出ると意味の診断は出ないので、見える差は emit の
+  経路の TS5098（`resolvePackageJsonExports`・`customConditions`）、program の file、宣言の出力、trace。port の
+  `emit_module_resolution_kind` は書かれた値を返し（呼び出し 51 箇所）、tsgo どおりにすると program の test 30 件と compiler・checker の
+  test が 6.0.3 の classic／node10 の解決を前提にしていて落ちる。slice は：既定への写像、trace、test の書き直し（6.0.3 の解決を
+  前提にするものは 7.1 の結果に）、使われなくなる classic／node10 の resolver の削除。
+- **tests**：compiler の CLI contract 1 件（上）。
+- **検証**（最終 bytes：修正 `c20fb6f2d`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（emitter・
+  compiler、`--all-targets -- -D warnings`）は clean。`cargo test -p`：emitter 635、compiler 453（新しい 1 件。直す前の port は同じ
+  入力で exit 1 だったことを probe で確かめた）。`scripts/conformance_ts71.py --workers 2 --check`：12,748 case を 473 s、全ての数が
+  変わらない（errors full 13,451／mismatch 0、emit full 13,443、types 12,677／90、symbols 12,715／52、sourcemap 13,451、trace
+  13,448／3、harness error 15）、regression 0。`scripts/suites_ts71.py --check`：全ての suite が変わらず、regression 0。
