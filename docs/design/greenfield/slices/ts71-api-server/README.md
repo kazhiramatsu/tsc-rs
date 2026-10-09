@@ -685,3 +685,14 @@ snapshot、option、module provider を借りる）。
   main と同じ。workspace 全体の test と Clippy は hosted の `rust` job に任せた。
 - **残り**：P5-2b（request の file system と callback の FS。client の test の多くはこれで走る）。その後は「依存と順序」の 3〜6
   （project の要らない request、checker の query、印字、build orchestrator）。
+
+### P5-2a の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `2be38d592`（コード `558550d53`・packet の記録）の run 37973788728（`plan` 30s、`rust` 9m0s、
+  `conformance (TypeScript 7.1)` 13m36s、`gates` 15s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。
+  merge → `216c9f83a`（merge commit、PR #726）。
+- 次：P5-2b（request の file system と callback の FS）。tsgo の request の file system（`api/requestfilesystem`）は snapshot の
+  file system の層（`project.LayeredFileSystem`。基の file system を差し替えられ、request の file を overlay として見せる）として
+  入り、file の変更の通知を request の file に広げる（`ExpandFileChanges`、`addFileChanges`）。callback の FS（`api/callbackfs.go`）
+  は conn ができた後に結ばれ、client への call は protocol の lock で 1 つずつ行う（worker の thread からの読みも同じ lock で
+  待つ）。
