@@ -294,12 +294,15 @@ fn live_queries_equal_the_batch_walk() {
         {
             continue;
         }
-        live_lines.push(live.with_checker(|state| {
-            (
-                type_writer::write_types(state, file).expect("write the types"),
-                type_writer::write_symbols(state, file).expect("write the symbols"),
-            )
-        }));
+        live_lines.push(
+            live.with_checker(|state| {
+                (
+                    type_writer::write_types(state, file).expect("write the types"),
+                    type_writer::write_symbols(state, file).expect("write the symbols"),
+                )
+            })
+            .expect("the Program has files"),
+        );
     }
     assert_eq!(live_lines, batch_lines, "queries before any check");
 
@@ -316,12 +319,15 @@ fn live_queries_equal_the_batch_walk() {
         {
             continue;
         }
-        live_lines.push(live.with_checker(|state| {
-            (
-                type_writer::write_types(state, file).expect("write the types"),
-                type_writer::write_symbols(state, file).expect("write the symbols"),
-            )
-        }));
+        live_lines.push(
+            live.with_checker(|state| {
+                (
+                    type_writer::write_types(state, file).expect("write the types"),
+                    type_writer::write_symbols(state, file).expect("write the symbols"),
+                )
+            })
+            .expect("the Program has files"),
+        );
     }
     assert_eq!(live_lines, batch_lines, "queries after every check");
 }
@@ -398,6 +404,7 @@ fn a_printed_type_names_a_module_through_the_programs_symlinks() {
     let file = live.file_index(unit).expect("the unit is in the Program");
     let live_lines = live
         .with_checker(|state| type_writer::write_types(state, file))
+        .expect("the Program has files")
         .expect("write the types");
     let printed = live_lines
         .iter()
@@ -496,6 +503,7 @@ fn printed_types(prepared: PreparedProgram, unit: &str) -> Vec<String> {
     let mut live = LiveProgram::new(prepared).expect("create the live program");
     let file = live.file_index(unit).expect("the unit is in the Program");
     live.with_checker(|state| type_writer::write_types(state, file))
+        .expect("the Program has files")
         .expect("write the types")
         .iter()
         .map(|line| format!(">{} : {}", line.source_text, line.text))
@@ -539,6 +547,26 @@ fn a_file_asked_again_reports_the_rows_a_later_check_added() {
     assert_eq!(codes(&library_rows), [2374]);
     let again = live.semantic_diagnostics(script).expect("ask again");
     assert_eq!(codes(&again), [2374]);
+}
+
+/// A Program without files (a synthetic program with no roots and no
+/// library) has no checker, as in the batch drivers; its diagnostics are
+/// the batch session's.
+#[test]
+fn a_program_without_files_has_no_checker() {
+    let prepared = prepared_with_lib(&[], CompilerOptions::default(), false);
+    let batch = ProgramSession::new(prepared.clone())
+        .run_for_native_harness(NativeHarnessCollection {
+            capture_suggestions: false,
+        })
+        .expect("run the batch session");
+    let mut live = LiveProgram::new(prepared).expect("create the live program");
+    assert_eq!(live.file_count(), 0);
+    assert!(live.with_checker(|_| ()).is_none());
+    let mut union = live.config_file_parsing_diagnostics().to_vec();
+    union.extend(live.program_diagnostics());
+    union.extend(live.global_diagnostics());
+    assert_eq!(sorted(union), batch.native_harness_diagnostics());
 }
 
 #[test]
