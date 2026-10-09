@@ -347,3 +347,10 @@ snapshot、option、module provider を借りる）。
   program 599、project 26、全て成功。program の変更は `ConfigOptionBag::option_bool` の公開だけで、batch の compile の経路は
   変えていないので、conformance と suites は local では走らせず hosted の job に任せた。
 - **残り**：P5-1b-3（project 参照）、P5-1c〜P5-1e。
+
+### P5-1b-2 の hosted の記録と merge（2026-10-09）
+
+- hosted：最終候補 `cb74744b0`（コード `60ac51f8a`・packet の記録）の run 37937350630（`plan` 30s、`rust` 11m15s、
+  `conformance (TypeScript 7.1)` 21m3s、`gates` 15s。全て成功）。この slice は local で conformance と suites を走らせていない
+  （batch の compile の経路を変えていない）ので、その確認はこの hosted の job による。merge → `6ad4b317b`（merge commit、PR #721）。
+- 次：P5-1b-3（project system の project 参照）。
