@@ -634,8 +634,8 @@ fn echo_answers_its_parameters() {
 fn a_method_tsgo_has_is_not_implemented_yet_and_another_is_unknown() {
     let (session, _) = session(&[]);
     assert_eq!(
-        call(&session, "getSourceFile", json!({})).unwrap_err(),
-        "api: invalid request: getSourceFile is not implemented yet"
+        call(&session, "getSymbolAtPosition", json!({})).unwrap_err(),
+        "api: invalid request: getSymbolAtPosition is not implemented yet"
     );
     assert_eq!(
         call(&session, "nope", json!({})).unwrap_err(),
@@ -1290,3 +1290,6 @@ fn an_invalid_request_file_system_is_a_client_error() {
 
 #[path = "session_requests.rs"]
 mod requests;
+
+#[path = "session_program.rs"]
+mod program;

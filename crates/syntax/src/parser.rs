@@ -10526,6 +10526,10 @@ fn parse_source_file_from_snapshot_worker(
         arena: finished.arena,
         root: finished.root,
         external_module_indicator,
+        external_module_indicator_options: crate::ExternalModuleIndicatorOptions {
+            jsx: detects_jsx_module,
+            force: force_external_module,
+        },
         parse_diagnostics: finished.parse_diagnostics,
         parse_recovery: finished.parse_recovery,
         js_doc_diagnostics: finished.js_doc_diagnostics,
@@ -10696,6 +10700,7 @@ fn parse_json_text_with_options(
         arena: finished.arena,
         root: finished.root,
         external_module_indicator: None,
+        external_module_indicator_options: crate::ExternalModuleIndicatorOptions::default(),
         parse_diagnostics: finished.parse_diagnostics,
         parse_recovery: finished.parse_recovery,
         js_doc_diagnostics: finished.js_doc_diagnostics,

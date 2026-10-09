@@ -127,10 +127,6 @@ pub struct SourceFileFacts<'a> {
     /// tsgo `SourceFile.Path()`; the file name when `None`.
     pub path: Option<&'a str>,
     pub script_kind: ScriptKind,
-    /// tsgo `ExternalModuleIndicatorOptions.JSX`.
-    pub jsx_external_module_indicator: bool,
-    /// tsgo `ExternalModuleIndicatorOptions.Force`.
-    pub force_external_module_indicator: bool,
     /// The program's module specifiers of the file (tsgo `Imports()`).
     pub imports: &'a [NodeId],
     /// The program's module augmentation names (tsgo `ModuleAugmentations`).
@@ -141,6 +137,9 @@ pub struct SourceFileFacts<'a> {
     /// in place (reachability, `this` use, export context, async
     /// functions), so a bound file's encoding has them.
     pub bind_data: Option<&'a BindData>,
+    /// A file without tsgo's content hash (`SourceFile.Hash`, which the
+    /// parse cache sets): a config file's source, whose header hash is zero.
+    pub unhashed: bool,
 }
 
 /// tsgo `NodeIndexTable`: the node of each encoded index (`None` for index
@@ -1003,9 +1002,11 @@ fn encode_tree(
     let mut hash = 0u128;
     let mut parse_options = 0;
     if let Some(facts) = source_file_facts {
-        hash = xxhash_rust::xxh3::xxh3_128(file.text().as_bytes());
-        parse_options = u32::from(facts.jsx_external_module_indicator)
-            | u32::from(facts.force_external_module_indicator) << 1;
+        if !facts.unhashed {
+            hash = xxhash_rust::xxh3::xxh3_128(file.text().as_bytes());
+        }
+        let indicator = file.external_module_indicator_options;
+        parse_options = u32::from(indicator.jsx) | u32::from(indicator.force) << 1;
         // The root's data is the offset of the source file's extended data.
         let root_data =
             &encoder.nodes[NODE_SIZE + NODE_OFFSET_DATA..NODE_SIZE + NODE_OFFSET_DATA + 4];

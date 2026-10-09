@@ -569,20 +569,22 @@ impl SeenFiles {
         self.files.contains(path)
     }
 
-    /// tsgo `SeenFileOrMissingParentDirectory`: the file, or a directory
-    /// above it that was looked for and missing.
+    /// tsgo `SeenFileOrMissingParentDirectory`: the file, or the path or a
+    /// directory above it that was looked for and missing.
     pub(crate) fn seen_file_or_missing_parent_directory(&self, path: &str) -> bool {
         if self.files.contains(path) {
             return true;
         }
         let mut directory = path;
-        while let Some(index) = directory.rfind('/') {
-            directory = &directory[..index];
+        loop {
             if self.missing_directories.contains(directory) {
                 return true;
             }
+            let Some(index) = directory.rfind('/') else {
+                return false;
+            };
+            directory = &directory[..index];
         }
-        false
     }
 }
 

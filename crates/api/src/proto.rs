@@ -926,6 +926,165 @@ pub struct TranspileOutputResponse {
     pub source_map_text: String,
 }
 
+/// tsgo `GetSourceFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct GetSourceFileParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+}
+
+/// tsgo `GetSourceFileNamesParams` and `GetProjectDiagnosticsParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct ProjectParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+}
+
+/// tsgo `GetModeForUsageLocationParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct GetModeForUsageLocationParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    #[serde(default, deserialize_with = "nullable")]
+    pub usage: String,
+}
+
+/// tsgo `GetModeForResolutionAtIndexParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct GetModeForResolutionAtIndexParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    #[serde(default, deserialize_with = "nullable")]
+    pub index: i64,
+}
+
+/// tsgo `GetResolvedModuleParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetResolvedModuleParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    #[serde(default, deserialize_with = "nullable")]
+    pub module_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub mode: u32,
+}
+
+/// tsgo `GetResolvedModuleFromModuleSpecifierParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetResolvedModuleFromModuleSpecifierParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub module_specifier: String,
+    #[serde(default)]
+    pub source_file: Option<DocumentIdentifier>,
+}
+
+/// tsgo `GetResolvedTypeReferenceDirectiveParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetResolvedTypeReferenceDirectiveParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    #[serde(default, deserialize_with = "nullable")]
+    pub type_directive_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub mode: u32,
+}
+
+/// tsgo `GetResolvedTypeReferenceDirectiveFromReferenceParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetResolvedTypeReferenceDirectiveFromReferenceParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub source_file: DocumentIdentifier,
+    #[serde(default, deserialize_with = "nullable")]
+    pub type_directive_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub resolution_mode: u32,
+}
+
+/// tsgo `SourceFileMetadata`.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceFileMetadata {
+    pub is_default_library: bool,
+    pub is_from_external_library: bool,
+    pub package_json_type: String,
+    pub package_json_directory: String,
+    pub implied_node_format: u32,
+}
+
+/// tsgo `PackageId`.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageIdResponse {
+    pub name: String,
+    pub sub_module_name: String,
+    pub version: String,
+    pub peer_dependencies: String,
+}
+
+/// tsgo `ResolvedModule`.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedModuleResponse {
+    pub resolved_file_name: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub original_path: String,
+    pub extension: String,
+    pub resolved_using_ts_extension: bool,
+    pub resolved_using_extra_extensions: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_id: Option<PackageIdResponse>,
+    pub is_external_library_import: bool,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub alternate_result: String,
+}
+
+/// tsgo `ResolvedTypeReferenceDirective`.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedTypeReferenceDirectiveResponse {
+    pub primary: bool,
+    pub resolved_file_name: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub original_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_id: Option<PackageIdResponse>,
+    pub is_external_library_import: bool,
+}
+
 /// tsgo `SourceFileResponse`: a binary source file's bytes as base64 in a
 /// batch.
 #[derive(Clone, Debug, Serialize)]

@@ -2847,34 +2847,6 @@ fn parse_program_inputs(
         if let Some(metadata) = authoritative_metadata {
             authoritative_program_metadata.push(metadata.clone());
         }
-        // tsc ensureScriptKind: .json programs parse as JSON values.
-        if file.name.ends_with(".json") {
-            if let Some(source) = share(
-                file.name.as_js(),
-                file.text(),
-                &tsc_syntax::ParseOptions::default(),
-                &mut shared_documents,
-            ) {
-                pending_sources.push(PendingProgramSource::Shared(source));
-                continue;
-            }
-            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain(
-                file.name.clone(),
-                Arc::clone(file.snapshot()),
-                identity_domain,
-            )
-            .expect("JSON source identity allocation failed");
-            work_counters.record_parse(file.text().len());
-            pending_sources.push(PendingProgramSource::Ready(source_file));
-            continue;
-        }
-        // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
-        let javascript_file = is_js_file_name(&file.name);
-        let language_variant = if file.name.ends_with(".tsx") || javascript_file {
-            tsc_syntax::LanguageVariant::Jsx
-        } else {
-            tsc_syntax::LanguageVariant::Standard
-        };
         // getSetExternalModuleIndicator (17973-17993): syntax-based
         // indicators stay in the parser; this seam supplies the
         // option/host-dependent Force and Auto inputs.
@@ -2944,6 +2916,45 @@ fn parse_program_inputs(
             };
         let detect_external_module_from_jsx =
             !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
+        // tsc ensureScriptKind: .json programs parse as JSON values.
+        if file.name.ends_with(".json") {
+            // tsgo parses a JSON file with the module detection options too.
+            let parse_options = tsc_syntax::ParseOptions {
+                force_external_module,
+                detect_external_module_from_jsx,
+                ..tsc_syntax::ParseOptions::default()
+            };
+            if let Some(source) = share(
+                file.name.as_js(),
+                file.text(),
+                &parse_options,
+                &mut shared_documents,
+            ) {
+                pending_sources.push(PendingProgramSource::Shared(source));
+                continue;
+            }
+            let mut source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain(
+                file.name.clone(),
+                Arc::clone(file.snapshot()),
+                identity_domain,
+            )
+            .expect("JSON source identity allocation failed");
+            source_file.external_module_indicator_options =
+                tsc_syntax::ExternalModuleIndicatorOptions {
+                    jsx: detect_external_module_from_jsx,
+                    force: force_external_module,
+                };
+            work_counters.record_parse(file.text().len());
+            pending_sources.push(PendingProgramSource::Ready(source_file));
+            continue;
+        }
+        // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
+        let javascript_file = is_js_file_name(&file.name);
+        let language_variant = if file.name.ends_with(".tsx") || javascript_file {
+            tsc_syntax::LanguageVariant::Jsx
+        } else {
+            tsc_syntax::LanguageVariant::Standard
+        };
         let parse_options = tsc_syntax::ParseOptions {
             script_target: options.emit_script_target(),
             language_variant,

@@ -220,6 +220,9 @@ pub struct PreparedSourceFile {
     implied_node_format_for_emit: Option<ResolutionMode>,
     is_external_module: Option<bool>,
     package_scope: Option<CanonicalPath>,
+    /// tsgo `sourceFilesFoundSearchingNodeModules`: the file came into the
+    /// program only through resolutions that searched `node_modules`.
+    found_searching_node_modules: bool,
     /// Why the file is in the program, one entry per occurrence (tsgo
     /// `fileIncludeReasons`), in the order the loader recorded them.
     inclusion_reasons: Vec<crate::SourceInclusionReason>,
@@ -338,6 +341,7 @@ impl PreparedSourceFile {
             implied_node_format_for_emit: None,
             is_external_module: None,
             package_scope: None,
+            found_searching_node_modules: false,
             preparsed_syntax: PreparsedSyntax::empty(),
             project_reference: None,
         }
@@ -408,6 +412,16 @@ impl PreparedSourceFile {
 
     pub const fn is_external_module(&self) -> Option<bool> {
         self.is_external_module
+    }
+
+    pub fn with_found_searching_node_modules(mut self, value: bool) -> Self {
+        self.found_searching_node_modules = value;
+        self
+    }
+
+    /// tsgo `IsSourceFileFromExternalLibrary`.
+    pub const fn found_searching_node_modules(&self) -> bool {
+        self.found_searching_node_modules
     }
 
     pub fn with_implied_node_format(mut self, mode: ResolutionMode) -> Self {

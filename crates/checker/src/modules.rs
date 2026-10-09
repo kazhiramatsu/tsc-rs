@@ -7247,6 +7247,25 @@ impl<'a> CheckerState<'a> {
             })
     }
 
+    /// tsgo `Program.GetModeForUsageLocation` for the API: the
+    /// `core.ResolutionMode` number (0 none, 1 CommonJS, 99 ESNext) of the
+    /// module specifier `usage`.
+    pub fn api_mode_for_usage_location(&self, usage: NodeId) -> u32 {
+        resolution_mode_number(self.resolution_mode_for_usage(usage))
+    }
+
+    /// tsgo `Program.GetDefaultResolutionModeForFile` for the API: the
+    /// implied format for emit of the file of `node` when import syntax
+    /// affects its module resolution, else none.
+    pub fn api_default_resolution_mode_for_file(&self, node: NodeId) -> u32 {
+        let options = self.module_options_for_file(self.binder.file_index_of_node(node));
+        if !options.import_syntax_affects_module_resolution() {
+            return 0;
+        }
+        self.implied_node_format_for_emit(node)
+            .map_or(0, resolution_mode_number)
+    }
+
     /// tsc getModeForUsageLocationWorker / getEmitSyntaxForUsageLocationWorker.
     /// A valid type-only resolution-mode override wins before the
     /// compiler-option gate.
