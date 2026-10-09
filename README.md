@@ -710,6 +710,15 @@ keeps the earlier output). The watch uses the operating system's file
 notifications (FSEvents, inotify, ReadDirectoryChangesW or kqueue) and runs
 until the process is stopped.
 
+`tsc-rs -b --watch` is `tsgo --build --watch`: it builds the projects, then
+watches their configuration files and the files they extend, their input
+files, the other files their build info lists, the `package.json` files
+they looked up and their `include` directories, and on a change builds again
+the projects it concerns (a changed configuration is read again; a project
+whose upstream project changed is checked against it as a build checks it).
+Each cycle prints the projects' reports and ends with `Found N errors.
+Watching for file changes.`
+
 ## Build mode
 
 `tsc-rs -b` (or `--build`) is `tsgo --build`: the projects named on the
@@ -739,9 +748,9 @@ the outputs (`--clean --dry` lists them), and `--stopBuildOnErrors` skips
 the projects whose dependencies failed. The compiler options accepted by
 `-p` apply to every project of the build. The exit status is `tsgo`'s:
 `0`, `1` (diagnostics, outputs skipped), `2` (diagnostics, outputs
-written) or `4` (the references form a cycle). `--watch` is not
-supported, and a project whose configuration file has errors is reported
-without being built.
+written) or `4` (the references form a cycle). `--watch` keeps building as
+files change (see [watch mode](#watch-mode)), and a project whose
+configuration file has errors is reported without being built.
 
 ## Performance
 
@@ -1068,8 +1077,7 @@ runs are listed under the repository's Actions tab.
 
 - Some TypeScript options and configuration combinations are unsupported
   and return an error.
-- `-b --watch` is not supported yet (it is reported as a `tsc-rs:` usage
-  error with exit status 2). `-p` compiles one project and reads the
+- `-p` compiles one project and reads the
   referenced projects' built outputs (it does not build them); `-b` builds
   the projects one after the other (`--builders` is accepted and ignored)
   and reports a project whose configuration file has errors without

@@ -1168,3 +1168,60 @@ H0／H1 の段階の制限が残っていた）。tsgo の `parseJSONText`・`co
 - 計測（conformance の全体実行、suites、probe、crate test）は上の記録のとおり、merge 前に最終 bytes で行った。実 project の比較と性能は
   計測していない（上の記録の理由と利用者の指示）。
 - 次：P4-7c（`tsc -b --watch`）。branch `fix/ts71-build-watch`（`b1ae3da51` から）。
+
+## P4-7c `tsc -b --watch`（2026-10-09）
+
+tsgo の build orchestrator の watch（`build/orchestrator.go` の `Watch`・`DoCycle`・`checkTasksForEventChanges`・`computeDesiredWatches`・
+`updateWatch`・`resetCaches`、`buildtask.go` の pending と `updateDownstream`）を移した。
+
+- **orchestrator が持ち主になる**（`crates/compiler/src/build.rs`）：host・library catalog・`BuildCommand`・current directory を借りずに
+  持ち、watch の cycle をまたいで残る。host は cycle ごとに作り直す（tsgo は cycle の終わりに cache を消す）。
+- **task の状態**（tsgo `BuildTask`）：`pending`、`initial_cycle`（最初の graph の task で、まだ build していない）、`dirty`（config が
+  変わり、次の graph で parse し直す）、watch の `downstream`、program が探した package.json（tsgo `packageJsons`）。graph を作り直す
+  ときは、変わっていない task をそのまま使い、dirty の task は build info の entry だけ引き継いで作り直す（tsgo
+  `GenerateGraphReusingOldTasks`）。`build_project` は tsgo どおり：pending なら status を求めて build か整理、pending でなければ持って
+  いる errors をもう一度報告する。errors は cycle をまたいで残り（`Found N errors` に数える）、task の出力は cycle ごとに新しい。
+  build した project は downstream に宣言が変わったかを伝えて pending にする（`updateDownstream`。最初の cycle ではしない）。
+- **cycle**（`watch/mod.rs` の `BuildWatcher`、tsgo `DoCycle`）：event が無ければ何もしない。overflow なら全ての config を dirty に
+  する。それ以外は変更が関わる project を求める：config か extends の file が変わったら dirty（graph を作り直す）、root の file、
+  build info に載る root でない file、build info と program の package.json の lookup（file の変更か、それを含む directory の削除）が
+  変わったら status を消す。include の pattern を持つ project は file 名を展開し直し、変われば status を消す。どれにも当たらず watch 下の
+  directory が変わったら全ての project の status を消す。関わる project があれば `File change detected…`、必要なら graph を作り直し、
+  順に build して `Found N errors. Watching for file changes.`（と統計）を出す。最後に time の cache を進め（`updateWatch`：build
+  info を持たない project の出力の時刻だけ残る）、watch を張り直し（`computeDesiredWatches`：config の directory、extends の
+  directory、include の directory を再帰で、root の directory、build info の file の directory、package.json の lookup の directory
+  （node_modules の中なら node_modules を持つ directory まで）、`ResolveDesiredDirs`）、cycle の cache を消す。build info の file 名の
+  default library は library directory で解決する（tsgo `resolveBuildInfoFileName`）。
+- **書き込みの時刻**：tsgo は書いた時（`writeFile` の `Sys.Now()`）に、build info を持たない project の出力の時刻と build info の
+  entry の時刻を取る。build の watch の cycle では、emit の直後、test harness が emit した file に時刻を押す前に file ごとに時刻を
+  取る（`CliRoute.write_times`）。
+- **見つけて直したもの**：書いたばかりの build info を compiler host で読み直していたため、OS の host では build の前に見た「無い」
+  が返り、次の cycle で「output file … does not exist」になった（実 CLI の比較で見つけた）。file system から読む（tsgo は書いた
+  object をそのまま持つ）。
+- **command line**：`execute_command_line` の watcher は `CommandWatcher`（`Program`／`Build`）。`-b --watch` の usage error と、使う所の
+  無くなった `CliError::Usage` を消した。watch の status 行は `WatchStatus` として program の watch と共有する（build では command line
+  の option が画面を残すかを決める。tsgo と同じ）。project の run は program の package.json の lookup を返す
+  （`BuildProjectRun.package_json_lookups`、tsgo `PackageJsonLookupPaths`）。
+- **README**：`-b --watch` を書き、未対応の記述を消した。
+- **tests**：compiler の system contract 1 件（memory の backend の上で 2 project の初回 build、変更の無い cycle は何も書かない、
+  上流の宣言の変更で両方を build、下流だけの error で下流だけ）。`-b --watch` を usage error とした CLI の test 2 件を直した。
+- **結果**：tsbuildWatch 63／65 が byte 一致。残りの 2 件（`demo/updates-with-bad-reference`・`demo/updates-with-circular-reference`）は
+  `target: es5` の project で、tsgo は TS5108 を出して ES2015 で emit し、port は ES5 へ下げる（2026-09-29 の指示で ES5 を残す。tsc の
+  ES5 の 12 件と同じ class）。
+- **実 CLI と tsgo の比較**（OS の通知）：2 project（core を参照する app、composite）で core の変更・app の error・修正・core の
+  tsconfig の変更を続ける scenario は、emit した file が全て一致し、出力も一致した。違いは tsgo が初回 build の自分の出力の event を
+  遅れて受け取って走らせる余分な cycle（`TS_WATCH_DEBUG=1` で確かめた。P4-7b に記録した OS の時機の差）と、それによる status の文面
+  （次の cycle の app の「oldest output」が build info か `index.js` か）だけ。
+- **残り**：package.json の lookup の path を realpath にしない（tsgo は存在するものを realpath にする。symlink の node_modules だけで
+  違う）。`--builders` の並列 build は従来どおり受けて無視する。
+- 計測（code の最終 bytes `fa54ded99`（ratchet `fa45b9ee9`）、macOS、`nice -n 20`、2 worker）：conformance 12,748 case／479 s、
+  errors full 13,451（mismatch 0）、emit full 13,443（not assessed 8）、types full 12,677／mismatch 90、symbols full 12,715／
+  mismatch 52、sourcemap full 13,451、trace full 13,448／mismatch 3、harness error 15（P4-5b と同じ）、ratchet 0 regressions。suites
+  （`--update` で tsbuildWatch の 63 行を `none` から `full` へ。730 行 → `--check`）0 regressions、tsbuildWatch 63／65・tscWatch 42・
+  tsc 211／223・tsbuild 182／192・transpile 41・tsoptions 80・config 87。checker は変えていないので並列対照は行っていない。
+- local（`nice -n 20`、2 job、最終 bytes）：`cargo fmt --all -- --check`、clippy（`--all-targets -- -D warnings`）types／syntax／
+  binder／program／emitter／checker／incremental／compiler／conformance／harness、test types 47、syntax 246、binder 78、program 602、
+  emitter 635、incremental 29、compiler 452、conformance 52、harness 31、checker 1,797（全て 0 失敗）。workspace 全体の test と clippy は
+  hosted の `rust` job に任せた。実 project の比較と性能は計測していない（watch でない build の経路の変更は、orchestrator の持ち方、
+  task の結果の cycle ごとの初期化、errors を消さずに集めること、build info を file system から読むことで、checker と emitter は変えて
+  いない。conformance と suites の出力は変わらない。性能は利用者の指示）。

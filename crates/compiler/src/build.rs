@@ -10,7 +10,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -42,6 +42,8 @@ pub(crate) struct BuildCommand {
     pub(crate) force: bool,
     pub(crate) clean: bool,
     pub(crate) stop_build_on_errors: bool,
+    /// `--watch`: the orchestrator stays and builds again on changes.
+    pub(crate) watch: bool,
     /// The compiler options of the command line, merged over every
     /// project's (tsgo parses every project with them as the existing ones).
     pub(crate) command_line: ConfigOptionBag,
@@ -225,9 +227,60 @@ struct BuildTask {
     files_to_delete: Vec<String>,
     /// The project's statistics, when its options asked for them.
     statistics: Option<Statistics>,
+    /// tsgo `pending`: the task builds (or reports its status) this cycle.
+    pending: bool,
+    /// tsgo `isInitialCycle`: the task was made by the first graph and has
+    /// not been built yet.
+    initial_cycle: bool,
+    /// tsgo `dirty`: its configuration changed; the next graph parses it
+    /// again.
+    dirty: bool,
+    /// A watch's downstream tasks (tsgo `downStream`).
+    downstream: Vec<usize>,
+    /// The package.json files its program looked up (tsgo `packageJsons`).
+    package_jsons: Vec<String>,
 }
 
 impl BuildTask {
+    fn new(config: String, plan: Option<ConfigRootPlan>, initial_cycle: bool) -> Self {
+        let options = plan.as_ref().map(|plan| plan.compiler_options().clone());
+        Self {
+            config,
+            plan,
+            options,
+            upstream: Vec::new(),
+            status: None,
+            build_info: None,
+            errors: Vec::new(),
+            output: String::new(),
+            exit_status: 0,
+            build_kind: BuildKind::None,
+            files_to_delete: Vec::new(),
+            statistics: None,
+            pending: true,
+            initial_cycle,
+            dirty: false,
+            downstream: Vec::new(),
+            package_jsons: Vec::new(),
+        }
+    }
+
+    /// tsgo `resetStatus`.
+    fn reset_status(&mut self) {
+        self.status = None;
+        self.pending = true;
+        self.errors.clear();
+    }
+
+    /// tsgo `buildOrCleanProject`: a fresh result for the cycle.
+    fn reset_result(&mut self) {
+        self.output.clear();
+        self.exit_status = 0;
+        self.build_kind = BuildKind::None;
+        self.files_to_delete.clear();
+        self.statistics = None;
+    }
+
     fn plan_and_options(&self) -> Option<(&ConfigRootPlan, &CompilerOptions)> {
         Some((self.plan.as_ref()?, self.options.as_ref()?))
     }
@@ -239,18 +292,21 @@ impl BuildTask {
     }
 }
 
-/// `tsc -b` over one command line.
+/// `tsc -b` over one command line. It owns what its builds read, so a
+/// watch (`tsc -b --watch`) keeps it from one cycle to the next.
 pub(crate) struct Orchestrator<'a> {
-    host: &'a dyn CompilerHost,
+    /// The host of the current cycle (tsgo clears its caches between
+    /// cycles; a watch takes a new one).
+    host: Box<dyn CompilerHost + 'a>,
     fs: &'a dyn FileSystem,
     system: &'a dyn System,
     testing: Option<&'a dyn CommandLineTesting>,
     locale: crate::locale::Locale,
-    catalog: &'a LibraryCatalog,
-    command: &'a BuildCommand,
+    catalog: LibraryCatalog,
+    command: BuildCommand,
     /// Normalized, forward slashes.
     current_directory: String,
-    current_directory_path: &'a Path,
+    current_directory_path: PathBuf,
     case_sensitive: bool,
     pretty: bool,
     tasks: Vec<BuildTask>,
@@ -265,18 +321,21 @@ pub(crate) struct Orchestrator<'a> {
     /// The texts of the configs parsed and the projects' diagnosed files,
     /// for the reports and the summary.
     sources: DiagnosticSourceMap,
+    /// tsgo `graphGenerated`: a later graph reuses the tasks.
+    graph_generated: bool,
 }
 
 impl<'a> Orchestrator<'a> {
     pub(crate) fn new(
-        host: &'a dyn CompilerHost,
         system: &'a dyn System,
         testing: Option<&'a dyn CommandLineTesting>,
-        catalog: &'a LibraryCatalog,
-        command: &'a BuildCommand,
-        current_directory: &'a Path,
+        catalog: LibraryCatalog,
+        command: BuildCommand,
+        current_directory: PathBuf,
         pretty: bool,
     ) -> Self {
+        let host = system.compiler_host();
+        let case_sensitive = host.use_case_sensitive_file_names();
         let directory = current_directory
             .to_string_lossy()
             .replace('\\', "/")
@@ -296,7 +355,7 @@ impl<'a> Orchestrator<'a> {
                 directory
             },
             current_directory_path: current_directory,
-            case_sensitive: host.use_case_sensitive_file_names(),
+            case_sensitive,
             pretty,
             tasks: Vec::new(),
             by_path: BTreeMap::new(),
@@ -305,6 +364,7 @@ impl<'a> Orchestrator<'a> {
             mtimes: HashMap::new(),
             config_cache: ConfigExtendedCache::default(),
             sources: DiagnosticSourceMap::new(),
+            graph_generated: false,
         }
     }
 
@@ -363,35 +423,42 @@ impl<'a> Orchestrator<'a> {
     }
 
     /// tsgo `createBuildTasks`: a task per config reachable from the
-    /// projects, each config parsed once.
-    fn create_build_tasks(&mut self, configs: &[String]) {
+    /// projects, each config parsed once. A later graph (a watch's) keeps
+    /// the old task of a config that did not change, and the build info of
+    /// one that did.
+    fn create_build_tasks(
+        &mut self,
+        configs: &[String],
+        old: &mut BTreeMap<String, BuildTask>,
+        initial: bool,
+    ) {
         for config in configs {
             let path = self.to_path(config);
             if self.by_path.contains_key(&path) {
                 continue;
             }
-            let plan = self.parse_config(config);
-            let options = plan.as_ref().map(|plan| plan.compiler_options().clone());
-            let references = plan
+            let mut task = match old.remove(&path) {
+                Some(mut existing) if !existing.dirty => {
+                    existing.upstream.clear();
+                    existing.downstream.clear();
+                    existing
+                }
+                existing => {
+                    let plan = self.parse_config(config);
+                    let mut task = BuildTask::new(config.clone(), plan, initial);
+                    task.build_info = existing.and_then(|existing| existing.build_info);
+                    task
+                }
+            };
+            task.config = config.clone();
+            let references = task
+                .plan
                 .as_ref()
                 .map(resolved_reference_paths)
                 .unwrap_or_default();
-            self.tasks.push(BuildTask {
-                config: config.clone(),
-                plan,
-                options,
-                upstream: Vec::new(),
-                status: None,
-                build_info: None,
-                errors: Vec::new(),
-                output: String::new(),
-                exit_status: 0,
-                build_kind: BuildKind::None,
-                files_to_delete: Vec::new(),
-                statistics: None,
-            });
+            self.tasks.push(task);
             self.by_path.insert(path, self.tasks.len() - 1);
-            self.create_build_tasks(&references);
+            self.create_build_tasks(&references, old, initial);
         }
     }
 
@@ -400,7 +467,7 @@ impl<'a> Orchestrator<'a> {
     fn parse_config(&mut self, config: &str) -> Option<ConfigRootPlan> {
         let bytes = self.host.read_file_js(config.into()).ok()??;
         let text = decode_host_text(bytes).ok()?;
-        let adapter = CompilerConfigHost::new(self.host);
+        let adapter = CompilerConfigHost::new(&*self.host);
         let plan = parse_config_root_plan_with_command_line(
             &adapter,
             ConfigRootPlanRequest {
@@ -428,6 +495,7 @@ impl<'a> Orchestrator<'a> {
     fn setup_build_task(
         &mut self,
         config: &str,
+        downstream: Option<usize>,
         in_circular_context: bool,
         completed: &mut BTreeSet<usize>,
         analyzing: &mut BTreeSet<usize>,
@@ -475,6 +543,7 @@ impl<'a> Orchestrator<'a> {
             for (index, (reference, circular)) in references.iter().enumerate() {
                 let upstream = self.setup_build_task(
                     reference,
+                    Some(task),
                     in_circular_context || *circular,
                     completed,
                     analyzing,
@@ -488,19 +557,41 @@ impl<'a> Orchestrator<'a> {
             completed.insert(task);
             self.order.push(task);
         }
+        if self.command.watch {
+            if let Some(downstream) = downstream {
+                self.tasks[task].downstream.push(downstream);
+            }
+        }
         Some(task)
     }
 
-    /// tsgo `GenerateGraph`.
+    /// tsgo `GenerateGraph` (and `GenerateGraphReusingOldTasks` once a
+    /// graph exists).
     fn generate_graph(&mut self) {
+        let initial = !self.graph_generated;
+        let mut old = BTreeMap::new();
+        for task in std::mem::take(&mut self.tasks) {
+            old.insert(self.to_path(&task.config), task);
+        }
+        self.by_path.clear();
+        self.order.clear();
+        self.errors.clear();
         let projects = self.resolved_project_paths();
-        self.create_build_tasks(&projects);
+        self.create_build_tasks(&projects, &mut old, initial);
         let mut completed = BTreeSet::new();
         let mut analyzing = BTreeSet::new();
         let mut stack = Vec::new();
         for project in &projects {
-            self.setup_build_task(project, false, &mut completed, &mut analyzing, &mut stack);
+            self.setup_build_task(
+                project,
+                None,
+                false,
+                &mut completed,
+                &mut analyzing,
+                &mut stack,
+            );
         }
+        self.graph_generated = true;
     }
 
     // ----- reporting -------------------------------------------------------
@@ -533,7 +624,7 @@ impl<'a> Orchestrator<'a> {
     fn diagnostic_text(&self, diagnostic: &Diagnostic) -> Result<String, CliError> {
         render_diagnostics(
             crate::cli::Format {
-                current_directory: self.current_directory_path,
+                current_directory: &self.current_directory_path,
                 case_sensitive: self.case_sensitive,
                 pretty: self.pretty,
                 locale: self.locale,
@@ -569,6 +660,24 @@ impl<'a> Orchestrator<'a> {
         if self.command.clean {
             return self.clean();
         }
+        let cycle = self.build_order(route)?;
+        let mut stdout = cycle.stdout;
+        if self.pretty {
+            stdout.push_str(&render_error_summary(
+                &self.current_directory_path,
+                &self.sources,
+                &cycle.errors,
+                self.locale,
+            )?);
+        }
+        stdout.push_str(&self.aggregate_statistics());
+        Ok(CliOutput::new(stdout, cycle.exit_status))
+    }
+
+    /// tsgo `buildOrCleanOrder` up to its report: the projects in order,
+    /// their reports, the exit status and the errors reported (a task that
+    /// is not pending reports its errors again).
+    pub(crate) fn build_order(&mut self, route: &mut CliRoute<'_>) -> Result<BuildCycle, CliError> {
         let mut stdout = String::new();
         if self.command.verbose {
             let listed = self
@@ -581,39 +690,33 @@ impl<'a> Orchestrator<'a> {
             );
         }
         let mut exit_status = 0;
-        let mut all_errors: Vec<Diagnostic> = Vec::new();
+        let mut errors: Vec<Diagnostic> = Vec::new();
         if self.errors.is_empty() {
             for position in 0..self.order.len() {
                 let task = self.order[position];
+                self.tasks[task].reset_result();
                 self.build_project(task, route)?;
             }
-            let mut files_to_delete = Vec::new();
             for &task in &self.order {
-                let task = &mut self.tasks[task];
-                stdout.push_str(&task.output);
-                exit_status = exit_status.max(task.exit_status);
-                all_errors.append(&mut task.errors);
-                files_to_delete.append(&mut task.files_to_delete);
+                let task_state = &mut self.tasks[task];
+                stdout.push_str(&task_state.output);
+                exit_status = exit_status.max(task_state.exit_status);
+                errors.extend(task_state.errors.iter().cloned());
+                debug_assert!(task_state.files_to_delete.is_empty());
             }
-            debug_assert!(files_to_delete.is_empty());
         } else {
             // Circularity errors prevent any project from being built.
             exit_status = EXIT_PROJECT_REFERENCE_CYCLE;
             for diagnostic in &self.errors {
                 stdout.push_str(&self.diagnostic_text(diagnostic)?);
             }
-            all_errors.extend(self.errors.iter().cloned());
+            errors.extend(self.errors.iter().cloned());
         }
-        if self.pretty {
-            stdout.push_str(&render_error_summary(
-                self.current_directory_path,
-                &self.sources,
-                &all_errors,
-                self.locale,
-            )?);
-        }
-        stdout.push_str(&self.aggregate_statistics());
-        Ok(CliOutput::new(stdout, exit_status))
+        Ok(BuildCycle {
+            stdout,
+            exit_status,
+            errors,
+        })
     }
 
     /// tsgo `reportWithFilesToDelete`: the build's aggregate statistics
@@ -653,26 +756,93 @@ impl<'a> Orchestrator<'a> {
         statistics.report(self.testing)
     }
 
-    /// tsgo `BuildTask.buildProject` of the initial cycle.
+    /// tsgo `BuildTask.buildProject`: a pending task gets its status and
+    /// is built or settled; one that is not pending (a watch's later cycle)
+    /// reports its errors again.
     fn build_project(&mut self, task: usize, route: &mut CliRoute<'_>) -> Result<(), CliError> {
-        let status = self.up_to_date_status(task);
-        self.tasks[task].status = Some(status);
-        self.report_up_to_date_status(task);
-        if self.handle_status_that_doesnt_require_build(task)? {
-            let config_diagnostics = self.tasks[task]
-                .plan
-                .as_ref()
-                .map(|plan| plan.diagnostics().cloned().collect::<Vec<_>>())
-                .unwrap_or_default();
-            for diagnostic in config_diagnostics {
-                self.report_task_diagnostic(task, diagnostic)?;
+        if self.tasks[task].pending {
+            let status = self.up_to_date_status(task);
+            self.tasks[task].status = Some(status);
+            self.report_up_to_date_status(task);
+            if self.handle_status_that_doesnt_require_build(task)? {
+                let config_diagnostics = self.tasks[task]
+                    .plan
+                    .as_ref()
+                    .map(|plan| plan.diagnostics().cloned().collect::<Vec<_>>())
+                    .unwrap_or_default();
+                for diagnostic in config_diagnostics {
+                    self.report_task_diagnostic(task, diagnostic)?;
+                }
+                if !self.tasks[task].errors.is_empty() {
+                    self.tasks[task].exit_status = 1;
+                }
+            } else {
+                let has_changed_dts_file = self.compile_and_emit(task, route)?;
+                self.update_downstream(task, has_changed_dts_file);
             }
-            if !self.tasks[task].errors.is_empty() {
-                self.tasks[task].exit_status = 1;
+        } else if !self.tasks[task].errors.is_empty() {
+            self.report_up_to_date_status(task);
+            for diagnostic in self.tasks[task].errors.clone() {
+                let text = self.diagnostic_text(&diagnostic)?;
+                self.tasks[task].output.push_str(&text);
             }
-            return Ok(());
         }
-        self.compile_and_emit(task, route)
+        // tsgo `unblockDownstream`.
+        self.tasks[task].pending = false;
+        self.tasks[task].initial_cycle = false;
+        Ok(())
+    }
+
+    /// tsgo `updateDownstream`: in a watch's later cycle, a built project
+    /// tells its downstream projects whether its declarations changed, and
+    /// makes them pending.
+    fn update_downstream(&mut self, task: usize, has_changed_dts_file: bool) {
+        if self.tasks[task].initial_cycle {
+            return;
+        }
+        if self.command.stop_build_on_errors && self.tasks[task].status().kind.is_error() {
+            return;
+        }
+        let config = self.tasks[task].config.clone();
+        let path = self.to_path(&config);
+        for downstream in self.tasks[task].downstream.clone() {
+            let status = self.tasks[downstream].status.clone();
+            if let Some(status) = status {
+                match status.kind {
+                    StatusKind::UpToDate if !has_changed_dts_file => {
+                        self.tasks[downstream].status = Some(UpToDateStatus {
+                            kind: StatusKind::UpToDateWithUpstreamTypes,
+                            data: status.data,
+                        });
+                    }
+                    StatusKind::UpToDate
+                    | StatusKind::UpToDateWithUpstreamTypes
+                    | StatusKind::UpToDateWithInputFileText => {
+                        if has_changed_dts_file {
+                            self.tasks[downstream].status = Some(UpToDateStatus::input_output(
+                                StatusKind::InputFileNewer,
+                                config.clone(),
+                                oldest_output_file_name(&status),
+                            ));
+                        }
+                    }
+                    StatusKind::UpstreamErrors => {
+                        if let StatusData::Upstream { reference, .. } = &status.data {
+                            let reference = resolve_config_file_name_of_project_reference(
+                                reference.as_str().into(),
+                            )
+                            .to_string_lossy()
+                            .into_owned();
+                            if self.to_path(&reference) == path {
+                                self.tasks[downstream].reset_status();
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            self.tasks[downstream].pending = true;
+        }
     }
 
     /// tsgo `handleStatusThatDoesntRequireBuild`: `true` when the project
@@ -759,7 +929,11 @@ impl<'a> Orchestrator<'a> {
     /// tsgo `compileAndEmit`: the project built through the ordinary
     /// pipeline with its old build info, then its unchanged outputs
     /// touched.
-    fn compile_and_emit(&mut self, task: usize, route: &mut CliRoute<'_>) -> Result<(), CliError> {
+    fn compile_and_emit(
+        &mut self,
+        task: usize,
+        route: &mut CliRoute<'_>,
+    ) -> Result<bool, CliError> {
         self.tasks[task].errors.clear();
         let config = self.tasks[task].config.clone();
         if self.command.verbose {
@@ -795,13 +969,24 @@ impl<'a> Orchestrator<'a> {
             HashMap::new()
         };
         let run: BuildProjectRun = run_config_for_build(
-            self.host,
-            self.current_directory_path,
-            self.catalog,
+            &*self.host,
+            &self.current_directory_path,
+            &self.catalog,
             &plan,
             old_info.as_deref(),
             route,
         )?;
+        // tsgo `writeFile`: a watch keeps the time it wrote an output of a
+        // project without build info state, and the build info's.
+        let build_info_name = self.build_info_name(task);
+        let mut build_info_written_at = None;
+        for (file, time) in &run.write_times {
+            if build_info_name.as_deref() == Some(file.as_str()) {
+                build_info_written_at = Some(*time);
+            } else if self.stores_output_time_stamps(task) {
+                self.store_mtime(file, *time);
+            }
+        }
         // tsgo `OnEmittedFiles` updates the build's time cache of the files
         // a test harness stamped.
         for (file, time) in &run.stamped {
@@ -828,11 +1013,16 @@ impl<'a> Orchestrator<'a> {
             entry.exit_status = run.exit_code;
             entry.errors.extend(run.diagnostics.iter().cloned());
             entry.statistics = run.statistics;
+            entry.package_jsons = run.package_json_lookups.clone();
         }
-        let build_info_name = self.build_info_name(task);
         if let Some(name) = &build_info_name {
             if emitted.iter().any(|file| file == name) {
-                self.on_build_info_emit(task, name, run.has_changed_dts_file);
+                self.on_build_info_emit(
+                    task,
+                    name,
+                    run.has_changed_dts_file,
+                    build_info_written_at,
+                );
             }
         }
         if (options.no_emit_on_error != Some(true) || run.diagnostics.is_empty())
@@ -855,17 +1045,25 @@ impl<'a> Orchestrator<'a> {
                 .unwrap_or_default();
             self.tasks[task].status = Some(UpToDateStatus::with_text(StatusKind::UpToDate, oldest));
         }
-        Ok(())
+        Ok(run.has_changed_dts_file)
     }
 
     /// tsgo `onBuildInfoEmit`: the entry of the build info just written.
-    fn on_build_info_emit(&mut self, task: usize, file_name: &str, has_changed_dts_file: bool) {
-        let now = self.system.now();
+    fn on_build_info_emit(
+        &mut self,
+        task: usize,
+        file_name: &str,
+        has_changed_dts_file: bool,
+        written_at: Option<SystemTime>,
+    ) {
+        let now = written_at.unwrap_or_else(|| self.system.now());
+        // The build info just written, from the file system itself: a
+        // host may still hold what it saw before the build (tsgo keeps the
+        // object it wrote).
         let info = self
-            .host
-            .read_file_js(file_name.into())
+            .fs
+            .read(file_name)
             .ok()
-            .flatten()
             .and_then(|bytes| {
                 let text = String::from_utf8_lossy(&bytes);
                 BuildInfo::from_json(text.strip_prefix('\u{feff}').unwrap_or(&text))
@@ -916,11 +1114,13 @@ impl<'a> Orchestrator<'a> {
                 self.report_task_status(task, MessageChain::new(message, &[relative]));
                 reported = true;
             }
-            if self.fs.set_modified_time(&file, now).is_ok()
-                && build_info_name.as_deref() == Some(file.as_str())
-            {
-                if let Some(entry) = &mut self.tasks[task].build_info {
-                    entry.mtime = Some(now);
+            if self.fs.set_modified_time(&file, now).is_ok() {
+                if build_info_name.as_deref() == Some(file.as_str()) {
+                    if let Some(entry) = &mut self.tasks[task].build_info {
+                        entry.mtime = Some(now);
+                    }
+                } else if self.stores_output_time_stamps(task) {
+                    self.store_mtime(&file, now);
                 }
             }
         }
@@ -937,7 +1137,7 @@ impl<'a> Orchestrator<'a> {
             }
             if self.pretty {
                 stdout.push_str(&render_error_summary(
-                    self.current_directory_path,
+                    &self.current_directory_path,
                     &self.sources,
                     &self.errors,
                     self.locale,
@@ -1004,7 +1204,7 @@ impl<'a> Orchestrator<'a> {
         }
         if self.pretty {
             stdout.push_str(&render_error_summary(
-                self.current_directory_path,
+                &self.current_directory_path,
                 &self.sources,
                 &errors,
                 self.locale,
@@ -1548,16 +1748,384 @@ impl<'a> Orchestrator<'a> {
     }
 }
 
+// ----- watch (tsgo's Orchestrator as a watcher) ----------------------------
+
+impl<'a> Orchestrator<'a> {
+    pub(crate) fn set_locale(&mut self, locale: crate::locale::Locale) {
+        self.locale = locale;
+    }
+
+    /// The command line's options keep the screen (tsgo's watch status
+    /// reporter reads the command line's compiler options).
+    pub(crate) fn keeps_screen(&self) -> bool {
+        ["preserveWatchOutput", "diagnostics", "extendedDiagnostics"]
+            .iter()
+            .any(|name| {
+                matches!(
+                    self.command.command_line.typed_value_state(name),
+                    tsc_program::ConfigOptionValueState::Value(value) if value.as_bool() == Some(true)
+                )
+            })
+    }
+
+    pub(crate) fn case_sensitive(&self) -> bool {
+        self.case_sensitive
+    }
+
+    /// The first graph (tsgo `GenerateGraph` in `start`).
+    pub(crate) fn generate_initial_graph(&mut self) {
+        self.generate_graph();
+    }
+
+    /// tsgo `GenerateGraphReusingOldTasks`.
+    pub(crate) fn regenerate_graph(&mut self) {
+        self.generate_graph();
+    }
+
+    /// tsgo `aggregate statistics` of a watch cycle's report.
+    pub(crate) fn statistics_report(&self) -> String {
+        self.aggregate_statistics()
+    }
+
+    /// tsgo `canUpdateJsDtsOutputTimestamps`.
+    fn can_update_js_dts_output_timestamps(&self, task: usize) -> bool {
+        self.tasks[task].options.as_ref().is_some_and(|options| {
+            options.no_emit != Some(true) && !tsc_incremental::options::is_incremental(options)
+        })
+    }
+
+    /// tsgo `storeOutputTimeStamp`: a watch keeps the times it wrote the
+    /// outputs of a project without build info state.
+    fn stores_output_time_stamps(&self, task: usize) -> bool {
+        self.command.watch
+            && self.tasks[task]
+                .options
+                .as_ref()
+                .is_some_and(|options| !tsc_incremental::options::is_incremental(options))
+    }
+
+    /// tsgo `host.storeMTime`.
+    fn store_mtime(&mut self, file_name: &str, time: SystemTime) {
+        let path = self.to_path(file_name);
+        self.mtimes.insert(path, Some(time));
+    }
+
+    /// tsgo `updateWatch`: the next cycle's time cache starts empty but for
+    /// the outputs of a project that touches them, whose stored times stay.
+    pub(crate) fn update_watch(&mut self) {
+        let old = std::mem::take(&mut self.mtimes);
+        for position in 0..self.order.len() {
+            let task = self.order[position];
+            if !self.can_update_js_dts_output_timestamps(task) {
+                continue;
+            }
+            for output in self.output_names(task) {
+                let path = self.to_path(&output);
+                if let Some(time) = old.get(&path) {
+                    self.mtimes.insert(path, *time);
+                }
+            }
+        }
+    }
+
+    /// tsgo `resetCaches`: what lasts one cycle (the host's caches and the
+    /// extended configurations).
+    pub(crate) fn reset_caches(&mut self) {
+        self.host = self.system.compiler_host();
+        self.config_cache = ConfigExtendedCache::default();
+    }
+
+    /// tsgo `resetConfig`: the next graph parses the configuration again.
+    fn reset_config(&mut self, task: usize) {
+        self.tasks[task].dirty = true;
+    }
+
+    /// An overflow (tsgo `DoCycle`): every configuration is parsed again.
+    pub(crate) fn reset_all_configs(&mut self) {
+        for position in 0..self.order.len() {
+            let task = self.order[position];
+            self.reset_config(task);
+        }
+    }
+
+    /// tsgo `checkTasksForEventChanges`: which projects the changes concern
+    /// (`(needs a new graph, needs a build)`).
+    pub(crate) fn check_tasks_for_event_changes(
+        &mut self,
+        changed: &BTreeMap<String, crate::watch::WatchEventKind>,
+        under_watch: &dyn Fn(&str) -> bool,
+    ) -> (bool, bool) {
+        let normalized: BTreeMap<String, crate::watch::WatchEventKind> = changed
+            .iter()
+            .map(|(path, kind)| (self.to_path(path), *kind))
+            .collect();
+        let mut needs_config_update = false;
+        let mut needs_update = false;
+        for position in 0..self.order.len() {
+            let task = self.order[position];
+            let config = self.tasks[task].config.clone();
+            if normalized.contains_key(&self.to_path(&config)) {
+                self.reset_config(task);
+                needs_config_update = true;
+                needs_update = true;
+                continue;
+            }
+            let Some(plan) = self.tasks[task].plan.clone() else {
+                continue;
+            };
+            if plan
+                .extended_source_files()
+                .iter()
+                .any(|file| normalized.contains_key(&self.to_path(&file.to_string_lossy())))
+            {
+                self.reset_config(task);
+                needs_config_update = true;
+                needs_update = true;
+                continue;
+            }
+            let roots: BTreeSet<String> = plan
+                .file_names()
+                .iter()
+                .map(|file| self.to_path(&file.to_string_lossy()))
+                .collect();
+            let mut root_changed = false;
+            if roots.iter().any(|root| normalized.contains_key(root)) {
+                self.tasks[task].reset_status();
+                needs_update = true;
+                root_changed = true;
+            }
+            if !root_changed
+                && (self.build_info_inputs_changed(task, &roots, &normalized)
+                    || self.tasks[task].package_jsons.iter().any(|package_json| {
+                        self.package_json_lookup_changed(package_json, &normalized)
+                    }))
+            {
+                self.tasks[task].reset_status();
+                needs_update = true;
+            }
+            // tsgo `ReloadFileNamesOfParsedCommandLine`: the include
+            // patterns may match other files now.
+            if !plan.wildcard_directories().is_empty() {
+                if let Some(reloaded) = self.parse_config(&config) {
+                    if reloaded.file_names() != plan.file_names() {
+                        let mut plan = plan;
+                        plan = plan.with_reloaded_file_names(reloaded);
+                        self.tasks[task].plan = Some(plan);
+                        self.tasks[task].reset_status();
+                        needs_update = true;
+                    }
+                }
+            }
+        }
+        if !needs_update {
+            let directory_changed = changed
+                .keys()
+                .any(|path| self.fs.is_dir(path) && under_watch(path));
+            if directory_changed {
+                for position in 0..self.order.len() {
+                    let task = self.order[position];
+                    self.tasks[task].reset_status();
+                }
+                needs_update = true;
+            }
+        }
+        (needs_config_update, needs_update)
+    }
+
+    /// Whether a file the build info lists (and the roots do not), or a
+    /// package.json it looked up, changed.
+    fn build_info_inputs_changed(
+        &self,
+        task: usize,
+        roots: &BTreeSet<String>,
+        changed: &BTreeMap<String, crate::watch::WatchEventKind>,
+    ) -> bool {
+        let Some(entry) = &self.tasks[task].build_info else {
+            return false;
+        };
+        let Some(info) = &entry.info else {
+            return false;
+        };
+        let directory = directory_of(&entry.path);
+        for file_name in &info.file_names {
+            let path = self.to_path(&self.resolve_build_info_file_name(file_name, &directory));
+            if roots.contains(&path) {
+                continue;
+            }
+            if changed.contains_key(&path) {
+                return true;
+            }
+        }
+        info.package_jsons
+            .iter()
+            .chain(&info.missing_package_jsons)
+            .any(|package_json| {
+                self.package_json_lookup_changed(&self.absolute(package_json, &directory), changed)
+            })
+    }
+
+    /// tsgo `packageJsonLookupChanged`: the file changed, or a directory
+    /// holding it was deleted.
+    fn package_json_lookup_changed(
+        &self,
+        package_json: &str,
+        changed: &BTreeMap<String, crate::watch::WatchEventKind>,
+    ) -> bool {
+        let path = self.to_path(package_json);
+        if changed.contains_key(&path) {
+            return true;
+        }
+        changed.iter().any(|(changed_path, kind)| {
+            *kind == crate::watch::WatchEventKind::Delete
+                && crate::watch::contains_path(changed_path, &path, self.case_sensitive)
+        })
+    }
+
+    /// tsgo `resolveBuildInfoFileName`: a default library's bare name is in
+    /// the library directory; any other name is relative to the build info.
+    fn resolve_build_info_file_name(&self, file_name: &str, build_info_directory: &str) -> String {
+        if tsc_incremental::is_default_library_name(file_name) {
+            format!(
+                "{}/{file_name}",
+                self.system.default_library_path().trim_end_matches('/')
+            )
+        } else {
+            self.absolute(file_name, build_info_directory)
+        }
+    }
+
+    /// The real path of a file or directory, or the name itself.
+    fn realpath(&self, file_name: &str) -> String {
+        self.fs
+            .canonicalize(file_name)
+            .unwrap_or_else(|_| file_name.to_owned())
+    }
+
+    /// tsgo `computeDesiredWatches` before `ResolveDesiredDirs`.
+    pub(crate) fn desired_watches(&self, set: &mut crate::watch::DirWatchSet) {
+        let watchable = |set: &crate::watch::DirWatchSet, directory: &str| {
+            !set.covered(directory) && crate::watch::can_watch_directory(directory)
+        };
+        for &task in &self.order {
+            let task_state = &self.tasks[task];
+            set.set(&self.realpath(&directory_of(&task_state.config)), false);
+            let Some(plan) = &task_state.plan else {
+                continue;
+            };
+            for file in plan.extended_source_files() {
+                let real = self.realpath(&file.to_string_lossy());
+                set.set(&directory_of(&real), false);
+            }
+            for directory in plan.wildcard_directories() {
+                set.set(
+                    &self.realpath(&directory.path.to_string_lossy()),
+                    directory.recursive,
+                );
+            }
+            for file in plan.file_names() {
+                let absolute = self.absolute(&file.to_string_lossy(), &self.current_directory);
+                let directory = directory_of(&absolute);
+                if watchable(set, &directory) {
+                    set.set(&directory, false);
+                }
+            }
+            if let Some(entry) = &task_state.build_info {
+                if let Some(info) = &entry.info {
+                    let build_info_directory = directory_of(&entry.path);
+                    let roots: BTreeSet<String> = plan
+                        .file_names()
+                        .iter()
+                        .map(|file| self.to_path(&file.to_string_lossy()))
+                        .collect();
+                    for file_name in &info.file_names {
+                        let absolute = self.realpath(
+                            &self.resolve_build_info_file_name(file_name, &build_info_directory),
+                        );
+                        if roots.contains(&self.to_path(&absolute)) {
+                            continue;
+                        }
+                        let directory = directory_of(&absolute);
+                        if watchable(set, &directory) {
+                            set.set(&directory, false);
+                        }
+                    }
+                    for package_json in info.package_jsons.iter().chain(&info.missing_package_jsons)
+                    {
+                        let absolute = self.absolute(package_json, &build_info_directory);
+                        add_package_json_watch_dirs(set, &absolute);
+                    }
+                }
+            }
+            for package_json in &task_state.package_jsons {
+                add_package_json_watch_dirs(set, package_json);
+            }
+        }
+    }
+}
+
+/// tsgo `addPackageJsonWatchDirs`: the package.json's directory, and in a
+/// node_modules tree every directory up to the one holding node_modules.
+fn add_package_json_watch_dirs(set: &mut crate::watch::DirWatchSet, package_json: &str) {
+    let add = |set: &mut crate::watch::DirWatchSet, directory: &str| {
+        if !set.covered(directory) && crate::watch::can_watch_directory(directory) {
+            set.set(directory, false);
+        }
+    };
+    let directory = directory_of(package_json);
+    let mut directories = vec![directory.clone()];
+    let mut found_node_modules = false;
+    let mut current = directory.clone();
+    loop {
+        let parent = directory_of(&current);
+        if parent.is_empty() || parent == current {
+            break;
+        }
+        directories.push(parent.clone());
+        if parent.rsplit('/').next() == Some("node_modules") {
+            found_node_modules = true;
+            let grandparent = directory_of(&parent);
+            if !grandparent.is_empty() && grandparent != parent {
+                directories.push(grandparent);
+            }
+            break;
+        }
+        current = parent;
+    }
+    if !found_node_modules {
+        add(set, &directory);
+        return;
+    }
+    for directory in directories {
+        add(set, &directory);
+    }
+}
+
+/// One build of the projects in order (tsgo `buildOrCleanOrder`).
+pub(crate) struct BuildCycle {
+    pub(crate) stdout: String,
+    pub(crate) exit_status: i32,
+    /// The errors reported (tsgo `OrchestratorResult.Errors`).
+    pub(crate) errors: Vec<Diagnostic>,
+}
+
+/// tsgo `oldestOutputFileName` of an up-to-date or pseudo-build status.
+fn oldest_output_file_name(status: &UpToDateStatus) -> String {
+    match &status.data {
+        StatusData::Times { output, .. } => output.file.clone(),
+        StatusData::InputOutput { output, .. } => output.clone(),
+        StatusData::Text(text) => text.clone(),
+        StatusData::None | StatusData::Upstream { .. } => String::new(),
+    }
+}
+
 /// `tsc -b` over the command line.
 pub(crate) fn run_build(
-    host: &dyn CompilerHost,
-    current_directory: &Path,
-    catalog: &LibraryCatalog,
-    command: &BuildCommand,
+    current_directory: PathBuf,
+    catalog: LibraryCatalog,
+    command: BuildCommand,
     route: &mut CliRoute<'_>,
 ) -> Result<CliOutput, CliError> {
     let mut orchestrator = Orchestrator::new(
-        host,
         route.system,
         route.testing,
         catalog,
