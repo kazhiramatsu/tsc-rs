@@ -20,12 +20,11 @@ pub mod session;
 use encoder::ScriptKind;
 use tsc_syntax::{LanguageVariant, ParseOptions, SourceFile};
 
-/// Parses `text` as tsgo's API parses a file (`parser.ParseSourceFile`
-/// with the script kind of the file name): the JSX variant for every kind
-/// but TypeScript, the JavaScript context for JavaScript, every JSDoc
-/// comment, and a JSON file as one JSON value.
-pub fn parse_source_file(file_name: &str, text: &str) -> SourceFile {
-    let script_kind = ScriptKind::from_file_name(file_name);
+/// Parses `text` as tsgo's API parses a file (`parser.ParseSourceFile`)
+/// of `script_kind`: the JSX variant for every kind but TypeScript, the
+/// JavaScript context for JavaScript, every JSDoc comment, and a JSON file
+/// as one JSON value.
+pub fn parse_source_file(file_name: &str, text: &str, script_kind: ScriptKind) -> SourceFile {
     if script_kind == ScriptKind::Json {
         return tsc_syntax::parse_json_text(file_name, text);
     }

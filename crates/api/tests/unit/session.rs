@@ -1287,3 +1287,6 @@ fn an_invalid_request_file_system_is_a_client_error() {
         r#"api: client error: unknown request filesystem kind "memory""#
     );
 }
+
+#[path = "session_requests.rs"]
+mod requests;

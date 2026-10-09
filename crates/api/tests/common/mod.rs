@@ -17,7 +17,7 @@ use tsc_api::references::collect_external_module_references;
 /// `name` (parsed by its extension, with the module references its parser
 /// records).
 pub fn encode(name: &str, text: &str) -> Vec<u8> {
-    let file = parse_source_file(name, text);
+    let file = parse_source_file(name, text, ScriptKind::from_file_name(name));
     let references = collect_external_module_references(&file);
     let facts = SourceFileFacts {
         path: Some(name),

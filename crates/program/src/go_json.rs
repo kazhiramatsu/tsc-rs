@@ -7,7 +7,12 @@
 
 use std::sync::Arc;
 
-use crate::config::{ConfigTypedObjectProperty, ConfigTypedObjectShape, ConfigTypedOptionValue};
+use tsc_diagnostics::JsString;
+
+use crate::config::{
+    ConfigOption, ConfigTypedObjectProperty, ConfigTypedObjectShape, ConfigTypedOptionValue,
+};
+use crate::config_options::{named_value_in, CompilerOptionValueKind};
 use crate::{
     ConfigOptionBag, ConfigOptionValueState, ConfigRootPlan, ConfigTypedJsonValue,
     ConfigTypedListElement, ConfigTypedObjectValue, JsonValue,
@@ -317,7 +322,25 @@ pub const TYPE_ACQUISITION_FIELDS: &[(&str, FieldKind)] = &[
 /// tsgo's number for the spelling of an enum option (tsoptions/enummaps.go
 /// with the core and watch-option constants), case-insensitively.
 pub fn enum_number(option: &str, spelling: &str) -> Option<i64> {
-    let table: &[(&str, i64)] = match option {
+    let spelling = spelling.to_ascii_lowercase();
+    enum_table(option)?
+        .iter()
+        .find(|(name, _)| *name == spelling)
+        .map(|(_, number)| *number)
+}
+
+/// A spelling of tsgo's number for an enum option: the converter's names
+/// number some enums apart from tsgo's (`newLine`, `moduleDetection`), so
+/// an option tsgo's JSON gives by number is stored by name.
+fn enum_spelling(option: &str, number: i64) -> Option<&'static str> {
+    enum_table(option)?
+        .iter()
+        .find(|(_, candidate)| *candidate == number)
+        .map(|(name, _)| *name)
+}
+
+fn enum_table(option: &str) -> Option<&'static [(&'static str, i64)]> {
+    Some(match option {
         "target" => &[
             ("es5", 1),
             ("es6", 2),
@@ -389,12 +412,7 @@ pub fn enum_number(option: &str, spelling: &str) -> Option<i64> {
             ("fixedchunksize", 4),
         ],
         _ => return None,
-    };
-    let spelling = spelling.to_ascii_lowercase();
-    table
-        .iter()
-        .find(|(name, _)| *name == spelling)
-        .map(|(_, number)| *number)
+    })
 }
 
 /// `ParsedConfig.CompilerOptions` in tsgo's struct order: the merged config
@@ -404,9 +422,10 @@ pub fn compiler_options_json(plan: &ConfigRootPlan) -> GoJson {
     let mut entries = Vec::new();
     for (field, kind) in COMPILER_OPTIONS_FIELDS {
         let value = match *field {
-            "configFilePath" => Some(GoJson::String(
-                plan.config_file_name().to_string_lossy().into_owned(),
-            )),
+            // Empty (omitted) for a config without a file.
+            "configFilePath" => Some(plan.config_file_name())
+                .filter(|name| !name.is_empty())
+                .map(|name| GoJson::String(name.to_string_lossy().into_owned())),
             "pathsBasePath" => options
                 .stored_paths_base_path()
                 .map(|base| GoJson::String(base.to_string_lossy().into_owned())),
@@ -523,8 +542,27 @@ pub fn compiler_options_bag(
             (FieldKind::String, Value::String(text)) => (!text.is_empty())
                 .then(|| ConfigTypedOptionValue::Json(JsonValue::String(text.as_str().into()))),
             (FieldKind::Enum, Value::Number(number)) if number.as_i64().is_some() => {
-                (number.as_i64() != Some(0))
-                    .then(|| ConfigTypedOptionValue::Json(JsonValue::Number(number.clone())))
+                let spelling = number
+                    .as_i64()
+                    .and_then(|number| enum_spelling(field, number));
+                let converted = spelling.and_then(|spelling| {
+                    match crate::config_options::compiler_option_declaration(*field)?.value_kind() {
+                        CompilerOptionValueKind::Named(values) => named_value_in(values, spelling),
+                        _ => None,
+                    }
+                });
+                match (spelling, converted) {
+                    (Some(spelling), Some(converted)) => {
+                        bag.insert(ConfigOption {
+                            name: (*field).into(),
+                            value: JsonValue::String(spelling.into()),
+                            base_path: JsString::default(),
+                        });
+                        Some(ConfigTypedOptionValue::Json(JsonValue::from(converted)))
+                    }
+                    _ => (number.as_i64() != Some(0))
+                        .then(|| ConfigTypedOptionValue::Json(JsonValue::Number(number.clone()))),
+                }
             }
             (FieldKind::Int, Value::Number(number)) if number.as_i64().is_some() => Some(
                 ConfigTypedOptionValue::Json(JsonValue::Number(number.clone())),
@@ -611,6 +649,29 @@ mod tests {
             "{\"a\":1,\"b\":[\"x\\\"y\"],\"c\":[],\"d\":{}}"
         );
         assert_eq!(GoJson::Object(Vec::new()).indented(), "{}");
+    }
+
+    #[test]
+    fn an_api_enum_is_stored_by_name() {
+        // tsgo numbers `newLine` and `moduleDetection` apart from the
+        // converter's names: CRLF is tsgo's 1 and the converter's 0.
+        let options = serde_json::json!({ "newLine": 1, "moduleDetection": 1, "target": 7 });
+        let bag = compiler_options_bag(options.as_object().unwrap()).unwrap();
+        let typed = |name: &str| match bag.typed_value_state(name) {
+            ConfigOptionValueState::Value(value) => value.as_i64(),
+            _ => None,
+        };
+        assert_eq!(typed("newLine"), Some(0));
+        assert_eq!(typed("moduleDetection"), Some(2));
+        assert_eq!(typed("target"), Some(7));
+        assert_eq!(
+            struct_json(COMPILER_OPTIONS_FIELDS, &bag),
+            GoJson::Object(vec![
+                ("moduleDetection".to_owned(), GoJson::number(1)),
+                ("newLine".to_owned(), GoJson::number(1)),
+                ("target".to_owned(), GoJson::number(7)),
+            ])
+        );
     }
 
     #[test]
