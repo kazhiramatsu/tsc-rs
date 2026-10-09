@@ -6101,7 +6101,7 @@ compiler/symbolLinkDeclarationEmitModuleNamesRootDir_promoted	full	js	full	full	
 compiler/symbolMergeValueAndImportedType	full	js	full	full	full	full
 compiler/symbolObserverMismatchingPolyfillsWorkTogether	full	js	full	full	full	full
 compiler/symbolToNodeBoundaryNoStackOverflow	full	js	none	none	full	full
-compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesDeepNonrelativeName	full	js	none	full	full	full
+compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesDeepNonrelativeName	full	js	full	full	full	full
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesNonrelativeName	full	js	full	full	full	full
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkOptionalGeneratesNonrelativeName	full	js	full	full	full	full
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkPeerGeneratesNonrelativeName	full	js	full	full	full	full
@@ -10373,9 +10373,9 @@ conformance/nodeModulesConditionalPackageExports(module=node16)	full	js	full	ful
 conformance/nodeModulesConditionalPackageExports(module=node18)	full	js	full	full	full	full
 conformance/nodeModulesConditionalPackageExports(module=node20)	full	js	full	full	full	full
 conformance/nodeModulesConditionalPackageExports(module=nodenext)	full	js	full	full	full	full
-conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=node18)	full	js	full	none	full	full
-conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=node20)	full	js	full	none	full	full
-conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=nodenext)	full	js	full	none	full	full
+conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=node18)	full	js	full	full	full	full
+conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=node20)	full	js	full	full	full	full
+conformance/nodeModulesDeclarationEmitDynamicImportWithPackageExports(module=nodenext)	full	js	full	full	full	full
 conformance/nodeModulesDeclarationEmitWithPackageExports(module=node16)	full	js	full	full	full	full
 conformance/nodeModulesDeclarationEmitWithPackageExports(module=node18)	full	js	full	full	full	full
 conformance/nodeModulesDeclarationEmitWithPackageExports(module=node20)	full	js	full	full	full	full
