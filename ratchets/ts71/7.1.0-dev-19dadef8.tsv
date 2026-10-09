@@ -7574,11 +7574,11 @@ conformance/builtinIteratorReturn(strictbuiltiniteratorreturn=true)	full	js	full
 conformance/bundlerCommonJS	full	js	none	none	full	full
 conformance/bundlerConditionsExcludesNode(module=esnext)	full	js	full	full	full	full
 conformance/bundlerConditionsExcludesNode(module=preserve)	full	js	full	full	full	full
-conformance/bundlerDirectoryModule(module=node18,moduleresolution=bundler)	full	js	none	none	full	none
+conformance/bundlerDirectoryModule(module=node18,moduleresolution=bundler)	full	js	none	none	full	full
 conformance/bundlerDirectoryModule(module=node18,moduleresolution=nodenext)	full	js	none	none	full	full
-conformance/bundlerDirectoryModule(module=node20,moduleresolution=bundler)	full	js	none	none	full	none
+conformance/bundlerDirectoryModule(module=node20,moduleresolution=bundler)	full	js	none	none	full	full
 conformance/bundlerDirectoryModule(module=node20,moduleresolution=nodenext)	full	js	none	none	full	full
-conformance/bundlerDirectoryModule(module=nodenext,moduleresolution=bundler)	full	js	none	none	full	none
+conformance/bundlerDirectoryModule(module=nodenext,moduleresolution=bundler)	full	js	none	none	full	full
 conformance/bundlerDirectoryModule(module=nodenext,moduleresolution=nodenext)	full	js	none	none	full	full
 conformance/bundlerImportESM(module=esnext)	full	js	full	full	full	full
 conformance/bundlerImportESM(module=preserve)	full	js	full	full	full	full
