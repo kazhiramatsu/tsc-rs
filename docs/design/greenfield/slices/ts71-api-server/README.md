@@ -1,9 +1,9 @@
-# TypeScript 7.1 の API server：計画（2026-10-09、決定待ち）
+# TypeScript 7.1 の API server：計画（2026-10-09）
 
 tsgo の `--api`（`tsc/internal/api`）を tsc-rs に移す計画。[post-emitter roadmap](../../post-emitter-roadmap.md) の P5「公開
 API」を、vendoring の commit（`19dadef8`）の source と test で具体化する。P4-7d で source file の encoder（`tsc_api`）を移した。
-この packet は決定待ち：API server は tsgo の project system（LSP の土台）の上にあり、利用者の「LSP と content mapper は今は
-除く」という指示と重なる（下の「決めること」）。
+API server は tsgo の project system（LSP の土台）の上にあり、利用者の「LSP と content mapper は今は除く」という指示と
+重なるので、下の「決めること」を利用者に尋ねた（2026-10-09、下の「決定」）。
 
 ## tsgo の API server の構成
 
@@ -55,3 +55,12 @@ request は 170 種（`proto.go` の `Method*`）：snapshot と project（`crea
   移植を基準にする。
 - **WebAssembly**：session を transport から分けておけば、WASM の build で JS から同じ API を process を立てずに呼べる
   （tsgo に WASM の target は無い）。WASM の build そのものは利用者が別に計画する。
+
+## 決定（2026-10-09）
+
+- **project system から移す**：project system（依存と順序の 1）を移し、API server（2〜6）を順に進める。LS の 6 handler と LSP
+  本体は後に残す（「LSP は今は除く」の範囲はそのまま）。
+- **client の test は今は local の確認だけ**：tsgo の TypeScript client の test は local で tsc-rs の `--api` に向けて走らせて
+  確かめ、merge の基準は Go の session test の移植と Rust の test にする。hosted job は変えない。
+- この決定の前に、resolver の残り（削除済みの `node10`／`classic`／`baseUrl`、trace の順序と implied format）を先に片付けた
+  （[ts71-suites](../ts71-suites/README.md) の 2 つの slice、#717・#718）。
