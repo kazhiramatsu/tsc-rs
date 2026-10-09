@@ -1399,13 +1399,22 @@ source と binary で確かめた。
 - **tsgo との比較**（`tsgo -p … --pretty false`、`--listFiles`、`--traceResolution` と出力の file）：node10（`commonjs`／`node16` の
   module）、classic（祖先の file、`resolvePackageJsonExports`・`customConditions`）、`baseUrl` と `paths`、`paths` の miss と
   `rootDirs`、type reference（bundler／node16、`resolvePackageJsonExports: false`）、libReplacement と node10 と `paths` の 9 project ×
-  3。27 のうち 22 が一致（stdout、exit status、出力）、5 は下の残りの 1 つ目（`--traceResolution` だけ）。
+  3。27 のうち 22 が一致（stdout、exit status、出力）、5 は下の残りの 1 つ目（`--traceResolution` だけ）。port を
+  `--singleThreaded` で走らせると 27／27 が一致（merge 前に確かめた）。
 - **残り**（記録）：
-  - bundler の file の package.json scope：tsgo（`loadSourceFileMetaData`、`GetPackageJsonScopeIfApplicable`）は全ての file
-    （`.mts`・`.cts`・`.mjs`・`.cjs` を除く）で package.json scope を読み implied node format を決める。port は tsc 6.0 どおり
-    node16／nodenext か node_modules の file だけ読む。この slice の前からの差（removed option の無い bundler の project でも出る）で、
-    trace では最初の解決の package.json の lookup を tsgo は「according to earlier cached lookups」と書く（P4-3 の trace の残り 3 件と
-    同じ）。`"type": "module"` の package の module 判定などにも関わるので、別の slice にする。
+  - 既定の（並列の）loader の trace（merge 前に原因を確かめ直して訂正した）：port の既定の loader は file の request を visit より
+    先に解決する（`resolve_requests_ahead`。32 未満は loading thread で visit の package.json scope の lookup より前に、32 以上は空の
+    cache から始まる worker の resolver で）。tsgo は file の parse task で metadata の scope を読んでから解決する
+    （`loadSourceFileMetaData`）。そのため最初の解決の package.json の lookup を、tsgo の trace は「according to earlier cached
+    lookups」、port は「does not exist」と書く。port の `--singleThreaded` は上の比較の全てで tsgo と byte 一致。implied format の
+    規則の差ではない（tsgo も package の `type` を使うのは node16／nodenext か node_modules の file だけ）。この slice の前からの差
+    （removed option の無い bundler の project でも出る）で、次の slice にする。
+  - P4-3 の trace の残り 3 件（`bundlerDirectoryModule` の `module` node18／node20／nodenext と `moduleResolution: bundler`。TS5095
+    の設定）は別の原因：tsgo の `GetImpliedNodeFormatForFile` は package の `type` の無い `.ts` を CommonJS とし（port は tsc 6.0
+    どおり未定）、node の module kind では emit の形式が implied format そのものなので、解決は `require` の condition になる。
+    port の emit の形式の判定は package の `type` を tsgo の条件（node16／nodenext か node_modules）無しに読むので、既定を CommonJS
+    にするだけでは `"type": "commonjs"` の bundler の project の emit が変わる。tsgo の metadata（条件付きの package の type と
+    implied format）をそのまま移す。これも次の slice。
   - resolution cache の fixture（`resolution_cache/manifest.v1.json`）は node10 の options の世代と 6.0.3 と書かれた expected を持つ。
     通るが、7.1 では bundler として解決する。
 - **README**：削除済みの option の段落を直した（`baseUrl`・`node10`・`classic`・`esModuleInterop: false`・
@@ -1417,5 +1426,15 @@ source と binary で確かめた。
   sourcemap 13,451、trace 13,448／3、harness error 15）、ratchet の regression 0（tsgo の runner が skip する設定なので、conformance は
   この slice の差を見ない）。`scripts/suites_ts71.py --check`：全ての suite が変わらず（api 2、config 87、transpile 41、tsbuild
   182／192、tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）、regression 0。tsgo との比較は上のとおり最終 bytes の
-  release binary で 22／27（残り 5 の差は package.json の lookup の行の表記だけで、全 100 行を確かめた）。実 project と性能は計測して
+  release binary で 22／27（残り 5 の差は package.json の lookup の行の表記だけで、全 100 行を確かめた。port の `--singleThreaded`
+  では 27／27）。実 project と性能は計測して
   いない（利用者の指示。checker と emitter の出力は conformance で変わらず、変わるのは削除済みの設定の解決）。
+
+### 削除済みの module 解決の設定の hosted の記録と merge（2026-10-09）
+
+- hosted：最終候補 `17357640e`（修正 `14d61b948`・packet の記録）の run 37890925922（`plan` 29s、`rust` 11m26s、`conformance (TypeScript
+  7.1)` 15m59s、`gates` 16s。全て成功）。merge → `c5a50e196`（merge commit）。
+- merge 前に残りの 1 つ目の原因を確かめ直し、上の記録を訂正した（PR の本文も）。port の `--singleThreaded` で tsgo との比較は
+  27／27。P4-3 の trace の残り 3 件は別の原因（上）。
+- 次：上の 2 つの残り（既定の loader の trace の順序と、node の module kind の implied format）の slice。その後 API server の決定
+  （[ts71-api-server](../ts71-api-server/README.md)）。
