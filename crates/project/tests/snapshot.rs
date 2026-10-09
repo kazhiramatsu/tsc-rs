@@ -722,3 +722,256 @@ fn snapshots_move_between_threads() {
     assert_send_sync::<Snapshot>();
     assert_send_sync::<SnapshotHost>();
 }
+
+fn open_files(file_names: &[&str]) -> ApiSnapshotRequest {
+    let files = file_names
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect::<BTreeSet<_>>();
+    ApiSnapshotRequest {
+        open_files: Some(files.clone()),
+        // The API ensures every file it opens.
+        ensure_files: files,
+        ..ApiSnapshotRequest::default()
+    }
+}
+
+#[test]
+fn an_opened_file_without_a_config_goes_to_the_inferred_project() {
+    // TestSnapshot "creates and removes synthetic programs", the opened-file
+    // part: a synthetic program does not take an opened file.
+    let (host, _) = session(&[
+        ("/a.ts", "export const a = 1;"),
+        ("/b.ts", "export const b = 1;"),
+    ]);
+    let created = update(
+        &host,
+        &host.new_root_snapshot(),
+        ApiSnapshotRequest {
+            create_programs: vec![no_lib(&["/a.ts"]), no_lib(&["/b.ts"])],
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("create the programs");
+    assert!(created.inferred_project().is_none());
+    assert!(created.default_project("/a.ts").is_none());
+    let first = Arc::clone(created.project(&ProjectId::synthetic(1)).unwrap());
+
+    let opened = update(
+        &host,
+        &created,
+        ApiSnapshotRequest {
+            open_files: Some(BTreeSet::from(["/a.ts".to_owned()])),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("open the file");
+    let inferred = opened.inferred_project().expect("an inferred project");
+    assert_eq!(inferred.id(), &ProjectId::inferred());
+    assert_eq!(inferred.kind(), ProjectKind::Inferred);
+    assert_eq!(inferred.config_file_name(), None);
+    assert_eq!(inferred.root_file_names(), ["/a.ts"]);
+    assert!(Arc::ptr_eq(
+        opened.default_project("/a.ts").expect("a default project"),
+        inferred
+    ));
+    assert!(Arc::ptr_eq(
+        opened.project(&ProjectId::synthetic(1)).unwrap(),
+        &first
+    ));
+}
+
+#[test]
+fn opening_and_ensuring_a_file_lists_an_inferred_root_twice() {
+    // tsgo (probed): the API's open also ensures the file, and ensuring
+    // adds the file to the inferred roots that already have it.
+    let (host, _) = session(&[("/home/p/a.ts", "export const a = 1;")]);
+    let opened = update(
+        &host,
+        &host.new_root_snapshot(),
+        open_files(&["/home/p/a.ts"]),
+    )
+    .expect("open the file");
+    let inferred = opened.inferred_project().expect("an inferred project");
+    assert_eq!(inferred.root_file_names(), ["/home/p/a.ts", "/home/p/a.ts"]);
+    assert_eq!(
+        inferred.program_update_kind(),
+        ProgramUpdateKind::SameFileNames
+    );
+}
+
+#[test]
+fn an_opened_file_in_a_project_belongs_to_it() {
+    let (host, _) = session(&[
+        (
+            "/p/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true } }"#,
+        ),
+        ("/p/src/a.ts", "export const a = 1;"),
+    ]);
+    let opened = update(
+        &host,
+        &host.new_root_snapshot(),
+        open_files(&["/p/src/a.ts"]),
+    )
+    .expect("open the file");
+    let id = configured("/p/tsconfig.json");
+    let project = opened.project(&id).expect("the configured project");
+    assert!(!project.is_dirty());
+    assert!(Arc::ptr_eq(
+        opened
+            .default_project("/p/src/a.ts")
+            .expect("a default project"),
+        project
+    ));
+    assert!(opened.inferred_project().is_none());
+
+    // Ensuring the file alone creates its project too.
+    let ensured = update(
+        &host,
+        &host.new_root_snapshot(),
+        ApiSnapshotRequest {
+            ensure_files: BTreeSet::from(["/p/src/a.ts".to_owned()]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("ensure the file");
+    assert!(ensured.project(&id).is_some());
+}
+
+#[test]
+fn an_opened_file_is_not_searched_for_above_its_nearest_config() {
+    // tsgo (probed): the nearest config does not have the file, and a file
+    // the API opens gets no ancestor (solution) search, so it is inferred.
+    let (host, _) = session(&[
+        (
+            "/home/p/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true } }"#,
+        ),
+        (
+            "/home/p/sub/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "files": ["other.ts"] }"#,
+        ),
+        ("/home/p/sub/other.ts", "export {};"),
+        ("/home/p/sub/x.ts", "export const x = 1;"),
+    ]);
+    let opened = update(
+        &host,
+        &host.new_root_snapshot(),
+        open_files(&["/home/p/sub/x.ts"]),
+    )
+    .expect("open the file");
+    assert!(opened
+        .project(&configured("/home/p/tsconfig.json"))
+        .is_none());
+    let default = opened
+        .default_project("/home/p/sub/x.ts")
+        .expect("a default project");
+    assert_eq!(default.kind(), ProjectKind::Inferred);
+
+    // Opening it again (the API's open state already has it, so only the
+    // ensure remains) keeps it there; tsgo crashes here.
+    let reopened = update(
+        &host,
+        &opened,
+        ApiSnapshotRequest {
+            open_files: Some(BTreeSet::new()),
+            ensure_files: BTreeSet::from(["/home/p/sub/x.ts".to_owned()]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("open the file again");
+    assert_eq!(
+        reopened
+            .default_project("/home/p/sub/x.ts")
+            .expect("a default project")
+            .kind(),
+        ProjectKind::Inferred
+    );
+}
+
+#[test]
+fn closing_a_file_drops_the_projects_no_open_file_needs() {
+    // tsgo (probed): closing y.ts removes /home/b's project.
+    let (host, _) = session(&[
+        (
+            "/home/a/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true } }"#,
+        ),
+        ("/home/a/x.ts", "export const x = 1;"),
+        (
+            "/home/b/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true } }"#,
+        ),
+        ("/home/b/y.ts", "export const y = 1;"),
+    ]);
+    let opened = update(
+        &host,
+        &host.new_root_snapshot(),
+        open_files(&["/home/a/x.ts", "/home/b/y.ts"]),
+    )
+    .expect("open the files");
+    assert!(opened
+        .project(&configured("/home/a/tsconfig.json"))
+        .is_some());
+    assert!(opened
+        .project(&configured("/home/b/tsconfig.json"))
+        .is_some());
+    let closed = update(
+        &host,
+        &opened,
+        ApiSnapshotRequest {
+            close_files: Some(BTreeSet::from(["/home/b/y.ts".to_owned()])),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("close a file");
+    assert!(closed
+        .project(&configured("/home/a/tsconfig.json"))
+        .is_some());
+    assert!(closed
+        .project(&configured("/home/b/tsconfig.json"))
+        .is_none());
+}
+
+#[test]
+fn closing_a_project_leaves_its_opened_file_without_one() {
+    // tsgo (probed): closeProjects does not spare the project of a file the
+    // API opened.
+    let (host, _) = session(&[
+        (
+            "/home/a/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true } }"#,
+        ),
+        ("/home/a/x.ts", "export const x = 1;"),
+    ]);
+    let mut request = open_files(&["/home/a/x.ts"]);
+    request.open_projects = BTreeSet::from(["/home/a/tsconfig.json".to_owned()]);
+    let opened = update(&host, &host.new_root_snapshot(), request).expect("open");
+    let closed = update(
+        &host,
+        &opened,
+        ApiSnapshotRequest {
+            close_projects: BTreeSet::from(["/home/a/tsconfig.json".to_owned()]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("close the project");
+    assert!(closed
+        .project(&configured("/home/a/tsconfig.json"))
+        .is_none());
+    assert!(closed.default_project("/home/a/x.ts").is_none());
+}
+
+#[test]
+fn an_opened_file_needs_a_project() {
+    let (host, _) = session(&[("/p/readme.md", "# readme")]);
+    let error = update(
+        &host,
+        &host.new_root_snapshot(),
+        open_files(&["/p/readme.md"]),
+    )
+    .err()
+    .expect("no project takes the file");
+    assert_eq!(error, "no project found for opened file: /p/readme.md");
+}

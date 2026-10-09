@@ -119,6 +119,56 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
         Ok(self.configs[path].plan.clone())
     }
 
+    /// tsgo `acquireConfigForFile` for a file the API opened (no editor's
+    /// open file retains the entry): the parse of the config at `path`,
+    /// parsed now when it is new or marked. An entry nothing retains goes at
+    /// the next [`Self::cleanup`].
+    pub(crate) fn acquire_config_for_file(
+        &mut self,
+        file_name: &str,
+        path: &str,
+    ) -> Result<Option<Arc<ConfigRootPlan>>, ProjectError> {
+        if !self.configs.contains_key(path) {
+            Arc::make_mut(&mut self.configs).insert(
+                path.to_owned(),
+                Arc::new(ConfigFileEntry {
+                    file_name: file_name.to_owned(),
+                    pending_reload: PendingReload::Full,
+                    plan: None,
+                    retaining_projects: BTreeSet::new(),
+                    retaining_configs: BTreeSet::new(),
+                    matches_root_files: true,
+                }),
+            );
+        }
+        self.reload_if_needed(path)?;
+        Ok(self.configs[path].plan.clone())
+    }
+
+    /// The stored parse of the config at `path`, not parsed again (tsgo
+    /// `findOrAcquireConfigForFile` with `projectLoadKindFind`).
+    pub(crate) fn find_config(&self, path: &str) -> Option<Arc<ConfigRootPlan>> {
+        self.configs.get(path)?.plan.clone()
+    }
+
+    /// tsgo `Cleanup`: drop the entries nothing retains.
+    pub(crate) fn cleanup(&mut self) {
+        let unretained = self
+            .configs
+            .iter()
+            .filter(|(_, entry)| {
+                entry.retaining_projects.is_empty() && entry.retaining_configs.is_empty()
+            })
+            .map(|(path, _)| path.clone())
+            .collect::<Vec<_>>();
+        if !unretained.is_empty() {
+            let configs = Arc::make_mut(&mut self.configs);
+            for path in unretained {
+                configs.remove(&path);
+            }
+        }
+    }
+
     /// tsgo `releaseConfigForProject`: the entry stays until [`Self::cleanup`].
     pub(crate) fn release_config_for_project(&mut self, path: &str, project: &ProjectId) {
         if self

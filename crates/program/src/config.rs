@@ -763,7 +763,8 @@ impl ConfigOptionBag {
         }
     }
 
-    pub(crate) fn option_bool(&self, name: &str) -> Option<bool> {
+    /// A boolean option as written (`true`/`false`), or none.
+    pub fn option_bool(&self, name: &str) -> Option<bool> {
         config_option_bool(self, name)
     }
 
