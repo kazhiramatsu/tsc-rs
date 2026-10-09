@@ -407,3 +407,94 @@ snapshot、option、module provider を借りる）。
   同じ pointer になる。port の program は今は作るたびに全ての source を parse と bind し直すので、P5-1c はこの同一性（と
   `UpdateProgram` の Cloned）を持つ。lib は既に process 全体の cache（`lib_bundle`、lib の内容と binder の option の射影が鍵、
   identity domain を持つ）で共有されていて、source の cache はその identity domain の中に置く必要がある。
+
+## P5-1c の設計（parse cache と program の再利用、2026-10-10）
+
+### tsgo
+
+- **parse cache**（`project/parsecache.go`、`SnapshotHost.parseCache`）：鍵は `ParseCacheKey`（`SourceFileParseOptions`：file 名・
+  path・external module の判定の option・JSDoc の parse の mode、script kind、内容の hash）。値は parse と bind を済ませた
+  `*ast.SourceFile`（tsgo の binder は compiler option を読まない）。compiler host の `GetSourceFile` が `Acquire` し、snapshot
+  が program を手放すと `Release` する（参照の数を数える `RefCountCache`）。作り直した program でも、parse の option と内容が
+  同じ file は同じ pointer になる。
+- **API の snapshot の変更**（`api/session.go` `computeSnapshotChanges`）：変わった project の program について、
+  `FilesByPath` の `*ast.SourceFile` の pointer が違う file を `changedFiles` に、無くなった file を `deletedFiles` に返す。
+  parse cache があるので、作り直した program でも変わっていない file は変更に入らない。
+- **`UpdateProgram`／`ReuseProgram`**（`compiler/program.go`）：project が 1 つの file だけの変更で dirty
+  （`dirtyFilePath`）で command line が同じとき、その file を parse し直し、`canReplaceFileInProgram`（parse の option、
+  script kind、external module か、`node:` の書き方、import の specifier と usage の mode、module augmentation、ambient
+  module、参照、type reference、lib reference、checkJs の directive が同じ）で、package の redirect に関わらず、import
+  helper と JSX runtime の import が要らないとき、他の file・解決・診断の元を共有した program を作る（`Cloned`）。include
+  processor の診断は新しい file に対して作り直す（`updateFileIncludeProcessor`）。program の読んだ file の記録は前の program
+  のものを使う。tsgo の test（`project_test.go` "Cloned on single-file change"、`snapshot_test.go`、API の
+  `session_requestfilesystem_test.go`）が `Cloned` を確かめる。
+
+### port
+
+- **P5-1c-1 document cache**（parse cache と file の同一性）：
+  - checker の `DocumentRegistry`（L0 の部品で、今は unit test だけが使う。明示の lease と host の version を持ち、version が
+    同じで text が違うと失敗する）を tsgo の parse cache に作り替える。鍵は file 名、parse の option（tsc_syntax の
+    `ParseOptions` の identity の base 以外）、binder の読む option の射影（`lib_bundle_options`：target、alwaysStrict、
+    noFallthroughCasesInSwitch。port の binder はこれを読むので鍵に要る）、identity domain、内容（hash で引き、text で
+    確かめる）。値は `Weak<BoundDocument>`：program（`ProgramSnapshot`）が持つ `Arc` が tsgo の参照の数の代わりで、明示の
+    release は要らない。使われない incremental reparse の入口（`update_incrementally`）と namespace、version の扱いは除く。
+  - `LiveChecker`（P5-1a）は cache を受け取り、program の source ごとに cache を引く。当たれば bound document をそのまま
+    使い（loader の parse は捨てる）、外れれば今までどおり parse（loader の parse の採用を含む）と program 順の bind を
+    して cache に入れる。lib の無い program は cache の持つ reclaiming な identity domain を使う（program ごとの ephemeral な
+    domain では共有できない）。
+  - project system は `SnapshotHost` に cache を持ち、program を作るたびに渡す。`ProjectProgram` は file の文書（同一性）を
+    返す（API の `changedFiles` の比較に使う）。
+  - batch の compile（CLI、conformance）は cache を使わない（経路は変えない）。
+- **P5-1c-2 `Cloned`**：`update_program` が dirty な file 1 つで command line が同じとき、`PreparedProgram` の source を 1 つ
+  差し替えた program を作る（新しい file の request の計画が古いものと同じ、`canReplaceFileInProgram` の比較、package の
+  redirect と import helper／JSX runtime の除外）。他の file は document cache から同じものが来る。loader が file に位置を
+  決めた program の診断（参照の file が無い、など）は、差し替えた file の分を作り直す必要がある（tsgo は include processor の
+  診断を新しい program で作る）。program の読んだ file の記録は前のものを使う。`ProgramUpdateKind::Cloned`。詳細は P5-1c-1 の
+  後に調べて決める。
+- **test**：P5-1c-1 は、変わらない file の文書が作り直した program で同じであること、変えた file だけが違うこと、
+  option の変更で bind が変わる場合に別の文書になること、cache から作った program の診断と型が cache の無い batch と同じこと
+  （identity の順が違っても結果が変わらないこと）、program を手放すと cache から消えること。P5-1c-2 は tsgo の Cloned の
+  test（API の open／change／ensure に書き換え）。
+
+## P5-1c document cache と program の再利用（2026-10-10）
+
+- **P5-1c-1 document cache**（tsgo `parseCache`）：
+  - checker の `DocumentRegistry`（使われていなかった L0 の部品）を tsgo の parse cache にした。file 名と text で引き、parse の
+    option、port の binder が読む option の射影、identity domain を address とする。entry は `Weak` で、program が document を
+    持つ間だけ生きる（tsgo の参照の数の代わり）。lib の無い program 用に reclaiming な identity domain を持つ。明示の lease、
+    host の version、incremental reparse の入口は除いた。
+  - `LiveChecker` は cache を受け取り、text と address が同じ document を program が持っていればそれを使い（loader の parse は
+    捨てる）、ほかは今までどおり parse と program 順の bind をして cache に入れる（`EphemeralDocumentStore::adopt`）。
+    `LiveProgram::with_documents` と `LiveProgram::document`。
+  - lib bundle の cache は lib を snapshot の同一性だけでなく text でも照合する（その文書の記述どおり）。program を読み直すと
+    lib の file も読み直されるので、今までは program を作り直すたびに bundle を作って leak し、identity domain も変わっていた。
+  - `SnapshotHost` が cache を持ち（tsgo `SnapshotHost.parseCache`）、snapshot の更新ごとに program が持たない entry を消す。
+    batch の compile は cache を使わない。
+- **P5-1c-2 `Cloned`**（tsgo `UpdateProgram`／`ReuseProgram`）：
+  - 1 つの file の変更で dirty で command line が同じ project は、その file を読み直して前の program に差し替える
+    （`LiveProgram::reuse`、`PreparedProgram::with_replaced_source`、`PreparedSourceFile::with_snapshot`）。解決と program の
+    診断を共有し、他の file は document cache から同じ document が来る。前の build が読んだ file の記録と参照は引き継ぐ。
+  - 差し替えない（tsgo `canReplaceFileInProgram`）のは、request（import と mode、module augmentation、path／type／lib
+    reference、module か。位置は除く：`SourceRequestPlan::has_same_requests`）が変わる、check directive が変わる（checker の
+    `check_directive` を公開）、synthesized な `tslib`／JSX runtime の import がある（`has_synthetic_imports`）、package の
+    redirect に関わる、file に program の行がある（tsgo は新しい file で位置を決め直す）とき。
+- **tsgo と違う所**：
+  - port の binder は target、alwaysStrict、noFallthroughCasesInSwitch を読むので、これらと lib の組が変わると document は
+    別になる（tsgo の binder は option を読まず、parse の option だけが鍵）。
+  - global な宣言 file の ambient module 名だけが変わる変更は、tsgo は作り直し、port は差し替える（port の request の計画は
+    ambient module 名を持たない。checker は document から作り直すので結果は同じで、更新の種類だけが違う）。
+- **test**：checker の registry 2 件（同じ file・text・address で同じ document、text・file 名・parse・bind・domain が違えば別、
+  program が手放すと消える）。compiler の live program 2 件（作り直した program が lib を含む変わらない file の document を
+  共有し、診断は単独で作った program と同じ、parse を変えない option（strict）では共有、変える option（moduleDetection
+  force）では別、program を手放すと空になる、lib の無い program も共有する）。project 3 件（snapshot をまたいで変わらない
+  file の document が同じ、1 file の変更で Cloned・helper の document は同じ・inferred project の program と種類は変わらない、
+  import の追加と `@ts-nocheck` の追加で SameFileNames・値の変更で Cloned。期待値は tsgo の `SnapshotHost` の Go probe）。
+- **検証**（最終 bytes `b638a482b`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（program・checker・
+  compiler・conformance・emitter・harness・incremental・project、`--all-targets -- -D warnings`）は clean。`cargo test`：program 599、
+  project 40、compiler の `live_program` 10、checker の `program::tests` 9、全て成功。checker の parse の段と lib bundle の照合が
+  batch の経路にもあるので、release build（2m03s）の full conformance を local で 1 回（`--workers 2 --check`、487s）：
+  0 regressions、accepted tier を超える構成 0。errors full 13,451、emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、
+  sourcemap 13,451、trace 13,451、harness error 15（main と同じ）。suites の ratchet と workspace の test は hosted に任せた。
+- **残り**：P5-1d（checker pool）、P5-1e（`SnapshotFS` の細部）。loader は cache を引かない（作り直す program は loader で全ての
+  file を parse し、checker が cache の document を使う。tsgo は loader も cache を引くので parse しない。結果は同じで cost が
+  違う）。
