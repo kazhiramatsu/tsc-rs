@@ -5,7 +5,7 @@
   "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe()",
-    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show."
+    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show. Re-recorded on 2026-10-09 (ts71-suites P4-5b) for the cases whose configuration diagnostics TypeScript 7.1 reports differently, after the tsgo binary of the vendored commit printed the same diagnostics as the port for each case's files: tsgo's parse validates the JSON value (TS1327, TS1328, TS1136 are parse diagnostics), the conversion reports at a node's whole range and drops null array elements, `watchOptions` is not a tsconfig root option (nothing in it is diagnosed), an array is not an object option's value, and an extended config with parse diagnostics is not applied."
   },
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-root-options-inputs.json",
@@ -1540,28 +1540,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 6046,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 29,
-            "length": 7,
-            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 6046,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 29,
-            "length": 7,
-            "message": "Argument for '--watchFile' option must be: 'fixedpollinginterval', 'prioritypollinginterval', 'dynamicprioritypolling', 'fixedchunksizepolling', 'usefsevents', 'usefseventsonparentdirectory'.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -1710,28 +1690,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 29,
-            "length": 1,
-            "message": "Compiler option 'watchFile' requires a value of type string.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 29,
-            "length": 1,
-            "message": "Compiler option 'watchFile' requires a value of type string.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -2032,46 +1992,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 5079,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 17,
-            "length": 11,
-            "message": "Unknown watch option 'watchFiel'. Did you mean 'watchFile'?",
-            "related_information": []
-          },
-          {
-            "code": 5078,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 43,
-            "length": 7,
-            "message": "Unknown watch option 'thing'.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 5079,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 17,
-            "length": 11,
-            "message": "Unknown watch option 'watchFiel'. Did you mean 'watchFile'?",
-            "related_information": []
-          },
-          {
-            "code": 5078,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 43,
-            "length": 7,
-            "message": "Unknown watch option 'thing'.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -2366,28 +2288,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 16,
-            "length": 5,
-            "message": "Compiler option 'watchOptions' requires a value of type object.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 16,
-            "length": 5,
-            "message": "Compiler option 'watchOptions' requires a value of type object.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -2754,7 +2656,6 @@
             "excludeFiles": [
               "",
               42,
-              null,
               "temp.ts"
             ]
           },
@@ -2851,28 +2752,8 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 36,
-            "length": 2,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
-            "related_information": []
-          }
-        ],
-        "config_diagnostics": [
-          {
-            "code": 5024,
-            "category": "error",
-            "file": "/project/tsconfig.json",
-            "start": 36,
-            "length": 2,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
-            "related_information": []
-          }
-        ]
+        "parsed_errors": [],
+        "config_diagnostics": []
       }
     },
     {
@@ -3957,8 +3838,28 @@
           }
         ],
         "root_parse_diagnostics": [],
-        "parsed_errors": [],
-        "config_diagnostics": []
+        "parsed_errors": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 19,
+            "length": 2,
+            "message": "Compiler option 'typeAcquisition' requires a value of type object.",
+            "related_information": []
+          }
+        ],
+        "config_diagnostics": [
+          {
+            "code": 5024,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 19,
+            "length": 2,
+            "message": "Compiler option 'typeAcquisition' requires a value of type object.",
+            "related_information": []
+          }
+        ]
       }
     },
     {
@@ -4022,7 +3923,6 @@
             "include": [
               "",
               3,
-              null,
               "node"
             ]
           },
@@ -6416,8 +6316,7 @@
             "state": "absent"
           }
         ],
-        "root_parse_diagnostics": [],
-        "parsed_errors": [
+        "root_parse_diagnostics": [
           {
             "code": 1327,
             "category": "error",
@@ -6437,12 +6336,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 25,
             "length": 7,
-            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -6455,12 +6354,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 47,
             "length": 7,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -6470,6 +6369,26 @@
             "start": 61,
             "length": 5,
             "message": "String literal with double quotes expected.",
+            "related_information": []
+          }
+        ],
+        "parsed_errors": [
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 25,
+            "length": 7,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 7,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           }
         ],
@@ -6493,12 +6412,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 25,
             "length": 7,
-            "message": "Compiler option 'watchFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -6511,12 +6430,12 @@
             "related_information": []
           },
           {
-            "code": 5024,
+            "code": 1328,
             "category": "error",
             "file": "/project/tsconfig.json",
             "start": 47,
             "length": 7,
-            "message": "Compiler option 'excludeFile' requires a value of type string.",
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           },
           {
@@ -6526,6 +6445,24 @@
             "start": 61,
             "length": 5,
             "message": "String literal with double quotes expected.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 25,
+            "length": 7,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
+            "related_information": []
+          },
+          {
+            "code": 1328,
+            "category": "error",
+            "file": "/project/tsconfig.json",
+            "start": 47,
+            "length": 7,
+            "message": "Property value can only be string literal, numeric literal, 'true', 'false', 'null', object literal or array literal.",
             "related_information": []
           }
         ]
