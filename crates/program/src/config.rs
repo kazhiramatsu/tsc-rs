@@ -1264,49 +1264,24 @@ impl ConfigRootPlan {
     }
 }
 
-/// A config plan cannot be turned into a prepared no-emit program when the
-/// config itself has diagnostics, when a fatal option diagnostic is present,
-/// when `noEmit` is absent/false, or when the filesystem loader rejects a
-/// typed host/resolution boundary. TypeScript 6.0 deprecation rows (5101 and
-/// 5107) are reportable but do not stop program construction. Keeping these
-/// cases distinct lets a CLI render those rows while treating the latter
-/// failures as fail-closed driver outcomes.
+/// A config plan cannot be turned into a prepared program when `noEmit`
+/// contradicts the loader (the no-emit loader without `noEmit: true`, the
+/// emitting loader with it), when the config needs an unsupported scope, or
+/// when the filesystem loader rejects a typed host/resolution boundary. The
+/// config's own diagnostics never stop the load (tsgo creates the Program
+/// whatever the config reports).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConfigProgramLoadError {
-    Diagnostics {
-        config: Vec<Diagnostic>,
-        options: Vec<Diagnostic>,
-    },
-    NoEmitRequired {
-        value: Option<bool>,
-    },
-    EmitRequired {
-        value: Option<bool>,
-    },
+    NoEmitRequired { value: Option<bool> },
+    EmitRequired { value: Option<bool> },
     Program(ProgramLoadError),
 }
 
 impl ConfigProgramLoadError {
-    pub fn config_diagnostics(&self) -> &[Diagnostic] {
-        match self {
-            Self::Diagnostics { config, .. } => config,
-            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } | Self::Program(_) => &[],
-        }
-    }
-
-    pub fn options_diagnostics(&self) -> &[Diagnostic] {
-        match self {
-            Self::Diagnostics { options, .. } => options,
-            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } | Self::Program(_) => &[],
-        }
-    }
-
     pub const fn program_error(&self) -> Option<&ProgramLoadError> {
         match self {
             Self::Program(error) => Some(error),
-            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => {
-                None
-            }
+            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => None,
         }
     }
 }
@@ -1314,12 +1289,6 @@ impl ConfigProgramLoadError {
 impl fmt::Display for ConfigProgramLoadError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Diagnostics { config, options } => write!(
-                formatter,
-                "config plan has {} config and {} option diagnostic(s)",
-                config.len(),
-                options.len()
-            ),
             Self::NoEmitRequired { value } => write!(
                 formatter,
                 "compilerOptions.noEmit must be explicitly true (observed {value:?})"
@@ -1337,9 +1306,7 @@ impl Error for ConfigProgramLoadError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Program(error) => Some(error),
-            Self::Diagnostics { .. } | Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => {
-                None
-            }
+            Self::NoEmitRequired { .. } | Self::EmitRequired { .. } => None,
         }
     }
 }
@@ -1347,14 +1314,13 @@ impl Error for ConfigProgramLoadError {
 /// Turn a parsed config/root plan into the owned no-emit program consumed by
 /// [`tsc_compiler::ProgramSession`].
 ///
-/// Config diagnostics and fatal option diagnostics are a gate: no source host
-/// work is started while either collection is non-empty. TypeScript 6.0
-/// deprecation diagnostics are retained on the plan but do not block loading.
-/// A config without an explicit
-/// `noEmit: true` is rejected before `load_program`; this prevents an omitted
-/// or false value from accidentally entering an emitter-capable path. The
-/// input plan remains immutable and can be reused by a caller for rendering or
-/// for an independent MemoryHost/FsHost comparison.
+/// The config's diagnostics do not stop the load: they are the Program's
+/// config file parsing and options diagnostics, as in tsgo. A config
+/// without an explicit `noEmit: true` is rejected before `load_program`;
+/// this prevents an omitted or false value from accidentally entering an
+/// emitter-capable path. The input plan remains immutable and can be reused
+/// by a caller for rendering or for an independent MemoryHost/FsHost
+/// comparison.
 pub fn load_config_program(
     host: &dyn CompilerHost,
     plan: &ConfigRootPlan,
@@ -1416,20 +1382,6 @@ pub fn load_emitting_config_program_with_no_emit_override(
         limits,
         ConfigProgramMode::Emit { force: true },
     )
-}
-
-pub fn validate_config_plan(plan: &ConfigRootPlan) -> Result<(), ConfigProgramLoadError> {
-    let config = plan.diagnostics().cloned().collect::<Vec<_>>();
-    let options = plan
-        .option_diagnostics()
-        .iter()
-        .filter(|diagnostic| !is_non_fatal_option_diagnostic(diagnostic))
-        .cloned()
-        .collect::<Vec<_>>();
-    if !config.is_empty() || !options.is_empty() {
-        return Err(ConfigProgramLoadError::Diagnostics { config, options });
-    }
-    validate_config_plan_for_mode(plan, false)
 }
 
 /// The gate of a config Program load. tsgo creates the Program whatever the

@@ -15,8 +15,8 @@ use tsc_diagnostics::{Diagnostic, DiagnosticCategory, JsString, MessageChain, Te
 use tsc_host::FsCompilerHost;
 use tsc_program::{
     decode_host_text, is_non_fatal_option_diagnostic, load_config_program_with_no_emit_override,
-    parse_config_root_plan, CompilerConfigHost, ConfigProgramLoadError, ConfigRootPlanRequest,
-    LibraryCatalog, ProgramLoadLimits,
+    parse_config_root_plan, CompilerConfigHost, ConfigRootPlanRequest, LibraryCatalog,
+    ProgramLoadLimits,
 };
 
 type SourceTexts = BTreeMap<JsString, Arc<TextSnapshot>>;
@@ -88,18 +88,7 @@ fn check_project(
         512 * 1024 * 1024, // total source bytes
     );
     // Override noEmit even when the config omits it or sets it to false.
-    let prepared = match load_config_program_with_no_emit_override(&host, &plan, &libraries, limits)
-    {
-        Ok(prepared) => prepared,
-        Err(ConfigProgramLoadError::Diagnostics {
-            mut config,
-            options,
-        }) => {
-            config.extend(options);
-            return Ok((config, sources));
-        }
-        Err(error) => return Err(error.into()),
-    };
+    let prepared = load_config_program_with_no_emit_override(&host, &plan, &libraries, limits)?;
 
     // Retain source snapshots to translate diagnostic offsets after run()
     // consumes the prepared program. Arc cloning does not copy source text.

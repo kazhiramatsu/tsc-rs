@@ -9,10 +9,9 @@ use tsc_program::{
     command_line_option_bag, decode_host_text, load_config_program,
     load_config_program_with_no_emit_override, load_emitting_config_program,
     load_emitting_config_program_with_no_emit_override, parse_config_root_plan,
-    parse_config_root_plan_with_command_line, validate_config_plan, CompilerConfigHost,
-    ConfigExtendedCache, ConfigHostError, ConfigHostOperation, ConfigParseHost,
-    ConfigProgramLoadError, ConfigRootPlanRequest, JsonValue, LibraryCatalog, PreparedProgramMode,
-    ProgramLoadLimits,
+    parse_config_root_plan_with_command_line, CompilerConfigHost, ConfigExtendedCache,
+    ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigProgramLoadError,
+    ConfigRootPlanRequest, JsonValue, LibraryCatalog, PreparedProgramMode, ProgramLoadLimits,
 };
 
 const LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(128, 512, 32, 1 << 20, 1 << 22);
@@ -1231,8 +1230,7 @@ fn emitting_config_loader_applies_typed_command_line_precedence() {
 fn config_diagnostics_remain_separate_and_do_not_stop_program_construction() {
     // tsgo creates the Program whatever the config reports: the config
     // parsing diagnostics stay apart from the option diagnostics
-    // (GetConfigFileParsingDiagnostics, compiler/program.go:2010-2065). The
-    // public validation gate still names both lists.
+    // (GetConfigFileParsingDiagnostics, compiler/program.go:2010-2065).
     let host = host();
     let adapter = ConfigHostAdapter::new(&host);
     let plan = parse_config_root_plan(
@@ -1242,14 +1240,13 @@ fn config_diagnostics_remain_separate_and_do_not_stop_program_construction() {
         ),
     )
     .expect("parse diagnostic plan");
-    let error = validate_config_plan(&plan).expect_err("the validation gate reports TS5023");
-    let ConfigProgramLoadError::Diagnostics { config, options } = error else {
-        panic!("expected separated config/option diagnostics");
-    };
-    assert_eq!(config.len(), plan.diagnostics().count());
-    assert_eq!(options.len(), plan.option_diagnostics().len());
-    assert!(options.is_empty());
-    assert_eq!(config[0].code(), 5023);
+    assert_eq!(
+        plan.diagnostics()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5023]
+    );
+    assert!(plan.option_diagnostics().is_empty());
 
     let prepared = load_config_program(
         &host,

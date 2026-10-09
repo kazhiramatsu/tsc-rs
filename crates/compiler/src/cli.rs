@@ -1041,35 +1041,6 @@ fn run_config(
     drop(create_program);
     let prepared = match prepared {
         Ok(prepared) => prepared,
-        Err(ConfigProgramLoadError::Diagnostics { config, options }) => {
-            let mut diagnostics = config;
-            diagnostics.extend(options);
-            let stdout = render_diagnostics(
-                route.format(current_directory),
-                &source_texts,
-                &diagnostics,
-                mode.summary,
-            )?;
-            return Ok(BuildProjectRun {
-                stdout,
-                exit_code: if diagnostics.is_empty() {
-                    EXIT_SUCCESS
-                } else {
-                    EXIT_DIAGNOSTIC
-                },
-                diagnostics,
-                emitted_files: Vec::new(),
-                has_changed_dts_file: false,
-                declarations_differing_only_in_map: Vec::new(),
-                stamped: Vec::new(),
-                write_times: Vec::new(),
-                sources: source_texts,
-                program_report: None,
-                statistics: None,
-                watch_state: None,
-                package_json_lookups: Vec::new(),
-            });
-        }
         Err(ConfigProgramLoadError::NoEmitRequired { value }) => {
             return Err(CliError::Load(format!(
                 "compilerOptions.noEmit must be true (observed {value:?}); pass --noEmit to override"
