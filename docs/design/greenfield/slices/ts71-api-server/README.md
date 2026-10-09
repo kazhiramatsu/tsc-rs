@@ -612,3 +612,76 @@ snapshot、option、module provider を借りる）。
   `requestfilesystem` の 3 file、`session_requestfilesystem_test`。
 - 以降は「依存と順序」の 3〜6（project の要らない request、checker の query、印字、build orchestrator）。LS の 6 handler は
   未実装の error を返す（LSP の作業に回す）。
+
+## P5-2a transport と session の骨格（2026-10-10）
+
+- **構成**：
+  - `tsc-rs` の実行 file を `tsc-rs-compiler` から新しい `crates/cli`（`tsc-rs-cli`、tsgo `cmd/tsc`）に移した。API の session は
+    `tsc-rs-project`（compiler に依存する）を使うので、`--api` を compiler の package に置くと依存が循環する。実行 file を起動する
+    CLI の contract test（`cli_contract.rs`、262 件）も一緒に移した。README の build と install の command は `crates/cli` を指す。
+  - API は tsgo の `internal/api` と同じく `tsc-rs-api` に置く：`ipc`（message、protocol、`Conn`、timing、JSON-RPC の framing）、
+    `msgpack`、`proto`、`session`、`server`。
+- **transport**（tsgo `ipc/conn_sync.go`、`conn_async.go`、`protocol_jsonrpc.go`、`api/protocol_msgpack.go`、`ipc/timing.go`）：
+  - `Conn` は 1 つで、`Mode::Sync`（MessagePack。call の ID は method 名、待たれていない response は error）と `Mode::Async`
+    （JSON-RPC。request を 1 つずつ処理する。call の ID は `api<n>`、待たれていない response は捨て、止まった後の call と notify は
+    原因つきの `ipc: connection closed`）を持つ。
+  - call は client の response まで message を読み、その間に来た request（入れ子）と notification を処理する。handler の panic は
+    `panic: <message>` の error response になる（tsgo は stack も付ける）。`getServerTiming` と `resetServerTiming` は conn が
+    答える（`--timing`。時間の数は Go の `float64` の書き方）。
+- **session**（tsgo `api/session.go`）：`echo`、`ping`、`initialize`、`batchRequests`（page 分け、continuation token、入れ子の
+  拒否、request ごとの panic の回収）、`createSnapshot`、`updateSnapshot`、`release`、`getDefaultProjectForFile`。
+  `getCurrentLanguageServerSnapshot` は tsgo の standalone の session と同じ error。tsgo の他の method（`proto.go` の 170 の
+  うち残り）は `<method> is not implemented yet`、それ以外は tsgo と同じ `unknown API method`。
+  - snapshot ごとの open の状態（`reconcileSnapshotOpens`）、file の通知、`DocumentIdentifier`（file 名か URI。tsgo の
+    `DocumentUri.FileName` を Go probe で固定）、`createPrograms`／`reconfigurePrograms`／`removePrograms`／`ensurePrograms` の検証と
+    その順は tsgo のまま。update の response の project は、追加分（新しい snapshot の順）の後に置き換え分（基の snapshot の順）。
+    changes は基の順で、program の file は document の同一性で比べる（tsgo は `SourceFile` の pointer）。
+- **option**：client の `compilerOptions`（tsgo `core.CompilerOptions` の JSON。enum は数、`lib` は file 名）を `ConfigOptionBag` に
+  する（`tsc_program::go_json::compiler_options_bag`）。synthetic program と inferred project は bag を持ち
+  （`CreateProgramRequest.options`、`ProgramRoots::new`）、program の option は command line と同じ変換
+  （`command_line_program_inputs`）で作る。前は typed の option を直接持っていた。tsgo の内部 option（`allowNonTsExtensions`、
+  `noEmitForJsFiles`、`suppressOutputPathCheck`）は bag から読む（tsconfig と command line は宣言しないので現れない）。
+  - response の option には、conformance の runner にあった tsgo の JSON の writer（`GoJson`、`core.CompilerOptions` の field の
+    順、enum の数）を `tsc_program::go_json` に移して使う。tsconfigParsing、tsoptions、tsc の suite も同じものを使う。
+  - `encoding/json/v2` の規則に合わせた：`omitempty` は `null`・`""`・`{}`・`[]` を省いて `false` は残す（`changes`、
+    `typeAcquisition`、`raw` の `{}` を省き、project reference の `circular` は常に書く）。config の `compileOnSave` は常に書く
+    （raw が boolean でなければ false）。`null` の parameter は zero 値。synthetic project の ID は decode で検証して正規化する。
+    JSON の `echo` は空白を詰める。
+- **`tsc-rs --api`**（tsgo `cmd/tsc/api.go`、`api/server.go`）：`--cwd`、`--pipe`（Unix domain socket。終わりに socket の file を
+  消す）、`--callbacks`、`--async`、`--timing`、`--runExternalCode`。Go の `flag` の形、error と usage、exit code（server の失敗
+  1、flag の誤り 2）。library は実行 file に埋め込んだもの（`BundledFs`、tsgo `bundled.WrapFS`。native の compiler host と
+  library の検索を共有する）。
+- **移さないもの・違い**：`--callbacks` の callback FS と request の file system（P5-2b。今は error）、Windows の named pipe、
+  content mapper（`--runExternalCode` は受けて使わない）、signal で止める扱い、error の stack。不正な parameter の decode の
+  error の文言は serde のもの（Go は `json: cannot unmarshal ... within "/path"`）。Go が map から書く file の list
+  （`deletedFiles`、`changedFiles`）は Go では順不同で、port は path の順。不正な URI は tsgo では panic、port は client error。
+- **test**：
+  - api の unit：timing 6（tsgo `timing_test.go`。負の duration は Rust に無い）、proto 8（`proto_test.go` の 4、synthetic の ID、
+    `ToDiagnostic`、URI の変換 9 例）、session 26（`session_batch_test.go` 8、`session_createprogram_test.go` 9、
+    `session_apistate_test.go` の standalone の 2、tsgo の response に合わせた snapshot の更新、config の response、release、
+    default project、initialize、echo、未実装の method、request の FS）。
+  - api の `ipc` 14（`conn_sync_test.go` 2、`conn_async_test.go` のうち 1 つずつ処理しても成り立つ case、入れ子の request、
+    call の error、timing の request、MessagePack と JSON-RPC の framing と error）、`server` 2（flag）。
+  - cli の contract 2（`tsc-rs --api` を起動して MessagePack で話す、flag の error）、compiler の system 1（`BundledFs`）。project の
+    test は option を tsgo の JSON で書くように変えた。
+  - 移さない Go の test：`server_test.go`（context の cancel）、`jsonvalue_test.go`（package.json の値の変換。使う method と
+    一緒に移す）、`conn_async_test.go` の handler を並行に動かす case（RunWaitsForHandlers、CancelsHandlersOnEOF、
+    CallReturnsWhenPeerCloses。1 つずつ処理するので成り立たない）。
+- **tsgo との比較**：同じ request の列（configured project 3 つ（参照、config の error、jsconfig）、synthetic program（URI の root、
+  option、参照、client の診断）、inferred project、file の変更・ensure・close・削除・再構成・除去、batch の page、error の case）を
+  tsgo（19dadef8 の実行 file）と tsc-rs に MessagePack と JSON-RPC で送った：response は sync 40 行・async 50 行が一致（decode
+  の error の文言と Go の map の順を除く）。flag の error と usage の出力は byte 単位で一致。
+- **TypeScript の client の test**（local。`packages/typescript/test/sync/api.test.ts` を Node 25 で source から実行。実行 file は
+  copy した package の `built/local/tsc` で切り替えた）：tsgo 327/327、tsc-rs 6/327。失敗のうち 316 は client の FS を
+  `--callbacks` で渡す test（P5-2b）、残りは未実装の method。
+- **検証**（最終 bytes `558550d53`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（api・cli・project・
+  program・compiler・conformance、`--all-targets -- -D warnings`）は clean。`cargo test`：api（unit 40、`ipc` 14、`server` 2、
+  encoder 5、fixture 1）、cli の contract 264（移した 262 と `--api` の 2）、project 50、program の lib 70、conformance の lib 50、
+  compiler の system の `BundledFs` 1、全て成功。option の bag と JSON の writer の移動は batch の経路（config の option と suite の
+  JSON）に触れるので、release build（2m13s）の full conformance を local で 1 回（`--workers 2 --check`、467s）：0 regressions、
+  accepted tier を超える構成 0。errors full 13,451、emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、
+  sourcemap 13,451、trace 13,451、harness error 15（main と同じ）。suites（`scripts/suites_ts71.py --check`）：0 regressions。
+  api 2、config 87、transpile 41、tsoptions 80、tscWatch 42 は全て full、tsc 211/223、tsbuild 182/192、tsbuildWatch 63/65 は
+  main と同じ。workspace 全体の test と Clippy は hosted の `rust` job に任せた。
+- **残り**：P5-2b（request の file system と callback の FS。client の test の多くはこれで走る）。その後は「依存と順序」の 3〜6
+  （project の要らない request、checker の query、印字、build orchestrator）。
