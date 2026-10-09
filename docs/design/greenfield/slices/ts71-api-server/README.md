@@ -256,5 +256,58 @@ snapshot、option、module provider を借りる）。
   `session_createprogram_test.go`（snapshot の層で）、`configfilechanges_test.go` と `project_test.go` の NewFiles／SameFileNames
   （open／changed／ensure に書き換え、期待値は tsgo の `SnapshotHost` の Go probe で確かめる）。
 - **P5-1b-2**：openFiles／closeFiles／ensureFiles：default project の探索（祖先の tsconfig／jsconfig、参照の BFS、file の無い
-  config、composite の早い否定、`disableReferencedProjectLoad`／`disableSolutionSearching`）、後片付け、inferred project（既定の
-  option）、`GetDefaultProject`。test：`projectreferencesprogram_test.go`、default project の case（API の open に書き換え）。
+  config、composite の早い否定、`disableReferencedProjectLoad`／`disableSolutionSearching`）、後片付け（registry の cleanup を
+  含む）、inferred project（既定の option）、`GetDefaultProject`。test：default project の case（API の open に書き換え）、
+  `TestSnapshot` の synthetic program の test の開いた file の部分。
+- **P5-1b-3**：project system の project 参照：参照先の config を registry から取ること（tsgo `GetResolvedProjectReference`。
+  参照先の変更で参照する project を dirty にする）と、参照先の source を使う program（tsgo `UseSourceOfProjectReference`：出力の
+  d.ts の読み込みを source に redirect し、まだ build されていない d.ts を在るものとして解決し、参照先の file にはその option を
+  使う。今の loader は CLI の出力への redirect だけを持つ）。test：`projectreferencesprogram_test.go`（API の open に書き換え）。
+
+## P5-1b-1 snapshot、configured project、synthetic program（2026-10-09）
+
+- **crate**：`crates/project`（`tsc-rs-project`／`tsc_project`）。`SnapshotHost`（host の FS、session の option、snapshot の id）、
+  `Snapshot`（id、親の id、project、config、読んだ file、request の FS か）、`ProjectId`（tsgo の ID の解析と正規化）、`Project`
+  （configured／synthetic、command line、program、dirty、更新の種類）、`ProjectProgram`（prepared program と `LiveProgram`。
+  checker は一度に 1 つの呼び出しが使う）。
+- **`clone_snapshot`**（tsgo `Snapshot.Clone` の API の経路）：base の FS を決め（request の FS。全置換と、request の FS から
+  host の FS に戻るときは全てを無効にする）、file の変更を処理し、`DidChangeFiles` → `HandleAPIRequest`（openProjects／
+  closeProjects、synthetic program の create／reconfigure／remove とその検証、ensurePrograms／ensureAll）→ 確定（何も変わらな
+  ければ base の collection を使う）。失敗した request はエラーだけを返す（tsgo はエラー付きの snapshot を返し、API が捨てる）。
+- **FS**：`SnapshotFs` は base の FS の上に、program と config が読んだ file を持つ。変更の通知で、cache した file の内容が同じ
+  なら変更としない、違えば読み直す、消えていれば落とす。削除されたディレクトリはその下の cache した file に広げ、他の削除と
+  変更は関係する拡張子だけを数える（tsgo `expandAndFilterWatchEvents`）。1,000 を超える変更は、cache と重なれば cache を全て
+  無効にし、重ならなければ changed／deleted を捨てる。program の build は見た file と無かったディレクトリを記録し（tsgo
+  `seenFiles`／`missingDirectories`）、作られた file や変わった file で program が dirty になるかに使う。
+- **config**：tsgo の registry（entry、reload の印、保持する project、拡張元の config）。config か、それが拡張する config の
+  変更で Full の reload、wildcard で入った root の削除と、include に合いそうな file の作成で FileNames の reload の印を付ける。
+  `PossiblyMatchesFileName`／`PossiblyMatchesDirectoryName` は watch の private な実装を `ConfigRootPlan` に移し、watch も
+  それを使う。FileNames の reload は parse（エラーも）を保って root だけを入れ替える（tsgo `ReloadFileNamesOfParsedCommandLine`、
+  watch と同じ `with_reloaded_file_names`）。
+- **program**：configured project は CLI と同じ `load_config_program`／`load_emitting_config_program`（`noEmit` で選ぶ）、
+  synthetic program は `load_program`／`load_emitting_program`。更新の種類は NewFiles と SameFileNames（tsgo `HasSameFileNames`）。
+- **tsgo と違う所**：同じ request の remove と create は、消した番号を新しい program に使う（tsgo は nil の参照で落ちる）。
+- **LiveProgram の修正**：file の無い program（root も lib も無い synthetic program）で `LiveChecker` が panic した（snapshot の
+  作成が `EmptyProgram`）。バッチの driver と同じく、file の無い program は checker を持たない（診断は空と、lib の無い global の
+  型の行。`with_checker` は `None` を返す）。
+- **片付け（利用者の指示：余計な処理を残さない）**：config の診断で読み込みを止める古いゲート（`validate_config_plan` と
+  `ConfigProgramLoadError::Diagnostics`。loader はもう使っていない）と、それを受けていた CLI と example の分岐を削除し、
+  `load_config_program` の古い説明を直した。
+- **test**（`crates/project/tests/snapshot.rs`、19 件）：tsgo の `TestSnapshot`（synthetic program の作成と削除、失敗した更新、
+  存在しない file、"no-op watch change does not rebuild program"）、`TestProjectIDNarrowing`、`session_createprogram_test.go` の
+  snapshot の層の分（独立した root の番号、作った program の root と option、再構成、検証の文、
+  `TestUpdateSnapshotEnsuresSyntheticProgram`）、`TestSnapshotUpdateCarriesHostFileSystemWithoutOverride`、configfilechanges／
+  project_test を open／changed／ensure に書き換えたもの（option の変更と SameFileNames、2 段の extends、root の追加と
+  NewFiles、close と同じ request の open、存在しない config）、同じ request の remove と create、`Send + Sync`。LiveProgram の契約
+  test に file の無い program を加えた（8 件）。期待値は tsgo の test と、P5-1b の設計の調べ（Go の probe で確かめた挙動）による。
+- **検証**（最終 bytes `f435a39ad`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（program・checker・
+  compiler・conformance・emitter・harness・incremental・project、`--all-targets -- -D warnings`）は clean。`cargo test -p`：program
+  599、checker 1,796、compiler 460、conformance 52、emitter 635、harness 31、incremental 29、project 19、全て成功（workspace 全体の
+  test と Clippy は hosted の `rust` job）。`TSRS_LIVE_CHECK=1 scripts/conformance_ts71.py --workers 2 --check`：12,748 case を
+  715 s、数は main と同じ（errors full 13,451／mismatch 0、emit full 13,443、types 12,678／89、symbols 12,718／49、sourcemap
+  13,451、trace 13,451、harness error 15）、regression 0、live check の違い 0。`scripts/suites_ts71.py --check`：全ての suite が
+  変わらず（api 2、config 87、transpile 41、tsbuild 182／192、tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）、
+  regression 0（watch の一致判定の移動を含む）。並列対照は走らせていない（checker の変更は `LiveChecker` だけで、batch の検査は
+  変わらない）。実 project と性能は計測していない（利用者の指示）。
+- **残り**：P5-1b-2、P5-1b-3（上）。P5-1c〜P5-1e（parse cache と Cloned、checker pool、FS の細部：大量の変更の node_modules の扱い、
+  realpath の alias、cache の掃除、cache した file のディレクトリの一覧への合成）。

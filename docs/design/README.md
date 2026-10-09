@@ -95,7 +95,9 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   tsgo's project system (the LSP foundation), the Go session tests and the
   TypeScript client's API tests as the criteria, the decision to port the
   project system first, its slices P5-1a to P5-1e and their records (P5-1a:
-  `LiveProgram`, a Program kept with its checker).
+  `LiveProgram`, a Program kept with its checker; P5-1b-1: the
+  `tsc-rs-project` crate's snapshots, configured projects and synthetic
+  programs).
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,
