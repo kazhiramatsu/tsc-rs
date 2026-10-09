@@ -6560,7 +6560,7 @@ impl<'text> Parser<'text> {
         self.parse_expected(SyntaxKind::OpenParenToken, None);
         let arguments = self.parse_delimited_list(
             ParsingContext::ArgumentExpressions,
-            |parser| Some(parser.parse_argument_or_array_literal_element()),
+            |parser| Some(parser.parse_argument_expression()),
             false,
         );
         self.parse_expected(SyntaxKind::CloseParenToken, None);
@@ -6888,6 +6888,19 @@ impl<'text> Parser<'text> {
         );
         self.arena.node_mut(object).set_multi_line(Some(multi_line));
         object
+    }
+
+    /// tsc parseArgumentExpression: an argument is parsed outside the
+    /// `in`-disallowing and decorator contexts (`@dec(a[0])`,
+    /// `for (x = f(a in b);;)`).
+    fn parse_argument_expression(&mut self) -> NodeId {
+        self.do_in_context(
+            NodeFlags::NONE,
+            NodeFlags::from_bits(
+                NodeFlags::DISALLOW_IN_CONTEXT.bits() | NodeFlags::DECORATOR_CONTEXT.bits(),
+            ),
+            |parser| parser.parse_argument_or_array_literal_element(),
+        )
     }
 
     fn parse_argument_or_array_literal_element(&mut self) -> NodeId {
