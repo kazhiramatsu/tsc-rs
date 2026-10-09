@@ -320,9 +320,13 @@ kinds, the `node10` and `classic` module resolutions, `alwaysStrict: false`,
 `esModuleInterop: false` and `allowSyntheticDefaultImports: false`) report
 TypeScript 7.1's TS5102 or TS5108 error ("Option ... has been removed.
 Please remove it from your configuration.", with the `paths` suggestion for
-`baseUrl`), and the program is still checked and emitted with the option in
-effect. Like `tsc`, the command line reports no semantic errors while such
-an option error exists. `ignoreDeprecations` is accepted but has no effect.
+`baseUrl`). As in TypeScript 7.1, `baseUrl` neither resolves module names
+nor sets the base of `paths`, `classic` and `node10` resolve as the module
+kind's default resolution, and `esModuleInterop: false` and
+`allowSyntheticDefaultImports: false` have no effect; the program is still
+checked and emitted with the other removed options in effect. Like `tsc`,
+the command line reports no semantic errors while such an option error
+exists. `ignoreDeprecations` is accepted but has no effect.
 The option catalog is TypeScript 7.1's: the options TypeScript 5.5 removed
 (`charset`, `out`, `keyofStringsOnly`, `noImplicitUseStrict`,
 `noStrictGenericChecks`, `suppressExcessPropertyErrors`,
@@ -331,13 +335,13 @@ The option catalog is TypeScript 7.1's: the options TypeScript 5.5 removed
 `target: "es3"` are not accepted values (TS6046), a programmatic `module`
 of 0 means unspecified, and the default `moduleResolution` is `bundler`
 for every module kind except `node16`, `node18`, `node20` and `nodenext`
-(so `amd`, `umd` and `system` also report TS5095). An explicit `classic`
-or `node10` still selects that resolver here, whereas TypeScript 7.1 maps
-it to the default one; that difference is the next step of the cutover.
-The behavior of the removed options themselves is not verified against a
-reference (the TypeScript 7.1 conformance skips those configurations). The
-tsc 6.0.3 compatible line ended with release v0.1.0 (tag `v0.1.0`, branch
-`release/6.0.3`).
+(so `amd`, `umd` and `system` also report TS5095). The default also
+applies to an explicit `classic` or `node10`, which `--traceResolution`
+reports as unspecified. The removed options that remain in effect are not
+verified against a reference (the TypeScript 7.1 conformance skips those
+configurations); the ignored ones were compared with the TypeScript 7.1
+compiler on small projects. The tsc 6.0.3 compatible line ended with
+release v0.1.0 (tag `v0.1.0`, branch `release/6.0.3`).
 
 ### Stable type ordering
 
