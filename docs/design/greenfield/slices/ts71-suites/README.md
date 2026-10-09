@@ -1159,3 +1159,12 @@ H0／H1 の段階の制限が残っていた）。tsgo の `parseJSONText`・`co
   emitter 635、incremental 29、compiler 451、conformance 52、harness 31、checker 1,797（全て 0 失敗）。workspace 全体の test と clippy は
   hosted の `rust` job に任せた。実 project の比較は行っていない（実 project の tsconfig は正しい JSON で、変わるのは誤った値の診断と
   `--noEmit` の option の診断だけ。conformance の出力は変わらない）。性能は計測していない（利用者の指示）。
+
+### P4-5bのhostedの記録とmerge（2026-10-09）
+
+- hosted：最終候補 `b1ae3da51`（code `dc1385033`・fixture `82762e5ae`・main の merge `384f12183`・packet の記録）の run 37869872820
+  （`plan` 31s、`rust` 7m44s、`conformance (TypeScript 7.1)` 19m54s（lane A の後に suites 7 種の `--check`）、`gates` 17s。全て成功）。
+  merge → `4e7658ec0`（merge commit）。
+- 計測（conformance の全体実行、suites、probe、crate test）は上の記録のとおり、merge 前に最終 bytes で行った。実 project の比較と性能は
+  計測していない（上の記録の理由と利用者の指示）。
+- 次：P4-7c（`tsc -b --watch`）。branch `fix/ts71-build-watch`（`b1ae3da51` から）。
