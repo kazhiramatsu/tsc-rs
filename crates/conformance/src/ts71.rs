@@ -1269,6 +1269,14 @@ fn compare_live_program(
         ));
     }
     if let Some(Ok(walk)) = walk {
+        // The batch walk asks the checker that checked every file; the
+        // queries' own checker (the API checker) checks them first, in the
+        // same order.
+        live.with_checker(|state| {
+            for &file in &order {
+                state.check_source_file(file);
+            }
+        });
         for (unit, types, symbols) in walk {
             let Some(file) = live.file_index(unit.as_str()) else {
                 report(&format!("walk: {unit} is not in the live Program"));

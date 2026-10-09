@@ -58,7 +58,12 @@ struct LiveOwner {
 
 /// The checker and the bookkeeping of the files it has checked.
 struct LiveState<'a> {
+    /// The diagnostics checker (tsgo's pool `CheckerLifetimeDiagnostics`).
     state: CheckerState<'a>,
+    /// The API checker (tsgo `CheckerLifetimeAPI`, the pool's persistent
+    /// checker): the queries' own checker, created by the first query, so a
+    /// query never changes what the diagnostics checker reports.
+    api: Option<CheckerState<'a>>,
     checked: Vec<bool>,
     /// The global rows each file's check published (getDiagnosticsWorker's
     /// attribution).
@@ -244,17 +249,11 @@ impl LiveChecker {
             program_diagnostics,
         };
         let cell = LiveCell::new(owner, |owner| {
-            let mut state = init_checker_state(
-                &owner.snapshot,
-                &owner.options,
-                Some((&*owner.provider, &owner.metadata)),
-                owner.host.clone(),
-                Some(0),
-            );
-            reserve_type_tables(&mut state, snapshot_node_count(&owner.snapshot));
+            let state = new_checker_state(owner);
             let file_count = state.binder.file_count();
             LiveState {
                 state,
+                api: None,
                 checked: vec![false; file_count],
                 globals_by_file: vec![Vec::new(); file_count],
             }
@@ -425,13 +424,16 @@ impl LiveChecker {
         }
     }
 
-    /// Run `query` over the checker (the API checker's queries: types,
-    /// symbols, signatures and the node builder); none for a Program without
-    /// files.
+    /// Run `query` over the API checker (tsgo's persistent checker for the
+    /// API's types, symbols, signatures and node builder), created by the
+    /// first query and kept apart from the diagnostics checker; none for a
+    /// Program without files.
     pub fn with_checker<T>(&mut self, query: impl FnOnce(&mut CheckerState<'_>) -> T) -> Option<T> {
         match &mut self.live {
             Live::Empty { .. } => None,
-            Live::Checked(cell) => Some(cell.with_dependent_mut(|_, live| query(&mut live.state))),
+            Live::Checked(cell) => Some(cell.with_dependent_mut(|owner, live| {
+                query(live.api.get_or_insert_with(|| new_checker_state(owner)))
+            })),
         }
     }
 
@@ -439,4 +441,17 @@ impl LiveChecker {
     pub fn file_id(index: usize) -> ProgramFileId {
         program_file_id(index)
     }
+}
+
+/// A checker over the Program (globals merged, no source checked).
+fn new_checker_state(owner: &LiveOwner) -> CheckerState<'_> {
+    let mut state = init_checker_state(
+        &owner.snapshot,
+        &owner.options,
+        Some((&*owner.provider, &owner.metadata)),
+        owner.host.clone(),
+        Some(0),
+    );
+    reserve_type_tables(&mut state, snapshot_node_count(&owner.snapshot));
+    state
 }

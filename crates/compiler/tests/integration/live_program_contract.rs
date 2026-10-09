@@ -554,6 +554,39 @@ fn a_file_asked_again_reports_the_rows_a_later_check_added() {
     assert_eq!(codes(&again), [2374]);
 }
 
+#[test]
+fn a_query_runs_on_its_own_checker() {
+    // tsgo's API asks types and symbols of the pool's persistent API checker
+    // and diagnostics of its diagnostics checker: a query that checks the
+    // library does not give the script the row a check of the library adds
+    // (see the test above).
+    let mut live = LiveProgram::new(prepared(
+        &[(
+            "/work/a.ts",
+            "interface Array<T> {\n    [x: number]: T;\n}\n",
+        )],
+        CompilerOptions::default(),
+    ))
+    .expect("create the live program");
+    let codes = |rows: &[Diagnostic]| rows.iter().map(Diagnostic::code).collect::<Vec<_>>();
+    let script = live.file_index("/work/a.ts").expect("the script");
+    let library = live
+        .file_index("/typescript/lib/lib.es5.d.ts")
+        .expect("the library");
+    live.with_checker(|state| state.check_source_file(library))
+        .expect("the API checker");
+    let first = live.semantic_diagnostics(script).expect("check the script");
+    assert_eq!(codes(&first), [0_u32; 0]);
+    let library_rows = live
+        .semantic_diagnostics(library)
+        .expect("check the library");
+    assert_eq!(codes(&library_rows), [2374]);
+    assert_eq!(
+        codes(&live.semantic_diagnostics(script).expect("ask again")),
+        [2374]
+    );
+}
+
 /// A Program without files (a synthetic program with no roots and no
 /// library) has no checker, as in the batch drivers; its diagnostics are
 /// the batch session's.
