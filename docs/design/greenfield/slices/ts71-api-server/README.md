@@ -568,3 +568,47 @@ snapshot、option、module provider を借りる）。
   `--all-targets -- -D warnings`）は clean。`cargo test -p tsc-rs-project`：unit 10、snapshot 40、全て成功。変えたのは project の
   crate だけなので、conformance は local では走らせず hosted の job に任せた。
 - **P5-1 の完了**：project system の核（P5-1a〜P5-1e）はこれで揃う。次は API の transport と session（P5-2 以降）。
+
+### P5-1e の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `c4232a5ca`（コード `be1246806`・packet の記録）の run 37964140513（`plan` 28s、`rust` 13m15s、
+  `conformance (TypeScript 7.1)` 16m6s、`gates` 16s。全て成功）。この slice は local で conformance を走らせていないので、その
+  確認はこの hosted の job による。merge → `b6e5b991a`（merge commit、PR #725）。
+- **P5-1（project system の核）はこれで終わる**：live program（P5-1a）、snapshot と project（P5-1b-1〜3）、document cache と
+  program の再利用（P5-1c）、API checker（P5-1d）、`SnapshotFS` の細部（P5-1e）。
+
+## P5-2 API の transport と session の計画（2026-10-10）
+
+### tsgo の構成（`19dadef8`）
+
+- **transport**（`api/server.go`、`ipc/`）：stdio（既定）か named pipe／Unix socket。既定は同期の MessagePack
+  （`MessagePackProtocol` と `SyncConn`）、`--async` で JSON-RPC（`AsyncConn`）。
+- **MessagePack の形**（`api/protocol_msgpack.go`）：要素 3 の配列 `[type, method, payload]`。type は request 1、call の response
+  2、call の error 3、response 4、error 5、call 6（正の fixint か uint8）。method と payload は bin8／16／32。payload は JSON
+  （binary の response は raw）。id は無く、method 名で request と response を対応させる。
+- **SyncConn**（`ipc/conn_sync.go`）：message を 1 つずつ読み、request をその場で処理して response を書く。処理中の client への
+  call（callback の FS など）は response をその場で読み、その間に client から来た request（入れ子）も処理する。
+  `getServerTiming`／`resetServerTiming` は conn が答える。panic は stack 付きの error の response になる。
+- **session**（`api/session.go`）：`HandleRequest` が method で振り分ける。snapshot の handle ごとに snapshot、open の状態、request の
+  FS を持ち、project ごとに symbol／type／signature の handle を登録する。`release` で手放す。`batchRequests` は request を順に
+  処理し、response を page に分けて返す。
+- **CLI**：`tsc --api [--async] --cwd <dir> [--callbacks <names>] [--pipe <path>]`。
+
+### port の方針
+
+- session は transport から分ける（WASM の build で、process を立てずに同じ session を呼べるように）。protocol の型は workspace に
+  既にある `serde`／`serde_json` で表す。
+- request は 1 つずつ処理する（WASM。tsgo の `AsyncConn` は request を並行に処理するが、response は request の id で対応するので、
+  順に処理しても結果は同じ）。
+- project system は P5-1 のもの（`tsc-rs-project`）、source file の encoder は P4-7d のもの（`tsc-rs-api`）を使う。
+
+### slice
+
+- **P5-2a transport と session の骨格**：MessagePack の protocol と SyncConn（入れ子の request を含む）、JSON-RPC の protocol と
+  AsyncConn、session の振り分けと error の形、`initialize`、`createSnapshot`／`updateSnapshot`／`release`、
+  `getDefaultProjectForFile`、`batchRequests`、`tsc-rs --api`。test：`proto_test`、`server_test`、`jsonvalue_test`、`ipc` の conn
+  の test、`session_batch_test`、`session_apistate_test`、`session_createprogram_test`（Rust の test に移す）。
+- **P5-2b request の file system と callback の FS**：`requestfilesystem`（path tree、file changes、層）と `callbackfs`。test：
+  `requestfilesystem` の 3 file、`session_requestfilesystem_test`。
+- 以降は「依存と順序」の 3〜6（project の要らない request、checker の query、印字、build orchestrator）。LS の 6 handler は
+  未実装の error を返す（LSP の作業に回す）。
