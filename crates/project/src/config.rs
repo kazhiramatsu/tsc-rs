@@ -51,6 +51,13 @@ pub(crate) struct ConfigFileRegistry {
     configs: Configs,
 }
 
+impl ConfigFileRegistry {
+    /// tsgo `GetConfig`: the parse of the config at `path`.
+    pub(crate) fn config(&self, path: &str) -> Option<&Arc<ConfigRootPlan>> {
+        self.configs.get(path)?.plan.as_ref()
+    }
+}
+
 /// The configs of a snapshot build (tsgo `configFileRegistryBuilder`).
 pub(crate) struct ConfigFileRegistryBuilder<'a> {
     fs: &'a SnapshotFsBuilder,

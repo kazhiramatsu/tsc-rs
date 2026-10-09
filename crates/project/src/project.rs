@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use tsc_compiler::LiveProgram;
 use tsc_diagnostics::{Diagnostic, JsStr};
 use tsc_program::{
-    CanonicalPath, CompilerOptions, ConfigRootPlan, PreparedProgram, ProgramOptions,
+    CanonicalPath, CompilerOptions, ConfigProjectReference, ConfigRootPlan, PreparedProgram,
+    ProgramOptions,
 };
 
 use crate::fs::SeenFiles;
@@ -55,6 +56,22 @@ impl CommandLine {
         }
     }
 
+    /// tsgo `ProjectReferences`.
+    pub fn project_references(&self) -> &[ConfigProjectReference] {
+        match self {
+            Self::Config(plan) => plan.project_references().unwrap_or_default(),
+            Self::Roots(roots) => &roots.project_references,
+        }
+    }
+
+    /// The config file, for a configured project.
+    pub fn config_file_name(&self) -> Option<JsStr<'_>> {
+        match self {
+            Self::Config(plan) => Some(plan.config_file_name()),
+            Self::Roots(_) => None,
+        }
+    }
+
     fn same(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Config(left), Self::Config(right)) => Arc::ptr_eq(left, right),
@@ -75,6 +92,8 @@ pub struct ProgramRoots {
     /// tsgo `CommandLine.Errors`: rows the client reports as the program's
     /// config file parsing diagnostics.
     pub config_file_parsing_diagnostics: Vec<Diagnostic>,
+    /// The projects the program references, by config path.
+    pub project_references: Vec<ConfigProjectReference>,
 }
 
 /// The inferred project's roots and options (tsgo `NewInferredProject`'s
@@ -102,6 +121,7 @@ pub(crate) fn inferred_project_roots(root_file_names: Vec<String>) -> ProgramRoo
         },
         program_options: ProgramOptions::default(),
         config_file_parsing_diagnostics: Vec::new(),
+        project_references: Vec::new(),
     }
 }
 
@@ -110,14 +130,28 @@ pub(crate) fn inferred_project_roots(root_file_names: Vec<String>) -> ProgramRoo
 pub struct ProjectProgram {
     prepared: Arc<PreparedProgram>,
     live: Mutex<LiveProgram>,
+    /// The paths of the referenced projects' configs the program took from
+    /// the project system (tsgo `RangeResolvedProjectReference`).
+    references: BTreeSet<String>,
 }
 
 impl ProjectProgram {
-    pub(crate) fn new(live: LiveProgram) -> Self {
+    pub(crate) fn new(live: LiveProgram, references: BTreeSet<String>) -> Self {
         Self {
             prepared: live.shared_prepared(),
             live: Mutex::new(live),
+            references,
         }
+    }
+
+    pub(crate) fn references(&self) -> &BTreeSet<String> {
+        &self.references
+    }
+
+    /// tsgo `IsSourceFromProjectReference`.
+    pub(crate) fn is_source_from_project_reference(&self, path: &str) -> bool {
+        CanonicalPath::from_js_normalized(JsStr::from_str(path))
+            .is_ok_and(|path| self.prepared.is_source_from_project_reference(&path))
     }
 
     pub fn prepared(&self) -> &PreparedProgram {
@@ -166,6 +200,35 @@ impl ProjectProgram {
         }
         files(&self.prepared) == files(&other.prepared)
     }
+}
+
+/// tsgo `findDefaultConfiguredProjectFromProgramInclusion`: of the
+/// projects (in ID order) whose programs have the file, the only one, else
+/// the one that has it directly (not as a source of a referenced project),
+/// else the first; and whether several have it directly.
+pub(crate) fn default_project_from_program_inclusion<'p>(
+    projects: impl Iterator<Item = &'p Arc<Project>>,
+    path: &str,
+) -> (Option<&'p Arc<Project>>, bool) {
+    let mut containing = 0;
+    let mut first = None;
+    let mut first_direct = None;
+    let mut several_direct = false;
+    for project in projects.filter(|project| project.contains_file(path)) {
+        containing += 1;
+        if !several_direct && !project.is_source_from_project_reference(path) {
+            if first_direct.is_none() {
+                first_direct = Some(project);
+            } else {
+                several_direct = true;
+            }
+        }
+        first = first.or(Some(project));
+    }
+    if containing == 1 || several_direct {
+        return (first, several_direct);
+    }
+    (first_direct.or(first), false)
 }
 
 /// A project (tsgo `Project`): a configured project, a synthetic program or
@@ -268,6 +331,13 @@ impl Project {
         self.program
             .as_ref()
             .is_some_and(|program| program.contains_file(path))
+    }
+
+    /// tsgo `IsSourceFromProjectReference`.
+    pub(crate) fn is_source_from_project_reference(&self, path: &str) -> bool {
+        self.program
+            .as_ref()
+            .is_some_and(|program| program.is_source_from_project_reference(path))
     }
 
     pub fn id(&self) -> &ProjectId {

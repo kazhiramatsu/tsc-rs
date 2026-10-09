@@ -973,10 +973,10 @@ pub(crate) fn can_include_bind_and_check_diagnostics(
 ///
 /// One Program-aware implementation of tsc's `skipTypeCheckingWorker` policy.
 ///
-/// Default-library status is supplied by the Program builder rather than
-/// inferred from a path or stored on a reusable document. Project-reference
-/// redirects are not yet represented by this Program model; when they are,
-/// they belong in [`ProgramFileFacts`] beside the default-library bit.
+/// Default-library status and whether the file is a source of a referenced
+/// project read in place of its output (tsgo `IsSourceFromProjectReference`)
+/// are supplied by the Program builder rather than inferred from a path or
+/// stored on a reusable document.
 pub(crate) fn should_skip_type_checking_file(
     source: &tsc_syntax::SourceFile,
     facts: ProgramFileFacts,
@@ -984,6 +984,7 @@ pub(crate) fn should_skip_type_checking_file(
 ) -> bool {
     options.skip_lib_check == Some(true) && source.is_declaration_file
         || options.skip_default_lib_check == Some(true) && facts.is_default_library()
+        || facts.is_source_from_project_reference()
         || options.no_check == Some(true)
         // tsgo canIncludeBindAndCheckDiagnostics (compiler/program.go:856-873)
         // checks TypeScript, plain JS and checked JS files only: a JSON
@@ -994,6 +995,31 @@ pub(crate) fn should_skip_type_checking_file(
             check_directive(source.text()),
             options,
         )
+}
+
+/// The facts of a Program's files: its libraries take `lib_facts`, and a
+/// source of a referenced project that the Program reads in place of the
+/// project's output is not type checked (tsgo `IsSourceFromProjectReference`
+/// in `SkipTypeChecking`).
+pub(crate) fn program_file_facts(
+    lib_facts: ProgramFileFacts,
+    lib_count: usize,
+    source_count: usize,
+    source_metadata: &[AuthoritativeSourceMetadata],
+) -> Vec<ProgramFileFacts> {
+    let mut facts = vec![lib_facts; lib_count];
+    facts.extend((0..source_count).map(|index| {
+        if source_metadata
+            .get(index)
+            .and_then(|metadata| metadata.project_reference.as_ref())
+            .is_some_and(|reference| reference.source_from_project_reference)
+        {
+            ProgramFileFacts::SOURCE_FROM_PROJECT_REFERENCE
+        } else {
+            ProgramFileFacts::ORDINARY
+        }
+    }));
+    facts
 }
 
 /// tsc isPlainJsFile (12876): a JS/JSX file is "plain" only when
@@ -4076,10 +4102,11 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     }
     let phase_started = std::time::Instant::now();
 
-    let mut file_facts = vec![lib_facts; lib_count];
-    file_facts.resize(
-        lib_count + program_sources.len(),
-        ProgramFileFacts::ORDINARY,
+    let file_facts = program_file_facts(
+        lib_facts,
+        lib_count,
+        program_sources.len(),
+        &authoritative_program_metadata,
     );
     let snapshot = document_store
         .into_snapshot_with_file_facts(file_facts)
@@ -4952,10 +4979,11 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
         // Prefix storage and diagnostic scheduling do not determine default
         // library membership. The legacy oracle prepends ordinary roots under
         // noLib; owned/authoritative Programs supply their catalog libraries.
-        let mut file_facts = vec![lib_facts; lib_count];
-        file_facts.resize(
-            lib_count + program_sources.len(),
-            ProgramFileFacts::ORDINARY,
+        let file_facts = program_file_facts(
+            lib_facts,
+            lib_count,
+            program_sources.len(),
+            &authoritative_program_metadata,
         );
         let snapshot = document_store
             .into_snapshot_with_file_facts(file_facts)

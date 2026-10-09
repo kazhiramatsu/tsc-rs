@@ -818,15 +818,43 @@ fn load_program_worker(
         require_no_lib,
     )?;
 
-    let mut resolver =
-        ModuleResolver::new_with_program_options(host, &compiler_options, &program_options)
-            .map_err(|error| {
-                ProgramLoadError::resolution_with_source_path(
-                    ProgramLoadOperation::InitializeResolver,
-                    None,
-                    error,
+    // tsgo initMapper: a program that reads the sources of its referenced
+    // projects resolves through a host that finds their unbuilt outputs.
+    let dts_faking_host = match program_options.project_references() {
+        Some(references)
+            if program_options.project_reference_sources() && references.has_outputs() =>
+        {
+            Some(
+                crate::dts_faking_host::DtsFakingHost::new(
+                    host,
+                    Arc::clone(references),
+                    program_options
+                        .config_file_path()
+                        .map(ProgramPath::canonical),
                 )
-            })?;
+                .map_err(|error| {
+                    ProgramLoadError::host_js(ProgramLoadOperation::InitializeResolver, None, error)
+                })?,
+            )
+        }
+        _ => None,
+    };
+    let resolution_host: &dyn CompilerHost = match &dts_faking_host {
+        Some(dts_faking_host) => dts_faking_host,
+        None => host,
+    };
+    let mut resolver = ModuleResolver::new_with_program_options(
+        resolution_host,
+        &compiler_options,
+        &program_options,
+    )
+    .map_err(|error| {
+        ProgramLoadError::resolution_with_source_path(
+            ProgramLoadOperation::InitializeResolver,
+            None,
+            error,
+        )
+    })?;
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
     let library_directory = if program_options.no_lib() == Some(true) {
@@ -840,6 +868,7 @@ fn load_program_worker(
 
     let mut graph = StagedGraph::new(StagedGraphConfig {
         host,
+        resolution_host,
         compiler_options: &compiler_options,
         program_options: &program_options,
         library_catalog,
@@ -1896,6 +1925,10 @@ struct CompleteGraph {
 
 struct StagedGraph<'host, 'options, 'resolver> {
     host: &'host dyn CompilerHost,
+    /// The host module resolution observes: `host`, or for a program that
+    /// reads the sources of its referenced projects, the host that finds
+    /// their unbuilt outputs (tsgo `projectReferenceFileMapper.host`).
+    resolution_host: &'host dyn CompilerHost,
     compiler_options: &'options CompilerOptions,
     program_options: &'options ProgramOptions,
     library_catalog: Option<&'options LibraryCatalog>,
@@ -1997,6 +2030,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
 /// resource arguments while preserving the loader's separate lifetimes.
 struct StagedGraphConfig<'host, 'options, 'resolver> {
     host: &'host dyn CompilerHost,
+    resolution_host: &'host dyn CompilerHost,
     compiler_options: &'options CompilerOptions,
     program_options: &'options ProgramOptions,
     library_catalog: Option<&'options LibraryCatalog>,
@@ -2009,6 +2043,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
             host: config.host,
+            resolution_host: config.resolution_host,
             compiler_options: config.compiler_options,
             program_options: config.program_options,
             library_catalog: config.library_catalog,
@@ -2387,7 +2422,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let host_ref = self.host;
         if workers.is_parallel() && host_ref.permits_source_read_ahead() {
             if let (Some(host), Some(reader)) = (
-                host_ref.parallel_resolution_host(),
+                self.resolution_host.parallel_resolution_host(),
                 host_ref.parallel_source_reader(),
             ) {
                 self.prefetch_dependencies_pipelined(host, reader, workers);
@@ -3134,7 +3169,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         const MIN_PARALLEL_REQUESTS: usize = 32;
         let workers = self.limits.workers;
         if let Some(host) = self
-            .host
+            .resolution_host
             .parallel_resolution_host()
             .filter(|_| workers.is_parallel() && requests.len() >= MIN_PARALLEL_REQUESTS)
         {
@@ -4270,24 +4305,37 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.program_options.project_references()
     }
 
-    /// tsgo getParseFileRedirect for the command (no source of a project
-    /// reference is used): the output declaration file loaded in place of a
-    /// referenced project's source, with the source's name.
+    /// tsgo getParseFileRedirect: a program that reads the sources of its
+    /// referenced projects loads the source in place of an output
+    /// declaration file (or of a symlinked spelling of one); the command
+    /// loads the output declaration file in place of the source. The
+    /// file loaded instead, with the source's name.
     fn project_reference_redirect(
         &self,
         path: &CanonicalPath,
     ) -> Result<Option<(ProgramPath, JsString)>, ProgramLoadError> {
-        let Some(output) = self
-            .project_references()
-            .and_then(|references| references.output_for_source(path))
-        else {
+        let Some(references) = self.project_references() else {
             return Ok(None);
         };
-        let Some(output_dts) = output.output_dts() else {
-            return Ok(None);
+        let (output, target) = if self.program_options.project_reference_sources() {
+            let Some(output) = references
+                .source_for_output(path)
+                .or_else(|| self.symlinked_output(path))
+            else {
+                return Ok(None);
+            };
+            (output, output.source())
+        } else {
+            let Some(output) = references.output_for_source(path) else {
+                return Ok(None);
+            };
+            let Some(output_dts) = output.output_dts() else {
+                return Ok(None);
+            };
+            (output, output_dts)
         };
         let output_path = crate::module_resolution::make_program_path(
-            output_dts,
+            target,
             self.resolver.path_context().use_case_sensitive_file_names(),
         )
         .map_err(|error| {
@@ -4332,7 +4380,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             return None;
         }
         let references = self.project_references()?;
-        let real = self.host.realpath_js(file.as_js()).ok()??;
+        let real = self.resolution_host.realpath_js(file.as_js()).ok()??;
         let real = make_program_path(
             &real,
             self.resolver.path_context().use_case_sensitive_file_names(),
@@ -4358,7 +4406,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         };
         if !self.project_resolvers.contains_key(project.canonical()) {
             let resolver = ModuleResolver::new_with_program_options(
-                self.host,
+                self.resolution_host,
                 project.compiler_options(),
                 project.plan().program_options(),
             )?
@@ -4776,13 +4824,18 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         prepared = prepared.with_implied_node_formats(implied, implied_for_emit);
         // The checker reads the project's options too.
         if let Some(project) = project {
-            let output_declaration = self
-                .project_references()
+            let references = self.project_references();
+            let output_declaration = references
                 .and_then(|references| references.source_for_output(path.canonical()))
                 .is_some();
+            let source_from_project_reference = self.program_options.project_reference_sources()
+                && references
+                    .and_then(|references| references.output_for_source(path.canonical()))
+                    .is_some();
             prepared = prepared.with_project_reference(crate::ProjectReferenceFile {
                 options: Arc::clone(project.referenced_options()),
                 output_declaration,
+                source_from_project_reference,
             });
         }
         if is_json_source(path.canonical())
@@ -5714,11 +5767,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 self.module_resolutions[index].unloaded_reason = Some(reason);
                 continue;
             }
-            // tsgo fileloader.go:911: a resolved file is JavaScript unless it
-            // is a source of a referenced project (its output is loaded).
-            let redirected = self
-                .project_reference_redirect(target.canonical())?
-                .is_some();
+            // tsgo fileloader.go:911: a resolved file of a referenced project
+            // (one of its sources or outputs) is not loaded as JavaScript.
+            let redirected = self.project_for_resolution(target.canonical()).is_some();
             // tsgo isJsFileFromNodeModules: the subtask of a JavaScript file
             // found searching node_modules is elided beyond
             // maxNodeModuleJsDepth when it runs (`elideOnDepth`).
