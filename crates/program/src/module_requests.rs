@@ -140,9 +140,55 @@ pub struct SourceRequestPlan {
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     observed_request_occurrence_count: usize,
+    /// The source has the synthesized `tslib` or JSX runtime import.
+    synthetic_imports: bool,
 }
 
 impl SourceRequestPlan {
+    /// tsgo `canReplaceFileInProgram`'s request half: the same module
+    /// status and the same requests in the same order (imports and their
+    /// modes, module augmentations, path, type and lib references),
+    /// wherever they are in the text.
+    pub fn has_same_requests(&self, other: &Self) -> bool {
+        self.is_external_module == other.is_external_module
+            && self.module_requests == other.module_requests
+            && self.unpreprocessed_module_requests == other.unpreprocessed_module_requests
+            && self.loadable_module_requests == other.loadable_module_requests
+            && self.module_request_order == other.module_request_order
+            && self.observed_request_occurrence_count == other.observed_request_occurrence_count
+            && self.synthetic_imports == other.synthetic_imports
+            && self
+                .path_references
+                .iter()
+                .map(|reference| (reference.file_name(), reference.preserve()))
+                .eq(other
+                    .path_references
+                    .iter()
+                    .map(|reference| (reference.file_name(), reference.preserve())))
+            && self
+                .type_reference_directives
+                .iter()
+                .map(|directive| (directive.key(), directive.preserve()))
+                .eq(other
+                    .type_reference_directives
+                    .iter()
+                    .map(|directive| (directive.key(), directive.preserve())))
+            && self
+                .lib_reference_directives
+                .iter()
+                .map(|directive| (directive.file_name(), directive.preserve()))
+                .eq(other
+                    .lib_reference_directives
+                    .iter()
+                    .map(|directive| (directive.file_name(), directive.preserve())))
+    }
+
+    /// Whether the source has the synthesized `tslib` or JSX runtime import
+    /// (tsgo does not reuse a Program in place of such a file).
+    pub const fn has_synthetic_imports(&self) -> bool {
+        self.synthetic_imports
+    }
+
     pub(crate) const fn external_module_diagnostic_span(&self) -> Option<(u32, u32)> {
         self.external_module_diagnostic_span
     }
@@ -826,6 +872,7 @@ fn plan_module_requests_worker(
         type_reference_directives,
         lib_reference_directives,
         observed_request_occurrence_count,
+        synthetic_imports: has_synthetic_tslib || has_synthetic_jsx_runtime,
     };
     Ok((plan, PreparsedSourceFile::new(parse_options, parsed)))
 }

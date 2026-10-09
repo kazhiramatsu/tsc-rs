@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tsc_binder::BinderWorker;
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_syntax::{parse_source_file, ParseOptions};
-use tsc_types::{CompilerOptions, IdentityDomain, IdentitySpace};
+use tsc_types::{CompilerOptions, IdentityDomain};
 
 fn bound_document_for_snapshot(
     path: &str,

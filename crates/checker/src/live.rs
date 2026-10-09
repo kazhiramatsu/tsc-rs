@@ -17,8 +17,8 @@ use tsc_diagnostics::{Diagnostic, DiagnosticCategory, DiagnosticList};
 use tsc_types::{IdentityDomain, JsStr, JsString};
 
 use crate::program::{
-    BoundDocument, DocumentRegistry, EphemeralDocumentStore, ProgramFileFacts, ProgramFileId,
-    ProgramSnapshot,
+    BoundDocument, DocumentAddress, DocumentRegistry, EphemeralDocumentStore, ProgramFileFacts,
+    ProgramFileId, ProgramSnapshot,
 };
 use crate::state::CheckerState;
 use crate::{
@@ -218,7 +218,7 @@ impl LiveChecker {
             if let (Some(documents), Some(SharedDocument::New(address))) =
                 (documents, shared_documents.get(index))
             {
-                documents.insert(address.clone(), &document);
+                documents.insert(DocumentAddress::clone(address), &document);
             }
         }
         let file_facts = crate::program_file_facts(

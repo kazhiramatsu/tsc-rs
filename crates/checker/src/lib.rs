@@ -892,7 +892,7 @@ pub(crate) fn is_js_file_name<'n>(name: impl Into<JsStr<'n>>) -> bool {
 /// SourceFile.comment_directives — swap this too if the parser ever
 /// grows real pragma processing (M8 surface).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CheckDirective {
+pub enum CheckDirective {
     Check,
     NoCheck,
 }
@@ -900,7 +900,7 @@ pub(crate) enum CheckDirective {
 /// tsrs-native: lexical projection of leading-comment @ts-check/@ts-nocheck
 /// (processCommentPragmas 36215 + processPragmasIntoFields checkJsDirective ~36288, last
 /// wins); not a structural port
-pub(crate) fn check_directive(text: &str) -> Option<CheckDirective> {
+pub fn check_directive(text: &str) -> Option<CheckDirective> {
     let mut rest = text;
     // getLeadingCommentRanges starts after a leading shebang. Keep
     // this test on the RAW offset zero: a BOM before `#!` makes it an
@@ -2672,7 +2672,7 @@ pub(crate) enum SharedDocument {
     /// The document a Program already holds for the file's text and address.
     Found(Arc<BoundDocument>),
     /// A new parse, to bind and record at this address.
-    New(DocumentAddress),
+    New(Box<DocumentAddress>),
     /// A new parse that is not recorded (a transpile source with the API's
     /// module name or renamed dependencies).
     Unshared,
@@ -2814,7 +2814,7 @@ fn parse_program_inputs(
                 Some(source)
             }
             None => {
-                shared_documents.push(SharedDocument::New(address));
+                shared_documents.push(SharedDocument::New(Box::new(address)));
                 None
             }
         }

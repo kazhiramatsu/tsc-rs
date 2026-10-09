@@ -1778,3 +1778,131 @@ fn a_program_built_again_keeps_the_documents_of_unchanged_files() {
     host.documents().purge();
     assert!(host.documents().is_empty());
 }
+
+#[test]
+fn a_one_file_change_reuses_the_program_in_place() {
+    // project_test "Cloned on single-file change" and snapshot_test
+    // "compilerHost gets frozen with snapshot's FS only once" with API
+    // requests: a file changed without changing its requests is read again
+    // into the program (tsgo UpdateProgram), which shares the other files;
+    // the inferred project, which the change does not concern, keeps its
+    // program (tsgo, probed).
+    let config = "/home/projects/TS/p1/tsconfig.json";
+    let index = "/home/projects/TS/p1/index.ts";
+    let helper = "/home/projects/TS/p1/helper.ts";
+    let other = "/home/projects/other.ts";
+    let (host, fs) = session(&[
+        (config, r#"{ "compilerOptions": { "noLib": true } }"#),
+        (index, "console.log('Hello, world!');"),
+        (helper, "export const helper = 1;"),
+        (other, "export {};"),
+    ]);
+    // The file system ignores case, so the project's ID is its lower-case path.
+    let id = configured("/home/projects/ts/p1/tsconfig.json");
+    let opened = update(
+        &host,
+        &host.new_root_snapshot(),
+        open_files(&[index, other]),
+    )
+    .expect("open the files");
+    let inferred = Arc::clone(opened.inferred_project().expect("an inferred project"));
+
+    fs.write(index, b"console.log('Hello, world!')\n;")
+        .expect("write the file");
+    let marked = changed(&host, &opened, &[index]);
+    let ensured = update(
+        &host,
+        &marked,
+        ApiSnapshotRequest {
+            ensure_files: BTreeSet::from([index.to_owned()]),
+            ..ApiSnapshotRequest::default()
+        },
+    )
+    .expect("ensure the file");
+    let project = ensured.project(&id).unwrap();
+    assert_eq!(project.program_update_kind(), ProgramUpdateKind::Cloned);
+    assert!(!project.is_dirty());
+    let program = project.program().unwrap();
+    assert_eq!(
+        program
+            .prepared()
+            .source_files()
+            .iter()
+            .find(|source| source.path().display().to_string_lossy() == index)
+            .map(|source| source.text().to_owned()),
+        Some("console.log('Hello, world!')\n;".to_owned())
+    );
+    let document = |snapshot: &Snapshot, file_name: &str| {
+        snapshot
+            .project(&id)
+            .unwrap()
+            .program()
+            .unwrap()
+            .with_live(|live| {
+                live.file_index(file_name)
+                    .and_then(|index| live.document(index))
+                    .cloned()
+            })
+            .expect("the file's document")
+    };
+    assert!(Arc::ptr_eq(
+        &document(&opened, helper),
+        &document(&ensured, helper)
+    ));
+    assert!(!Arc::ptr_eq(
+        &document(&opened, index),
+        &document(&ensured, index)
+    ));
+    // The inferred project keeps the program (and the update kind) of the
+    // open; the API's open also ensures the file, which builds it a second
+    // time (SameFileNames, where tsgo's editor test sees NewFiles).
+    let inferred_after = ensured.inferred_project().expect("the inferred project");
+    assert!(Arc::ptr_eq(inferred_after, &inferred));
+    assert_eq!(
+        inferred_after.program_update_kind(),
+        ProgramUpdateKind::SameFileNames
+    );
+}
+
+#[test]
+fn a_change_to_a_files_requests_builds_the_program_again() {
+    // canReplaceFileInProgram: a new import, or another check directive,
+    // needs a full build (the same files: SameFileNames; tsgo, probed).
+    let config = "/p/tsconfig.json";
+    let index = "/p/index.ts";
+    let (host, fs) = session(&[
+        (config, r#"{ "compilerOptions": { "noLib": true } }"#),
+        (index, "export const a = 1;"),
+        ("/p/b.ts", "export const b = 1;"),
+    ]);
+    let id = configured(config);
+    let mut snapshot =
+        update(&host, &host.new_root_snapshot(), open_files(&[index])).expect("open the file");
+    for text in [
+        "import './b';\nexport const a = 1;",
+        "// @ts-nocheck\nimport './b';\nexport const a = 1;",
+        "// @ts-nocheck\nimport './b';\nexport const a = 2;",
+    ] {
+        fs.write(index, text.as_bytes()).expect("write the file");
+        let marked = changed(&host, &snapshot, &[index]);
+        snapshot = update(
+            &host,
+            &marked,
+            ApiSnapshotRequest {
+                ensure_files: BTreeSet::from([index.to_owned()]),
+                ..ApiSnapshotRequest::default()
+            },
+        )
+        .expect("ensure the file");
+        let expected = if text.ends_with("= 2;") {
+            ProgramUpdateKind::Cloned
+        } else {
+            ProgramUpdateKind::SameFileNames
+        };
+        assert_eq!(
+            snapshot.project(&id).unwrap().program_update_kind(),
+            expected,
+            "{text:?}"
+        );
+    }
+}
