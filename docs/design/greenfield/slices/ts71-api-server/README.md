@@ -317,3 +317,33 @@ snapshot、option、module provider を借りる）。
 - hosted：最終候補 `32035ebe4`（コード `f435a39ad`・packet の記録）の run 37934606585（`plan` 35s、`rust` 11m12s、
   `conformance (TypeScript 7.1)` 12m54s、`gates` 16s。全て成功）。merge → `06fdab449`（merge commit、PR #720）。
 - 次：P5-1b-2（API で開く file、default project、inferred project、registry の cleanup）。
+
+## P5-1b-2 API で開く file、default project、inferred project（2026-10-09）
+
+- **request**：`openFiles`（開く file。空の集合でも後片付けを求める）、`closeFiles`、`ensureFiles`（API は開く file を全て ensure
+  する）。API の open 状態に file の open の数を持つ（tsgo `apiOpenedFile`）。
+- **default project の探索**（tsgo `findOrCreateDefaultConfiguredProjectForFile` とその worker）：この build で見つけたもの、
+  なければ file のディレクトリから上の一番近い `tsconfig.json`／`jsconfig.json` から project 参照を辿る breadth-first の探索。
+  config を acquire し（file から acquire した config は、project が保持しないかぎり後片付けで消える）、root の無い config
+  （solution）は参照に進むだけ、composite の config は列挙しない file に否定を返し、project を作って program を作ってから file を
+  持つかを見る。tsgo は level の config を並行に訪れて file を持つ最小の index を取り、順に訪れても同じものを得る。API で開いた
+  file には祖先の（solution の）探索が無い（tsgo と同じ）。参照先の source は P5-1b-3 なので、今は全ての inclusion が direct。
+- **後片付け**（tsgo `cleanupConfiguredProjects`）：API で開いた file の default project、探索の道の config、API で開いた project
+  の、どれでもない configured project を削除し、configured project の無い開いた file を inferred project の root にし、registry
+  の保持されない entry を消す。`openFiles` があるとき（空でも）と、`closeFiles` だけのときに走る。
+- **inferred project**（tsgo `NewInferredProject` の既定の option）：root（並べ替え）が変われば command line を変え、無くなれば
+  消す。program は open／ensure／ensurePrograms で作る。tsgo の癖も同じ：open と ensure の両方を受けた file は root に 2 回入る
+  （`[a, a]`、同じ build で program を 2 回作る）。
+- **`Snapshot::default_project`**（tsgo `GetDefaultProject`）：build が見つけた default project、なければ file を持つ最初の
+  configured project（ID 順）、なければ file を持つ inferred project。`Projects()` と `GetProject` に inferred project を加えた。
+- **tsgo と違う所**：一番近い tsconfig に含まれない file を開き直すと、tsgo は同じ build で消した config の entry を nil として
+  扱って落ちる。port は entry を作り直して続ける（file は inferred のまま）。
+- **test**（`crates/project/tests/snapshot.rs`、26 件。新しい 7 件）：`TestSnapshot` の synthetic program の test の開いた file
+  の部分、open と ensure での root の重複と SameFileNames（tsgo の probe）、configured project への配置と ensure だけでの作成、
+  祖先を探さないこと（probe）と開き直し、close での後片付け（probe）、closeProjects が開いた file を守らないこと（probe）、
+  project の無い file の拒否。
+- **検証**（最終 bytes `60ac51f8a`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（program・
+  checker・compiler・conformance・emitter・harness・incremental・project、`--all-targets -- -D warnings`）は clean。`cargo test -p`：
+  program 599、project 26、全て成功。program の変更は `ConfigOptionBag::option_bool` の公開だけで、batch の compile の経路は
+  変えていないので、conformance と suites は local では走らせず hosted の job に任せた。
+- **残り**：P5-1b-3（project 参照）、P5-1c〜P5-1e。
