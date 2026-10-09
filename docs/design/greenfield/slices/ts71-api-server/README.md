@@ -696,3 +696,58 @@ snapshot、option、module provider を借りる）。
   入り、file の変更の通知を request の file に広げる（`ExpandFileChanges`、`addFileChanges`）。callback の FS（`api/callbackfs.go`）
   は conn ができた後に結ばれ、client への call は protocol の lock で 1 つずつ行う（worker の thread からの読みも同じ lock で
   待つ）。
+
+## P5-2b request の file system と callback の FS（2026-10-10）
+
+- **request の file system**（tsgo `api/requestfilesystem`）：`tsc_api::request_fs`。full（正準で全体）と layer（host の前に
+  引く）。file、完全な一覧、link（request の中か host への）、取り除く path を持つ。path tree（`pathtree.go`）は node を path
+  ごとに持ち、層を合成すると触らない node を共有する（copy-on-write）。request の file system の上の layer はすぐ合成する
+  （tsgo の eager compaction）ので、request の file system は常に host の上に直接ある。vfs の `FileSystem` を実装する（読み、
+  metadata、link を含む一覧、real path、layer は host へ書く）。
+- **file の変更**：layer の file は changed か created、取り除く path は deleted、一覧と link は deleted と created になる
+  （tsgo `addFileChanges`）。snapshot の file の変更は request の link で別名にも広げる（tsgo `ExpandFileChanges`。tsgo の
+  snapshot が行う所を session が clone の直前に、同じ file system で行う）。
+- **session**：snapshot ごとに request の file system を持ち、update はその上に layer を重ねる（full は host から始め直す）。
+  full の file system の update は前に読んだものを捨てる（`replace_file_system`）。
+- **callback の FS**（tsgo `api/callbackfs.go`）：`tsc_api::callback_fs`。`--callbacks` の readFile、fileExists、
+  directoryExists、getAccessibleEntries、realpath、writeFile、removeFile を client が答え、`null` は base（埋め込みの library
+  の上の disk）に任せる。conn ができた後に結ぶ。失敗した call は tsgo と同じく panic し、その request が error になる。
+- **一覧の順**：`VfsCompilerHost` は file system の一覧の順を保つ（前は UTF-16 の順に並べ替えていた）。tsgo は config の glob を
+  その順で照合する。disk の一覧は名前の順（`os.ReadDir`）、client の一覧は client の順。TypeScript の client の test
+  （`project exposes parsedCommandLine`）で見つかった。
+- **修正**：root の config（`/tsconfig.json`）の project の directory が空になっていた（tsgo `GetDirectoryPath` では `/`）。
+  config の探索も tsgo `ForEachAncestorDirectory` のとおり祖先をたどる（drive の root を含む）。P5-1 の test の config は全て
+  下位の directory にあったので現れなかった。
+- **tsgo と違う所・移さないもの**：
+  - language server の overlay（`Overlays`、overlay の file handle、overlay を隠す層の変更）は standalone の session に無い。
+  - tsgo の snapshot は cache した一覧の項を Go の map の順で先に並べる（`mergeCachedDirectoryEntries`）ので、tsgo では実行
+    ごとに順が変わる（同じ要求を 6 回送って 2 通り）。port は path の順で、tsgo の取りうる順の 1 つ。重複した symlink の error
+    がどちらの名を先に書くかも Go の map の順。
+  - CLI の disk の host（`FsCompilerHost`）は今も UTF-16 の順に並べる（tsgo は byte の順）。違うのは U+E000〜U+FFFF と補助面の
+    文字を混ぜた名だけで、この slice では変えない。
+- **test**：
+  - api の unit：request_fs 64。tsgo `requestfilesystem_test.go` の 103 case（overlay の 1 つを除く。parameter 付きの helper は
+    1 つの Rust の test で全ての組を回す）、`pathtree_test.go` の 15（Go の `FileInfo` の mode と同一性は種類・大きさ・時刻で）、
+    `filechanges_test.go` の 4（URI でなく file 名で）、変更の展開、種類の誤り、JSON。
+  - session 14：`session_requestfilesystem_test.go` の standalone の 12（`GetFile` の同一性は内容で）、誤りの 1、一覧の順の 1
+    （client の test と同じ形）。emit の 1 は emit と、LSP（editor の overlay と変更、auto import）を使う 10 は LSP と一緒に移す。
+  - `callback_fs` 7（各 callback の答えの形、base への fallback、未知の名、conn の前の call）、project 1（root の config）、
+    host 1（一覧は file、次に directory、それぞれ file system の順）。
+- **tsgo との比較**：request の file system の場面（full の file system の config、explicit な一覧、link、layer による変更・
+  削除・追加・link 先の変更、disk の上の layer、full への置き換え、invalidateAll、誤り）を MessagePack と JSON-RPC で比べ、
+  上の tsgo の不定な順を除いて一致した。
+- **TypeScript の client の test**（local。P5-2a と同じ実行）：tsc-rs 21/327（P5-2a は 6）。残りの 306 は全て未実装の method
+  （getSourceFile 89、getSymbolAtPosition 87 など）で、それ以外の失敗は無い。
+- **検証**（macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（api・project・host・program・cli、
+  `--all-targets -- -D warnings`。最後の test の追加の後に api・host を再び）は clean。`cargo test`：api（unit 117、
+  `callback_fs` 7、`ipc` 14、`server` 2、encoder 5、fixture 1）、host（unit 22、contract 15＋10）、project（unit 10、snapshot 41）、
+  compiler の `system` 9、cli の contract の `--api` 2、全て成功。`VfsCompilerHost` の一覧の順と project の builder は batch の
+  経路（suite の tsc／tsbuild の memory の file system）に触れるので、release build（2m15s）の full conformance を local で
+  1 回（コード `b07627cd9`、`--workers 2 --check`、464s）：0 regressions、accepted tier を超える構成 0。errors full 13,451、
+  emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness error 15（main と
+  同じ）。suites（`scripts/suites_ts71.py --check`）：0 regressions。api 2、config 87、transpile 41、tsoptions 80、tscWatch 42
+  は全て full、tsc 211/223、tsbuild 182/192、tsbuildWatch 63/65 は main と同じ。その後の変更は test 2 つと `server.rs` の
+  comment だけ（conformance の runner は `tsc-rs-api` を link しない）。workspace 全体の test と Clippy は hosted の `rust` job に
+  任せた。
+- **残り**：P5-2 はこれで終わる。次は「依存と順序」の 3（project の要らない request：command line と config、`createSourceFile`、
+  `transpile*`、module resolver）から計画する。
