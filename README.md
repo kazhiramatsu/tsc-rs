@@ -87,8 +87,11 @@ type-checks it. Two differences matter when you switch:
   `rootDir` and `declaration`, and writes nothing but the build info of an
   `incremental` project (`--listEmittedFiles` lists it).
 
-Watch mode is not supported. `tsc-rs -b` builds a project and the
-projects it references in dependency order, as `tsgo --build` does (see
+`tsc-rs --watch` compiles, watches the files and directories the
+compilation depended on, and compiles again when they change, as
+`tsgo --watch` does (see [watch mode](#watch-mode)). `tsc-rs -b` builds a
+project and the projects it references in dependency order, as
+`tsgo --build` does (see
 [build mode](#build-mode)); `-p` compiles one project against the built
 outputs of the projects it references, and an `incremental` or
 `composite` project writes and reuses its `.tsbuildinfo` as `tsgo` does;
@@ -670,6 +673,8 @@ a response file.
 | `--generateTrace <directory>` | Record the compilation for performance analysis as `tsgo` does: a Chrome trace-event `trace.json` (program creation, each file's parse, bind, check and emit, the checks that took long, the checker's depth limits), one `types_<n>.json` per checker and a `legend.json`. Not with `-b`. |
 | `--singleThreaded` | Compile on one thread with one checker. |
 | `--checkers <n>` | Check with `n` checkers, at most sixteen (by default one per core, up to eight; `TSRS_CHECKERS` sets it too). |
+| `-w`, `--watch` | Compile, then compile again whenever a file or directory the compilation depended on changes. |
+| `--preserveWatchOutput` | With `--watch`: keep the earlier output instead of clearing the screen when a compilation starts. |
 | `--pretty false` | Use plain diagnostic output. |
 | `--ignoreConfig` | Compile explicit files without loading a discovered configuration. |
 | `--newLine lf` | Use LF line endings in generated output; `crlf` is also accepted. |
@@ -692,9 +697,26 @@ Compiler settings such as `strict`, `outDir`, `sourceMap`, and `declaration`
 are accepted on the command line as well as in `tsconfig.json`, within the
 same option support as the configuration file. Without a configuration
 file and without files, `tsc-rs` prints its version and help as `tsgo` does.
-`--watch` is not supported and is reported as a `tsc-rs:` usage error with
-exit status 2. For `--noEmit`, see
+`--watch` keeps compiling as files change (see [watch mode](#watch-mode)).
+For `--noEmit`, see
 [configuration for type checks](#configuration-for-type-checks).
+
+## Watch mode
+
+`tsc-rs --watch` (or `-w`) is `tsgo --watch`: it compiles the project (a
+`tsconfig.json`, `-p`, or the files named on the command line), then
+watches the directories of every file and directory the compilation read
+or looked for (the `include` directories recursively, the others with
+their direct entries) and compiles again when something there changes. A
+change to `tsconfig.json` or a file it extends is read before the next
+compilation; a file the `include` patterns now match joins the program. Each
+compilation reuses the previous one's incremental state, so unchanged files
+are not checked again, and an `incremental` or `composite` project also
+writes its `.tsbuildinfo`. A compilation starts by clearing the screen and
+ends with `Found N errors. Watching for file changes.` (`--preserveWatchOutput`
+keeps the earlier output). The watch uses the operating system's file
+notifications (FSEvents, inotify, ReadDirectoryChangesW or kqueue) and runs
+until the process is stopped.
 
 ## Build mode
 
@@ -963,8 +985,8 @@ The measurements above are a quick interleaved run on one machine, not the
 project's formal protocol. For repeatable measurements with recorded
 provenance, exact output verification before timing, several sessions and
 confidence intervals, see [docs/benchmarking.md](docs/benchmarking.md) and
-`scripts/benchmark-cli.py`. Watch mode is not supported, incremental
-rebuilds and `--build` were not timed, and cold-cache, Linux and Windows
+`scripts/benchmark-cli.py`. Watch mode, incremental rebuilds and
+`--build` were not timed, and cold-cache, Linux and Windows
 timings were not measured.
 
 ## Run CI
@@ -1054,7 +1076,8 @@ runs are listed under the repository's Actions tab.
 
 - Some TypeScript options and configuration combinations are unsupported
   and return an error.
-- Watch mode is not supported. `-p` compiles one project and reads the
+- `-b --watch` is not supported yet (it is reported as a `tsc-rs:` usage
+  error with exit status 2). `-p` compiles one project and reads the
   referenced projects' built outputs (it does not build them); `-b` builds
   the projects one after the other (`--builders` is accepted and ignored)
   and reports a project whose configuration file has errors without

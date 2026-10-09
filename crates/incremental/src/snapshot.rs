@@ -869,11 +869,21 @@ impl Snapshot {
         if !self.build_info_emit_pending {
             return None;
         }
-        Some(self.serialize())
+        Some(self.serialize(is_incremental(&self.program.options)))
     }
 
-    /// tsgo `snapshotToBuildInfo` of an incremental program.
-    fn serialize(&self) -> BuildInfo {
+    /// The state a watch run keeps for its next cycle (tsgo's watcher keeps
+    /// the incremental program in memory): the snapshot as an incremental
+    /// program's build info, whatever the options say.
+    pub fn to_watch_state(&mut self, has_errors_outside_cache: bool) -> BuildInfo {
+        self.ensure_has_errors(has_errors_outside_cache);
+        self.ensure_package_jsons();
+        self.serialize(true)
+    }
+
+    /// tsgo `snapshotToBuildInfo`: an incremental program's whole state, or
+    /// a non-incremental one's (a `tsc -b` project's) roots and error flags.
+    fn serialize(&self, incremental: bool) -> BuildInfo {
         let program = &self.program;
         let options = &program.options;
         let composite = options.composite == Some(true);
@@ -881,10 +891,10 @@ impl Snapshot {
         let mut to = ToBuildInfo::new(program);
         let mut info = BuildInfo {
             version: VERSION.to_owned(),
-            incremental: is_incremental(options),
+            incremental,
             ..BuildInfo::default()
         };
-        if !is_incremental(options) {
+        if !incremental {
             // snapshotToBuildInfo of a non-incremental program (tsc -b):
             // the config's roots by their canonical names, the error flags
             // and the package.json files.

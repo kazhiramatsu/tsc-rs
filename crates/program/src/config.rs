@@ -1167,6 +1167,15 @@ impl ConfigRootPlan {
         self.root_parse_diagnostics.iter().chain(self.errors.iter())
     }
 
+    /// tsgo `ReloadFileNamesOfParsedCommandLine` (a watch run's build): this
+    /// plan with the root files `reloaded` matched again; the errors stay
+    /// this plan's, so a watch whose last root went away reports no TS18003.
+    pub fn with_reloaded_file_names(mut self, reloaded: ConfigRootPlan) -> Self {
+        self.file_names = reloaded.file_names;
+        self.root_reasons = reloaded.root_reasons;
+        self
+    }
+
     /// TypeScript's identity-only `extendedSourceFiles` projection. Unlike
     /// `extended_sources`, this also represents an explicitly resolved config
     /// whose read failed and therefore has no source text.
@@ -2234,6 +2243,8 @@ const H0_NO_EMIT_NEUTRAL_CONFIG_OPTIONS: &[&str] = &[
     "extendedDiagnostics",
     // The command records the compilation in a trace directory.
     "generateTrace",
+    // A watch run keeps its output instead of clearing the screen.
+    "preserveWatchOutput",
     "stripInternal",
     "newLine",
     "removeComments",
@@ -2310,6 +2321,7 @@ const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
     "diagnostics",
     "extendedDiagnostics",
     "generateTrace",
+    "preserveWatchOutput",
     // `pretty` only selects the diagnostic renderer, which the command line
     // already decides (`--pretty false`); zod's base tsconfig sets it, so an
     // emitting command admits it like the no-emit inventory does.
@@ -4863,6 +4875,7 @@ pub(crate) fn bag_compiler_options(
         extended_diagnostics: config_option_bool(options, "extendedDiagnostics"),
         trace_resolution: config_option_bool(options, "traceResolution"),
         generate_trace: config_option_string(options, "generateTrace"),
+        preserve_watch_output: config_option_bool(options, "preserveWatchOutput"),
         list_files_only: config_option_bool(options, "listFilesOnly"),
         emit_bom: config_option_bool(options, "emitBOM"),
         no_emit_on_error: config_option_bool(options, "noEmitOnError"),

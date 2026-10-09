@@ -10,6 +10,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime};
 
 use tsc_compiler::system::{CommandLineTesting, ProgramReport, System};
+use tsc_compiler::watch::{
+    WatchBackend, WatchEvent, WatchEventKind, WatchEvents, WatchHandle, WatchRequest,
+};
 use tsc_host::vfs::{
     Clock, DirEntry, EntryContents, FileSystem, MemFs, Metadata, Seed, SteppingClock,
 };
@@ -201,6 +204,36 @@ pub(super) struct TestSystem {
     program_baselines: Mutex<String>,
     /// tsgo `FSDiffer.serializedDiff`.
     snapshot: Mutex<Option<Snapshot>>,
+    /// tsgo `MockWatchBackend.Dirs`: every directory a watch run asked to
+    /// watch, by its path (a later request replaces an earlier one).
+    watches: Mutex<BTreeMap<String, MockWatch>>,
+}
+
+/// tsgo `MockWatch`: one registered directory watch.
+struct MockWatch {
+    recursive: bool,
+    events: WatchEvents,
+    closed: Arc<std::sync::atomic::AtomicBool>,
+}
+
+/// The handle of a mock watch: dropping it closes the watch.
+struct MockWatchHandle {
+    closed: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl WatchHandle for MockWatchHandle {}
+
+impl Drop for MockWatchHandle {
+    fn drop(&mut self) {
+        self.closed
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// tsgo `fsbaselineutil.FileChange`.
+pub(super) struct FileChange {
+    path: String,
+    deleted: bool,
 }
 
 impl TestSystem {
@@ -273,7 +306,128 @@ impl TestSystem {
             traced_files: Mutex::new(BTreeSet::new()),
             program_baselines: Mutex::new(String::new()),
             snapshot: Mutex::new(None),
+            watches: Mutex::new(BTreeMap::new()),
         })
+    }
+
+    /// tsgo `FSDiffer.ChangedPaths`: the regular files created, modified or
+    /// touched since the last baseline of the file system, and the entries
+    /// deleted.
+    pub(super) fn changed_paths(&self) -> Vec<FileChange> {
+        let snapshot = lock(&self.snapshot);
+        let Some(previous) = snapshot.as_ref() else {
+            return Vec::new();
+        };
+        let mut changes = Vec::new();
+        for entry in self.fs.files.entries() {
+            let EntryContents::File(bytes) = entry.contents() else {
+                continue;
+            };
+            let changed = match previous.entries.get(entry.path()) {
+                None => true,
+                Some(old) => {
+                    old.symlink.is_some()
+                        || old.content
+                            != sanitize_internal_symbol_name(&String::from_utf8_lossy(bytes))
+                        || old.modified != entry.modified()
+                }
+            };
+            if changed {
+                changes.push(FileChange {
+                    path: entry.path().to_owned(),
+                    deleted: false,
+                });
+            }
+        }
+        for path in previous.entries.keys() {
+            if self.fs.files.entry(path).is_none() {
+                changes.push(FileChange {
+                    path: path.clone(),
+                    deleted: true,
+                });
+            }
+        }
+        changes
+    }
+
+    /// tsgo `MockWatchBackend.SendChangedPaths`: an event per change and an
+    /// update of each parent directory, delivered to the watches whose
+    /// directory contains the path.
+    pub(super) fn send_changed_paths(&self, changes: &[FileChange]) {
+        let mut events = Vec::with_capacity(changes.len() * 2);
+        let mut seen_directories = BTreeSet::new();
+        for change in changes {
+            events.push(WatchEvent {
+                kind: if change.deleted {
+                    WatchEventKind::Delete
+                } else {
+                    WatchEventKind::Update
+                },
+                path: change.path.clone(),
+            });
+            let mut directory = parent_of(&change.path).to_owned();
+            while !directory.is_empty() && directory != "/" && directory != "." {
+                if !seen_directories.insert(directory.clone()) {
+                    break;
+                }
+                events.push(WatchEvent {
+                    kind: WatchEventKind::Update,
+                    path: directory.clone(),
+                });
+                let parent = parent_of(&directory).to_owned();
+                if parent == directory {
+                    break;
+                }
+                directory = parent;
+            }
+        }
+        let watches = lock(&self.watches);
+        for (directory, watch) in watches.iter() {
+            if watch.closed.load(std::sync::atomic::Ordering::Relaxed) {
+                continue;
+            }
+            let matching = events
+                .iter()
+                .filter(|event| {
+                    path_is_under(
+                        &event.path,
+                        directory,
+                        watch.recursive,
+                        self.fs.case_sensitive(),
+                    )
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if !matching.is_empty() {
+                watch.events.send(matching);
+            }
+        }
+    }
+
+    /// tsgo `MockWatchBackend.HasWatches`.
+    pub(super) fn has_watches(&self) -> bool {
+        !lock(&self.watches).is_empty()
+    }
+
+    /// tsgo `MockWatchBackend.WatchState`.
+    pub(super) fn watch_state(&self) -> String {
+        let mut state = String::from("Watch Registrations::\nDirectory watches::\n");
+        let watches = lock(&self.watches);
+        let open = watches
+            .iter()
+            .filter(|(_, watch)| !watch.closed.load(std::sync::atomic::Ordering::Relaxed))
+            .collect::<Vec<_>>();
+        if open.is_empty() {
+            state.push_str("  (none)\n");
+        }
+        for (directory, watch) in open {
+            if watch.recursive {
+                state.push_str(&format!("  {directory} (recursive)\n"));
+            } else {
+                state.push_str(&format!("  {directory}\n"));
+            }
+        }
+        state
     }
 
     pub(super) fn current_directory_text(&self) -> &str {
@@ -526,6 +680,59 @@ impl System for TestSystem {
     }
 }
 
+impl WatchBackend for TestSystem {
+    /// tsgo `MockWatchBackend.WatchDirectories`: fails for a directory that
+    /// does not exist, records the others.
+    fn watch_directories(
+        &self,
+        requests: Vec<WatchRequest>,
+    ) -> io::Result<Vec<Box<dyn WatchHandle>>> {
+        let mut watches = lock(&self.watches);
+        for request in &requests {
+            if !self.fs.files.is_dir(&request.directory) {
+                return Err(io::Error::other(format!(
+                    "directory does not exist: {}",
+                    request.directory
+                )));
+            }
+        }
+        let mut handles: Vec<Box<dyn WatchHandle>> = Vec::with_capacity(requests.len());
+        for request in requests {
+            let closed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            watches.insert(
+                request.directory,
+                MockWatch {
+                    recursive: request.recursive,
+                    events: request.events,
+                    closed: Arc::clone(&closed),
+                },
+            );
+            handles.push(Box::new(MockWatchHandle { closed }));
+        }
+        Ok(handles)
+    }
+}
+
+/// tsgo `pathIsUnder`: `path` is in `directory` (a direct entry unless
+/// `recursive`).
+fn path_is_under(path: &str, directory: &str, recursive: bool, case_sensitive: bool) -> bool {
+    let (path, directory) = if case_sensitive {
+        (path.to_owned(), directory.to_owned())
+    } else {
+        (
+            tsc_host::to_file_name_lower_case(path),
+            tsc_host::to_file_name_lower_case(directory),
+        )
+    };
+    let Some(rest) = path.strip_prefix(&directory) else {
+        return false;
+    };
+    let Some(rest) = rest.strip_prefix('/') else {
+        return false;
+    };
+    !rest.is_empty() && (recursive || !rest.contains('/'))
+}
+
 impl CommandLineTesting for TestSystem {
     /// tsgo `TestSys.OnEmittedFiles`: every emitted file gets the next
     /// time, unless the build put back the time the last baseline saw.
@@ -576,6 +783,18 @@ impl CommandLineTesting for TestSystem {
 
     fn on_build_status_report_end(&self, output: &mut String) {
         push_line(output, BUILD_STATUS_END);
+    }
+
+    fn watch_backend(&self) -> Option<&dyn WatchBackend> {
+        Some(self)
+    }
+
+    fn on_watch_status_report_start(&self, output: &mut String) {
+        push_line(output, WATCH_STATUS_START);
+    }
+
+    fn on_watch_status_report_end(&self, output: &mut String) {
+        push_line(output, WATCH_STATUS_END);
     }
 
     /// tsgo `TestSys.OnProgram`: the config, then the files whose semantic

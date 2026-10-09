@@ -86,6 +86,17 @@ pub trait CommandLineTesting: Send + Sync {
 
     /// After an incremental program's run (tsgo `OnProgram`).
     fn on_program(&self, _program: &ProgramReport) {}
+
+    /// The backend a watch run watches its directories with (tsgo
+    /// `CommandLineTestingWithWatchBackend`); without one, a watch run of
+    /// the harness watches nothing.
+    fn watch_backend(&self) -> Option<&dyn crate::watch::WatchBackend> {
+        None
+    }
+
+    fn on_watch_status_report_start(&self, _output: &mut String) {}
+
+    fn on_watch_status_report_end(&self, _output: &mut String) {}
 }
 
 /// An incremental program after its run, as tsgo's test harness sees it.
