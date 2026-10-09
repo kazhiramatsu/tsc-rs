@@ -478,7 +478,7 @@ fn text_of_jsdoc_comment(source: &SourceFile, comment: Option<&JSDocComment>) ->
     let mut text = String::new();
     match comment {
         None => {}
-        Some(JSDocComment::Text(comment)) => text.push_str(comment),
+        Some(JSDocComment::Text { text: comment, .. }) => text.push_str(comment),
         Some(JSDocComment::Nodes(nodes)) => {
             for &node in source.arena.node_array(*nodes).nodes {
                 let record = source.arena.node(node);

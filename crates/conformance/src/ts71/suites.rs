@@ -13,6 +13,9 @@
 //! tsoptions and config (`tsoptions/commandlineparser_test.go`,
 //! `tsoptions/tsconfigparsing_test.go`): the command-line and tsconfig
 //! parsing baselines of the Go tests' tables ([`tsoptions`], [`tsconfig`]).
+//!
+//! api (`api/encoder/encoder_test.go`): the API encoder's dumps of two
+//! parsed sources ([`api`]).
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -28,6 +31,7 @@ use tsc_harness::upstream_suites::transpile::{TranspileCase, TranspileConfigurat
 use super::errors_baseline::{self, InputFile};
 use super::{declaration_emit_extension, output_extension, panic_text, CASE_STACK_BYTES};
 
+mod api;
 mod go_json;
 mod tables;
 mod tsc;
@@ -35,7 +39,8 @@ mod tsconfig;
 mod tsoptions;
 
 /// The suites [`run`] knows.
-pub const SUITES: [&str; 7] = [
+pub const SUITES: [&str; 8] = [
+    "api",
     "config",
     "transpile",
     "tsbuild",
@@ -98,6 +103,15 @@ pub fn run(workspace: &Path, options: &SuiteRunOptions) -> Result<Vec<SuiteResul
                     Box::new(move || Ok(tsoptions::render(&case))) as Render,
                 )
             })
+            .collect(),
+        options,
+    )?);
+    results.extend(run_rendered(
+        "api",
+        &reference.join("api"),
+        api::cases()
+            .into_iter()
+            .map(|(baseline, text)| (baseline, Box::new(move || Ok(api::render(&text))) as Render))
             .collect(),
         options,
     )?);

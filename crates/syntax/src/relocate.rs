@@ -5313,7 +5313,7 @@ where
     A: FnMut(NodeArrayId, NodeArrayId) -> bool,
 {
     match (left, right) {
-        (JSDocComment::Text(left), JSDocComment::Text(right)) => left == right,
+        (left @ JSDocComment::Text { .. }, right @ JSDocComment::Text { .. }) => left == right,
         (JSDocComment::Nodes(left), JSDocComment::Nodes(right)) => array(*left, *right),
         _ => false,
     }

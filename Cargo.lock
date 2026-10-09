@@ -417,6 +417,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-api"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-diagnostics",
+ "tsc-rs-syntax",
+ "tsc-rs-types",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "tsc-rs-binder"
 version = "0.1.0"
 dependencies = [
@@ -477,6 +487,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tsc-rs-api",
  "tsc-rs-checker",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",

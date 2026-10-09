@@ -16,6 +16,7 @@ path = "src/lib.rs"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+tsc-api.workspace = true
 tsc-checker.workspace = true
 tsc-compiler.workspace = true
 tsc-types.workspace = true

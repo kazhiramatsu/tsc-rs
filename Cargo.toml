@@ -13,6 +13,7 @@ members = [
     "crates/harness",
     "crates/conformance",
     "crates/xtask",
+    "crates/api",
 ]
 resolver = "2"
 
@@ -28,6 +29,7 @@ iter_over_hash_type = "deny"
 # renamed package manifest and this one mapping. Member manifests inherit the
 # aliases and Rust `use` paths can remain unchanged.
 [workspace.dependencies]
+tsc-api = { package = "tsc-rs-api", path = "crates/api" }
 tsc-binder = { package = "tsc-rs-binder", path = "crates/binder" }
 tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }

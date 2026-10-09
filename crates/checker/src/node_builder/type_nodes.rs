@@ -4677,7 +4677,7 @@ pub(super) fn js_doc_comment_text(
 ) -> BuildResult<Option<String>> {
     match comment {
         None => Ok(None),
-        Some(tsc_syntax::nodes::JSDocComment::Text(text)) => Ok(Some(text.clone())),
+        Some(tsc_syntax::nodes::JSDocComment::Text { text, .. }) => Ok(Some(text.clone())),
         Some(tsc_syntax::nodes::JSDocComment::Nodes(nodes)) => {
             let mut text = String::new();
             for node in checker.nodes_of(Some(*nodes)) {

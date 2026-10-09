@@ -1,0 +1,9 @@
+const a = 'single';
+const b = "\x41\u0041\u{41}\uD83D\uDE00";
+const c = "\u00zz";
+const d = 0x1F + 0b11 + 0o17 + 1_000 + 1e3 + 017 + .5;
+const e = 10n + 0x1Fn;
+const f = /re/g;
+const g = `a${1}b${2}c`;
+const h = String.raw`\u{zz}${1}\xg`;
+const i = `\u00zz`;

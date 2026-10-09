@@ -96,7 +96,12 @@ fn jsdoc_child_order_and_comment_union_follow_tsc() {
     let typedef = arena.alloc_node(
         NodeData::JSDocTypedefTag(Box::new(JSDocTypedefTagData {
             tag_name: Some(tag_name),
-            comment: Some(JSDocComment::Text("plain".to_owned())),
+            comment: Some(JSDocComment::Text {
+                text: "plain".to_owned(),
+                pos: 0,
+                end: 0,
+                text_end: 0,
+            }),
             name: Some(full_name),
             full_name: Some(full_name),
             type_expression: Some(type_expression),
