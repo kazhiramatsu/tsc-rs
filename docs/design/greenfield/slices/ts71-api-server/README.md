@@ -1722,3 +1722,10 @@ token を `emitToken` で書く。その差の出る所を tsgo に合わせた�
   tsbuildWatch 63/65、tsc 211/223、tscWatch 42、tsoptions 80）。checker は変えていないので並列対照は行っていない。client の test
   と tsgo との比較は同じコードの release build で。workspace 全体の test と Clippy は hosted の `rust` job に任せた。
 - **残り**：P5-5b（`preserveSourceNewlines`）、P5-6（build orchestrator）。
+
+### P5-5d の hosted の記録と merge（2026-10-11）
+
+- hosted：最終候補 `238c91b77`（コード `8c4c6aecf`・packet の記録）の run 38089292178（`plan` 29s、`rust` 11m34s、
+  `conformance (TypeScript 7.1)` 20m4s、`gates` 17s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge →
+  `03f9cbd38`（merge commit、PR #738）。
+- 次は P5-5b（`preserveSourceNewlines`）。その後に P5-6（build orchestrator）。
