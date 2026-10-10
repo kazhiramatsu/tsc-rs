@@ -1258,3 +1258,81 @@ snapshot、option、module provider を借りる）。
   PR #732）。
 - 次は P5-4c（signature、`resolveName`・`getSymbolsInScope`、well-known、`typeToTypeNode`・
   `signatureToSignatureDeclaration`）。
+
+## P5-4c signature、名前の解決、node builder（2026-10-10）
+
+- **method**（20）：
+  - signature：`getSignaturesOfType`（kind 0 は call、他は construct）、`getResolvedSignature`、
+    `getSignatureFromDeclaration`、signature の部分（`objectId` を取る 5：`getTypeParametersOfSignature`、
+    `getParametersOfSignature`、`getThisParameterOfSignature`、`getTargetOfSignature`、`getReturnTypeOfSignature`）、
+    `getRestTypeOfSignature`、`getTypePredicateOfSignature`、`getParameterType`、`getTypeParameterAtPosition`（負の
+    index は client error `invalid parameter index`）。
+  - 名前：`resolveName`（node handle、file と position、どちらも無ければ global だけ。名は escape して引く。
+    `excludeGlobals`）、`getSymbolsInScope`（location が無ければ client error `getSymbolsInScope requires a location`）。
+  - well-known：`getWellKnownSymbols`（unknown・undefined・arguments）、`getWellKnownSignatures`（unknown）。
+  - node builder：`typeToTypeNode`、`signatureToSignatureDeclaration`（kind は tsgo の番号。tsc-rs に無い kind は tsgo
+    の helper が扱わない kind と同じく panic）。結果は tsgo `EncodeNode(node, nil)` と同じ encode（file の text も
+    hash も無く、位置は UTF-8 のまま、JSDoc は辿らない）。MessagePack は binary、JSON は `{ data }`。
+- **response**：`SignatureResponse`（`flags` は常に書き、declaration・型 parameter・parameter・this parameter・target は
+  無ければ省く。parameter の symbol は registry に入れない、tsgo と同じ）、`TypePredicateResponse`、
+  `WellKnownSymbolsResponse`、`WellKnownSignaturesResponse`。signature の handle は checker の番号 + 1、project ごとの
+  registry（tsgo の error の文も同じ）。
+- **checker の export**（`exports.rs`）：`getSymbolsInScope`（tsgo `services.go:17-129`。tsgo の結果は Go の map の順なので
+  比較は集合で）、`getTypeParameterAtPosition`（`keyof this` は this 型の制約の index 型）、`getRestTypeOfSignature`、
+  `GetSignatureFromDeclaration`（parameter list の無い node は Go の nil の参照の panic。先に node の link を読むので、
+  失敗した call の解決が残した resolving signature を返すのも tsgo と同じ）、node builder の API の入口（display arena の
+  source の SourceFile と、合成した string literal の引用符を encoder に渡す）。node builder の中の panic でも display
+  arena を戻す（tsgo の request の panic の後も checker は使える）。
+- **既存の経路の変更**（tsgo に合わせた）：
+  - `SignatureFlags` を tsgo の並び（`Construct` = 4 を足した）にした。宣言の signature（constructor・construct
+    signature・constructor type）と既定の construct signature に `Construct` を立てる。API の flag はそのまま渡す。
+  - `this` の型述語の parameter の index を 0 にした（tsgo `relater.go:2125`。tsc は undefined で、port は -1 だった）。
+  - import の呼び出しの signature 解決は untyped（tsgo `checker.go:8666-8668`）。index signature の宣言にも signature を
+    作る。
+  - position からの `resolveName` は token（木に無い `(`・`=>` など）から始める：tsgo はその token を最初の location に
+    するので、親が関数なら引数・型引数は見えない。resolver に token から始める入口を足した（最初の location の判定だけが
+    変わる）。
+  - factory：update と clone した node は元の node の flag を持つ（tsgo `updateNode`。tsc は Synthesized を足す）。`=>` の
+    token を渡さない arrow function は token を持たない（tsgo `NewArrowFunction`。printer は token が無ければ `=>` を
+    書く）。
+  - node builder：signature の helper は tsgo が扱わない kind（JSDocFunctionType を含む）で tsgo の文の panic。既存の
+    名前の再利用で左端の識別子は新しい識別子（tsgo `attachSymbolToLeftmostIdentifier`。他の部分は子を辿って update）。
+    既存の注釈を再利用する visitor が作り直した list は元の範囲を持つ（tsgo・tsc の `VisitNodes`）。
+  - encoder：NodeList の trailing comma の判定は位置を符号付きで比べる（合成の list の -1）。
+  - tsc 6.0.3 で記録した emitter の contract（4）は node の flag を比べない（update・clone の flag の意味が tsgo に
+    なった）。
+- **test**：api の unit 7（`crates/api/tests/unit/session_signatures.rs`。tsgo の応答に合わせた。signature とその部分、
+  型述語、解決した signature と宣言の signature と panic、node と position での名前の解決、scope の symbol、well-known と
+  handle の error、node builder の encode を tsgo の bytes と比べる）。
+- **tsgo との比較**（local、MessagePack、番号を初出順に付け直して比べる。`getSymbolsInScope` は集合で）：fixture 3 種
+  （P5-4b の `types`、mapCode.ts、basic から JS を除いた 6 file）で、well-known、全ての位置の型と symbol、call の node に
+  `getResolvedSignature`、signature の宣言に `getSignatureFromDeclaration`、他の node の 5 つに 1 つに両方、identifier と
+  17・23・31 個に 1 つの node に `resolveName`（名 18、meaning 3）、`getSymbolsInScope`、file と position で
+  `resolveName`・`getSymbolsInScope`、見つけた型（上限 400）の call・construct signature、見つけた signature の全ての照会、
+  型に `typeToTypeNode`（flag 3 通り、location 付き）、signature に `signatureToSignatureDeclaration`（kind 16、flag、
+  location 付き）を送る：74,792 行のうち違うのは 37 行で、全て下の bounded の node builder。全ての位置で
+  `resolveName`（名 4〜6、meaning 2）と `getSymbolsInScope` を送る掃引：211,705 行で差は 0。
+- **TypeScript の client の test**（local）：tsc-rs 250/327（P5-4b は 213）。残り 77 のうち 76 は後の slice の未実装の
+  method（`printNode` 15、build orchestrator 12、diagnostics 20、emit 13、LS 13、`formatNodeForInsertion` 3）、1 は
+  P5-3a の null の要素。
+- **tsgo と違う所**（bounded）：
+  - node builder の結果のうち、enclosing declaration と同じ file の既存の注釈を再利用した部分の NodeList の位置と
+    trailing comma、asserts の token の位置、update か作り直しかによる node の flag：tsgo の再利用の visitor
+    （`nodecopy.go`）の node ごとの流れと tsc-rs の visitor（tsc 6.0.3 の `visitExistingNodeTreeSymbols` が元）の違い。
+    印字の結果は同じ。比較の node builder の要求 4,449 のうち 37。
+  - 別の file から写した node の位置：tsc-rs の display の node は一つの file の arena にあり（location が無ければ最初の
+    file）、他の file の node はそこに位置なしで写す。tsgo の `Clone` は位置を持つ（例：location の無い constructor の
+    `public readonly` の修飾子）。
+- **検証**（コード `1261547c6`。macOS、`nice -n 20`、Cargo の job 2）：
+  - `cargo fmt --all -- --check`、Clippy（`-p tsc-rs-checker -p tsc-rs-api -p tsc-rs-emitter -p tsc-rs-types
+    --all-targets -- -D warnings`）は clean。
+  - `cargo test`：checker（1,795）、api（203。P5-4c の 7 を含む）、emitter（635）。
+  - release build の full conformance（`--workers 2 --check`、469 s）：0 regressions、accepted tier を超える構成 0。
+    errors full 13,451、emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、
+    harness error 15（main と同じ）。
+  - suites（release の `suites-ts71` を作り直して `scripts/suites_ts71.py --check`）：0 regressions、数は main と同じ。
+  - 並列対照（`--checkers 4`、451 s、`scripts/conformance_ts71_compare.py`）：15,224 構成が一致、違う 4 構成は記録済みの
+    partition 依存の構成。
+  - 上の tsgo との比較と client の test は最終のコードで。
+  - workspace 全体の test と Clippy は hosted の `rust` job に任せる。
+- **残り**：P5-4d（diagnostics と emit）。
