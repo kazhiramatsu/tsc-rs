@@ -336,7 +336,7 @@ fn no_emit_on_error_skips_files_and_uses_exit_one() {
 }
 
 #[test]
-fn filesystem_write_failure_reports_ts5033_continues_and_lists_attempted_files() {
+fn filesystem_write_failure_reports_ts5033_continues_and_lists_written_files() {
     let tree = TempTree::new();
     fs::write(tree.path("first.ts"), "export const first: number = 1;\n")
         .expect("write first source");
@@ -352,18 +352,21 @@ fn filesystem_write_failure_reports_ts5033_continues_and_lists_attempted_files()
     let output = run(&tree, &["-p", "tsconfig.json"]);
     assert_eq!(output.status.code(), Some(2));
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 diagnostics");
-    assert!(stdout.contains("TS5033"), "{stdout}");
+    let current_directory = compiler_current_directory(&tree);
+    let current_directory = current_directory.display();
+    // tsgo: Go's error of the failed open; only the written file is listed.
     #[cfg(unix)]
+    assert_eq!(
+        stdout,
+        format!(
+            "error TS5033: Could not write file '{current_directory}/first.js': open {current_directory}/first.js: is a directory.\nTSFILE: {current_directory}/second.js\n"
+        )
+    );
+    assert!(stdout.contains("TS5033"), "{stdout}");
     assert!(
-        stdout.contains("EISDIR: illegal operation on a directory"),
+        !stdout.contains(&format!("TSFILE: {current_directory}/first.js")),
         "{stdout}"
     );
-    let current_directory = compiler_current_directory(&tree);
-    let first_status = format!("TSFILE: {}/first.js", current_directory.display());
-    let second_status = format!("TSFILE: {}/second.js", current_directory.display());
-    let first_status = stdout.find(&first_status).expect("first TSFILE status");
-    let second_status = stdout.find(&second_status).expect("second TSFILE status");
-    assert!(first_status < second_status, "{stdout}");
     assert!(tree.path("first.js").is_dir());
     assert_eq!(
         fs::read(tree.path("second.js")).expect("later output still written"),

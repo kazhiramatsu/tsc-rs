@@ -632,3 +632,38 @@ fn the_compiler_host_lists_files_then_directories_in_the_file_systems_order() {
 }
 
 use crate::DirectoryListingKind;
+
+/// tsgo `osvfs` writes with Go's `os` package: a failure is Go's
+/// `*fs.PathError`, and `os.MkdirAll` names the path that is not a
+/// directory (tsgo 19dadef8's TS5033 texts for the same layouts).
+#[cfg(unix)]
+#[test]
+fn os_writes_report_go_path_errors() {
+    let root = std::env::temp_dir().join(format!("tsc-rs-osfs-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("out.js")).unwrap();
+    std::fs::write(root.join("file"), b"").unwrap();
+    let root_path = std::fs::canonicalize(&root).unwrap();
+    let root_path = root_path.to_str().unwrap();
+    let fs = OsFs::new(true);
+
+    let error = fs
+        .write_creating_dirs(&format!("{root_path}/out.js"), b"x")
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        format!("open {root_path}/out.js: is a directory")
+    );
+    let error = fs
+        .write_creating_dirs(&format!("{root_path}/file/sub/a.js"), b"x")
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        format!("mkdir {root_path}/file: not a directory")
+    );
+    assert_eq!(error.kind(), io::ErrorKind::NotADirectory);
+    fs.write_creating_dirs(&format!("{root_path}/new/dir/a.js"), b"x")
+        .unwrap();
+    assert_eq!(fs.read(&format!("{root_path}/new/dir/a.js")).unwrap(), b"x");
+    std::fs::remove_dir_all(&root).unwrap();
+}

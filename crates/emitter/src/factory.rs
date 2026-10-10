@@ -6347,90 +6347,17 @@ impl<'arena> NodeFactory<'arena> {
 
     fn skip_partially_emitted_expressions(
         &self,
-        mut node: TransformNode,
+        node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        loop {
-            let NodeData::PartiallyEmittedExpression(data) = &self.arena.node(node)?.data else {
-                return Ok(node);
-            };
-            let Some(expression) = data.expression else {
-                return Ok(node);
-            };
-            let Some(expression) = self.arena.node_ref(node.source, expression) else {
-                return Ok(node);
-            };
-            node = expression;
-        }
+        skip_partially_emitted_expressions_in(self.arena, node)
     }
 
     fn binary_operator(&self, node: TransformNode) -> Result<Option<SyntaxKind>, TransformError> {
-        let NodeData::BinaryExpression(data) = &self.arena.node(node)?.data else {
-            return Ok(None);
-        };
-        data.operator_token
-            .and_then(|operator| self.arena.node_ref(node.source, operator))
-            .map(|operator| self.arena.node(operator).map(|operator| operator.kind))
-            .transpose()
+        binary_operator_in(self.arena, node)
     }
 
     fn expression_precedence(&self, node: TransformNode) -> Result<i8, TransformError> {
-        let kind = self.arena.node(node)?.kind;
-        Ok(match kind {
-            SyntaxKind::CommaListExpression => PRECEDENCE_COMMA,
-            SyntaxKind::SpreadElement => PRECEDENCE_SPREAD,
-            SyntaxKind::YieldExpression => PRECEDENCE_YIELD,
-            SyntaxKind::ConditionalExpression => PRECEDENCE_CONDITIONAL,
-            SyntaxKind::BinaryExpression => self
-                .binary_operator(node)?
-                .map(binary_operator_precedence)
-                .unwrap_or(PRECEDENCE_INVALID),
-            SyntaxKind::TypeAssertionExpression
-            | SyntaxKind::NonNullExpression
-            | SyntaxKind::PrefixUnaryExpression
-            | SyntaxKind::TypeOfExpression
-            | SyntaxKind::VoidExpression
-            | SyntaxKind::DeleteExpression
-            | SyntaxKind::AwaitExpression => PRECEDENCE_UNARY,
-            SyntaxKind::PostfixUnaryExpression => PRECEDENCE_UPDATE,
-            SyntaxKind::CallExpression => PRECEDENCE_LEFT_HAND_SIDE,
-            SyntaxKind::NewExpression => match &self.arena.node(node)?.data {
-                NodeData::NewExpression(data) if data.arguments.is_some() => PRECEDENCE_MEMBER,
-                _ => PRECEDENCE_LEFT_HAND_SIDE,
-            },
-            // tsgo GetOperatorPrecedence (precedence.go:293-295) gives an
-            // instantiation expression member precedence; tsc 6.0 had none
-            // for it and parenthesized `f<T>` wherever precedence decided.
-            SyntaxKind::TaggedTemplateExpression
-            | SyntaxKind::PropertyAccessExpression
-            | SyntaxKind::ElementAccessExpression
-            | SyntaxKind::MetaProperty
-            | SyntaxKind::ExpressionWithTypeArguments => PRECEDENCE_MEMBER,
-            SyntaxKind::AsExpression | SyntaxKind::SatisfiesExpression => PRECEDENCE_RELATIONAL,
-            SyntaxKind::ThisKeyword
-            | SyntaxKind::SuperKeyword
-            | SyntaxKind::Identifier
-            | SyntaxKind::PrivateIdentifier
-            | SyntaxKind::NullKeyword
-            | SyntaxKind::TrueKeyword
-            | SyntaxKind::FalseKeyword
-            | SyntaxKind::NumericLiteral
-            | SyntaxKind::BigIntLiteral
-            | SyntaxKind::StringLiteral
-            | SyntaxKind::ArrayLiteralExpression
-            | SyntaxKind::ObjectLiteralExpression
-            | SyntaxKind::FunctionExpression
-            | SyntaxKind::ArrowFunction
-            | SyntaxKind::ClassExpression
-            | SyntaxKind::RegularExpressionLiteral
-            | SyntaxKind::NoSubstitutionTemplateLiteral
-            | SyntaxKind::TemplateExpression
-            | SyntaxKind::ParenthesizedExpression
-            | SyntaxKind::OmittedExpression
-            | SyntaxKind::JsxElement
-            | SyntaxKind::JsxSelfClosingElement
-            | SyntaxKind::JsxFragment => PRECEDENCE_PRIMARY,
-            _ => PRECEDENCE_INVALID,
-        })
+        expression_precedence_in(self.arena, node)
     }
 
     fn expression_associativity(
@@ -7904,6 +7831,112 @@ impl NodeDataChildVisitor for CrossSourceReuseClone<'_> {
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
     }
+}
+
+fn skip_partially_emitted_expressions_in(
+    arena: &TransformArena,
+    mut node: TransformNode,
+) -> Result<TransformNode, TransformError> {
+    loop {
+        let NodeData::PartiallyEmittedExpression(data) = &arena.node(node)?.data else {
+            return Ok(node);
+        };
+        let Some(expression) = data.expression else {
+            return Ok(node);
+        };
+        let Some(expression) = arena.node_ref(node.source, expression) else {
+            return Ok(node);
+        };
+        node = expression;
+    }
+}
+
+fn binary_operator_in(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<Option<SyntaxKind>, TransformError> {
+    let NodeData::BinaryExpression(data) = &arena.node(node)?.data else {
+        return Ok(None);
+    };
+    data.operator_token
+        .and_then(|operator| arena.node_ref(node.source, operator))
+        .map(|operator| arena.node(operator).map(|operator| operator.kind))
+        .transpose()
+}
+
+/// tsgo `ast.GetExpressionPrecedence`.
+fn expression_precedence_in(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<i8, TransformError> {
+    let kind = arena.node(node)?.kind;
+    Ok(match kind {
+        SyntaxKind::CommaListExpression => PRECEDENCE_COMMA,
+        SyntaxKind::SpreadElement => PRECEDENCE_SPREAD,
+        SyntaxKind::YieldExpression => PRECEDENCE_YIELD,
+        SyntaxKind::ConditionalExpression => PRECEDENCE_CONDITIONAL,
+        SyntaxKind::BinaryExpression => binary_operator_in(arena, node)?
+            .map(binary_operator_precedence)
+            .unwrap_or(PRECEDENCE_INVALID),
+        SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::VoidExpression
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::AwaitExpression => PRECEDENCE_UNARY,
+        SyntaxKind::PostfixUnaryExpression => PRECEDENCE_UPDATE,
+        SyntaxKind::CallExpression => PRECEDENCE_LEFT_HAND_SIDE,
+        SyntaxKind::NewExpression => match &arena.node(node)?.data {
+            NodeData::NewExpression(data) if data.arguments.is_some() => PRECEDENCE_MEMBER,
+            _ => PRECEDENCE_LEFT_HAND_SIDE,
+        },
+        // tsgo GetOperatorPrecedence (precedence.go:293-295) gives an
+        // instantiation expression member precedence; tsc 6.0 had none
+        // for it and parenthesized `f<T>` wherever precedence decided.
+        SyntaxKind::TaggedTemplateExpression
+        | SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::MetaProperty
+        | SyntaxKind::ExpressionWithTypeArguments => PRECEDENCE_MEMBER,
+        SyntaxKind::AsExpression | SyntaxKind::SatisfiesExpression => PRECEDENCE_RELATIONAL,
+        SyntaxKind::ThisKeyword
+        | SyntaxKind::SuperKeyword
+        | SyntaxKind::Identifier
+        | SyntaxKind::PrivateIdentifier
+        | SyntaxKind::NullKeyword
+        | SyntaxKind::TrueKeyword
+        | SyntaxKind::FalseKeyword
+        | SyntaxKind::NumericLiteral
+        | SyntaxKind::BigIntLiteral
+        | SyntaxKind::StringLiteral
+        | SyntaxKind::ArrayLiteralExpression
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::ArrowFunction
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::RegularExpressionLiteral
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::TemplateExpression
+        | SyntaxKind::ParenthesizedExpression
+        | SyntaxKind::OmittedExpression
+        | SyntaxKind::JsxElement
+        | SyntaxKind::JsxSelfClosingElement
+        | SyntaxKind::JsxFragment => PRECEDENCE_PRIMARY,
+        _ => PRECEDENCE_INVALID,
+    })
+}
+
+/// tsgo `getBinaryExpressionPrecedence`: the left operand of a printed `**`
+/// needs update precedence (`(--x) ** 2`, `(-x) ** 2`). tsgo applies it
+/// while printing, so a `**` a later transform lowers keeps none; tsc's
+/// factory rules left a unary operand bare.
+pub(crate) fn exponentiation_left_operand_needs_parentheses(
+    arena: &TransformArena,
+    operand: TransformNode,
+) -> Result<bool, TransformError> {
+    let emitted = skip_partially_emitted_expressions_in(arena, operand)?;
+    Ok(expression_precedence_in(arena, emitted)? < PRECEDENCE_UPDATE)
 }
 
 fn mixing_binary_operators_requires_parentheses(left: SyntaxKind, right: SyntaxKind) -> bool {

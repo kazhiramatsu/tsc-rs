@@ -52,8 +52,8 @@ pub use error::{
 };
 pub use execute::prepare_emit_source;
 pub use execute::{
-    base64_encode, begin_emit_files, emit_files, emit_forced_declarations, emit_planned_files,
-    emit_planned_units, emit_planned_units_with_kinds, finish_emit_files,
+    base64_encode, begin_emit_files, emit_files, emit_forced_declarations, emit_forced_javascript,
+    emit_planned_files, emit_planned_units, emit_planned_units_with_kinds, finish_emit_files,
     print_script_units_with_recording_for_harness, source_map_recording_inputs_for,
     source_mapping_url, source_root_field, validate_declaration_diagnostics_request,
     validate_emit_options, validate_emit_request, validate_forced_declaration_request,

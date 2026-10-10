@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -12,16 +12,12 @@ use tsc_emitter::{
 #[derive(Debug, Eq, PartialEq)]
 enum FileSystemCall {
     Write(PathBuf, Vec<u8>),
-    Exists(PathBuf),
-    Create(PathBuf),
 }
 
 #[derive(Default)]
 struct ObservedFileSystem {
     calls: Vec<FileSystemCall>,
-    directories: BTreeSet<PathBuf>,
     write_results: VecDeque<Result<(), String>>,
-    create_failure: Option<(PathBuf, String)>,
 }
 
 impl EmitFileSystem for ObservedFileSystem {
@@ -37,31 +33,6 @@ impl EmitFileSystem for ObservedFileSystem {
             .pop_front()
             .unwrap_or(Ok(()))
             .map_err(Into::into)
-    }
-
-    fn create_directory(
-        &mut self,
-        path: tsc_diagnostics::JsStr<'_>,
-    ) -> Result<(), tsc_diagnostics::JsString> {
-        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-        (|| -> Result<(), String> {
-            self.calls.push(FileSystemCall::Create(path.to_path_buf()));
-            if let Some((failed_path, message)) = &self.create_failure {
-                if failed_path == path {
-                    return Err(message.clone());
-                }
-            }
-            self.directories.insert(path.to_path_buf());
-            Ok(())
-        })()
-        .map_err(Into::into)
-    }
-
-    fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {
-        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-
-        self.calls.push(FileSystemCall::Exists(path.to_path_buf()));
-        self.directories.contains(path)
     }
 }
 
@@ -192,32 +163,9 @@ fn sink_io_failures_retain_operation_path_and_stable_message() {
 }
 
 #[test]
-fn filesystem_sink_writes_once_without_parent_observations_on_success() {
-    let artifact = EmitArtifact::javascript(
-        "/project/out.js",
-        "export {};\n",
-        false,
-        Some(Vec::new()),
-        EmitTextMetadata::default(),
-    );
-    let mut filesystem = ObservedFileSystem::default();
-    let mut sink = FsOutputSink::new(&mut filesystem);
-
-    assert_eq!(
-        sink.write(artifact).expect("first write succeeds"),
-        EmitWriteDisposition::Written
-    );
-    assert_eq!(
-        filesystem.calls,
-        [FileSystemCall::Write(
-            PathBuf::from("/project/out.js"),
-            b"export {};\n".to_vec(),
-        )]
-    );
-}
-
-#[test]
-fn filesystem_sink_creates_missing_parents_outward_in_and_retries_with_bom() {
+fn filesystem_sink_writes_each_artifact_once_with_its_bom() {
+    // The file system's write creates the missing directories (tsgo
+    // `vfs.FS.WriteFile`); the sink writes each artifact once.
     let artifact = EmitArtifact::javascript(
         "/project/generated/nested/out.js",
         "value;\n",
@@ -225,81 +173,24 @@ fn filesystem_sink_creates_missing_parents_outward_in_and_retries_with_bom() {
         Some(Vec::new()),
         EmitTextMetadata::default(),
     );
-    let mut filesystem = ObservedFileSystem {
-        directories: [PathBuf::from("/project")].into_iter().collect(),
-        write_results: [Err("first write".to_owned()), Ok(())]
-            .into_iter()
-            .collect(),
-        ..ObservedFileSystem::default()
-    };
+    let mut filesystem = ObservedFileSystem::default();
     let mut sink = FsOutputSink::new(&mut filesystem);
 
     assert_eq!(
-        sink.write(artifact).expect("retry succeeds"),
+        sink.write(artifact).expect("the write succeeds"),
         EmitWriteDisposition::Written
     );
-    let materialized = [&[0xEF, 0xBB, 0xBF][..], b"value;\n"].concat();
     assert_eq!(
         filesystem.calls,
-        [
-            FileSystemCall::Write(
-                PathBuf::from("/project/generated/nested/out.js"),
-                materialized.clone(),
-            ),
-            FileSystemCall::Exists(PathBuf::from("/project/generated/nested")),
-            FileSystemCall::Exists(PathBuf::from("/project/generated")),
-            FileSystemCall::Exists(PathBuf::from("/project")),
-            FileSystemCall::Create(PathBuf::from("/project/generated")),
-            FileSystemCall::Create(PathBuf::from("/project/generated/nested")),
-            FileSystemCall::Write(
-                PathBuf::from("/project/generated/nested/out.js"),
-                materialized,
-            ),
-        ]
+        [FileSystemCall::Write(
+            PathBuf::from("/project/generated/nested/out.js"),
+            [&[0xEF, 0xBB, 0xBF][..], b"value;\n"].concat(),
+        )]
     );
 }
 
 #[test]
-fn filesystem_sink_reports_create_failure_without_retrying_the_file() {
-    let artifact = EmitArtifact::javascript(
-        "/project/generated/nested/out.js",
-        "",
-        false,
-        Some(Vec::new()),
-        EmitTextMetadata::default(),
-    );
-    let mut filesystem = ObservedFileSystem {
-        directories: [PathBuf::from("/project")].into_iter().collect(),
-        write_results: [Err("first write is intentionally hidden".to_owned())]
-            .into_iter()
-            .collect(),
-        create_failure: Some((
-            PathBuf::from("/project/generated"),
-            "stable create failure".to_owned(),
-        )),
-        ..ObservedFileSystem::default()
-    };
-    let mut sink = FsOutputSink::new(&mut filesystem);
-
-    let error = sink.write(artifact).expect_err("parent creation fails");
-    assert_eq!(error.operation(), EmitIoOperation::CreateParentDirectory);
-    assert_eq!(
-        error.path().scalar_test_path(),
-        Path::new("/project/generated")
-    );
-    assert_eq!(error.message(), "stable create failure");
-    assert_eq!(
-        filesystem
-            .calls
-            .iter()
-            .filter(|call| matches!(call, FileSystemCall::Write(_, _)))
-            .count(),
-        1
-    );
-}
-
-#[test]
-fn filesystem_sink_reports_only_the_final_retry_failure() {
+fn filesystem_sink_reports_the_file_system_failure() {
     let artifact = EmitArtifact::javascript(
         "/project/out.js",
         "",
@@ -308,24 +199,21 @@ fn filesystem_sink_reports_only_the_final_retry_failure() {
         EmitTextMetadata::default(),
     );
     let mut filesystem = ObservedFileSystem {
-        directories: [PathBuf::from("/project")].into_iter().collect(),
-        write_results: [
-            Err("discarded first failure".to_owned()),
-            Err("stable retry failure".to_owned()),
-        ]
-        .into_iter()
-        .collect(),
+        write_results: [Err("open /project/out.js: is a directory".to_owned())]
+            .into_iter()
+            .collect(),
         ..ObservedFileSystem::default()
     };
     let mut sink = FsOutputSink::new(&mut filesystem);
 
-    let error = sink.write(artifact).expect_err("retry fails");
+    let error = sink.write(artifact).expect_err("the write fails");
     assert_eq!(error.operation(), EmitIoOperation::WriteFile);
     assert_eq!(
         error.path().scalar_test_path(),
         Path::new("/project/out.js")
     );
-    assert_eq!(error.message(), "stable retry failure");
+    assert_eq!(error.message(), "open /project/out.js: is a directory");
+    assert_eq!(filesystem.calls.len(), 1);
 }
 
 use crate::utf16_scalar_path::ScalarTestPath as _;

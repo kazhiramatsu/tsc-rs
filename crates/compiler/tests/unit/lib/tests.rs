@@ -40,6 +40,7 @@ fn emit_diagnostic_assembly_uses_the_whole_program_semantic_stream() {
                 next: Vec::new(),
                 related: Vec::new(),
                 repopulate: None,
+                without_location: false,
             },
         )
     };

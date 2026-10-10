@@ -325,20 +325,51 @@ pub fn get_source_files_to_emit(
     host: &dyn EmitHost,
     selection: EmitSelection,
 ) -> Result<Vec<SourceFileId>, EmitFailure> {
-    select_source_files(host, selection, false)
+    select_source_files(host, selection, ForceEmitPaths::default())
 }
 
 pub(crate) fn get_source_files_for_forced_declaration_emit(
     host: &dyn EmitHost,
     selection: EmitSelection,
 ) -> Result<Vec<SourceFileId>, EmitFailure> {
-    select_source_files(host, selection, true)
+    select_source_files(host, selection, ForceEmitPaths::declarations())
 }
 
+/// tsgo `outputpaths.ForceEmitPaths`: the outputs a forced emit plans
+/// whatever the options say (`Program.Emit` with `ForceEmit`).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ForceEmitPaths {
+    pub dts: bool,
+    pub js: bool,
+    pub declaration_map: bool,
+}
+
+impl ForceEmitPaths {
+    /// A forced declaration emit (`EmitOnlyDts`): the declaration and, with
+    /// `declarationMap`, its map.
+    pub const fn declarations() -> Self {
+        Self {
+            dts: true,
+            js: false,
+            declaration_map: true,
+        }
+    }
+
+    /// A forced JavaScript emit (`EmitOnlyJs`).
+    pub const fn javascript() -> Self {
+        Self {
+            dts: false,
+            js: true,
+            declaration_map: false,
+        }
+    }
+}
+
+/// tsgo `getSourceFilesToEmit(targets, forceDtsEmit, forceJsEmit)`.
 fn select_source_files(
     host: &dyn EmitHost,
     selection: EmitSelection,
-    force_dts_emit: bool,
+    force: ForceEmitPaths,
 ) -> Result<Vec<SourceFileId>, EmitFailure> {
     let bundle = active_out_file(host).is_some();
     let module_emit_enabled = host.compiler_options().emit_declaration_only == Some(true)
@@ -351,7 +382,9 @@ fn select_source_files(
         .into_iter()
         .filter_map(|id| match host.source_file(id) {
             Some(source)
-                if if force_dts_emit {
+                if if force.js {
+                    source_file_may_emit_forced_javascript(source)
+                } else if force.dts {
                     source_file_may_emit_forced_declaration(source, host)
                 } else {
                     source_file_may_be_emitted(source, host)
@@ -415,9 +448,13 @@ pub(crate) fn source_file_may_emit_forced_declaration(
     source: EmitSource<'_>,
     host: &dyn EmitHost,
 ) -> bool {
-    !no_emit_for_js_source(source, host)
-        && !is_declaration_file_name(source.path())
-        && source.may_emit_forced_declaration()
+    !no_emit_for_js_source(source, host) && source_file_may_emit_forced_javascript(source)
+}
+
+/// tsgo `sourceFileMayBeEmitted` with `forceJsEmit`: `noEmitForJsFiles`
+/// aside, any source but a declaration file or an external library's.
+pub(crate) fn source_file_may_emit_forced_javascript(source: EmitSource<'_>) -> bool {
+    !is_declaration_file_name(source.path()) && source.may_emit_forced_declaration()
 }
 
 /// tsc-port: getOutputPathsFor @6.0.3
@@ -427,13 +464,14 @@ pub fn get_output_paths_for(
     source: EmitSource<'_>,
     host: &dyn EmitHost,
 ) -> Result<EmitOutputPaths, EmitFailure> {
-    get_output_paths_for_with_force(source, host, false)
+    get_output_paths_for_with_force(source, host, ForceEmitPaths::default())
 }
 
+/// tsgo `GetOutputPathsFor(sourceFile, options, host, force)`.
 fn get_output_paths_for_with_force(
     source: EmitSource<'_>,
     host: &dyn EmitHost,
-    force_dts_paths: bool,
+    force: ForceEmitPaths,
 ) -> Result<EmitOutputPaths, EmitFailure> {
     let options = host.compiler_options();
     let extension = get_output_extension(
@@ -443,8 +481,8 @@ fn get_output_paths_for_with_force(
     )?;
     let javascript = get_own_emit_output_file_path(source.path(), host, extension);
     let is_json = extension == "json";
-    let javascript = (!(options.emit_declaration_only.unwrap_or(false)
-        || is_json
+    let javascript = ((force.js || !options.emit_declaration_only.unwrap_or(false))
+        && !(is_json
             && host.canonical_output_path(source.path())
                 == host.canonical_output_path(javascript.as_js())))
     .then_some(javascript);
@@ -462,9 +500,10 @@ fn get_output_paths_for_with_force(
         }
     }
     let declarations_enabled = options.declaration == Some(true) || options.composite == Some(true);
-    if force_dts_paths || declarations_enabled && !is_json {
+    if force.dts || declarations_enabled && !is_json {
         let declaration = declaration_output_path(source.path(), host);
-        if declarations_enabled && options.declaration_map == Some(true) {
+        if (declarations_enabled || force.declaration_map) && options.declaration_map == Some(true)
+        {
             paths = paths.with_declaration_map(paths::append_suffix(&declaration, ".map"));
         }
         paths = paths.with_declaration(declaration);
@@ -489,10 +528,16 @@ fn for_each_emitted_file_with_force(
     force_dts_paths: bool,
     mut action: impl FnMut(&EmitOutputPaths, &EmitRoot),
 ) -> Result<(), EmitFailure> {
-    let source_files = if force_dts_paths {
-        get_source_files_for_forced_declaration_emit(host, selection)?
+    let (source_files, force) = if force_dts_paths {
+        (
+            get_source_files_for_forced_declaration_emit(host, selection)?,
+            ForceEmitPaths::declarations(),
+        )
     } else {
-        get_source_files_to_emit(host, selection)?
+        (
+            get_source_files_to_emit(host, selection)?,
+            ForceEmitPaths::default(),
+        )
     };
     if let Some(out_file) = active_out_file(host) {
         if !source_files.is_empty() {
@@ -507,7 +552,7 @@ fn for_each_emitted_file_with_force(
         let source = host.source_file(source_file).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(source_file),
         ))?;
-        let paths = get_output_paths_for_with_force(source, host, force_dts_paths)?;
+        let paths = get_output_paths_for_with_force(source, host, force)?;
         // Declaration-only requests still visit a source with no output
         // paths, so emitDeclarationFileOrBundle can mark it skipped.
         if host.compiler_options().emit_declaration_only == Some(true)
@@ -679,6 +724,43 @@ pub(crate) fn preflight_forced_declarations(
         EmitSelection::TargetSourceFile(source) => EmitOutputPlan::targeted(source, units),
     };
     Ok(preflight)
+}
+
+/// tsgo `Program.Emit` with `ForceEmit` and `EmitOnlyJs`: the JavaScript
+/// output (and its map) of each selected source, `emitDeclarationOnly`
+/// aside (`ForceEmitPaths.Js`). A forced emit checks no blocked output.
+pub(crate) fn preflight_forced_javascript(
+    host: &dyn EmitHost,
+    selection: EmitSelection,
+) -> Result<EmitPreflight, EmitFailure> {
+    let mut units = Vec::new();
+    for source_file in select_source_files(host, selection, ForceEmitPaths::javascript())? {
+        let source = host.source_file(source_file).ok_or(EmitFailure::Contract(
+            EmitContractViolation::PlannedSourceMissing(source_file),
+        ))?;
+        let paths = get_output_paths_for_with_force(source, host, ForceEmitPaths::javascript())?;
+        let Some(javascript) = paths.javascript_path() else {
+            continue;
+        };
+        let mut javascript_paths = EmitOutputPaths::javascript(javascript);
+        if let Some(map) = paths.javascript_map_path() {
+            javascript_paths = javascript_paths.with_javascript_map(map);
+        }
+        units.push(EmitOutputUnit::new(
+            EmitRoot::SourceFile(source_file),
+            javascript_paths,
+            EmitMode::Script,
+        ));
+    }
+    Ok(EmitPreflight {
+        plan: match selection {
+            EmitSelection::WholeProgram => EmitOutputPlan::whole_program(units),
+            EmitSelection::TargetSourceFile(source) => EmitOutputPlan::targeted(source, units),
+        },
+        diagnostics: Vec::new(),
+        blocked_outputs: BTreeSet::new(),
+        declaration_paths: std::sync::OnceLock::new(),
+    })
 }
 
 /// tsc-port: getOwnEmitOutputFilePath @6.0.3
@@ -862,7 +944,8 @@ fn overwrite_input_diagnostic(host: &dyn EmitHost, path: JsStr<'_>) -> Diagnosti
         message = message.with_next(vec![MessageChain::new(
             &gen::Adding_a_tsconfig_json_file_will_help_organize_projects_that_contain_both_TypeScript_and_JavaScript_files_Learn_more_at_https_aka_ms_tsconfig,
             &[],
-        )]);
+        )
+        .without_location()]);
     }
     Diagnostic::new(None, None, None, message)
 }

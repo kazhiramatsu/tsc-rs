@@ -587,15 +587,15 @@ fn category_of_number(number: u8) -> DiagnosticCategory {
 
 /// A file's text, measured as tsgo measures a diagnostic's file: UTF-16
 /// positions, ECMAScript line terminators.
-struct DiagnosticFile<'a> {
-    text: &'a str,
+struct DiagnosticFile {
+    text: String,
     /// Each line's start, in UTF-8 bytes and in UTF-16 units.
     lines: Vec<(usize, usize)>,
     utf16_length: usize,
 }
 
-impl<'a> DiagnosticFile<'a> {
-    fn new(text: &'a str) -> Self {
+impl DiagnosticFile {
+    fn new(text: String) -> Self {
         let mut lines = vec![(0, 0)];
         let mut utf16 = 0;
         let mut characters = text.char_indices().peekable();
@@ -662,24 +662,76 @@ impl<'a> DiagnosticFile<'a> {
     }
 }
 
+/// The files a list of diagnostics is located in, each read and measured
+/// once.
+struct DiagnosticFiles<'t> {
+    text_of: &'t dyn Fn(&str) -> Option<String>,
+    files: std::cell::RefCell<BTreeMap<String, Option<std::rc::Rc<DiagnosticFile>>>>,
+}
+
+impl<'t> DiagnosticFiles<'t> {
+    fn new(text_of: &'t dyn Fn(&str) -> Option<String>) -> Self {
+        Self {
+            text_of,
+            files: Default::default(),
+        }
+    }
+
+    fn file(&self, file_name: &str) -> Option<std::rc::Rc<DiagnosticFile>> {
+        self.files
+            .borrow_mut()
+            .entry(file_name.to_owned())
+            .or_insert_with(|| {
+                (self.text_of)(file_name).map(|text| std::rc::Rc::new(DiagnosticFile::new(text)))
+            })
+            .clone()
+    }
+}
+
+/// tsgo's message flags of a nested entry or of related information,
+/// which tsgo builds with the message (`ast.NewDiagnostic`).
+fn message_flags(code: u32) -> (bool, bool) {
+    tsc_diagnostics::by_code(code).map_or((false, false), |message| {
+        (message.reports_unnecessary, message.reports_deprecated)
+    })
+}
+
 impl DiagnosticResponse {
     /// tsgo `NewDiagnosticResponse`: the diagnostic, located in its file's
-    /// text when `text_of` has it. A message chain's entries take their
-    /// diagnostic's location, as tsgo's chained diagnostics do.
+    /// text when `text_of` has it.
     pub fn new(diagnostic: &Diagnostic, text_of: &dyn Fn(&str) -> Option<String>) -> Self {
+        Self::from_diagnostic(diagnostic, &DiagnosticFiles::new(text_of))
+    }
+
+    /// tsgo `NewDiagnosticResponses` (each file measured once).
+    pub fn list(diagnostics: &[Diagnostic], text_of: &dyn Fn(&str) -> Option<String>) -> Vec<Self> {
+        let files = DiagnosticFiles::new(text_of);
+        diagnostics
+            .iter()
+            .map(|diagnostic| Self::from_diagnostic(diagnostic, &files))
+            .collect()
+    }
+
+    fn from_diagnostic(diagnostic: &Diagnostic, files: &DiagnosticFiles<'_>) -> Self {
         Self::located(
             diagnostic.file_name.as_ref(),
             diagnostic.start,
             diagnostic.length,
             &diagnostic.message,
             &diagnostic.related,
-            diagnostic.reports_unnecessary.unwrap_or(false),
-            diagnostic.reports_deprecated.unwrap_or(false),
+            (
+                diagnostic.reports_unnecessary.unwrap_or(false),
+                diagnostic.reports_deprecated.unwrap_or(false),
+            ),
             diagnostic.source.as_deref().unwrap_or_default(),
-            text_of,
+            files,
         )
     }
 
+    /// A message chain entry as tsgo's diagnostic of it: a nested entry has
+    /// its diagnostic's file and range (tsgo `NewDiagnosticChain`) unless it
+    /// has none (tsgo `ast.NewCompilerDiagnostic`), and its own related
+    /// information.
     #[allow(clippy::too_many_arguments)]
     fn located(
         file_name: Option<&JsString>,
@@ -687,12 +739,10 @@ impl DiagnosticResponse {
         length: Option<u32>,
         message: &MessageChain,
         related: &[RelatedInfo],
-        reports_unnecessary: bool,
-        reports_deprecated: bool,
+        (reports_unnecessary, reports_deprecated): (bool, bool),
         source: &str,
-        text_of: &dyn Fn(&str) -> Option<String>,
+        files: &DiagnosticFiles<'_>,
     ) -> Self {
-        let file_name = file_name.map(|name| name.to_string_lossy().into_owned());
         let (pos, end) = match start {
             Some(start) => (
                 i64::from(start),
@@ -711,10 +761,9 @@ impl DiagnosticResponse {
             reports_deprecated,
             ..Self::default()
         };
-        if let Some(file_name) = &file_name {
-            response.file_name.clone_from(file_name);
-            if let Some(text) = text_of(file_name).filter(|_| start.is_some()) {
-                let file = DiagnosticFile::new(&text);
+        if let Some(file_name) = file_name {
+            let name = file_name.to_string_lossy().into_owned();
+            if let Some(file) = files.file(&name).filter(|_| start.is_some()) {
                 let pos = (pos as usize).min(file.utf16_length);
                 let end = (end as usize).min(file.utf16_length).max(pos);
                 response.pos = pos as i64;
@@ -725,22 +774,26 @@ impl DiagnosticResponse {
                 response.start_position = Some(start_position);
                 response.end_position = Some(end_position);
             }
+            response.file_name = name;
         }
-        let chain_file = file_name.as_deref().map(JsString::from);
         response.message_chain = message
             .next
             .iter()
             .map(|next| {
+                let (file_name, start, length) = if next.without_location {
+                    (None, None, None)
+                } else {
+                    (file_name, start, length)
+                };
                 Self::located(
-                    chain_file.as_ref(),
+                    file_name,
                     start,
                     length,
                     next,
-                    &[],
-                    false,
-                    false,
+                    &next.related,
+                    message_flags(next.code),
                     "",
-                    text_of,
+                    files,
                 )
             })
             .collect();
@@ -752,11 +805,10 @@ impl DiagnosticResponse {
                     related.start,
                     related.length,
                     &related.message,
-                    &[],
-                    false,
-                    false,
+                    &related.message.related,
+                    message_flags(related.message.code),
                     "",
-                    text_of,
+                    files,
                 )
             })
             .collect();
@@ -807,6 +859,7 @@ impl DiagnosticResponse {
                 .collect(),
             related: Vec::new(),
             repopulate: None,
+            without_location: false,
         }
     }
 }
@@ -1001,6 +1054,72 @@ pub struct ProjectParams {
     pub snapshot: SnapshotId,
     #[serde(default, deserialize_with = "nullable")]
     pub project: String,
+}
+
+/// tsgo `GetDiagnosticsParams`: without files (or with `null`), the whole
+/// program's.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct GetDiagnosticsParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub files: Option<Vec<DocumentIdentifier>>,
+}
+
+/// tsgo `EmitParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmitParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub emit_only: Option<u32>,
+}
+
+/// tsgo `SelectedFilesEmitParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct SelectedFilesEmitParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub files: Option<Vec<DocumentIdentifier>>,
+}
+
+/// tsgo `EmitResponse`: the contents of the emitted files when the
+/// snapshot reads a full file system (the emit wrote nothing), none when
+/// the emit wrote through.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmitResponse {
+    pub emit_skipped: bool,
+    pub diagnostics: Vec<DiagnosticResponse>,
+    pub emitted_files: Vec<String>,
+    pub emitted_files_contents: Vec<String>,
+}
+
+/// tsgo `EmitOutputFile`.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmitOutputFile {
+    pub file_name: String,
+    pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_file_name: Option<String>,
+}
+
+/// tsgo `EmitOutputResponse`.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmitOutputResponse {
+    pub emit_skipped: bool,
+    pub diagnostics: Vec<DiagnosticResponse>,
+    pub output_files: Vec<EmitOutputFile>,
 }
 
 /// tsgo `GetModeForUsageLocationParams`.

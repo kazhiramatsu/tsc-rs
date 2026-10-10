@@ -200,9 +200,10 @@ impl System for NativeSystem {
     }
 }
 
-/// The emitter's file system over a [`System`]'s: the files the emit writes
-/// and the directories it creates.
-pub(crate) struct SystemEmitFileSystem<'a> {
+/// The emitter's file system over a [`System`]'s: each output is written
+/// with tsgo's `vfs.FS.WriteFile`, which creates the missing directories,
+/// and a failure keeps the file system's message.
+pub struct SystemEmitFileSystem<'a> {
     fs: &'a dyn FileSystem,
     /// Several artifacts may be written at once (a file system without
     /// observers, like the process's).
@@ -210,34 +211,16 @@ pub(crate) struct SystemEmitFileSystem<'a> {
 }
 
 impl<'a> SystemEmitFileSystem<'a> {
-    pub(crate) fn new(fs: &'a dyn FileSystem, concurrent: bool) -> Self {
+    pub fn new(fs: &'a dyn FileSystem, concurrent: bool) -> Self {
         Self { fs, concurrent }
     }
 }
 
 impl tsc_emitter::SharedEmitFileSystem for SystemEmitFileSystem<'_> {
     fn write_file(&self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString> {
-        let native = path.to_string_lossy();
         self.fs
-            .write(&native, bytes)
-            .map_err(|error| stable_io_message(&error, "open", path))
-    }
-
-    fn create_directory(&self, path: JsStr<'_>) -> Result<(), JsString> {
-        let native = path.to_string_lossy();
-        match self.fs.create_dir_all(&native) {
-            Ok(()) => Ok(()),
-            Err(error)
-                if error.kind() == io::ErrorKind::AlreadyExists && self.fs.is_dir(&native) =>
-            {
-                Ok(())
-            }
-            Err(error) => Err(stable_io_message(&error, "mkdir", path)),
-        }
-    }
-
-    fn directory_exists(&self, path: JsStr<'_>) -> bool {
-        self.fs.is_dir(&path.to_string_lossy())
+            .write_creating_dirs(&path.to_string_lossy(), bytes)
+            .map_err(|error| error.to_string().into())
     }
 }
 
@@ -249,39 +232,6 @@ impl EmitFileSystem for SystemEmitFileSystem<'_> {
 
     fn write_file(&mut self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString> {
         tsc_emitter::SharedEmitFileSystem::write_file(self, path, bytes)
-    }
-
-    fn create_directory(&mut self, path: JsStr<'_>) -> Result<(), JsString> {
-        tsc_emitter::SharedEmitFileSystem::create_directory(self, path)
-    }
-
-    fn directory_exists(&mut self, path: JsStr<'_>) -> bool {
-        tsc_emitter::SharedEmitFileSystem::directory_exists(self, path)
-    }
-}
-
-fn stable_io_message(error: &io::Error, operation: &str, path: JsStr<'_>) -> JsString {
-    #[cfg(unix)]
-    let known = match error.raw_os_error() {
-        Some(2) => Some(("ENOENT", "no such file or directory")),
-        Some(13) => Some(("EACCES", "permission denied")),
-        Some(17) => Some(("EEXIST", "file already exists")),
-        Some(20) => Some(("ENOTDIR", "not a directory")),
-        Some(21) => Some(("EISDIR", "illegal operation on a directory")),
-        Some(28) => Some(("ENOSPC", "no space left on device")),
-        Some(30) => Some(("EROFS", "read-only file system")),
-        _ => None,
-    };
-    #[cfg(not(unix))]
-    let known: Option<(&str, &str)> = None;
-
-    if let Some((code, detail)) = known {
-        let mut message = JsString::from(format!("{code}: {detail}, {operation} '"));
-        message.push_js(path);
-        message.push_str("'");
-        message
-    } else {
-        error.to_string().into()
     }
 }
 

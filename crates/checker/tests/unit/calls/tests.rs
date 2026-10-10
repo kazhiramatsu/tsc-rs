@@ -1357,7 +1357,8 @@ fn between_overload_bounds_reports_2575() {
 fn single_signature_typearg_arity_reports_2558_on_the_range() {
     assert_eq!(
         checked_rows("declare function t<T, U>(x: T): void;\nt<number>(1);\n"),
-        [(2558, 40, 6), (6196, 22, 1)]
+        // The unused `U` of the ambient signature: tsgo reports nothing.
+        [(2558, 40, 6)]
     );
 }
 
@@ -1367,7 +1368,7 @@ fn overload_typearg_brackets_report_2743() {
             checked_rows(
                 "declare function ta<T>(x: T): void;\ndeclare function ta<T, U, V>(x: T): void;\nta<string, number>(\"a\");\n"
             ),
-            [(2743, 81, 14), (6196, 59, 1), (6196, 62, 1)]
+            [(2743, 81, 14)]
         );
 }
 

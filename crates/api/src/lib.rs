@@ -10,6 +10,8 @@
 mod astnav;
 pub mod callback_fs;
 mod checker;
+mod diagnostics;
+mod emit;
 pub mod encoder;
 pub mod ipc;
 pub mod module_resolution;

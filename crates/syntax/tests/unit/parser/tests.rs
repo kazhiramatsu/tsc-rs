@@ -3583,7 +3583,8 @@ fn matched_bracket_error_points_back_to_the_open_token() {
     let related = &diagnostic.related[0];
     assert_eq!(related.message.code, 1007);
     assert_eq!(related.start, Some(text.find('(').unwrap() as u32));
-    assert_eq!(related.length, Some(1));
+    // tsgo: empty at the open token (tsc covered its first character).
+    assert_eq!(related.length, Some(0));
     assert_eq!(
         related.message.text,
         "The parser expected to find a ')' to match the '(' token here."
@@ -3622,7 +3623,7 @@ fn import_attribute_brace_errors_retain_their_exact_open_tokens() {
             Some(text.find('{').unwrap() as u32),
             "{text:?}"
         );
-        assert_eq!(related.length, Some(1));
+        assert_eq!(related.length, Some(0));
         assert_eq!(
             related.message.text,
             "The parser expected to find a '}' to match the '{' token here."

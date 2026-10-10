@@ -4214,14 +4214,18 @@ impl<'a> CheckerState<'a> {
             for error in errors {
                 let mut diagnostic = error.diagnostic.expect("Report mode builds diagnostics");
                 if let Some(prefix) = &prefix {
-                    let mut chain = prefix.clone();
-                    let mut leaf = &mut chain;
+                    // tsgo NewDiagnosticChain: each level built over the
+                    // diagnostic, the diagnostic among them, keeps its
+                    // related information.
+                    let mut message = std::mem::replace(&mut diagnostic.message, prefix.clone());
+                    message.related = diagnostic.related.clone();
+                    let mut leaf = &mut diagnostic.message;
                     while !leaf.next.is_empty() {
                         leaf = leaf.next.first_mut().expect("non-empty chain");
+                        leaf.related = message.related.clone();
                     }
                     leaf.next_present = true;
-                    leaf.next.push(diagnostic.message);
-                    diagnostic.message = chain;
+                    leaf.next.push(message);
                 }
                 if several {
                     if let Some(declaration) = self.signature_of(last).declaration {

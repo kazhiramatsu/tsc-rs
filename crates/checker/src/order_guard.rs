@@ -401,6 +401,7 @@ mod tests {
             next,
             related: Vec::new(),
             repopulate: None,
+            without_location: false,
         }
     }
 

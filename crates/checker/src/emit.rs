@@ -236,6 +236,12 @@ impl<'program> CheckerSession<'program> {
         operation(&mut state)
     }
 
+    /// The checker, for a driver that keeps the session between requests
+    /// (the live Program's diagnostics checker).
+    pub(crate) fn state(&self) -> std::sync::MutexGuard<'_, CheckerState<'program>> {
+        self.state.lock().expect("checker session state")
+    }
+
     /// Reclaim checker state after the emitter has released its resolver
     /// borrow so the driver can assemble diagnostics and observations.
     /// tsrs-native: ownership adapter after the H1 checker callback boundary.

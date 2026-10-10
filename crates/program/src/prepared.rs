@@ -1418,7 +1418,10 @@ impl ProgramOptions {
         self.project_reference_sources
     }
 
-    pub(crate) fn with_config_parsing_diagnostics(
+    /// The rows a program reports as its config file parsing diagnostics
+    /// (tsgo `ParsedCommandLine.Errors`) and the config sources they were
+    /// read from.
+    pub fn with_config_parsing_diagnostics(
         mut self,
         diagnostics: Vec<Diagnostic>,
         sources: Vec<PreparedAuxiliaryFile>,

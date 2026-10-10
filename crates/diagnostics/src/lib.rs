@@ -200,6 +200,12 @@ pub struct MessageChain {
     /// How an incremental build recomputes this entry when it reuses the
     /// diagnostic; equality ignores it.
     pub repopulate: Option<Repopulate>,
+    /// A nested entry tsgo builds with `ast.NewCompilerDiagnostic` (the
+    /// program's chains: the include reasons, the module format details,
+    /// the option hints) has no file and no location; a checker's nested
+    /// entry has its diagnostic's (tsgo `NewDiagnosticChain`). Equality
+    /// ignores this.
+    pub without_location: bool,
 }
 
 /// tsgo `RepopulateDiagnosticInfo`: a chain entry that depends on the
@@ -261,6 +267,7 @@ impl MessageChain {
             next: Vec::new(),
             related: Vec::new(),
             repopulate: None,
+            without_location: false,
         }
     }
 
@@ -275,6 +282,7 @@ impl MessageChain {
             next: Vec::new(),
             related: Vec::new(),
             repopulate: None,
+            without_location: false,
         }
     }
 
@@ -291,6 +299,7 @@ impl MessageChain {
             next: Vec::new(),
             related: Vec::new(),
             repopulate: None,
+            without_location: false,
         }
     }
 
@@ -302,6 +311,18 @@ impl MessageChain {
 
     pub fn with_repopulate(mut self, repopulate: Repopulate) -> Self {
         self.repopulate = Some(repopulate);
+        self
+    }
+
+    /// This entry and the entries nested under it as tsgo's
+    /// `ast.NewCompilerDiagnostic` entries: without a file or a location.
+    pub fn without_location(mut self) -> Self {
+        self.without_location = true;
+        self.next = self
+            .next
+            .into_iter()
+            .map(MessageChain::without_location)
+            .collect();
         self
     }
 }

@@ -136,7 +136,6 @@ impl From<PrinterError> for EmitFailure {
 /// Filesystem operation represented by an output-sink failure.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum EmitIoOperation {
-    CreateParentDirectory,
     WriteFile,
 }
 
@@ -181,7 +180,6 @@ impl fmt::Display for EmitIoError {
             formatter,
             "{} {}: {}",
             match self.operation {
-                EmitIoOperation::CreateParentDirectory => "create output directory for",
                 EmitIoOperation::WriteFile => "write output file",
             },
             self.path.to_string_lossy(),

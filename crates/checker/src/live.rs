@@ -1,8 +1,9 @@
-//! One Program kept alive with its checker (tsgo's `compiler.Program` with
-//! the API checker of its pool): the sources are parsed and bound once, the
-//! checker is initialized without checking a source, and each file is
+//! One Program kept alive with its checkers (tsgo's `compiler.Program` with
+//! the checker pool of its project): the sources are parsed and bound once,
+//! the checkers are initialized without checking a source, and each file is
 //! checked when its diagnostics are first asked for. The query entry hands
-//! the initialized checker to the caller.
+//! the API checker to the caller, the emit entry the diagnostics checker or
+//! the query checker as an emit session.
 //!
 //! The batch drivers expose the checker only to a scoped callback, because
 //! the checker borrows the Program snapshot, the options and the module
@@ -16,19 +17,20 @@ use self_cell::self_cell;
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, DiagnosticList};
 use tsc_types::{IdentityDomain, JsStr, JsString};
 
+use crate::emit::CheckerSession;
 use crate::program::{
     BoundDocument, DocumentAddress, DocumentRegistry, EphemeralDocumentStore, ProgramFileFacts,
     ProgramFileId, ProgramSnapshot,
 };
 use crate::state::CheckerState;
 use crate::{
-    bind_sources_in_program_order, check_program_file, globals, init_checker_state, lib_bundle,
-    parse_program_inputs, program_file_id, reserve_type_tables,
-    semantic_diagnostics_for_program_file, snapshot_node_count, syntactic_file_rows,
-    validate_authoritative_metadata, AuthoritativeModuleFailure, AuthoritativeModuleProvider,
-    AuthoritativeProviderSource, AuthoritativeRun, AuthoritativeSourceMetadata, CheckWorkCounters,
-    CompilerOptions, DiagnosticSchedule, FileDiagnosticPasses, HostFacts, InputFile,
-    LibraryPrefixCompletion, ParsedProgramInputs, SharedDocument, WorkerBudget,
+    bind_sources_in_program_order, globals, init_checker_state, lib_bundle, parse_program_inputs,
+    program_file_id, reserve_type_tables, semantic_diagnostics_for_program_file,
+    snapshot_node_count, syntactic_file_rows, validate_authoritative_metadata,
+    AuthoritativeModuleFailure, AuthoritativeModuleProvider, AuthoritativeProviderSource,
+    AuthoritativeRun, AuthoritativeSourceMetadata, CheckWorkCounters, CompilerOptions,
+    DiagnosticSchedule, FileDiagnosticPasses, HostFacts, InputFile, LibraryPrefixCompletion,
+    ParsedProgramInputs, SharedDocument, WorkerBudget,
 };
 
 /// The owned inputs of a [`LiveChecker`]: the Program's library and source
@@ -56,18 +58,22 @@ struct LiveOwner {
     program_diagnostics: Vec<Diagnostic>,
 }
 
-/// The checker and the bookkeeping of the files it has checked.
+/// The checkers and the bookkeeping of the files the diagnostics checker
+/// has checked.
 struct LiveState<'a> {
-    /// The diagnostics checker (tsgo's pool `CheckerLifetimeDiagnostics`).
-    state: CheckerState<'a>,
+    /// The diagnostics checker (tsgo's pool `CheckerLifetimeDiagnostics`), a
+    /// session so that it lends the declaration diagnostics its emit
+    /// resolver.
+    diagnostics: CheckerSession<'a>,
     /// The API checker (tsgo `CheckerLifetimeAPI`, the pool's persistent
     /// checker): the queries' own checker, created by the first query, so a
     /// query never changes what the diagnostics checker reports.
     api: Option<CheckerState<'a>>,
+    /// The query checker (tsgo `CheckerLifetimeTemporary`, which the emit
+    /// takes): created by the first emit, so the emit's checks never change
+    /// what the diagnostics checker reports.
+    query: Option<CheckerSession<'a>>,
     checked: Vec<bool>,
-    /// The global rows each file's check published (getDiagnosticsWorker's
-    /// attribution).
-    globals_by_file: Vec<Vec<Diagnostic>>,
 }
 
 self_cell!(
@@ -252,10 +258,10 @@ impl LiveChecker {
             let state = new_checker_state(owner);
             let file_count = state.binder.file_count();
             LiveState {
-                state,
+                diagnostics: CheckerSession::from_checked_state(state),
                 api: None,
+                query: None,
                 checked: vec![false; file_count],
-                globals_by_file: vec![Vec::new(); file_count],
             }
         });
         Ok(Self {
@@ -332,10 +338,29 @@ impl LiveChecker {
             .map_or(&[][..], |passes| &passes.syntactic)
     }
 
-    /// Check `file` unless it has been checked (tsgo's
-    /// `getSemanticDiagnosticsForFile` on the API checker). An index past the
-    /// Program's files checks nothing.
-    fn ensure_checked(&mut self, file: usize) -> Result<(), AuthoritativeModuleFailure> {
+    /// The authoritative token of the file at `index` (libraries first):
+    /// the prepared program's identity of the source.
+    pub fn source_token(&self, index: usize) -> Option<crate::AuthoritativeSourceToken> {
+        let Live::Checked(cell) = &self.live else {
+            return None;
+        };
+        let owner = cell.borrow_owner();
+        let metadata = owner.metadata.get(index)?;
+        let document = owner.snapshot.documents().get(index)?;
+        (metadata.file_name == document.source().file_name).then_some(metadata.token)
+    }
+
+    /// The binder's rows of the file at `index` (libraries first; tsgo
+    /// `SourceFile.BindDiagnostics`).
+    pub fn bind_diagnostics(&self, index: usize) -> &[Diagnostic] {
+        self.document(index)
+            .map_or(&[][..], |document| &document.data.bind_diagnostics)
+    }
+
+    /// Check `file` on the diagnostics checker unless it has been checked
+    /// (tsgo's `getSemanticDiagnosticsForFile`). An index past the Program's
+    /// files checks nothing.
+    pub fn check_file(&mut self, file: usize) -> Result<(), AuthoritativeModuleFailure> {
         let Live::Checked(cell) = &mut self.live else {
             return Ok(());
         };
@@ -344,12 +369,11 @@ impl LiveChecker {
                 return Ok(());
             }
             live.checked[file] = true;
-            check_program_file(
-                &mut live.state,
-                program_file_id(file),
-                &mut live.globals_by_file,
-            );
-            match live.state.take_authoritative_module_failure() {
+            let mut state = live.diagnostics.state();
+            if !state.skip_type_checking_file(program_file_id(file)) {
+                state.check_source_file(file);
+            }
+            match state.take_authoritative_module_failure() {
                 Some(failure) => Err(failure),
                 None => Ok(()),
             }
@@ -357,29 +381,69 @@ impl LiveChecker {
     }
 
     /// The semantic rows of `file`, checking it first. A file the options
-    /// skip (`skipLibCheck`, a JavaScript file without `checkJs`) has none.
+    /// skip (`skipLibCheck`, a JavaScript file without `checkJs`) has none,
+    /// and the checker's global rows are no file's (tsgo
+    /// `getBindAndCheckDiagnosticsWithChecker` without the deferred
+    /// globals; [`Self::global_diagnostics`] has them).
     pub fn semantic_diagnostics(
         &mut self,
         file: usize,
     ) -> Result<DiagnosticList, AuthoritativeModuleFailure> {
-        self.ensure_checked(file)?;
+        self.check_file(file)?;
         let Live::Checked(cell) = &self.live else {
             return Ok(Vec::new());
         };
         Ok(cell.with_dependent(|owner, live| {
-            if file >= live.checked.len()
-                || live.state.skip_type_checking_file(program_file_id(file))
-            {
+            let state = live.diagnostics.state();
+            if file >= live.checked.len() || state.skip_type_checking_file(program_file_id(file)) {
                 return Vec::new();
             }
             semantic_diagnostics_for_program_file(
-                &live.state,
+                &state,
                 file,
-                &live.globals_by_file[file],
+                &[],
                 &owner.program_diagnostics,
                 &owner.options,
             )
         }))
+    }
+
+    /// tsgo `GetSemanticDiagnostics(nil)` on the checker of `lifetime`:
+    /// each file checked and its rows taken in turn, sorted and
+    /// deduplicated.
+    pub fn program_semantic_diagnostics(
+        &mut self,
+        lifetime: CheckerLifetime,
+    ) -> Result<DiagnosticList, AuthoritativeModuleFailure> {
+        let mut diagnostics = Vec::new();
+        if lifetime == CheckerLifetime::Diagnostics {
+            for file in 0..self.file_count() {
+                diagnostics.extend(self.semantic_diagnostics(file)?);
+            }
+        } else if let Live::Checked(cell) = &mut self.live {
+            cell.with_dependent_mut(|owner, live| {
+                let mut state = live.session(owner, lifetime).state();
+                for file in 0..state.binder.file_count() {
+                    if state.skip_type_checking_file(program_file_id(file)) {
+                        continue;
+                    }
+                    state.check_source_file(file);
+                    if let Some(failure) = state.take_authoritative_module_failure() {
+                        return Err(failure);
+                    }
+                    diagnostics.extend(semantic_diagnostics_for_program_file(
+                        &state,
+                        file,
+                        &[],
+                        &owner.program_diagnostics,
+                        &owner.options,
+                    ));
+                }
+                Ok(())
+            })?;
+        }
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+        Ok(diagnostics)
     }
 
     /// The suggestion rows of `file`, checking it first.
@@ -387,18 +451,17 @@ impl LiveChecker {
         &mut self,
         file: usize,
     ) -> Result<DiagnosticList, AuthoritativeModuleFailure> {
-        self.ensure_checked(file)?;
+        self.check_file(file)?;
         let Live::Checked(cell) = &self.live else {
             return Ok(Vec::new());
         };
         Ok(cell.with_dependent(|_, live| {
-            if file >= live.checked.len()
-                || live.state.skip_type_checking_file(program_file_id(file))
-            {
+            let state = live.diagnostics.state();
+            if file >= live.checked.len() || state.skip_type_checking_file(program_file_id(file)) {
                 return Vec::new();
             }
-            let file_name = live.state.binder.source(file).file_name.clone();
-            live.state
+            let file_name = state.binder.source(file).file_name.clone();
+            state
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| {
@@ -416,11 +479,9 @@ impl LiveChecker {
     pub fn global_diagnostics(&self) -> DiagnosticList {
         match &self.live {
             Live::Empty { options, .. } => globals::missing_init_global_type_diagnostics(options),
-            Live::Checked(cell) => cell.with_dependent(|_, live| {
-                let mut diagnostics = live.state.visible_global_diagnostics.clone();
-                tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
-                diagnostics
-            }),
+            Live::Checked(cell) => {
+                cell.with_dependent(|_, live| live.diagnostics.get_global_diagnostics())
+            }
         }
     }
 
@@ -437,9 +498,48 @@ impl LiveChecker {
         }
     }
 
+    /// Run `operation` over the Program's snapshot and its checker of
+    /// `lifetime` as an emit session (the query checker is created by its
+    /// first use); none for a Program without files, which has no checker.
+    pub fn with_session<T>(
+        &mut self,
+        lifetime: CheckerLifetime,
+        operation: impl FnOnce(&ProgramSnapshot, &CheckerSession<'_>) -> T,
+    ) -> Option<T> {
+        match &mut self.live {
+            Live::Empty { .. } => None,
+            Live::Checked(cell) => Some(cell.with_dependent_mut(|owner, live| {
+                operation(&owner.snapshot, live.session(owner, lifetime))
+            })),
+        }
+    }
+
     /// The Program file id of the file at `index` (libraries first).
     pub fn file_id(index: usize) -> ProgramFileId {
         program_file_id(index)
+    }
+}
+
+/// tsgo `core.CheckerLifetime`: which checker of the Program's pool a
+/// request takes besides the queries' ([`LiveChecker::with_checker`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CheckerLifetime {
+    /// The diagnostics checker (the diagnostics requests).
+    Diagnostics,
+    /// The query checker (the emit), created by its first use.
+    Temporary,
+}
+
+impl<'a> LiveState<'a> {
+    /// The Program's checker of `lifetime` as an emit session, the query
+    /// checker created by its first use.
+    fn session(&mut self, owner: &'a LiveOwner, lifetime: CheckerLifetime) -> &CheckerSession<'a> {
+        match lifetime {
+            CheckerLifetime::Diagnostics => &self.diagnostics,
+            CheckerLifetime::Temporary => self.query.get_or_insert_with(|| {
+                CheckerSession::from_checked_state(new_checker_state(owner))
+            }),
+        }
     }
 }
 

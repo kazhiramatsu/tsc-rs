@@ -73,20 +73,26 @@ impl FileSystem for OsFs {
     }
 
     fn write(&self, path: &str, contents: &[u8]) -> io::Result<()> {
-        fs::write(path, contents)
+        write_with(
+            fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true),
+            path,
+            contents,
+        )
     }
 
     fn append(&self, path: &str, contents: &[u8]) -> io::Result<()> {
-        use io::Write;
-        fs::OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(path)?
-            .write_all(contents)
+        write_with(
+            fs::OpenOptions::new().append(true).create(true),
+            path,
+            contents,
+        )
     }
 
     fn create_dir_all(&self, path: &str) -> io::Result<()> {
-        fs::create_dir_all(path)
+        mkdir_all(path)
     }
 
     fn remove(&self, path: &str) -> io::Result<()> {
@@ -120,4 +126,84 @@ fn convert(metadata: &fs::Metadata) -> Metadata {
         metadata.len(),
         metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH),
     )
+}
+
+/// tsgo `osvfs.writeFileWithFlag`: open, then write; a failure is Go's
+/// `*fs.PathError` (`open /p/a.js: is a directory`).
+fn write_with(options: &fs::OpenOptions, path: &str, contents: &[u8]) -> io::Result<()> {
+    use io::Write;
+    let mut file = options
+        .open(path)
+        .map_err(|error| path_error("open", path, &error))?;
+    file.write_all(contents)
+        .map_err(|error| path_error("write", path, &error))
+}
+
+/// Go's `os.MkdirAll`, which tsgo's `osvfs` creates directories with: the
+/// directory at `path` and every missing one above it. A failure names the
+/// directory where it happened.
+fn mkdir_all(path: &str) -> io::Result<()> {
+    if let Ok(metadata) = fs::metadata(path) {
+        if metadata.is_dir() {
+            return Ok(());
+        }
+        return Err(io::Error::new(
+            io::ErrorKind::NotADirectory,
+            format!("mkdir {path}: not a directory"),
+        ));
+    }
+    let trimmed = path.trim_end_matches(is_separator);
+    let parent = &trimmed[..trimmed.rfind(is_separator).unwrap_or(0)];
+    if parent.len() > volume_name_length(path) {
+        mkdir_all(parent)?;
+    }
+    match fs::create_dir(path) {
+        Ok(()) => Ok(()),
+        // `a/.`, or another writer created it meanwhile.
+        Err(_) if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_dir()) => Ok(()),
+        Err(error) => Err(path_error("mkdir", path, &error)),
+    }
+}
+
+fn is_separator(character: char) -> bool {
+    character == '/' || (cfg!(windows) && character == '\\')
+}
+
+/// Go's `filepath.VolumeName` length: a drive (`c:`) on Windows.
+fn volume_name_length(path: &str) -> usize {
+    if cfg!(windows) && path.as_bytes().get(1) == Some(&b':') {
+        2
+    } else {
+        0
+    }
+}
+
+/// Go's `*fs.PathError` text: `<operation> <path>: <error>`.
+fn path_error(operation: &str, path: &str, error: &io::Error) -> io::Error {
+    io::Error::new(
+        error.kind(),
+        format!("{operation} {path}: {}", os_error_text(error)),
+    )
+}
+
+/// Go's text of an operating system error: on Unix, `strerror` with a
+/// lowercase first letter (Go's `mkerrors.sh`: `Is a directory` becomes
+/// `is a directory`); elsewhere the system's message.
+fn os_error_text(error: &io::Error) -> String {
+    let text = error.to_string();
+    let Some(code) = error.raw_os_error() else {
+        return text;
+    };
+    let text = text
+        .strip_suffix(&format!(" (os error {code})"))
+        .unwrap_or(&text);
+    let mut characters = text.chars();
+    match (characters.next(), characters.next()) {
+        (Some(first), Some(second))
+            if cfg!(unix) && first.is_ascii_uppercase() && second.is_ascii_lowercase() =>
+        {
+            format!("{}{}", first.to_ascii_lowercase(), &text[1..])
+        }
+        _ => text.to_owned(),
+    }
 }

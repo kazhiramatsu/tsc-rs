@@ -1669,6 +1669,7 @@ impl<'p> Assembly<'p> {
                 next: Vec::new(),
                 related: Vec::new(),
                 repopulate: None,
+                without_location: false,
             },
         };
         message.code = row.code;

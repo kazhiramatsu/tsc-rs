@@ -737,16 +737,14 @@ fn element_type_constraint_reports_2786() {
 fn library_managed_attributes_drive_contextual_typing() {
     // Oracle (jsx: preserve): 2339 @237+3 — LibraryManagedAttributes
     // REPLACES the props type, so the callback parameter is
-    // contextually typed V and `v.bad` misses. TS6205 covers the
-    // independently unused C/P type-parameter list.
+    // contextually typed V and `v.bad` misses. The unused C/P
+    // type-parameter list is ambient: tsgo reports nothing for it.
     assert_eq!(
         checked_rows_with(
             "interface V { m: number }\ndeclare namespace JSX { interface Element { e: 1 } type LibraryManagedAttributes<C, P> = { cb?: (v: V) => void }; }\ndeclare var React: any;\ndeclare function F(props: { a?: string }): JSX.Element;\n(<F cb={v => v.bad} />);\n",
             &jsx(1),
         ),
-        // The missing-property report is deferred to the end of the file
-        // check (tsgo addDeferredDiagnostic), so it follows the other rows.
-        [(6205, 106, 6), (2339, 237, 3)]
+        [(2339, 237, 3)]
     );
 }
 

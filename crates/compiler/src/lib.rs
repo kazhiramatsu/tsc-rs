@@ -86,7 +86,7 @@ pub use cli::{
     TYPESCRIPT_VERSION as CLI_VERSION,
 };
 pub use declaration_diagnostics::DeclarationSession;
-pub use live::LiveProgram;
+pub use live::{EmitOnly, EmitResult, LiveProgram};
 pub use tsc_checker::JSDocParsingMode;
 pub use tsc_emitter::EmitRouteKind;
 
@@ -4663,7 +4663,8 @@ fn push_programmatic_removed_option_name(
         message = message.with_next(vec![MessageChain::new_js(
             &gen::Use_0_instead,
             &[use_instead.to_owned()],
-        )]);
+        )
+        .without_location()]);
     }
     push_programmatic_option_diagnostic(
         prepared,

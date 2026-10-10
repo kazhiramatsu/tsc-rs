@@ -12,6 +12,7 @@ fn chain(code: u32, category: DiagnosticCategory, text: &str) -> MessageChain {
         next: Vec::new(),
         related: Vec::new(),
         repopulate: None,
+        without_location: false,
     }
 }
 
