@@ -11,7 +11,10 @@ preserved at tag `v1-final`.
   retained greenfield M-stage guides and the convergence plan are historical
   lineage rather than current H2 implementation instructions.
 - [setup.md](setup.md): requirements (the pinned Rust toolchain, Python for
-  the conformance scripts) and the verification commands.
+  the conformance scripts), what CI verifies and how to run it locally.
+- [performance.md](performance.md): the measured compile times, memory use
+  and output comparisons on real projects.
+- [rust-api.md](rust-api.md): the experimental Rust API, with its examples.
 - [benchmarking.md](benchmarking.md): reproducible CLI comparisons, correctness
   checks, variation across runs, and multi-file tsgo parallelism controls.
 - [NOTES-m1.md](NOTES-m1.md): M1 final-gate triage — the one-line

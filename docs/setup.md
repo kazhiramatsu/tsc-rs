@@ -2,8 +2,8 @@
 
 For building and using the compiler, start with the [user guide](../README.md).
 The [current verification policy](../CLAUDE.md#current-verification-policy)
-owns the merge criteria; the README's [Run CI](../README.md#run-ci) section
-describes the hosted jobs and their local equivalents. The historical
+owns the merge criteria; [CI](#ci) below describes the hosted jobs and their
+local equivalents. The historical
 accepted-state snapshot of the tsc 6.0.3 line lives in
 [verification-status.md](verification-status.md).
 
@@ -32,15 +32,89 @@ builds and verifies with no bootstrap step.
   behavior question needs the reference's answer. Neither Go nor Node.js is
   needed to build, test or run tsc-rs.
 
-## Verification
+## CI
 
-Both hosted jobs run from the repository root:
+The compiler is checked against TypeScript 7.1's conformance baselines and
+the workspace's Rust tests. You can run these checks locally or inspect
+their GitHub Actions logs.
+
+### What CI verifies
+
+| Check | What it verifies |
+| --- | --- |
+| **TypeScript 7.1 conformance** (`conformance (TypeScript 7.1)`) | Runs the `compiler` and `conformance` test cases vendored from TypeScript 7.1 through the native test runner's configuration expansion, on one checker, and compares the diagnostics (`.errors.txt`), the emitted JavaScript, declaration files and source maps (`.js`, `.js.map`) the type and symbol baselines (`.types`, `.symbols`: the type and the symbol at every expression and declaration name, as tsgo's test runner writes them) the source map records (`.sourcemap.txt`: every emitted line with its spans against the source text, as tsgo's recorder writes them) and the module resolution traces (`.trace.json`: the `--traceResolution` lines, sanitized as tsgo's harness does) with the vendored reference baselines byte for byte (`scripts/conformance_ts71.py --check`). The ratchet `ratchets/ts71/` records the error tier, the emit tier and the type, symbol, source map record and trace tiers each configuration has reached and rejects regressions. A sharded control (`--checkers 4`) is compared with the one-checker report by `scripts/conformance_ts71_compare.py`; the design packet records the configurations where they differ. The configurations the native runner itself skips (`target: es5`, the `umd` and `system` module kinds, the `node10` and `classic` resolutions, `baseUrl`, `esModuleInterop: false`, `alwaysStrict: false`) or never produces baselines for (`amd`, `outFile`, its skip list) are not compared. The same job then runs the `transpile` test cases through single-file transpilation (`transpileModule` and `transpileDeclaration`) as the native transpile runner does, the command-line and tsconfig parsing tests (the arguments and configuration files the native Go tests keep in their tables), the `tsc` and `tsc -b` tests (each scenario's command lines run over an in-memory system with its edits in between, as the native harness's test system does, recorded from the Go tests by `scripts/tsctests_scenarios.py`), the `tsc --watch` and `tsc -b --watch` tests (their edits as watch cycles) and the API encoder's dumps of two parsed sources, and compares each of their baselines (`transpile`, `tsoptions/commandLineParsing`, `config/tsconfigParsing`, `tsc`, `tsbuild`, `tscWatch`, `tsbuildWatch`, `api`) byte for byte (`scripts/suites_ts71.py --check`, ratchet `ratchets/ts71/suites-<profile>.tsv`). |
+| **Rust checks** (`rust`) | Checks formatting, runs Clippy over every target of the workspace, executes every workspace test target (`cargo test --workspace`) and verifies that the generated diagnostic catalog and the API encoder's tables are current (`python3 .github/ci/replay.py rust`). |
+
+The `gates` check requires both jobs to succeed; a change that touches only
+`docs/`, the root `README.md`, `CONTRIBUTING.md` or `LICENSE` selects neither.
+
+These results demonstrate the behavior covered by those tests. Some cases
+have recorded differences from the reference; a passing run does not imply
+complete TypeScript compatibility. See the README's
+[limitations](../README.md#limitations) for the user-facing restrictions.
+
+### Run locally
+
+Run these commands from the repository root using a POSIX shell (for example,
+Bash or Zsh), with the [requirements](#requirements) above. Rustup selects
+the Rust version and tools from [rust-toolchain.toml](../rust-toolchain.toml). The TypeScript test inputs and
+reference baselines are checked in; no npm install is needed.
+
+Use the GitHub Actions build settings:
 
 ```sh
-python3 .github/ci/replay.py rust        # fmt, clippy, cargo test --workspace, codegen check
-cargo build --release -p tsc-rs-conformance --bin conformance-ts71
-python3 scripts/conformance_ts71.py --workers 4 --check   # TypeScript 7.1 baselines
+export CARGO_BUILD_JOBS=2
+export CARGO_INCREMENTAL=0
+export CARGO_PROFILE_TEST_DEBUG=0
+export RUSTC_WRAPPER=
 ```
+
+Run the Rust checks (formatting, Clippy, the workspace tests and the
+generated diagnostic catalog):
+
+```sh
+python3 .github/ci/replay.py rust
+```
+
+Run the TypeScript 7.1 conformance comparison (about twenty minutes with
+four workers):
+
+```sh
+cargo build --release -p tsc-rs-conformance --bin conformance-ts71
+python3 scripts/conformance_ts71.py --workers 4 --check
+```
+
+To compare one case and keep tsc-rs's rendering of the differing baselines:
+
+```sh
+./target/release/conformance-ts71 --case compiler/2dArrays.ts --no-report --dump target/conformance-dump
+```
+
+The report of a full run is `target/conformance-ts71/<profile>/report.json`.
+After an intentional change, `scripts/conformance_ts71.py --workers 4
+--update` records the new tiers in the ratchet without lowering any.
+
+Run the comparison of the other suites (transpile, command-line and
+tsconfig parsing, tsc and tsc -b; a few seconds):
+
+```sh
+cargo build --release -p tsc-rs-conformance --bin suites-ts71
+python3 scripts/suites_ts71.py --check
+```
+
+Its report is `target/suites-ts71/<profile>/report.json`; `--dump
+<directory>` keeps tsc-rs's rendering of the differing baselines, and
+`--update` records the new tiers without lowering any.
+
+### GitHub Actions
+
+`.github/workflows/ci.yml` runs on pull requests, merge groups and pushes
+to `main`: the `plan` job selects the jobs from the changed paths, the
+`rust` and `conformance (TypeScript 7.1)` jobs run with two Cargo build
+workers, and `gates` requires every selected job to succeed. The workflow's
+runs are listed under the repository's Actions tab.
+
+## Verification during development
 
 During implementation, run the affected conformance cases
 (`target/release/conformance-ts71 --case <suite>/<path> --dump <dir>`, or

@@ -163,8 +163,8 @@ independent task, not merely an available agent slot.
   rust` (formatting, Clippy, `cargo test --workspace`, `cargo xtask codegen
   diagnostics-check`, `scripts/generate_api_encoder.py --check`) and, after `cargo build --release -p
   tsc-rs-conformance --bin conformance-ts71`, `python3
-  scripts/conformance_ts71.py --workers 4 --check`; the README's "Run CI"
-  section describes both.
+  scripts/conformance_ts71.py --workers 4 --check`; the "CI" section of
+  `docs/setup.md` describes both.
 - `cargo xtask codegen diagnostics` regenerates `crates/diagnostics/src/gen.rs`
   from the vendored 7.1 `diagnosticMessages.json`; it is the only xtask
   command. `scripts/generate_api_encoder.py` regenerates
