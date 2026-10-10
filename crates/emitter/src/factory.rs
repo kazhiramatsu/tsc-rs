@@ -7927,6 +7927,98 @@ fn expression_precedence_in(
     })
 }
 
+/// tsgo `OperatorPrecedence` above unary, where tsgo's printer table
+/// differs from tsc's (tsgo inserted OptionalChain below Member).
+pub(crate) const TSGO_PRECEDENCE_RELATIONAL: i8 = 11;
+pub(crate) const TSGO_PRECEDENCE_UNARY: i8 = 16;
+pub(crate) const TSGO_PRECEDENCE_UPDATE: i8 = 17;
+pub(crate) const TSGO_PRECEDENCE_LEFT_HAND_SIDE: i8 = 18;
+pub(crate) const TSGO_PRECEDENCE_OPTIONAL_CHAIN: i8 = 19;
+pub(crate) const TSGO_PRECEDENCE_MEMBER: i8 = 20;
+pub(crate) const TSGO_PRECEDENCE_PRIMARY: i8 = 21;
+pub(crate) const TSGO_PRECEDENCE_PARENTHESES: i8 = 22;
+
+/// tsgo `ast.GetExpressionPrecedence` (precedence.go:203-330), as tsgo's
+/// printer reads it. The factory's parenthesizer keeps tsc's table
+/// (`expression_precedence_in`).
+pub(crate) fn tsgo_expression_precedence(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<i8, TransformError> {
+    let record = arena.node(node)?;
+    let optional_chain = NodeFlags::from_bits(record.flags).contains(NodeFlags::OPTIONAL_CHAIN);
+    Ok(match record.kind {
+        SyntaxKind::SpreadElement => PRECEDENCE_SPREAD,
+        SyntaxKind::YieldExpression => PRECEDENCE_YIELD,
+        SyntaxKind::ArrowFunction => PRECEDENCE_ASSIGNMENT,
+        SyntaxKind::ConditionalExpression => PRECEDENCE_CONDITIONAL,
+        SyntaxKind::BinaryExpression => binary_operator_in(arena, node)?
+            .map(binary_operator_precedence)
+            .unwrap_or(PRECEDENCE_INVALID),
+        SyntaxKind::TypeAssertionExpression
+        | SyntaxKind::NonNullExpression
+        | SyntaxKind::PrefixUnaryExpression
+        | SyntaxKind::TypeOfExpression
+        | SyntaxKind::VoidExpression
+        | SyntaxKind::DeleteExpression
+        | SyntaxKind::AwaitExpression => TSGO_PRECEDENCE_UNARY,
+        SyntaxKind::PostfixUnaryExpression => TSGO_PRECEDENCE_UPDATE,
+        SyntaxKind::PropertyAccessExpression
+        | SyntaxKind::ElementAccessExpression
+        | SyntaxKind::CallExpression => {
+            if optional_chain {
+                TSGO_PRECEDENCE_OPTIONAL_CHAIN
+            } else {
+                TSGO_PRECEDENCE_MEMBER
+            }
+        }
+        SyntaxKind::NewExpression => match &record.data {
+            NodeData::NewExpression(data) if data.arguments.is_some() => TSGO_PRECEDENCE_MEMBER,
+            _ => TSGO_PRECEDENCE_LEFT_HAND_SIDE,
+        },
+        SyntaxKind::TaggedTemplateExpression
+        | SyntaxKind::MetaProperty
+        | SyntaxKind::ExpressionWithTypeArguments => TSGO_PRECEDENCE_MEMBER,
+        SyntaxKind::AsExpression | SyntaxKind::SatisfiesExpression => TSGO_PRECEDENCE_RELATIONAL,
+        SyntaxKind::ThisKeyword
+        | SyntaxKind::SuperKeyword
+        | SyntaxKind::ImportKeyword
+        | SyntaxKind::Identifier
+        | SyntaxKind::PrivateIdentifier
+        | SyntaxKind::NullKeyword
+        | SyntaxKind::TrueKeyword
+        | SyntaxKind::FalseKeyword
+        | SyntaxKind::NumericLiteral
+        | SyntaxKind::BigIntLiteral
+        | SyntaxKind::StringLiteral
+        | SyntaxKind::ArrayLiteralExpression
+        | SyntaxKind::ObjectLiteralExpression
+        | SyntaxKind::FunctionExpression
+        | SyntaxKind::ClassExpression
+        | SyntaxKind::RegularExpressionLiteral
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::TemplateExpression
+        | SyntaxKind::OmittedExpression
+        | SyntaxKind::JsxElement
+        | SyntaxKind::JsxSelfClosingElement
+        | SyntaxKind::JsxFragment
+        | SyntaxKind::MissingDeclaration => TSGO_PRECEDENCE_PRIMARY,
+        SyntaxKind::ParenthesizedExpression => TSGO_PRECEDENCE_PARENTHESES,
+        _ => PRECEDENCE_INVALID,
+    })
+}
+
+/// tsgo `emitExpression`'s parentheses: whether `operand`, printed where
+/// `precedence` (tsgo's numbering) is required, is below it.
+pub(crate) fn operand_needs_parentheses(
+    arena: &TransformArena,
+    operand: TransformNode,
+    precedence: i8,
+) -> Result<bool, TransformError> {
+    let emitted = skip_partially_emitted_expressions_in(arena, operand)?;
+    Ok(tsgo_expression_precedence(arena, emitted)? < precedence)
+}
+
 /// tsgo `getBinaryExpressionPrecedence`: the left operand of a printed `**`
 /// needs update precedence (`(--x) ** 2`, `(-x) ** 2`). tsgo applies it
 /// while printing, so a `**` a later transform lowers keeps none; tsc's

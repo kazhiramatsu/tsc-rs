@@ -851,6 +851,7 @@ pub struct PrinterOptions {
     only_print_js_doc_style: bool,
     omit_brace_source_map_positions: bool,
     never_ascii_escape: bool,
+    terminate_unterminated_literals: bool,
     target: Option<ScriptTarget>,
     module_kind: Option<i32>,
     source_file_text_mode: SourceFileTextMode,
@@ -867,6 +868,7 @@ impl PrinterOptions {
             only_print_js_doc_style: false,
             omit_brace_source_map_positions: false,
             never_ascii_escape: false,
+            terminate_unterminated_literals: false,
             target: None,
             module_kind: None,
             source_file_text_mode: SourceFileTextMode::PreserveUnchanged,
@@ -920,6 +922,11 @@ impl PrinterOptions {
     /// Upstream `neverAsciiEscape`.
     pub const fn with_never_ascii_escape(mut self, value: bool) -> Self {
         self.never_ascii_escape = value;
+        self
+    }
+    /// tsgo `TerminateUnterminatedLiterals`.
+    pub const fn with_terminate_unterminated_literals(mut self, value: bool) -> Self {
+        self.terminate_unterminated_literals = value;
         self
     }
 
@@ -3077,6 +3084,7 @@ impl Printer {
                 record.data,
                 NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
             ) && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
+                && record.parent.is_some()
                 && !self.emission_plan.structured_nodes.contains(&node)
                 && transformation
                     .arena()
@@ -3088,13 +3096,17 @@ impl Printer {
             }
         }
         let record = transformation.arena().node(node)?.clone();
+        // tsgo's printer reads no source text for a node without a parent
+        // (`canUseOriginalText`, `getTextOfNode`): a tree decoded from the
+        // API prints from its nodes, as a changed one does.
         let changed = transformation
             .arena()
             .metadata(node)
             .and_then(crate::EmitMetadata::original)
             .is_some()
             || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
-            || self.emission_plan.structured_nodes.contains(&node);
+            || self.emission_plan.structured_nodes.contains(&node)
+            || record.parent.is_none() && record.kind != SyntaxKind::SourceFile;
         let multi_line = record.multi_line() == Some(true);
         let declaration_source = transformation
             .arena()
@@ -3123,6 +3135,7 @@ impl Printer {
             };
         }
 
+        let unterminated = record.is_unterminated() == Some(true);
         match record.data {
             // Both statement and expression hints use this worker after the
             // ordinary comment/map phases. Upstream emits no token for this
@@ -3138,6 +3151,11 @@ impl Printer {
             }
             NodeData::Token if record.kind == SyntaxKind::NotEmittedTypeElement => {
                 self.emit_not_emitted_type_element(node, record.kind)
+            }
+            // tsgo emitSemicolonClassElement.
+            NodeData::Token if record.kind == SyntaxKind::SemicolonClassElement && changed => {
+                writer.write_trailing_semicolon(";");
+                Ok(())
             }
             NodeData::Token
                 if is_declaration_type_token(record.kind)
@@ -3386,6 +3404,119 @@ impl Printer {
             }
             NodeData::BigIntLiteral(data) => {
                 writer.write_literal(&data.text);
+                Ok(())
+            }
+            // tsgo getLiteralText: without its source text, a regular
+            // expression is its text, closed when the printer terminates
+            // unterminated literals.
+            NodeData::RegularExpressionLiteral(data) if changed => {
+                if self.options.terminate_unterminated_literals && unterminated {
+                    let terminator = if data.text.ends_with('\\') { " /" } else { "/" };
+                    writer.write_literal(&format!("{}{terminator}", data.text));
+                } else {
+                    writer.write_literal(&data.text);
+                }
+                Ok(())
+            }
+            // tsgo emitAsExpression, emitSatisfiesExpression,
+            // emitNonNullExpression and emitTypeAssertionExpression. The
+            // JavaScript emit removes these; only a tree decoded from the API
+            // prints them, with tsgo's parentheses: an operand below the
+            // precedence its position needs, and the expression itself where
+            // an access, call, `new` or update operand needs more than it has.
+            NodeData::AsExpression(tsc_syntax::nodes::AsExpressionData { expression, r#type })
+            | NodeData::SatisfiesExpression(tsc_syntax::nodes::SatisfiesExpressionData {
+                expression,
+                r#type,
+            }) if changed => {
+                let (expression, r#type) =
+                    Self::typed_expression_children(record.kind, expression, r#type)?;
+                let parenthesized =
+                    Self::type_expression_needs_parentheses(record.kind, expression_context);
+                if parenthesized {
+                    writer.write_punctuation("(");
+                }
+                self.emit_operand_with_precedence(
+                    transformation,
+                    node.source(),
+                    expression,
+                    crate::factory::TSGO_PRECEDENCE_RELATIONAL,
+                    expression_context,
+                    writer,
+                )?;
+                writer.write_space(" ");
+                writer.write_keyword(if record.kind == SyntaxKind::AsExpression {
+                    "as"
+                } else {
+                    "satisfies"
+                });
+                writer.write_space(" ");
+                self.emit_node_id_with_context(
+                    transformation,
+                    node.source(),
+                    r#type,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
+                if parenthesized {
+                    writer.write_punctuation(")");
+                }
+                Ok(())
+            }
+            NodeData::NonNullExpression(data) if changed => {
+                let expression = data
+                    .expression
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::NonNullExpression,
+                        field: "expression",
+                    })?;
+                let parenthesized =
+                    Self::type_expression_needs_parentheses(record.kind, expression_context);
+                if parenthesized {
+                    writer.write_punctuation("(");
+                }
+                self.emit_operand_with_precedence(
+                    transformation,
+                    node.source(),
+                    expression,
+                    crate::factory::TSGO_PRECEDENCE_MEMBER,
+                    expression_context,
+                    writer,
+                )?;
+                writer.write_operator("!");
+                if parenthesized {
+                    writer.write_punctuation(")");
+                }
+                Ok(())
+            }
+            NodeData::TypeAssertionExpression(data) if changed => {
+                let (expression, r#type) =
+                    Self::typed_expression_children(record.kind, data.expression, data.r#type)?;
+                let parenthesized =
+                    Self::type_expression_needs_parentheses(record.kind, expression_context);
+                if parenthesized {
+                    writer.write_punctuation("(");
+                }
+                writer.write_punctuation("<");
+                self.emit_node_id_with_context(
+                    transformation,
+                    node.source(),
+                    r#type,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
+                writer.write_punctuation(">");
+                self.emit_operand_with_precedence(
+                    transformation,
+                    node.source(),
+                    expression,
+                    crate::factory::TSGO_PRECEDENCE_UPDATE,
+                    expression_context,
+                    writer,
+                )?;
+                if parenthesized {
+                    writer.write_punctuation(")");
+                }
                 Ok(())
             }
             NodeData::Decorator(data) => {
@@ -5794,6 +5925,9 @@ impl Printer {
                     writer,
                 )
             }
+            // tsgo emitJSDocAllType writes the kind's token text, which a
+            // JSDoc type has none of.
+            NodeData::JSDocAllType(_) if changed => Ok(()),
             NodeData::JSDocAllType(_) => {
                 writer.write_punctuation("*");
                 Ok(())
@@ -7407,6 +7541,14 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NEW_CALLEE),
                     writer,
                 )?;
+                // tsgo emitNewExpression (a decoded tree keeps them).
+                self.emit_type_arguments(
+                    transformation,
+                    node.source(),
+                    data.type_arguments,
+                    expression_context,
+                    writer,
+                )?;
                 if data.arguments.is_some() {
                     writer.write_punctuation("(");
                     self.emit_call_arguments(
@@ -7716,6 +7858,15 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                // The JavaScript emit removes type arguments; a decoded tree
+                // keeps them (tsgo emitCallExpression).
+                self.emit_type_arguments(
+                    transformation,
+                    node.source(),
+                    data.type_arguments,
+                    expression_context,
+                    writer,
+                )?;
                 writer.write_punctuation("(");
                 self.emit_call_arguments(
                     transformation,
@@ -7730,12 +7881,6 @@ impl Printer {
                 Ok(())
             }
             NodeData::TaggedTemplateExpression(data) => {
-                if data.type_arguments.is_some() {
-                    return Err(PrinterError::UnsupportedTransformedSyntax {
-                        node,
-                        kind: record.kind,
-                    });
-                }
                 // `a?.\`text\`` is a grammar error, but the parser retains
                 // the question-dot token on the tagged-template node so the
                 // checker can report it. It is not an emit-time optional-chain
@@ -7756,6 +7901,15 @@ impl Printer {
                         optional_chain: false,
                     }),
                     deferred_source_comments,
+                    writer,
+                )?;
+                // tsgo emitTaggedTemplateExpression (a decoded tree keeps
+                // type arguments; the JavaScript emit removes them).
+                self.emit_type_arguments(
+                    transformation,
+                    node.source(),
+                    data.type_arguments,
+                    expression_context,
                     writer,
                 )?;
                 writer.write_space(" ");
@@ -10631,7 +10785,8 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         // tsgo getLiteralText reads a parsed token from the source text, and
         // a missing token (the empty TemplateTail after an unterminated
-        // substitution) has none, so it prints nothing.
+        // substitution) has none, so it prints nothing. A token without a
+        // parent has no source text to read (`canUseOriginalText`).
         let record = transformation.arena().node(node)?;
         let positions = transformation
             .arena()
@@ -10641,7 +10796,7 @@ impl Printer {
         if let SourceRange::Original(range) =
             SourceRange::from_raw(record.pos, record.end, positions)?
         {
-            if range.start() == range.end() {
+            if range.start() == range.end() && record.parent.is_some() {
                 return Ok(());
             }
         }
@@ -10904,19 +11059,9 @@ impl Printer {
             expression_context,
             writer,
         )?;
-        if let Some(initializer) = data.initializer {
-            writer.write_space(" ");
-            writer.write_operator("=");
-            writer.write_space(" ");
-            self.emit_node_id_with_context(
-                transformation,
-                node.source(),
-                initializer,
-                expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
-                writer,
-            )?;
-        }
-        if let Some(last) = data.initializer.or(data.r#type).or(data.name) {
+        // tsgo emitPropertySignature writes no initializer (a signature's
+        // is a parse error).
+        if let Some(last) = data.r#type.or(data.name) {
             let last = transformation
                 .arena()
                 .node_ref(node.source(), last)
@@ -11925,12 +12070,11 @@ impl Printer {
                 writer.write_punctuation("?");
             }
         }
-        writer.write_punctuation(":");
-        writer.write_space(" ");
-        // `emit(node.type)` (117739): a mapped type without a type clause
-        // (`{ [K in keyof T] }`) prints `: ;` — the emit of `undefined` is a
-        // no-op, never a refusal (h2-7b-m-2 fence amendment #4e).
+        // tsgo emitMappedType writes the colon only with a type: a mapped
+        // type without a type clause (`{ [K in keyof T] }`) prints `;`.
         if let Some(r#type) = data.r#type {
+            writer.write_punctuation(":");
+            writer.write_space(" ");
             self.emit_type_child_leading_comments(
                 transformation,
                 node.source(),
@@ -12647,16 +12791,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::NamespaceExportDeclaration)?;
-        if self.emit_modifiers(
-            transformation,
-            node.source(),
-            data.modifiers,
-            DecoratorPolicy::Omit,
-            expression_context,
-            writer,
-        )? {
-            writer.write_space(" ");
-        }
+        // tsgo emitNamespaceExportDeclaration writes no modifiers (they are
+        // parse errors).
         writer.write("export as namespace ");
         self.emit_required_identifier_name_with_context(
             transformation,
@@ -14018,13 +14154,16 @@ impl Printer {
             {
                 return Ok(false);
             }
+            // The literal prints from its node exactly when the dispatch
+            // prints it so (a node without a parent included).
             let changed = transformation
                 .arena()
                 .metadata(expression)
                 .and_then(crate::EmitMetadata::original)
                 .is_some()
                 || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
-                || self.emission_plan.structured_nodes.contains(&expression);
+                || self.emission_plan.structured_nodes.contains(&expression)
+                || record.parent.is_none();
             let text = if changed {
                 data.text.clone()
             } else {
@@ -16533,6 +16672,76 @@ impl Printer {
         Ok(())
     }
 
+    /// tsgo's parentheses around an `as`, `satisfies`, non-null or type
+    /// assertion expression (unary or relational precedence) where its
+    /// position needs more: the left side of an access or a call, a `new`
+    /// callee and an update operand need left-hand-side precedence, a prefix
+    /// unary operand unary precedence.
+    fn type_expression_needs_parentheses(kind: SyntaxKind, context: EmitContext) -> bool {
+        match context.grammar() {
+            ExpressionGrammarContext::LeftSideOfAccess { .. }
+            | ExpressionGrammarContext::ExpressionStatementCallee { .. }
+            | ExpressionGrammarContext::NewCallee
+            | ExpressionGrammarContext::PostfixUnaryOperand => true,
+            ExpressionGrammarContext::PrefixUnaryOperand => matches!(
+                kind,
+                SyntaxKind::AsExpression | SyntaxKind::SatisfiesExpression
+            ),
+            _ => false,
+        }
+    }
+
+    /// tsgo `emitExpression(operand, precedence)`: the operand, in
+    /// parentheses when its precedence is below `precedence`.
+    fn emit_operand_with_precedence(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        operand: NodeId,
+        precedence: i8,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let child = transformation
+            .arena()
+            .node_ref(source, operand)
+            .ok_or(PrinterError::UnknownStatement(operand.index()))?;
+        let parenthesized =
+            crate::factory::operand_needs_parentheses(transformation.arena(), child, precedence)?;
+        if parenthesized {
+            writer.write_punctuation("(");
+        }
+        self.emit_node_id_with_context(
+            transformation,
+            source,
+            operand,
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        if parenthesized {
+            writer.write_punctuation(")");
+        }
+        Ok(())
+    }
+
+    /// The expression and type of an `as`, `satisfies` or type assertion
+    /// expression.
+    fn typed_expression_children(
+        kind: SyntaxKind,
+        expression: Option<NodeId>,
+        r#type: Option<NodeId>,
+    ) -> Result<(NodeId, NodeId), PrinterError> {
+        let expression = expression.ok_or(PrinterError::MissingTransformedChild {
+            parent: kind,
+            field: "expression",
+        })?;
+        let r#type = r#type.ok_or(PrinterError::MissingTransformedChild {
+            parent: kind,
+            field: "type",
+        })?;
+        Ok((expression, r#type))
+    }
+
     fn write_original_without_leading_trivia(
         &self,
         transformation: &TransformationResult<'_>,
@@ -17311,10 +17520,13 @@ impl Printer {
     ) -> Result<Option<CommentResume>, PrinterError> {
         match (left, right) {
             (None, resume) | (resume, None) => Ok(resume),
-            (Some(left), Some(right)) => left
-                .furthest(right)
-                .map(Some)
-                .map_err(Self::comment_resume_error),
+            // Resumes of different owners (a decoded tree's ranges need not
+            // nest as the parser's do): the later one stands.
+            (Some(left), Some(right)) => match left.furthest(right) {
+                Ok(resume) => Ok(Some(resume)),
+                Err(CommentResumeError::OwnerMismatch { .. }) => Ok(Some(right)),
+                Err(error) => Err(Self::comment_resume_error(error)),
+            },
         }
     }
 
@@ -17404,14 +17616,15 @@ impl Printer {
                     owner: owner.range.source(),
                 });
             }
+            // A resume another owner left (a decoded tree's ranges need
+            // not nest as the parser's do) is not this owner's: tsgo scans
+            // from the owner's position, as without one.
             if owner_start.position() != range_start {
-                return Err(PrinterError::CommentResumeOwnerMismatch {
-                    source: owner.range.source(),
-                    left_start: range_start.value(),
-                    right_start: owner_start.position().value(),
-                });
+                start
+            } else {
+                usize::try_from(resume.next().position().value())
+                    .expect("source position fits usize")
             }
-            usize::try_from(resume.next().position().value()).expect("source position fits usize")
         } else {
             start
         };
@@ -18915,13 +19128,8 @@ impl Printer {
                     owner: source_id,
                 });
             }
-            if owner_start.position() != position {
-                return Err(PrinterError::CommentResumeOwnerMismatch {
-                    source: source_id,
-                    left_start: position.value(),
-                    right_start: owner_start.position().value(),
-                });
-            }
+            // Another owner's resume (a decoded tree's ranges need not nest
+            // as the parser's do) does not limit this scan.
         }
         let source = transformation.arena().source(source_id)?.syntax();
         let start = position.value() as usize;
@@ -19052,11 +19260,9 @@ impl Printer {
             return Ok(None);
         }
         if token_owner.position() != child_range.start() {
-            return Err(PrinterError::CommentResumeOwnerMismatch {
-                source: source_id,
-                left_start: child_range.start().value(),
-                right_start: token_owner.position().value(),
-            });
+            // The token's resume belongs to another owner (a decoded tree's
+            // ranges need not nest as the parser's do): scan afresh.
+            return Ok(None);
         }
         let child_code_start = child_range
             .without_leading_trivia(source.text(), source.positions())?

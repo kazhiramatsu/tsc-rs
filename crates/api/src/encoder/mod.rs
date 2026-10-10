@@ -218,13 +218,6 @@ pub fn build_node_index_table(file: &SourceFile) -> NodeIndexTable {
     }
 }
 
-/// The tsc-rs kind of tsgo's kind number `kind` (`None`: tsc-rs has none).
-pub(crate) fn syntax_kind_of_tsgo_kind(kind: u32) -> Option<SyntaxKind> {
-    (0..=u16::MAX)
-        .map_while(SyntaxKind::from_u16)
-        .find(|&candidate| tsgo_kind(candidate) == Some(kind))
-}
-
 /// tsgo `ast.Kind.String()` of an encoded kind; `NodeList` for a list.
 pub fn kind_name(kind: u32) -> &'static str {
     if kind == SYNTAX_KIND_NODE_LIST {
@@ -856,55 +849,58 @@ fn common_data(node: &Node) -> u32 {
     }
 }
 
-/// tsc NodeFlags (tsc-rs's) to tsgo's: tsgo renumbered them, dropped tsc's
-/// module-keyword flags (`Namespace` and `GlobalAugmentation` are its
-/// ModuleDeclaration keyword, a nested declaration has an implicit `export`
-/// instead of `NestedNamespace`) and checker caches, never sets
-/// `ThisNodeOrAnySubNodesHasError` (tsc's lazily aggregated parse-error
-/// bit), and added `HasJSDoc`.
+/// tsc NodeFlags (tsc-rs's) and tsgo's numbers of the same flags. tsgo
+/// renumbered them, dropped tsc's module-keyword flags (`Namespace` and
+/// `GlobalAugmentation` are its ModuleDeclaration keyword, a nested
+/// declaration has an implicit `export` instead of `NestedNamespace`) and
+/// checker caches, never sets `ThisNodeOrAnySubNodesHasError` (tsc's lazily
+/// aggregated parse-error bit), and added `HasJSDoc`.
+pub(crate) const NODE_FLAGS: [(i32, u32); 24] = [
+    (NodeFlags::LET.bits(), 1 << 0),
+    (NodeFlags::CONST.bits(), 1 << 1),
+    (NodeFlags::USING.bits(), 1 << 2),
+    (NodeFlags::SYNTHESIZED.bits(), 1 << 4),
+    (NodeFlags::OPTIONAL_CHAIN.bits(), 1 << 5),
+    (NodeFlags::EXPORT_CONTEXT.bits(), 1 << 6),
+    // Also IdentifierHasExtendedUnicodeEscape, on both sides.
+    (NodeFlags::CONTAINS_THIS.bits(), 1 << 7),
+    (NodeFlags::HAS_IMPLICIT_RETURN.bits(), 1 << 8),
+    (NodeFlags::HAS_EXPLICIT_RETURN.bits(), 1 << 9),
+    (NodeFlags::DISALLOW_IN_CONTEXT.bits(), 1 << 10),
+    (NodeFlags::YIELD_CONTEXT.bits(), 1 << 11),
+    (NodeFlags::DECORATOR_CONTEXT.bits(), 1 << 12),
+    (NodeFlags::AWAIT_CONTEXT.bits(), 1 << 13),
+    (
+        NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT.bits(),
+        1 << 14,
+    ),
+    (NodeFlags::THIS_NODE_HAS_ERROR.bits(), 1 << 15),
+    (NodeFlags::JAVA_SCRIPT_FILE.bits(), 1 << 16),
+    // Also IdentifierIsInJSDocNamespace, on both sides.
+    (NodeFlags::HAS_ASYNC_FUNCTIONS.bits(), 1 << 18),
+    (
+        NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT.bits(),
+        TSGO_POSSIBLY_CONTAINS_DYNAMIC_IMPORT,
+    ),
+    (NodeFlags::POSSIBLY_CONTAINS_IMPORT_META.bits(), 1 << 20),
+    (NodeFlags::JS_DOC.bits(), 1 << 22),
+    (NodeFlags::AMBIENT.bits(), 1 << 23),
+    (NodeFlags::IN_WITH_STATEMENT.bits(), 1 << 24),
+    (NodeFlags::JSON_FILE.bits(), 1 << 25),
+    (NodeFlags::UNREACHABLE.bits(), 1 << 27),
+];
+
+/// tsc NodeFlags (tsc-rs's) to tsgo's ([`NODE_FLAGS`]).
 fn mapped_node_flags(flags: i32) -> u32 {
-    const MAP: [(i32, u32); 24] = [
-        (NodeFlags::LET.bits(), 1 << 0),
-        (NodeFlags::CONST.bits(), 1 << 1),
-        (NodeFlags::USING.bits(), 1 << 2),
-        (NodeFlags::SYNTHESIZED.bits(), 1 << 4),
-        (NodeFlags::OPTIONAL_CHAIN.bits(), 1 << 5),
-        (NodeFlags::EXPORT_CONTEXT.bits(), 1 << 6),
-        // Also IdentifierHasExtendedUnicodeEscape, on both sides.
-        (NodeFlags::CONTAINS_THIS.bits(), 1 << 7),
-        (NodeFlags::HAS_IMPLICIT_RETURN.bits(), 1 << 8),
-        (NodeFlags::HAS_EXPLICIT_RETURN.bits(), 1 << 9),
-        (NodeFlags::DISALLOW_IN_CONTEXT.bits(), 1 << 10),
-        (NodeFlags::YIELD_CONTEXT.bits(), 1 << 11),
-        (NodeFlags::DECORATOR_CONTEXT.bits(), 1 << 12),
-        (NodeFlags::AWAIT_CONTEXT.bits(), 1 << 13),
-        (
-            NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT.bits(),
-            1 << 14,
-        ),
-        (NodeFlags::THIS_NODE_HAS_ERROR.bits(), 1 << 15),
-        (NodeFlags::JAVA_SCRIPT_FILE.bits(), 1 << 16),
-        // Also IdentifierIsInJSDocNamespace, on both sides.
-        (NodeFlags::HAS_ASYNC_FUNCTIONS.bits(), 1 << 18),
-        (
-            NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT.bits(),
-            TSGO_POSSIBLY_CONTAINS_DYNAMIC_IMPORT,
-        ),
-        (NodeFlags::POSSIBLY_CONTAINS_IMPORT_META.bits(), 1 << 20),
-        (NodeFlags::JS_DOC.bits(), 1 << 22),
-        (NodeFlags::AMBIENT.bits(), 1 << 23),
-        (NodeFlags::IN_WITH_STATEMENT.bits(), 1 << 24),
-        (NodeFlags::JSON_FILE.bits(), 1 << 25),
-        (NodeFlags::UNREACHABLE.bits(), 1 << 27),
-    ];
-    MAP.iter()
+    NODE_FLAGS
+        .iter()
         .filter(|(from, _)| flags & from != 0)
         .fold(0, |out, (_, to)| out | to)
 }
 
 const TSGO_REPARSED: u32 = 1 << 3;
 /// tsgo NodeFlagsNestedNamespace (OptionalChain's bit).
-const TSGO_NESTED_NAMESPACE: u32 = 1 << 5;
+pub(crate) const TSGO_NESTED_NAMESPACE: u32 = 1 << 5;
 /// tsgo NodeFlagsContextFlags.
 const TSGO_CONTEXT_FLAGS: u32 =
     (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13) | (1 << 14) | (1 << 16) | (1 << 23) | (1 << 24);
@@ -1613,8 +1609,8 @@ impl Encoder<'_> {
 }
 
 /// tsgo TokenFlags (tsc's bits 0-15 are unchanged).
-const UNTERMINATED: u32 = 1 << 2;
-const SINGLE_QUOTE: u32 = 1 << 16;
+pub(crate) const UNTERMINATED: u32 = 1 << 2;
+pub(crate) const SINGLE_QUOTE: u32 = 1 << 16;
 const UNICODE_ESCAPE: u32 = 1 << 10;
 
 /// Whether a literal's source has a `\u` escape not of the `\u{…}` form.
@@ -1631,10 +1627,10 @@ fn has_unicode_escape(raw: &str) -> bool {
 /// tsgo TokenFlagsStringLiteralFlags without SingleQuote (added from the quote).
 const STRING_LITERAL_FLAGS: u32 = UNTERMINATED | (1 << 12) | (1 << 10) | (1 << 3) | (1 << 11);
 /// tsgo TokenFlagsNumericLiteralFlags.
-const NUMERIC_LITERAL_FLAGS: u32 =
+pub(crate) const NUMERIC_LITERAL_FLAGS: u32 =
     (1 << 4) | (1 << 5) | (1 << 13) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 14);
 /// tsgo TokenFlagsTemplateLiteralLikeFlags.
-const TEMPLATE_LITERAL_LIKE_FLAGS: u32 =
+pub(crate) const TEMPLATE_LITERAL_LIKE_FLAGS: u32 =
     UNTERMINATED | (1 << 12) | (1 << 10) | (1 << 3) | (1 << 11);
 
 /// tsgo `encodeFileReferences`: `[pos, end, fileName, resolutionMode, preserve]`

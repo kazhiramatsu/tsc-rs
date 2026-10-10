@@ -29,10 +29,8 @@ use tsc_types::{
 };
 
 use crate::astnav::{Found, Navigator};
-use crate::encoder::{
-    build_node_index_table, encode_node, syntax_kind_of_tsgo_kind, tsgo_kind, NodeIndexTable,
-    PositionMap,
-};
+use crate::decoder::port_kind;
+use crate::encoder::{build_node_index_table, encode_node, tsgo_kind, NodeIndexTable, PositionMap};
 use crate::ipc::Payload;
 use crate::proto::{CheckerParams, DocumentIdentifier, SnapshotId};
 use crate::session::{client_error, go_parse_uint32, json, Session};
@@ -569,7 +567,7 @@ impl Session {
                     // A kind tsc-rs does not have is one tsgo does not handle.
                     let kind = u32::try_from(params.kind)
                         .ok()
-                        .and_then(syntax_kind_of_tsgo_kind)
+                        .and_then(port_kind)
                         .unwrap_or(SyntaxKind::Unknown);
                     query.state.signature_to_signature_declaration_with_flags(
                         signature, kind, enclosing, flags,

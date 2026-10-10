@@ -433,6 +433,7 @@ dependencies = [
  "tsc-rs-checker",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
+ "tsc-rs-emitter",
  "tsc-rs-host",
  "tsc-rs-program",
  "tsc-rs-project",
