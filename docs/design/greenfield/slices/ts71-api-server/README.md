@@ -1673,3 +1673,10 @@ P5-5a の tsgo との比較の差（各 statement の 6,133）はほぼ全てこ
   いない。client の test と tsgo との比較は同じコードの release build で。workspace 全体の test と Clippy は hosted の `rust` job に
   任せた。
 - **残り**：P5-5d（comment）、P5-5b（`preserveSourceNewlines`）、P5-6（build orchestrator）。
+
+### P5-5c の hosted の記録と merge（2026-10-11）
+
+- hosted：最終候補 `a30e2d60b`（コード `d558f554d`・packet の記録 `1cbb94b2b`・main の取り込み。コードは `d558f554d` と同じ）の
+  run 38085149901（`plan` 30s、`rust` 11m33s、`conformance (TypeScript 7.1)` 20m36s、`gates` 14s。全て成功。workspace 全体の
+  test と Clippy はこの `rust` job による）。merge → `25204f33e`（merge commit、PR #737）。
+- 次は P5-5d（型の構文の comment）。その後に P5-5b（`preserveSourceNewlines`）、P5-6（build orchestrator）。
