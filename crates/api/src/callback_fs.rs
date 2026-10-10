@@ -157,6 +157,16 @@ impl<F: FileSystem> FileSystem for CallbackFs<F> {
         self.call_for_mutation("writeFile", &payload)
     }
 
+    /// tsgo `WriteFile`: the client writes the file, its directories
+    /// included, and its error is the write's; without the callback the
+    /// base writes it.
+    fn write_creating_dirs(&self, path: &str, contents: &[u8]) -> io::Result<()> {
+        if !self.enabled.contains("writeFile") {
+            return self.base.write_creating_dirs(path, contents);
+        }
+        self.write(path, contents)
+    }
+
     fn append(&self, path: &str, contents: &[u8]) -> io::Result<()> {
         self.base.append(path, contents)
     }

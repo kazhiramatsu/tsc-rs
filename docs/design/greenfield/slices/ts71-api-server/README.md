@@ -1448,3 +1448,42 @@ snapshot、option、module provider を借りる）。
   `gates` 15s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge → `0fb987285`（merge commit、
   PR #734）。P5-4（checker の query、diagnostics、emit）はこれで終わり。
 - 次は P5-5（`printNode` と decoder）。
+
+## P5-4 の後の修正：async の client の test と callback FS の書き込み（2026-10-11）
+
+残りの作業を整理したとき、TypeScript の client の test のうち、async の `async/api.test.ts`（335）と、sync の
+`api.test.ts` 以外の file（`api-generators` など）を一度も走らせていないことが分かった。async の client が使う
+`vscode-jsonrpc` は client の package に同梱されている（`packages/typescript/vendor/vscode-jsonrpc`、import は
+`#vscode-jsonrpc/node`）ので、npm は要らない。
+
+- **client の test**（修正前。main `7a4e01e67` のコードの release build、tsgo は `tsc-19dadef8`）：
+  - sync の `api.test.ts`：tsc-rs 283/327（P5-4d と同じ）。
+  - async の `api.test.ts`：tsc-rs 290/335、tsgo 335/335。違う 45 件のうち 44 件は sync と同じ後の slice の未実装
+    （`printNode` 15、build orchestrator 12、LS 13、`formatNodeForInsertion` 3）と P5-3a の null の要素 1。残る 1 件が
+    下の欠陥（`emit reports async VFS write failures as diagnostics`）。この test が失敗すると client が API を閉じない
+    まま進み、server の process が入力を待ち続けて `node --test` が終わらなかった。
+  - ほかの file：`sync/api-generators` は tsc-rs 42/43、tsgo 43/43（残る 1 件は LS の `getImportAdderEdits`）。
+    `sync/shutdown` 1、`version` 1、`diagnosticFormatter` 3、`encoder` 27、`scanner` 1、`spanMap` 15、`wtf8` 7 は両方で
+    全て通る。`sync/ast` は tsgo でも file ごと失敗し、`sync/astnav` と `async/astnav` は両方で test が 0 件。
+- **欠陥**：client の `writeFile` の callback が失敗すると、tsc-rs は file system の共通の書き込み
+  （`FileSystem::write_creating_dirs`：書けなければ親 directory を作って書き直す）を callback FS の上で行い、directory の
+  作成を base（server の OS の file system）に回していた。この test では `/dist` の作成が macOS で
+  `mkdir /dist: read-only file system` と失敗し、その文が TS5033 の診断になった（tsgo は client の error：
+  `ipc: remote error [-32603]: Request writeFile failed with message: write failed`）。書き込める場所なら、client の
+  仮想の path の directory を server の disk に作っていた。
+- **修正**（tsgo に合わせた）：tsgo で directory を作るのは OS と memory の file system の `WriteFile` だけで、包む file
+  system は `WriteFile` を丸ごと渡す（callback FS は client を 1 回呼び、`requestFileSystem` は下の host の
+  `WriteFile`）。port でも `CallbackFs`（`writeFile` の callback があれば client を 1 回呼ぶだけ、無ければ base の
+  書き込み）と `RequestFileSystem`（mutation の path で下の host の書き込み）が `write_creating_dirs` を丸ごと渡す。
+  `FileSystem::write_creating_dirs` の説明にこの規則を書いた。`BundledFs` は `write` と `create_dir_all` が同じ base に
+  届くので既定のままでよい。
+- **test**：api の 3 件。callback FS：client の error がそのまま返り、base に directory ができない。callback が無ければ
+  base が directory を作って書く。request FS：書き込みを丸ごと下の host に渡す。修正前のコードで 1 件目と 3 件目が
+  失敗することを確かめた（2 件目は修正前も通る）。
+- **検証**（コード `fed6c74f5`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（api・host、
+  `--all-targets -- -D warnings`）は clean。`cargo test`（api・host）263 件が全て成功。release build で client の test を
+  走らせ直した：sync 283/327（変わらず）、async 291/335（残る 44 件は上の後の slice の分と P5-3a の null の要素 1。run は
+  12.9 秒で終わる）。上の test と同じ project の emit の診断 4 行は tsgo と同じ文になった。compiler の経路は変えていない
+  ので、conformance と suites は hosted に任せた。
+- **残り**：P5-5（`printNode` と decoder）。本家の TypeScript（microsoft/TypeScript）への追従は、P5-6 の後、LSP の前に
+  計画する（利用者の決定、2026-10-11。`19dadef8` の後に 82 commit、10-09 時点）。

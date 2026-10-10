@@ -75,7 +75,10 @@ pub trait FileSystem: Send + Sync {
     }
 
     /// Writes the file at `path`, creating its missing directories when
-    /// the plain write fails (tsgo's `vfs.FS.WriteFile`).
+    /// the plain write fails (tsgo's `vfs.FS.WriteFile` of the OS and
+    /// in-memory file systems). A file system that hands its writes to a
+    /// client or to the layer below passes the whole write on, as tsgo's
+    /// wrappers pass `WriteFile` on.
     fn write_creating_dirs(&self, path: &str, contents: &[u8]) -> io::Result<()> {
         if self.write(path, contents).is_ok() {
             return Ok(());

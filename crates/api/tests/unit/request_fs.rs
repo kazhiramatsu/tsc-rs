@@ -1629,6 +1629,75 @@ fn a_layer_writes_through_to_the_host() {
     assert!(!host_fs.is_file("/written.ts"));
 }
 
+/// A host that writes a file only as a whole: its plain write and its
+/// directory creation fail, as a client's callbacks leave both to the
+/// client's own write.
+struct WholeWritesOnly(Arc<MemFs>);
+
+impl FileSystem for WholeWritesOnly {
+    fn case_sensitive(&self) -> bool {
+        self.0.case_sensitive()
+    }
+
+    fn read(&self, path: &str) -> io::Result<Vec<u8>> {
+        self.0.read(path)
+    }
+
+    fn metadata(&self, path: &str) -> io::Result<Metadata> {
+        self.0.metadata(path)
+    }
+
+    fn read_dir(&self, path: &str) -> io::Result<Vec<DirEntry>> {
+        self.0.read_dir(path)
+    }
+
+    fn canonicalize(&self, path: &str) -> io::Result<String> {
+        self.0.canonicalize(path)
+    }
+
+    fn write(&self, _path: &str, _contents: &[u8]) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    fn append(&self, path: &str, contents: &[u8]) -> io::Result<()> {
+        self.0.append(path, contents)
+    }
+
+    fn create_dir_all(&self, _path: &str) -> io::Result<()> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    fn remove(&self, path: &str) -> io::Result<()> {
+        self.0.remove(path)
+    }
+
+    fn set_modified(&self, path: &str, modified: SystemTime) -> io::Result<()> {
+        self.0.set_modified(path, modified)
+    }
+
+    fn write_creating_dirs(&self, path: &str, contents: &[u8]) -> io::Result<()> {
+        self.0.write_creating_dirs(path, contents)
+    }
+}
+
+#[test]
+fn a_layer_passes_a_whole_write_to_the_host() {
+    // tsgo `requestFileSystem.WriteFile` is the host's `WriteFile`.
+    let host_fs = host(&[], true);
+    let base = over(
+        &Request::layer(),
+        &on_host(Arc::new(WholeWritesOnly(Arc::clone(&host_fs)))),
+    );
+    let cache = over(&Request::layer(), &on(&base));
+    cache
+        .write_creating_dirs("/out/dir/a.js", b"written")
+        .unwrap();
+    assert_eq!(
+        read(host_fs.as_ref(), "/out/dir/a.js").as_deref(),
+        Some("written")
+    );
+}
+
 #[test]
 fn a_layers_writes_follow_inherited_links() {
     // TestRequestFileSystem: cache mutations follow inherited request

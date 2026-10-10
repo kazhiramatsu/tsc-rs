@@ -60,6 +60,19 @@ fn answer(method: &str, result: &str) -> Message {
     }
 }
 
+/// The client's error for the call named `method`, as vscode-jsonrpc
+/// answers when the client's handler throws.
+fn failure(method: &str, message: &str) -> Message {
+    Message {
+        id: Some(Id::String(method.to_owned())),
+        error: Some(ResponseError {
+            code: -32603,
+            message: message.to_owned(),
+        }),
+        ..Message::default()
+    }
+}
+
 type Calls = Arc<Mutex<Vec<(String, String)>>>;
 
 /// A callback file system with `callbacks` enabled over a base holding
@@ -187,6 +200,35 @@ fn writes_and_removals_go_to_the_client() {
             ("removeFile".to_owned(), r#""/out.js""#.to_owned()),
         ]
     );
+}
+
+#[test]
+fn a_written_file_is_the_clients_alone() {
+    // tsgo `WriteFile` calls the client once and returns its error; the
+    // base creates no directory for the file.
+    let (fs, _conn, made) = callback_fs(
+        &["writeFile"],
+        vec![failure(
+            "writeFile",
+            "Request writeFile failed with message: write failed",
+        )],
+    );
+    assert_eq!(
+        fs.write_creating_dirs("/out/dir/a.js", b"output")
+            .unwrap_err()
+            .to_string(),
+        "ipc: remote error [-32603]: Request writeFile failed with message: write failed"
+    );
+    assert_eq!(calls(&made).len(), 1);
+    assert!(!fs.is_dir("/out"));
+}
+
+#[test]
+fn a_written_file_without_the_callback_is_the_bases() {
+    let (fs, _conn, made) = callback_fs(&["fileExists"], Vec::new());
+    fs.write_creating_dirs("/out/dir/a.js", b"output").unwrap();
+    assert_eq!(fs.read("/out/dir/a.js").unwrap(), b"output");
+    assert!(calls(&made).is_empty());
 }
 
 #[test]

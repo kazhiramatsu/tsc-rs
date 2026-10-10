@@ -761,6 +761,12 @@ impl FileSystem for RequestFileSystem {
         self.base.create_dir_all(&path)
     }
 
+    /// tsgo `WriteFile`: the host below writes the file.
+    fn write_creating_dirs(&self, path: &str, contents: &[u8]) -> io::Result<()> {
+        let path = self.mutation_path(path)?;
+        self.base.write_creating_dirs(&path, contents)
+    }
+
     fn remove(&self, path: &str) -> io::Result<()> {
         let path = self.mutation_path(path)?;
         self.base.remove(&path)
