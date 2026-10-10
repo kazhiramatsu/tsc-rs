@@ -384,7 +384,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getWidenedType @6.0.3
     /// tsc-hash: f2b817e75f05ad2b8275ab420eaf4c7a47af72ffd405ec668a7ef85f33732149
     /// tsc-span: _tsc.js:68013-68019
-    pub(crate) fn get_widened_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+    pub fn get_widened_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         self.get_widened_type_with_context(ty, /*context*/ None)
     }
 

@@ -1081,8 +1081,8 @@ impl<'a> CheckerState<'a> {
                 };
                 let this_type = self.decorator_this_type_of_member(parent, class_node)?;
                 let target_type = match self.kind_of(parent) {
-                    SyntaxKind::GetAccessor => self.create_getter_function_type(value_type),
-                    SyntaxKind::SetAccessor => self.create_setter_function_type(value_type),
+                    SyntaxKind::GetAccessor => self.create_getter_function_type(value_type)?,
+                    SyntaxKind::SetAccessor => self.create_setter_function_type(value_type)?,
                     _ => value_type,
                 };
                 let context_type = self.create_class_member_decorator_context_type_for_node(
@@ -1550,7 +1550,7 @@ impl<'a> CheckerState<'a> {
         let value_param = self.create_synthetic_parameter("value", value_type);
         let signature =
             self.create_synthetic_call_signature(vec![value_param], Some(this_param), value_type);
-        Ok(self.create_single_signature_anonymous_type(None, signature))
+        self.get_or_create_type_from_signature(signature)
     }
 
     /// tsc-port: createESDecoratorCallSignature @6.0.3
@@ -1578,22 +1578,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createGetterFunctionType @6.0.3
     /// tsc-hash: 784e4c2a63cd0b21f704d8dbcab0ad09b3da059931ff15dcee37b1a9058a5085
     /// tsc-span: _tsc.js:82677-82686
-    fn create_getter_function_type(&mut self, ty: TypeId) -> TypeId {
+    fn create_getter_function_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let signature = self.create_synthetic_call_signature(Vec::new(), None, ty);
-        self.create_single_signature_anonymous_type(None, signature)
+        self.get_or_create_type_from_signature(signature)
     }
 
     /// tsc-port: createSetterFunctionType @6.0.3
     /// tsc-hash: 895e12d1a6d34af32fa8b57f708a4b66f74a2bb76ec7d830ded3e040a2346cdb
     /// tsc-span: _tsc.js:82687-82697
-    fn create_setter_function_type(&mut self, ty: TypeId) -> TypeId {
+    fn create_setter_function_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let value_param = self.create_synthetic_parameter("value", ty);
         let signature = self.create_synthetic_call_signature(
             vec![value_param],
             None,
             self.tables.intrinsics.void,
         );
-        self.create_single_signature_anonymous_type(None, signature)
+        self.get_or_create_type_from_signature(signature)
     }
 
     /// tsc createParameter (47659): a transient function-scoped
@@ -5918,7 +5918,8 @@ impl<'a> CheckerState<'a> {
         target: SymbolId,
         ty: TypeId,
     ) -> CheckResult<bool> {
-        let base_types = self.get_base_types(ty)?;
+        // tsgo checker.go:8865: the base types of the reference's target.
+        let base_types = self.get_base_types(self.get_target_type(ty))?;
         if base_types.is_empty() {
             return Ok(false);
         }
@@ -6653,7 +6654,7 @@ impl<'a> CheckerState<'a> {
                 self.resolve_jsx_opening_like_element(node, check_mode)
             }
             SyntaxKind::BinaryExpression => self.resolve_instanceof_expression(node, check_mode),
-            _ => unreachable!("Branch in 'resolveSignature' should be unreachable."),
+            _ => panic!("Unhandled case in resolveSignature"),
         }
     }
 

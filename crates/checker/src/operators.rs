@@ -4561,7 +4561,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getAwaitedType @6.0.3
     /// tsc-hash: d8eeb1013e9cbe31e08ea52051232be9c5a3e8d5256dcca7824e9aee88fdaf9a
     /// tsc-span: _tsc.js:82431-82434
-    pub(crate) fn get_awaited_type_probe(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
+    pub fn get_awaited_type_probe(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         let awaited = self.get_awaited_type_no_alias(ty, None)?;
         match awaited {
             Some(awaited) => Ok(Some(self.create_awaited_type_if_needed(awaited)?)),

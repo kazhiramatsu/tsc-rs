@@ -780,3 +780,6 @@ fn handles_the_snapshot_does_not_know_are_the_clients_errors() {
         "api: client error: snapshot 99 not found"
     );
 }
+
+#[path = "session_types.rs"]
+mod types;

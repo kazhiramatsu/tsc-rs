@@ -454,7 +454,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getNonNullableType @6.0.3
     /// tsc-hash: e64e3f0d08a085a8b0a5a597fb450e623bdf865ae234a5a8565c24f338871e98
     /// tsc-span: _tsc.js:67868-67870
-    pub(crate) fn get_non_nullable_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+    pub fn get_non_nullable_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self
             .options
             .strict_option_value(self.options.strict_null_checks)

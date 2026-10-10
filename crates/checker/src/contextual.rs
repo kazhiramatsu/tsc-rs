@@ -949,7 +949,7 @@ impl<'a> CheckerState<'a> {
     /// never re-enter resolution. The import-call arm precedes the
     /// resolution read: the plain arguments list is the effective
     /// list (grammar caps import calls at two plain arguments).
-    fn get_contextual_type_for_argument_at_index(
+    pub fn get_contextual_type_for_argument_at_index(
         &mut self,
         call_target: NodeId,
         arg_index: usize,
@@ -2472,7 +2472,7 @@ impl<'a> CheckerState<'a> {
     /// Arm dispositions per the extraction doc §4 table; the CALLS
     /// contextual arms are live through decorators. The yield-operand
     /// arm is live since 5.8b.
-    pub(crate) fn get_contextual_type(
+    pub fn get_contextual_type(
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
@@ -3212,11 +3212,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isContextSensitive @6.0.3
     /// tsc-hash: 6f0633a32072d0c768c34aeb4ba53dd0f57863aba52fb8bcfbcf88699fe2d228
     /// tsc-span: _tsc.js:63832-63865
-    pub(crate) fn is_context_sensitive(&self, node: NodeId) -> bool {
-        debug_assert!(
-            self.kind_of(node) != SyntaxKind::MethodDeclaration
-                || self.is_object_literal_method(node)
-        );
+    pub fn is_context_sensitive(&self, node: NodeId) -> bool {
         match self.kind_of(node) {
             SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction

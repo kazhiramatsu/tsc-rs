@@ -4684,9 +4684,8 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
-        // stableTypeOrdering: getNamedMembers(members, type.symbol) sorts the
-        // combined properties (58741); union and intersection types have no symbol.
-        self.order_named_members_if_stable(&mut result, None);
+        // tsgo keeps the order the properties were found in (checker.go:
+        // 19201-19225).
         self.links
             .set_type_resolved_properties(ty, result.clone().into_boxed_slice());
         Ok(result)
@@ -7223,7 +7222,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexInfoOfType @6.0.3
     /// tsc-hash: 101b63fd27f443db13b97b28b4151a42b961f365917b1fe2bdde4dbd30da4ed7
     /// tsc-span: _tsc.js:59466-59468
-    pub(crate) fn get_index_info_of_type(
+    pub fn get_index_info_of_type(
         &mut self,
         ty: TypeId,
         key_type: TypeId,
@@ -7727,7 +7726,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isArrayType @6.0.3
     /// tsc-hash: 880f484023ae500fd17675daebbc00e72462411283bf49135001973ca042cf9f
     /// tsc-span: _tsc.js:67665-67667
-    pub(crate) fn is_array_type(&mut self, ty: TypeId) -> CheckResult<bool> {
+    pub fn is_array_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
             .object_flags_of(ty)
