@@ -1242,3 +1242,19 @@ snapshot、option、module provider を借りる）。
   - 上の tsgo との比較と client の test は最終のコードでやり直した（結果は同じ）。
   - workspace 全体の test と Clippy は hosted の `rust` job に任せる。
 - **残り**：P5-4c（signature と node builder）。
+
+### P5-4b の hosted の記録と merge（2026-10-10）
+
+- 最初の hosted run 38024526273（head `8d1541e12`）は `rust` で cli の contract test
+  `incremental_steps_explain_references` が落ちた。hosted の Linux では続けて書いた fixture の 2 file が同じ更新時刻になり、
+  `tsc -b` が同じ時刻の入力のうち先に見た file を最新と報告した（tsgo の記録は file ごとに時刻が進む所で作った）。
+  `write_fixture_files` が同じ時刻の file を書いた順に 1 µs ずつずらすように直した（`b0e21f7e4`。local：cli の contracts
+  264 passed、Clippy clean）。この run は `conformance` の途中で止めた。
+- 同じ branch で、利用者の指示による README の整理（`8d1541e12`。短い利用者向けの案内にし、詳しい内容を
+  `docs/performance.md`・`docs/rust-api.md`・`docs/setup.md` に移した。性能は tsc 6.0.3 互換の build での計測と注記）と
+  CLAUDE.md の整理（`82a5d67e3`。repository から読み取れない約束だけを残した）も入れた。
+- hosted：最終候補 `82a5d67e3` の run 38025264190（`plan` 32s、`rust` 7m34s、`conformance (TypeScript 7.1)` 14m1s、
+  `gates` 12s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge → `fa3ac45cd`（merge commit、
+  PR #732）。
+- 次は P5-4c（signature、`resolveName`・`getSymbolsInScope`、well-known、`typeToTypeNode`・
+  `signatureToSignatureDeclaration`）。
