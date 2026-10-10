@@ -1343,3 +1343,101 @@ snapshot、option、module provider を借りる）。
   `gates` 15s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge → `4b168fb41`（merge commit、
   PR #733）。
 - 次は P5-4d（diagnostics と emit）。
+
+## P5-4d diagnostics と emit（2026-10-10）
+
+- **method**（12）：
+  - diagnostics（tsgo session.go:4779-4900）：`getSyntacticDiagnostics`・`getBindDiagnostics`・`getSemanticDiagnostics`・
+    `getSuggestionDiagnostics`・`getDeclarationDiagnostics`（file を渡せば file ごとの結果を順に並べ、同じ file は繰り返す。
+    渡さなければ（`null` も）library を含む program 全体を並べ替える）、`getProgramDiagnostics`、
+    `getConfigFileParsingDiagnostics`、`getGlobalDiagnostics`（diagnostics checker で全 file の semantic を求めた後の、
+    project の config・program・checker の行のうち file の無いもの）。
+  - emit（session.go:3564-3720）：`emit`（snapshot が full の request FS を読むなら出力を応答に入れ、そうでなければ
+    session の FS（client の callback を含む）に CLI と同じ経路で書く）、`emitToString`（出力を名前順に、
+    `sourceFileName` 付きで）、`getJavaScriptEmit`・`getDeclarationEmit`（選んだ file を `ForceEmit` で。file が無ければ
+    client error `files is required`）。`emitOnly` は 0〜2、それ以外は `invalid emitOnly value`。
+- **live program**（tsgo の `Program` と project の checker pool）：
+  - `LiveChecker` の diagnostics checker を `CheckerSession` にした（宣言の診断に emit resolver を貸す）。emit は別の
+    query checker（tsgo `CheckerLifetimeTemporary`。最初の emit で作る）で行う。P5-1d の API checker と合わせて 3 つ。
+  - `LiveProgram`：bind の診断、宣言の診断（宣言 file には無い。program ごとに一度だけ求める。diagnostics checker では
+    先にその file を semantic と同じく検査する）、`emit`（tsgo `HandleNoEmitOptions`：`noEmit` は何も書かず skip にも
+    しない。`noEmitOnError` は query checker での tsgo `GetDiagnosticsOfAnyProgram`：config、syntactic、program、
+    semantic、宣言の順。project の program の global の行は pool のもので、ここには入らない）、`emit_forced`（tsgo
+    `ForceEmit` の Js と Dts）。suggestion を file ごとに並べ替える（tsgo `filterAndSortDiagnostics`）。checker の file の
+    番号から prepared program の source へは authoritative token で引く。
+- **既存の経路の変更**（tsgo に合わせた。一部は下の corpus の比較で見つけた）：
+  - `MessageChain` に入れ子の entry に位置が無いこと（`without_location`。tsgo `ast.NewCompilerDiagnostic`）を足した。
+    program・config・option・emitter の preflight が作る chain（include の理由、module format、`Use_0_instead`、
+    `Visit https://aka.ms/ts6`、tsconfig を勧める文）の entry には位置が無く、checker の chain の entry は診断の位置に
+    ある（tsgo `NewDiagnosticChain`）。
+  - API の診断の応答：入れ子の entry は上の位置と自分の related information（relater の related information は chain の
+    各段にある）と message の flag を持つ。一つの応答では file ごとに一度だけ行を数える。
+  - live program の file ごとの semantic の診断は checker の global の行を含まない（tsgo
+    `getBindAndCheckDiagnosticsWithChecker` の deferred globals なし。以前は tsc 6.0 と同じくその file の検査で出た global の
+    行をその file に入れた）。global の行は `getGlobalDiagnostics` にだけ出る。`noEmitOnError` の判定も同じ。
+  - checker：未使用の識別子（tsgo `reportUnused`）は ambient の位置（node の flag。accessor の不正な `declare` は ambient に
+    しない）では suggestion も出さない（以前は error にしない代わりに suggestion にした）。overload の解決の失敗
+    （`No overload matches this call` と `The last overload gave the following error`）の chain は、包んだ診断の related
+    information を各段に持つ（tsgo `NewDiagnosticChain`）。
+  - parser：括弧の対応の related information（`The parser expected to find a '}' to match the '{' token here.`）の範囲は
+    開き括弧の位置で長さ 0（tsgo。tsc は 1 文字）。
+  - emitter：出力の path に tsgo `ForceEmitPaths`（`dts`・`js`・`declarationMap`）を入れた。forced の宣言の emit は
+    `declarationMap` だけで（`declaration` が無くても）map を作り、診断があっても skip にしない（tsgo
+    `emitDeclarationFile`）。forced の JavaScript の emit（`emit_forced_javascript`：`emitDeclarationOnly`・`noEmit`・
+    blocked の path を見ない）を足した。emit の診断は file ごとの（並べ替えた）集合を plan の順に並べる（tsgo
+    `CombineEmitResults`。以前は全体を並べ替えた。CLI は報告の前に全体を並べ替える）。
+  - printer：`**` の左の operand は update の優先度より低ければ括弧に入れる（tsgo `getBinaryExpressionPrecedence`。
+    印字の文法の文脈で。tsc の規則は単項の operand をそのままにし、型の表明を外した `(<number>-x) ** 2` を不正な
+    `-x ** 2` にした）。factory の括弧の規則は tsc・tsgo と同じまま（factory で括弧を足した候補は target ES2015 の `**` の
+    変換の出力を変え、conformance の 2 構成を下げた）。
+  - 出力の書き込み（CLI と API で一つの経路）：tsgo の `vfs.FS.WriteFile` と同じく、file system の write が足りない
+    directory を作る（OS では Go の `os.MkdirAll` の手順）。失敗の文は Go の `*fs.PathError`
+    （`open /p/a.js: is a directory`、`mkdir /p/file: not a directory`。以前は Node の `EISDIR: illegal operation on a
+    directory, open '/p/a.js'`）。emitter の sink は artifact ごとに一度 write するだけになり、tsc 6.0.3 の
+    `ensureDirectoriesExist` の手順（`directory_exists` と一段ずつの作成）を除いた。`emittedFiles` には書けた file だけを
+    入れる（tsgo `printSourceFile`。callback が飛ばした file も入れない）。source map の書き込みの失敗は対の JavaScript・
+    宣言 file の名で報告する（tsgo）。API の別の書き込みの経路（`WriteThrough`）を除いた。
+  - synthetic program（`createProgram`）の `configFileParsingDiagnostics` を program の config parsing diagnostics にした
+    （tsgo の synthetic `ParsedCommandLine.Errors`）。
+- **test**：api の unit 9（`crates/api/tests/unit/session_outputs.rs`。tsgo の応答の JSON の text と比べる。Go の
+  `TestEmitFromLayerOverFullFileSystemReturnsFileContents` を含む）。host の unit 1（`OsFs` の失敗の文と directory の
+  作成。tsgo の TS5033 の文と同じ）。tsc 6.0.3 の動きを pin していた test を tsgo の結果に直した：checker の ambient の
+  未使用の suggestion（unused 2、calls 2、jsx 1）、parser の related の長さ（2）、書けなかった出力の一覧（CLI・emitter・
+  compiler の 3。CLI は tsgo の出力の全文に）、emitter の sink の手順（3 を 2 に）。
+- **tsgo との比較**（local、MessagePack。fixture の root を除いて比べる）：
+  - fixture（probe 1：project 10、391 行。probe 2：project 7 と `createProgram`、137 行。unit の test の要求 70、
+    144 行）：診断の 8 method（file を渡す・渡さない・`null`・URI・繰り返し・欠けた file）と emit の 4 method（full の FS
+    と write-through、`noEmit`・`noEmitOnError`・`emitDeclarationOnly`・`declarationMap`・BOM・CRLF・JSON・宣言 file、
+    `emitOnly` の各値）。違うのは decode の error の文 1 行と synthetic program の相対 path の 4 行（下の bounded）。
+  - 書き込みの失敗（出力が directory の JavaScript と宣言 file、`outDir` の上が file、map だけ書けない）の `emit` と
+    書かれた file の一覧：一致。
+  - corpus：conformance の単一 file の test 815（`@filename` の無い 9,775 から 12 に 1 つ。`// @option` を tsconfig に
+    写す）で、test の file の 5 種の診断、program・global・config の診断、`emitToString`、`getDeclarationEmit`：
+    9,781 行のうち違うのは 73 行で、全て下の bounded の ES5 の target（70）と System の module（3）。
+  - ambient の未使用（6 例）、overload の chain の related、`**` の括弧（fixture と corpus の 2 例）の probe も一致。
+- **TypeScript の client の test**（local）：tsc-rs 283/327（P5-4c は 250）。残り 44 は後の slice の未実装の method
+  （`printNode` 15、build orchestrator 12、LS 13、`formatNodeForInsertion` 3）と P5-3a の null の要素 1。
+- **tsgo と違う所**（bounded）：
+  - parameter の decode の error の文（serde と Go の json。以前の slice と同じ）。
+  - synthetic program の option の相対 path（`rootDir`・`outDir`）：tsgo は与えられた文字列のまま使う（`rootDir` の検査で
+    6059、出力は source の隣）。tsc-rs は command line と同じ変換をし、相対の `outDir` には書けない。
+  - ES5 の target、AMD・UMD・System の module（tsc-rs が残し、tsgo が外した機能）の emit と診断（corpus では ES5 70 行、
+    System 3 行）。
+  - Windows の OS の error の文は確かめていない（Go は英語の system message を求める）。
+- **検証**（コード `8085b5626`。macOS、`nice -n 20`、Cargo の job 2）：
+  - `cargo fmt --all -- --check`、Clippy（diagnostics・syntax・host・program・project・checker・emitter・compiler・api・
+    cli の `--all-targets -- -D warnings`）は clean。`cargo check --workspace --all-targets` も通る。
+  - `cargo test`：host・emitter・compiler・cli・api・checker・program・project の 3,808（checker 1,794、emitter 481、
+    api 183 の unit を含む）、conformance・incremental の 79。diagnostics・syntax・binder は、その crate も依存も最終と
+    同じ bytes の途中の候補で通した。
+  - release build の full conformance（`--workers 2 --check`、620 s）：0 regressions、accepted tier を超える構成 0。
+    errors full 13,451、emit 13,443、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、
+    harness error 15（main と同じ）。途中の候補では factory の `**` の規則が target ES2015 の emit の 2 構成を下げ、
+    それを除いた。
+  - suites（release の `suites-ts71` を作り直して `scripts/suites_ts71.py --check`）：0 regressions、数は main と同じ
+    （api 2、config 87、transpile 41、tsbuild 182/192、tsbuildWatch 63/65、tsc 211/223、tscWatch 42、tsoptions 80）。
+  - 並列対照（`--checkers 4`、585 s、`scripts/conformance_ts71_compare.py`）：15,224 構成が一致、違う 4 構成は記録済みの
+    partition 依存の構成。
+  - 上の tsgo との比較と client の test は最終のコードの release build で。
+  - workspace 全体の test と Clippy は hosted の `rust` job に任せる。
+- **残り**：P5-4 はこれで終わり。次は P5-5（`printNode` と decoder）。
