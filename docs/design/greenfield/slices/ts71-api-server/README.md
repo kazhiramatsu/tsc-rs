@@ -1487,3 +1487,10 @@ snapshot、option、module provider を借りる）。
   ので、conformance と suites は hosted に任せた。
 - **残り**：P5-5（`printNode` と decoder）。本家の TypeScript（microsoft/TypeScript）への追従は、P5-6 の後、LSP の前に
   計画する（利用者の決定、2026-10-11。`19dadef8` の後に 82 commit、10-09 時点）。
+
+### P5-4 の後の修正の hosted の記録と merge（2026-10-11）
+
+- hosted：最終候補 `04affa4d0`（修正 `fed6c74f5`・packet の記録）の run 38072326355（`plan` 29s、`rust` 11m29s、
+  `conformance (TypeScript 7.1)` 13m10s、`gates` 13s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。
+  merge → `551427e87`（merge commit、PR #735）。
+- 次は P5-5（`printNode` と decoder）。
