@@ -19,10 +19,12 @@ use std::sync::{Arc, Mutex, PoisonError};
 use serde::Serialize;
 use serde_json::value::RawValue;
 use tsc_checker::exports::{ConstantValue, IntrinsicType, TYPE_FORMAT_DEFAULT};
-use tsc_checker::state::{CheckAbort, CheckerState};
+use tsc_checker::state::{CheckAbort, CheckerState, IndexInfo};
 use tsc_project::ProjectProgram;
 use tsc_syntax::{NodeId, SourceFile};
-use tsc_types::{CheckFlags, LiteralValue, ObjectFlags, SymbolId, TypeData, TypeFlags, TypeId};
+use tsc_types::{
+    CheckFlags, ContextFlags, LiteralValue, ObjectFlags, SymbolId, TypeData, TypeFlags, TypeId,
+};
 
 use crate::astnav::{Found, Navigator};
 use crate::encoder::{build_node_index_table, tsgo_kind, NodeIndexTable, PositionMap};
@@ -154,8 +156,39 @@ struct ConstantValueResponse {
     value: Option<Box<RawValue>>,
 }
 
+/// tsgo `IndexInfoResponse`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IndexInfoResponse {
+    key_type: TypeResponse,
+    value_type: TypeResponse,
+    is_readonly: bool,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    declaration: String,
+}
+
 fn is_zero<T: Default + PartialEq>(value: &T) -> bool {
     *value == T::default()
+}
+
+/// tsgo `ast.EscapeSymbolName` of a symbol's name: tsc-rs's names are
+/// escaped as tsgo writes them, but a late-bound name starts with tsgo's
+/// internal prefix (U+FFFD here), which tsgo writes as `__`.
+fn escape_symbol_name(name: &str) -> String {
+    match name.strip_prefix('\u{FFFD}') {
+        Some(rest) => format!("__{rest}"),
+        None => name.to_owned(),
+    }
+}
+
+/// The type handle of a type property request (`objectId`).
+fn object_type_handle(params: &CheckerParams) -> Result<u32, String> {
+    u32::try_from(params.object_id).map_err(|_| {
+        client_error(format!(
+            "type handle {} not found in project registry",
+            params.object_id
+        ))
+    })
 }
 
 /// A failed query: the checker aborted (no tsgo counterpart), or the
@@ -192,7 +225,51 @@ impl Session {
             | "getMembersOfSymbol"
             | "getExportsOfSymbol"
             | "getExportSymbolOfSymbol" => "GetSymbolPropertyParams",
-            "getSymbolOfType" => "GetTypePropertyParams",
+            "getSymbolOfType"
+            | "getAliasSymbolOfType"
+            | "getTargetOfType"
+            | "getFreshTypeOfType"
+            | "getRegularTypeOfType"
+            | "getTypesOfType"
+            | "getTypeParametersOfType"
+            | "getOuterTypeParametersOfType"
+            | "getLocalTypeParametersOfType"
+            | "getThisTypeOfType"
+            | "getAliasTypeArgumentsOfType"
+            | "getObjectTypeOfType"
+            | "getIndexTypeOfType"
+            | "getCheckTypeOfType"
+            | "getExtendsTypeOfType"
+            | "getBaseTypeOfType"
+            | "getConstraintOfType"
+            | "getTypeParameterOfMappedType"
+            | "getConstraintTypeOfMappedType"
+            | "getNameTypeOfMappedType"
+            | "getTemplateTypeOfMappedType"
+            | "getApparentPropertiesOfType"
+            | "getApparentType"
+            | "getReducedType"
+            | "getConstraintOfTypeParameter"
+            | "getDefaultFromTypeParameter"
+            | "getTrueTypeOfConditionalType"
+            | "getFalseTypeOfConditionalType"
+            | "getNonNullableType" => "GetTypePropertyParams",
+            "getBaseTypes"
+            | "getPropertiesOfType"
+            | "getIndexInfosOfType"
+            | "getBaseConstraintOfType"
+            | "getTypeArguments"
+            | "getAwaitedType"
+            | "isArrayType" => "CheckerTypeParams",
+            "getIndexInfoOfType" => "GetIndexInfoOfTypeParams",
+            "getPropertyOfType" | "getTypeOfPropertyOfType" => "GetPropertyOfTypeParams",
+            "getBaseTypeOfLiteralType" => "GetBaseTypeOfLiteralTypeParams",
+            "getWidenedType" => "GetWidenedTypeParams",
+            "isArrayLikeType" => "IsArrayLikeTypeParams",
+            "isTypeAssignableTo" => "IsTypeAssignableToParams",
+            "getTypeFromTypeNode" => "GetTypeFromTypeNodeParams",
+            "getContextualType" | "isContextSensitive" => "GetContextualTypeParams",
+            "getContextualTypeForArgument" => "GetContextualTypeForArgumentParams",
             "typeToString" => "TypeToTypeNodeParams",
             "getAnyType"
             | "getStringType"
@@ -233,17 +310,17 @@ impl Session {
             | "getExportsOfSymbol" => {
                 return self.symbol_property(method, params);
             }
-            "getSymbolOfType" => {
+            "getSymbolOfType" | "getAliasSymbolOfType" => {
                 let setup = self.setup_checker(params.snapshot, &params.project)?;
-                let ty = u32::try_from(params.object_id).map_err(|_| {
-                    client_error(format!(
-                        "type handle {} not found in project registry",
-                        params.object_id
-                    ))
-                })?;
+                let ty = object_type_handle(params)?;
                 return setup.query(self, |query| {
                     let ty = query.resolve_type(ty)?;
-                    let symbol = query.state.tables.type_of(ty).symbol;
+                    let data = query.state.tables.type_of(ty);
+                    let symbol = if method == "getSymbolOfType" {
+                        data.symbol
+                    } else {
+                        data.alias_symbol
+                    };
                     Ok(json(&symbol.map(|symbol| query.symbol_response(symbol))))
                 });
             }
@@ -505,6 +582,203 @@ impl Session {
                 let readonly = query.state.is_readonly_symbol(symbol).map_err(aborted)?;
                 Ok(json(&readonly))
             }
+            "getTargetOfType"
+            | "getFreshTypeOfType"
+            | "getRegularTypeOfType"
+            | "getThisTypeOfType"
+            | "getObjectTypeOfType"
+            | "getIndexTypeOfType"
+            | "getCheckTypeOfType"
+            | "getExtendsTypeOfType"
+            | "getBaseTypeOfType"
+            | "getConstraintOfType"
+            | "getTypeParameterOfMappedType"
+            | "getConstraintTypeOfMappedType"
+            | "getNameTypeOfMappedType"
+            | "getTemplateTypeOfMappedType"
+            | "getApparentType"
+            | "getReducedType"
+            | "getConstraintOfTypeParameter"
+            | "getDefaultFromTypeParameter"
+            | "getTrueTypeOfConditionalType"
+            | "getFalseTypeOfConditionalType"
+            | "getNonNullableType" => {
+                let ty = query.resolve_type(object_type_handle(params)?)?;
+                let result = query.type_property(method, ty)?;
+                Ok(json(&result.map(|ty| query.type_response(ty)).transpose()?))
+            }
+            "getBaseConstraintOfType"
+            | "getAwaitedType"
+            | "getBaseTypeOfLiteralType"
+            | "getWidenedType" => {
+                let ty = query.resolve_type(params.type_id)?;
+                let state = &mut query.state;
+                let result = match method {
+                    "getBaseConstraintOfType" => state.get_base_constraint_of_type(ty),
+                    "getAwaitedType" => state.get_awaited_type_probe(ty),
+                    "getBaseTypeOfLiteralType" => state.get_base_type_of_literal_type(ty).map(Some),
+                    _ => state.get_widened_type(ty).map(Some),
+                }
+                .map_err(aborted)?;
+                Ok(json(&result.map(|ty| query.type_response(ty)).transpose()?))
+            }
+            "getTypesOfType"
+            | "getTypeParametersOfType"
+            | "getOuterTypeParametersOfType"
+            | "getLocalTypeParametersOfType"
+            | "getAliasTypeArgumentsOfType"
+            | "getBaseTypes"
+            | "getTypeArguments" => {
+                let ty = match method {
+                    "getBaseTypes" | "getTypeArguments" => query.resolve_type(params.type_id)?,
+                    _ => query.resolve_type(object_type_handle(params)?)?,
+                };
+                let state = &mut query.state;
+                let types = match method {
+                    "getTypesOfType" => state.get_types_of_type(ty),
+                    "getTypeParametersOfType"
+                    | "getOuterTypeParametersOfType"
+                    | "getLocalTypeParametersOfType" => {
+                        let parts = state.get_interface_type_parts(ty);
+                        let (outer, local) = parts
+                            .type_parameters
+                            .split_at(parts.outer_type_parameter_count);
+                        match method {
+                            "getTypeParametersOfType" => parts.type_parameters.clone(),
+                            "getOuterTypeParametersOfType" => outer.to_vec(),
+                            _ => local.to_vec(),
+                        }
+                    }
+                    "getAliasTypeArgumentsOfType" => state
+                        .tables
+                        .type_of(ty)
+                        .alias_type_arguments
+                        .as_deref()
+                        .unwrap_or_default()
+                        .to_vec(),
+                    "getBaseTypes" => state.get_base_types(ty).map_err(aborted)?,
+                    _ => state.get_type_arguments_of_type(ty).map_err(aborted)?,
+                };
+                let results = types
+                    .into_iter()
+                    .map(|ty| query.type_response(ty))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(json(&results))
+            }
+            "getPropertiesOfType" | "getApparentPropertiesOfType" => {
+                let symbols = if method == "getPropertiesOfType" {
+                    let ty = query.resolve_type(params.type_id)?;
+                    query.state.get_properties_of_type(ty)
+                } else {
+                    let ty = query.resolve_type(object_type_handle(params)?)?;
+                    query.state.get_apparent_properties(ty)
+                }
+                .map_err(aborted)?;
+                let results = symbols
+                    .into_iter()
+                    .map(|symbol| query.symbol_response(symbol))
+                    .collect::<Vec<_>>();
+                Ok(json(&results))
+            }
+            "getPropertyOfType" | "getTypeOfPropertyOfType" => {
+                let ty = query.resolve_type(params.type_id)?;
+                // tsgo names a symbol as written; tsc-rs keeps the escaped
+                // name.
+                let name = tsc_binder::escape_leading_underscores(params.name.as_str());
+                if method == "getPropertyOfType" {
+                    let property = query
+                        .state
+                        .get_property_of_type_full(ty, name)
+                        .map_err(aborted)?;
+                    Ok(json(&property.map(|symbol| query.symbol_response(symbol))))
+                } else {
+                    let property_type = query
+                        .state
+                        .get_type_of_property_of_type(ty, name)
+                        .map_err(aborted)?;
+                    Ok(json(
+                        &property_type
+                            .map(|ty| query.type_response(ty))
+                            .transpose()?,
+                    ))
+                }
+            }
+            "getIndexInfosOfType" => {
+                let ty = query.resolve_type(params.type_id)?;
+                let infos = query.state.get_index_infos_of_type(ty).map_err(aborted)?;
+                let results = infos
+                    .into_iter()
+                    .map(|info| query.index_info_response(info))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(json(&results))
+            }
+            "getIndexInfoOfType" => {
+                let ty = query.resolve_type(params.type_id)?;
+                let key_type = match params.kind {
+                    0 => IntrinsicType::String,
+                    1 => IntrinsicType::Number,
+                    kind => return Err(client_error(format!("invalid index kind {kind}"))),
+                };
+                let key_type = query.state.get_intrinsic_type(key_type);
+                let info = query
+                    .state
+                    .get_index_info_of_type(ty, key_type)
+                    .map_err(aborted)?;
+                Ok(json(
+                    &info
+                        .map(|info| query.index_info_response(info))
+                        .transpose()?,
+                ))
+            }
+            "isArrayType" | "isArrayLikeType" => {
+                let ty = query.resolve_type(params.type_id)?;
+                let result = if method == "isArrayType" {
+                    query.state.is_array_type(ty)
+                } else {
+                    query.state.is_array_like_type(ty)
+                }
+                .map_err(aborted)?;
+                Ok(json(&result))
+            }
+            "isTypeAssignableTo" => {
+                let source = query.resolve_type(params.source)?;
+                let target = query.resolve_type(params.target)?;
+                let result = query
+                    .state
+                    .is_type_assignable_to(source, target)
+                    .map_err(aborted)?;
+                Ok(json(&result))
+            }
+            "getTypeFromTypeNode" => {
+                let node = query.resolve_node(&params.location)?;
+                let ty = query.state.get_type_from_type_node(node).map_err(aborted)?;
+                Ok(json(&query.type_response(ty)?))
+            }
+            "getContextualType" => {
+                let node = query.resolve_node(&params.location)?;
+                let ty = query
+                    .state
+                    .get_contextual_type(node, ContextFlags::NONE)
+                    .map_err(aborted)?;
+                Ok(json(&ty.map(|ty| query.type_response(ty)).transpose()?))
+            }
+            "getContextualTypeForArgument" => {
+                let node = query.resolve_node(&params.location)?;
+                // tsgo indexes the signature's parameters with a negative
+                // index.
+                let index = usize::try_from(params.index).unwrap_or_else(|_| {
+                    panic!("runtime error: index out of range [{}]", params.index)
+                });
+                let ty = query
+                    .state
+                    .get_contextual_type_for_argument_at_index(node, index)
+                    .map_err(aborted)?;
+                Ok(json(&ty.map(|ty| query.type_response(ty)).transpose()?))
+            }
+            "isContextSensitive" => {
+                let node = query.resolve_node(&params.location)?;
+                Ok(json(&query.state.is_context_sensitive(node)))
+            }
             _ => unreachable!("a checker method"),
         })
     }
@@ -660,7 +934,7 @@ impl Query<'_, '_> {
         let value_declaration = data.value_declaration;
         let parent = data.parent;
         let export_symbol = data.export_symbol;
-        let name = data.escaped_name.as_js().to_string_lossy().into_owned();
+        let name = escape_symbol_name(&data.escaped_name.as_js().to_string_lossy());
         let flags = symbol_flags(self.state, symbol);
         let check_flags = check_flags(self.state.get_check_flags(symbol));
         SymbolResponse {
@@ -885,6 +1159,59 @@ impl Query<'_, '_> {
         response.symbol = symbol.map_or(0, |symbol| self.symbol_id(symbol));
         response.alias_symbol = alias_symbol.map_or(0, |symbol| self.symbol_id(symbol));
         response
+    }
+
+    /// The type a type property request (`resolveTypePropertyOfType` and
+    /// the checker's requests that take `objectId`) answers for `ty`.
+    fn type_property(&mut self, method: &str, ty: TypeId) -> Result<Option<TypeId>, String> {
+        let state = &mut self.state;
+        Ok(match method {
+            "getTargetOfType" => state.get_target_of_type(ty),
+            "getFreshTypeOfType" => state.get_fresh_and_regular_type_of_type(ty).0,
+            "getRegularTypeOfType" => state.get_fresh_and_regular_type_of_type(ty).1,
+            "getThisTypeOfType" => state.get_interface_type_parts(ty).this_type,
+            "getObjectTypeOfType" => Some(state.get_indexed_access_parts(ty)[0]),
+            "getIndexTypeOfType" => Some(state.get_indexed_access_parts(ty)[1]),
+            "getCheckTypeOfType" => Some(state.get_conditional_parts(ty)[0]),
+            "getExtendsTypeOfType" => Some(state.get_conditional_parts(ty)[1]),
+            "getBaseTypeOfType" => Some(state.get_substitution_parts(ty)[0]),
+            "getConstraintOfType" => Some(state.get_substitution_parts(ty)[1]),
+            "getTypeParameterOfMappedType" => state.get_mapped_type_parts(ty)[0],
+            "getConstraintTypeOfMappedType" => state.get_mapped_type_parts(ty)[1],
+            "getNameTypeOfMappedType" => state.get_mapped_type_parts(ty)[2],
+            "getTemplateTypeOfMappedType" => state.get_mapped_type_parts(ty)[3],
+            "getApparentType" => Some(state.get_apparent_type(ty).map_err(aborted)?),
+            "getReducedType" => Some(state.get_reduced_type(ty).map_err(aborted)?),
+            "getConstraintOfTypeParameter" => state
+                .get_constraint_of_type_parameter(ty)
+                .map_err(aborted)?,
+            "getDefaultFromTypeParameter" => {
+                state.get_default_from_type_parameter(ty).map_err(aborted)?
+            }
+            "getTrueTypeOfConditionalType" | "getFalseTypeOfConditionalType" => Some(
+                state
+                    .get_branch_type_of_conditional_type(
+                        ty,
+                        method == "getTrueTypeOfConditionalType",
+                    )
+                    .map_err(aborted)?,
+            ),
+            "getNonNullableType" => Some(state.get_non_nullable_type(ty).map_err(aborted)?),
+            _ => unreachable!("a type property method"),
+        })
+    }
+
+    /// tsgo `checkerSetup.newIndexInfoResponse`.
+    fn index_info_response(&mut self, info: IndexInfo) -> Result<IndexInfoResponse, String> {
+        Ok(IndexInfoResponse {
+            key_type: self.type_response(info.key_type)?,
+            value_type: self.type_response(info.value_type)?,
+            is_readonly: info.is_readonly,
+            declaration: info
+                .declaration
+                .map(|declaration| self.node_handle(declaration))
+                .unwrap_or_default(),
+        })
     }
 
     /// tsgo `IsTupleType`: a reference to a tuple target.

@@ -2253,6 +2253,11 @@ fn conditional_type_to_type_node(
     r#type: TypeId,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Option<TransformNode>> {
+    // tsgo nodebuilderimpl.go:3010-3012: past the length, the conditional
+    // type is elided.
+    if check_truncation_length(context) {
+        return create_elided_information_placeholder(arena, target, context).map(Some);
+    }
     let TypeData::Conditional(data) = checker.tables.type_of(r#type).data.clone() else {
         unreachable!("conditional worker receives a conditional type")
     };
@@ -4236,17 +4241,9 @@ fn create_property_signature_with_name(
     question: Option<TransformNode>,
     r#type: Option<TransformNode>,
 ) -> BuildResult<TransformNode> {
-    let name = if tsc_syntax::is_identifier_text(name) {
-        create_identifier(arena, target, name)?
-    } else {
-        create_node(
-            arena,
-            target,
-            NodeData::StringLiteral(StringLiteralData {
-                text: name.to_owned().into(),
-            }),
-        )?
-    };
+    // tsgo names the elision members (`...`, `... N more ...`) with an
+    // identifier of that text.
+    let name = create_identifier(arena, target, name)?;
     let modifiers = match modifiers {
         Some(modifiers) => Some(create_node_array(arena, target, modifiers)?),
         None => None,

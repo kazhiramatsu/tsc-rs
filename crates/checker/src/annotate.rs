@@ -5326,11 +5326,13 @@ impl<'a> CheckerState<'a> {
     /// built — ported exactly; the outer frame's pop then reports 2310
     /// per class/interface declaration. Class bases (resolveBaseTypesOfClass
     /// — base constructor types) are 5.3e.
-    pub(crate) fn get_base_types(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
+    pub fn get_base_types(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
+        // tsgo checker.go:19505: only a class, an interface or a tuple
+        // target has base types.
         if !self
             .tables
             .object_flags_of(ty)
-            .intersects(ObjectFlags::CLASS_OR_INTERFACE | ObjectFlags::REFERENCE)
+            .intersects(ObjectFlags::CLASS_OR_INTERFACE | ObjectFlags::TUPLE)
         {
             return Ok(Vec::new());
         }

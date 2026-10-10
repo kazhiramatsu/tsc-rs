@@ -11,10 +11,19 @@ use tsc_emitter::{
     StandaloneWriter,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{CheckMode, JsString, SymbolFlags, SymbolId, TypeId};
+use tsc_types::{
+    CheckMode, JsString, ObjectFlags, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId,
+};
 
+use crate::member_table::MemberTable;
 use crate::state::{CheckResult, CheckerState};
 use crate::type_order::order_ctx;
+
+/// Go's runtime error for a nil pointer dereference: tsgo's API answers
+/// with it (as the request's panic) when a type is asked for a part that
+/// its kind of type does not have.
+const NIL_POINTER_DEREFERENCE: &str =
+    "runtime error: invalid memory address or nil pointer dereference";
 
 /// The intrinsic types of tsgo's getters (`GetAnyType` … `GetNonPrimitiveType`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -73,6 +82,15 @@ pub enum ConstantValue {
     Number(f64),
 }
 
+/// tsgo `InterfaceType`'s type parameters (`TypeParameters`, the outer ones
+/// first) and this type.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct InterfaceTypeParts {
+    pub type_parameters: Vec<TypeId>,
+    pub outer_type_parameter_count: usize,
+    pub this_type: Option<TypeId>,
+}
+
 impl CheckerState<'_> {
     /// tsgo `GetAnyType` … `GetNonPrimitiveType`.
     pub fn get_intrinsic_type(&self, intrinsic: IntrinsicType) -> TypeId {
@@ -121,6 +139,245 @@ impl CheckerState<'_> {
             self.get_name_type_from_mapped_type(ty)?,
             Some(self.get_template_type_from_mapped_type(ty)?),
         ])
+    }
+
+    /// The Go type of tsgo's data for `ty`: the dynamic type of its
+    /// `checker.TypeData`, as tsgo's type constructors choose it (by the
+    /// object flags for an object type, `newObjectType`).
+    fn tsgo_type_data(&self, ty: TypeId) -> &'static str {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::FRESHABLE) {
+            return "LiteralType";
+        }
+        if flags.intersects(TypeFlags::OBJECT) {
+            let object_flags = self.tables.object_flags_of(ty);
+            return [
+                (ObjectFlags::CLASS_OR_INTERFACE, "InterfaceType"),
+                (ObjectFlags::TUPLE, "TupleType"),
+                (ObjectFlags::REFERENCE, "TypeReference"),
+                (ObjectFlags::MAPPED, "MappedType"),
+                (ObjectFlags::REVERSE_MAPPED, "ReverseMappedType"),
+                (ObjectFlags::EVOLVING_ARRAY, "EvolvingArrayType"),
+                (
+                    ObjectFlags::INSTANTIATION_EXPRESSION_TYPE,
+                    "InstantiationExpressionType",
+                ),
+            ]
+            .into_iter()
+            .find(|(flag, _)| object_flags.intersects(*flag))
+            .map_or("ObjectType", |(_, name)| name);
+        }
+        [
+            (TypeFlags::UNIQUE_ES_SYMBOL, "UniqueESSymbolType"),
+            (TypeFlags::UNION, "UnionType"),
+            (TypeFlags::INTERSECTION, "IntersectionType"),
+            (TypeFlags::TYPE_PARAMETER, "TypeParameter"),
+            (TypeFlags::INDEX, "IndexType"),
+            (TypeFlags::INDEXED_ACCESS, "IndexedAccessType"),
+            (TypeFlags::CONDITIONAL, "ConditionalType"),
+            (TypeFlags::SUBSTITUTION, "SubstitutionType"),
+            (TypeFlags::TEMPLATE_LITERAL, "TemplateLiteralType"),
+            (TypeFlags::STRING_MAPPING, "StringMappingType"),
+        ]
+        .into_iter()
+        .find(|(flag, _)| flags.intersects(*flag))
+        .map_or("IntrinsicType", |(_, name)| name)
+    }
+
+    /// The panic of tsgo's `t.data.(*checker.<expected>)` for a type whose
+    /// data is another type.
+    fn type_assertion_failure(&self, ty: TypeId, expected: &str) -> ! {
+        panic!(
+            "interface conversion: checker.TypeData is *checker.{}, not *checker.{expected}",
+            self.tsgo_type_data(ty)
+        )
+    }
+
+    /// tsgo `Type.Target` (types.go:752-767): a reference's target (a
+    /// class, an interface or a tuple target is its own), the original of
+    /// an instantiated object type or of a cloned type parameter, and the
+    /// operand of an index or string mapping type.
+    pub fn get_target_of_type(&self, ty: TypeId) -> Option<TypeId> {
+        let flags = self.tables.flags_of(ty);
+        let data = &self.tables.type_of(ty).data;
+        if flags.intersects(TypeFlags::OBJECT) {
+            return match data {
+                TypeData::Reference { target, .. } => Some(*target),
+                TypeData::TupleTarget(_) | TypeData::GenericType { .. } => Some(ty),
+                TypeData::Mapped(mapped) => mapped.target,
+                _ => self.links.read_ty(ty, |links| links.instantiated_target),
+            };
+        }
+        if flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            return self.links.read_ty(ty, |links| links.type_parameter_target);
+        }
+        match data {
+            TypeData::Index { ty, .. } | TypeData::StringMapping { ty } => Some(*ty),
+            _ => panic!("Unhandled case in Type.Target"),
+        }
+    }
+
+    /// tsgo `Type.Types` (types.go:780-788): a union's or intersection's
+    /// types, or a template literal type's.
+    pub fn get_types_of_type(&self, ty: TypeId) -> Vec<TypeId> {
+        match &self.tables.type_of(ty).data {
+            TypeData::Union { types, .. }
+            | TypeData::Intersection { types }
+            | TypeData::TemplateLiteral { types, .. } => types.to_vec(),
+            _ => panic!("Unhandled case in Type.Types"),
+        }
+    }
+
+    /// tsgo `LiteralType.FreshType` and `RegularType` of a literal or enum
+    /// type: its fresh type once one has been made, and its regular type.
+    pub fn get_fresh_and_regular_type_of_type(
+        &self,
+        ty: TypeId,
+    ) -> (Option<TypeId>, Option<TypeId>) {
+        if !self.tables.flags_of(ty).intersects(TypeFlags::FRESHABLE) {
+            self.type_assertion_failure(ty, "LiteralType");
+        }
+        let data = self.tables.type_of(ty);
+        (data.fresh_type, data.regular_type)
+    }
+
+    /// tsgo `Type.AsInterfaceType`'s type parameters and this type, of a
+    /// class, an interface or a tuple target (a thisless interface has
+    /// neither); tsgo dereferences a nil pointer for any other type.
+    pub fn get_interface_type_parts(&self, ty: TypeId) -> InterfaceTypeParts {
+        match &self.tables.type_of(ty).data {
+            TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                this_type,
+            } => InterfaceTypeParts {
+                type_parameters: type_parameters.to_vec(),
+                outer_type_parameter_count: *outer_type_parameter_count,
+                this_type: Some(*this_type),
+            },
+            TypeData::TupleTarget(target) => InterfaceTypeParts {
+                type_parameters: target.type_parameters.to_vec(),
+                outer_type_parameter_count: 0,
+                this_type: Some(target.this_type),
+            },
+            _ if self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::CLASS_OR_INTERFACE) =>
+            {
+                InterfaceTypeParts::default()
+            }
+            _ => panic!("{NIL_POINTER_DEREFERENCE}"),
+        }
+    }
+
+    /// tsgo `IndexedAccessType.ObjectType` and `IndexType`.
+    pub fn get_indexed_access_parts(&self, ty: TypeId) -> [TypeId; 2] {
+        match &self.tables.type_of(ty).data {
+            TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                ..
+            } => [*object_type, *index_type],
+            _ => self.type_assertion_failure(ty, "IndexedAccessType"),
+        }
+    }
+
+    /// tsgo `ConditionalType.CheckType` and `ExtendsType`.
+    pub fn get_conditional_parts(&self, ty: TypeId) -> [TypeId; 2] {
+        match &self.tables.type_of(ty).data {
+            TypeData::Conditional(conditional) => {
+                [conditional.check_type, conditional.extends_type]
+            }
+            _ => self.type_assertion_failure(ty, "ConditionalType"),
+        }
+    }
+
+    /// tsgo `SubstitutionType.BaseType` and `SubstConstraint`.
+    pub fn get_substitution_parts(&self, ty: TypeId) -> [TypeId; 2] {
+        match &self.tables.type_of(ty).data {
+            TypeData::Substitution(substitution) => {
+                [substitution.base_type, substitution.constraint]
+            }
+            _ => self.type_assertion_failure(ty, "SubstitutionType"),
+        }
+    }
+
+    /// tsgo `MappedType`'s type parameter, constraint, name and template
+    /// types as far as the checker has resolved them (`TypeParameter`,
+    /// `ConstraintType`, `NameType`, `TemplateType`).
+    pub fn get_mapped_type_parts(&self, ty: TypeId) -> [Option<TypeId>; 4] {
+        if !matches!(self.tables.type_of(ty).data, TypeData::Mapped(_)) {
+            self.type_assertion_failure(ty, "MappedType");
+        }
+        let cold = self.links.type_cold();
+        [
+            cold.mapped_type_parameter.get(ty).resolved(),
+            cold.mapped_constraint_type.get(ty).resolved(),
+            cold.mapped_name_type.get(ty).resolved().flatten(),
+            cold.mapped_template_type.get(ty).resolved(),
+        ]
+    }
+
+    /// tsgo `GetTrueTypeOfConditionalType` and
+    /// `GetFalseTypeOfConditionalType`.
+    pub fn get_branch_type_of_conditional_type(
+        &mut self,
+        ty: TypeId,
+        true_branch: bool,
+    ) -> CheckResult<TypeId> {
+        self.get_conditional_parts(ty);
+        if true_branch {
+            self.get_true_type_from_conditional_type(ty)
+        } else {
+            self.get_false_type_from_conditional_type(ty)
+        }
+    }
+
+    /// tsgo `GetTypeArguments` of a type reference (a class, an interface
+    /// or a tuple target is a reference to itself); tsgo dereferences a nil
+    /// pointer for any other type, a thisless interface's missing target
+    /// among them.
+    pub fn get_type_arguments_of_type(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
+        if !matches!(
+            self.tables.type_of(ty).data,
+            TypeData::Reference { .. } | TypeData::TupleTarget(_) | TypeData::GenericType { .. }
+        ) {
+            panic!("{NIL_POINTER_DEREFERENCE}");
+        }
+        self.get_type_arguments(ty)
+    }
+
+    /// tsgo `GetApparentProperties` (`getAugmentedPropertiesOfType`,
+    /// services.go:273-294): the properties of the apparent type, with
+    /// those of `CallableFunction` or `NewableFunction` it does not have
+    /// when it has call or construct signatures, as named members.
+    pub fn get_apparent_properties(&mut self, ty: TypeId) -> CheckResult<Vec<SymbolId>> {
+        let ty = self.get_apparent_type(ty)?;
+        let properties = self.get_properties_of_type(ty)?;
+        let mut members = MemberTable::from_symbols(&self.binder, &properties);
+        let function_type = if !self
+            .get_signatures_of_type(ty, crate::state::SignatureKind::Call)?
+            .is_empty()
+        {
+            Some(self.global_callable_function_type()?)
+        } else if !self
+            .get_signatures_of_type(ty, crate::state::SignatureKind::Construct)?
+            .is_empty()
+        {
+            Some(self.global_newable_function_type()?)
+        } else {
+            None
+        };
+        if let Some(function_type) = function_type {
+            for property in self.get_properties_of_type(function_type)? {
+                let name = self.binder.symbol(property).escaped_name;
+                if members.get(&self.binder, name).is_none() {
+                    members.insert(&self.binder, property);
+                }
+            }
+        }
+        self.get_named_members(&members, None)
     }
 
     /// tsgo `GetTypeAtLocation` of a token the tree does not keep, which
@@ -235,14 +492,17 @@ impl CheckerState<'_> {
             .collect())
     }
 
-    /// tsgo `TryGetMemberInModuleExports` (services.go:314-317).
+    /// tsgo `TryGetMemberInModuleExports` (services.go:314-317), by the
+    /// member's name as tsgo writes it (unescaped).
     pub fn try_get_member_in_module_exports(
         &mut self,
         member_name: &str,
         module_symbol: SymbolId,
     ) -> CheckResult<Option<SymbolId>> {
         let exports = self.module_exports(module_symbol)?;
-        Ok(exports.get(member_name).copied())
+        Ok(exports
+            .get(tsc_binder::escape_leading_underscores(member_name))
+            .copied())
     }
 
     /// tsgo `GetTypeOfSymbolAtLocation` (checker.go:16773-16809): the type
@@ -428,9 +688,13 @@ impl CheckerState<'_> {
             Ok(None) => panic!("should always get typenode"),
             Err(error) => return Err(format!("type node builder: {error}")),
         };
-        // The unresolved type keeps the comment that marks its `any`.
+        // The unresolved type keeps the comment that marks its `any`, which
+        // tsgo's printer writes only in a source file (the enclosing
+        // declaration's).
         let options = PrinterOptions::new(NewLineKind::LineFeed)
-            .with_remove_comments(ty != self.tables.intrinsics.unresolved)
+            .with_remove_comments(
+                ty != self.tables.intrinsics.unresolved || enclosing_declaration.is_none(),
+            )
             .with_declaration_syntax(true);
         let writer = if flags & TYPE_FORMAT_MULTILINE_OBJECT_LITERALS != 0 {
             StandaloneWriter::MultiLine

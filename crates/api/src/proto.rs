@@ -962,6 +962,17 @@ pub struct CheckerParams {
     pub name: String,
     #[serde(default, deserialize_with = "nullable")]
     pub flags: i32,
+    /// An index kind (`GetIndexInfoOfTypeParams`).
+    #[serde(default, deserialize_with = "nullable")]
+    pub kind: i32,
+    /// An argument's index (`GetContextualTypeForArgumentParams`).
+    #[serde(default, deserialize_with = "nullable")]
+    pub index: i32,
+    /// The types of `IsTypeAssignableToParams`.
+    #[serde(default, deserialize_with = "nullable")]
+    pub source: u32,
+    #[serde(default, deserialize_with = "nullable")]
+    pub target: u32,
 }
 
 /// tsgo `GetSourceFileParams`.

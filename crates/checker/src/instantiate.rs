@@ -3071,10 +3071,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDefaultFromTypeParameter @6.0.3
     /// tsc-hash: bf3dd4b9c8399461bc5fdc2eb38cf01bedd9d4d55503d48e6a33c378b8f0cbf7
     /// tsc-span: _tsc.js:59061-59064
-    pub(crate) fn get_default_from_type_parameter(
-        &mut self,
-        tp: TypeId,
-    ) -> CheckResult<Option<TypeId>> {
+    pub fn get_default_from_type_parameter(&mut self, tp: TypeId) -> CheckResult<Option<TypeId>> {
+        // tsgo checker.go:22388: any other type has no default.
+        if !self
+            .tables
+            .flags_of(tp)
+            .intersects(TypeFlags::TYPE_PARAMETER)
+        {
+            return Ok(None);
+        }
         let default_type = self.get_resolved_type_parameter_default(tp)?;
         Ok((default_type != self.no_constraint_type
             && default_type != self.circular_constraint_type)

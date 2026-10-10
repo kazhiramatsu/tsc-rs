@@ -108,7 +108,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isArrayLikeType @6.0.3
     /// tsc-hash: d4052c871dd48f9db83cbe239eb03664a38aed8f521ab81203bcf22345e6972e
     /// tsc-span: _tsc.js:67680-67682
-    pub(crate) fn is_array_like_type(&mut self, ty: TypeId) -> CheckResult<bool> {
+    pub fn is_array_like_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.is_array_type(ty)? {
             return Ok(true);
         }
