@@ -1817,3 +1817,11 @@ token を `emitToken` で書く。その差の出る所を tsgo に合わせた�
 - **残り**：P5-5b（`preserveSourceNewlines`。language service の作業で）。P5 は LS の handler（6）・`formatNodeForInsertion`・
   P5-5b を除いて終わった。次は本家の TypeScript の追従（ユーザーの決定：P5 の後、LSP の前。再 vendor の前に計画を立てて
   確認する）。
+
+### P5-6 の hosted の記録と merge（2026-10-11）
+
+- hosted：最終候補 `735bcea59`（コード `b1e159b5e`・packet の記録）の run 38093138108（`plan` 29s、`rust` 11m45s、
+  `conformance (TypeScript 7.1)` 19m53s、`gates` 13s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge →
+  `313863a55`（merge commit、PR #739）。
+- P5 は LS の handler（6）・`formatNodeForInsertion`・P5-5b（language service の作業で）を除いて終わった。次は本家の TypeScript の
+  追従（[計画](../ts71-upstream-sync/README.md)。再 vendor の前に利用者に確認する）。
