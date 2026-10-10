@@ -1157,3 +1157,88 @@ snapshot、option、module provider を借りる）。
   `conformance (TypeScript 7.1)` 13m4s、`gates` 14s。全て成功。workspace 全体の test と Clippy はこの `rust` job に
   よる）。merge → `9800f6b01`（merge commit、PR #731）。
 - 次は P5-4b（type の構造）。
+
+## P5-4b type の構造（2026-10-10）
+
+- **method**（46）：
+  - type の部分（tsgo `resolveTypePropertyOfType` ほか、`objectId` を取る 20）：`getTargetOfType`、
+    `getFreshTypeOfType`、`getRegularTypeOfType`、`getTypesOfType`、`getTypeParametersOfType`、
+    `getOuterTypeParametersOfType`、`getLocalTypeParametersOfType`、`getThisTypeOfType`、`getAliasTypeArgumentsOfType`、
+    `getAliasSymbolOfType`、`getObjectTypeOfType`、`getIndexTypeOfType`、`getCheckTypeOfType`、`getExtendsTypeOfType`、
+    `getBaseTypeOfType`、`getConstraintOfType`、mapped type の 4（`getTypeParameterOfMappedType` ほか）。
+  - checker の照会（26）：`getBaseTypes`、`getPropertiesOfType`、`getApparentPropertiesOfType`、`getApparentType`、
+    `getReducedType`、`getIndexInfosOfType`、`getIndexInfoOfType`、`getConstraintOfTypeParameter`、
+    `getDefaultFromTypeParameter`、`getBaseConstraintOfType`、`getPropertyOfType`、`getTypeOfPropertyOfType`、
+    `getTypeArguments`、`getTrueTypeOfConditionalType`、`getFalseTypeOfConditionalType`、`getAwaitedType`、
+    `getBaseTypeOfLiteralType`、`getNonNullableType`、`getTypeFromTypeNode`、`getWidenedType`、`isArrayType`、
+    `isArrayLikeType`、`isTypeAssignableTo`、`getContextualType`、`getContextualTypeForArgument`、`isContextSensitive`。
+- **tsgo の型の accessor**（checker の `exports.rs`）：tsgo `types.go` の `Type.Target`（reference の target。class・
+  interface・tuple の target は自身、instantiate した object 型と clone した型 parameter は元、index・string mapping は
+  operand）、`Type.Types`、`LiteralType` の fresh・regular、`AsInterfaceType` の型 parameter と this（thisless の interface
+  は両方無い）、indexed access・conditional・substitution の部分、mapped type の部分（checker が解決した分だけ。tsgo の
+  field と同じ）。型の種類が合わないと tsgo は panic し、API はそれを request の error にする（`Unhandled case in
+  Type.Target`、Go の型 assertion の `interface conversion: checker.TypeData is *checker.UnionType, not
+  *checker.LiteralType`、nil の参照の `runtime error: invalid memory address or nil pointer dereference`）。port も同じ文
+  で panic する。Go の data の型は flag から決める（object 型は tsgo `newObjectType` の object flag の順）。
+  `GetTypeArguments` は reference（class・interface・tuple の target を含む）以外で、`GetApparentProperties` は
+  apparent type の property に `CallableFunction`・`NewableFunction` の property を足した named member。
+- **response**：`IndexInfoResponse`（`isReadonly` は false も書き、`declaration` は無ければ省く）。型の配列と symbol の
+  配列は空なら `[]`（Go の nil の slice）。
+- **名**：tsgo の symbol の名は escape しない。名で引く request（`getPropertyOfType`、`getTypeOfPropertyOfType`、
+  P5-4a の `getMemberInModuleExports`）は tsc の escape（`escapeLeadingUnderscores`）を通して引く。応答の名は tsgo
+  `EscapeSymbolName` と同じ：port は late-bound の名を tsgo の内部の接頭辞（U+FFFD）で持つので、`__@` に書く（P5-4a で
+  漏れていた）。
+- **`typeToString`**：unresolved 型の `/*unresolved*/` の comment は enclosing declaration があるときだけ（tsgo の
+  printer は source file が無いと comment を書かない。P5-4a は常に残していた）。
+- **既存の経路の変更**（tsgo に合わせた。walk で tsgo と違った所）：
+  - union・intersection の property を並べ替えない。tsc 6.0.3 の stableTypeOrdering は `getNamedMembers` で並べ替えたが、
+    tsgo は最初の構成型の property の順のまま（`checker.go:19201-19225`）。
+  - `getBaseTypes` の入口を tsgo の `ClassOrInterface | Tuple` にした（以前は `ClassOrInterface | Reference`。tsc 6.0 は
+    参照も受けた）。参照を渡していた `typeHasProtectedAccessibleBase` は tsgo と同じく参照の target の base を見る（full
+    conformance で `protectedAccessibilityCheck` が落ちて分かった。他の呼び出し元は宣言の型か target を渡す）。
+  - `getDefaultFromTypeParameter` は型 parameter 以外に null（tsgo）。`isContextSensitive` の assert を外した（tsgo に
+    無い）。`resolveSignature` の panic の文を tsgo の `Unhandled case in resolveSignature` にした。
+  - node builder：切り詰めの member（`...`、`... N more ...`）を identifier で作る（以前は identifier にできない名として
+    string literal にし、`"..."` と印字した）。条件型は切り詰めの長さを超えていたら `...`（tsgo
+    `conditionalTypeToTypeNode` の入口）。
+  - decorator の getter・setter・field の初期化子の mutator の関数型を `getOrCreateTypeFromSignature` で作る（tsgo
+    `newFunctionType`。`Anonymous | SingleSignatureType` で signature に memo する。以前は `SingleSignatureType` が無かった）。
+- **test**：api の unit 8（`crates/api/tests/unit/session_types.rs`。tsgo の応答に合わせた。型の部分と panic、literal、
+  class・interface・base type・type argument、structured type の部分、property・index info・union の property の順、
+  apparent・awaited・non-nullable、array と assignability、contextual type と type node）。
+- **tsgo との比較**（local、MessagePack、番号を初出順に付け直して比べる）：fixture の 3 種（P5-4b の `types`（型の構造が
+  多い TS）、P5-4a の mapCode.ts、P5-4a の basic から JS を除いた 6 file）で、全ての位置の symbol と型、全ての node への
+  `getTypeFromTypeNode`・`getContextualType`・`isContextSensitive`（呼び出しの node には `getContextualTypeForArgument`）、
+  symbol の型、見つけた型（幅優先、上限 3,000）の全てに 46 method と `typeToString` を送る。336,913 行のうち違うのは
+  46 行で、全て下の bounded（source file の node 14、EOF の token 7、JSDocText の node 9、`?` を含む型の
+  `typeToString` 16）。
+- **TypeScript の client の test**（local）：tsc-rs 213/327（P5-4a は 168）。残り 114 のうち 111 は未実装の method、
+  2 は未実装の method の error の文を確かめる test、1 は P5-3a の null の要素。
+- **tsgo と違う所**（bounded）：
+  - source file の node への `getTypeFromTypeNode`・`getContextualType`、EOF の token への `getTypeFromTypeNode`：tsgo は
+    親（nil）を参照して panic する。tsc-rs は error 型と null。
+  - encoder が JSDoc の comment の text から作る JSDocText の node（tsc-rs の木に無い）の handle は解決できない（client
+    error）。
+  - API からしか作れない型（tuple の target の this 型など、symbol の無い型 parameter `?` を含む型を `getAwaitedType` など
+    で包んだもの）の `typeToString`：tsgo は長さの見積もりから union の後の member の型引数を `...` にする。
+  - `getContextualTypeForArgument` の負の index：tsgo は import の呼び出しなら `any`、他は Go の index out of range の
+    panic。tsc-rs は常にその panic。
+  - late-bound の名の番号：private name と同じく各実装の symbol の番号（tsgo `__@iterator@24`、tsc-rs
+    `__@iterator@135732`）。
+  - tsc-rs の server は request の panic（error として答える）を Rust の panic hook で stderr にも書く（P5-2a から）。tsgo
+    は書かない。
+- **検証**（コード `2eb669e67`。macOS、`nice -n 20`、Cargo の job 2）：
+  - `cargo fmt --all -- --check`、Clippy（`-p tsc-rs-checker -p tsc-rs-api --all-targets -- -D warnings`）は clean。
+  - `cargo test`：checker（1,794）、api（196。P5-4b の 8 を含む）。
+  - checker の経路を変えたので、release build の full conformance を local で（`--workers 2 --check`）。最初の実行（474 s）で
+    regression 1（`compiler/protectedAccessibilityCheck`。上の `typeHasProtectedAccessibleBase`）。直した最終のコードで
+    471 s：0 regressions、accepted tier を超える構成 0。errors full 13,451、emit 13,443、types 12,678（mismatch 89）、
+    symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness error 15（main と同じ）。
+  - suites（release の `suites-ts71` を作り直して `scripts/suites_ts71.py --check`）：0 regressions、数は main と同じ（api
+    2/2、config 87、transpile 41、tsbuild 182／192、tsbuildWatch 63／65、tsc 211／223、tscWatch 42、tsoptions 80）。
+  - 並列対照（`--checkers 4`、471 s、`scripts/conformance_ts71_compare.py`）：15,224 構成が一致、違う 4 構成は記録済みの
+    partition 依存の構成（`mutuallyRecursiveInference`、`incorrectRecursiveMappedTypeConstraint`、
+    `typeParameterWithInvalidConstraintType`、`recursiveMappedTypes`）。
+  - 上の tsgo との比較と client の test は最終のコードでやり直した（結果は同じ）。
+  - workspace 全体の test と Clippy は hosted の `rust` job に任せる。
+- **残り**：P5-4c（signature と node builder）。

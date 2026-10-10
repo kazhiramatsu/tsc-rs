@@ -108,7 +108,7 @@ instead of retroactively creating a packet; this exception ends with H2.5g.
   callbacks; P5-3a: the command line, config, source file and transpile
   requests; P5-3b: the program's information; P5-3c: the module resolver;
   P5-4a: the checker's handles, symbols and the types of symbols and
-  locations).
+  locations; P5-4b: the structure of types).
 - [greenfield/slices/ts71-pseudochecker/README.md](greenfield/slices/ts71-pseudochecker/README.md):
   the 2026-10-04 design for building declaration and return types from
   tsgo's pseudochecker, written only when equivalent to the checker's type,

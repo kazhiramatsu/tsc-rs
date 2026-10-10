@@ -126,7 +126,7 @@ it: `tsc-rs` replaces the compiler command and offers a
 [Rust compiler API](#compiler-api-for-rust-projects-experimental), but it
 does not provide TypeScript's language server, and its
 [API server](#api-server-experimental) answers only the snapshot, config,
-transpile, program-information, module-resolver and symbol and type
+transpile, program-information, module-resolver, symbol and type
 requests so far.
 
 ### Use the name `tsc` in your shell
@@ -819,9 +819,17 @@ position or node (`getSymbolAtPosition`, `getSymbolAtLocation`,
 (`getTypeAtPosition`, `getTypeAtLocation`), a symbol's parent, members,
 exports and aliases, a module's exports, `getFullyQualifiedName`,
 `isReadonlySymbol`, `getConstantValue`, `typeToString` and the intrinsic
-types. The flags and their errors are `tsgo`'s. The other requests (the
-structure of types, signatures, diagnostics, emit, the build orchestrator)
-answer that they are not implemented yet.
+types. It answers the structure of a type: its parts by its kind of type
+(`getTargetOfType`, `getTypesOfType`, the type parameters and this type of
+a class or interface, the parts of literal, indexed access, conditional,
+substitution and mapped types, alias type arguments), base types, type
+arguments, properties and index infos, the apparent, reduced, awaited,
+widened, non-nullable and literal base types, type parameter constraints
+and defaults, `isArrayType`, `isArrayLikeType`, `isTypeAssignableTo`, the
+type of a type node and contextual types. The flags and their errors are
+`tsgo`'s, and a part a type does not have answers with the panic `tsgo`'s
+accessor raises. The other requests (signatures, diagnostics, emit, the
+build orchestrator) answer that they are not implemented yet.
 
 ## Performance
 
@@ -1180,9 +1188,13 @@ runs are listed under the repository's Actions tab.
   keeps them and reports each list (`Compiler option 'files' requires a
   value of type string.`). The numbers of symbol and type handles are
   tsc-rs's own; a private name's symbol name carries tsc-rs's number for
-  its class, a symbol the checker of one project created cannot be asked
-  of another project, and a program without files has no checker to
-  ask.
+  its class (and a late-bound name its number for the unique symbol), a
+  symbol the checker of one project created cannot be asked of another
+  project, and a program without files has no checker to ask. The JSDoc
+  text nodes `tsc_api`'s encoding writes have no node to answer for, and
+  asking a source file's node (or its end-of-file token) for the type of a
+  type node or a contextual type answers the error type or nothing where
+  `tsgo` panics.
 - `tsc_api`'s encoding of a JavaScript file lacks the declarations and
   types `tsgo`'s parser derives from its JSDoc tags (`@typedef`, `@type`,
   `@param`, ...), and a few parse-error recoveries and JSDoc details keep
