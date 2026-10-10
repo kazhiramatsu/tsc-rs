@@ -200,7 +200,8 @@ impl<'a> BuildWatcher<'a> {
             self.pretty,
             self.locale,
             self.budgets,
-            |route| orchestrator.build_order(route),
+            true,
+            |route| orchestrator.build_all(route),
         );
         match result {
             Ok(cycle) => {
@@ -208,7 +209,7 @@ impl<'a> BuildWatcher<'a> {
                 self.status().report_found_errors(cycle.errors.len());
                 self.system
                     .write_output(&self.orchestrator.statistics_report());
-                cycle.exit_status
+                cycle.status
             }
             Err(error) => {
                 self.system.write_error(&format!("tsc-rs: {error}\n"));

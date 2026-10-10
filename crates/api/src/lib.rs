@@ -8,6 +8,7 @@
 //! its clients (`internal/api/encoder`, protocol 9).
 
 mod astnav;
+mod build;
 pub mod callback_fs;
 mod checker;
 pub mod decoder;

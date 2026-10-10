@@ -81,6 +81,7 @@ pub use tsc_incremental::{SemanticDiagnosticsState, SignatureUpdateKind};
 pub mod transpile;
 pub mod watch;
 
+pub use build::{ApiBuildOptions, ApiOrchestrator, BuildStatistics, OrchestratorResult};
 pub use cli::{
     execute_command_line, run_cli, CliOutput, CommandLineResult, DEFAULT_LOAD_LIMITS,
     TYPESCRIPT_VERSION as CLI_VERSION,

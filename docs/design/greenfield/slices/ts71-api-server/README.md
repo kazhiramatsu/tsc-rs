@@ -1782,3 +1782,38 @@ token を `emitToken` で書く。その差の出る所を tsgo に合わせた�
   `recheckAllProjects`。API の build のための system（与えた FS、writer を捨てる）。
 - **P5-6b session**：id と 6 つの method、params（`buildOptions`・`compilerOptions` の key だけ読む）と応答。test は tsgo の応答
   で pin した session の test と、client の 12（local）。
+
+## P5-6 build orchestrator（2026-10-11）
+
+- **orchestrator**（`crates/compiler/src/build.rs`、tsgo `build.Orchestrator` の API）：
+  - `Build`／`BuildReferences`：対象の order の project を検査し直し（`recheckAllProjects`：状態と config を捨て、mtime と
+    cache を消す）、`start` する。`start` は graph を（作ってあれば古い task を使って）作り、`getBuildOrderFor(project)`
+    （project とその上流を order の順で。知らない project は status 3）、references なら最後を落とし（project が空なら
+    status 3）、順に build する。`tsc -b` も同じ `start` を通る。
+  - `Clean`／`CleanReferences`：最後に parse した config で、消した（dry なら消す）file を全て挙げ、project の数を数える。
+    command line の clean は tsgo の project ごとの意味（config が無ければ失敗、dry のときだけ file を挙げる）のまま。両方
+    とも一つの clean の走査を使う。
+  - 結果は tsgo の `OrchestratorResult`（status、errors、statistics、files to delete）。watch の cycle の全 project の build も
+    これを受ける。
+  - orchestrator が保つ状態（`OrchestratorState`）を呼び出しの前後で出し入れする。API は orchestrator を request を跨いで保ち、
+    system は呼び出しごとに付ける（`ApiOrchestrator`）。
+- **session**（`crates/api/src/build.rs`）：6 つの method、id（tsgo の process 全体の counter）、session の FS の上の build の
+  system（tsgo `apiBuildSystem`。出力を捨て、環境変数は無い）。params の build と compiler の option は key の下だけ読む
+  （client は option を params の最上位に広げて送るので、tsgo と同じく読まない）。応答は tsgo の `BuildResponse`／
+  `CleanBuildResponse`（diagnostics と filesDeleted は空なら省き、statistics は Go の field 名）。無い id の error の文は
+  tsgo の。
+- **test**：session の test 4 件（graph とその一部の build と clean、無い id、build の error と cycle と config の無い場合、
+  option の key。tsgo の応答で pin）。client で仮想 FS に同じ場面を走らせる probe で、26 の応答と 3 つの出力の file が tsgo と
+  一致。
+- **TypeScript の client の test**（local）：sync 298 → 310/327、async 306 → 318/335。build orchestrator の 12 は全て通る。
+  残りは LS 13、`formatNodeForInsertion` 3、P5-3a の null の要素 1。
+- **検証**（コード `b1e159b5e`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（compiler・api・cli、
+  `--all-targets -- -D warnings`）は clean。`cargo test`（compiler・api・cli、`--no-fail-fast`）722 件が全て成功。release build
+  の full conformance（`--workers 2 --check`、580 s）：0 regressions、数は main と同じ（errors full 13,451、emit 13,443（未評価
+  8）、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness error 15）。suites（release
+  の `suites-ts71` を作り直して `--check`）：0 regressions、数は main と同じ（api 2、config 87、transpile 41、tsbuild 182/192、
+  tsbuildWatch 63/65、tsc 211/223、tscWatch 42、tsoptions 80）。checker は変えていないので並列対照は行っていない。client の test
+  と probe は同じコードの release build で。workspace 全体の test と Clippy は hosted の `rust` job に任せた。
+- **残り**：P5-5b（`preserveSourceNewlines`。language service の作業で）。P5 は LS の handler（6）・`formatNodeForInsertion`・
+  P5-5b を除いて終わった。次は本家の TypeScript の追従（ユーザーの決定：P5 の後、LSP の前。再 vendor の前に計画を立てて
+  確認する）。

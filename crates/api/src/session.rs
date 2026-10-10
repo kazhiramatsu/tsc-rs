@@ -159,6 +159,9 @@ pub struct Session {
     resolution: Arc<ResolutionState>,
     /// The last symbol number handed out (tsgo `ast.GetSymbolId`'s counter).
     pub(crate) next_symbol_id: AtomicU64,
+    /// The client's build orchestrators (tsgo `buildOrchestrators`), by ID;
+    /// a build holds the lock (tsgo `buildMu`).
+    build_orchestrators: Mutex<BTreeMap<u64, tsc_compiler::ApiOrchestrator>>,
 }
 
 impl Session {
@@ -183,6 +186,7 @@ impl Session {
             next_module_resolver: AtomicU64::new(0),
             resolution: Arc::default(),
             next_symbol_id: AtomicU64::new(0),
+            build_orchestrators: Mutex::default(),
         }
     }
 
@@ -204,6 +208,18 @@ impl Session {
     /// The session's snapshot host.
     pub(crate) fn host(&self) -> &SnapshotHost {
         &self.host
+    }
+
+    /// The session's file system (tsgo `FS()`).
+    pub(crate) fn fs(&self) -> &Arc<dyn FileSystem> {
+        &self.fs
+    }
+
+    /// The client's build orchestrators.
+    pub(crate) fn build_orchestrators(
+        &self,
+    ) -> &Mutex<BTreeMap<u64, tsc_compiler::ApiOrchestrator>> {
+        &self.build_orchestrators
     }
 
     /// tsgo `HandleRequest`: the method's result or its error's text.
@@ -517,6 +533,7 @@ impl Session {
                     .or_else(|| self.handle_diagnostics_request(method, params))
                     .or_else(|| self.handle_emit_request(method, params))
                     .or_else(|| self.handle_print_request(method, params))
+                    .or_else(|| self.handle_build_request(method, params))
                 {
                     return result;
                 }
@@ -531,7 +548,7 @@ impl Session {
 
     /// tsgo `snapshotHost.FS().ReadFile`: a file of the session's file
     /// system, decoded.
-    fn read_file_text(&self, file_name: &str) -> Option<String> {
+    pub(crate) fn read_file_text(&self, file_name: &str) -> Option<String> {
         self.fs
             .read(file_name)
             .ok()

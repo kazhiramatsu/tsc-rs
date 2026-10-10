@@ -14,15 +14,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use tsc_diagnostics::{gen, Diagnostic, JsString, MessageChain};
+use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain};
 use tsc_host::vfs::FileSystem;
 use tsc_host::CompilerHost;
 use tsc_incremental::{compute_hash_with_text, is_default_library_name, BuildInfo};
 use tsc_program::{
-    build_info_file_name_in_build_mode, canonical_emit_path, decode_host_text, output_file_names,
+    build_info_file_name_in_build_mode, canonical_emit_path, command_line_option_bag,
+    decode_host_text, output_file_names, parse_build_command_line,
     parse_config_root_plan_with_command_line, resolve_config_file_name_of_project_reference,
     CompilerConfigHost, CompilerOptions, ConfigExtendedCache, ConfigOptionBag, ConfigRootPlan,
-    ConfigRootPlanRequest, LibraryCatalog,
+    ConfigRootPlanRequest, LibraryCatalog, ParsedBuildCommandLine,
 };
 
 use crate::cli::{
@@ -47,6 +48,25 @@ pub(crate) struct BuildCommand {
     /// The compiler options of the command line, merged over every
     /// project's (tsgo parses every project with them as the existing ones).
     pub(crate) command_line: ConfigOptionBag,
+}
+
+impl BuildCommand {
+    /// tsgo `ParsedBuildCommandLine`'s parts the orchestrator reads.
+    pub(crate) fn from_parsed(
+        parsed: &ParsedBuildCommandLine,
+        current_directory: JsStr<'_>,
+    ) -> Self {
+        Self {
+            projects: parsed.projects.clone(),
+            verbose: parsed.build_bool("verbose"),
+            dry: parsed.build_bool("dry"),
+            force: parsed.build_bool("force"),
+            clean: parsed.build_bool("clean"),
+            stop_build_on_errors: parsed.build_bool("stopBuildOnErrors"),
+            watch: parsed.option_bool("watch") == Some(true),
+            command_line: command_line_option_bag(&parsed.options, current_directory),
+        }
+    }
 }
 
 /// tsgo `ExitStatusProjectReferenceCycle_OutputsSkipped`.
@@ -325,7 +345,79 @@ pub(crate) struct Orchestrator<'a> {
     graph_generated: bool,
 }
 
+/// What an orchestrator keeps from one run to the next (tsgo's keeps its
+/// tasks), apart from the system it runs over: the API keeps it between
+/// requests and attaches the system for each.
+pub(crate) struct OrchestratorState {
+    locale: crate::locale::Locale,
+    catalog: LibraryCatalog,
+    command: BuildCommand,
+    current_directory: String,
+    current_directory_path: PathBuf,
+    case_sensitive: bool,
+    pretty: bool,
+    tasks: Vec<BuildTask>,
+    by_path: BTreeMap<String, usize>,
+    order: Vec<usize>,
+    errors: Vec<Diagnostic>,
+    mtimes: HashMap<String, Option<SystemTime>>,
+    config_cache: ConfigExtendedCache,
+    sources: DiagnosticSourceMap,
+    graph_generated: bool,
+}
+
 impl<'a> Orchestrator<'a> {
+    /// The orchestrator without its system ([`OrchestratorState`]).
+    pub(crate) fn into_state(self) -> OrchestratorState {
+        OrchestratorState {
+            locale: self.locale,
+            catalog: self.catalog,
+            command: self.command,
+            current_directory: self.current_directory,
+            current_directory_path: self.current_directory_path,
+            case_sensitive: self.case_sensitive,
+            pretty: self.pretty,
+            tasks: self.tasks,
+            by_path: self.by_path,
+            order: self.order,
+            errors: self.errors,
+            mtimes: self.mtimes,
+            config_cache: self.config_cache,
+            sources: self.sources,
+            graph_generated: self.graph_generated,
+        }
+    }
+
+    /// An orchestrator over `system` with a kept state; its host is new
+    /// (tsgo's host caches last one cycle).
+    pub(crate) fn with_state(
+        system: &'a dyn System,
+        testing: Option<&'a dyn CommandLineTesting>,
+        state: OrchestratorState,
+    ) -> Self {
+        Self {
+            host: system.compiler_host(),
+            fs: system.fs(),
+            system,
+            testing,
+            locale: state.locale,
+            catalog: state.catalog,
+            command: state.command,
+            current_directory: state.current_directory,
+            current_directory_path: state.current_directory_path,
+            case_sensitive: state.case_sensitive,
+            pretty: state.pretty,
+            tasks: state.tasks,
+            by_path: state.by_path,
+            order: state.order,
+            errors: state.errors,
+            mtimes: state.mtimes,
+            config_cache: state.config_cache,
+            sources: state.sources,
+            graph_generated: state.graph_generated,
+        }
+    }
+
     pub(crate) fn new(
         system: &'a dyn System,
         testing: Option<&'a dyn CommandLineTesting>,
@@ -654,34 +746,119 @@ impl<'a> Orchestrator<'a> {
 
     // ----- the build -------------------------------------------------------
 
-    /// tsgo `Orchestrator.Start` then `buildOrCleanOrder`.
+    /// tsgo `Orchestrator.Start` (`tsc -b`), or the command line's clean.
     pub(crate) fn run(mut self, route: &mut CliRoute<'_>) -> Result<CliOutput, CliError> {
-        self.generate_graph();
         if self.command.clean {
-            return self.clean();
+            self.generate_graph();
+            return self.clean_command_line();
         }
-        let cycle = self.build_order(route)?;
-        let mut stdout = cycle.stdout;
+        let result = self.start("", false, route)?;
+        let mut stdout = result.stdout;
         if self.pretty {
             stdout.push_str(&render_error_summary(
                 &self.current_directory_path,
                 &self.sources,
-                &cycle.errors,
+                &result.errors,
                 self.locale,
             )?);
         }
         stdout.push_str(&self.aggregate_statistics());
-        Ok(CliOutput::new(stdout, cycle.exit_status))
+        Ok(CliOutput::new(stdout, result.status))
     }
 
-    /// tsgo `buildOrCleanOrder` up to its report: the projects in order,
-    /// their reports, the exit status and the errors reported (a task that
-    /// is not pending reports its errors again).
-    pub(crate) fn build_order(&mut self, route: &mut CliRoute<'_>) -> Result<BuildCycle, CliError> {
+    /// tsgo `start`: the graph (reusing the old tasks once there is one),
+    /// the order of `project` (every project when empty), without the
+    /// project itself for its references, and its build.
+    fn start(
+        &mut self,
+        project: &str,
+        only_references: bool,
+        route: &mut CliRoute<'_>,
+    ) -> Result<OrchestratorResult, CliError> {
+        self.generate_graph();
+        let Some(mut order) = self.build_order_for(project) else {
+            return Ok(OrchestratorResult::status(EXIT_INVALID_PROJECT));
+        };
+        if only_references && self.errors.is_empty() {
+            if project.is_empty() {
+                return Ok(OrchestratorResult::status(EXIT_INVALID_PROJECT));
+            }
+            order.pop();
+        }
+        self.build_or_clean_order(&order, route)
+    }
+
+    /// tsgo `recheckAllProjects`: the projects of `project`'s order are
+    /// checked and their configurations parsed again; the time cache and
+    /// the caches start over.
+    fn recheck_all_projects(&mut self, project: &str) {
+        if !self.graph_generated {
+            return;
+        }
+        let Some(order) = self.build_order_for(project) else {
+            return;
+        };
+        for task in order {
+            self.tasks[task].reset_status();
+            self.reset_config(task);
+        }
+        self.mtimes.clear();
+        self.reset_caches();
+    }
+
+    /// tsgo `getBuildOrderFor`: `project` and the projects upstream of it,
+    /// in the order (every project when empty); `None` for a project the
+    /// graph does not have.
+    fn build_order_for(&self, project: &str) -> Option<Vec<usize>> {
+        if project.is_empty() {
+            return Some(self.order.clone());
+        }
+        let absolute = self.absolute(project, &self.current_directory);
+        let config = resolve_config_file_name_of_project_reference(absolute.as_str().into())
+            .to_string_lossy()
+            .into_owned();
+        let target = *self.by_path.get(&self.to_path(&config))?;
+        let mut projects = BTreeSet::new();
+        let mut pending = vec![target];
+        while let Some(task) = pending.pop() {
+            if projects.insert(task) {
+                pending.extend(
+                    self.tasks[task]
+                        .upstream
+                        .iter()
+                        .map(|&(upstream, _)| upstream),
+                );
+            }
+        }
+        Some(
+            self.order
+                .iter()
+                .copied()
+                .filter(|task| projects.contains(task))
+                .collect(),
+        )
+    }
+
+    /// Every project's build (tsgo `buildOrClean`), as a watch cycle runs it.
+    pub(crate) fn build_all(
+        &mut self,
+        route: &mut CliRoute<'_>,
+    ) -> Result<OrchestratorResult, CliError> {
+        let order = self.order.clone();
+        self.build_or_clean_order(&order, route)
+    }
+
+    /// tsgo `buildOrCleanOrder` up to its report: the projects in `order`,
+    /// their reports, the exit status, the errors reported (a task that is
+    /// not pending reports its errors again) and the statistics.
+    fn build_or_clean_order(
+        &mut self,
+        order: &[usize],
+        route: &mut CliRoute<'_>,
+    ) -> Result<OrchestratorResult, CliError> {
         let mut stdout = String::new();
         if self.command.verbose {
-            let listed = self
-                .order
+            let listed = order
                 .iter()
                 .map(|&task| format!("\r\n    * {}", self.relative(&self.tasks[task].config)))
                 .collect::<String>();
@@ -689,34 +866,35 @@ impl<'a> Orchestrator<'a> {
                 &self.status_line(MessageChain::new(&gen::Projects_in_this_build_0, &[listed])),
             );
         }
-        let mut exit_status = 0;
-        let mut errors: Vec<Diagnostic> = Vec::new();
+        let mut result = OrchestratorResult::default();
         if self.errors.is_empty() {
-            for position in 0..self.order.len() {
-                let task = self.order[position];
+            result.statistics.projects = order.len();
+            for &task in order {
                 self.tasks[task].reset_result();
                 self.build_project(task, route)?;
             }
-            for &task in &self.order {
+            for &task in order {
                 let task_state = &mut self.tasks[task];
                 stdout.push_str(&task_state.output);
-                exit_status = exit_status.max(task_state.exit_status);
-                errors.extend(task_state.errors.iter().cloned());
+                result.status = result.status.max(task_state.exit_status);
+                result.errors.extend(task_state.errors.iter().cloned());
+                match task_state.build_kind {
+                    BuildKind::Program => result.statistics.projects_built += 1,
+                    BuildKind::Pseudo => result.statistics.timestamp_updates += 1,
+                    _ => {}
+                }
                 debug_assert!(task_state.files_to_delete.is_empty());
             }
         } else {
             // Circularity errors prevent any project from being built.
-            exit_status = EXIT_PROJECT_REFERENCE_CYCLE;
+            result.status = EXIT_PROJECT_REFERENCE_CYCLE;
             for diagnostic in &self.errors {
                 stdout.push_str(&self.diagnostic_text(diagnostic)?);
             }
-            errors.extend(self.errors.iter().cloned());
+            result.errors.extend(self.errors.iter().cloned());
         }
-        Ok(BuildCycle {
-            stdout,
-            exit_status,
-            errors,
-        })
+        result.stdout = stdout;
+        Ok(result)
     }
 
     /// tsgo `reportWithFilesToDelete`: the build's aggregate statistics
@@ -1129,7 +1307,10 @@ impl<'a> Orchestrator<'a> {
     // ----- clean -----------------------------------------------------------
 
     /// tsgo `Orchestrator.clean`.
-    fn clean(mut self) -> Result<CliOutput, CliError> {
+    /// The command line's clean (tsgo `buildOrCleanOrder` with every
+    /// project cleaned by `cleanProject`): a missing configuration fails
+    /// it, and only a dry run lists the files.
+    fn clean_command_line(mut self) -> Result<CliOutput, CliError> {
         let mut stdout = String::new();
         if !self.errors.is_empty() {
             for diagnostic in &self.errors {
@@ -1145,11 +1326,76 @@ impl<'a> Orchestrator<'a> {
             }
             return Ok(CliOutput::new(stdout, EXIT_PROJECT_REFERENCE_CYCLE));
         }
-        let mut exit_status = 0;
-        let mut errors = Vec::new();
-        let mut files_to_delete = Vec::new();
-        for position in 0..self.order.len() {
-            let task = self.order[position];
+        let order = self.order.clone();
+        let pass = self.clean_order(&order)?;
+        stdout.push_str(&pass.stdout);
+        if self.pretty {
+            stdout.push_str(&render_error_summary(
+                &self.current_directory_path,
+                &self.sources,
+                &pass.errors,
+                self.locale,
+            )?);
+        }
+        if self.command.dry && !pass.files_to_delete.is_empty() {
+            let listed = pass
+                .files_to_delete
+                .iter()
+                .map(|file| format!("\r\n * {file}"))
+                .collect::<String>();
+            stdout.push_str(&self.status_line(MessageChain::new(
+                &gen::A_non_dry_build_would_delete_the_following_files_0,
+                &[listed],
+            )));
+        }
+        let exit_status = if pass.missing_config { 1 } else { 0 };
+        Ok(CliOutput::new(stdout, exit_status))
+    }
+
+    /// tsgo `Orchestrator.clean` (the API's `Clean` and `CleanReferences`):
+    /// the order of `project` (every project when empty), without its
+    /// last project for the references, cleaned over the configurations
+    /// last parsed; every file deleted or to delete is listed.
+    fn clean(
+        &mut self,
+        project: &str,
+        only_references: bool,
+    ) -> Result<OrchestratorResult, CliError> {
+        if !self.graph_generated {
+            self.generate_graph();
+        }
+        if !self.errors.is_empty() {
+            return Ok(OrchestratorResult {
+                status: EXIT_PROJECT_REFERENCE_CYCLE,
+                errors: self.errors.clone(),
+                ..OrchestratorResult::default()
+            });
+        }
+        let Some(mut order) = self.build_order_for(project) else {
+            return Ok(OrchestratorResult::status(EXIT_INVALID_PROJECT));
+        };
+        if only_references {
+            order.pop();
+        }
+        let pass = self.clean_order(&order)?;
+        Ok(OrchestratorResult {
+            stdout: pass.stdout,
+            status: 0,
+            errors: pass.errors,
+            statistics: BuildStatistics {
+                projects: order.len(),
+                ..BuildStatistics::default()
+            },
+            files_to_delete: pass.files_to_delete,
+        })
+    }
+
+    /// The outputs and build info of the projects in `order` that are not
+    /// their inputs, deleted (under `--dry`, only listed); a project whose
+    /// outputs went is checked again (tsgo `cleanProject` and `clean`).
+    fn clean_order(&mut self, order: &[usize]) -> Result<CleanPass, CliError> {
+        let mut pass = CleanPass::default();
+        for &task in order {
             if self.tasks[task].plan.is_none() {
                 let diagnostic = Diagnostic::new(
                     None,
@@ -1157,9 +1403,9 @@ impl<'a> Orchestrator<'a> {
                     None,
                     MessageChain::new(&gen::File_0_not_found, &[self.tasks[task].config.clone()]),
                 );
-                stdout.push_str(&self.diagnostic_text(&diagnostic)?);
-                errors.push(diagnostic);
-                exit_status = exit_status.max(1);
+                pass.stdout.push_str(&self.diagnostic_text(&diagnostic)?);
+                pass.errors.push(diagnostic);
+                pass.missing_config = true;
                 continue;
             }
             let inputs: BTreeSet<String> = self.tasks[task]
@@ -1179,7 +1425,7 @@ impl<'a> Orchestrator<'a> {
                 if inputs.contains(&self.to_path(&output)) || !self.fs.file_exists(&output) {
                     continue;
                 }
-                files_to_delete.push(output.clone());
+                pass.files_to_delete.push(output.clone());
                 if self.command.dry {
                     continue;
                 }
@@ -1192,35 +1438,17 @@ impl<'a> Orchestrator<'a> {
                             None,
                             MessageChain::new(&gen::Failed_to_delete_file_0, &[output]),
                         );
-                        stdout.push_str(&self.diagnostic_text(&diagnostic)?);
-                        errors.push(diagnostic);
+                        pass.stdout.push_str(&self.diagnostic_text(&diagnostic)?);
+                        pass.errors.push(diagnostic);
                     }
                 }
             }
             if deleted {
-                self.tasks[task].status = None;
+                self.tasks[task].reset_status();
                 self.tasks[task].build_info = None;
             }
         }
-        if self.pretty {
-            stdout.push_str(&render_error_summary(
-                &self.current_directory_path,
-                &self.sources,
-                &errors,
-                self.locale,
-            )?);
-        }
-        if self.command.dry && !files_to_delete.is_empty() {
-            let listed = files_to_delete
-                .iter()
-                .map(|file| format!("\r\n * {file}"))
-                .collect::<String>();
-            stdout.push_str(&self.status_line(MessageChain::new(
-                &gen::A_non_dry_build_would_delete_the_following_files_0,
-                &[listed],
-            )));
-        }
-        Ok(CliOutput::new(stdout, exit_status))
+        Ok(pass)
     }
 
     // ----- names -----------------------------------------------------------
@@ -2100,12 +2328,51 @@ fn add_package_json_watch_dirs(set: &mut crate::watch::DirWatchSet, package_json
     }
 }
 
-/// One build of the projects in order (tsgo `buildOrCleanOrder`).
-pub(crate) struct BuildCycle {
+/// tsgo `ExitStatusInvalidProject_OutputsSkipped`: a project the graph
+/// does not have.
+pub(crate) const EXIT_INVALID_PROJECT: i32 = 3;
+
+/// One build or clean of the projects in an order (tsgo
+/// `OrchestratorResult`).
+#[derive(Debug, Default)]
+pub struct OrchestratorResult {
+    /// The report (the command line prints it; the API discards it).
     pub(crate) stdout: String,
-    pub(crate) exit_status: i32,
-    /// The errors reported (tsgo `OrchestratorResult.Errors`).
-    pub(crate) errors: Vec<Diagnostic>,
+    /// tsgo `Result.Status`.
+    pub status: i32,
+    /// The errors reported (tsgo `Errors`).
+    pub errors: Vec<Diagnostic>,
+    pub statistics: BuildStatistics,
+    /// The files a clean deleted, or would delete (tsgo `FilesToDelete`).
+    pub files_to_delete: Vec<String>,
+}
+
+impl OrchestratorResult {
+    fn status(status: i32) -> Self {
+        Self {
+            status,
+            ..Self::default()
+        }
+    }
+}
+
+/// tsgo `Statistics`' project counts: the projects in the order, those
+/// built, those whose outputs' times were updated.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct BuildStatistics {
+    pub projects: usize,
+    pub projects_built: usize,
+    pub timestamp_updates: usize,
+}
+
+/// What [`Orchestrator::clean_order`] did.
+#[derive(Default)]
+struct CleanPass {
+    stdout: String,
+    errors: Vec<Diagnostic>,
+    files_to_delete: Vec<String>,
+    /// A project's configuration was missing (the command line fails).
+    missing_config: bool,
 }
 
 /// tsgo `oldestOutputFileName` of an up-to-date or pseudo-build status.
@@ -2115,6 +2382,142 @@ fn oldest_output_file_name(status: &UpToDateStatus) -> String {
         StatusData::InputOutput { output, .. } => output.clone(),
         StatusData::Text(text) => text.clone(),
         StatusData::None | StatusData::Upstream { .. } => String::new(),
+    }
+}
+
+/// The `buildOptions` of the API's `createBuildOrchestrator` (tsgo
+/// `core.BuildOptions`, which replace the parsed ones). The port builds the
+/// projects one after the other, so `builders` has nothing to set.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ApiBuildOptions {
+    pub dry: bool,
+    pub force: bool,
+    pub verbose: bool,
+    pub stop_build_on_errors: bool,
+    pub clean: bool,
+}
+
+/// tsgo's API build orchestrator (`build.NewOrchestrator` over the API's
+/// build system): it builds and cleans the projects of its root names and
+/// keeps its tasks from one request to the next.
+pub struct ApiOrchestrator {
+    system: Arc<dyn System>,
+    budgets: crate::cli::CommandBudgets,
+    /// Out only while a call runs.
+    state: Option<OrchestratorState>,
+}
+
+impl ApiOrchestrator {
+    /// tsgo `handleCreateBuildOrchestrator`: the root names parsed as a
+    /// build command line over `system`, with the given build and compiler
+    /// options in place of the parsed ones.
+    pub fn new(
+        system: Arc<dyn System>,
+        catalog: LibraryCatalog,
+        root_names: &[String],
+        build_options: Option<ApiBuildOptions>,
+        compiler_options: Option<ConfigOptionBag>,
+    ) -> Self {
+        let current_directory = system.current_directory().to_owned();
+        let host = system.compiler_host();
+        let read_response_file = |path: JsStr<'_>| {
+            host.read_file_js(path)
+                .ok()
+                .flatten()
+                .and_then(|bytes| decode_host_text(bytes).ok())
+        };
+        let parsed = parse_build_command_line(
+            root_names,
+            JsStr::from_str(&current_directory),
+            host.use_case_sensitive_file_names(),
+            &read_response_file,
+        );
+        let mut command = BuildCommand::from_parsed(&parsed, JsStr::from_str(&current_directory));
+        if let Some(options) = build_options {
+            command.dry = options.dry;
+            command.force = options.force;
+            command.verbose = options.verbose;
+            command.stop_build_on_errors = options.stop_build_on_errors;
+            command.clean = options.clean;
+        }
+        if let Some(options) = compiler_options {
+            command.command_line = options;
+        }
+        let budgets = crate::cli::CommandBudgets::of(
+            parsed.option_bool("singleThreaded"),
+            parsed
+                .option_value("checkers")
+                .and_then(|value| value.as_f64()),
+        );
+        drop(host);
+        let state = Orchestrator::new(
+            &*system,
+            None,
+            catalog,
+            command,
+            PathBuf::from(&current_directory),
+            false,
+        )
+        .into_state();
+        Self {
+            system,
+            budgets,
+            state: Some(state),
+        }
+    }
+
+    /// tsgo `Orchestrator.Build`: `project` (every project when empty)
+    /// and its upstream projects, checked again and built.
+    pub fn build(&mut self, project: &str) -> Result<OrchestratorResult, String> {
+        self.call(|orchestrator, route| {
+            orchestrator.recheck_all_projects(project);
+            orchestrator.start(project, false, route)
+        })
+    }
+
+    /// tsgo `Orchestrator.BuildReferences`: as [`build`](Self::build),
+    /// without the project itself.
+    pub fn build_references(&mut self, project: &str) -> Result<OrchestratorResult, String> {
+        self.call(|orchestrator, route| {
+            orchestrator.recheck_all_projects(project);
+            orchestrator.start(project, true, route)
+        })
+    }
+
+    /// tsgo `Orchestrator.Clean`.
+    pub fn clean(&mut self, project: &str) -> Result<OrchestratorResult, String> {
+        self.call(|orchestrator, _| orchestrator.clean(project, false))
+    }
+
+    /// tsgo `Orchestrator.CleanReferences`.
+    pub fn clean_references(&mut self, project: &str) -> Result<OrchestratorResult, String> {
+        self.call(|orchestrator, _| orchestrator.clean(project, true))
+    }
+
+    /// One call over the system, the state put back after it.
+    fn call(
+        &mut self,
+        run: impl FnOnce(
+            &mut Orchestrator<'_>,
+            &mut CliRoute<'_>,
+        ) -> Result<OrchestratorResult, CliError>,
+    ) -> Result<OrchestratorResult, String> {
+        let state = self
+            .state
+            .take()
+            .ok_or_else(|| "build orchestrator lost its state in an earlier call".to_owned())?;
+        let mut orchestrator = Orchestrator::with_state(&*self.system, None, state);
+        let result = crate::cli::with_build_route(
+            &*self.system,
+            None,
+            false,
+            crate::locale::Locale::English,
+            self.budgets,
+            false,
+            |route| run(&mut orchestrator, route),
+        );
+        self.state = Some(orchestrator.into_state());
+        result.map_err(|error| error.to_string())
     }
 }
 
