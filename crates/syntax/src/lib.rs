@@ -191,19 +191,25 @@ pub struct SourceFile {
 impl SourceFile {
     /// The source file of a tree built outside the parser (tsgo's API
     /// decoder, `NewSourceFile`): `root` and its nodes are `arena`'s, and
-    /// nothing was parsed, recovered or read from pragmas.
+    /// nothing was parsed, recovered or read from pragmas. Without `text`
+    /// (a node of no source file), the positions index no text
+    /// ([`tsc_diagnostics::PositionIndex::is_detached`]).
     pub fn from_tree(
         file_name: impl Into<JsString>,
-        text: impl Into<String>,
+        text: Option<String>,
         arena: NodeArena,
         root: NodeId,
         language_variant: LanguageVariant,
         is_declaration_file: bool,
         external_module_indicator_options: ExternalModuleIndicatorOptions,
     ) -> Self {
+        let snapshot = match text {
+            Some(text) => TextSnapshot::new(text, DocumentVersion::default()),
+            None => TextSnapshot::detached(DocumentVersion::default()),
+        };
         Self {
             file_name: file_name.into(),
-            snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
+            snapshot,
             language_version: ScriptTarget::LATEST,
             language_variant,
             is_declaration_file,

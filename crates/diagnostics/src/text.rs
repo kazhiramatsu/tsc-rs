@@ -664,6 +664,9 @@ enum PositionIndexData {
 pub struct PositionIndex {
     data: PositionIndexData,
     byte_len: u32,
+    /// The positions of a tree that has no text (tsgo's API decodes a node
+    /// of no source file): they index nothing.
+    detached: bool,
 }
 
 impl PositionIndex {
@@ -671,6 +674,7 @@ impl PositionIndex {
         Self {
             byte_len: u32::try_from(text.len()).expect("source text must fit in u32"),
             data: PositionIndexData::StaticDense(DensePositionIndex::new(text)),
+            detached: false,
         }
     }
 
@@ -682,13 +686,29 @@ impl PositionIndex {
                 text,
                 dense: OnceLock::new(),
             },
+            detached: false,
         }
+    }
+
+    /// The index of a tree without text: as empty text's, and
+    /// [`PositionIndex::is_detached`].
+    pub fn detached() -> Self {
+        Self {
+            detached: true,
+            ..Self::new_static("")
+        }
+    }
+
+    /// Whether the positions belong to a tree without text.
+    pub fn is_detached(&self) -> bool {
+        self.detached
     }
 
     fn from_persistent(tree: PersistentLineTree) -> Self {
         Self {
             byte_len: tree.byte_len(),
             data: PositionIndexData::PersistentLines(tree),
+            detached: false,
         }
     }
 
@@ -865,6 +885,19 @@ impl TextSnapshot {
             },
             text,
             positions,
+        })
+    }
+
+    /// The snapshot of a tree without text ([`PositionIndex::detached`]).
+    pub fn detached(document_version: DocumentVersion) -> Arc<Self> {
+        Arc::new(Self {
+            document_version,
+            lineage: SnapshotLineage {
+                store: Arc::new(SnapshotStoreIdentity),
+                revision: 0,
+            },
+            text: Arc::from(""),
+            positions: Arc::new(PositionIndex::detached()),
         })
     }
 

@@ -298,8 +298,10 @@ fn subtree_round_trip() {
     assert_eq!(identifier_text(&tree, function.name), "greet");
     assert_eq!(list(&tree, function.parameters).len(), 1);
     assert!(function.body.is_some());
-    // A node of no source file keeps no position.
-    assert_eq!(node(&tree, tree.root).pos, u32::MAX);
+    // A node of no source file keeps its positions, which index no text.
+    let root = node(&tree, tree.root);
+    assert_eq!((root.pos, root.end), (0, 58));
+    assert!(tree.source_file.positions().is_detached());
 }
 
 #[test]

@@ -1170,6 +1170,9 @@ struct NameGenerationScope {
 enum ListElementPosition {
     Synthesized,
     Source(crate::SourceUtf16Position),
+    /// A position of a tree without text, compared as it is (tsgo's
+    /// `nextListElementPos` of a node of no source file).
+    Detached(u32),
 }
 
 /// Structural decisions derived from the final transformed tree, with helper
@@ -1596,6 +1599,9 @@ impl Printer {
             return Ok(ListElementPosition::Synthesized);
         }
         let syntax = transformation.arena().source(node.source())?.syntax();
+        if syntax.positions().is_detached() {
+            return Ok(ListElementPosition::Detached(position));
+        }
         let position = SourceBytePosition::new(position, syntax.positions())?;
         Ok(ListElementPosition::Source(
             crate::SourceUtf16Position::from_byte(position, syntax.positions())?,
@@ -3136,6 +3142,7 @@ impl Printer {
         }
 
         let unterminated = record.is_unterminated() == Some(true);
+        let decoded_parse_node = Self::is_decoded_parse_node(&record);
         match record.data {
             // Both statement and expression hints use this worker after the
             // ordinary comment/map phases. Upstream emits no token for this
@@ -3531,12 +3538,32 @@ impl Printer {
                     .arena()
                     .parse_tree_node(node)?
                     .is_some_and(|original| original == node);
-                let syntax = if parsed {
+                // A parsed decorator decoded from the API (no parent, not
+                // synthesized) takes tsgo's parentheses: its expression needs
+                // left-hand-side precedence (`@new x`, `@x?.y` stay bare).
+                let decoded = decoded_parse_node;
+                let parenthesized = decoded
+                    && data
+                        .expression
+                        .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                        .map(|expression| {
+                            crate::factory::operand_needs_parentheses(
+                                transformation.arena(),
+                                expression,
+                                crate::factory::TSGO_PRECEDENCE_LEFT_HAND_SIDE,
+                            )
+                        })
+                        .transpose()?
+                        .unwrap_or(false);
+                let syntax = if parsed || decoded {
                     ExpressionSyntaxContext::NORMAL
                 } else {
                     ExpressionSyntaxContext::left_side_of_access(false)
                 };
-                self.emit_required_node_with_context_and_source_extent(
+                if parenthesized {
+                    writer.write_punctuation("(");
+                }
+                let result = self.emit_required_node_with_context_and_source_extent(
                     transformation,
                     node.source(),
                     data.expression,
@@ -3546,7 +3573,11 @@ impl Printer {
                     expression_context.for_child(syntax),
                     DeferredSourceCommentExtent::LeadingAndTrailing,
                     writer,
-                )
+                );
+                if parenthesized && result.is_ok() {
+                    writer.write_punctuation(")");
+                }
+                result
             }
             NodeData::ExpressionStatement(data) => {
                 // Bundle JSON uses this shared statement writer. Retained
@@ -5710,13 +5741,23 @@ impl Printer {
                         .arena()
                         .metadata(node)
                         .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+                // tsgo shouldAllowTrailingComma: an object literal keeps its
+                // trailing comma only in a source file that is not JSON.
+                let allow_trailing_comma = {
+                    let source = transformation.arena().source(node.source())?.syntax();
+                    !source.positions().is_detached()
+                        && !crate::builtins::is_json_file_name(&source.file_name)
+                };
                 let outcome = self.emit_formatted_node_list(
                     transformation,
                     node,
                     data.properties,
                     Some(ListBrackets::Curly),
                     prefer_new_line,
-                    DelimitedListFormat::LITERAL,
+                    DelimitedListFormat {
+                        allow_trailing_comma,
+                        ..DelimitedListFormat::LITERAL
+                    },
                     EmitHint::Unspecified,
                     ExpressionSyntaxContext::NORMAL,
                     expression_context,
@@ -5908,6 +5949,18 @@ impl Printer {
                 let child_context = expression_context
                     .for_child(ExpressionSyntaxContext::NORMAL)
                     .with_grammar(ExpressionGrammarContext::LeftSideOfAccessAfterSubstitution);
+                // A parsed node decoded from the API (no parent, not
+                // synthesized) takes tsgo's parentheses: the expression needs
+                // member precedence (`(a?.b)<c>`, `extends (A?.B)`).
+                let parenthesized = decoded_parse_node
+                    && crate::factory::operand_needs_parentheses(
+                        transformation.arena(),
+                        expression,
+                        crate::factory::TSGO_PRECEDENCE_MEMBER,
+                    )?;
+                if parenthesized {
+                    writer.write_punctuation("(");
+                }
                 self.emit_optional_ordinary_child(
                     transformation,
                     node,
@@ -5917,6 +5970,9 @@ impl Printer {
                     child_context,
                     writer,
                 )?;
+                if parenthesized {
+                    writer.write_punctuation(")");
+                }
                 self.emit_type_arguments(
                     transformation,
                     node.source(),
@@ -5938,36 +5994,42 @@ impl Printer {
             }
             NodeData::JSDocNullableType(data) => {
                 writer.write_punctuation("?");
-                self.emit_required_node_with_context(
+                self.emit_type_node(
                     transformation,
                     node.source(),
                     data.r#type,
                     SyntaxKind::JSDocNullableType,
                     "type",
-                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    TypePrecedence::NonArray,
+                    TypeExtends::Preserve,
+                    expression_context,
                     writer,
                 )
             }
             NodeData::JSDocNonNullableType(data) => {
                 writer.write_punctuation("!");
-                self.emit_required_node_with_context(
+                self.emit_type_node(
                     transformation,
                     node.source(),
                     data.r#type,
                     SyntaxKind::JSDocNonNullableType,
                     "type",
-                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    TypePrecedence::NonArray,
+                    TypeExtends::Preserve,
+                    expression_context,
                     writer,
                 )
             }
             NodeData::JSDocOptionalType(data) => {
-                self.emit_required_node_with_context(
+                self.emit_type_node(
                     transformation,
                     node.source(),
                     data.r#type,
                     SyntaxKind::JSDocOptionalType,
                     "type",
-                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    TypePrecedence::JsDoc,
+                    TypeExtends::Preserve,
+                    expression_context,
                     writer,
                 )?;
                 writer.write_punctuation("=");
@@ -5975,17 +6037,15 @@ impl Printer {
             }
             NodeData::JSDocVariadicType(data) => {
                 writer.write_punctuation("...");
-                let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
-                    parent: SyntaxKind::JSDocVariadicType,
-                    field: "type",
-                })?;
-                self.emit_optional_ordinary_child(
+                self.emit_type_node(
                     transformation,
-                    node,
-                    Some(r#type),
-                    EmitHint::Unspecified,
-                    None,
-                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    node.source(),
+                    data.r#type,
+                    SyntaxKind::JSDocVariadicType,
+                    "type",
+                    TypePrecedence::JsDoc,
+                    TypeExtends::Preserve,
+                    expression_context,
                     writer,
                 )
             }
@@ -6179,6 +6239,7 @@ impl Printer {
                         transformation,
                         node.source(),
                         data.type_parameters,
+                        true,
                         expression_context,
                         writer,
                     )?;
@@ -6611,13 +6672,17 @@ impl Printer {
                     writer,
                 )?;
                 if self.options.declaration_syntax {
-                    self.emit_optional_declaration_token(
-                        transformation,
-                        node.source(),
-                        data.question_token,
-                        expression_context,
-                        writer,
-                    )?;
+                    // tsgo emitMethodDeclaration writes the postfix token,
+                    // `?` or (a JavaScript grammar error) `!`.
+                    for token in [data.question_token, data.exclamation_token] {
+                        self.emit_optional_declaration_token(
+                            transformation,
+                            node.source(),
+                            token,
+                            expression_context,
+                            writer,
+                        )?;
+                    }
                 }
                 self.emit_signature_head(
                     transformation,
@@ -8399,19 +8464,40 @@ impl Printer {
                 })?;
                 // The left edge keeps the enclosing grammar unless `**`
                 // parenthesizes it.
-                let left_context = match left_node {
-                    Some(left_node)
-                        if operator_kind == SyntaxKind::AsteriskAsteriskToken
+                let exponentiation_parenthesized = match left_node {
+                    Some(left_node) => {
+                        operator_kind == SyntaxKind::AsteriskAsteriskToken
                             && crate::factory::exponentiation_left_operand_needs_parentheses(
                                 transformation.arena(),
                                 left_node,
-                            )? =>
-                    {
-                        expression_context
-                            .with_grammar(ExpressionGrammarContext::ExponentiationLeftOperand)
+                            )?
                     }
-                    _ => expression_context,
+                    None => false,
                 };
+                let left_context = if exponentiation_parenthesized {
+                    expression_context
+                        .with_grammar(ExpressionGrammarContext::ExponentiationLeftOperand)
+                } else {
+                    expression_context
+                };
+                // A TypeScript operand (only a tree decoded from the API has
+                // one) takes tsgo's parentheses for its side.
+                let (left_precedence, right_precedence) =
+                    crate::factory::tsgo_binary_operand_precedences(transformation.arena(), node)?;
+                let left_parenthesized = !exponentiation_parenthesized
+                    && self.type_operand_needs_parentheses(
+                        transformation,
+                        left_node,
+                        left_precedence,
+                    )?;
+                let right_parenthesized = self.type_operand_needs_parentheses(
+                    transformation,
+                    right_node,
+                    right_precedence,
+                )?;
+                if left_parenthesized {
+                    writer.write_punctuation("(");
+                }
                 let left_comments = self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
@@ -8420,6 +8506,9 @@ impl Printer {
                     deferred_source_comments,
                     writer,
                 )?;
+                if left_parenthesized {
+                    writer.write_punctuation(")");
+                }
                 let operator_anchor = if let Some(left) = left_node {
                     let cursor = self.original_node_end_cursor(transformation, left)?;
                     if let Some(anchor) =
@@ -8464,6 +8553,9 @@ impl Printer {
                 } else {
                     writer.write_space(" ");
                 }
+                if right_parenthesized {
+                    writer.write_punctuation("(");
+                }
                 let result = match right_node {
                     Some(right) => self.emit_child_after_token_with_complete_source_comments(
                         transformation,
@@ -8478,6 +8570,9 @@ impl Printer {
                         field: "right",
                     }),
                 };
+                if right_parenthesized && result.is_ok() {
+                    writer.write_punctuation(")");
+                }
                 if line_after_operator {
                     writer.decrease_indent();
                 }
@@ -8708,11 +8803,18 @@ impl Printer {
                         }
                     }
                 }
+                // tsgo shouldEmitBlockFunctionBodyOnSingleLine: without a
+                // source file (a tree decoded from the API without text), an
+                // empty body has a leading line terminator
+                // (getLeadingLineTerminatorCount of no first child).
                 let multi_line = !block_helpers.is_empty()
                     || !force_single_line
                         && (multi_line
                             || function_body_has_prologue
                             || synthesized_statement_break
+                            || function_body
+                                && statements.is_empty()
+                                && self.source_is_detached(transformation, node)?
                             || function_body
                                 && !self.source_node_range_is_on_single_line(
                                     transformation,
@@ -9489,6 +9591,21 @@ impl Printer {
         self.child_trailing_comments_escape_parent_container(transformation, parent, child)
     }
 
+    /// Whether `node`'s tree has no text: tsgo's API decodes a node of no
+    /// source file, which its printer prints without a current source file.
+    fn source_is_detached(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<bool, PrinterError> {
+        Ok(transformation
+            .arena()
+            .source(node.source())?
+            .syntax()
+            .positions()
+            .is_detached())
+    }
+
     fn source_node_range_is_on_single_line(
         &self,
         transformation: &TransformationResult<'_>,
@@ -9673,7 +9790,14 @@ impl Printer {
             return Ok(false);
         }
         let child_synthetic = child_record.pos == u32::MAX || child_record.end == u32::MAX;
-        if parent_record.pos != u32::MAX && !child_synthetic {
+        // tsgo compares the lines only with a current source file (a tree
+        // decoded without text has none).
+        let has_source_file = !arena
+            .source(parent.source())?
+            .syntax()
+            .positions()
+            .is_detached();
+        if has_source_file && parent_record.pos != u32::MAX && !child_synthetic {
             let parent_matches = if let Some(child_parent) = child_record.parent {
                 let child_parent = arena
                     .node_ref(child.source(), child_parent)
@@ -10589,6 +10713,7 @@ impl Printer {
                 transformation,
                 source,
                 type_parameters,
+                false,
                 expression_context,
                 writer,
             )?;
@@ -11343,6 +11468,7 @@ impl Printer {
             transformation,
             node.source(),
             type_parameters,
+            false,
             expression_context,
             writer,
         )?;
@@ -12090,30 +12216,45 @@ impl Printer {
             )?;
         }
         writer.write_trailing_semicolon(";");
+        // tsgo emitMappedType prints the (error-recovery) members inside the
+        // braces' indentation, after a line of their own.
+        let has_members = data
+            .members
+            .and_then(|id| transformation.arena().node_array_ref(node.source(), id))
+            .map(|members| transformation.arena().node_array(members))
+            .transpose()?
+            .is_some_and(|members| !members.nodes.is_empty());
+        if has_members {
+            if single_line {
+                writer.write_space(" ");
+            } else {
+                writer.write_line(false);
+            }
+            // emitList adds PreferNewLine from the parent's MultiLine flag;
+            // the mapped signature's SingleLine choice does not set that flag.
+            let prefer_new_line = transformation
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+            self.emit_formatted_node_list(
+                transformation,
+                node,
+                data.members,
+                None,
+                prefer_new_line,
+                DelimitedListFormat::MAPPED_TYPE_MEMBERS,
+                EmitHint::Unspecified,
+                ExpressionSyntaxContext::NORMAL,
+                expression_context,
+                writer,
+            )?;
+        }
         if single_line {
             writer.write_space(" ");
         } else {
             writer.write_line(false);
             writer.decrease_indent();
         }
-        // emitList adds PreferNewLine from the parent's MultiLine flag;
-        // the mapped signature's SingleLine choice does not set that flag.
-        let prefer_new_line = transformation
-            .arena()
-            .metadata(node)
-            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
-        self.emit_formatted_node_list(
-            transformation,
-            node,
-            data.members,
-            None,
-            prefer_new_line,
-            DelimitedListFormat::MAPPED_TYPE_MEMBERS,
-            EmitHint::Unspecified,
-            ExpressionSyntaxContext::NORMAL,
-            expression_context,
-            writer,
-        )?;
         writer.write_punctuation("}");
         Ok(())
     }
@@ -12410,14 +12551,17 @@ impl Printer {
             transformation,
             node.source(),
             data.type_parameters,
+            false,
             expression_context,
             writer,
         )?;
+        // LFHeritageClauses separates the clauses with a space (each clause
+        // writes its own leading one too).
         self.emit_heritage_list(
             transformation,
             node,
             data.heritage_clauses,
-            "",
+            " ",
             expression_context,
             writer,
         )?;
@@ -12472,6 +12616,7 @@ impl Printer {
             transformation,
             node.source(),
             data.type_parameters,
+            false,
             expression_context,
             writer,
         )?;
@@ -12875,11 +13020,14 @@ impl Printer {
     /// tsc-port: emitTypeParameters @6.0.3
     /// tsc-hash: 67edb593d7741ab6b3273370e553eda19470127765c51d0346e8c30c93e71bf6
     /// tsc-span: _tsc.js:119970-119975
+    /// `allow_trailing_comma`: tsgo emitTypeParameters keeps a list's
+    /// trailing comma only for an arrow function's (`<T,>` in TSX).
     fn emit_type_parameters(
         &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         type_parameters: Option<tsc_syntax::NodeArrayId>,
+        allow_trailing_comma: bool,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -12893,6 +13041,15 @@ impl Printer {
                 expression_context,
                 writer,
             )?;
+            let trailing_comma = allow_trailing_comma
+                && type_parameters
+                    .and_then(|array| transformation.arena().node_array_ref(source, array))
+                    .map(|array| transformation.arena().node_array(array))
+                    .transpose()?
+                    .is_some_and(|array| array.has_trailing_comma);
+            if trailing_comma {
+                writer.write_punctuation(",");
+            }
             writer.write_punctuation(">");
         }
         Ok(())
@@ -13600,6 +13757,7 @@ impl Printer {
             transformation,
             source,
             type_parameters,
+            false,
             expression_context,
             writer,
         )?;
@@ -16067,7 +16225,15 @@ impl Printer {
             .map(|node| transformation.arena().node(node))
             .transpose()?
             .is_some_and(|record| record.kind == SyntaxKind::TypeQuery);
-        let precedence = if is_query && transformation.arena().parse_tree_node(parent)?.is_some() {
+        // tsgo IsParseTreeNode: no Synthesized flag (a tree decoded without
+        // text has no source range to look at).
+        let parse_tree_parent = if self.source_is_detached(transformation, parent)? {
+            !NodeFlags::from_bits(transformation.arena().node(parent)?.flags)
+                .contains(NodeFlags::SYNTHESIZED)
+        } else {
+            transformation.arena().parse_tree_node(parent)?.is_some()
+        };
+        let precedence = if is_query && parse_tree_parent {
             TypePrecedence::TypeOperator
         } else {
             TypePrecedence::Postfix
@@ -16670,6 +16836,41 @@ impl Printer {
             }
         }
         Ok(())
+    }
+
+    /// A parsed node of a tree decoded from the API: no parent (tsgo's
+    /// decoder sets none) and not synthesized. A transform's nodes are
+    /// synthesized and a parsed tree's have parents.
+    fn is_decoded_parse_node(record: &tsc_syntax::Node) -> bool {
+        record.parent.is_none()
+            && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
+    }
+
+    /// Whether `operand` is a TypeScript expression (`as`, `satisfies`,
+    /// non-null, type assertion) whose tsgo precedence is below
+    /// `precedence`: only a tree decoded from the API reaches the printer
+    /// with one, and tsgo parenthesizes it while printing.
+    fn type_operand_needs_parentheses(
+        &self,
+        transformation: &TransformationResult<'_>,
+        operand: Option<TransformNode>,
+        precedence: i8,
+    ) -> Result<bool, PrinterError> {
+        let Some(operand) = operand else {
+            return Ok(false);
+        };
+        let kind = transformation.arena().node(operand)?.kind;
+        Ok(matches!(
+            kind,
+            SyntaxKind::AsExpression
+                | SyntaxKind::SatisfiesExpression
+                | SyntaxKind::NonNullExpression
+                | SyntaxKind::TypeAssertionExpression
+        ) && crate::factory::operand_needs_parentheses(
+            transformation.arena(),
+            operand,
+            precedence,
+        )?)
     }
 
     /// tsgo's parentheses around an `as`, `satisfies`, non-null or type
@@ -17737,6 +17938,10 @@ impl Printer {
         owner_start: SourceBytePosition,
     ) -> Result<Option<DetachedCommentPrefix>, PrinterError> {
         let source = transformation.arena().source(source_id)?.syntax();
+        // A tree without text has no comments.
+        if source.positions().is_detached() {
+            return Ok(None);
+        }
         let start = owner_start.value() as usize;
         let code_start = skip_trivia(source.text(), start);
         let (emitted_end, policy) = if self.comments_disabled() {

@@ -58,8 +58,10 @@ fn print_node(params: &PrintNodeParams) -> Result<String, String> {
     let mut transformation = transform_nodes(arena, roots, Vec::new(), true)
         .map_err(|error| format!("printNode: {error:?}"))?;
     // tsgo `newPrinter`: its printer writes TypeScript syntax, and a source
-    // file's tree rather than its text.
+    // file's tree rather than its text. A node of no source file has no
+    // comments to write (tsgo reads comments from the current source file).
     let options = PrinterOptions::new(NewLineKind::LineFeed)
+        .with_remove_comments(!tree.is_source_file)
         .with_declaration_syntax(true)
         .with_never_ascii_escape(params.never_ascii_escape)
         .with_terminate_unterminated_literals(params.terminate_unterminated_literals)

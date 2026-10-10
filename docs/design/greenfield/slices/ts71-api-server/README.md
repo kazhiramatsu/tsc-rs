@@ -1628,3 +1628,48 @@ snapshot、option、module provider を借りる）。
   `conformance (TypeScript 7.1)` 20m17s、`gates` 14s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。
   merge → `2fc3809c4`（merge commit、PR #736）。
 - 次は P5-5b（`preserveSourceNewlines`）。P5-5c（decode した木の tsgo の printer の意味）はその後。
+
+## P5-5c source file の無い印字と印字時の括弧（2026-10-11）
+
+P5-5a の tsgo との比較の差（各 statement の 6,133）はほぼ全てこの class だったので、P5-5b より先に行った。
+
+- **source file の無い node**（tsgo：decoder は位置をそのまま付け、printer は現在の source file が無いものとして印字する）：
+  - `tsc_diagnostics::PositionIndex::detached` と `TextSnapshot::detached`：text の無い木の位置（何の text も指さない）。
+    `tsc_syntax::SourceFile::from_tree` は text を `Option` で受ける。
+  - decoder：source file の無い node も位置を保ち、合成の flag を付けない（P5-5a は位置を捨てて合成の node にしていた）。
+  - emitter の位置の検査はその位置をそのまま受け、範囲は全て Synthesized として扱う（source の text を読まない）。
+  - printer（tsgo が source file の無いときに取る分岐）：空の関数の本体は改行する（`shouldEmitBlockFunctionBodyOnSingleLine`
+    が見る `getLeadingLineTerminatorCount` の子の無い場合）。object literal の trailing comma は書かない
+    （`shouldAllowTrailingComma`。JSON の file でも書かない）。list の境界の改行は位置を比べない。detached comment は読まない。
+    parse tree の親は Synthesized の flag の無い node。comment は書かない（tsgo の comment は現在の source file の text から出る）。
+- **印字時の括弧**（tsgo は decode した木の parse した形に、印字の時に括弧を付ける）：
+  - 二項式の TypeScript の被演算子（`as`・`satisfies`・`!`・`<T>x`）：tsgo `getBinaryExpressionPrecedence` の左右の優先度
+    （`1 as number * 2` → `(1 as number) * 2`）。`**` の左の規則と二重にしない（`(<number>temp) ** 3`）。
+  - 親の無い heritage の型の式は Member の優先度（`extends (A?.B)`、`(a?.b)<c>.d`）。親の無い decorator の式は LeftHandSide の
+    優先度（`@new x`、`@x?.y` は括弧なし。以前は access の規則で `@(new x)`）。
+- **型の構文**（tsgo の通り）：interface の heritage の clause の間は list の空白と clause 自身の空白（`extends A  extends B`）。
+  mapped type の（error 回復の）member は `{` の字下げの中に、前後に改行（1 行なら空白）を置いて書く（printer.go:2189-2206。
+  tsc 6.0.3 は字下げを閉じてから member を書いた）。JSDoc の型の被演算子は tsgo の優先度（`...?(string[])`）。object literal の
+  method の後置の `!`。arrow の `<T,>`（tsgo `emitTypeParameters` は arrow だけ trailing comma を保つ）。
+- **fixture**：`crates/emitter/tests/fixtures/mapped-type-members.json`（tsc 6.0.3 の観測 328）のうち member のある 312 を tsgo の
+  `emitMappedType` の形に書き換え、`tsgo_overrides` に挙げた（`b06ff367b` と同じ扱い）。parse した親の無い木（API）では tsgo も
+  tsc-rs も member の間の行を比べない（`extra: number;method(x: T): string;`）ことを client で確かめた。
+- **test**：session の `printNode` に 3 件（source file の無い印字、括弧、型の構文。tsgo の答えで pin）。decoder の subtree の
+  test は位置を保つことを確かめる形にした。
+- **TypeScript の client の test**（local）：sync 298/327、async 306/335（P5-5a と同じ。残りは build orchestrator 12、LS 13、
+  `formatNodeForInsertion` 3、P5-3a の null の要素 1）。
+- **tsgo との比較**（local。P5-5a と同じ方法）：
+  - 各 statement の単独の印字（103,364）：違うものが 6,133 → 0。
+  - file 全体（12,773）：違うものが 94 → 74（24 は BOM か非 ASCII、50 は comment）。tsc-rs の error 0。
+- **P5-5d に回すもの**（型の構文の comment。file 全体の 50）：namespace の `{` の後の comment（11 file）、型の member の comment が
+  `;` の前と後に二度出る（12）、conditional type の中の comment（6）、閉じ括弧の前の comment（4）、enum の member の comment
+  （3）、file の先頭の comment（2）、その他（3）。BOM か非 ASCII の 24 も comment の位置（ずれた位置で拾う comment）。
+- **検証**（コード `d558f554d`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（diagnostics・syntax・
+  emitter・api、`--all-targets -- -D warnings`）は clean。`cargo test`（diagnostics・syntax・emitter・api、`--no-fail-fast`）1,181 件が
+  全て成功。release build の full conformance（`--workers 2 --check`、584 s）：0 regressions、数は main と同じ（errors full 13,451、
+  emit 13,443（未評価 8）、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness error 15）。
+  suites（release の `suites-ts71` を作り直して `--check`）：0 regressions、数は main と同じ（api 2、config 87、transpile 41、
+  tsbuild 182/192、tsbuildWatch 63/65、tsc 211/223、tscWatch 42、tsoptions 80）。checker は変えていないので並列対照は行って
+  いない。client の test と tsgo との比較は同じコードの release build で。workspace 全体の test と Clippy は hosted の `rust` job に
+  任せた。
+- **残り**：P5-5d（comment）、P5-5b（`preserveSourceNewlines`）、P5-6（build orchestrator）。
