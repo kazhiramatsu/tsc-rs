@@ -1559,3 +1559,65 @@ snapshot、option、module provider を借りる）。
 - tsgo との比較（local）：conformance の test の file を tsgo の encoder で encode した bytes を両方の `--api` の
   `printNode` に送り、text を比べる（SourceFile と、各 statement の部分木）。option の組（`neverAsciiEscape`、
   `terminateUnterminatedLiterals`、P5-5b では `preserveSourceNewlines`）も。
+
+## P5-5a decoder と `printNode`（2026-10-11）
+
+- **decoder**（`crates/api/src/decoder/`、tsgo `DecodeNodes`）：header（protocol の version、4 つの領域の offset）を検査し、node の
+  record を後ろから（子を先に）読んで tsc-rs の木を作る。
+  - 生成部（`decoder/generated.rs`。`scripts/generate_api_encoder.py` が encoder の表と同じ source から作る）：tsgo の kind から
+    port の kind への表と、port の node ごとに子の property を mask の bit の順に field へ入れる関数。encoder の
+    `syntax_kind_of_tsgo_kind`（全 kind の線形探索）はこの表に置き換えた。
+  - 手書き部：common data（演算子、`multiLine`、heritage の token、import の phase ほか）、拡張 data（literal の text と
+    TokenFlags、template の raw text、SourceFile の text・file name・variant・script kind と header の parse option）、文字列
+    data、NodeFlags の逆写し（表 `NODE_FLAGS` を encoder と共有）、tsgo の形から tsc の形への変換（type heritage の
+    TypeReference → ExpressionWithTypeArguments と QualifiedName → PropertyAccessExpression、入れ子の namespace の暗黙の
+    `export` → NestedNamespace の flag、子の無い BindingElement → OmittedExpression、`?`／`!` の後置 token）、NodeList の
+    trailing comma（tsgo `HasTrailingComma`：最後の要素の終わり < list の終わり）。error の文は tsgo の文。
+  - 位置：source file の node は、tsgo と同じく client の（UTF-16 の）位置を text の byte の offset として使う。文字の途中は
+    その文字の先頭、text の外（client が BOM を落とした text）は text の終わりに寄せる。source file の無い node は位置を持たない
+    （合成の node）。
+  - tsgo だけの kind（`JSTypeAliasDeclaration`、`JSImportDeclaration`、`SyntheticExpression` など）は decode の error（tsc-rs
+    の木に無い。port の encoder もこれらを作らない）。
+- **`tsc_syntax::SourceFile::from_tree`**：parser 以外が作る木の source file（tsgo `NewSourceFile`）。
+- **`printNode`**（`crates/api/src/print.rs`）：base64 を decode し、emitter の TransformArena に載せて印字する（型の構文を書く、
+  `neverAsciiEscape`、`terminateUnterminatedLiterals`、source file は text でなく木から）。一重引用符の文字列は emitter の
+  literal の property に渡す。base64 と decode の失敗は client error（base64 の文は Go の `illegal base64 data at input byte N`）。
+- **printer**（tsgo に合わせた。JavaScript の emit が通らない分岐か、親の無い node にだけ効く）：
+  - 親の無い node には source の text を使わない（tsgo `canUseOriginalText`、`getTextOfNode`）：identifier の近道、node 全体の
+    写し、範囲の空の template の token、数値の literal の `..` の判断。
+  - printer の option `terminateUnterminatedLiterals`：閉じていない正規表現に終端を足す。
+  - 値から印字する分岐：`as`・`satisfies`・`!`・`<T>x`。括弧は tsgo の通りで、被演算子は tsgo の優先度の表
+    （`tsgo_expression_precedence`。OptionalChain の段を含む）で、式自身は access・call・`new`・update の位置で付ける。
+    呼び出し・`new`・tagged template の型引数、`SemicolonClassElement`。型の無い mapped type は `:` を書かない。
+    property signature の初期値と `export as namespace` の修飾子は書かない。JSDoc の `*` は書かない（tsgo
+    `emitKeywordNode` は token でない kind に何も書かない）。
+  - comment の再開（resume）が別の owner のもの（decode した木の範囲は parser の入れ子と同じとは限らない）なら使わず、owner
+    の位置から探す（tsgo には resume が無い。以前は内部の error）。
+- **test**：decoder 27（tsgo `decoder_test.go` の 22、形の変換 3、literal の facts、error の文）。session の `printNode` 4
+  （tsgo の答えで pin）。
+- **TypeScript の client の test**（local）：sync 283 → 298/327、async 291 → 306/335。`printNode` を使う 15 は全て通る。
+  `Parse-clone-emit roundtrip` は client の copy に repo の fixtures を置いて走らせ、印字も clone の印字も失敗 0（置かないと
+  対象が 0 件で通る）。残りは build orchestrator 12、LS 13、`formatNodeForInsertion` 3、P5-3a の null の要素 1。
+- **tsgo との比較**（local。conformance の test の file 12,773 を tsgo の `createSourceFile` の node にし、client の同じ bytes を
+  両方の `printNode` に送る）：
+  - file 全体：12,679 が一致、94 が違う。24 は BOM か非 ASCII の file（位置が text とずれ、tsgo はずれた位置で comment を
+    拾い、改行を判断する）、70 は下の P5-5c の class。tsc-rs の error は 0（初回は 64）。
+  - 各 statement の単独の印字（103,364）：6,133 が違う（下の P5-5c）。
+- **P5-5c に回すもの**（decode した木に tsgo の printer の意味を全体で）：
+  - source file の無い印字：tsgo は単独の node を位置付きのまま、現在の source file が無いものとして印字する（空の本体の
+    `{\n}`、引数 1 つの arrow の括弧など。tsgo の printer の `currentSourceFile` の分岐は 75 か所）。tsc-rs は合成の node と
+    して印字する。
+  - 印字時の括弧：tsgo の `emitExpression(node, precedence)` を全体に。JavaScript の親の中の TS の式（`(1 as number) * 2`、
+    `@(x!)`）、optional chain（`extends (A?.B)`）。factory の表（tsc の番号）と tsgo の表の一本化を含む。
+  - 型の構文の comment：module・enum・型の member の `{` や token の後の comment（tsc-rs の型の構文の印字は d.ts 向けで、
+    comment を書かない）。
+  - BOM か非 ASCII で位置がずれる file の comment の置き方。
+- **検証**（コード `047542d1f`。macOS、`nice -n 20`、Cargo の job 2）：`python3 scripts/generate_api_encoder.py --check`（2 つの
+  生成物）、`cargo fmt --all -- --check`、Clippy（syntax・emitter・api、`--all-targets -- -D warnings`）は clean。`cargo test`
+  （syntax・emitter・api）1,127 件が全て成功。release build の full conformance（`--workers 2 --check`、583 s）：0 regressions、
+  数は main と同じ（errors full 13,451、emit 13,443（未評価 8）、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap
+  13,451、trace 13,451、harness error 15）。suites（release の `suites-ts71` を作り直して `--check`）：0 regressions、数は main と
+  同じ（api 2、config 87、transpile 41、tsbuild 182/192、tsbuildWatch 63/65、tsc 211/223、tscWatch 42、tsoptions 80）。checker
+  は変えていないので並列対照は行っていない。client の test と tsgo との比較は同じコードの release build で。workspace 全体の
+  test と Clippy は hosted の `rust` job に任せた。
+- **残り**：P5-5b（`preserveSourceNewlines`）、P5-5c（上）、P5-6（build orchestrator）。

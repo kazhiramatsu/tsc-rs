@@ -908,6 +908,21 @@ pub struct CreateSourceFileOptions {
     pub script_kind: u32,
 }
 
+/// tsgo `PrintNodeParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrintNodeParams {
+    /// The client's binary nodes, in base64.
+    #[serde(default, deserialize_with = "nullable")]
+    pub data: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub preserve_source_newlines: bool,
+    #[serde(default, deserialize_with = "nullable")]
+    pub never_ascii_escape: bool,
+    #[serde(default, deserialize_with = "nullable")]
+    pub terminate_unterminated_literals: bool,
+}
+
 /// tsgo `CreateSourceFileParams`.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]

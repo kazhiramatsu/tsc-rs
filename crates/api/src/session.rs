@@ -516,6 +516,7 @@ impl Session {
                     .handle_checker_request(method, params)
                     .or_else(|| self.handle_diagnostics_request(method, params))
                     .or_else(|| self.handle_emit_request(method, params))
+                    .or_else(|| self.handle_print_request(method, params))
                 {
                     return result;
                 }

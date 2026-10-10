@@ -1302,3 +1302,6 @@ mod checker;
 
 #[path = "session_outputs.rs"]
 mod outputs;
+
+#[path = "session_print.rs"]
+mod print;

@@ -10,12 +10,14 @@
 mod astnav;
 pub mod callback_fs;
 mod checker;
+pub mod decoder;
 mod diagnostics;
 mod emit;
 pub mod encoder;
 pub mod ipc;
 pub mod module_resolution;
 pub mod msgpack;
+mod print;
 pub mod proto;
 pub mod references;
 pub mod request_fs;

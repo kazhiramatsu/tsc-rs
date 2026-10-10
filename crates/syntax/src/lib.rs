@@ -189,6 +189,47 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
+    /// The source file of a tree built outside the parser (tsgo's API
+    /// decoder, `NewSourceFile`): `root` and its nodes are `arena`'s, and
+    /// nothing was parsed, recovered or read from pragmas.
+    pub fn from_tree(
+        file_name: impl Into<JsString>,
+        text: impl Into<String>,
+        arena: NodeArena,
+        root: NodeId,
+        language_variant: LanguageVariant,
+        is_declaration_file: bool,
+        external_module_indicator_options: ExternalModuleIndicatorOptions,
+    ) -> Self {
+        Self {
+            file_name: file_name.into(),
+            snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
+            language_version: ScriptTarget::LATEST,
+            language_variant,
+            is_declaration_file,
+            js_doc_parsing_mode: JSDocParsingMode::default(),
+            arena,
+            root,
+            external_module_indicator: None,
+            external_module_indicator_options,
+            parse_diagnostics: DiagnosticList::default(),
+            parse_recovery: ParseRecovery::default(),
+            js_doc_diagnostics: DiagnosticList::default(),
+            referenced_files: Vec::new(),
+            type_reference_directives: Vec::new(),
+            lib_reference_directives: Vec::new(),
+            amd_dependencies: Vec::new(),
+            module_name: None,
+            renamed_dependencies: Vec::new(),
+            has_jsx_import_source_pragma: false,
+            jsx_import_source_pragma: None,
+            has_jsx_runtime_pragma: false,
+            jsx_runtime_pragma: None,
+            comment_directives: Vec::new(),
+            jsdoc_hosted: JsDocHostedCell::default(),
+        }
+    }
+
     /// Committed syntactic recovery facts, including suppressed diagnostics.
     pub fn parse_recovery(&self) -> &ParseRecovery {
         &self.parse_recovery
