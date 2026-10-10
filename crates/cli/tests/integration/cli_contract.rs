@@ -11147,12 +11147,31 @@ fn project_references_are_verified_at_their_syntax_like_tsgo() {
 // tsgo's.
 
 fn write_fixture_files(tree: &TempTree, files: &[(&str, &str)]) {
+    // tsgo's records were made where each file written is newer than the one
+    // before it; a file system with a coarser clock (Linux's) can give files
+    // written in a row one time, and a build reports the first of tied
+    // inputs as its newest. Tied files are ordered as they were written.
+    let mut previous: Option<std::time::SystemTime> = None;
     for (relative, text) in files {
         let path = tree.path(relative);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create fixture directory");
         }
         fs::write(&path, text).expect("write fixture file");
+        let file = fs::File::options()
+            .write(true)
+            .open(&path)
+            .expect("open the fixture file");
+        let mut modified = file
+            .metadata()
+            .and_then(|metadata| metadata.modified())
+            .expect("fixture modification time");
+        if let Some(previous) = previous.filter(|&previous| modified <= previous) {
+            modified = previous + std::time::Duration::from_micros(1);
+            file.set_modified(modified)
+                .expect("set the fixture's modification time");
+        }
+        previous = Some(modified);
     }
 }
 
