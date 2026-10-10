@@ -1237,9 +1237,9 @@ impl<'text> Parser<'text> {
         }
     }
 
-    /// tsc createDetachedDiagnostic + addRelatedInfo inside
-    /// parseExpectedMatchingBrackets and its two import-attribute
-    /// counterparts.
+    /// tsgo `parseExpectedMatchingBrackets` and its two import-attribute
+    /// counterparts: the related row is empty at the open token's position
+    /// (tsc's covered the token's first character).
     fn add_matching_bracket_related(
         &mut self,
         diagnostic_index: usize,
@@ -1248,14 +1248,13 @@ impl<'text> Parser<'text> {
         open_position: usize,
     ) {
         let start = self.to_utf16(open_position);
-        let end = self.to_utf16(open_position.saturating_add(1));
         let args = [token_to_string(open_kind), token_to_string(close_kind)];
         self.parse_diagnostics[diagnostic_index]
             .related
             .push(RelatedInfo {
                 file_name: Some(self.file_name.clone()),
                 start: Some(start),
-                length: Some(end.saturating_sub(start)),
+                length: Some(0),
                 message: MessageChain::new(
                     &gen::The_parser_expected_to_find_a_1_to_match_the_0_token_here,
                     &args,

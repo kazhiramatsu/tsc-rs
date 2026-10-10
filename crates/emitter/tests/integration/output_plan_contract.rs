@@ -764,7 +764,7 @@ impl OutputSink for ObservedSink {
 }
 
 #[test]
-fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() {
+fn sink_errors_continue_and_emitted_files_list_only_written_outputs() {
     let host = TestEmitHost::new(
         CompilerOptions {
             target: Some(99),
@@ -807,6 +807,7 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
         [5033]
     );
     assert!(!outcome.emit_skipped());
+    // tsgo printSourceFile lists a file once its write succeeded.
     assert_eq!(
         (outcome.emitted_files())
             .map(|names| names
@@ -814,13 +815,7 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
                 .map(|name| name.as_js().scalar_test_path().to_path_buf())
                 .collect::<Vec<_>>())
             .as_deref(),
-        Some(
-            [
-                PathBuf::from("/project/first.js"),
-                PathBuf::from("/project/second.js"),
-            ]
-            .as_slice()
-        )
+        Some([PathBuf::from("/project/second.js")].as_slice())
     );
 
     let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
@@ -839,8 +834,8 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
     .unwrap();
     assert_eq!(skipping.paths, failing.paths);
     assert!(outcome.diagnostics().is_empty());
-    // emitJsFileOrBundle ignores the printer's skippedDtsWrite return value
-    // (_tsc.js:116634-116638). Both printed JavaScript files remain listed.
+    // Nor a file whose write the callback skipped (tsgo printSourceFile's
+    // `skippedDtsWrite`, whatever the file).
     assert_eq!(
         (outcome.emitted_files())
             .map(|names| names
@@ -848,13 +843,7 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
                 .map(|name| name.as_js().scalar_test_path().to_path_buf())
                 .collect::<Vec<_>>())
             .as_deref(),
-        Some(
-            [
-                PathBuf::from("/project/first.js"),
-                PathBuf::from("/project/second.js"),
-            ]
-            .as_slice()
-        )
+        Some([PathBuf::from("/project/second.js")].as_slice())
     );
 }
 

@@ -112,6 +112,7 @@ enum EmitOperation {
     Files,
     DeclarationDiagnostics,
     ForcedDeclarations,
+    ForcedJavaScript,
 }
 
 fn validate_options(
@@ -206,10 +207,16 @@ fn validate_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(),
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
         ))?;
-        let eligible = if operation == EmitOperation::ForcedDeclarations {
-            crate::plan::source_file_may_emit_forced_declaration(source, host)
-        } else {
-            crate::plan::source_file_may_be_emitted(source, host)
+        let eligible = match operation {
+            EmitOperation::ForcedDeclarations => {
+                crate::plan::source_file_may_emit_forced_declaration(source, host)
+            }
+            EmitOperation::ForcedJavaScript => {
+                crate::plan::source_file_may_emit_forced_javascript(source)
+            }
+            EmitOperation::Files | EmitOperation::DeclarationDiagnostics => {
+                crate::plan::source_file_may_be_emitted(source, host)
+            }
         };
         if !eligible {
             continue;
@@ -1358,15 +1365,33 @@ pub fn finish_emit_files(
 ) -> Result<EmitOutcome, EmitFailure> {
     emissions.sort_by_key(|emission| emission.unit);
     let mut artifacts = Vec::new();
+    // The emission each artifact belongs to: a failed write is that unit's
+    // diagnostic.
+    let mut owners = Vec::new();
     let mut written_paths = std::collections::BTreeSet::new();
+    for (owner, emission) in emissions.iter_mut().enumerate() {
+        owners.extend(std::iter::repeat_n(owner, emission.artifacts.len()));
+        artifacts.append(&mut emission.artifacts);
+    }
+    for (owner, write) in owners
+        .into_iter()
+        .zip(write_artifact_results(artifacts, sink))
+    {
+        if let Some(path) = written_path(write, &mut emissions[owner].diagnostics) {
+            written_paths.insert(path);
+        }
+    }
     let mut diagnostics: DiagnosticList = Vec::new();
     let mut source_map_observations: Vec<SourceMapObservation> = Vec::new();
     let mut emit_skipped = false;
     let mut listing = Vec::with_capacity(emissions.len());
     for emission in emissions {
-        artifacts.extend(emission.artifacts);
         written_paths.extend(emission.written_paths);
-        diagnostics.extend(emission.diagnostics);
+        // tsgo CombineEmitResults: each source's emitter diagnostics (a
+        // sorted collection without duplicates), in plan order.
+        let mut unit_diagnostics = emission.diagnostics;
+        sort_and_dedupe_diagnostics(&mut unit_diagnostics);
+        diagnostics.extend(unit_diagnostics);
         source_map_observations.extend(emission.map_observations);
         emit_skipped |= emission.emit_skipped;
         listing.push((
@@ -1376,36 +1401,29 @@ pub fn finish_emit_files(
             emission.declaration_map_path,
         ));
     }
-    written_paths.extend(write_artifacts(artifacts, sink, &mut diagnostics));
     let emitted_files = session.emitted_files_enabled.then(|| {
-        let mut emitted = Vec::new();
-        for (javascript_path, map_path, declaration_path, declaration_map_path) in listing {
-            // tsgo printSourceFile (compiler/emitter.go) writes and lists a
-            // source map before its text, for the JavaScript and for the
-            // declaration file; a declaration file whose write the callback
-            // skipped (an unchanged composite output) is not listed.
-            emitted.extend(map_path);
-            emitted.extend(javascript_path);
-            if let Some(declaration_map_path) = declaration_map_path {
-                emitted.push(declaration_map_path);
-            }
-            if let Some(declaration_path) = declaration_path {
-                if written_paths.contains(&declaration_path) {
-                    emitted.push(declaration_path);
-                }
-            }
-        }
-        emitted
+        // tsgo printSourceFile (compiler/emitter.go) writes and lists a
+        // source map before its text, for the JavaScript and for the
+        // declaration file; a failed write is not listed, nor a declaration
+        // file whose write the callback skipped (an unchanged composite
+        // output).
+        listing
+            .into_iter()
+            .flat_map(
+                |(javascript_path, map_path, declaration_path, declaration_map_path)| {
+                    [
+                        map_path,
+                        javascript_path,
+                        declaration_map_path,
+                        declaration_path,
+                    ]
+                },
+            )
+            .flatten()
+            .filter(|path| written_paths.contains(path))
+            .collect()
     });
 
-    // tsc-port: emitFiles returns `emitterDiagnostics.getDiagnostics()` — a
-    // DiagnosticCollection (@6.0.3 _tsc.js:16199-16264 createDiagnosticCollection;
-    // :116534-116551 emitFiles): file-less diagnostics first, files in
-    // case-sensitive name order, each file's list in diagnostic order with equal
-    // entries dropped. The units append in plan order above, so sort and dedupe
-    // the aggregate here (h2-7b-w1: the declarationEmitMixinPrivateProtected
-    // row's frozen order interleaves two files).
-    sort_and_dedupe_diagnostics(&mut diagnostics);
     Ok(EmitOutcome::new(
         diagnostics,
         emit_skipped,
@@ -1422,29 +1440,71 @@ fn write_artifacts(
     sink: &mut dyn OutputSink,
     diagnostics: &mut DiagnosticList,
 ) -> std::collections::BTreeSet<JsString> {
-    let mut written_paths: std::collections::BTreeSet<JsString> = std::collections::BTreeSet::new();
+    write_artifact_results(artifacts, sink)
+        .into_iter()
+        .filter_map(|write| written_path(write, diagnostics))
+        .collect()
+}
+
+/// One artifact's write: its path, the file a failure is reported for and
+/// the result.
+struct ArtifactWrite {
+    path: JsString,
+    reported_path: JsString,
+    result: Result<EmitWriteDisposition, crate::EmitIoError>,
+}
+
+/// Write a batch of artifacts; each artifact's write, in artifact order (the
+/// sink may write the batch concurrently, the results are those of
+/// sequential writes).
+fn write_artifact_results(
+    artifacts: Vec<EmitArtifact>,
+    sink: &mut dyn OutputSink,
+) -> Vec<ArtifactWrite> {
+    use crate::EmitArtifactKind as Kind;
+    // tsgo printSourceFile writes a source map right before its text and
+    // reports a failed map write for the text file.
     let paths = artifacts
         .iter()
-        .map(|artifact| artifact.path().to_owned())
+        .enumerate()
+        .map(|(index, artifact)| {
+            let text_kind = match artifact.kind() {
+                Kind::JavaScriptMap => Some(Kind::JavaScript),
+                Kind::DeclarationMap => Some(Kind::Declaration),
+                _ => None,
+            };
+            let reported = artifacts
+                .get(index + 1)
+                .filter(|text| text_kind == Some(text.kind()))
+                .unwrap_or(artifact);
+            (artifact.path().to_owned(), reported.path().to_owned())
+        })
         .collect::<Vec<_>>();
-    // The sink may write the batch concurrently; the results come back in
-    // artifact order, so the observations below are those of sequential
-    // writes.
-    let results = sink.write_all(artifacts);
-    for (path, result) in paths.into_iter().zip(results) {
-        let include_in_emitted_files = match result {
-            Ok(EmitWriteDisposition::Written) => true,
-            Ok(EmitWriteDisposition::SkippedUnchanged) => false,
-            Err(error) => {
-                diagnostics.push(write_diagnostic(path.as_js(), error.message()));
-                true
-            }
-        };
-        if include_in_emitted_files {
-            written_paths.insert(path);
+    paths
+        .into_iter()
+        .zip(sink.write_all(artifacts))
+        .map(|((path, reported_path), result)| ArtifactWrite {
+            path,
+            reported_path,
+            result,
+        })
+        .collect()
+}
+
+/// The path of an artifact the emit lists after its write (tsgo: neither a
+/// failed write, which reports its diagnostic, nor an unchanged one).
+fn written_path(write: ArtifactWrite, diagnostics: &mut DiagnosticList) -> Option<JsString> {
+    match write.result {
+        Ok(EmitWriteDisposition::Written) => Some(write.path),
+        Ok(EmitWriteDisposition::SkippedUnchanged) => None,
+        Err(error) => {
+            diagnostics.push(write_diagnostic(
+                write.reported_path.as_js(),
+                error.message(),
+            ));
+            None
         }
     }
-    written_paths
 }
 
 /// The declaration output of one source as tsgo's builder-signature emit
@@ -1561,7 +1621,6 @@ pub fn emit_forced_declarations(
     let mut source_maps = Vec::new();
     let mut listing = Vec::new();
     let mut diagnostics = Vec::new();
-    let mut emit_skipped = false;
     for unit in preflight.plan().units() {
         let path = unit
             .paths()
@@ -1578,37 +1637,70 @@ pub fn emit_forced_declarations(
             true,
             None,
         )?;
-        emit_skipped |= declaration.decl_blocked;
-        diagnostics.extend(declaration.diagnostics);
+        // tsgo emitDeclarationFile: a forced emit is not blocked by its
+        // diagnostics, the blocked paths or `noEmit`, nor marked skipped.
+        let mut unit_diagnostics = declaration.diagnostics;
         if let Some(map) = declaration.map_observation {
             source_maps.push(map);
         }
-        let printed = declaration.artifact.is_some();
         let mut artifacts = Vec::new();
         artifacts.extend(declaration.map_artifact);
         artifacts.extend(declaration.artifact);
         // Forced emit follows the per-source write boundary. A later TS
         // assertion must retain earlier JSON writes instead of discarding a
         // Program-wide preconstructed artifact vector.
-        let written = write_artifacts(artifacts, sink, &mut diagnostics);
-        if written.contains(path.as_bytes()) {
-            listing.push(path.to_owned());
-        }
-        if printed {
-            // This list entry is unconditional even for a JSON source, whose
-            // shouldEmitSourceMaps branch produces no map artifact at all.
-            if let Some(map_path) = unit.paths().declaration_map_path() {
-                listing.push(map_path.to_owned());
-            }
-        }
+        let written = write_artifacts(artifacts, sink, &mut unit_diagnostics);
+        // tsgo CombineEmitResults: each source's sorted collection in turn.
+        sort_and_dedupe_diagnostics(&mut unit_diagnostics);
+        diagnostics.extend(unit_diagnostics);
+        // tsgo printSourceFile: the map, then the declaration file, each
+        // once written.
+        listing.extend(
+            [unit.paths().declaration_map_path(), Some(path)]
+                .into_iter()
+                .flatten()
+                .filter(|path| written.contains(path.as_bytes()))
+                .map(|path| path.to_owned()),
+        );
     }
-    sort_and_dedupe_diagnostics(&mut diagnostics);
     Ok(EmitOutcome::new(
         diagnostics,
-        emit_skipped,
+        false,
         host.collects_emitted_files().then_some(listing),
         maps_enabled.then_some(source_maps),
     ))
+}
+
+/// tsgo `Program.Emit` with `ForceEmit` and `EmitOnlyJs` (the API's
+/// `getJavaScriptEmit`): the JavaScript output and its map of each selected
+/// source, `noEmit`, `emitDeclarationOnly`, `noEmitOnError` and the blocked
+/// outputs aside.
+pub fn emit_forced_javascript(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    selection: EmitSelection,
+    sink: &mut dyn OutputSink,
+) -> Result<EmitOutcome, EmitFailure> {
+    validate_request(host, EmitOperation::ForcedJavaScript)?;
+    let preflight = crate::plan::preflight_forced_javascript(host, selection)?;
+    let requests = (0..preflight.plan().units().len())
+        .map(|unit| UnitEmitRequest {
+            unit,
+            javascript: true,
+            declaration: false,
+        })
+        .collect::<Vec<_>>();
+    let emissions =
+        emit_planned_units_with_kinds(resolver, host, &preflight, &requests, Some(sink))
+            .map_err(|error| error.failure)?;
+    finish_emit_files(
+        EmitFilesSession {
+            emitted_files_enabled: host.collects_emitted_files(),
+            map_options_enabled: javascript_map_options_enabled(host.compiler_options()),
+        },
+        emissions,
+        sink,
+    )
 }
 
 fn write_diagnostic(path: JsStr<'_>, message: JsStr<'_>) -> Diagnostic {

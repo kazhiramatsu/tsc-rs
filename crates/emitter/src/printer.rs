@@ -644,6 +644,9 @@ enum ExpressionGrammarContext {
     NewCallee,
     PrefixUnaryOperand,
     PostfixUnaryOperand,
+    /// The left operand of `**` (tsgo `getBinaryExpressionPrecedence`):
+    /// below update precedence it is parenthesized.
+    ExponentiationLeftOperand,
     ComputedPropertyName,
     ArrowConciseBody,
     AssignmentRightSide,
@@ -8240,11 +8243,26 @@ impl Printer {
                     parent: SyntaxKind::BinaryExpression,
                     field: "left",
                 })?;
+                // The left edge keeps the enclosing grammar unless `**`
+                // parenthesizes it.
+                let left_context = match left_node {
+                    Some(left_node)
+                        if operator_kind == SyntaxKind::AsteriskAsteriskToken
+                            && crate::factory::exponentiation_left_operand_needs_parentheses(
+                                transformation.arena(),
+                                left_node,
+                            )? =>
+                    {
+                        expression_context
+                            .with_grammar(ExpressionGrammarContext::ExponentiationLeftOperand)
+                    }
+                    _ => expression_context,
+                };
                 let left_comments = self.emit_expression_child_with_source_comments(
                     transformation,
                     node.source(),
                     left,
-                    expression_context,
+                    left_context,
                     deferred_source_comments,
                     writer,
                 )?;
@@ -13845,6 +13863,13 @@ impl Printer {
             ExpressionGrammarContext::DisallowedComma => self
                 .is_comma_sequence(transformation, emitted)?
                 .then_some(GrammarParentheses::SourceRanged),
+            ExpressionGrammarContext::ExponentiationLeftOperand => {
+                crate::factory::exponentiation_left_operand_needs_parentheses(
+                    transformation.arena(),
+                    emitted,
+                )?
+                .then_some(GrammarParentheses::SourceRanged)
+            }
             _ => None,
         };
         Ok(parentheses)
@@ -15948,6 +15973,7 @@ impl Printer {
                 | ExpressionGrammarContext::NewCallee
                 | ExpressionGrammarContext::PrefixUnaryOperand
                 | ExpressionGrammarContext::PostfixUnaryOperand
+                | ExpressionGrammarContext::ExponentiationLeftOperand
                 | ExpressionGrammarContext::ArrowConciseBody
                 | ExpressionGrammarContext::AssignmentRightSide
                 | ExpressionGrammarContext::ExportDefault

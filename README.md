@@ -119,7 +119,7 @@ tsc-rs --api --cwd /path/to/workspace   # MessagePack over stdio (--async: JSON-
 
 Implemented: snapshots and projects, config parsing, source files,
 transpilation, module resolution, symbol, type and signature queries, scope
-lookups and type nodes. Not yet: diagnostics, emit, `printNode`, the build
+lookups, type nodes, diagnostics and emit. Not yet: `printNode`, the build
 orchestrator and language-service requests. Details: [design notes](docs/design/greenfield/slices/ts71-api-server/README.md).
 
 ## Rust API (experimental)

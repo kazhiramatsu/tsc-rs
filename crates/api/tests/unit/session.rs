@@ -1299,3 +1299,6 @@ mod module_resolution;
 
 #[path = "session_checker.rs"]
 mod checker;
+
+#[path = "session_outputs.rs"]
+mod outputs;

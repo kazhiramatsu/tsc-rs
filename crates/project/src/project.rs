@@ -118,6 +118,9 @@ impl ProgramRoots {
             paths.case_sensitive,
         )
         .map_err(|error| ProjectError::new(format!("invalid compiler options: {error:?}")))?;
+        // tsgo's synthetic `ParsedCommandLine` carries them as its errors.
+        let program_options = program_options
+            .with_config_parsing_diagnostics(config_file_parsing_diagnostics.clone(), Vec::new());
         Ok(Self {
             root_file_names,
             options,

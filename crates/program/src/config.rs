@@ -3759,7 +3759,8 @@ fn emit_removed_option_diagnostic(
         message = message.with_next(vec![MessageChain::new_js(
             &gen::Use_0_instead,
             &[use_instead.to_owned()],
-        )]);
+        )
+        .without_location()]);
     }
     let location = properties
         .iter()

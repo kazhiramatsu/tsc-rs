@@ -119,25 +119,21 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn is_ambient_for_unused(&self, node: NodeId) -> bool {
-        self.binder.flags_of(node).intersects(NodeFlags::AMBIENT)
-            || NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
-            || node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
-                node,
-                ModifierFlags::AMBIENT,
-            )
-    }
-
     fn is_recovery_only_unused_declaration(&self, node: NodeId) -> bool {
         NodeFlags::from_bits(self.node_flags(node))
             .intersects(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR)
     }
 
-    fn unused_is_error(&self, node: NodeId, kind: UnusedIdentifierKind) -> bool {
-        if self.is_ambient_for_unused(node) {
-            return false;
-        }
+    /// tsgo `reportUnused`: nothing is reported at a location in an ambient
+    /// context (its node flags; an invalid `declare` on an accessor leaves
+    /// none) or with a parse error.
+    fn reports_unused_at(&self, containing_node: NodeId) -> bool {
+        !self.is_recovery_only_unused_declaration(containing_node)
+            && !NodeFlags::from_bits(self.node_flags(containing_node))
+                .intersects(NodeFlags::AMBIENT)
+    }
+
+    fn unused_is_error(&self, kind: UnusedIdentifierKind) -> bool {
         match kind {
             UnusedIdentifierKind::Local => self.options.no_unused_locals == Some(true),
             UnusedIdentifierKind::Parameter => self.options.no_unused_parameters == Some(true),
@@ -169,11 +165,11 @@ impl<'a> CheckerState<'a> {
         message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[tsc_types::JsStr<'_>],
     ) {
-        if self.is_recovery_only_unused_declaration(containing_node) {
+        if !self.reports_unused_at(containing_node) {
             return;
         }
         let mut diagnostic = self.create_error_js(location, message, args);
-        if !self.unused_is_error(containing_node, kind) {
+        if !self.unused_is_error(kind) {
             diagnostic.message.category = DiagnosticCategory::Suggestion;
         }
         self.push_error_diagnostic(diagnostic);
@@ -188,7 +184,7 @@ impl<'a> CheckerState<'a> {
         message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) {
-        if self.is_recovery_only_unused_declaration(containing_node) {
+        if !self.reports_unused_at(containing_node) {
             return;
         }
         let index = self.error_at_byte_range_with_args(
@@ -198,7 +194,7 @@ impl<'a> CheckerState<'a> {
             message,
             args,
         );
-        if !self.unused_is_error(containing_node, kind) {
+        if !self.unused_is_error(kind) {
             self.diagnostics.update(index, |diagnostic| {
                 diagnostic.message.category = DiagnosticCategory::Suggestion;
             });

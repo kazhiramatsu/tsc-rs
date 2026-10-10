@@ -54,23 +54,6 @@ impl EmitFileSystem for InjectedFileSystem {
         })()
         .map_err(Into::into)
     }
-
-    fn create_directory(
-        &mut self,
-        path: tsc_diagnostics::JsStr<'_>,
-    ) -> Result<(), tsc_diagnostics::JsString> {
-        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-        panic!(
-            "existing project parent must not be created: {}",
-            path.display()
-        )
-    }
-
-    fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {
-        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
-
-        path == Path::new("/project")
-    }
 }
 
 impl OutputSink for CountingSink {
@@ -2073,6 +2056,13 @@ fn assert_filesystem_failure_at_each_write_index(module: i32) {
             "failure index {failed_index}"
         );
         assert!(!outcome.emit_skipped(), "failure index {failed_index}");
+        // tsgo lists only the files it wrote; the file system's write (tsgo
+        // `vfs.FS.WriteFile`) is the one attempt the emit makes.
+        let expected_partial = output_paths
+            .iter()
+            .enumerate()
+            .filter_map(|(index, path)| (index != failed_index).then_some(path.clone()))
+            .collect::<Vec<_>>();
         assert_eq!(
             (outcome.emitted_files())
                 .map(|names| names
@@ -2080,7 +2070,7 @@ fn assert_filesystem_failure_at_each_write_index(module: i32) {
                     .map(|name| name.as_js().scalar_test_path().to_path_buf())
                     .collect::<Vec<_>>())
                 .as_deref(),
-            Some(output_paths.as_slice()),
+            Some(expected_partial.as_slice()),
             "failure index {failed_index}"
         );
         assert_eq!(
@@ -2089,14 +2079,9 @@ fn assert_filesystem_failure_at_each_write_index(module: i32) {
                 .iter()
                 .filter(|path| *path == &output_paths[failed_index])
                 .count(),
-            2,
-            "failure index {failed_index} retries exactly once"
+            1,
+            "failure index {failed_index} is written once"
         );
-        let expected_partial = output_paths
-            .iter()
-            .enumerate()
-            .filter_map(|(index, path)| (index != failed_index).then_some(path.clone()))
-            .collect::<Vec<_>>();
         assert_eq!(
             filesystem.files.keys().cloned().collect::<Vec<_>>(),
             expected_partial,

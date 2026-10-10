@@ -15,6 +15,7 @@ fn chain(code: u32, text: &str) -> MessageChain {
         next: Vec::new(),
         related: Vec::new(),
         repopulate: None,
+        without_location: false,
     }
 }
 

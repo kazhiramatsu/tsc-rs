@@ -8,10 +8,12 @@
 //! client (`createSourceFile`, `createSourceFileFromFile`,
 //! `releaseSourceFile`), the transpile requests, the program's information
 //! (`getSourceFile`, the resolved modules and their modes, the config
-//! files), the module resolvers and, in `crate::checker`, the symbol and
-//! type queries of the checker; `getCurrentLanguageServerSnapshot` answers
-//! as tsgo's standalone session does, and tsgo's other methods answer that
-//! they are not implemented yet.
+//! files), the module resolvers, in `crate::checker` the symbol and type
+//! queries of the checker, in `crate::diagnostics` the program's
+//! diagnostics and in `crate::emit` its emit;
+//! `getCurrentLanguageServerSnapshot` answers as tsgo's standalone session
+//! does, and tsgo's other methods answer that they are not implemented
+//! yet.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -510,7 +512,11 @@ impl Session {
             #[cfg(test)]
             "panicForTest" => panic!("test panic"),
             _ => {
-                if let Some(result) = self.handle_checker_request(method, params) {
+                if let Some(result) = self
+                    .handle_checker_request(method, params)
+                    .or_else(|| self.handle_diagnostics_request(method, params))
+                    .or_else(|| self.handle_emit_request(method, params))
+                {
                     return result;
                 }
                 if TSGO_METHODS.binary_search(&method).is_ok() {
@@ -811,11 +817,39 @@ impl Session {
                 }
                 Some(ProgramFile {
                     document: Arc::clone(live.document(index)?),
+                    index,
                     path: path.to_owned(),
                     file_name,
                 })
             })
         })
+    }
+
+    /// tsgo `NewDiagnosticResponses` of a program's diagnostics: located in
+    /// the texts of the program's files, or of the snapshot's file system
+    /// (its config files).
+    pub(crate) fn diagnostic_responses(
+        &self,
+        snapshot: SnapshotId,
+        program: &ProjectProgram,
+        diagnostics: &[Diagnostic],
+    ) -> Result<Vec<DiagnosticResponse>, String> {
+        let snapshot = self.snapshot(snapshot)?;
+        let documents = program.with_live(|live| {
+            (0..live.file_count())
+                .filter_map(|index| {
+                    let file_name = live.file_name(index)?.to_string_lossy().into_owned();
+                    Some((file_name, Arc::clone(live.document(index)?)))
+                })
+                .collect::<BTreeMap<_, _>>()
+        });
+        let text_of = |file_name: &str| match documents.get(file_name) {
+            Some(document) => Some(document.source().text().to_owned()),
+            None => snapshot
+                .read_file(file_name)
+                .map(|bytes| String::from_utf8_lossy(&bytes).into_owned()),
+        };
+        Ok(DiagnosticResponse::list(diagnostics, &text_of))
     }
 
     /// tsgo `resolveOptionalSourceFile` with a file: the program's file, or
@@ -1362,6 +1396,22 @@ impl Session {
             .map(|project| project_response(&snapshot, project)))
     }
 
+    /// The request file system a snapshot the client holds reads.
+    pub(crate) fn snapshot_file_system(
+        &self,
+        handle: SnapshotId,
+    ) -> Result<Option<Arc<RequestFileSystem>>, String> {
+        self.lock_snapshots()
+            .get(&handle)
+            .map(|data| data.file_system.clone())
+            .ok_or_else(|| client_error(format!("snapshot {handle} not found")))
+    }
+
+    /// The session's file system (tsgo `snapshotHost.FS()`).
+    pub(crate) fn file_system(&self) -> &dyn FileSystem {
+        &*self.fs
+    }
+
     fn snapshot(&self, handle: SnapshotId) -> Result<Arc<Snapshot>, String> {
         self.lock_snapshots()
             .get(&handle)
@@ -1836,6 +1886,8 @@ fn is_source_file_response_method(method: &str) -> bool {
 /// A file of a program the API asks about.
 pub(crate) struct ProgramFile {
     pub(crate) document: Arc<BoundDocument>,
+    /// The file's index in the program's checker (libraries first).
+    pub(crate) index: usize,
     /// The file name as the program spells it.
     file_name: String,
     path: String,

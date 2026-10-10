@@ -1664,7 +1664,9 @@ fn constructor_nested_class_uses_the_local_mode() {
 }
 
 #[test]
-fn declaration_file_unused_locals_are_ambient_suggestions() {
+fn declaration_file_unused_locals_report_nothing() {
+    // tsgo reportUnused: a location in an ambient context reports neither
+    // an error nor a suggestion (tsgo-probed through the API).
     let rows = unused_rows_for_files(
         &[("a.d.ts", "export {};\ndeclare const dead: number;\n")],
         &CompilerOptions {
@@ -1672,20 +1674,11 @@ fn declaration_file_unused_locals_are_ambient_suggestions() {
             ..CompilerOptions::default()
         },
     );
-    assert_eq!(
-        rows,
-        [(
-            6133,
-            DiagnosticCategory::Suggestion,
-            25,
-            4,
-            "'dead' is declared but its value is never read.".to_owned(),
-        )]
-    );
+    assert_eq!(rows, []);
 }
 
 #[test]
-fn ambient_declaration_in_source_file_is_an_unused_suggestion() {
+fn ambient_declaration_in_source_file_reports_nothing() {
     let text = "export {};\ndeclare const dead: number;\n";
     let rows = unused_rows(
         text,
@@ -1694,16 +1687,7 @@ fn ambient_declaration_in_source_file_is_an_unused_suggestion() {
             ..CompilerOptions::default()
         },
     );
-    assert_eq!(
-        rows,
-        [(
-            6133,
-            DiagnosticCategory::Suggestion,
-            text.find("dead").expect("ambient declaration") as u32,
-            4,
-            "'dead' is declared but its value is never read.".to_owned(),
-        )]
-    );
+    assert_eq!(rows, []);
 }
 
 #[test]

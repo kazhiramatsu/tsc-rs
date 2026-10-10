@@ -4289,7 +4289,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     &gen::The_common_source_directory_of_0_is_1_The_rootDir_setting_must_be_explicitly_set_to_this_or_another_path_to_adjust_your_output_s_file_layout,
                     &[crate::js_path::base_file_name(config),
                         directory_relative_to_config(config, inferred.as_js(), case_sensitive)],
-                ).with_next(vec![MessageChain::new(&gen::Visit_https_aka_ms_ts6_for_migration_information, &[])]);
+                ).with_next(vec![MessageChain::new(&gen::Visit_https_aka_ms_ts6_for_migration_information, &[]).without_location()]);
                 append_output_option_diagnostic(
                     &mut diagnostics,
                     self.program_options.config_file(),
@@ -7025,7 +7025,8 @@ fn unsupported_root_extension_diagnostic(
     };
     let root_reason = root_file_reason_message(&root_reason, &same_file_name);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
-        .with_next(vec![root_reason]);
+        .with_next(vec![root_reason])
+        .without_location();
     Ok(Diagnostic::new(
         None,
         None,
@@ -7037,7 +7038,8 @@ fn unsupported_root_extension_diagnostic(
 fn missing_root_diagnostic(path: JsStr<'_>, root_file_reason: RootFileReason) -> Diagnostic {
     let root_reason = root_file_reason_message(&root_file_reason, &same_file_name);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
-        .with_next(vec![root_reason]);
+        .with_next(vec![root_reason])
+        .without_location();
     Diagnostic::new(
         None,
         None,
@@ -7053,7 +7055,8 @@ fn unresolved_extensionless_root_diagnostic(
 ) -> Result<Diagnostic, ProgramLoadError> {
     let root_reason = root_file_reason_message(&root_reason, &same_file_name);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
-        .with_next(vec![root_reason]);
+        .with_next(vec![root_reason])
+        .without_location();
     Ok(Diagnostic::new(
         None,
         None,
@@ -7108,7 +7111,8 @@ fn missing_library_root_diagnostic(path: &ProgramPath, reason: &LibraryRootReaso
         ),
     };
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
-        .with_next(vec![inclusion_reason]);
+        .with_next(vec![inclusion_reason])
+        .without_location();
     let diagnostic = Diagnostic::new(
         None,
         None,
@@ -7136,8 +7140,9 @@ fn automatic_type_reference_diagnostic(
         },
         &[name.to_owned()],
     );
-    let inclusion =
-        MessageChain::new_js(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
+    let inclusion = MessageChain::new_js(&gen::The_file_is_in_the_program_because, &[])
+        .with_next(vec![reason])
+        .without_location();
     let mut diagnostic = Diagnostic::new(
         None,
         None,
@@ -7360,13 +7365,14 @@ fn explaining_file_diagnostic(
                 .iter()
                 .filter_map(|reason| source_inclusion_reason_message(reason, &same_file_name))
                 .collect(),
-        )]);
+        )
+        .without_location()]);
     }
     if let Some(detail) =
         root_module_format_detail(&source.prepared, package, options, &same_file_name)
     {
         message.next_present = true;
-        message.next.push(detail);
+        message.next.push(detail.without_location());
     }
     let (file, start, length) =
         located
@@ -7557,7 +7563,8 @@ fn casing_diagnostic(
         &gen::The_file_is_in_the_program_because,
         &[],
     )
-    .with_next(reasons)]);
+    .with_next(reasons)
+    .without_location()]);
     let location_reason = if incoming_reason.is_referenced() {
         Some(incoming_reason)
     } else {
