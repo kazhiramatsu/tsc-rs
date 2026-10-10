@@ -1441,3 +1441,10 @@ snapshot、option、module provider を借りる）。
   - 上の tsgo との比較と client の test は最終のコードの release build で。
   - workspace 全体の test と Clippy は hosted の `rust` job に任せる。
 - **残り**：P5-4 はこれで終わり。次は P5-5（`printNode` と decoder）。
+
+### P5-4d の hosted の記録と merge（2026-10-11）
+
+- hosted：最終候補 `d18c4e310` の run 38061755668（`plan` 26s、`rust` 7m50s、`conformance (TypeScript 7.1)` 20m7s、
+  `gates` 15s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge → `0fb987285`（merge commit、
+  PR #734）。P5-4（checker の query、diagnostics、emit）はこれで終わり。
+- 次は P5-5（`printNode` と decoder）。
