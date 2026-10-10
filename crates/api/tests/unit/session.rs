@@ -634,8 +634,8 @@ fn echo_answers_its_parameters() {
 fn a_method_tsgo_has_is_not_implemented_yet_and_another_is_unknown() {
     let (session, _) = session(&[]);
     assert_eq!(
-        call(&session, "createBuildOrchestrator", json!({})).unwrap_err(),
-        "api: invalid request: createBuildOrchestrator is not implemented yet"
+        call(&session, "formatNodeForInsertion", json!({})).unwrap_err(),
+        "api: invalid request: formatNodeForInsertion is not implemented yet"
     );
     assert_eq!(
         call(&session, "nope", json!({})).unwrap_err(),
@@ -1305,3 +1305,6 @@ mod outputs;
 
 #[path = "session_print.rs"]
 mod print;
+
+#[path = "session_build.rs"]
+mod build;

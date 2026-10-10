@@ -923,6 +923,82 @@ pub struct PrintNodeParams {
     pub terminate_unterminated_literals: bool,
 }
 
+/// tsgo `CreateBuildOrchestratorParams`. The build and compiler options
+/// are read only under their keys: the client spreads its options over the
+/// params, and tsgo's embedded fields keep their names.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateBuildOrchestratorParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub root_names: Vec<String>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub cwd: String,
+    #[serde(default)]
+    pub build_options: Option<BuildOptionsParam>,
+    #[serde(default)]
+    pub compiler_options: Option<CompilerOptionsParam>,
+}
+
+/// tsgo `core.BuildOptions` as the API receives them (`builders` sets
+/// nothing in the port, which builds one project after another).
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildOptionsParam {
+    #[serde(default, deserialize_with = "nullable")]
+    pub dry: bool,
+    #[serde(default, deserialize_with = "nullable")]
+    pub force: bool,
+    #[serde(default, deserialize_with = "nullable")]
+    pub verbose: bool,
+    #[serde(default, deserialize_with = "nullable")]
+    pub stop_build_on_errors: bool,
+    #[serde(default, deserialize_with = "nullable")]
+    pub clean: bool,
+}
+
+/// tsgo `CreateBuildOrchestratorResponse`.
+#[derive(Clone, Debug, Serialize)]
+pub struct CreateBuildOrchestratorResponse {
+    #[serde(rename = "buildOrchestratorID")]
+    pub build_orchestrator_id: u64,
+}
+
+/// tsgo `DisposeBuildOrchestratorParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct DisposeBuildOrchestratorParams {
+    #[serde(rename = "buildOrchestratorID", default)]
+    pub build_orchestrator_id: u64,
+}
+
+/// tsgo `BuildParams` and `CleanBuildParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct BuildParams {
+    #[serde(rename = "buildOrchestratorID", default)]
+    pub build_orchestrator_id: u64,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+}
+
+/// tsgo `BuildResponse` and `CleanBuildResponse` (a clean's files deleted).
+#[derive(Clone, Debug, Serialize)]
+pub struct BuildResponse {
+    pub status: i32,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<DiagnosticResponse>,
+    pub statistics: StatisticsResponse,
+    #[serde(rename = "filesDeleted", skip_serializing_if = "Option::is_none")]
+    pub files_deleted: Option<Vec<String>>,
+}
+
+/// tsgo `tsc.Statistics` as Go encodes it: its exported fields.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct StatisticsResponse {
+    pub projects: usize,
+    pub projects_built: usize,
+    pub timestamp_updates: usize,
+}
+
 /// tsgo `CreateSourceFileParams`.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]

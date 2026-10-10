@@ -117,7 +117,7 @@ pub(crate) struct CommandBudgets {
 }
 
 impl CommandBudgets {
-    fn of(single_threaded: Option<bool>, checkers: Option<f64>) -> Self {
+    pub(crate) fn of(single_threaded: Option<bool>, checkers: Option<f64>) -> Self {
         Self {
             single_threaded: single_threaded == Some(true),
             checkers: checkers
@@ -812,16 +812,7 @@ fn execute_build<'a>(
         write_times: false,
     };
     let catalog = LibraryCatalog::typescript_7_1(Path::new(system.default_library_path()));
-    let command = BuildCommand {
-        projects: parsed.projects.clone(),
-        verbose: parsed.build_bool("verbose"),
-        dry: parsed.build_bool("dry"),
-        force: parsed.build_bool("force"),
-        clean: parsed.build_bool("clean"),
-        stop_build_on_errors: parsed.build_bool("stopBuildOnErrors"),
-        watch: parsed.option_bool("watch") == Some(true),
-        command_line: command_line_option_bag(&parsed.options, current_directory_js.as_js()),
-    };
+    let command = BuildCommand::from_parsed(&parsed, current_directory_js.as_js());
     if command.watch {
         // tsgo `Orchestrator.start` with `--watch`: the first build and the
         // watches; the status is the first build's.
@@ -844,6 +835,7 @@ pub(crate) fn with_build_route<R>(
     pretty: bool,
     locale: Locale,
     budgets: CommandBudgets,
+    write_times: bool,
     build: impl FnOnce(&mut CliRoute<'_>) -> R,
 ) -> R {
     let mut output_filesystem =
@@ -857,7 +849,7 @@ pub(crate) fn with_build_route<R>(
         config_time: std::time::Duration::ZERO,
         budgets,
         tracing: None,
-        write_times: true,
+        write_times,
     };
     build(&mut route)
 }
