@@ -783,3 +783,6 @@ fn handles_the_snapshot_does_not_know_are_the_clients_errors() {
 
 #[path = "session_types.rs"]
 mod types;
+
+#[path = "session_signatures.rs"]
+mod signatures;

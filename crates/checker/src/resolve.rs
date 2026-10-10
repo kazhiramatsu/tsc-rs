@@ -205,6 +205,29 @@ impl<'a> CheckerState<'a> {
             is_use,
             exclude_globals,
             /*suggestion*/ false,
+            /*from_token*/ false,
+        )
+    }
+
+    /// tsgo `ResolveName` at a token the tree does not keep (the API's
+    /// lookup at a position on punctuation or a keyword): tsgo's walk starts
+    /// at the token, so the token is the last location at its `parent`.
+    pub fn resolve_name_from_token(
+        &mut self,
+        parent: NodeId,
+        name: impl NameKey,
+        meaning: SymbolFlags,
+        exclude_globals: bool,
+    ) -> CheckResult<Option<SymbolId>> {
+        self.resolve_name_full(
+            Some(parent),
+            name.name(),
+            meaning,
+            /*name_not_found_message*/ None,
+            /*is_use*/ true,
+            exclude_globals,
+            /*suggestion*/ false,
+            /*from_token*/ true,
         )
     }
 
@@ -230,6 +253,7 @@ impl<'a> CheckerState<'a> {
             /*is_use*/ false,
             /*exclude_globals*/ false,
             /*suggestion*/ true,
+            /*from_token*/ false,
         )
     }
 
@@ -254,6 +278,7 @@ impl<'a> CheckerState<'a> {
         is_use: bool,
         exclude_globals: bool,
         suggestion: bool,
+        from_token: bool,
     ) -> CheckResult<Option<SymbolId>> {
         self.profile_ops[crate::line_profile::OP_RESOLVE_NAME] += 1;
         let original_location = location;
@@ -266,6 +291,9 @@ impl<'a> CheckerState<'a> {
         let mut within_deferred_context = false;
 
         'walk: while let Some(loc) = location {
+            // The first location of a walk from a token, which is none of
+            // the nodes the checks below compare the last location with.
+            let after_token = from_token && last_location.is_none();
             if name == tsc_types::known_name!("const") && self.is_const_assertion(loc) {
                 return Ok(None);
             }
@@ -291,8 +319,10 @@ impl<'a> CheckerState<'a> {
                         if self.is_module_attributes_scope(loc, last_location) {
                             use_result = false;
                         } else if is_function_like_kind(self.kind_of(loc))
-                            && last_location.is_some()
-                            && last_location != body_of(self.binder.source_of_node(loc), loc)
+                            && (after_token
+                                || last_location.is_some()
+                                    && last_location
+                                        != body_of(self.binder.source_of_node(loc), loc))
                         {
                             // Type parameters of a function are in scope
                             // only in the return type and parameter list
@@ -308,7 +338,8 @@ impl<'a> CheckerState<'a> {
                                 // tsgo, like a written one.
                                 use_result = if result_flags.intersects(SymbolFlags::TYPE_PARAMETER)
                                 {
-                                    last_location == self.type_annotation_of(loc)
+                                    (last_location.is_some()
+                                        && last_location == self.type_annotation_of(loc))
                                         || last_location.is_some_and(|l| {
                                             matches!(
                                                 self.kind_of(l),
@@ -340,8 +371,8 @@ impl<'a> CheckerState<'a> {
                                             self.kind_of(l),
                                             SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag
                                         )
-                                    }) || (last_location
-                                        == self.type_annotation_of(loc)
+                                    }) || (last_location.is_some()
+                                        && last_location == self.type_annotation_of(loc)
                                         && self
                                             .binder
                                             .symbol(found)

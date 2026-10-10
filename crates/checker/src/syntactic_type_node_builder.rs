@@ -237,18 +237,27 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         original: TransformNodeArray,
         nodes: Vec<TransformNode>,
     ) -> Result<TransformNodeArray, EmitResolverError> {
-        let has_trailing_comma = self
-            .arena
-            .node_array(original)
-            .map_err(|error| self.factory_error(error))?
-            .has_trailing_comma;
-        self.arena
-            .factory()
+        let (has_trailing_comma, pos, end) = {
+            let record = self
+                .arena
+                .node_array(original)
+                .map_err(|error| self.factory_error(error))?;
+            (record.has_trailing_comma, record.pos, record.end)
+        };
+        let factory_error = |error| EmitResolverError::Factory {
+            method: self.method,
+            error: Box::new(error),
+        };
+        let mut factory = self.arena.factory();
+        let array = factory
             .create_node_array_with_trailing_comma(source, nodes, has_trailing_comma)
-            .map_err(|error| EmitResolverError::Factory {
-                method: self.method,
-                error: Box::new(error),
-            })
+            .map_err(factory_error)?;
+        // tsgo `NodeVisitor.VisitNodes` (ast/visitor.go:99-103): the new
+        // list keeps the visited one's range.
+        factory
+            .set_node_array_text_range(array, pos, end)
+            .map_err(factory_error)?;
+        Ok(array)
     }
 
     fn node_in_source(

@@ -183,13 +183,20 @@ pub fn encode_source_file(
     file: &SourceFile,
     facts: &SourceFileFacts<'_>,
 ) -> (Vec<u8>, NodeIndexTable) {
-    encode_tree(file, file.root, Some(facts))
+    encode_tree(file, file.root, Some(facts), None)
 }
 
-/// tsgo `EncodeNode`: `node` (of `file`) and its descendants, with no file
-/// text in the string data and no hash or parse options in the header.
-pub fn encode_node(file: &SourceFile, node: NodeId) -> (Vec<u8>, NodeIndexTable) {
-    encode_tree(file, node, None)
+/// tsgo `EncodeNode(node, nil)`, as its API encodes a node builder's
+/// result: `node` (of `file`) and its descendants without their JSDoc, with
+/// no file text in the string data, the positions as they are (UTF-8) and
+/// no hash or parse options in the header. `single_quote` tells whether a
+/// synthesized string literal is single quoted.
+pub fn encode_node(
+    file: &SourceFile,
+    node: NodeId,
+    single_quote: &dyn Fn(NodeId) -> bool,
+) -> (Vec<u8>, NodeIndexTable) {
+    encode_tree(file, node, None, Some(single_quote))
 }
 
 /// tsgo `BuildNodeIndexTable`: the indices `encode_source_file` gives the
@@ -209,6 +216,13 @@ pub fn build_node_index_table(file: &SourceFile) -> NodeIndexTable {
         kinds,
         indices: OnceLock::new(),
     }
+}
+
+/// The tsc-rs kind of tsgo's kind number `kind` (`None`: tsc-rs has none).
+pub(crate) fn syntax_kind_of_tsgo_kind(kind: u32) -> Option<SyntaxKind> {
+    (0..=u16::MAX)
+        .map_while(SyntaxKind::from_u16)
+        .find(|&candidate| tsgo_kind(candidate) == Some(kind))
 }
 
 /// tsgo `ast.Kind.String()` of an encoded kind; `NodeList` for a list.
@@ -294,6 +308,9 @@ pub(crate) struct Tree<'a> {
     arena: &'a NodeArena,
     javascript: bool,
     bind_data: Option<&'a BindData>,
+    /// Whether the nodes' JSDoc comments are children (tsgo visits them
+    /// only with the source file).
+    js_doc: bool,
 }
 
 impl<'a> Tree<'a> {
@@ -304,6 +321,15 @@ impl<'a> Tree<'a> {
             arena: &file.arena,
             javascript: root_flags.contains(NodeFlags::JAVA_SCRIPT_FILE),
             bind_data,
+            js_doc: true,
+        }
+    }
+
+    /// The tree of nodes encoded without their source file.
+    fn detached(file: &'a SourceFile) -> Self {
+        Self {
+            js_doc: false,
+            ..Self::new(file, None)
         }
     }
 
@@ -482,6 +508,9 @@ impl<'a> Tree<'a> {
     /// tsgo `Node.JSDoc`: the JSDoc comments of the node `id`, each starting
     /// at its host's position or at the end of the previous one.
     pub(crate) fn js_doc_views(&self, id: NodeId, out: &mut Vec<View>) {
+        if !self.js_doc {
+            return;
+        }
         let node = self.node(id);
         if let Some(js_doc) = self.js_doc(node) {
             let mut pos = node.pos;
@@ -1031,19 +1060,28 @@ struct Encoder<'a> {
     nodes: Vec<u8>,
     extended_data: Vec<u8>,
     structured_data: Vec<u8>,
+    /// The node being recorded.
+    current: Option<NodeId>,
+    /// Whether a synthesized string literal is single quoted.
+    single_quote: Option<&'a dyn Fn(NodeId) -> bool>,
 }
 
-fn encode_tree(
-    file: &SourceFile,
+fn encode_tree<'a>(
+    file: &'a SourceFile,
     root: NodeId,
     facts: Option<&SourceFileFacts<'_>>,
+    single_quote: Option<&'a dyn Fn(NodeId) -> bool>,
 ) -> (Vec<u8>, NodeIndexTable) {
     let is_source_file = file.arena.node(root).kind == SyntaxKind::SourceFile && facts.is_some();
     let bind_data = facts.and_then(|facts| facts.bind_data);
+    let tree = || match facts {
+        Some(_) => Tree::new(file, bind_data),
+        None => Tree::detached(file),
+    };
     let mut encoder = Encoder {
         file,
-        tree: Tree::new(file, bind_data),
-        positions: PositionMap::new(file.text()),
+        tree: tree(),
+        positions: PositionMap::new(if facts.is_some() { file.text() } else { "" }),
         strings: StringTable::new(if is_source_file {
             file.text().as_bytes()
         } else {
@@ -1052,6 +1090,8 @@ fn encode_tree(
         nodes: Vec::with_capacity((file.node_count() + 2) * NODE_SIZE),
         extended_data: Vec::new(),
         structured_data: Vec::new(),
+        current: None,
+        single_quote,
     };
     // Index 0 is the nil node.
     encoder.nodes.resize(NODE_SIZE, 0);
@@ -1067,7 +1107,7 @@ fn encode_tree(
         }
     }
     let source_file_facts = is_source_file.then_some(facts).flatten();
-    let tree = Tree::new(file, bind_data);
+    let tree = tree();
     walk(&tree, View::Node(root), |event| match event {
         WalkEvent::Record {
             view,
@@ -1189,6 +1229,7 @@ impl Encoder<'_> {
             View::Node(id) => {
                 let node = self.tree.node(id);
                 let kind = encoded_kind(self.tree.arena, node);
+                self.current = Some(id);
                 let data = self.node_data(node, kind, facts);
                 let mut flags = self.tree.node_flags(id, node);
                 if id == self.file.root {
@@ -1320,10 +1361,16 @@ impl Encoder<'_> {
                     Elements::TemplateTypeParameters => (0, 0),
                     _ => (array.pos, array.end),
                 };
-                let trailing = array
-                    .nodes
-                    .last()
-                    .is_some_and(|&last| self.tree.node(last).end < end);
+                // Positions are signed there: a synthesized list (-1) has one
+                // only as the deep clone of a list that had one (whose last
+                // element tsgo moves to -2).
+                let trailing = array.nodes.last().is_some_and(|&last| {
+                    if end == u32::MAX {
+                        array.has_trailing_comma
+                    } else {
+                        (self.tree.node(last).end as i32) < end as i32
+                    }
+                });
                 [
                     SYNTAX_KIND_NODE_LIST,
                     utf16(self, pos),
@@ -1480,6 +1527,15 @@ impl Encoder<'_> {
     /// keeps them on its literal nodes), with tsgo's `SingleQuote`.
     fn literal_flags(&self, node: &Node, mask: u32) -> u32 {
         let text = self.file.text();
+        if node.pos as usize > text.len() {
+            // A synthesized literal: the flags its factory gave it.
+            let single_quote = node.kind == SyntaxKind::StringLiteral
+                && self
+                    .single_quote
+                    .zip(self.current)
+                    .is_some_and(|(single_quote, id)| single_quote(id));
+            return if single_quote { SINGLE_QUOTE } else { 0 };
+        }
         let start = tsc_syntax::skip_trivia(text, node.pos as usize);
         if start >= text.len() || node.end as usize > text.len() {
             return 0;

@@ -16,7 +16,9 @@ use super::pseudo::{
     pseudo_return_type_matches_predicate, pseudo_type_equivalent_to_type,
     pseudo_type_to_node_with_checker_fallback, pseudo_type_to_type,
 };
-use super::signatures::{enter_signature_scope, exit_new_scope};
+use super::signatures::{
+    enter_signature_scope, exit_new_scope, signature_to_signature_declaration_helper,
+};
 
 use super::signatures::{elide_initializer_and_set_emit_flags, parameter_scope_symbols};
 use super::type_nodes::{
@@ -1268,6 +1270,38 @@ pub(crate) fn type_to_type_node(
     .map(Option::flatten)
 }
 
+/// tsgo-port: NodeBuilder.SignatureToSignatureDeclaration @7.1 (nodebuilder.go:146-149).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn signature_to_signature_declaration(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    signature: SignatureId,
+    kind: SyntaxKind,
+    enclosing_declaration: Option<NodeId>,
+    flags: Option<EmitNodeBuilderFlags>,
+    internal_flags: Option<EmitInternalNodeBuilderFlags>,
+    tracker: Option<&mut dyn EmitSymbolTracker>,
+) -> BuildResult<Option<TransformNode>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        flags,
+        internal_flags,
+        tracker,
+        None,
+        None,
+        |checker, arena, target, context| {
+            signature_to_signature_declaration_helper(
+                checker, arena, target, signature, kind, context, None,
+            )
+        },
+        None,
+    )
+}
+
 /// tsgo-port: NodeBuilder.SerializeTypeForDeclaration @7.1 (nodebuilder.go:133-137).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn serialize_type_for_declaration(
@@ -2261,9 +2295,10 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
             introduces_error,
         })
     }
-    /// tsc-port: trackExistingEntityName.attachSymbolToLeftmostIdentifier @6.0.3
-    /// tsc-hash: a6a0748d03d57db3841aec3cc92e8e26e7fb3de1e2f1a14370d4d9cf69f9caed
-    /// tsc-span: _tsc.js:53640-53654
+    /// tsgo-port: trackExistingEntityName's attachSymbolToLeftmostIdentifier
+    /// @7.1 (nodecopy.go:293-317): the leftmost identifier becomes a new
+    /// identifier (or the type parameter's name) and every other node of the
+    /// name is visited, each ranged to the node it replaces.
     fn attach_symbol_to_entity_name(
         &mut self,
         arena: &mut TransformArena,
@@ -2279,40 +2314,67 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
             .require_parse_tree_resolver_node(node)
             .map_err(factory_error)?
             .node();
+        let data = arena.node(node).map_err(factory_error)?.data.clone();
         if parse == leftmost {
-            if let Some(symbol) = symbol.filter(|&symbol| {
+            let type_parameter = symbol.filter(|&symbol| {
                 self.checker
                     .symbol_flags(symbol)
                     .intersects(SymbolFlags::TYPE_PARAMETER)
-            }) {
-                let declared = self.checker.get_declared_type_of_type_parameter(symbol);
-                let name = super::type_parameter_to_name(
-                    self.checker,
-                    arena,
-                    node.source(),
-                    declared,
-                    context,
-                )?;
-                arena
-                    .metadata_mut(name)
-                    .add_flags(tsc_emitter::EmitFlags::NO_ASCII_ESCAPING);
-                return set_text_range2(self.checker, arena, context, name, Some(node));
+            });
+            let name = match (type_parameter, data) {
+                (Some(symbol), _) => {
+                    let declared = self.checker.get_declared_type_of_type_parameter(symbol);
+                    super::type_parameter_to_name(
+                        self.checker,
+                        arena,
+                        node.source(),
+                        declared,
+                        context,
+                    )?
+                }
+                (None, data @ NodeData::Identifier(_)) => {
+                    super::type_nodes::create_node(arena, node.source(), data)?
+                }
+                (None, _) => arena
+                    .factory()
+                    .clone_node_keeping_quote(node)
+                    .map_err(factory_error)?,
+            };
+            arena
+                .metadata_mut(name)
+                .add_flags(tsc_emitter::EmitFlags::NO_ASCII_ESCAPING);
+            return set_text_range2(self.checker, arena, context, name, Some(node));
+        }
+        let source = node.source();
+        let mut visit = |checker: &mut Self, arena: &mut TransformArena, child: Option<NodeId>| {
+            child
+                .map(|child| {
+                    checker
+                        .attach_symbol_to_entity_name(
+                            arena,
+                            context,
+                            TransformNode::new(source, child),
+                            leftmost,
+                            symbol,
+                        )
+                        .map(|visited| visited.node())
+                })
+                .transpose()
+        };
+        let visited = match data {
+            NodeData::QualifiedName(mut data) => {
+                data.left = visit(self, arena, data.left)?;
+                data.right = visit(self, arena, data.right)?;
+                super::update_factory_node(arena, node, NodeData::QualifiedName(data))?
             }
-        }
-        let cloned = arena
-            .factory()
-            .clone_node_keeping_quote(node)
-            .map_err(factory_error)?;
-        if arena.node(cloned).map_err(factory_error)?.kind == SyntaxKind::Identifier {
-            arena
-                .metadata_mut(cloned)
-                .add_flags(tsc_emitter::EmitFlags::NO_ASCII_ESCAPING);
-        } else if let Some(leftmost) = self.project_parse_node(arena, leftmost)? {
-            arena
-                .metadata_mut(leftmost)
-                .add_flags(tsc_emitter::EmitFlags::NO_ASCII_ESCAPING);
-        }
-        set_text_range2(self.checker, arena, context, cloned, Some(node))
+            NodeData::PropertyAccessExpression(mut data) => {
+                data.expression = visit(self, arena, data.expression)?;
+                data.name = visit(self, arena, data.name)?;
+                super::update_factory_node(arena, node, NodeData::PropertyAccessExpression(data))?
+            }
+            _ => node,
+        };
+        set_text_range2(self.checker, arena, context, visited, Some(node))
     }
 
     /// tsgo-port: tryVisitTypeReference's gates @7.1 (nodecopy.go:416-435).

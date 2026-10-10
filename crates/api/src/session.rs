@@ -886,7 +886,7 @@ impl Session {
 
     /// A source file response: MessagePack sends the encoding, JSON its
     /// base64.
-    fn source_file_payload(&self, data: Vec<u8>) -> Payload {
+    pub(crate) fn source_file_payload(&self, data: Vec<u8>) -> Payload {
         if self.use_binary_responses {
             Payload::Binary(data)
         } else {

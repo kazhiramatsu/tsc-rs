@@ -228,8 +228,10 @@ fn factory_and_transform_lifecycle_are_session_owned_and_disposed() {
     assert_eq!(state.borrow().notified_after, 1);
 
     let clone = state.borrow().clone.unwrap();
-    assert!(
-        result.arena().node(clone).unwrap().flags & tsc_types::NodeFlags::SYNTHESIZED.bits() != 0
+    // tsgo `updateNode`: a clone keeps its original's flags.
+    assert_eq!(
+        result.arena().node(clone).unwrap().flags,
+        result.arena().node(first).unwrap().flags
     );
     assert_eq!(result.arena().get_original_node(clone), first);
     assert_eq!(result.arena().node(clone).unwrap().pos, u32::MAX);

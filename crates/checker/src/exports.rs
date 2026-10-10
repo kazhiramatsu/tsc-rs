@@ -7,16 +7,17 @@ use std::sync::Arc;
 
 use tsc_binder::{node_util, SymbolTable};
 use tsc_emitter::{
-    create_printer, EmitNodeBuilderFlags, NewLineKind, PrintRequest, PrinterOptions,
-    StandaloneWriter,
+    create_printer, EmitNodeBuilderFlags, EmitResolverError, NewLineKind, PrintRequest,
+    PrinterOptions, StandaloneWriter, TransformArena, TransformNode, TransformSourceId,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{
-    CheckMode, JsString, ObjectFlags, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId,
+    CheckMode, IndexFlags, JsString, NodeFlags, ObjectFlags, SymbolFlags, SymbolId, TypeData,
+    TypeFlags, TypeId,
 };
 
 use crate::member_table::MemberTable;
-use crate::state::{CheckResult, CheckerState};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 use crate::type_order::order_ctx;
 
 /// Go's runtime error for a nil pointer dereference: tsgo's API answers
@@ -24,6 +25,26 @@ use crate::type_order::order_ctx;
 /// its kind of type does not have.
 const NIL_POINTER_DEREFERENCE: &str =
     "runtime error: invalid memory address or nil pointer dereference";
+
+/// A node builder's result: the display source's syntax that holds it, and
+/// what its synthesized literals keep outside of the syntax.
+pub struct DisplayNode<'a> {
+    pub syntax: &'a SourceFile,
+    pub node: NodeId,
+    arena: &'a TransformArena,
+    source: TransformSourceId,
+}
+
+impl DisplayNode<'_> {
+    /// Whether the synthesized string literal `node` is single quoted (tsgo
+    /// keeps it as the literal's `SingleQuote` token flag).
+    pub fn single_quote(&self, node: NodeId) -> bool {
+        self.arena
+            .literal_properties(TransformNode::new(self.source, node))
+            .and_then(|properties| properties.string_literal_single_quote())
+            .unwrap_or(false)
+    }
+}
 
 /// The intrinsic types of tsgo's getters (`GetAnyType` … `GetNonPrimitiveType`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -380,6 +401,362 @@ impl CheckerState<'_> {
         self.get_named_members(&members, None)
     }
 
+    /// tsgo `TypeToTypeNode` (printer.go:288-291) with node builder
+    /// `flags`: none when the builder meets an error it reports. The node is
+    /// in the display arena ([`Self::with_display_node`]).
+    pub fn type_to_type_node_with_flags(
+        &mut self,
+        ty: TypeId,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+    ) -> Result<Option<TransformNode>, String> {
+        self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::type_to_type_node(
+                checker,
+                arena,
+                target,
+                ty,
+                enclosing_declaration,
+                Some(EmitNodeBuilderFlags(flags)),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+        })
+    }
+
+    /// tsgo `SignatureToSignatureDeclaration` (printer.go:293-297).
+    pub fn signature_to_signature_declaration_with_flags(
+        &mut self,
+        signature: SignatureId,
+        kind: SyntaxKind,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+    ) -> Result<Option<TransformNode>, String> {
+        self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::signature_to_signature_declaration(
+                checker,
+                arena,
+                target,
+                signature,
+                kind,
+                enclosing_declaration,
+                Some(EmitNodeBuilderFlags(flags)),
+                None,
+                None,
+            )
+        })
+    }
+
+    /// A node builder's result in the display arena, as the API reads it.
+    pub fn with_display_node<R>(
+        &mut self,
+        node: TransformNode,
+        read: impl FnOnce(&DisplayNode<'_>) -> R,
+    ) -> R {
+        self.with_emit_display(|display| {
+            let arena = display
+                .arena_mut()
+                .expect("checker display result remains live");
+            read(&DisplayNode {
+                syntax: arena
+                    .source(node.source())
+                    .expect("a display node's source")
+                    .syntax(),
+                node: node.node(),
+                arena,
+                source: node.source(),
+            })
+        })
+    }
+
+    /// A node builder's result in the display arena, in the source of the
+    /// enclosing declaration's file (the first file without one).
+    fn build_display_node(
+        &mut self,
+        enclosing_declaration: Option<NodeId>,
+        build: impl FnOnce(
+            &mut Self,
+            &mut TransformArena,
+            TransformSourceId,
+        ) -> Result<Option<TransformNode>, EmitResolverError>,
+    ) -> Result<Option<TransformNode>, String> {
+        // The display arena must know every file a type node may reach (a
+        // reused annotation, a declaration's name).
+        for index in 0..self.binder.file_count() {
+            self.emit_display_target(index);
+        }
+        let file_index =
+            enclosing_declaration.map_or(0, |node| self.binder.file_index_of_node(node));
+        let target = self.emit_display_target(file_index);
+        let mut display = self.take_emit_display();
+        // A panic (tsgo's, which its API answers as the request's error)
+        // leaves the display arena to the next request.
+        let built = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            build(
+                self,
+                display
+                    .arena_mut()
+                    .expect("checker display result remains live"),
+                target,
+            )
+        }));
+        self.restore_emit_display(display);
+        match built {
+            Ok(built) => built.map_err(|error| format!("type node builder: {error}")),
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
+    /// tsgo `GetSignatureFromDeclaration`: the node's cached signature,
+    /// the resolving signature a failed call resolution left there included;
+    /// otherwise a node without a parameter list is Go's nil dereference in
+    /// `getSignatureFromDeclaration` (tsc-rs's recovery answers such a node
+    /// with the unknown signature).
+    pub fn get_signature_from_declaration_checked(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<SignatureId> {
+        match self
+            .links
+            .read_node(node, |links| links.resolved_signature.get())
+        {
+            crate::links::LinkSlot::Resolved(signature) => return Ok(signature),
+            crate::links::LinkSlot::Resolving => return Ok(self.resolving_signature),
+            crate::links::LinkSlot::Vacant => {}
+        }
+        if !matches!(
+            self.kind_of(node),
+            SyntaxKind::CallSignature
+                | SyntaxKind::ConstructSignature
+                | SyntaxKind::MethodSignature
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::Constructor
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::IndexSignature
+                | SyntaxKind::FunctionType
+                | SyntaxKind::ConstructorType
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::JSDocSignature
+        ) {
+            panic!("{NIL_POINTER_DEREFERENCE}");
+        }
+        self.get_signature_from_declaration(node)
+    }
+
+    /// tsgo `getRestTypeOfSignature` (checker.go:9823-9825): the element
+    /// type of a signature's rest parameter, or `any`.
+    pub fn get_rest_type_of_signature(&mut self, signature: SignatureId) -> CheckResult<TypeId> {
+        Ok(self
+            .try_get_rest_type_of_signature(signature)?
+            .unwrap_or(self.tables.intrinsics.any))
+    }
+
+    /// tsgo `GetTypeParameterAtPosition` (services.go:940-949): the type at
+    /// a parameter position, `keyof this` as the index type of the this
+    /// type's constraint.
+    pub fn get_type_parameter_at_position(
+        &mut self,
+        signature: SignatureId,
+        position: usize,
+    ) -> CheckResult<TypeId> {
+        let ty = self.get_type_at_position(signature, position)?;
+        if let TypeData::Index { ty: target, .. } = self.tables.type_of(ty).data {
+            if matches!(
+                self.tables.type_of(target).data,
+                TypeData::TypeParameter {
+                    is_this_type: true,
+                    ..
+                }
+            ) {
+                if let Some(constraint) = self.get_base_constraint_of_type(target)? {
+                    return self.get_index_type(constraint, IndexFlags::NONE);
+                }
+            }
+        }
+        Ok(ty)
+    }
+
+    /// tsgo `GetSymbolsInScope` (services.go:17-129): the symbols with
+    /// `meaning` visible at `location`, the nearest of each name first, then
+    /// the globals. tsgo returns them in its table's (Go map, so random)
+    /// order; this is the order they are found in.
+    pub fn get_symbols_in_scope(
+        &mut self,
+        location: NodeId,
+        meaning: SymbolFlags,
+    ) -> CheckResult<Vec<SymbolId>> {
+        if self.node_flags(location) & NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
+            return Ok(Vec::new());
+        }
+        let mut symbols = MemberTable::default();
+        let mut is_static_symbol = false;
+        let mut last_location: Option<NodeId> = None;
+        let mut current = Some(location);
+        while let Some(node) = current {
+            if let NodeData::ModuleDeclaration(data) = self.data_of(node) {
+                // A module declaration is not in scope inside its attributes.
+                if data.attributes.is_some() && last_location == data.attributes {
+                    last_location = Some(node);
+                    current = self.parent_of(node);
+                    continue;
+                }
+            }
+            let kind = self.kind_of(node);
+            let global_source_file = kind == SyntaxKind::SourceFile
+                && !self.binder.is_external_or_common_js_module_of_node(node);
+            if !global_source_file {
+                if let Some(locals) = self.binder.locals_of(node) {
+                    let locals = locals.values().copied().collect::<Vec<_>>();
+                    self.copy_symbols_in_scope(&mut symbols, locals, meaning);
+                }
+            }
+            match kind {
+                SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration
+                    if kind == SyntaxKind::ModuleDeclaration
+                        || self.binder.is_external_module_of_node(node) =>
+                {
+                    let symbol = self.get_symbol_of_declaration(node)?;
+                    let exports = self
+                        .symbol_exports(symbol)
+                        .values()
+                        .copied()
+                        .filter(|&export| {
+                            let data = self.binder.symbol(export);
+                            data.escaped_name != tsc_types::InternalSymbolName::DEFAULT
+                                && !data.declarations.iter().any(|&declaration| {
+                                    matches!(
+                                        self.kind_of(declaration),
+                                        SyntaxKind::ExportSpecifier | SyntaxKind::NamespaceExport
+                                    )
+                                })
+                        })
+                        .collect::<Vec<_>>();
+                    self.copy_symbols_in_scope(
+                        &mut symbols,
+                        exports,
+                        meaning & SymbolFlags::MODULE_MEMBER,
+                    );
+                }
+                SyntaxKind::EnumDeclaration => {
+                    let symbol = self.get_symbol_of_declaration(node)?;
+                    let exports = self
+                        .symbol_exports(symbol)
+                        .values()
+                        .copied()
+                        .collect::<Vec<_>>();
+                    self.copy_symbols_in_scope(
+                        &mut symbols,
+                        exports,
+                        meaning & SymbolFlags::ENUM_MEMBER,
+                    );
+                }
+                SyntaxKind::ClassExpression
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration => {
+                    if kind == SyntaxKind::ClassExpression && self.name_of_node(node).is_some() {
+                        if let Some(symbol) = self.node_symbol(node) {
+                            self.copy_symbols_in_scope(&mut symbols, vec![symbol], meaning);
+                        }
+                    }
+                    // The type parameters, unless coming from a static member.
+                    if !is_static_symbol {
+                        let symbol = self.get_symbol_of_declaration(node)?;
+                        let members = self
+                            .get_members_of_symbol(symbol)?
+                            .values()
+                            .copied()
+                            .collect::<Vec<_>>();
+                        self.copy_symbols_in_scope(
+                            &mut symbols,
+                            members,
+                            meaning & SymbolFlags::TYPE,
+                        );
+                    }
+                }
+                SyntaxKind::FunctionExpression if self.name_of_node(node).is_some() => {
+                    if let Some(symbol) = self.node_symbol(node) {
+                        self.copy_symbols_in_scope(&mut symbols, vec![symbol], meaning);
+                    }
+                }
+                _ => {}
+            }
+            // tsgo introducesArgumentsExoticObject.
+            if matches!(
+                kind,
+                SyntaxKind::MethodDeclaration
+                    | SyntaxKind::MethodSignature
+                    | SyntaxKind::Constructor
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::SetAccessor
+                    | SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::FunctionExpression
+            ) {
+                let arguments = self.arguments_symbol;
+                self.copy_symbols_in_scope(&mut symbols, vec![arguments], meaning);
+            }
+            // tsgo IsStatic.
+            is_static_symbol = kind == SyntaxKind::ClassStaticBlockDeclaration
+                || match self.data_of(node) {
+                    NodeData::PropertyDeclaration(data) => Some(data.modifiers),
+                    NodeData::MethodDeclaration(data) => Some(data.modifiers),
+                    NodeData::GetAccessor(data) => Some(data.modifiers),
+                    NodeData::SetAccessor(data) => Some(data.modifiers),
+                    NodeData::IndexSignature(data) => Some(data.modifiers),
+                    _ => None,
+                }
+                .is_some_and(|modifiers| {
+                    self.nodes_of(modifiers)
+                        .iter()
+                        .any(|&modifier| self.kind_of(modifier) == SyntaxKind::StaticKeyword)
+                });
+            last_location = Some(node);
+            current = self.parent_of(node);
+        }
+        let globals = self.globals.values().copied().collect::<Vec<_>>();
+        self.copy_symbols_in_scope(&mut symbols, globals, meaning);
+        // `this` is a keyword, not a symbol; reserved names are internal.
+        Ok(symbols
+            .symbols()
+            .iter()
+            .copied()
+            .filter(|&symbol| {
+                let name = self.binder.symbol(symbol).escaped_name;
+                name != tsc_types::InternalSymbolName::THIS
+                    && !crate::annotate::is_reserved_member_name(name.as_js())
+            })
+            .collect())
+    }
+
+    /// tsgo `getSymbolsInScope`'s `copySymbols`: each symbol with the
+    /// meaning (its own flags or its export symbol's) whose name is not yet
+    /// in the table.
+    fn copy_symbols_in_scope(
+        &self,
+        symbols: &mut MemberTable,
+        source: Vec<SymbolId>,
+        meaning: SymbolFlags,
+    ) {
+        if meaning.is_empty() {
+            return;
+        }
+        for symbol in source {
+            let data = self.binder.symbol(symbol);
+            let mut flags = data.flags;
+            if let Some(export_symbol) = data.export_symbol {
+                flags |= self.binder.symbol(export_symbol).flags;
+            }
+            if flags.intersects(meaning) && symbols.get(&self.binder, data.escaped_name).is_none() {
+                symbols.insert(&self.binder, symbol);
+            }
+        }
+    }
+
     /// tsgo `GetTypeAtLocation` of a token the tree does not keep, which
     /// tsgo's source file creates for the scanner's token: a `this` in a
     /// type (its node is the ThisType) is part of the type node, any other
@@ -658,35 +1035,9 @@ impl CheckerState<'_> {
         if no_truncation {
             combined |= EmitNodeBuilderFlags::NO_TRUNCATION.0;
         }
-        // The display arena must know every file a type node may reach (a
-        // reused annotation, a declaration's name).
-        for index in 0..self.binder.file_count() {
-            self.emit_display_target(index);
-        }
-        let file_index =
-            enclosing_declaration.map_or(0, |node| self.binder.file_index_of_node(node));
-        let target = self.emit_display_target(file_index);
-        let mut display = self.take_emit_display();
-        let built = crate::node_builder::type_to_type_node(
-            self,
-            display
-                .arena_mut()
-                .expect("checker display result remains live"),
-            target,
-            ty,
-            enclosing_declaration,
-            Some(EmitNodeBuilderFlags(combined)),
-            None,
-            None,
-            None,
-            None,
-            None,
-        );
-        self.restore_emit_display(display);
-        let node = match built {
-            Ok(Some(node)) => node,
-            Ok(None) => panic!("should always get typenode"),
-            Err(error) => return Err(format!("type node builder: {error}")),
+        let Some(node) = self.type_to_type_node_with_flags(ty, enclosing_declaration, combined)?
+        else {
+            panic!("should always get typenode");
         };
         // The unresolved type keeps the comment that marks its `any`, which
         // tsgo's printer writes only in a source file (the enclosing
