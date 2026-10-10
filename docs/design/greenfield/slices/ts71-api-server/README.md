@@ -1622,7 +1622,16 @@ snapshot、option、module provider を借りる）。
   test と Clippy は hosted の `rust` job に任せた。
 - **残り**：P5-5b（`preserveSourceNewlines`）、P5-5c（上）、P5-6（build orchestrator）。
 
+### P5-5a の hosted の記録と merge（2026-10-11）
+
+- hosted：最終候補 `9f80f6eaf`（コード `047542d1f`・packet の記録）の run 38078876926（`plan` 30s、`rust` 8m34s、
+  `conformance (TypeScript 7.1)` 20m17s、`gates` 14s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。
+  merge → `2fc3809c4`（merge commit、PR #736）。
+- 次は P5-5b（`preserveSourceNewlines`）。P5-5c（decode した木の tsgo の printer の意味）はその後。
+
 ## P5-5c source file の無い印字と印字時の括弧（2026-10-11）
+
+P5-5a の tsgo との比較の差（各 statement の 6,133）はほぼ全てこの class だったので、P5-5b より先に行った。
 
 - **source file の無い node**（tsgo：decoder は位置をそのまま付け、printer は現在の source file が無いものとして印字する）：
   - `tsc_diagnostics::PositionIndex::detached` と `TextSnapshot::detached`：text の無い木の位置（何の text も指さない）。
