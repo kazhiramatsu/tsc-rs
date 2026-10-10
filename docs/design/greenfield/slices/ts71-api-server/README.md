@@ -1150,3 +1150,10 @@ snapshot、option、module provider を借りる）。
     test をやり直し、結果は同じ。parallel control（`--checkers 4`）は local では走らせていない。
   - workspace 全体の test は hosted の `rust` job に任せる。
 - **残り**：P5-4b（type の構造）。
+
+### P5-4a の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `d9f71418e`（コード `80841b9e8`、packet の記録）の run 38015341860（`plan` 29s、`rust` 11m59s、
+  `conformance (TypeScript 7.1)` 13m4s、`gates` 14s。全て成功。workspace 全体の test と Clippy はこの `rust` job に
+  よる）。merge → `9800f6b01`（merge commit、PR #731）。
+- 次は P5-4b（type の構造）。
