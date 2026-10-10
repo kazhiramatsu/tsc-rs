@@ -174,6 +174,58 @@ fn type_syntax_prints_as_tsgo_prints_it() {
 }
 
 #[test]
+fn comments_around_typescript_syntax() {
+    // A namespace's braces carry the comments on the line of `{` and before
+    // `}`; a member without `;` writes its comment after the `;` it gets; a
+    // type's trailing comments follow it (annotations, an index signature,
+    // a conditional type's parts, an arrow's return type), as do a
+    // variable name's before its type; an enum's `{` keeps no comment on
+    // its line.
+    assert_eq!(
+        print_file(
+            "/m.ts",
+            "namespace M { // c1\n    var x;\n    // c2\n}\nnamespace N {\n    // only\n}\n"
+        ),
+        "namespace M { // c1\n    var x;\n    // c2\n}\nnamespace N {\n    // only\n}\n"
+    );
+    assert_eq!(
+        print_file(
+            "/i.ts",
+            "interface I {\n    a: string; // one\n    b: number // two\n}\ninterface J {\n    [k: string]: number /* c8 */;\n}\nclass K {\n    p: number // c9\n}\n"
+        ),
+        "interface I {\n    a: string; // one\n    b: number; // two\n}\ninterface J {\n    [k: string]: number /* c8 */;\n}\nclass K {\n    p: number; // c9\n}\n"
+    );
+    assert_eq!(
+        print_file(
+            "/c.ts",
+            "type X<P> = P extends any // c3\n    ? A\n    : B;\nlet e /*c6*/: any = {};\nvar f = (a: number): number /* c7 */ => a;\n"
+        ),
+        "type X<P> = P extends any // c3\n ? A : B;\nlet e /*c6*/: any = {};\nvar f = (a: number): number /* c7 */ => a;\n"
+    );
+    assert_eq!(
+        print_file("/e.ts", "enum E { // c4\n    A = 1,\n    B // c5\n}\n"),
+        "enum E {\n    A = 1,\n    B // c5\n}\n"
+    );
+}
+
+#[test]
+fn comments_of_templates_and_recovered_statements() {
+    // A tagged template's template keeps the comment before it; a file's
+    // detached comment is found at the statement list's start, before a
+    // token the parser skipped; a missing declaration prints nothing, not
+    // even its comments.
+    assert_eq!(
+        print_file("/t.ts", "tag\n// c10\n`x`;\n"),
+        "tag \n// c10\n`x`;\n"
+    );
+    assert_eq!(
+        print_file("/h.ts", "// header\n\nimport 10;"),
+        "// header\n10;\n"
+    );
+    assert_eq!(print_file("/d.ts", "// c11\n@dec\n"), "");
+}
+
+#[test]
 fn bad_data_is_a_client_error() {
     assert_eq!(
         print(json!({ "data": "a!b=" })).unwrap_err(),
