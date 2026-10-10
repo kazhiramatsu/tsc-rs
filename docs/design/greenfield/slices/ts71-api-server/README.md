@@ -1336,3 +1336,10 @@ snapshot、option、module provider を借りる）。
   - 上の tsgo との比較と client の test は最終のコードで。
   - workspace 全体の test と Clippy は hosted の `rust` job に任せる。
 - **残り**：P5-4d（diagnostics と emit）。
+
+### P5-4c の hosted の記録と merge（2026-10-10）
+
+- hosted：最終候補 `b85dea75e` の run 38031114457（`plan` 23s、`rust` 10m1s、`conformance (TypeScript 7.1)` 20m12s、
+  `gates` 15s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge → `4b168fb41`（merge commit、
+  PR #733）。
+- 次は P5-4d（diagnostics と emit）。
