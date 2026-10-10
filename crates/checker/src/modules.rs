@@ -3046,7 +3046,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:48851-48901
     ///
     /// The require-argument arm is JS-only.
-    fn get_external_module_member(
+    pub(crate) fn get_external_module_member(
         &mut self,
         node: NodeId,
         specifier: NodeId,
@@ -3834,7 +3834,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsgo-port: getImmediateAliasedSymbol @7.1 (checker.go:2196-2207).
-    pub(crate) fn get_immediate_aliased_symbol(
+    pub fn get_immediate_aliased_symbol(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<Option<SymbolId>> {

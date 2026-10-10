@@ -2392,7 +2392,7 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    fn is_write_access(&self, node: NodeId) -> bool {
+    pub(crate) fn is_write_access(&self, node: NodeId) -> bool {
         !matches!(self.access_kind(node), crate::expr::AccessKind::Read)
     }
 

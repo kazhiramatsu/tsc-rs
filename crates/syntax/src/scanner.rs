@@ -2743,6 +2743,54 @@ pub fn scan_token_kinds(
     })
 }
 
+/// tsgo `GetScannerForSourceFile`: a scanner over a source file's text,
+/// with the file's language version and variant, that has scanned the token
+/// at `pos`. Token navigation (tsgo `astnav`) reads with it the tokens the
+/// tree does not keep.
+pub struct TokenScanner<'text> {
+    scanner: Scanner<'text>,
+}
+
+impl<'text> TokenScanner<'text> {
+    pub fn new(file: &'text crate::SourceFile, pos: usize) -> Self {
+        let mut scanner =
+            Scanner::new_with_target(file.text(), file.language_variant, file.language_version);
+        scanner.reset_token_state(pos);
+        scanner.scan();
+        Self { scanner }
+    }
+
+    pub fn token(&self) -> SyntaxKind {
+        self.scanner.token()
+    }
+
+    pub fn token_full_start(&self) -> usize {
+        self.scanner.full_start_pos()
+    }
+
+    pub fn token_start(&self) -> usize {
+        self.scanner.token_start()
+    }
+
+    pub fn token_end(&self) -> usize {
+        self.scanner.pos()
+    }
+
+    pub fn scan(&mut self) -> SyntaxKind {
+        self.scanner.scan()
+    }
+
+    /// tsgo `ResetPos`.
+    pub fn reset_pos(&mut self, pos: usize) {
+        self.scanner.reset_token_state(pos);
+    }
+
+    /// tsgo `ReScanJsxToken(true)`.
+    pub fn re_scan_jsx_token(&mut self) -> SyntaxKind {
+        self.scanner.re_scan_jsx_token(true)
+    }
+}
+
 /// The scan half of tsc isValidBigIntString (18973-18989), which
 /// probes `s + "n"` with a fresh scanner. The tsc probe scans with
 /// skipTrivia:false so any trivia surfaces as a non-BigIntLiteral
@@ -2794,7 +2842,22 @@ pub fn scan_big_int_string(s: &str) -> Option<BigIntStringScan> {
 /// tsc skipTrivia over the trivia forms this scanner produces (shebang,
 /// whitespace, line breaks, single/multi-line comments).
 pub fn skip_trivia(text: &str, start: usize) -> usize {
+    skip_trivia_ex(text, start, SkipTriviaOptions::default())
+}
+
+/// tsgo `SkipTriviaOptions`.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SkipTriviaOptions {
+    /// Stop at a comment instead of skipping it.
+    pub stop_at_comments: bool,
+    /// Inside a JSDoc comment: skip one `*` after each line break.
+    pub in_js_doc: bool,
+}
+
+/// tsgo `SkipTriviaEx` (scanner/scanner.go:2310-2397).
+pub fn skip_trivia_ex(text: &str, start: usize, options: SkipTriviaOptions) -> usize {
     let mut pos = start;
+    let mut can_consume_star = false;
     loop {
         if pos == 0 && text.starts_with("#!") {
             while let Some(ch) = text[pos..].chars().next() {
@@ -2808,10 +2871,24 @@ pub fn skip_trivia(text: &str, start: usize) -> usize {
         let Some(ch) = text[pos..].chars().next() else {
             return pos;
         };
+        if ch == '\r' || ch == '\n' {
+            pos += 1;
+            can_consume_star = options.in_js_doc;
+            continue;
+        }
         if is_whitespace_like(ch) {
             pos += ch.len_utf8();
             continue;
         }
+        if ch == '*' && can_consume_star {
+            pos += 1;
+            can_consume_star = false;
+            continue;
+        }
+        if ch == '/' && options.stop_at_comments {
+            return pos;
+        }
+        can_consume_star = false;
         if text[pos..].starts_with("//") {
             pos += 2;
             while let Some(ch) = text[pos..].chars().next() {

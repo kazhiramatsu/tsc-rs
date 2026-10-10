@@ -6,9 +6,12 @@
 //! requests (`parseCommandLine`, `readConfigFile`,
 //! `parseJsonConfigFileContent`, `parseConfigFile`), the source files of a
 //! client (`createSourceFile`, `createSourceFileFromFile`,
-//! `releaseSourceFile`) and the transpile requests, and
-//! `getCurrentLanguageServerSnapshot` answers as tsgo's standalone session
-//! does; tsgo's other methods answer that they are not implemented yet.
+//! `releaseSourceFile`), the transpile requests, the program's information
+//! (`getSourceFile`, the resolved modules and their modes, the config
+//! files), the module resolvers and, in `crate::checker`, the symbol and
+//! type queries of the checker; `getCurrentLanguageServerSnapshot` answers
+//! as tsgo's standalone session does, and tsgo's other methods answer that
+//! they are not implemented yet.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -41,6 +44,7 @@ use tsc_project::{
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 
+use crate::checker::Registry;
 use crate::encoder::{
     build_node_index_table, encode_source_file, ScriptKind, SourceFileFacts,
     HEADER_OFFSET_SOURCE_FILE_LEASE,
@@ -84,7 +88,7 @@ pub const DEFAULT_MAX_RESPONSE_BYTES_PER_PAGE: usize = 300_000_000;
 /// tsgo `sessionIDCounter`.
 static SESSION_IDS: AtomicU64 = AtomicU64::new(0);
 
-fn client_error(message: impl std::fmt::Display) -> String {
+pub(crate) fn client_error(message: impl std::fmt::Display) -> String {
     format!("{CLIENT_ERROR}: {message}")
 }
 
@@ -92,7 +96,7 @@ fn invalid_request(message: impl std::fmt::Display) -> String {
     format!("{INVALID_REQUEST}: {message}")
 }
 
-fn json<T: Serialize>(value: &T) -> Payload {
+pub(crate) fn json<T: Serialize>(value: &T) -> Payload {
     Payload::Json(serde_json::to_string(value).expect("a response serializes"))
 }
 
@@ -116,6 +120,8 @@ struct SnapshotData {
     ref_count: usize,
     open: OpenState,
     file_system: Option<Arc<RequestFileSystem>>,
+    /// The symbols, types and signatures handed out in the snapshot.
+    registry: Arc<Mutex<Registry>>,
 }
 
 /// A client's module resolver and the resolution its programs share.
@@ -149,6 +155,8 @@ pub struct Session {
     next_module_resolver: AtomicU64,
     /// What the resolvers' resolutions share.
     resolution: Arc<ResolutionState>,
+    /// The last symbol number handed out (tsgo `ast.GetSymbolId`'s counter).
+    pub(crate) next_symbol_id: AtomicU64,
 }
 
 impl Session {
@@ -172,6 +180,7 @@ impl Session {
             module_resolvers: Mutex::default(),
             next_module_resolver: AtomicU64::new(0),
             resolution: Arc::default(),
+            next_symbol_id: AtomicU64::new(0),
         }
     }
 
@@ -188,6 +197,11 @@ impl Session {
 
     fn current_directory(&self) -> &str {
         &self.host.options().current_directory
+    }
+
+    /// The session's snapshot host.
+    pub(crate) fn host(&self) -> &SnapshotHost {
+        &self.host
     }
 
     /// tsgo `HandleRequest`: the method's result or its error's text.
@@ -495,10 +509,16 @@ impl Session {
             )),
             #[cfg(test)]
             "panicForTest" => panic!("test panic"),
-            _ if TSGO_METHODS.binary_search(&method).is_ok() => {
-                Err(invalid_request(format!("{method} is not implemented yet")))
+            _ => {
+                if let Some(result) = self.handle_checker_request(method, params) {
+                    return result;
+                }
+                if TSGO_METHODS.binary_search(&method).is_ok() {
+                    Err(invalid_request(format!("{method} is not implemented yet")))
+                } else {
+                    Err(invalid_request(format!("unknown API method {method:?}")))
+                }
             }
-            _ => Err(invalid_request(format!("unknown API method {method:?}"))),
         }
     }
 
@@ -755,7 +775,7 @@ impl Session {
 
     /// tsgo `getProgram`: the project of a snapshot the client holds, and
     /// its program.
-    fn program(
+    pub(crate) fn program(
         &self,
         snapshot: SnapshotId,
         project: &str,
@@ -800,7 +820,7 @@ impl Session {
 
     /// tsgo `resolveOptionalSourceFile` with a file: the program's file, or
     /// the client's error.
-    fn required_source_file(
+    pub(crate) fn required_source_file(
         &self,
         program: &ProjectProgram,
         file: &DocumentIdentifier,
@@ -1349,6 +1369,17 @@ impl Session {
             .ok_or_else(|| client_error(format!("snapshot {handle} not found")))
     }
 
+    /// The registry of a snapshot the client holds.
+    pub(crate) fn snapshot_registry(
+        &self,
+        handle: SnapshotId,
+    ) -> Result<Arc<Mutex<Registry>>, String> {
+        self.lock_snapshots()
+            .get(&handle)
+            .map(|data| Arc::clone(&data.registry))
+            .ok_or_else(|| client_error(format!("snapshot {handle} not found")))
+    }
+
     /// tsgo `registerSnapshot`.
     fn register_snapshot(
         &self,
@@ -1363,6 +1394,7 @@ impl Session {
                 ref_count: 1,
                 open,
                 file_system,
+                registry: Arc::default(),
             },
         );
     }
@@ -1739,7 +1771,10 @@ impl Handler for Session {
 
 /// tsgo `unmarshallerFor`: the parameters (their zero value for `null`), or
 /// the request's error.
-fn parse<T: DeserializeOwned + Default>(type_name: &str, params: &[u8]) -> Result<T, String> {
+pub(crate) fn parse<T: DeserializeOwned + Default>(
+    type_name: &str,
+    params: &[u8],
+) -> Result<T, String> {
     serde_json::from_slice::<Option<T>>(params)
         .map(Option::unwrap_or_default)
         .map_err(|error| invalid_request(format!("failed to unmarshal *api.{type_name}: {error}")))
@@ -1799,8 +1834,8 @@ fn is_source_file_response_method(method: &str) -> bool {
 }
 
 /// A file of a program the API asks about.
-struct ProgramFile {
-    document: Arc<BoundDocument>,
+pub(crate) struct ProgramFile {
+    pub(crate) document: Arc<BoundDocument>,
     /// The file name as the program spells it.
     file_name: String,
     path: String,
@@ -1826,7 +1861,7 @@ fn script_kind_of(file_name: &str) -> ScriptKind {
 }
 
 /// Go's `strconv.ParseUint(text, 10, 32)` and the text of its error.
-fn go_parse_uint32(text: &str) -> Result<u32, String> {
+pub(crate) fn go_parse_uint32(text: &str) -> Result<u32, String> {
     if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
         return Err(format!(
             "strconv.ParseUint: parsing {text:?}: invalid syntax"

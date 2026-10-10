@@ -1064,3 +1064,89 @@ snapshot、option、module provider を借りる）。
 - **P5-4d diagnostics と emit**。
 - LS の handler と profile は LSP の作業に回す（それまでは未実装の error のまま）。P5-4 の後は P5-5（`printNode` と decoder）
   と P5-6（build orchestrator）。
+
+## P5-4a handle と symbol（2026-10-10）
+
+- **handle**（tsgo `snapshotData` の registry と `checkerSetup`）：
+  - symbol：tsgo は symbol を最初に聞かれたときに global の counter で番号を振る（`ast.GetSymbolId`）。二つの program が
+    共有する source file の binder の symbol は一つの番号になる。port の binder の symbol の番号は file の identity の中の
+    位置で、file を共有する program は同じ番号を持つ。checker の symbol（transient）は checker ごと。そこで snapshot は、
+    symbol を最初に聞かれたときに、binder の symbol は宣言した file で、checker の symbol は program で見分けて番号を振る
+    （session の counter）。registry は handle から symbol と最初に渡した project を引く（tsgo
+    `symbolCanonicalProjects`）。他の project で聞かれた handle は、binder の symbol ならその project も同じ file を持つとき
+    だけ、checker の symbol なら同じ program のときだけ答える（tsgo は pointer をそのまま別の checker に渡す。ここは
+    registry の error になる）。
+  - type と signature：checker の番号（`TypeId` と `SignatureId` の index + 1）、project ごとの registry（tsgo と同じ）。
+  - node handle：`index.kind.path`。index と kind は encoder の node の表（tsgo `GetNodeIndexTable`、kind は tsgo の番号）。
+    表は snapshot ごとに source file の単位で持つ。
+  - error は tsgo の文（empty handle、registry にない、no registry for project、invalid node handle など）。
+- **response**：`SymbolResponse`（name は tsgo `EscapeSymbolName` と同じ escape 済みの名）、`TypeResponse`（literal の
+  value、fresh・regular、class・interface の type parameter と this、tuple の target、indexed access・conditional・
+  substitution・mapped の部分、template literal の text、intrinsic の名、alias、symbol）、`ConstantValueResponse`。Go の
+  `encoding/json/v2` の `omitempty` は `false` と `0` を残し（`objectFlags`、`isTupleType`、`isThisType` は常にある）、
+  `value` は無ければ `null`、nil の slice は `[]` になる。数値は Go の float の書き方（JavaScript の形。`-0` は符号を
+  残し、無限大と NaN は文字列）。
+- **flag の写し**：`SymbolFlags` は tsgo の 28 bit と同じで、tsgo の `ConstEnumOnlyModule`・`ReplaceableByMethod` は
+  port の symbol の別の field から。`CheckFlags` は名前で写す（tsgo の `IsDiscriminant*`・`IndexSymbol` は port に無い）。
+  `ObjectFlags`（object の型）は 21 bit が同じ、`MembersResolved` は checker が member を解決したか、その後の flag は名前で
+  写す。
+- **position**：tsgo `astnav`（`GetTouchingPropertyName`、`getTokenAtPosition`、`FindPrecedingTokenEx`、
+  `findRightmostValidToken`）を移した（`crates/api/src/astnav.rs`）。木は encoder の view（tsgo の形の木）で、JSDoc を
+  子の前に、一つの部分だけの JSDoc の comment は訪れない。木に無い token は scanner で読む（syntax に `TokenScanner` と
+  tsgo `SkipTriviaEx` の option を足した。`skip_trivia` は既定の option の `skip_trivia_ex`）。position は UTF-16 から
+  tsgo `PositionMap.UTF16ToUTF8` で byte にする。
+- **method**（44）：`getSymbolAtPosition`(s)、`getSymbolAtLocation`(s)、`getSymbolOfSourceFile`(s)、
+  `getTypeOfSymbol`(s)、`getDeclaredTypeOfSymbol`、`getNonMissingTypeOfSymbol`、`getTypeOfSymbolAtLocation`、
+  `getTypeAtLocation`(s)、`getTypeAtPosition`(s)、`getParentOfSymbol`、`getMembersOfSymbol`、`getExportsOfSymbol`、
+  `getExportSymbolOfSymbol`、`getSymbolOfType`、`typeToString`、intrinsic の 12、`getAliasedSymbol`、
+  `getImmediateAliasedSymbol`、`getTargetSymbol`、`getExportSymbolOfSymbolForChecker`、
+  `getExportSpecifierLocalTargetSymbol`、`getShorthandAssignmentValueSymbol`、`getFullyQualifiedName`、
+  `getExportsOfModule`、`getMemberInModuleExports`、`isReadonlySymbol`、`getConstantValue`。
+- **checker**：tsgo `checker/exports.go` に当たる `exports.rs`（intrinsic の型、`CompareSymbols` の並べ替え、
+  `TypeToStringEx`（node builder で作って 1 行で印字、unresolved の型だけ comment を残し、tsgo の長さで切る）、mapped の
+  部分、export specifier の local の target、shorthand、module の exports、`GetTypeOfSymbolAtLocation`、
+  `GetConstantValue`、木に無い token の型）。
+- **既存の経路の変更**（tsgo に合わせた。types・symbols の baseline の walker が聞かない node で違いが出た）：
+  - `getTypeFromTypeNode` の identifier・qualified name・property access の arm（tsc 6.0 のもの）を削った。tsgo 7.1 には
+    無く、型の位置の名前は error 型になる（unresolved 型でもなくなる）。
+  - `IsDeclaration` を tsgo の `IsDeclarationNode`（declaration の data を持つ node）にした。source file（module の
+    `typeof`）、`export =`、call signature などが加わる。
+  - `getSymbolAtLocation` の token の arm を `get_symbol_at_token` に分けた（木に無い token も同じ arm で答える）。型の中の
+    `this`（木では ThisType の node）の arm を足した。JSDoc の `@param` の名の arm（tsgo `GetNodeAtPosition`）を移した。
+  - `getNameOfSymbolAsWritten` の名の無い宣言の arm（変数の名、`(Anonymous class)`、`(Anonymous function)`）を足した
+    （`getFullyQualifiedName` に出る）。
+  - `import.meta` の `meta` の symbol に tsgo の `Readonly` の check flag を付けた。
+  - pattern の ambient module の import attributes 付きの名を tsgo の形（`__"*.css"pattern@<attributes の node の番号>`）に
+    した（以前は file 名も入れていた）。
+- **vendor**：tsgo の astnav の baseline（`testdata/baselines/reference/astnav`、7）とその file
+  （`testdata/fixtures/services/mapCode.ts`）を 7.1 の profile に加えた（`scripts/vendor_typescript_native.py`、manifest、
+  harness の数の contract）。
+- **test**：
+  - api の unit：astnav 3（tsgo の Go baseline `GetTouchingPropertyName`・`GetTokenAtPosition`・`FindPrecedingToken` の
+    `mapCode.ts` の全ての位置）、checker の session 14（tsgo の応答に合わせた。handle の番号は実装ごとなので、同一性で
+    比べる）。
+- **tsgo との比較**（local、MessagePack、番号を初出順に付け直して比べる）：
+  - fixture の 3 種（位置からの symbol と型を全ての位置で、出てきた symbol と型を各 query に通す）：mapCode.ts 2,713 行は
+    全て一致。TS・TSX・JS・非 ASCII・多様な構文の fixture 4,614 行は、下の bounded の初めの二つを除いて一致。
+  - 個別の probe 99 行と 55 行は全て一致（tsgo が panic の error に Go の stack を足すのを除く）。
+- **TypeScript の client の test**（local）：tsc-rs 168/327（P5-3c は 103）。残り 159 のうち 158 は未実装の method
+  （error の文を確かめる 2 を含む）、1 は P5-3a の null の要素。
+- **tsgo と違う所**（bounded）：
+  - private name の symbol の名の番号：tsgo は class の symbol の global の番号（`__#1@#secret`）、port は binder の
+    serial（`__#147833@#secret`）。
+  - JavaScript の JSDoc（`@typedef` など）：tsgo は reparse した node を宣言にする（P4-7d の encoder と同じ bounded）。
+  - 別の project の checker の symbol を聞くと registry の error（tsgo は pointer を渡す）。
+  - file の無い program（checker が無い）への query は client error（`project has no checker`）。
+- **検証**（コード `80841b9e8`。macOS、`nice -n 20`、Cargo の job 2）：
+  - `cargo fmt --all -- --check` と workspace の Clippy（`--all-targets -- -D warnings`。cache を足した後は api・cli・
+    conformance）は clean。
+  - `cargo test`：api（188）、syntax（248）、binder（78）、project（52）、harness の vendored manifest の contract。
+  - checker の経路を変えたので、release build（2m18s）の full conformance を local で 1 回（`--workers 2 --check`、
+    472s）：0 regressions、accepted tier を超える構成 0。errors full 13,451、emit 13,443、types 12,678（mismatch 89）、
+    symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness error 15（main と同じ）。
+  - suites（`scripts/suites_ts71.py --check`）：0 regressions、数は main と同じ（api 2/2 ほか）。
+  - conformance の後に、API の session の query の cache（program の file の path と source file の position の表を
+    snapshot に持つ。`crates/api/src/checker.rs` だけ。runner は通らない）を足した。その後に api の test、比較、client の
+    test をやり直し、結果は同じ。parallel control（`--checkers 4`）は local では走らせていない。
+  - workspace 全体の test は hosted の `rust` job に任せる。
+- **残り**：P5-4b（type の構造）。

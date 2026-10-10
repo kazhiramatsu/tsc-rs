@@ -634,8 +634,8 @@ fn echo_answers_its_parameters() {
 fn a_method_tsgo_has_is_not_implemented_yet_and_another_is_unknown() {
     let (session, _) = session(&[]);
     assert_eq!(
-        call(&session, "getSymbolAtPosition", json!({})).unwrap_err(),
-        "api: invalid request: getSymbolAtPosition is not implemented yet"
+        call(&session, "createBuildOrchestrator", json!({})).unwrap_err(),
+        "api: invalid request: createBuildOrchestrator is not implemented yet"
     );
     assert_eq!(
         call(&session, "nope", json!({})).unwrap_err(),
@@ -1296,3 +1296,6 @@ mod program;
 
 #[path = "session_module_resolution.rs"]
 mod module_resolution;
+
+#[path = "session_checker.rs"]
+mod checker;

@@ -17,6 +17,7 @@ base64 = "0.22"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["raw_value"] }
 tsc-binder.workspace = true
+tsc-checker.workspace = true
 tsc-compiler.workspace = true
 tsc-diagnostics.workspace = true
 tsc-host.workspace = true

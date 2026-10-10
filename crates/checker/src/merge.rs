@@ -438,6 +438,27 @@ impl<'a> CheckerState<'a> {
             return tsc_binder::node_util::declaration_name_to_string(source, Some(name_node))
                 .into();
         }
+        // A nameless declaration: its variable's name, or an anonymous
+        // class or function (tsgo nodebuilderimpl.go:1004-1018).
+        if let Some(&declaration) = self.binder.symbol(symbol).declarations.first() {
+            let source = self.binder.source_of_node(declaration);
+            if let Some(parent) = self.parent_of(declaration) {
+                if let NodeData::VariableDeclaration(variable) = self.data_of(parent) {
+                    return tsc_binder::node_util::declaration_name_to_string(
+                        source,
+                        variable.name,
+                    )
+                    .into();
+                }
+            }
+            match self.kind_of(declaration) {
+                SyntaxKind::ClassExpression => return "(Anonymous class)".into(),
+                SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
+                    return "(Anonymous function)".into()
+                }
+                _ => {}
+            }
+        }
         // getNameOfSymbolAsWritten (_tsc.js:55586-55588): a symbol without a
         // named declaration (a mapped-type or otherwise synthesized property)
         // renders its nameType face before falling back to symbolName.

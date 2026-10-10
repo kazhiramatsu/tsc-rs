@@ -126,7 +126,8 @@ it: `tsc-rs` replaces the compiler command and offers a
 [Rust compiler API](#compiler-api-for-rust-projects-experimental), but it
 does not provide TypeScript's language server, and its
 [API server](#api-server-experimental) answers only the snapshot, config,
-transpile, program-information and module-resolver requests so far.
+transpile, program-information, module-resolver and symbol and type
+requests so far.
 
 ### Use the name `tsc` in your shell
 
@@ -809,9 +810,18 @@ modes and resolved modules and type reference directives. A client's module
 resolvers (`createModuleResolver`, `resolveModuleName`,
 `releaseModuleResolver`) resolve through static resolutions and the
 client's callback before the default resolver, for a request or for the
-programs a snapshot creates with them. The flags and their errors are
-`tsgo`'s. The other requests (symbols and types, diagnostics, emit, the
-build orchestrator) answer that they are not implemented yet.
+programs a snapshot creates with them. It answers the checker's questions
+about symbols and types as handles the snapshot keeps: the symbol at a
+position or node (`getSymbolAtPosition`, `getSymbolAtLocation`,
+`getSymbolOfSourceFile` and their batch forms), a symbol's types
+(`getTypeOfSymbol`, `getDeclaredTypeOfSymbol`, `getNonMissingTypeOfSymbol`,
+`getTypeOfSymbolAtLocation`), the type at a position or node
+(`getTypeAtPosition`, `getTypeAtLocation`), a symbol's parent, members,
+exports and aliases, a module's exports, `getFullyQualifiedName`,
+`isReadonlySymbol`, `getConstantValue`, `typeToString` and the intrinsic
+types. The flags and their errors are `tsgo`'s. The other requests (the
+structure of types, signatures, diagnostics, emit, the build orchestrator)
+answer that they are not implemented yet.
 
 ## Performance
 
@@ -1168,7 +1178,11 @@ runs are listed under the repository's Actions tab.
   `parseJsonConfigFileContent` parses the value's JSON text, so `null`
   elements of its lists are dropped as in a config file, where `tsgo`
   keeps them and reports each list (`Compiler option 'files' requires a
-  value of type string.`).
+  value of type string.`). The numbers of symbol and type handles are
+  tsc-rs's own; a private name's symbol name carries tsc-rs's number for
+  its class, a symbol the checker of one project created cannot be asked
+  of another project, and a program without files has no checker to
+  ask.
 - `tsc_api`'s encoding of a JavaScript file lacks the declarations and
   types `tsgo`'s parser derives from its JSDoc tags (`@typedef`, `@type`,
   `@param`, ...), and a few parse-error recoveries and JSDoc details keep

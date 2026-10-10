@@ -323,36 +323,9 @@ impl<'a> CheckerState<'a> {
             // through the same type-reference worker (getTypeReferenceName
             // reads the entity-name expression).
             SyntaxKind::ExpressionWithTypeArguments => self.get_type_from_type_reference(node),
-            // 63289-63295: these are not valid TypeNodes, but
-            // isPartOfTypeNode admits them in type-expression
-            // positions. getSymbolAtLocation supplies their symbol and
-            // the worker reads its declared (not value) type.
-            SyntaxKind::Identifier
-            | SyntaxKind::QualifiedName
-            | SyntaxKind::PropertyAccessExpression => {
-                let kind = self.kind_of(node);
-                let meaning = if kind == SyntaxKind::PropertyAccessExpression {
-                    SymbolFlags::VALUE
-                } else {
-                    SymbolFlags::TYPE
-                };
-                let mut symbol =
-                    self.resolve_entity_name(node, meaning, /*ignore_errors*/ true, None)?;
-                if symbol.is_none_or(|symbol| symbol == self.unknown_symbol)
-                    && kind != SyntaxKind::PropertyAccessExpression
-                {
-                    symbol = Some(self.get_unresolved_symbol_for_entity_name(node));
-                }
-                if let Some(symbol) = symbol.filter(|&symbol| symbol != self.unknown_symbol) {
-                    self.get_declared_type_of_symbol(symbol)
-                } else {
-                    Ok(self.tables.intrinsics.error)
-                }
-            }
-            // JSDocNamepathType has no worker arm in tsc. It reaches
-            // the default errorType tail rather than unwinding the
-            // checker.
-            SyntaxKind::JSDocNamepathType => Ok(self.tables.intrinsics.error),
+            // tsgo has no arm for the names isPartOfTypeNode admits in
+            // type positions (an identifier, a qualified name, a property
+            // access), nor for JSDocNamepathType: the error type.
             _ => Ok(self.tables.intrinsics.error),
         }
     }
@@ -2134,7 +2107,7 @@ impl<'a> CheckerState<'a> {
     /// symbol-name face of symbolToString (DoNotIncludeSymbolChain).
     /// External source-file symbols use the host's absolute normalized
     /// path, matching the in-memory oracle host.
-    pub(crate) fn get_fully_qualified_name(&self, symbol: SymbolId) -> JsString {
+    pub fn get_fully_qualified_name(&self, symbol: SymbolId) -> JsString {
         let mut parts = Vec::new();
         let mut current = Some(symbol);
         while let Some(symbol) = current {
@@ -6125,7 +6098,7 @@ impl<'a> CheckerState<'a> {
     /// position — is errorType, not a failure. The Alias arm
     /// (getDeclaredTypeOfAlias, 57498-57501) recurses through
     /// resolveAlias with the declaredType memo.
-    pub(crate) fn get_declared_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
+    pub fn get_declared_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         perf::bump(PerfCounter::DeclaredTypeQueries);
         let flags = self.symbol_flags(symbol);
         if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
