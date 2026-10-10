@@ -237,8 +237,28 @@ impl CheckerState<'_> {
                     return Ok(None);
                 }
             }
-            // The JSDoc parameter-tag arm (`@param x`) is not reached: the
-            // walker never visits JSDoc nodes.
+            if let NodeData::JSDocParameterTag(tag) = self.data_of(parent) {
+                if tag.name == Some(node) {
+                    let pos = self.binder.node_record(node).pos;
+                    let function = self.node_at_position(self.binder.file_index_of_node(node), pos);
+                    if node_util::is_function_like_kind(self.kind_of(function)) {
+                        let text = self.identifier_text_of(node).map(str::to_owned);
+                        for parameter in self.parameters_of_function(function) {
+                            let name = node_util::name_field_of(
+                                self.binder.source_of_node(parameter),
+                                parameter,
+                            );
+                            if let Some(name) =
+                                name.filter(|&name| self.kind_of(name) == SyntaxKind::Identifier)
+                            {
+                                if self.identifier_text_of(name).map(str::to_owned) == text {
+                                    return self.get_symbol_of_node(parameter);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         match self.kind_of(node) {
@@ -280,14 +300,15 @@ impl CheckerState<'_> {
                 let ty = self.check_expression(node, CheckMode::NORMAL)?;
                 Ok(self.tables.type_of(ty).symbol)
             }
-            SyntaxKind::ConstructorKeyword => {
-                // constructor keyword for an overload: the class.
-                if self.kind_of(parent) == SyntaxKind::Constructor {
-                    let class = self.parent_of(parent).expect("a constructor has a class");
-                    return Ok(self.node_symbol(class));
-                }
-                Ok(None)
-            }
+            SyntaxKind::ConstructorKeyword
+            | SyntaxKind::DefaultKeyword
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::EqualsGreaterThanToken
+            | SyntaxKind::ClassKeyword
+            | SyntaxKind::ExportKeyword
+            | SyntaxKind::ImportKeyword
+            | SyntaxKind::NewKeyword
+            | SyntaxKind::InstanceOfKeyword => self.get_symbol_at_token(self.kind_of(node), parent),
             SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
                 // 1). import x = require("./mod")  2). an import declaration's
                 // module name  3). require in JavaScript  4). import("./foo").
@@ -309,39 +330,74 @@ impl CheckerState<'_> {
             SyntaxKind::NumericLiteral => {
                 self.get_index_access_literal_symbol(node, parent, grand_parent)
             }
-            SyntaxKind::DefaultKeyword
-            | SyntaxKind::FunctionKeyword
-            | SyntaxKind::EqualsGreaterThanToken
-            | SyntaxKind::ClassKeyword => self.get_symbol_of_node(parent),
             SyntaxKind::ImportType => {
                 if let Some(literal) = self.literal_import_type_literal(node) {
                     return self.get_symbol_at_location_ex(literal, ignore_errors);
                 }
                 Ok(None)
             }
+            SyntaxKind::MetaProperty => {
+                let ty = self.check_expression(node, CheckMode::NORMAL)?;
+                Ok(self.tables.type_of(ty).symbol)
+            }
+            SyntaxKind::JsxNamespacedName => {
+                if self.is_jsx_tag_name(node) && self.is_jsx_intrinsic_tag_name(node) {
+                    let symbol = self.get_intrinsic_tag_symbol(parent)?;
+                    return Ok((symbol != self.unknown_symbol).then_some(symbol));
+                }
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// The arms of tsgo `getSymbolAtLocation` (checker.go:32200-32255) that
+    /// read only a token's kind and parent: also the symbol at a token the
+    /// tree does not keep, which tsgo's source file creates for the
+    /// scanner's token (`GetOrCreateToken`).
+    pub fn get_symbol_at_token(
+        &mut self,
+        kind: SyntaxKind,
+        parent: NodeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        match kind {
+            // A `this` in a type, whose node is its ThisType: the `this`
+            // parameter of its container, else the this-type's symbol.
+            SyntaxKind::ThisKeyword if self.kind_of(parent) == SyntaxKind::ThisType => {
+                if let Some(container) =
+                    crate::expr::get_this_container_full(self, parent, false, false)
+                {
+                    if node_util::is_function_like_kind(self.kind_of(container)) {
+                        let signature = self.get_signature_from_declaration(container)?;
+                        if let Some(this_parameter) = self.signature_of(signature).this_parameter {
+                            return Ok(Some(this_parameter));
+                        }
+                    }
+                }
+                let ty = self.get_type_from_this_type_node(parent)?;
+                Ok(self.tables.type_of(ty).symbol)
+            }
+            SyntaxKind::ConstructorKeyword => {
+                // constructor keyword for an overload: the class.
+                if self.kind_of(parent) == SyntaxKind::Constructor {
+                    let class = self.parent_of(parent).expect("a constructor has a class");
+                    return Ok(self.node_symbol(class));
+                }
+                Ok(None)
+            }
+            SyntaxKind::DefaultKeyword
+            | SyntaxKind::FunctionKeyword
+            | SyntaxKind::EqualsGreaterThanToken
+            | SyntaxKind::ClassKeyword => self.get_symbol_of_node(parent),
             SyntaxKind::ExportKeyword => {
                 if self.kind_of(parent) == SyntaxKind::ExportAssignment {
                     return Ok(self.node_symbol(parent));
                 }
                 Ok(None)
             }
-            SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => {
-                if let NodeData::MetaProperty(data) = self.data_of(parent) {
-                    if self.kind_of(node) == SyntaxKind::ImportKeyword {
-                        let name = data.name;
-                        if name
-                            .and_then(|name| self.identifier_text_of(name).map(str::to_owned))
-                            .as_deref()
-                            == Some("defer")
-                        {
-                            return Ok(None);
-                        }
-                    }
-                    // checkMetaPropertyKeyword is a stub (the error type).
-                    return Ok(None);
-                }
-                Ok(None)
-            }
+            // `import.defer` has no symbol, and checkMetaPropertyKeyword is
+            // a stub (the error type) for the other meta properties.
+            SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => Ok(None),
             SyntaxKind::InstanceOfKeyword => {
                 if let NodeData::BinaryExpression(data) = self.data_of(parent) {
                     let Some(right) = data.right else {
@@ -356,17 +412,6 @@ impl CheckerState<'_> {
                         }
                     }
                     return Ok(self.tables.type_of(ty).symbol);
-                }
-                Ok(None)
-            }
-            SyntaxKind::MetaProperty => {
-                let ty = self.check_expression(node, CheckMode::NORMAL)?;
-                Ok(self.tables.type_of(ty).symbol)
-            }
-            SyntaxKind::JsxNamespacedName => {
-                if self.is_jsx_tag_name(node) && self.is_jsx_intrinsic_tag_name(node) {
-                    let symbol = self.get_intrinsic_tag_symbol(parent)?;
-                    return Ok((symbol != self.unknown_symbol).then_some(symbol));
                 }
                 Ok(None)
             }
@@ -585,6 +630,11 @@ impl CheckerState<'_> {
             tsc_types::EscapedName::from_identifier_escaped_text("meta"),
         );
         self.binder.symbol_mut(meta).parent = Some(container);
+        self.links.set_symbol_check_flags(
+            self.speculation_depth,
+            meta,
+            tsc_types::CheckFlags::READONLY,
+        );
         let import_meta = self.get_global_import_meta_type()?;
         self.links.set_symbol_type(
             self.speculation_depth,
@@ -663,6 +713,28 @@ impl CheckerState<'_> {
 
     // ----- helpers -----------------------------------------------------
 
+    /// tsgo `GetNodeAtPosition(file, position, false)` (ast/utilities.go:
+    /// 2705-2731): the deepest node of the tree (outside JSDoc) that
+    /// contains `position`, stopping at a meta property.
+    fn node_at_position(&self, file: usize, position: u32) -> NodeId {
+        let source = self.binder.source(file);
+        let mut current = source.root;
+        loop {
+            let child =
+                tsc_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
+                    let node = source.arena.node(child);
+                    node.kind.value() >= SyntaxKind::FirstNode.value()
+                        && node.pos <= position
+                        && (position < node.end
+                            || position == node.end && node.kind == SyntaxKind::EndOfFileToken)
+                });
+            match child {
+                Some(child) if self.kind_of(child) != SyntaxKind::MetaProperty => current = child,
+                _ => return current,
+            }
+        }
+    }
+
     fn node_flags_of(&self, node: NodeId) -> NodeFlags {
         self.binder.flags_of(node)
     }
@@ -703,7 +775,34 @@ impl CheckerState<'_> {
         if self.kind_of(node) == SyntaxKind::TypeParameter {
             return self.parent_of(node).is_some();
         }
+        // tsgo `IsDeclarationNode`: the nodes with declaration data, more
+        // kinds than tsc's declarations.
         node_util::is_declaration(self.binder.source_of_node(node), node)
+            || matches!(
+                self.kind_of(node),
+                SyntaxKind::BinaryExpression
+                    | SyntaxKind::CallExpression
+                    | SyntaxKind::CallSignature
+                    | SyntaxKind::ConstructSignature
+                    | SyntaxKind::IndexSignature
+                    | SyntaxKind::FunctionType
+                    | SyntaxKind::ConstructorType
+                    | SyntaxKind::ExportAssignment
+                    | SyntaxKind::ExportDeclaration
+                    | SyntaxKind::ImportDeclaration
+                    | SyntaxKind::JSDocSignature
+                    | SyntaxKind::JSDocTypeLiteral
+                    | SyntaxKind::JsxAttributes
+                    | SyntaxKind::JsxSpreadAttribute
+                    | SyntaxKind::MappedType
+                    | SyntaxKind::MissingDeclaration
+                    | SyntaxKind::NoSubstitutionTemplateLiteral
+                    | SyntaxKind::ObjectLiteralExpression
+                    | SyntaxKind::SemicolonClassElement
+                    | SyntaxKind::SourceFile
+                    | SyntaxKind::SpreadAssignment
+                    | SyntaxKind::TypeLiteral
+            )
     }
 
     /// tsgo `IsDeclarationName` (ast/utilities.go:1310-1312): the `name`

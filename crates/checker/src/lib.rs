@@ -101,6 +101,7 @@ pub mod elaboration;
 pub mod emit;
 pub mod engine;
 pub mod evaluate;
+pub mod exports;
 pub mod expr;
 pub mod facts;
 pub mod flow;

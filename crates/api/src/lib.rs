@@ -7,7 +7,9 @@
 //! [`encoder`] writes a source file in the binary format tsgo's API sends
 //! its clients (`internal/api/encoder`, protocol 9).
 
+mod astnav;
 pub mod callback_fs;
+mod checker;
 pub mod encoder;
 pub mod ipc;
 pub mod module_resolution;

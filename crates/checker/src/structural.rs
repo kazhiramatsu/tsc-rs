@@ -5899,7 +5899,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTargetSymbol @6.0.3
     /// tsc-hash: 88f4065722cee3797acdd4215c653a6e21e1b8c240b793e50ab9918f14dd99c2
     /// tsc-span: _tsc.js:85309-85311
-    pub(crate) fn get_target_symbol(&self, symbol: SymbolId) -> SymbolId {
+    pub fn get_target_symbol(&self, symbol: SymbolId) -> SymbolId {
         if self
             .get_check_flags(symbol)
             .intersects(CheckFlags::INSTANTIATED)

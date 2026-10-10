@@ -98,6 +98,13 @@
       "bytes": 2867
     },
     {
+      "path": "tsc/testdata/baselines/reference/astnav",
+      "git_tree_sha1": "b89802f10b1476add1c4194cbcd34e61bdfe17bb",
+      "blob_inventory_sha256": "cc9350da953efae9cbaebb77af8f31c5f98d7386c4ca2a5dfb5846e14f980cfe",
+      "files": 7,
+      "bytes": 646535
+    },
+    {
       "path": "tsc/internal/diagnostics/diagnosticMessages.json",
       "git_blob_sha1": "edc52a66cb04a3ee8b2e8b206fd797804080b523",
       "blob_inventory_sha256": "f96b36f1432be1badd98cd75b183c3665ce8b9883cf36876e84f5dade573c47e",
@@ -166,6 +173,13 @@
       "blob_inventory_sha256": "0ca7a985fa2fad2924ca29f5eaa7d0930db701d4dfaf09e95a9708eec09e5107",
       "files": 1,
       "bytes": 35642
+    },
+    {
+      "path": "tsc/testdata/fixtures/services/mapCode.ts",
+      "git_blob_sha1": "11d9fb5acf2f93955c39cad8dc27e51c818edfb7",
+      "blob_inventory_sha256": "e7f5bc95fd2654edb5a7e5b43f5340112e8f733a850cef52ccae2096c287c33c",
+      "files": 1,
+      "bytes": 9772
     },
     {
       "path": "tsc/internal/diagnostics/loc/cs-CZ.json.gz",

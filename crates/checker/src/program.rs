@@ -1194,6 +1194,15 @@ impl<'a> ProgramBinder<'a> {
         Ok(self.symbol_owners[index].file)
     }
 
+    /// The file whose bind created the persistent symbol `id`; `None` for a
+    /// checker's (transient) symbol.
+    pub fn file_index_of_symbol(&self, id: SymbolId) -> Option<usize> {
+        if id.index() & TRANSIENT_SYMBOL_BIT != 0 {
+            return None;
+        }
+        Self::try_owner_file(&self.symbol_owners, id.index())
+    }
+
     /// tsrs-native: routes a numeric SymbolId to its binder or
     /// checker-owned transient arena; tsc carries object references.
     #[inline]

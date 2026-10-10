@@ -147,12 +147,19 @@ pub struct SourceFileFacts<'a> {
 #[derive(Debug, Default)]
 pub struct NodeIndexTable {
     nodes: Vec<Option<NodeId>>,
+    /// tsgo's kind of each index ([`SYNTAX_KIND_NODE_LIST`] for a NodeList).
+    kinds: Vec<u32>,
     indices: OnceLock<HashMap<NodeId, u32>>,
 }
 
 impl NodeIndexTable {
     pub fn nodes(&self) -> &[Option<NodeId>] {
         &self.nodes
+    }
+
+    /// tsgo's kind of the node at `index`.
+    pub fn kind(&self, index: u32) -> u32 {
+        self.kinds.get(index as usize).copied().unwrap_or(0)
     }
 
     /// The encoded index of `node`, 0 when it is not in the table.
@@ -189,13 +196,17 @@ pub fn encode_node(file: &SourceFile, node: NodeId) -> (Vec<u8>, NodeIndexTable)
 /// file's nodes, without encoding them.
 pub fn build_node_index_table(file: &SourceFile) -> NodeIndexTable {
     let mut nodes = vec![None];
-    walk(&Tree::new(file, None), View::Node(file.root), |event| {
+    let mut kinds = vec![0];
+    let tree = Tree::new(file, None);
+    walk(&tree, View::Node(file.root), |event| {
         if let WalkEvent::Record { view, .. } = event {
             nodes.push(view.node());
+            kinds.push(tree.kind_number(view));
         }
     });
     NodeIndexTable {
         nodes,
+        kinds,
         indices: OnceLock::new(),
     }
 }
@@ -227,8 +238,8 @@ pub(crate) enum Property<'a> {
 
 /// A node or NodeList of tsgo's tree, as tsc-rs's tree presents it. tsgo's
 /// parser builds some shapes tsc's does not; these views stand for them.
-#[derive(Clone, Copy, Debug)]
-enum View {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum View {
     Node(NodeId),
     /// tsgo's TypeReference of an implemented or (interface) extended type,
     /// for tsc's ExpressionWithTypeArguments (tsgo parseTypeHeritageClauseElement).
@@ -257,7 +268,7 @@ enum View {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Elements {
+pub(crate) enum Elements {
     Plain,
     HeritageTypes,
     /// tsgo's `@template` type parameter list, whose range it never sets.
@@ -266,7 +277,7 @@ enum Elements {
 
 impl View {
     /// The tsc-rs node an index of this view resolves to.
-    fn node(self) -> Option<NodeId> {
+    pub(crate) fn node(self) -> Option<NodeId> {
         match self {
             View::Node(id)
             | View::HeritageTypeReference(id)
@@ -278,7 +289,7 @@ impl View {
 }
 
 /// The file being encoded and the facts its views need.
-struct Tree<'a> {
+pub(crate) struct Tree<'a> {
     file: &'a SourceFile,
     arena: &'a NodeArena,
     javascript: bool,
@@ -286,7 +297,7 @@ struct Tree<'a> {
 }
 
 impl<'a> Tree<'a> {
-    fn new(file: &'a SourceFile, bind_data: Option<&'a BindData>) -> Self {
+    pub(crate) fn new(file: &'a SourceFile, bind_data: Option<&'a BindData>) -> Self {
         let root_flags = NodeFlags::from_bits(file.arena.node(file.root).flags);
         Self {
             file,
@@ -296,7 +307,7 @@ impl<'a> Tree<'a> {
         }
     }
 
-    fn node(&self, id: NodeId) -> &'a Node {
+    pub(crate) fn node(&self, id: NodeId) -> &'a Node {
         self.arena.node(id)
     }
 
@@ -386,7 +397,7 @@ impl<'a> Tree<'a> {
 
     /// Whether tsgo attaches `node`'s JSDoc comments: it never attaches
     /// them to a type parameter.
-    fn js_doc(&self, node: &Node) -> Option<NodeArrayId> {
+    pub(crate) fn js_doc(&self, node: &Node) -> Option<NodeArrayId> {
         node.js_doc
             .filter(|_| node.kind != SyntaxKind::TypeParameter)
             .filter(|&js_doc| !self.arena.node_array(js_doc).nodes.is_empty())
@@ -468,8 +479,75 @@ impl<'a> Tree<'a> {
             .map_or(node.end.saturating_sub(2), |tag| self.node(tag).pos)
     }
 
+    /// tsgo `Node.JSDoc`: the JSDoc comments of the node `id`, each starting
+    /// at its host's position or at the end of the previous one.
+    pub(crate) fn js_doc_views(&self, id: NodeId, out: &mut Vec<View>) {
+        let node = self.node(id);
+        if let Some(js_doc) = self.js_doc(node) {
+            let mut pos = node.pos;
+            for &comment in self.arena.node_array(js_doc).nodes {
+                out.push(View::JSDoc(comment, pos));
+                pos = self.node(comment).end;
+            }
+        }
+    }
+
+    /// tsgo's kind number of `view` ([`SYNTAX_KIND_NODE_LIST`] for a
+    /// NodeList).
+    fn kind_number(&self, view: View) -> u32 {
+        self.kind(view).map_or(SYNTAX_KIND_NODE_LIST, |kind| {
+            tsgo_kind(kind).unwrap_or_else(|| panic!("{kind:?} has no TypeScript 7.1 kind"))
+        })
+    }
+
+    /// tsgo's kind of a node view; `None` for a NodeList.
+    pub(crate) fn kind(&self, view: View) -> Option<SyntaxKind> {
+        match view {
+            View::Node(id) => Some(encoded_syntax_kind(self.arena, self.node(id))),
+            View::HeritageTypeReference(_) => Some(SyntaxKind::TypeReference),
+            View::QualifiedName(_) => Some(SyntaxKind::QualifiedName),
+            View::ImplicitExport(_) => Some(SyntaxKind::ExportKeyword),
+            View::JSDoc(..) => Some(SyntaxKind::JSDoc),
+            View::CommentText(_) | View::TrailingCommentText(_) => Some(SyntaxKind::JSDocText),
+            View::List(..) | View::ImplicitModifiers(_) | View::Comment(_) => None,
+        }
+    }
+
+    /// The position and end tsgo's node or NodeList of `view` has (the ones
+    /// [`Encoder::record`] writes, in bytes).
+    pub(crate) fn range(&self, view: View) -> (u32, u32) {
+        match view {
+            View::Node(id) | View::HeritageTypeReference(id) | View::QualifiedName(id) => {
+                let node = self.node(id);
+                (node.pos, node.end)
+            }
+            View::ImplicitExport(pos) | View::ImplicitModifiers(pos) => (pos, pos),
+            View::JSDoc(id, pos) => (pos, self.node(id).end),
+            View::List(_, Elements::TemplateTypeParameters) => (0, 0),
+            View::List(list, _) => {
+                let array = self.arena.node_array(list);
+                (array.pos, array.end)
+            }
+            View::Comment(owner) => match self.comment(owner) {
+                Some(JSDocComment::Text { pos, end, .. }) => (*pos, *end),
+                Some(JSDocComment::Nodes(list)) => {
+                    let array = self.arena.node_array(*list);
+                    (array.pos, array.end)
+                }
+                None => (self.node(owner).pos, self.js_doc_comments_end(owner)),
+            },
+            View::CommentText(owner) => match self.comment(owner) {
+                Some(JSDocComment::Text { pos, text_end, .. }) => (*pos, *text_end),
+                _ => unreachable!("a text comment"),
+            },
+            View::TrailingCommentText(owner) => {
+                self.trailing_comment_text(owner).expect("a trailing text")
+            }
+        }
+    }
+
     /// The children of `view`, in tsgo's visitor order.
-    fn children(&self, view: View, out: &mut Vec<View>) {
+    pub(crate) fn children(&self, view: View, out: &mut Vec<View>) {
         match view {
             View::Node(id) => {
                 let node = self.node(id);
@@ -500,13 +578,7 @@ impl<'a> Tree<'a> {
                     }
                     _ => {}
                 });
-                if let Some(js_doc) = self.js_doc(node) {
-                    let mut pos = node.pos;
-                    for &comment in self.arena.node_array(js_doc).nodes {
-                        out.push(View::JSDoc(comment, pos));
-                        pos = self.node(comment).end;
-                    }
-                }
+                self.js_doc_views(id, out);
             }
             View::HeritageTypeReference(id) => {
                 let NodeData::ExpressionWithTypeArguments(element) = &self.node(id).data else {
@@ -653,7 +725,13 @@ fn walk(tree: &Tree<'_>, root: View, mut on: impl FnMut(WalkEvent)) {
 /// a BindingElement without children (tsc: an OmittedExpression) and a
 /// JSDoc link's `A#b` as a QualifiedName (tsc: a JSDocMemberName).
 fn encoded_kind(arena: &NodeArena, node: &Node) -> u32 {
-    let kind = if node.kind == SyntaxKind::OmittedExpression
+    let kind = encoded_syntax_kind(arena, node);
+    tsgo_kind(kind).unwrap_or_else(|| panic!("{kind:?} has no TypeScript 7.1 kind"))
+}
+
+/// [`encoded_kind`] before the kind's number.
+fn encoded_syntax_kind(arena: &NodeArena, node: &Node) -> SyntaxKind {
+    if node.kind == SyntaxKind::OmittedExpression
         && node
             .parent
             .is_some_and(|parent| arena.node(parent).kind == SyntaxKind::ArrayBindingPattern)
@@ -663,8 +741,7 @@ fn encoded_kind(arena: &NodeArena, node: &Node) -> u32 {
         SyntaxKind::QualifiedName
     } else {
         node.kind
-    };
-    tsgo_kind(kind).unwrap_or_else(|| panic!("{kind:?} has no TypeScript 7.1 kind"))
+    }
 }
 
 /// tsgo `getChildrenPropertyMask`: bit `i` is set when the `i`th child
@@ -902,15 +979,15 @@ impl Tree<'_> {
     }
 }
 
-/// tsgo `ast.PositionMap.UTF8ToUTF16`.
-struct PositionMap {
+/// tsgo `ast.PositionMap`: UTF-8 and UTF-16 offsets of a text.
+pub(crate) struct PositionMap {
     /// The UTF-8 offset after each non-ASCII character and the cumulative
     /// UTF-8 minus UTF-16 length there.
     entries: Vec<(u32, u32)>,
 }
 
 impl PositionMap {
-    fn new(text: &str) -> Self {
+    pub(crate) fn new(text: &str) -> Self {
         let mut entries = Vec::new();
         let mut delta = 0;
         for (offset, ch) in text.char_indices() {
@@ -922,6 +999,7 @@ impl PositionMap {
         Self { entries }
     }
 
+    /// tsgo `UTF8ToUTF16`.
     fn utf16(&self, offset: u32) -> u32 {
         let after = self
             .entries
@@ -929,6 +1007,18 @@ impl PositionMap {
         match after {
             0 => offset,
             _ => offset - self.entries[after - 1].1,
+        }
+    }
+
+    /// tsgo `UTF16ToUTF8`: an offset inside a character or past the end
+    /// maps by the delta before it.
+    pub(crate) fn utf8(&self, offset: u32) -> u32 {
+        let after = self
+            .entries
+            .partition_point(|&(position, delta)| position - delta <= offset);
+        match after {
+            0 => offset,
+            _ => offset + self.entries[after - 1].1,
         }
     }
 }
@@ -966,6 +1056,7 @@ fn encode_tree(
     // Index 0 is the nil node.
     encoder.nodes.resize(NODE_SIZE, 0);
     let mut table = vec![None];
+    let mut kinds = vec![0];
     let mut tracked: HashMap<NodeId, u32> = HashMap::new();
     if let Some(facts) = facts {
         for &id in facts.imports.iter().chain(facts.module_augmentations) {
@@ -984,6 +1075,7 @@ fn encode_tree(
             strip,
         } => {
             table.push(view.node());
+            kinds.push(tree.kind_number(view));
             if let View::Node(id) = view {
                 if let Some(slot) = tracked.get_mut(&id) {
                     *slot = table.len() as u32 - 1;
@@ -1076,6 +1168,7 @@ fn encode_tree(
         out,
         NodeIndexTable {
             nodes: table,
+            kinds,
             indices: OnceLock::new(),
         },
     )

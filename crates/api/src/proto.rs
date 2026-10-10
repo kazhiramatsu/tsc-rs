@@ -926,6 +926,44 @@ pub struct TranspileOutputResponse {
     pub source_map_text: String,
 }
 
+/// The parameters of tsgo's checker requests (`GetSymbolAtPositionParams`,
+/// `GetTypeOfSymbolParams`, `GetSymbolPropertyParams`,
+/// `TypeToTypeNodeParams`, …): each method reads the fields its tsgo
+/// parameters have.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckerParams {
+    #[serde(default, deserialize_with = "nullable")]
+    pub snapshot: SnapshotId,
+    #[serde(default, deserialize_with = "nullable")]
+    pub project: String,
+    #[serde(default)]
+    pub file: DocumentIdentifier,
+    #[serde(default, deserialize_with = "nullable")]
+    pub files: Vec<DocumentIdentifier>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub position: u32,
+    #[serde(default, deserialize_with = "nullable")]
+    pub positions: Vec<u32>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub location: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub locations: Vec<String>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub symbol: u64,
+    #[serde(default, deserialize_with = "nullable")]
+    pub symbols: Vec<u64>,
+    #[serde(default, rename = "type", deserialize_with = "nullable")]
+    pub type_id: u32,
+    /// A symbol, type or signature, by the property requests.
+    #[serde(default, deserialize_with = "nullable")]
+    pub object_id: u64,
+    #[serde(default, deserialize_with = "nullable")]
+    pub name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub flags: i32,
+}
+
 /// tsgo `GetSourceFileParams`.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct GetSourceFileParams {
