@@ -475,7 +475,7 @@ fn type_predicate_helper_covers_identifier_asserts_and_this_shapes() {
             let asserts_this = TypePredicate {
                 kind: TypePredicateKind::AssertsThis,
                 parameter_name: None,
-                parameter_index: -1,
+                parameter_index: 0,
                 ty: None,
             };
             let asserts_node = type_predicate_to_type_predicate_node_helper(

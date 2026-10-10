@@ -1546,6 +1546,15 @@ impl<'arena> NodeFactory<'arena> {
         updated: TransformNode,
         original: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        // tsgo `updateNode` (ast.go:101-103): the updated node takes its
+        // original's flags (tsc keeps Synthesized).
+        let flags = self.arena.node(original)?.flags;
+        self.arena
+            .source_mut(updated.source)?
+            .source
+            .arena
+            .node_mut(updated.node)
+            .flags = flags;
         self.arena.set_original_node(updated, Some(original))?;
         self.set_text_range(updated, original)
     }
@@ -3475,14 +3484,8 @@ impl<'arena> NodeFactory<'arena> {
         equals_greater_than_token: Option<TransformNode>,
         body: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let equals_greater_than_token = match equals_greater_than_token {
-            Some(token) => token,
-            None => self.create_token(
-                source,
-                SyntaxKind::EqualsGreaterThanToken,
-                TransformFlags::NONE,
-            )?,
-        };
+        // tsgo `NewArrowFunction` keeps a missing `=>` token missing (tsc
+        // creates one); the printer writes `=>` for it.
         let body = self.parenthesize_concise_body(body)?;
         let is_async = self
             .modifier_flags(modifiers)?
@@ -3491,7 +3494,7 @@ impl<'arena> NodeFactory<'arena> {
             | self.children_flags(type_parameters)?
             | self.children_flags(Some(parameters))?
             | self.child_flags(r#type)?
-            | self.child_flags(Some(equals_greater_than_token))?
+            | self.child_flags(equals_greater_than_token)?
             | (self.child_flags(Some(body))? & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
             | TransformFlags::CONTAINS_ES_2015;
         if type_parameters.is_some() || r#type.is_some() {
@@ -3509,7 +3512,8 @@ impl<'arena> NodeFactory<'arena> {
                 r#type: self.optional_node_id(source, r#type)?,
                 body: Some(self.node_id(source, body)?),
                 modifiers: self.optional_array_id(source, modifiers)?,
-                equals_greater_than_token: Some(self.node_id(source, equals_greater_than_token)?),
+                equals_greater_than_token: self
+                    .optional_node_id(source, equals_greater_than_token)?,
             }),
             flags,
         )
@@ -5136,7 +5140,9 @@ impl<'arena> NodeFactory<'arena> {
             )
         };
         let transform_flags = self.arena.transform_flags(original);
-        let flags = NodeFlags::from_bits(node_flags) | NodeFlags::SYNTHESIZED;
+        // tsgo `updateNode` (ast.go:101-103): a clone keeps its original's
+        // flags (tsc adds Synthesized).
+        let flags = NodeFlags::from_bits(node_flags);
         let syntax = &mut self.arena.source_mut(original.source)?.source;
         let id = match data {
             NodeData::Token => {
@@ -7788,7 +7794,8 @@ impl<'a> CrossSourceReuseClone<'a> {
             .js_doc
             .map(|array| self.clone_array(array))
             .transpose()?;
-        let flags = NodeFlags::from_bits(record.flags) | NodeFlags::SYNTHESIZED;
+        // tsgo's deep clone keeps each original's flags.
+        let flags = NodeFlags::from_bits(record.flags);
         let target_arena = &mut self.arena.source_mut(self.target)?.source.arena;
         let cloned = match data {
             NodeData::Token => {

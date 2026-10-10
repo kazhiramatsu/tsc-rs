@@ -3159,7 +3159,7 @@ impl<'a> CheckerState<'a> {
     /// boolean-returning function-likes take the LIVE body-inference
     /// arm (m6 7.6, getTypePredicateFromBody 79020-79074 — the
     /// double-write pre-seed is the re-entrancy shield).
-    pub(crate) fn get_type_predicate_of_signature(
+    pub fn get_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<Option<TypePredicate>> {
@@ -3446,7 +3446,8 @@ impl<'a> CheckerState<'a> {
                     TypePredicateKind::This
                 },
                 parameter_name: None,
-                parameter_index: -1,
+                // tsgo relater.go:2125 (tsc leaves it undefined).
+                parameter_index: 0,
                 ty,
             });
         }
@@ -3565,7 +3566,7 @@ impl<'a> CheckerState<'a> {
 /// tsc TypePredicateKind (This=0 | Identifier=1 | AssertsThis=2 |
 /// AssertsIdentifier=3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum TypePredicateKind {
+pub enum TypePredicateKind {
     This,
     Identifier,
     AssertsThis,
@@ -3577,13 +3578,14 @@ pub(crate) enum TypePredicateKind {
 /// tsc-span: _tsc.js:59531-59533
 ///
 /// The struct IS the factory (no behavior beyond field storage);
-/// parameter_index mirrors tsc's findIndex result, -1 included.
+/// parameter_index mirrors tsc's findIndex result, -1 included, and is 0
+/// for a `this` predicate, as in tsgo.
 #[derive(Clone, Debug)]
-pub(crate) struct TypePredicate {
-    pub(crate) kind: TypePredicateKind,
-    pub(crate) parameter_name: Option<String>,
-    pub(crate) parameter_index: i64,
-    pub(crate) ty: Option<TypeId>,
+pub struct TypePredicate {
+    pub kind: TypePredicateKind,
+    pub parameter_name: Option<String>,
+    pub parameter_index: i64,
+    pub ty: Option<TypeId>,
 }
 
 /// tsc-port: typeofNEFacts @6.0.3

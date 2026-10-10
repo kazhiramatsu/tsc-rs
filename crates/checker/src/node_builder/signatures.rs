@@ -10,8 +10,8 @@ use tsc_emitter::{
 use tsc_syntax::nodes::{
     ArrowFunctionData, BlockData, CallSignatureData, ConstructSignatureData, ConstructorData,
     ConstructorTypeData, FunctionDeclarationData, FunctionExpressionData, FunctionTypeData,
-    GetAccessorData, IndexSignatureData, JSDocFunctionTypeData, MethodDeclarationData,
-    MethodSignatureData, ParameterData, SetAccessorData, TypeParameterData, TypePredicateData,
+    GetAccessorData, IndexSignatureData, MethodDeclarationData, MethodSignatureData, ParameterData,
+    SetAccessorData, TypeParameterData, TypePredicateData,
 };
 use tsc_syntax::{
     try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
@@ -636,16 +636,6 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     modifiers,
                 }),
             )?,
-            SyntaxKind::JSDocFunctionType => create_node(
-                arena,
-                target,
-                NodeData::JSDocFunctionType(JSDocFunctionTypeData {
-                    name: None,
-                    type_parameters: None,
-                    parameters,
-                    r#type: return_id,
-                }),
-            )?,
             SyntaxKind::FunctionType => {
                 let type_node = match return_id {
                     Some(node) => Some(node),
@@ -748,16 +738,8 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     }),
                 )?
             }
-            _ => {
-                return Err(EmitResolverError::CheckerAborted {
-                    method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
-                    node: tsc_emitter::EmitResolverNode::from_raw_source(
-                        0,
-                        context.enclosing_declaration.unwrap_or(NodeId::new(0)),
-                    ),
-                    reason: "unsupported signature declaration kind",
-                });
-            }
+            // tsgo writes no JSDoc function type (nodebuilderimpl.go:1950-1952).
+            _ => panic!("Unhandled kind in signatureToSignatureDeclarationHelper"),
         };
         // `node.typeArguments` is a dynamic, printer-internal property upstream;
         // the generated Rust NodeData schema has no corresponding field. The

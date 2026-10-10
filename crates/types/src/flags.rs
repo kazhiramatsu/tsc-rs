@@ -2242,29 +2242,23 @@ impl std::ops::BitOrAssign for ScriptTarget {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct SignatureFlags(i32);
 
+/// tsgo's SignatureFlags (checker/types.go), which adds `Construct` to
+/// tsc's.
 impl SignatureFlags {
-    /// tsc SignatureFlags.None
     pub const NONE: Self = Self(0);
-    /// tsc SignatureFlags.HasRestParameter
     pub const HAS_REST_PARAMETER: Self = Self(1);
-    /// tsc SignatureFlags.HasLiteralTypes
     pub const HAS_LITERAL_TYPES: Self = Self(2);
-    /// tsc SignatureFlags.Abstract
-    pub const ABSTRACT: Self = Self(4);
-    /// tsc SignatureFlags.IsInnerCallChain
-    pub const IS_INNER_CALL_CHAIN: Self = Self(8);
-    /// tsc SignatureFlags.IsOuterCallChain
-    pub const IS_OUTER_CALL_CHAIN: Self = Self(16);
-    /// tsc SignatureFlags.IsUntypedSignatureInJSFile
-    pub const IS_UNTYPED_SIGNATURE_IN_JS_FILE: Self = Self(32);
-    /// tsc SignatureFlags.IsNonInferrable
-    pub const IS_NON_INFERRABLE: Self = Self(64);
-    /// tsc SignatureFlags.IsSignatureCandidateForOverloadFailure
-    pub const IS_SIGNATURE_CANDIDATE_FOR_OVERLOAD_FAILURE: Self = Self(128);
-    /// tsc SignatureFlags.PropagatingFlags
-    pub const PROPAGATING_FLAGS: Self = Self(167);
-    /// tsc SignatureFlags.CallChainFlags
-    pub const CALL_CHAIN_FLAGS: Self = Self(24);
+    /// A construct signature (a constructor, a construct signature or a
+    /// constructor type, and what is derived from them).
+    pub const CONSTRUCT: Self = Self(4);
+    pub const ABSTRACT: Self = Self(8);
+    pub const IS_INNER_CALL_CHAIN: Self = Self(16);
+    pub const IS_OUTER_CALL_CHAIN: Self = Self(32);
+    pub const IS_UNTYPED_SIGNATURE_IN_JS_FILE: Self = Self(64);
+    pub const IS_NON_INFERRABLE: Self = Self(128);
+    pub const IS_SIGNATURE_CANDIDATE_FOR_OVERLOAD_FAILURE: Self = Self(256);
+    pub const PROPAGATING_FLAGS: Self = Self(1 | 2 | 4 | 8 | 64 | 256);
+    pub const CALL_CHAIN_FLAGS: Self = Self(16 | 32);
 
     pub const fn from_bits(bits: i32) -> Self {
         Self(bits)

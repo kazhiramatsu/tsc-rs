@@ -1390,9 +1390,12 @@ impl<'a> CheckerState<'a> {
         operation: impl FnOnce(&mut tsc_emitter::TransformationResult<'static>) -> R,
     ) -> R {
         let mut display = self.take_emit_display();
-        let result = operation(&mut display);
+        // A panic (one the API answers as its request's error) leaves the
+        // display arena to the next use.
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(&mut display)));
         self.restore_emit_display(display);
-        result
+        result.unwrap_or_else(|panic| std::panic::resume_unwind(panic))
     }
 
     /// The display result wrapped around the retained arena, detached from

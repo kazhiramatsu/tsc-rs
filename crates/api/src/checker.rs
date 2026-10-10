@@ -19,15 +19,20 @@ use std::sync::{Arc, Mutex, PoisonError};
 use serde::Serialize;
 use serde_json::value::RawValue;
 use tsc_checker::exports::{ConstantValue, IntrinsicType, TYPE_FORMAT_DEFAULT};
-use tsc_checker::state::{CheckAbort, CheckerState, IndexInfo};
+use tsc_checker::narrow::TypePredicateKind;
+use tsc_checker::state::{CheckAbort, CheckerState, IndexInfo, SignatureId, SignatureKind};
 use tsc_project::ProjectProgram;
-use tsc_syntax::{NodeId, SourceFile};
+use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
 use tsc_types::{
-    CheckFlags, ContextFlags, LiteralValue, ObjectFlags, SymbolId, TypeData, TypeFlags, TypeId,
+    CheckFlags, CheckMode, ContextFlags, LiteralValue, ObjectFlags, SymbolFlags, SymbolId,
+    TypeData, TypeFlags, TypeId,
 };
 
 use crate::astnav::{Found, Navigator};
-use crate::encoder::{build_node_index_table, tsgo_kind, NodeIndexTable, PositionMap};
+use crate::encoder::{
+    build_node_index_table, encode_node, syntax_kind_of_tsgo_kind, tsgo_kind, NodeIndexTable,
+    PositionMap,
+};
 use crate::ipc::Payload;
 use crate::proto::{CheckerParams, DocumentIdentifier, SnapshotId};
 use crate::session::{client_error, go_parse_uint32, json, Session};
@@ -63,6 +68,7 @@ pub(crate) struct Registry {
 #[derive(Default)]
 struct ProjectRegistry {
     types: HashSet<u32>,
+    signatures: HashSet<u32>,
 }
 
 /// tsgo `SymbolResponse`.
@@ -156,6 +162,50 @@ struct ConstantValueResponse {
     value: Option<Box<RawValue>>,
 }
 
+/// tsgo `SignatureResponse`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SignatureResponse {
+    id: u32,
+    flags: u32,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    declaration: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    type_parameters: Vec<u32>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    parameters: Vec<u64>,
+    #[serde(skip_serializing_if = "is_zero")]
+    this_parameter: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    target: u32,
+}
+
+/// tsgo `TypePredicateResponse`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TypePredicateResponse {
+    kind: i32,
+    parameter_index: i32,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    parameter_name: String,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    ty: Option<TypeResponse>,
+}
+
+/// tsgo `WellKnownSymbolsResponse`.
+#[derive(Debug, Serialize)]
+struct WellKnownSymbolsResponse {
+    unknown: u64,
+    undefined: u64,
+    arguments: u64,
+}
+
+/// tsgo `WellKnownSignaturesResponse`.
+#[derive(Debug, Serialize)]
+struct WellKnownSignaturesResponse {
+    unknown: u32,
+}
+
 /// tsgo `IndexInfoResponse`.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -186,6 +236,16 @@ fn object_type_handle(params: &CheckerParams) -> Result<u32, String> {
     u32::try_from(params.object_id).map_err(|_| {
         client_error(format!(
             "type handle {} not found in project registry",
+            params.object_id
+        ))
+    })
+}
+
+/// The signature handle of a signature property request (`objectId`).
+fn object_signature_handle(params: &CheckerParams) -> Result<u32, String> {
+    u32::try_from(params.object_id).map_err(|_| {
+        client_error(format!(
+            "signature handle {} not found in project registry",
             params.object_id
         ))
     })
@@ -270,7 +330,8 @@ impl Session {
             "getTypeFromTypeNode" => "GetTypeFromTypeNodeParams",
             "getContextualType" | "isContextSensitive" => "GetContextualTypeParams",
             "getContextualTypeForArgument" => "GetContextualTypeForArgumentParams",
-            "typeToString" => "TypeToTypeNodeParams",
+            "typeToString" | "typeToTypeNode" => "TypeToTypeNodeParams",
+            "signatureToSignatureDeclaration" => "SignatureToSignatureDeclarationParams",
             "getAnyType"
             | "getStringType"
             | "getNumberType"
@@ -292,6 +353,19 @@ impl Session {
             | "isReadonlySymbol" => "CheckerSymbolParams",
             "getExportSpecifierLocalTargetSymbol" | "getConstantValue" => "CheckerNodeParams",
             "getMemberInModuleExports" => "GetMemberInModuleExportsParams",
+            "getSignaturesOfType" => "GetSignaturesOfTypeParams",
+            "getResolvedSignature" => "GetResolvedSignatureParams",
+            "getSignatureFromDeclaration" => "CheckerNodeParams",
+            "getTypeParametersOfSignature"
+            | "getParametersOfSignature"
+            | "getThisParameterOfSignature"
+            | "getTargetOfSignature"
+            | "getReturnTypeOfSignature" => "GetSignaturePropertyParams",
+            "getRestTypeOfSignature" | "getTypePredicateOfSignature" => "CheckerSignatureParams",
+            "getParameterType" | "getTypeParameterAtPosition" => "GetParameterTypeParams",
+            "resolveName" => "ResolveNameParams",
+            "getSymbolsInScope" => "GetSymbolsInScopeParams",
+            "getWellKnownSymbols" | "getWellKnownSignatures" => "GetIntrinsicTypeParams",
             _ => return None,
         };
         let params = match crate::session::parse::<CheckerParams>(type_name, params) {
@@ -334,9 +408,10 @@ impl Session {
             | "getSymbolsAtPositions"
             | "getTypeAtPosition"
             | "getTypesAtPositions"
-            | "getSymbolOfSourceFile" => {
-                Some(self.required_program_source(&setup.program, &params.file)?)
-            }
+            | "getSymbolOfSourceFile" => Some(self.required_program_source(
+                &setup.program,
+                &params.file.clone().unwrap_or_default(),
+            )?),
             _ => None,
         };
         let files = match method {
@@ -347,10 +422,20 @@ impl Session {
                 .collect::<Result<Vec<_>, _>>()?,
             _ => Vec::new(),
         };
+        // tsgo `resolveLocation`: a location given by a file and a position
+        // instead of a node handle.
+        let location_file = match (method, &params.file, params.position) {
+            ("resolveName" | "getSymbolsInScope", Some(file), Some(_))
+                if params.location.is_empty() =>
+            {
+                Some(self.required_program_source(&setup.program, file)?)
+            }
+            _ => None,
+        };
         setup.query(self, |query| match method {
             "getSymbolAtPosition" => {
                 let file = query.file_index(file.as_ref().unwrap())?;
-                let found = query.touching_property_name(file, params.position);
+                let found = query.touching_property_name(file, params.position.unwrap_or(0));
                 let symbol = query.symbol_at(found)?;
                 Ok(json(&symbol.map(|symbol| query.symbol_response(symbol))))
             }
@@ -430,7 +515,7 @@ impl Session {
             }
             "getTypeAtPosition" => {
                 let file = query.file_index(file.as_ref().unwrap())?;
-                let found = query.touching_property_name(file, params.position);
+                let found = query.touching_property_name(file, params.position.unwrap_or(0));
                 let ty = query.type_at(found)?;
                 Ok(json(&query.type_response(ty)?))
             }
@@ -467,6 +552,39 @@ impl Session {
                     .state
                     .type_to_string_with_flags(ty, enclosing, flags)?;
                 Ok(json(&text))
+            }
+            "typeToTypeNode" | "signatureToSignatureDeclaration" => {
+                let enclosing = match params.location.as_str() {
+                    "" => None,
+                    location => Some(query.resolve_node(location)?),
+                };
+                let flags = params.flags as u32;
+                let node = if method == "typeToTypeNode" {
+                    let ty = query.resolve_type(params.type_id)?;
+                    query
+                        .state
+                        .type_to_type_node_with_flags(ty, enclosing, flags)?
+                } else {
+                    let signature = query.resolve_signature(params.signature)?;
+                    // A kind tsc-rs does not have is one tsgo does not handle.
+                    let kind = u32::try_from(params.kind)
+                        .ok()
+                        .and_then(syntax_kind_of_tsgo_kind)
+                        .unwrap_or(SyntaxKind::Unknown);
+                    query.state.signature_to_signature_declaration_with_flags(
+                        signature, kind, enclosing, flags,
+                    )?
+                };
+                let Some(node) = node else {
+                    return Ok(json(&()));
+                };
+                let data = query.state.with_display_node(node, |display| {
+                    encode_node(display.syntax, display.node, &|node| {
+                        display.single_quote(node)
+                    })
+                    .0
+                });
+                Ok(query.session.source_file_payload(data))
             }
             "getAnyType"
             | "getStringType"
@@ -779,6 +897,190 @@ impl Session {
                 let node = query.resolve_node(&params.location)?;
                 Ok(json(&query.state.is_context_sensitive(node)))
             }
+            "getSignaturesOfType" => {
+                let ty = query.resolve_type(params.type_id)?;
+                let kind = if params.kind == 0 {
+                    SignatureKind::Call
+                } else {
+                    SignatureKind::Construct
+                };
+                let signatures = query
+                    .state
+                    .get_signatures_of_type(ty, kind)
+                    .map_err(aborted)?;
+                let results = signatures
+                    .into_iter()
+                    .map(|signature| query.signature_response(signature))
+                    .collect::<Vec<_>>();
+                Ok(json(&results))
+            }
+            "getResolvedSignature" | "getSignatureFromDeclaration" => {
+                let node = query.resolve_node(&params.location)?;
+                let signature = if method == "getResolvedSignature" {
+                    query.state.get_resolved_signature(node, CheckMode::NORMAL)
+                } else {
+                    query.state.get_signature_from_declaration_checked(node)
+                }
+                .map_err(aborted)?;
+                Ok(json(&query.signature_response(signature)))
+            }
+            "getTypeParametersOfSignature"
+            | "getParametersOfSignature"
+            | "getThisParameterOfSignature"
+            | "getTargetOfSignature"
+            | "getReturnTypeOfSignature" => {
+                let signature = query.resolve_signature(object_signature_handle(params)?)?;
+                let data = query.state.signature_of(signature);
+                let type_parameters = data.type_parameters.clone().unwrap_or_default();
+                let parameters = data.parameters.clone();
+                let this_parameter = data.this_parameter;
+                let target = data.target;
+                match method {
+                    "getTypeParametersOfSignature" => {
+                        let results = type_parameters
+                            .into_iter()
+                            .map(|ty| query.type_response(ty))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Ok(json(&results))
+                    }
+                    "getParametersOfSignature" => {
+                        let results = parameters
+                            .into_iter()
+                            .map(|symbol| query.symbol_response(symbol))
+                            .collect::<Vec<_>>();
+                        Ok(json(&results))
+                    }
+                    "getThisParameterOfSignature" => Ok(json(
+                        &this_parameter.map(|symbol| query.symbol_response(symbol)),
+                    )),
+                    "getTargetOfSignature" => Ok(json(
+                        &target.map(|signature| query.signature_response(signature)),
+                    )),
+                    _ => {
+                        let ty = query
+                            .state
+                            .get_return_type_of_signature(signature)
+                            .map_err(aborted)?;
+                        Ok(json(&query.type_response(ty)?))
+                    }
+                }
+            }
+            "getRestTypeOfSignature" => {
+                let signature = query.resolve_signature(params.signature)?;
+                let ty = query
+                    .state
+                    .get_rest_type_of_signature(signature)
+                    .map_err(aborted)?;
+                Ok(json(&query.type_response(ty)?))
+            }
+            "getTypePredicateOfSignature" => {
+                let signature = query.resolve_signature(params.signature)?;
+                let predicate = query
+                    .state
+                    .get_type_predicate_of_signature(signature)
+                    .map_err(aborted)?;
+                let Some(predicate) = predicate else {
+                    return Ok(json(&()));
+                };
+                let ty = predicate.ty.map(|ty| query.type_response(ty)).transpose()?;
+                Ok(json(&TypePredicateResponse {
+                    kind: match predicate.kind {
+                        TypePredicateKind::This => 0,
+                        TypePredicateKind::Identifier => 1,
+                        TypePredicateKind::AssertsThis => 2,
+                        TypePredicateKind::AssertsIdentifier => 3,
+                    },
+                    parameter_index: predicate.parameter_index as i32,
+                    parameter_name: predicate.parameter_name.unwrap_or_default(),
+                    ty,
+                }))
+            }
+            "getParameterType" | "getTypeParameterAtPosition" => {
+                let signature = query.resolve_signature(params.signature)?;
+                let index = usize::try_from(params.index)
+                    .map_err(|_| client_error("invalid parameter index"))?;
+                let ty = if method == "getParameterType" {
+                    query.state.get_type_at_position(signature, index)
+                } else {
+                    query.state.get_type_parameter_at_position(signature, index)
+                }
+                .map_err(aborted)?;
+                Ok(json(&query.type_response(ty)?))
+            }
+            "resolveName" | "getSymbolsInScope" => {
+                // A token the tree does not keep is the token tsgo's source
+                // file creates, under the node it was read in.
+                let mut from_token = false;
+                let location = if !params.location.is_empty() {
+                    Some(query.resolve_node(&params.location)?)
+                } else if let Some(file) = &location_file {
+                    let file = query.file_index(file)?;
+                    let position = params.position.unwrap_or(0);
+                    match query.touching_property_name(file, position) {
+                        Found::Node(view) => view.node(),
+                        Found::Token(token) => {
+                            from_token = true;
+                            token.parent.node()
+                        }
+                    }
+                } else {
+                    None
+                };
+                // tsgo's symbol flags are tsc-rs's first 28.
+                let meaning = SymbolFlags::from_bits((params.meaning & ((1 << 28) - 1)) as i32);
+                if method == "resolveName" {
+                    let name = tsc_binder::escape_leading_underscores(params.name.as_str());
+                    let symbol = match location {
+                        Some(parent) if from_token => query.state.resolve_name_from_token(
+                            parent,
+                            name,
+                            meaning,
+                            params.exclude_globals,
+                        ),
+                        _ => query.state.resolve_name(
+                            location,
+                            name,
+                            meaning,
+                            None,
+                            true,
+                            params.exclude_globals,
+                        ),
+                    }
+                    .map_err(aborted)?;
+                    return Ok(json(&symbol.map(|symbol| query.symbol_response(symbol))));
+                }
+                let Some(location) = location else {
+                    return Err(client_error("getSymbolsInScope requires a location"));
+                };
+                let symbols = query
+                    .state
+                    .get_symbols_in_scope(location, meaning)
+                    .map_err(aborted)?;
+                let results = symbols
+                    .into_iter()
+                    .map(|symbol| query.symbol_response(symbol))
+                    .collect::<Vec<_>>();
+                Ok(json(&results))
+            }
+            "getWellKnownSymbols" => {
+                let [unknown, undefined, arguments] = [
+                    query.state.unknown_symbol,
+                    query.state.undefined_symbol,
+                    query.state.arguments_symbol,
+                ]
+                .map(|symbol| query.register_symbol(symbol).0);
+                Ok(json(&WellKnownSymbolsResponse {
+                    unknown,
+                    undefined,
+                    arguments,
+                }))
+            }
+            "getWellKnownSignatures" => {
+                let unknown = query.state.unknown_signature;
+                Ok(json(&WellKnownSignaturesResponse {
+                    unknown: query.register_signature(unknown),
+                }))
+            }
             _ => unreachable!("a checker method"),
         })
     }
@@ -1021,6 +1323,73 @@ impl Query<'_, '_> {
             )));
         }
         Ok(TypeId::new(handle - 1))
+    }
+
+    /// tsgo `SignatureHandle`: the checker's number of the signature.
+    fn signature_handle(signature: SignatureId) -> u32 {
+        signature.index() + 1
+    }
+
+    /// tsgo `registerSignature`.
+    fn register_signature(&mut self, signature: SignatureId) -> u32 {
+        let handle = Self::signature_handle(signature);
+        self.registry
+            .projects
+            .entry(self.project.to_owned())
+            .or_default()
+            .signatures
+            .insert(handle);
+        handle
+    }
+
+    /// tsgo `resolveSignatureHandle`.
+    fn resolve_signature(&self, handle: u32) -> Result<SignatureId, String> {
+        if handle == 0 {
+            return Err(client_error("empty signature handle"));
+        }
+        if self.project.is_empty() {
+            return Err(client_error(format!(
+                "empty project ID for signature handle {handle}"
+            )));
+        }
+        let Some(registry) = self.registry.projects.get(self.project) else {
+            return Err(client_error(format!(
+                "signature handle {handle} not found (no registry for project {})",
+                self.project
+            )));
+        };
+        if !registry.signatures.contains(&handle) {
+            return Err(client_error(format!(
+                "signature handle {handle} not found in project registry"
+            )));
+        }
+        Ok(SignatureId::new(handle - 1))
+    }
+
+    /// tsgo `newSignatureResponse`: tsc-rs's signature flags are tsgo's.
+    fn signature_response(&mut self, signature: SignatureId) -> SignatureResponse {
+        let id = self.register_signature(signature);
+        let data = self.state.signature_of(signature);
+        let flags = data.flags.bits() as u32;
+        let declaration = data.declaration;
+        let type_parameters = data.type_parameters.clone().unwrap_or_default();
+        let parameters = data.parameters.clone();
+        let this_parameter = data.this_parameter;
+        let target = data.target;
+        SignatureResponse {
+            id,
+            flags,
+            declaration: declaration
+                .map(|declaration| self.node_handle(declaration))
+                .unwrap_or_default(),
+            type_parameters: type_parameters.into_iter().map(Self::type_handle).collect(),
+            parameters: parameters
+                .into_iter()
+                .map(|symbol| self.symbol_id(symbol))
+                .collect(),
+            this_parameter: this_parameter.map_or(0, |symbol| self.symbol_id(symbol)),
+            target: target.map_or(0, Self::signature_handle),
+        }
     }
 
     /// tsgo `snapshotData.newTypeResponse`: [`new_type_response`] with the

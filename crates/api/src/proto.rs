@@ -937,12 +937,13 @@ pub struct CheckerParams {
     pub snapshot: SnapshotId,
     #[serde(default, deserialize_with = "nullable")]
     pub project: String,
+    /// Absent for a request that takes a location instead (`resolveName`).
     #[serde(default)]
-    pub file: DocumentIdentifier,
+    pub file: Option<DocumentIdentifier>,
     #[serde(default, deserialize_with = "nullable")]
     pub files: Vec<DocumentIdentifier>,
-    #[serde(default, deserialize_with = "nullable")]
-    pub position: u32,
+    #[serde(default)]
+    pub position: Option<u32>,
     #[serde(default, deserialize_with = "nullable")]
     pub positions: Vec<u32>,
     #[serde(default, deserialize_with = "nullable")]
@@ -973,6 +974,13 @@ pub struct CheckerParams {
     pub source: u32,
     #[serde(default, deserialize_with = "nullable")]
     pub target: u32,
+    #[serde(default, deserialize_with = "nullable")]
+    pub signature: u32,
+    /// The symbol flags a name lookup asks for.
+    #[serde(default, deserialize_with = "nullable")]
+    pub meaning: u32,
+    #[serde(default, deserialize_with = "nullable")]
+    pub exclude_globals: bool,
 }
 
 /// tsgo `GetSourceFileParams`.

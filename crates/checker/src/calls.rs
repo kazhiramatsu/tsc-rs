@@ -4947,7 +4947,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryGetRestTypeOfSignature @6.0.3
     /// tsc-hash: 0be56e511e900fd0aa622d918e53b2c5e132254bf3b61e8ad25be72950ff7728
     /// tsc-span: _tsc.js:59878-59885
-    fn try_get_rest_type_of_signature(
+    pub(crate) fn try_get_rest_type_of_signature(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<Option<TypeId>> {
@@ -5613,6 +5613,10 @@ impl<'a> CheckerState<'a> {
                     );
                 }
             }
+            return self.resolve_untyped_call(node);
+        }
+        // tsgo checker.go:8666-8668: an import call is untyped.
+        if self.is_import_call(node) {
             return self.resolve_untyped_call(node);
         }
         let mut func_type = self.check_expression(expression, CheckMode::NORMAL)?;
@@ -6680,7 +6684,7 @@ impl<'a> CheckerState<'a> {
     ///   frame keeps a COMPLETED failure stash (Resolving-gated
     ///   revert) — tsc memoizes the failure-face signature and the
     ///   gate's containment only suppressed the report.
-    pub(crate) fn get_resolved_signature(
+    pub fn get_resolved_signature(
         &mut self,
         node: NodeId,
         check_mode: CheckMode,

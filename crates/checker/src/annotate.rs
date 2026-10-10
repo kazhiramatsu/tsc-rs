@@ -6286,10 +6286,11 @@ impl<'a> CheckerState<'a> {
         if base_signatures.is_empty() {
             let signature = Signature {
                 declaration: None,
+                // tsgo checker.go:21200.
                 flags: if is_abstract {
-                    tsc_types::SignatureFlags::ABSTRACT
+                    tsc_types::SignatureFlags::CONSTRUCT | tsc_types::SignatureFlags::ABSTRACT
                 } else {
-                    tsc_types::SignatureFlags::from_bits(0)
+                    tsc_types::SignatureFlags::CONSTRUCT
                 },
                 type_parameters: local_type_parameters,
                 parameters: Vec::new(),
@@ -9896,6 +9897,8 @@ impl<'a> CheckerState<'a> {
             NodeData::MethodDeclaration(data) => (data.type_parameters, data.parameters, None),
             NodeData::GetAccessor(data) => (data.type_parameters, data.parameters, None),
             NodeData::SetAccessor(data) => (data.type_parameters, data.parameters, None),
+            // tsgo answers the API's question for an index signature too.
+            NodeData::IndexSignature(data) => (data.type_parameters, data.parameters, None),
             _ => {
                 // getSignatureFromDeclaration is called with a
                 // SignatureDeclaration in tsc.  Recovery callers that have
@@ -10184,6 +10187,13 @@ impl<'a> CheckerState<'a> {
                 });
         if last_is_rest {
             flags |= SignatureFlags::HAS_REST_PARAMETER;
+        }
+        // tsgo checker.go:20239-20241.
+        if matches!(
+            self.kind_of(declaration),
+            SyntaxKind::ConstructorType | SyntaxKind::Constructor | SyntaxKind::ConstructSignature
+        ) {
+            flags |= SignatureFlags::CONSTRUCT;
         }
         // 59634-59636: `abstract new (...)` constructor types carry
         // their own modifier; constructor declarations borrow the
