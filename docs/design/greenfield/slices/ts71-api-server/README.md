@@ -1494,3 +1494,68 @@ snapshot、option、module provider を借りる）。
   `conformance (TypeScript 7.1)` 13m10s、`gates` 13s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。
   merge → `551427e87`（merge commit、PR #735）。
 - 次は P5-5（`printNode` と decoder）。
+
+## P5-5 `printNode` と decoder の計画（2026-10-11）
+
+### tsgo の構成（`19dadef8`）
+
+- `printNode`（session.go:3530-3563）：params の `data`（base64）を `encoder.DecodeNodes` で `*ast.Node` の木にし、root が
+  SourceFile のときだけそれを現在の source file として、`printer.NewPrinter(PrinterOptions{PreserveSourceNewlines,
+  NeverAsciiEscape, TerminateUnterminatedLiterals}, PrintHandlers{}, nil).Emit(node, sourceFile)` で印字する。base64 と
+  decode の失敗は client error（`invalid base64 data: …`、`failed to decode AST: …`）。
+- decoder（encoder/decoder.go 393 行、decoder_generated.go 1,141 行）：header（protocol の version、4 つの領域の offset の
+  範囲と順）を読み、node を後ろから（子を先に）作る。kind は tsgo の番号、位置はそのまま、NodeFlags を写し、Parent は
+  付けない。NodeList は位置付きで、ModifierList は NodeList から作る。data は 3 種：子（mask の bit の順）、文字列
+  （Identifier・PrivateIdentifier・JsxText・JSDocText・JSDocLink 系）、拡張（literal の text と TokenFlags、template の
+  text・raw text・TokenFlags、SourceFile の text・file name・path・language variant・script kind と header の parse
+  option）。common data の 6 bit は node ごとの小さな値（operator、multiLine など）。
+- 送られてくる bytes は client の encoder（`packages/typescript/src/api/node/encoder.ts`）が作る：負の位置は 0 にし、
+  文字列は file の text から切らずに足し、NodeList の flags の欄に trailing comma を書き（Go の decoder は読まない）、
+  JSDoc の子は送らない。
+- printer：親の無い node には source の text を使わない（`canUseOriginalText` と `getTextOfNode` は `node.Parent != nil`
+  を要る）。decode した node は親を持たないので、identifier と literal は node の値から書き、node 全体を source から写す
+  ことも無い。comment は位置と現在の source file の text から出す（SourceFile を印字するときだけ。root が SourceFile で
+  なければ source file は無く、comment も出ない）。`TerminateUnterminatedLiterals` は閉じていない literal に終端を足し、
+  `NeverAsciiEscape` は非 ASCII を escape しない。`PreserveSourceNewlines` は list の要素の間や区切りの改行と block の
+  1 行の判断を source の位置から決める（printer.go の 16 箇所）。
+
+### port の状態
+
+- encoder（P4-7d）：`crates/api/src/encoder/`（`mod.rs`、`string_table.rs`、`generated.rs`）。`generated.rs` は
+  `scripts/generate_api_encoder.py` が tsgo の `kind_generated.go`・`encoder_generated.go` と port の `kind.rs`・`nodes.rs`
+  から作る（kind の表、data の種類、node ごとの子の property の並び）。port の SyntaxKind と NodeFlags は tsc 6.0.3 の
+  番号で（kind は 191 個違う）、encoder が tsgo の番号に写す。tsgo と port の木の形の違い（heritage の型、JSDoc の名前、
+  暗黙の export、template の型 parameter など）は encoder の View が埋める。decoder にはその逆が要る。
+- node の作成：`NodeArena` の `alloc_node`・`alloc_token`・`alloc_array` は位置と flag を保って作れる。SourceFile を作る
+  公開の関数は無い（parser だけ）。literal の SingleQuote は emitter の side table（`LiteralNodeProperties`）にだけあり、
+  文字列と template の Unterminated と UnicodeEscape は node に持てない。
+- printer（`crates/emitter/src/printer.rs`）：standalone の node（`PrintRequest::StandaloneNode`）と source file
+  （`SourceFileTextMode::Canonical` で AST を辿る）を印字できる。`neverAsciiEscape` はあるが、`preserveSourceNewlines` と
+  `terminateUnterminatedLiterals` は無い。変わっていない node（SYNTHESIZED でなく、original も plan も無い）は source の
+  text の写しで書く（identifier、文字列 literal、kind ごとの分岐の無い node 全般）。型の構文の印字には
+  `with_declaration_syntax` が要る。
+- session：`printNode` と `formatNodeForInsertion` は未実装の error を返す。`PrintNodeParams` は無い。
+
+### slice
+
+- **P5-5a decoder と `printNode`**：
+  - decoder（`crates/api/src/decoder.rs`。表は `generate_api_encoder.py` で生成する）：header と領域の検査、tsgo → port の
+    kind と NodeFlags の表、子の property の逆写し、common data と拡張 data の読み、View の逆（tsgo の形 → port の形）、
+    tsgo の error の文。tsgo だけの kind（`JSTypeAliasDeclaration`、`JSImportDeclaration`、`ImmediateKeyword`）の扱いは
+    この slice で決める（port の encoder はこれらを作らない）。
+  - `tsc_syntax`：decode した arena と text から SourceFile を作る関数。
+  - printer（tsgo に合わせる）：親の無い node には source の text を使わない（identifier、literal、node 全体の写し）。
+    足りない kind の印字の分岐。`terminateUnterminatedLiterals`。literal の flag（SingleQuote・Unterminated など）を
+    decode した node から読む。
+  - session：`PrintNodeParams` と handler（root が SourceFile ならその source file として、そうでなければ standalone）。
+- **P5-5b `preserveSourceNewlines`**：printer の option と tsgo が見る箇所。
+- `formatNodeForInsertion` は LS（format）なので LSP の作業に回す（それまでは未実装の error のまま）。
+
+### test
+
+- Go の `decoder_test.go` の 22 件（benchmark を除く）を Rust の test に移す（port の encoder で encode → decode → 確かめる）。
+- client の test：`printNode` を使う 15 件と `Parse-clone-emit roundtrip`（client の copy に repo の `tsc/testdata/fixtures`
+  を置いて走らせる。置かないと対象が 0 件で通る）。
+- tsgo との比較（local）：conformance の test の file を tsgo の encoder で encode した bytes を両方の `--api` の
+  `printNode` に送り、text を比べる（SourceFile と、各 statement の部分木）。option の組（`neverAsciiEscape`、
+  `terminateUnterminatedLiterals`、P5-5b では `preserveSourceNewlines`）も。
