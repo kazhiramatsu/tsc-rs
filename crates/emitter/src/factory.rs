@@ -8008,6 +8008,37 @@ pub(crate) fn tsgo_expression_precedence(
     })
 }
 
+/// tsgo `getBinaryExpressionPrecedence` (printer.go:2806-2868): the
+/// precedence each operand of `binary` needs, for an operand that is not a
+/// binary expression itself (tsgo's associative and same-literal `+`
+/// exceptions are about such right operands).
+pub(crate) fn tsgo_binary_operand_precedences(
+    arena: &TransformArena,
+    binary: TransformNode,
+) -> Result<(i8, i8), TransformError> {
+    const LOGICAL_OR: i8 = 5;
+    const LOGICAL_AND: i8 = 6;
+    const BITWISE_OR: i8 = 7;
+    const EQUALITY: i8 = 10;
+    const SHIFT: i8 = 12;
+    const ADDITIVE: i8 = 13;
+    const MULTIPLICATIVE: i8 = 14;
+    const EXPONENTIATION: i8 = 15;
+    let precedence = tsgo_expression_precedence(arena, binary)?;
+    Ok(match precedence {
+        PRECEDENCE_ASSIGNMENT => (PRECEDENCE_CONDITIONAL, PRECEDENCE_YIELD),
+        LOGICAL_OR => (precedence, LOGICAL_AND),
+        LOGICAL_AND => (precedence, BITWISE_OR),
+        EQUALITY => (precedence, TSGO_PRECEDENCE_RELATIONAL),
+        TSGO_PRECEDENCE_RELATIONAL => (precedence, SHIFT),
+        SHIFT => (precedence, ADDITIVE),
+        ADDITIVE => (precedence, MULTIPLICATIVE),
+        MULTIPLICATIVE => (precedence, EXPONENTIATION),
+        EXPONENTIATION => (TSGO_PRECEDENCE_UPDATE, precedence),
+        _ => (precedence, precedence),
+    })
+}
+
 /// tsgo `emitExpression`'s parentheses: whether `operand`, printed where
 /// `precedence` (tsgo's numbering) is required, is below it.
 pub(crate) fn operand_needs_parentheses(

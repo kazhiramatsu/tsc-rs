@@ -8,8 +8,9 @@
 //! is an ExpressionWithTypeArguments, the implicit `export` of a nested
 //! namespace is the NestedNamespace flag, a childless BindingElement is an
 //! array binding hole. The facts tsgo's printer reads from a literal go
-//! where tsc-rs's printer reads them. A node of no source file keeps no
-//! position (tsgo's printer has no text to read for it).
+//! where tsc-rs's printer reads them. A node of no source file keeps its
+//! positions, but they index no text (tsgo's printer has no source file
+//! for it).
 
 mod generated;
 
@@ -235,7 +236,7 @@ impl<'a> Decoder<'a> {
                     NodeFlags::from_bits(self.arena.node(root).flags).contains(NodeFlags::AMBIENT);
                 SourceFile::from_tree(
                     facts.file_name,
-                    facts.text,
+                    Some(facts.text),
                     self.arena,
                     root,
                     facts.language_variant,
@@ -245,7 +246,7 @@ impl<'a> Decoder<'a> {
             }
             None => SourceFile::from_tree(
                 "",
-                "",
+                None,
                 self.arena,
                 root,
                 LanguageVariant::Standard,
@@ -262,16 +263,16 @@ impl<'a> Decoder<'a> {
         })
     }
 
-    /// A node's range: tsgo's when the tree is a source file's, none
-    /// otherwise. tsgo takes the client's (UTF-16) positions as byte offsets
-    /// of the file's text: one inside a character is that character's, and
-    /// one past the text (a client drops a byte order mark from the text but
-    /// not from the positions) is the text's end.
+    /// A node's range. tsgo takes the client's (UTF-16) positions as byte
+    /// offsets of the file's text: one inside a character is that
+    /// character's, and one past the text (a client drops a byte order mark
+    /// from the text but not from the positions) is the text's end. A node
+    /// of no source file keeps its positions, which index no text.
     fn range(&self, pos: u32, end: u32) -> (usize, usize) {
         if self.positioned {
             (self.text_offset(pos), self.text_offset(end))
         } else {
-            (u32::MAX as usize, u32::MAX as usize)
+            (pos as usize, end as usize)
         }
     }
 
@@ -299,10 +300,7 @@ impl<'a> Decoder<'a> {
             port_kind(kind).ok_or_else(|| format!("tsc-rs has no {} node", kind_name(kind)))?;
         let data = self.field(index, NODE_OFFSET_DATA);
         let common = (data >> 24) & 0x3f;
-        let mut flags = port_node_flags(syntax_kind, self.field(index, NODE_OFFSET_FLAGS));
-        if !self.positioned {
-            flags |= NodeFlags::SYNTHESIZED;
-        }
+        let flags = port_node_flags(syntax_kind, self.field(index, NODE_OFFSET_FLAGS));
         let (pos, end) = self.range(pos, end);
         match data & NODE_DATA_TYPE_MASK {
             NODE_DATA_TYPE_STRING => {

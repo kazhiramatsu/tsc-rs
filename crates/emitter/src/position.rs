@@ -13,6 +13,10 @@ pub struct SourceBytePosition(u32);
 
 impl SourceBytePosition {
     pub fn new(value: u32, positions: &PositionIndex) -> Result<Self, SourcePositionError> {
+        // The positions of a tree without text index nothing to check.
+        if positions.is_detached() {
+            return Ok(Self(value));
+        }
         if value > positions.byte_len() {
             return Err(SourcePositionError::OutOfBounds {
                 domain: PositionDomain::SourceByte,
@@ -104,6 +108,11 @@ impl SourceRange {
         end: u32,
         positions: &PositionIndex,
     ) -> Result<Self, SourcePositionError> {
+        // A tree without text (tsgo's API decodes a node of no source file)
+        // keeps its positions, but they index no text.
+        if positions.is_detached() {
+            return Ok(Self::Synthesized);
+        }
         if start == u32::MAX || end == u32::MAX {
             return if start == u32::MAX && end == u32::MAX {
                 Ok(Self::Synthesized)
@@ -124,6 +133,9 @@ impl SourceUtf16Position {
         position: SourceBytePosition,
         positions: &PositionIndex,
     ) -> Result<Self, SourcePositionError> {
+        if positions.is_detached() {
+            return Ok(Self(position.value()));
+        }
         positions.byte_to_utf16(position.value()).map(Self).ok_or(
             SourcePositionError::NotUnicodeScalarBoundary {
                 position: position.value(),
