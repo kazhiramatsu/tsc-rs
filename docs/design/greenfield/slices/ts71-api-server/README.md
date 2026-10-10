@@ -1729,3 +1729,20 @@ token を `emitToken` で書く。その差の出る所を tsgo に合わせた�
   `conformance (TypeScript 7.1)` 20m4s、`gates` 17s。全て成功。workspace 全体の test と Clippy はこの `rust` job による）。merge →
   `03f9cbd38`（merge commit、PR #738）。
 - 次は P5-5b（`preserveSourceNewlines`）。その後に P5-6（build orchestrator）。
+
+## P5-5b `preserveSourceNewlines` の測定と順序（2026-10-11）
+
+- **測定**（P5-5a と同じ比較に `preserveSourceNewlines: true` を付けた。tsc-rs は main `03f9cbd38` で、この option を読まない）：file
+  全体は 12,773 のうち 12,718 が違い、各 statement の単独の印字は 103,364 のうち 1,168 が違う（error 0）。
+- **tsgo の振る舞い**：decode した木の node は親を持たないので、tsgo は兄弟の位置を比べない（`siblingNodePositionsAreComparable`
+  は共通の親を要る）。この option では全ての list が保存の分岐に入り、兄弟の間の改行は list の `PreferNewLine` だけになるので、
+  文が繋がる（`a;\nb;` → `a;b;`、`function f() {x;y;\n}const o = …`）。最初の子の前の改行は親の無い子のときだけ位置から数える
+  （`firstChild.Parent == nil`。tsc の元の親の比較は comment にされている）。source file の無い node では埋め込みの文と
+  `else`・`catch`・`finally`・`while` の前が空白になる。
+- **port に要るもの**：tsgo の list の 3 つの改行の数（`getLeadingLineTerminatorCount`・`getSeparatingLineTerminatorCount`・
+  `getClosingLineTerminatorCount`）と `getEffectiveLines`、`writeLineOrSpace`、`emitEmbeddedStatement`、括弧と JSX の前後の改行、
+  空の list。port の printer には tsgo の `emitList` に当たる一つの経路が無く、list ごとの emitter がそれぞれ改行を決めるので、
+  その全てを tsgo の数え方に寄せる大きな改修になる。この option の本来の使い手は language service（`syntheticfile.go` が
+  合成した file をこの option で印字する）。
+- **順序**：P5-6（build orchestrator。client の test 12）を先に行い、P5-5b は language service の作業（本家の TypeScript の追従の
+  後）で `syntheticfile.go` と合わせて行う。それまで tsc-rs の `printNode` はこの option を読まない（bound した差）。
