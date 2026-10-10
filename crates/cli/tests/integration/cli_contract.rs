@@ -21788,3 +21788,23 @@ fn the_api_server_rejects_unknown_flags_like_tsgo() {
         "{stderr}"
     );
 }
+
+#[test]
+fn tagged_template_comments_follow_tsgo() {
+    // A tagged template's tag keeps its trailing comment and the template
+    // its leading ones, as tsgo emits them. The expected bytes are tsgo's
+    // for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        "declare function tag(s: TemplateStringsArray): void;\ntag\n// c10\n`x`;\ntag /* c11 */ `y`;\n",
+    )
+    .expect("write source");
+
+    let output = run(&tree, &["--ignoreConfig", "--target", "es2022", "main.ts"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read_to_string(tree.path("main.js")).expect("read emitted output"),
+        "\"use strict\";\ntag \n// c10\n`x`;\ntag /* c11 */ `y`;\n"
+    );
+}

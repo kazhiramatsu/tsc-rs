@@ -1680,3 +1680,45 @@ P5-5a の tsgo との比較の差（各 statement の 6,133）はほぼ全てこ
   run 38085149901（`plan` 30s、`rust` 11m33s、`conformance (TypeScript 7.1)` 20m36s、`gates` 14s。全て成功。workspace 全体の
   test と Clippy はこの `rust` job による）。merge → `25204f33e`（merge commit、PR #737）。
 - 次は P5-5d（型の構文の comment）。その後に P5-5b（`preserveSourceNewlines`）、P5-6（build orchestrator）。
+
+## P5-5d 型の構文の comment（2026-10-11）
+
+P5-5c の比較で file 全体に残った差（BOM か非 ASCII でない 50 file）は全て comment だった。tsc-rs の型の構文の印字は d.ts 向け
+（comment は JSDoc だけ）で、comment を書く場所を個別に持つ。tsgo はどの node も `enterNode`／`exitNode` で comment を書き、一部の
+token を `emitToken` で書く。その差の出る所を tsgo に合わせた。
+
+- **module block**：tsgo `emitModuleBlock` は両方の括弧を `emitToken` で書く。`{` の行の comment を `{` の後に、最後の文の後の
+  comment を `}` の前に文の字下げで（`tefIndentLeadingComments`）書く。括弧の 2 つの helper は `onlyPrintJsDocStyle` に従う
+  （d.ts の印字も通るので。JavaScript の emit は設定しない）。
+- **型の子の後ろの comment**（`emit_type_child_trailing_comments`。tsgo の子の `exitNode`）：型注釈（変数、property、
+  property signature、index signature、arrow の戻り値）、conditional type の 4 つの部分、型の無い property signature の名前。
+  親の終わりと同じ位置（`;` の無い member）と外側の container の終わりでは書かない（`forEachTrailingCommentToEmit`）。`;` の
+  無い member の comment が `;` の前と後に二度出ていたのはこれで直る。変数と property の型の comment を個別に書いていた所は
+  この helper に寄せた。
+- **変数名の後ろの comment**：型の構文では `!` と型の前に書く（tsgo `emitBindingName`。`let e /*c*/: any = {}`）。
+- **enum**：tsgo `emitEnumDeclaration` は `{` を普通の句読点で書き、最初の member の前の comment は改行の後からなので
+  （`iterateCommentRanges`）、`{` の行の comment は書かない（tuple の `[` は `emitToken` なので書く）。
+- **tagged template**：tag は call の callee と同じく comment の phase を閉じ（共通の helper にした）、template は comment の
+  付く普通の子として書く。JavaScript の emit も同じに直る（``tag /* c */ `x` ``、template の前の行の comment）。
+- **source file の detached comment** は文の list の始まりで探す（tsgo `emitDetachedCommentsBeforeStatementList`。parser が
+  最初の文の前の token を飛ばしたとき（`import 10;`）に最初の文の始まりと違う）。**MissingDeclaration** は何も書かない（tsgo
+  は node に入らないので comment も書かない）。
+- **test**：session の `printNode` に 2 件（型の構文の comment、template と回復した文。tsgo の答えで pin）。CLI の contract に
+  tagged template の JavaScript の emit を 1 件（tsgo の bytes）。
+- **TypeScript の client の test**（local）：sync 298/327、async 306/335（P5-5c と同じ。残りは build orchestrator 12、LS 13、
+  `formatNodeForInsertion` 3、P5-3a の null の要素 1）。
+- **tsgo との比較**（local。P5-5a と同じ方法）：
+  - 各 statement の単独の印字（103,364）：違うもの 0（P5-5c と同じ）。
+  - file 全体（12,773）：違うものが 74 → 23。残りは全て BOM か非 ASCII の file（BOM 21、非 ASCII 2）：client が BOM を text
+    から落として位置からは落とさない、また UTF-16 の位置を UTF-8 の byte の offset として使うので、位置が text を指さず、tsgo
+    はずれた位置で comment を拾う（文字の途中から scan する Go の振る舞いまで写さないと合わない）。tsgo 側の位置の扱いの
+    問題として bound する（本家の TypeScript の追従で変わりうる）。P5-5c の後の 24 のうち 1 が一致し、残りの 23 の印字は変わ
+    っていない。tsc-rs の error 0。
+- **検証**（コード `8c4c6aecf`。macOS、`nice -n 20`、Cargo の job 2）：`cargo fmt --all -- --check`、Clippy（emitter・api・cli、
+  `--all-targets -- -D warnings`）は clean。`cargo test`（emitter・api・cli、`--no-fail-fast`）1,149 件が全て成功。release build
+  の full conformance（`--workers 2 --check`、580 s）：0 regressions、数は main と同じ（errors full 13,451、emit 13,443（未評価
+  8）、types 12,678（mismatch 89）、symbols 12,718（49）、sourcemap 13,451、trace 13,451、harness error 15）。suites（release
+  の `suites-ts71` を作り直して `--check`）：0 regressions、数は main と同じ（api 2、config 87、transpile 41、tsbuild 182/192、
+  tsbuildWatch 63/65、tsc 211/223、tscWatch 42、tsoptions 80）。checker は変えていないので並列対照は行っていない。client の test
+  と tsgo との比較は同じコードの release build で。workspace 全体の test と Clippy は hosted の `rust` job に任せた。
+- **残り**：P5-5b（`preserveSourceNewlines`）、P5-6（build orchestrator）。
