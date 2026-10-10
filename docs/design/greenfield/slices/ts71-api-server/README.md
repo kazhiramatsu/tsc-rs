@@ -1746,3 +1746,39 @@ token を `emitToken` で書く。その差の出る所を tsgo に合わせた�
   合成した file をこの option で印字する）。
 - **順序**：P5-6（build orchestrator。client の test 12）を先に行い、P5-5b は language service の作業（本家の TypeScript の追従の
   後）で `syntheticfile.go` と合わせて行う。それまで tsc-rs の `printNode` はこの option を読まない（bound した差）。
+
+## P5-6 build orchestrator の計画（2026-10-11）
+
+### tsgo の構成（`19dadef8`）
+
+- session（session.go:1621-1745）：`createBuildOrchestrator`（`rootNames`・`cwd`・`buildOptions`・`compilerOptions`。
+  `tsoptions.ParseBuildCommandLine(rootNames)` に、key が有れば build と compiler の option を置き換える。client は option を
+  params の最上位に広げて送るので、tsgo はそれを読まない（Go の埋め込みの field は名前の key になる））、
+  `disposeBuildOrchestrator`、`build`・`buildReferences`・`cleanBuild`・`cleanReferences`（`project` は省略可）。無い id は error
+  （`build orchestrator not found while disposing` / `… while building %s` / `… for building references for %s` /
+  `… while cleaning %s` / `… while cleaning references for %s`）。応答は `status`（ExitStatus 0〜5）、`diagnostics`（無ければ
+  省く）、`statistics`（`{"Projects","ProjectsBuilt","TimestampUpdates"}`）、clean には `filesDeleted`（無ければ省く）。
+- build の system（`apiBuildSystem`）：file system は session の snapshot host の FS（client の callback や request の FS を
+  通る）、writer は捨てる、current directory は `cwd` か session の、環境変数なし、process の起動は error。
+- orchestrator（execute/build/orchestrator.go）：`Build` は `recheckAllProjects(project)`（対象の task の状態と config を
+  捨て、mtime と cache を消す）の後に `start(project, false)`、`BuildReferences` は `start(project, true)`。`start` は graph を
+  （作ってあれば古い task を使って）作り、`getBuildOrderFor(project)`（project とその上流を order の順で。知らない
+  project は status 3）、references なら最後を落とし（project が空なら status 3）、順に build する。`Clean`／
+  `CleanReferences` は graph が無ければ作り、cycle の error が有れば status 4、上と同じ order で、input でない出力と
+  buildinfo を消す（dry なら挙げるだけ）。消した task は状態と buildinfo の entry を捨てる。clean は config を読み直さない
+  （最後に build した config の出力を消す）。結果は `{Result.Status, Errors, Statistics, FilesToDelete}`。
+
+### port の状態
+
+- `crates/compiler/src/build.rs` の `Orchestrator`（P3-6d）：tsgo と同じ形（task、order、graph の error、`graph_generated`、
+  mtime、config の cache）。`run(route)`（`tsc -b`）と `clean(self)`（self を消費する）、report は CLI の route（writer）に
+  書く。watch は cycle を跨いで保つ。project を選ぶ build と clean、`getBuildOrderFor`、`recheckAllProjects`、構造のある結果
+  （error の diagnostics、statistics、消した file）、session の FS の上の system は無い。
+
+### slice
+
+- **P5-6a orchestrator の API**（`tsc-rs-compiler`）：tsgo の `Build`・`BuildReferences`・`Clean`・`CleanReferences`（project を
+  選べる、self を消費しない）と結果の型。`tsc -b` も同じ `start`／`clean` を通す。`getBuildOrderFor`、
+  `recheckAllProjects`。API の build のための system（与えた FS、writer を捨てる）。
+- **P5-6b session**：id と 6 つの method、params（`buildOptions`・`compilerOptions` の key だけ読む）と応答。test は tsgo の応答
+  で pin した session の test と、client の 12（local）。
