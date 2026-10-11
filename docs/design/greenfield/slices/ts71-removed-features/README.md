@@ -59,3 +59,18 @@ project で差を出すため）。順は `.types`／`.symbols` の残り（#751
   generateTrace の型 id 2）。約 10 万行を除いた。
 - **hosted と merge**：PR #753 の hosted run 38162182191（rust 11m9s、conformance 13m30s、gates pass、head `41feca255`）、merge
   commit `e092970b3`。次は R1b（到達しなくなった bundle の仕組みを除く。振る舞いは変わらない）。
+
+## R1b 到達しなくなった bundle の仕組み（2026-10-12）
+
+- R1 で `outFile` が出力に使われなくなり到達しなくなった bundle の仕組みを除いた（振る舞いは変わらない）：transform と emit の
+  bundle の root（`TransformRoot::Bundle`・`EmitRoot::Bundle` とその型）、printer の `bundle.rs` と `PrintRequest::Bundle`・
+  `SourceFileEmitMode`・bundle の helper、declaration の `bundle.rs` と `is_bundled_emit`、parse 済みの emit metadata の
+  snapshot（`factory/parsed_metadata.rs` と `TransformError::ParsedEmitMetadata*`）、bundle の declaration map と生成名の
+  引き継ぎ、外部 module 名の解決（`get_resolved_external_module_name`・`external_module_name_from_path`）。約 2 万行を除いた。
+- **test**：bundle の test と fixture を除いた（printer-failure の hook 25 → 23、review 22 → 11、decorator-binding-direct
+  146 → 141）。
+- **結果**（release build、head `2de700bc3`）：full の conformance（`--workers 2 --check`、480 s）は 0 regressions で R1 の
+  report と全ての field で同じ。suites（`--check`）は 0 regressions、既知の違い 10。emitter・compiler・cli・api・conformance の
+  test と clippy（`-D warnings`）は通る。
+- **hosted と merge**：PR #754 の hosted run 38164098280（rust 11m9s、conformance 20m29s、gates pass、head `2de700bc3`）、merge
+  commit `8a0f1950e`。次は R2（checker と binder の ES5 の検査）。
