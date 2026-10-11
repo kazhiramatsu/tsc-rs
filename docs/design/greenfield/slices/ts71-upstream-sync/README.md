@@ -366,3 +366,25 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 - **hosted と merge**：PR #748 の最初の hosted run 38133455905 は rust が落ちた（CLI の API contract が #64681 で除いた
   `rootFiles`・`compilerOptions` を見ていた。test だけを `parsedCommandLine` に直した `1d48d30bd`）。再実行の hosted run
   38134907152（rust 11m57s、conformance 16m30s、gates pass、head `1d48d30bd`）、merge commit `24ad76b09`。
+
+## S6d 動的な URI の file 名（2026-10-11）
+
+- **#64159**：`file:` 以外の URI の file 名は `^/~ts-uri~/<scheme>/<authority>/<path>`（authority が無ければ `ts-nul-authority`）。
+  file 名にできない path の segment（空、`.`、`..`、backslash、escape 自身の prefix）は `~ts-uri-escape~<hex>~<拡張子>`、
+  rooted になる path は最初の segment も escape、query と fragment は最後の segment に NUL を挟んで入れる、path の無い URI は
+  `~ts-uri-no-path~<hex>~`。URI の escape はそのまま。`file:` の URI の path は正規化する（`file:///a/../b.ts` は `/b.ts`、
+  末尾の separator を除く）。tsgo の `TestDocumentURIToFileName` などの組をそのまま unit test に。
+- **root と path key**：`^/~ts-uri~/` の名前の root は authority の後まで、ほかの `^/` は `^/`（tsgo の
+  `GetEncodedRootLength`）。path key は動的な名前の大文字小文字を変えず（tsgo `CaseInsensitiveKey`、`tsc_host` の小文字化の
+  primitive で）、root だけの名前は separator で終わる（`canonicalDynamicURIPath`）。compiler host は `^/` の名前を
+  current directory に繋げない（URL と同じ）。
+- これで VS Code の document（`file:`、`vscode-remote:`、`vscode-notebook-cell:`、`untitled:`）が request file system から
+  inferred project に入る。単独で開いた 5 通りの createSnapshot の response は tsgo と同じ（root の名前の重複も）。
+- **client の test**：sync 335／356、async 344／365。残り各 21 は LS 16、`formatNodeForInsertion` 3、S6e の 2
+  （source file のない `parseJsonConfigFileContent`、program の file と parse を共有する `createSourceFile`）。
+- **残る差（bounded）**：program の file と parse を共有する `createSourceFile`。tsc-rs の binder は `target`・`alwaysStrict`・
+  `noFallthroughCasesInSwitch` を読むので parse cache の key（`DocumentAddress`）がその projection を持ち、既定の options で
+  作った file は inferred project の parse と一致しない（tsgo の binder は option を読まない）。
+- **結果**（release build、`d26107f88`（S6c + S6d）、#748 の CLI contract の test だけの修正の後の `main` に rebase）：full の
+  conformance（`--workers 2 --check`、486 s）は 0 regressions で、S6c の report と全ての field で同じ。suites（`--check`）は
+  0 regressions・上がったもの無し。checker は変わらないので並列対照は無し。
