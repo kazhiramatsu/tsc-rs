@@ -75,7 +75,6 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) infer_type_parameters: Option<Vec<TypeId>>,
     pub(crate) approximate_length: u32,
     pub(crate) tracked_symbols: Option<Vec<TrackedSymbol>>,
-    pub(crate) bundled: bool,
     pub(crate) truncating: bool,
     pub(crate) reverse_mapped_stack: Option<Vec<SymbolId>>,
     /// tsgo symbolDepth under a reverse mapped type's mapped declaration
@@ -234,13 +233,6 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         },
     );
     let enclosing_file = enclosing_declaration.map(|node| checker.binder.source_of_node(node).root);
-    let bundled = checker
-        .options
-        .out_file
-        .as_ref()
-        .is_some_and(|out_file| !out_file.is_empty())
-        && enclosing_declaration
-            .is_some_and(|node| checker.binder.is_external_or_common_js_module_of_node(node));
     let mut context = NodeBuilderContext {
         enclosing_declaration,
         enclosing_declaration_is_synthetic: false,
@@ -259,7 +251,6 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         infer_type_parameters: None,
         approximate_length: 0,
         tracked_symbols: None,
-        bundled,
         truncating: false,
         reverse_mapped_stack: None,
         reverse_mapped_depth: HashMap::default(),

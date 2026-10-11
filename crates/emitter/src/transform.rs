@@ -720,15 +720,6 @@ impl TransformationContext {
         );
     }
 
-    pub(crate) fn generated_class_reference_name(
-        &self,
-        original_class: TransformNode,
-    ) -> Option<TransformNode> {
-        self.generated_class_reference_names
-            .get(&original_class)
-            .copied()
-    }
-
     pub(crate) fn generated_binding_was_finalized_for_print(
         &self,
         binding: GeneratedBindingId,
@@ -1652,7 +1643,3 @@ impl From<EmitResolverError> for TransformError {
 #[cfg(test)]
 #[path = "../tests/unit/hook_chaining/tests.rs"]
 mod hook_chaining_tests;
-
-#[cfg(test)]
-#[path = "../tests/unit/bundle_transform/tests.rs"]
-mod bundle_transform_tests;

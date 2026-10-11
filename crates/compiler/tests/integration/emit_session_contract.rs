@@ -667,212 +667,6 @@ fn commonjs_namespace_initializers_follow_the_checker_export_owner() {
 }
 
 #[test]
-fn amd_marker_does_not_borrow_comments_from_an_erased_ambient_module() {
-    let prepared = prepared_with_sources(
-        CompilerOptions {
-            no_emit: Some(false),
-            target: Some(2),
-            module: Some(2),
-            always_strict: Some(false),
-            ..CompilerOptions::default()
-        },
-        &[(
-            "/project/input.ts",
-            concat!(
-                "export {};\n",
-                "// augmentation belongs only to erased TypeScript syntax\n",
-                "declare namespace TypesOnly { interface Shape {} }\n",
-            ),
-        )],
-    );
-    let mut sink = MemoryOutputSink::new();
-    ProgramSession::new(prepared)
-        .emit_with_reported_diagnostics_for_harness(&mut sink)
-        .expect("AMD ambient-module erasure emit");
-
-    assert_eq!(
-        sink.writes()[0].callback_text(),
-        concat!(
-            "define([\"require\", \"exports\"], function (require, exports) {\n",
-            "    \"use strict\";\n",
-            "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
-            "});\n",
-        ),
-    );
-}
-
-#[test]
-fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
-    let cases = [
-        (
-            2,
-            concat!(
-                "define([\"require\", \"exports\"], function (require, exports) {\n",
-                "    \"use strict\";\n",
-                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
-                "    exports.value = void 0;\n",
-                "    exports.value = 1;\n",
-                "});\n",
-            ),
-        ),
-        (
-            3,
-            concat!(
-                "(function (factory) {\n",
-                "    if (typeof module === \"object\" && typeof module.exports === \"object\") {\n",
-                "        var v = factory(require, exports);\n",
-                "        if (v !== undefined) module.exports = v;\n",
-                "    }\n",
-                "    else if (typeof define === \"function\" && define.amd) {\n",
-                "        define([\"require\", \"exports\"], factory);\n",
-                "    }\n",
-                "})(function (require, exports) {\n",
-                "    \"use strict\";\n",
-                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
-                "    exports.value = void 0;\n",
-                "    exports.value = 1;\n",
-                "});\n",
-            ),
-        ),
-    ];
-    for (module, expected) in cases {
-        let prepared = prepared_with_sources(
-            CompilerOptions {
-                no_emit: Some(false),
-                target: Some(99),
-                module: Some(module),
-                ..CompilerOptions::default()
-            },
-            &[("/project/input.ts", "export const value: number = 1;\n")],
-        );
-        let mut sink = MemoryOutputSink::new();
-        let outcome = ProgramSession::new(prepared)
-            .emit(&mut sink)
-            .expect("H2.1c asynchronous module emit");
-        assert!(outcome.diagnostics().is_empty());
-        assert_eq!(sink.writes().len(), 1);
-        assert_eq!(sink.writes()[0].callback_text(), expected);
-    }
-}
-
-#[test]
-fn es5_arrow_return_keeps_its_expression_leading_comment() {
-    // The complete JavaScript text from the frozen H2.5h
-    // optionalChainingInArrow observation, with the same ES5/CRLF profile.
-    let source = concat!(
-        "// https://github.com/microsoft/TypeScript/issues/41814\n",
-        "const test = (names: string[]) =>\n",
-        "    // single-line comment\n",
-        "    names?.filter(x => x);\n",
-    );
-    let prepared = prepared_with_sources(
-        CompilerOptions {
-            no_emit: Some(false),
-            target: Some(1),
-            always_strict: Some(true),
-            new_line: Some(0),
-            ..CompilerOptions::default()
-        },
-        &[("/project/input.ts", source)],
-    );
-    let mut sink = MemoryOutputSink::new();
-    ProgramSession::new(prepared)
-        .emit_with_reported_diagnostics_for_harness(&mut sink)
-        .expect("ES5 optional-chain arrow emit");
-    assert_eq!(sink.writes().len(), 1);
-    assert_eq!(
-        sink.writes()[0].callback_text(),
-        concat!(
-            "\"use strict\";\r\n",
-            "// https://github.com/microsoft/TypeScript/issues/41814\r\n",
-            "var test = function (names) {\r\n",
-            "    // single-line comment\r\n",
-            "    return names === null || names === void 0 ? void 0 : names.filter(function (x) { return x; });\r\n",
-            "};\r\n",
-        )
-    );
-}
-
-#[test]
-fn system_relocated_body_retakes_leading_comments_without_repeating_detached_header() {
-    // Vendored tsc 6.0.3, ES2015/System: a hoisted namespace declaration
-    // leaves its ordinary leading comment at the relocated runtime IIFE.
-    // A detached file header remains outside System.register.
-    let expected_body = concat!(
-        "System.register([], function (exports_1, context_1) {\n",
-        "    \"use strict\";\n",
-        "    var M;\n",
-        "    var __moduleName = context_1 && context_1.id;\n",
-        "    return {\n",
-        "        setters: [],\n",
-        "        execute: function () {\n",
-        "            // namespace comment\n",
-        "            (function (M) {\n",
-        "                var x = 1;\n",
-        "            })(M || (exports_1(\"M\", M = {})));\n",
-        "        }\n",
-        "    };\n",
-        "});\n",
-    );
-    for (prefix, emitted_prefix) in [("", ""), ("// detached header\n\n", "// detached header\n")] {
-        let source = format!("{prefix}// namespace comment\nexport namespace M {{ var x = 1; }}\n");
-        let prepared = prepared_with_sources(
-            CompilerOptions {
-                no_emit: Some(false),
-                target: Some(2),
-                module: Some(4),
-                ..CompilerOptions::default()
-            },
-            &[("/project/input.ts", &source)],
-        );
-        let mut sink = MemoryOutputSink::new();
-        ProgramSession::new(prepared)
-            .emit_with_reported_diagnostics_for_harness(&mut sink)
-            .expect("System relocated namespace emit");
-        assert_eq!(sink.writes().len(), 1);
-        assert_eq!(
-            sink.writes()[0].callback_text(),
-            format!("{emitted_prefix}{expected_body}")
-        );
-    }
-}
-
-#[test]
-fn h2_1d_system_wrapper_matches_the_pinned_transform() {
-    let prepared = prepared_with_sources(
-        CompilerOptions {
-            no_emit: Some(false),
-            target: Some(99),
-            module: Some(4),
-            ..CompilerOptions::default()
-        },
-        &[("/project/input.ts", "export const value: number = 1;\n")],
-    );
-    let mut sink = MemoryOutputSink::new();
-    let outcome = ProgramSession::new(prepared)
-        .emit(&mut sink)
-        .expect("H2.1d System emit");
-    assert!(outcome.diagnostics().is_empty());
-    assert_eq!(sink.writes().len(), 1);
-    assert_eq!(
-        sink.writes()[0].callback_text(),
-        concat!(
-            "System.register([], function (exports_1, context_1) {\n",
-            "    \"use strict\";\n",
-            "    var value;\n",
-            "    var __moduleName = context_1 && context_1.id;\n",
-            "    return {\n",
-            "        setters: [],\n",
-            "        execute: function () {\n",
-            "            exports_1(\"value\", value = 1);\n",
-            "        }\n",
-            "    };\n",
-            "});\n",
-        )
-    );
-}
-
-#[test]
 fn empty_emit_program_preserves_present_empty_observations_without_a_resolver() {
     let mut sink = MemoryOutputSink::new();
     let (outcome, reported_diagnostics) = ProgramSession::new(empty_emit_program())
@@ -912,7 +706,8 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
     };
 
     // Keep this historical profile entry name; its former refusal now emits.
-    // The complete original command is also frozen in emitter-session-retirements.
+    // TypeScript 7 removed `outFile` and AMD (TS5102, TS5108): tsgo emits
+    // the file on its own through the CommonJS transform.
     let mut out_file = base();
     out_file.module = Some(2);
     out_file.out_file = Some("/project/bundle.js".to_owned().into());
@@ -922,23 +717,21 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
         &[("/project/bundled.ts", "export const bundled = true;\n")],
     ))
     .emit(&mut sink)
-    .expect("AMD outFile emits through the production bundle path");
+    .expect("AMD outFile emits each file through the CommonJS transform");
     assert!(!outcome.emit_skipped());
     assert!(outcome.diagnostics().is_empty());
     assert_eq!(sink.writes().len(), 1);
     assert_eq!(
         sink.writes()[0].path().scalar_test_path(),
-        Path::new("/project/bundle.js")
+        Path::new("/project/bundled.js")
     );
     assert_eq!(
         sink.writes()[0].callback_text(),
         concat!(
-            "define(\"bundled\", [\"require\", \"exports\"], function (require, exports) {\n",
-            "    \"use strict\";\n",
-            "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
-            "    exports.bundled = void 0;\n",
-            "    exports.bundled = true;\n",
-            "});\n",
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.bundled = void 0;\n",
+            "exports.bundled = true;\n",
         )
     );
 
@@ -1792,48 +1585,14 @@ fn h2_2c_parameter_property_emit_matches_typescript_shapes() {
 
 #[test]
 fn h2_2d_module_format_interactions_match_typescript_shapes() {
+    // TypeScript 7 removed AMD, UMD and System (TS5108): tsgo lowers them
+    // with the CommonJS transform.
+    let common_js = concat!("\"use strict\";\n", "module.exports = 42;\n");
     let cases = [
-        (1, concat!("\"use strict\";\n", "module.exports = 42;\n")),
-        (
-            2,
-            concat!(
-                "define([\"require\", \"exports\"], function (require, exports) {\n",
-                "    \"use strict\";\n",
-                "    return 42;\n",
-                "});\n",
-            ),
-        ),
-        (
-            3,
-            concat!(
-                "(function (factory) {\n",
-                "    if (typeof module === \"object\" && typeof module.exports === \"object\") {\n",
-                "        var v = factory(require, exports);\n",
-                "        if (v !== undefined) module.exports = v;\n",
-                "    }\n",
-                "    else if (typeof define === \"function\" && define.amd) {\n",
-                "        define([\"require\", \"exports\"], factory);\n",
-                "    }\n",
-                "})(function (require, exports) {\n",
-                "    \"use strict\";\n",
-                "    return 42;\n",
-                "});\n",
-            ),
-        ),
-        (
-            4,
-            concat!(
-                "System.register([], function (exports_1, context_1) {\n",
-                "    \"use strict\";\n",
-                "    var __moduleName = context_1 && context_1.id;\n",
-                "    return {\n",
-                "        setters: [],\n",
-                "        execute: function () {\n",
-                "        }\n",
-                "    };\n",
-                "});\n",
-            ),
-        ),
+        (1, common_js),
+        (2, common_js),
+        (3, common_js),
+        (4, common_js),
         (99, "export {};\n"),
     ];
     for (module, expected) in cases {
@@ -1893,26 +1652,16 @@ fn h2_2d_module_format_interactions_match_typescript_shapes() {
     let mut sink = MemoryOutputSink::new();
     ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect("H2.2d System import-equals emit");
+        .expect("H2.2d System (CommonJS) import-equals emit");
+    // TypeScript 7 removed System (TS5108): tsgo lowers it with the CommonJS
+    // transform.
     assert_eq!(
         sink.writes()[0].callback_text(),
         concat!(
-            "System.register([\"pkg\"], function (exports_1, context_1) {\n",
-            "    \"use strict\";\n",
-            "    var value;\n",
-            "    var __moduleName = context_1 && context_1.id;\n",
-            "    return {\n",
-            "        setters: [\n",
-            "            function (value_1) {\n",
-            "                value = value_1;\n",
-            "                exports_1(\"value\", value_1);\n",
-            "            }\n",
-            "        ],\n",
-            "        execute: function () {\n",
-            "            console.log(value);\n",
-            "        }\n",
-            "    };\n",
-            "});\n",
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.value = require(\"pkg\");\n",
+            "console.log(exports.value);\n",
         )
     );
 
@@ -1930,6 +1679,8 @@ fn h2_2d_module_format_interactions_match_typescript_shapes() {
                 "console.log(exports.value);\n",
             ),
         ),
+        // TypeScript 7 removed AMD and UMD (TS5108): tsgo lowers them with
+        // the CommonJS transform.
         (
             2,
             concat!(
@@ -1937,12 +1688,10 @@ fn h2_2d_module_format_interactions_match_typescript_shapes() {
                 "console.log(value);\n",
             ),
             concat!(
-                "define([\"require\", \"exports\", \"pkg\"], function (require, exports, value) {\n",
-                "    \"use strict\";\n",
-                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
-                "    exports.value = value;\n",
-                "    console.log(exports.value);\n",
-                "});\n",
+                "\"use strict\";\n",
+                "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "exports.value = require(\"pkg\");\n",
+                "console.log(exports.value);\n",
             ),
         ),
         (
@@ -1952,20 +1701,10 @@ fn h2_2d_module_format_interactions_match_typescript_shapes() {
                 "console.log(value);\n",
             ),
             concat!(
-                "(function (factory) {\n",
-                "    if (typeof module === \"object\" && typeof module.exports === \"object\") {\n",
-                "        var v = factory(require, exports);\n",
-                "        if (v !== undefined) module.exports = v;\n",
-                "    }\n",
-                "    else if (typeof define === \"function\" && define.amd) {\n",
-                "        define([\"require\", \"exports\", \"pkg\"], factory);\n",
-                "    }\n",
-                "})(function (require, exports) {\n",
-                "    \"use strict\";\n",
-                "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
-                "    const value = require(\"pkg\");\n",
-                "    console.log(value);\n",
-                "});\n",
+                "\"use strict\";\n",
+                "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+                "const value = require(\"pkg\");\n",
+                "console.log(value);\n",
             ),
         ),
     ] {

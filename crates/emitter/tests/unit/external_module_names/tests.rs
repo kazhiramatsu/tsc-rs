@@ -127,37 +127,7 @@ fn h2_7d_module_identities_match_typescript_source_facts_twice() {
                     case["case_id"],
                     identity["path"]
                 );
-                assert_eq!(
-                    try_get_module_name_from_file(Some(&host), &source)
-                        .as_ref()
-                        .map(|name| name.as_str().expect("scalar fixture module name")),
-                    identity["emitted_module_name"].as_str(),
-                    "{} {}",
-                    case["case_id"],
-                    identity["path"]
-                );
             }
         }
-    }
-}
-
-#[test]
-fn h2_7d_hostless_bundle_module_names_are_refused() {
-    for module in [2, 4] {
-        let options = CompilerOptions {
-            module: Some(module),
-            out_file: Some("bundle.js".into()),
-            ..CompilerOptions::default()
-        };
-        let error = crate::get_script_transformers(&options, &crate::UnavailableEmitResolver)
-            .err()
-            .expect("hostless bundle transform must be refused");
-        assert!(matches!(
-            error,
-            TransformError::UnsupportedCompilerOption {
-                option: "outFile",
-                ..
-            }
-        ));
     }
 }

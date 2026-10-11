@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     constructor_prologue, flags_after_update, range_block_statements_to_body,
-    system::collect_identifier_texts,
+    target_bindings::collect_identifier_texts,
     target_bindings::{ParsedSourceIdentifierNames, TargetBinding, UsedNames},
     ConstructorPrologue,
 };
@@ -5942,7 +5942,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             })
             .unwrap_or(false);
         let visited = visited?;
-        if !hoisted_in_parameters || self.target < ScriptTarget::ES2015 {
+        if !hoisted_in_parameters {
             return Ok(());
         }
         if let Some(visited) = visited {

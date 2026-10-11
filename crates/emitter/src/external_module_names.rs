@@ -2,10 +2,7 @@ use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::SourceFile;
 
 use crate::source_map::paths;
-use crate::{
-    EmitHost, EmitResolver, EmitResolverError, EmitResolverMethod, TransformArena, TransformError,
-    TransformNode,
-};
+use crate::EmitHost;
 
 /// tsc-port: getResolvedExternalModuleName @6.0.3
 /// tsc-hash: d563d5806a3c929b098ad52a2d31b607624d9b26e9bb6ed5271e84c25903fafa
@@ -75,8 +72,8 @@ fn external_module_name_from_path(
 /// tsc-hash: 86fd395bde1284aad3de45da47e7de1f6bdafb89d9173fbbd246cc1891395e52
 /// tsc-span: _tsc.js:27720-27723
 ///
-/// API-supplied `renamedDependencies` rewrite a module specifier only when no
-/// resolved-file name (outFile / explicit moduleName) claimed it first.
+/// API-supplied `renamedDependencies` rewrite a module specifier (tsgo's
+/// tryGetModuleNameFromFile names no file first).
 pub(crate) fn try_rename_external_module(
     source: &SourceFile,
     module_name: JsStr<'_>,
@@ -88,80 +85,6 @@ pub(crate) fn try_rename_external_module(
         .find(|(from, _)| from.as_js() == module_name)
         .filter(|(_, to)| !to.is_empty())
         .map(|(_, to)| to.clone())
-}
-
-/// tsc-port: tryGetModuleNameFromFile @6.0.3
-/// tsc-hash: 303add929c042f86af9ebd622cf3c6374a0dedeb0a3b3a9e24d636e90f1b84fa
-/// tsc-span: _tsc.js:27724-27735
-pub(crate) fn try_get_module_name_from_file(
-    host: Option<&dyn EmitHost>,
-    file: &SourceFile,
-) -> Option<JsString> {
-    if let Some(name) = file.module_name.as_ref().filter(|name| !name.is_empty()) {
-        return Some(name.clone());
-    }
-    let host = host?;
-    (!file.is_declaration_file
-        && host
-            .compiler_options()
-            .out_file
-            .as_ref()
-            .is_some_and(|name| !name.is_empty()))
-    .then(|| get_resolved_external_module_name(host, file, None))
-}
-
-/// Resolved-file branch of getExternalModuleNameLiteral. Host API
-/// renamedDependencies is a separate observation-only reference boundary.
-pub(crate) fn resolved_external_module_name_literal(
-    host: Option<&dyn EmitHost>,
-    resolver: &dyn EmitResolver,
-    arena: &TransformArena,
-    declaration: TransformNode,
-) -> Result<Option<JsString>, TransformError> {
-    let Some(host) = host else { return Ok(None) };
-    let out_file = host
-        .compiler_options()
-        .out_file
-        .as_ref()
-        .is_some_and(|name| !name.is_empty());
-    let named_source = host.source_file_ids().iter().copied().any(|source| {
-        host.source_file(source)
-            .and_then(|source| source.syntax())
-            .is_some_and(|source| {
-                source
-                    .module_name
-                    .as_ref()
-                    .is_some_and(|name| !name.is_empty())
-            })
-    });
-    if !out_file && !named_source {
-        return Ok(None);
-    }
-    let declaration = arena.get_original_node(declaration);
-    let Some(declaration) = arena.parse_tree_resolver_node(declaration)? else {
-        return Ok(None);
-    };
-    let target = match resolver.get_external_module_file_from_declaration(declaration) {
-        Ok(target) => target,
-        // Retain the pre-bundle optional explicit-name protocol. Bundle
-        // dependency identities require the real checker answer.
-        Err(EmitResolverError::Unavailable {
-            method: EmitResolverMethod::GetExternalModuleFileFromDeclaration,
-            ..
-        }) if !out_file => None,
-        Err(error) => return Err(error.into()),
-    };
-    let Some(target) = target else {
-        return Ok(None);
-    };
-    let file = host
-        .source_file(target.source())
-        .and_then(|file| file.syntax())
-        .ok_or(EmitResolverError::UnknownSource {
-            method: EmitResolverMethod::GetExternalModuleFileFromDeclaration,
-            node: target,
-        })?;
-    Ok(try_get_module_name_from_file(Some(host), file))
 }
 
 #[cfg(test)]

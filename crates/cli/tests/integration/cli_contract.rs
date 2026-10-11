@@ -21856,6 +21856,62 @@ fn using_hint_and_enum_computed_names_follow_tsgo() {
 }
 
 #[test]
+fn removed_es5_target_emits_like_tsgo() {
+    // TypeScript 7 removed the ES5 target (TS5108) and has no ES2015
+    // transform: tsgo reports the option and emits ES2015 syntax (classes,
+    // arrows, destructuring, for-of, templates and generators stay). The
+    // expected bytes are tsgo's for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        "class A { x = 1; m() { return () => this.x; } }\nconst [a, ...b] = [1, 2, 3];\nfor (const v of b) { console.log(`${v}`); }\nexport function* g() { yield* [a]; }\nexport { A };\n",
+    )
+    .expect("write source");
+
+    let output = run(
+        &tree,
+        &[
+            "--ignoreConfig",
+            "--target",
+            "es5",
+            "--module",
+            "commonjs",
+            "--outDir",
+            "out",
+            "--pretty",
+            "false",
+            "main.ts",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "error TS5108: Option 'target=ES5' has been removed. Please remove it from your configuration.\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/main.js")).expect("read output"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.A = void 0;\n",
+            "exports.g = g;\n",
+            "class A {\n",
+            "    constructor() {\n",
+            "        this.x = 1;\n",
+            "    }\n",
+            "    m() { return () => this.x; }\n",
+            "}\n",
+            "exports.A = A;\n",
+            "const [a, ...b] = [1, 2, 3];\n",
+            "for (const v of b) {\n",
+            "    console.log(`${v}`);\n",
+            "}\n",
+            "function* g() { yield* [a]; }\n",
+        )
+    );
+}
+
+#[test]
 fn import_extension_suggestions_ask_the_host_like_tsgo() {
     // tsgo getSuggestedImportExtension asks the host (`Program.FileExists`),
     // in its extension order, which file an extensionless relative ESM

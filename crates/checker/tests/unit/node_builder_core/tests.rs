@@ -336,11 +336,8 @@ fn with_test_context<R>(
 }
 
 #[test]
-fn node_builder_context_construction_uses_upstream_defaults_and_bundled_gate() {
-    let options = CompilerOptions {
-        out_file: Some(("/dist/bundle.js".to_owned()).into()),
-        ..CompilerOptions::default()
-    };
+fn node_builder_context_construction_uses_upstream_defaults() {
+    let options = CompilerOptions::default();
     with_program_state(&[("/main.ts", "export {};\n")], &options, |checker| {
         let root = checker.binder.source(0).root;
         let mut arena = TransformArena::new();
@@ -374,7 +371,6 @@ fn node_builder_context_construction_uses_upstream_defaults_and_bundled_gate() {
                 assert!(context.infer_type_parameters.is_none());
                 assert_eq!(context.approximate_length, 0);
                 assert!(context.tracked_symbols.is_none());
-                assert!(context.bundled);
                 assert!(!context.truncating);
                 assert!(context.reverse_mapped_stack.is_none());
                 assert!(context.must_create_type_parameter_symbol_list);

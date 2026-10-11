@@ -98,7 +98,6 @@ fn computes_same_directory_and_subdirectory_relative_specifiers() {
             Some(&host),
             Some(enclosing),
             None,
-            false,
             None,
         )
         .expect("same-directory specifier")
@@ -109,7 +108,6 @@ fn computes_same_directory_and_subdirectory_relative_specifiers() {
             Some(&host),
             Some(enclosing),
             None,
-            false,
             None,
         )
         .expect("subdirectory specifier")
@@ -136,7 +134,6 @@ fn computes_visible_node_modules_package_root_specifier() {
             Some(&TestModuleSpecifierHost::default()),
             Some(state.binder.source(1).root),
             None,
-            false,
             None,
         )
         .expect("node_modules package specifier")
@@ -173,7 +170,6 @@ fn returns_declared_ambient_module_name() {
             Some(&TestModuleSpecifierHost::default()),
             Some(state.binder.source(1).root),
             None,
-            false,
             None,
         )
         .expect("ambient module name")
@@ -202,7 +198,7 @@ fn returns_amd_module_name_through_export_equals_equivalent_file() {
             .node_symbol(declaration)
             .expect("export-equals value symbol");
 
-        let name = get_specifier_for_module_symbol(state, symbol, None, None, None, false, None)
+        let name = get_specifier_for_module_symbol(state, symbol, None, None, None, None)
             .expect("AMD module name")
             .specifier;
 
@@ -302,7 +298,6 @@ fn reuses_existing_parse_tree_specifier_when_reason_and_modes_match() {
             Some(&host),
             Some(state.binder.source(1).root),
             Some(import_declaration),
-            false,
             None,
         )
         .expect("reused specifier")
@@ -321,7 +316,6 @@ fn reuses_existing_parse_tree_specifier_when_reason_and_modes_match() {
             Some(&host),
             Some(state.binder.source(1).root),
             Some(import_declaration),
-            false,
             None,
         )
         .expect("enclosing-declaration resolution mode")
@@ -450,7 +444,6 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             Some(&host),
             Some(enclosing),
             None,
-            false,
             None,
         )
         .expect("first computation")
@@ -462,7 +455,6 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             Some(&host),
             Some(enclosing),
             None,
-            false,
             None,
         )
         .expect("cache hit")
@@ -473,7 +465,6 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             Some(&host),
             Some(enclosing),
             None,
-            false,
             Some(EmitResolutionMode::EsNext),
         )
         .expect("mode-keyed cache miss")

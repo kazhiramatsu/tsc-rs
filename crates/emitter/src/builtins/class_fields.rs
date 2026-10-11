@@ -17,7 +17,7 @@ use crate::{
 use super::{
     generated_bindings::{AncestorBindingPolicy, GeneratedBindingOwner, GeneratedBindingScopes},
     initialize_transform_flags,
-    system::collect_identifier_texts,
+    target_bindings::collect_identifier_texts,
     target_bindings::{finalize_generated_binding_names, TargetBinding},
     update_node_array_lazily, ArrayElementVisit, LazyChildVisitor,
 };

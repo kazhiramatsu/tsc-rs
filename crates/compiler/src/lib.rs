@@ -228,14 +228,6 @@ impl CliEmitSessionOutcome {
     }
 }
 
-/// Whether the per-shard emit covers this option set. outFile bundles write
-/// at bundle-local points of one resolver's pass and keep the single-checker
-/// session; the noEmitOnError declaration gate runs per shard
-/// (`sharded_declaration_diagnostics`).
-fn sharded_emit_supported(options: &CompilerOptions) -> bool {
-    options.out_file.as_ref().is_none_or(|path| path.is_empty())
-}
-
 /// The whole-Program declaration diagnostics over the checker sessions of one
 /// sharded check (the noEmitOnError gate of a sharded emit, and the --noEmit
 /// command's declaration getter): every source selected for emit is
@@ -2090,10 +2082,7 @@ impl ProgramSession {
         forced_declarations: bool,
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
-        if self.checker_budget.is_sharded()
-            && harness_lib_bundle.is_none()
-            && !forced_declarations
-            && sharded_emit_supported(self.prepared.compiler_options())
+        if self.checker_budget.is_sharded() && harness_lib_bundle.is_none() && !forced_declarations
         {
             return self.emit_sharded(sink);
         }

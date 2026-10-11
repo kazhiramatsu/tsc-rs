@@ -21,7 +21,7 @@ use super::{
         GeneratedBindingScopes,
     },
     is_prologue_statement,
-    system::collect_identifier_texts,
+    target_bindings::collect_identifier_texts,
     target_bindings::{TargetBinding, UsedNames},
     update_node_array_lazily, ArrayElementVisit, LazyChildVisitor,
 };
@@ -764,13 +764,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             // tsc-port: generateConstructorDecorationExpression @6.0.3
             // tsc-hash: 0a501b9618c8b1f817440a0553fd2ca86675abe92c08c2fd60e04fc661623041
             // tsc-span: _tsc.js:98827-98856
-            let name_flags = expression_name.map(|_| {
-                let mut flags = EmitFlags::NO_COMMENTS;
-                if self.target < ScriptTarget::ES2015 {
-                    flags |= EmitFlags::LOCAL_NAME | EmitFlags::INTERNAL_NAME;
-                }
-                flags
-            });
+            let name_flags = expression_name.map(|_| EmitFlags::NO_COMMENTS);
             let class_name = self.create_identifier(&name_text)?;
             if let Some(explicit_name) = explicit_name {
                 self.set_original_and_range(class_name, self.node(explicit_name))?;
@@ -3680,10 +3674,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             self.context
                 .factory()?
                 .set_text_range(name, declaration_name)?;
-            let mut flags = EmitFlags::NO_COMMENTS | EmitFlags::LOCAL_NAME;
-            if self.target < ScriptTarget::ES2015 {
-                flags |= EmitFlags::INTERNAL_NAME;
-            }
+            let flags = EmitFlags::NO_COMMENTS | EmitFlags::LOCAL_NAME;
             self.context
                 .arena_mut()?
                 .metadata_mut(name)
@@ -4523,12 +4514,10 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .collect()
     }
 
-    /// `declName` (_tsc.js:98576-98584): `getInternalName(node, false, true)`
-    /// below ES2015, `getLocalName(node, false, true)` otherwise — a clone of
-    /// the parsed class name carrying `LocalName` (plus `InternalName` for
-    /// ES5) and `NoComments`, so the ES2015 block-scoped-binding substitution
-    /// renames the wrapper's local name but leaves this internal one alone.
-    /// A generated name (`default_1`) is the generated identifier itself.
+    /// `declName` (_tsc.js:98576-98584): `getLocalName(node, false, true)` —
+    /// a clone of the parsed class name carrying `LocalName` and
+    /// `NoComments`. A generated name (`default_1`) is the generated
+    /// identifier itself.
     fn create_declaration_head_name(&mut self, name: NodeId) -> Result<NodeId, TransformError> {
         let name_node = self.node(name);
         let is_plain_identifier = matches!(
@@ -4545,10 +4534,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         }
         let clone = self.context.factory()?.clone_node(name_node)?;
         self.context.factory()?.set_text_range(clone, name_node)?;
-        let mut flags = EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS;
-        if self.target < ScriptTarget::ES2015 {
-            flags |= EmitFlags::INTERNAL_NAME;
-        }
+        let flags = EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS;
         self.context
             .arena_mut()?
             .metadata_mut(clone)

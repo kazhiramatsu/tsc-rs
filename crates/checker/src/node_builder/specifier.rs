@@ -39,12 +39,14 @@ pub(crate) enum ModuleSpecifierEnding {
 pub(crate) enum ImportModuleSpecifierPreference {
     #[allow(dead_code)] // a language-service preference; the compiler never sets it
     Relative,
+    #[allow(dead_code)] // a language-service preference; the compiler never sets it
     NonRelative,
     ProjectRelative,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ImportModuleSpecifierEnding {
+    #[allow(dead_code)] // a language-service preference; the compiler never sets it
     Minimal,
     #[allow(dead_code)] // a language-service preference; the compiler never sets it
     Index,
@@ -77,8 +79,7 @@ impl SpecifierCompilerOptions {
     /// tsrs-native: Rust constructor for the ported machinery.
     pub(crate) fn new(compiler_options: &CompilerOptions) -> Self {
         // tsgo `getLocalModuleSpecifier` reads no `baseUrl` (TypeScript 7.1
-        // removed it); only the bundled (`outFile`) emit below sets one, the
-        // common source directory as tsc 6.0 did.
+        // removed it).
         let mut compiler_options = compiler_options.clone();
         compiler_options.base_url = None;
         Self {
@@ -242,7 +243,6 @@ pub(crate) fn get_specifier_for_module_symbol(
     host: Option<&dyn EmitModuleSpecifierHost>,
     enclosing_file: Option<NodeId>,
     enclosing_declaration: Option<NodeId>,
-    bundled: bool,
     override_import_mode: Option<EmitResolutionMode>,
 ) -> CheckResult<ModuleSpecifierResult> {
     let override_import_mode =
@@ -379,18 +379,9 @@ pub(crate) fn get_specifier_for_module_symbol(
     {
         specifier_options = specifier_options.with_program_options(program_options);
     }
-    if bundled {
-        specifier_options.compiler_options.base_url = Some(host.get_common_source_directory());
-    }
     let user_preferences = ModuleSpecifierUserPreferences {
-        import_module_specifier_preference: Some(if bundled {
-            ImportModuleSpecifierPreference::NonRelative
-        } else {
-            ImportModuleSpecifierPreference::ProjectRelative
-        }),
-        import_module_specifier_ending: if bundled {
-            Some(ImportModuleSpecifierEnding::Minimal)
-        } else if resolution_mode == EmitResolutionMode::EsNext {
+        import_module_specifier_preference: Some(ImportModuleSpecifierPreference::ProjectRelative),
+        import_module_specifier_ending: if resolution_mode == EmitResolutionMode::EsNext {
             Some(ImportModuleSpecifierEnding::Js)
         } else {
             None

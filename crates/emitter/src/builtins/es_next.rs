@@ -26,7 +26,7 @@ use crate::{
 
 use super::{
     flags_after_update,
-    system::collect_identifier_texts,
+    target_bindings::collect_identifier_texts,
     target_bindings::{ParsedSourceIdentifierNames, TargetBinding, UsedNames},
 };
 
