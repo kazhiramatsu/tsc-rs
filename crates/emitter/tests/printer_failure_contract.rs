@@ -13,9 +13,9 @@ use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 use tsc_emitter::{
     base64_encode, create_printer, transform_nodes, EmitFlags, EmitHint, GeneratedIdentifierFlags,
     NewLineKind, PrintRequest, PrintedText, Printer, PrinterError, PrinterOptions,
-    SourceFileTextMode, SourceRange, StandaloneWriter, TransformArena, TransformBundle,
-    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
-    TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
+    SourceFileTextMode, SourceRange, StandaloneWriter, TransformArena, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer, UnsupportedEmitFeature,
 };
 use tsc_syntax::{nodes::ArrayLiteralExpressionData, parse_source_file, NodeData, SyntaxKind};
 use tsc_types::NodeFlags;
@@ -181,7 +181,6 @@ impl Transformer for FailingHooks {
 enum Target {
     Node(TransformNode),
     Source(TransformSourceId),
-    Bundle,
 }
 
 fn statement(arena: &TransformArena, source: TransformSourceId, index: usize) -> TransformNode {
@@ -239,9 +238,6 @@ fn build_targets(
             if let Some(other) = sources.get(1) {
                 targets.insert("other".to_owned(), Target::Source(*other));
             }
-        }
-        "printBundle" => {
-            targets.insert("bundle".to_owned(), Target::Bundle);
         }
         _ if id.contains("/unique-name/") => {
             targets.insert(
@@ -329,7 +325,6 @@ fn build_targets(
         if let Some(other) = sources.get(1) {
             targets.insert("other".to_owned(), Target::Source(*other));
         }
-        targets.insert("bundle".to_owned(), Target::Bundle);
         if let Some(identifiers) = case["synthetic_identifiers"].as_object() {
             for (target, units) in identifiers {
                 let units = units
@@ -418,29 +413,10 @@ fn replay(case: &serde_json::Value) -> serde_json::Value {
                 .create_identifier(sources[0], replacement)
                 .unwrap()
         });
-    let entry = case["entry"].as_str().unwrap();
-    let roots = if entry == "printBundle"
-        || case["ops"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|op| op["entry"] == "printBundle")
-    {
-        let mut roots = vec![TransformRoot::Bundle(TransformBundle::new(sources.clone()))];
-        if case["case_id"].as_str().unwrap().contains("/review/") {
-            roots.extend(
-                sources
-                    .iter()
-                    .map(|source| TransformRoot::SourceFile(*source)),
-            );
-        }
-        roots
-    } else {
-        sources
-            .iter()
-            .map(|source| TransformRoot::SourceFile(*source))
-            .collect()
-    };
+    let roots = sources
+        .iter()
+        .map(|source| TransformRoot::SourceFile(*source))
+        .collect();
     let state = Rc::new(RefCell::new(HookState {
         substitution_node,
         ..HookState::default()
@@ -464,10 +440,6 @@ fn replay(case: &serde_json::Value) -> serde_json::Value {
         }),
     };
     let mut transformation = transform_nodes(arena, roots, vec![Box::new(hooks)], false).unwrap();
-    let bundle = match transformation.roots()[0].clone() {
-        TransformRoot::Bundle(bundle) => Some(bundle),
-        TransformRoot::SourceFile(_) => None,
-    };
     let mut options = PrinterOptions::new(if case["newLine"] == "lf" {
         NewLineKind::LineFeed
     } else {
@@ -516,7 +488,6 @@ fn replay(case: &serde_json::Value) -> serde_json::Value {
                 writer: StandaloneWriter::MultiLine,
             },
             Target::Source(source) => PrintRequest::SourceFile(source),
-            Target::Bundle => PrintRequest::Bundle(bundle.clone().expect("bundle root")),
         };
         results.push(match printer.print(&mut transformation, request, None) {
             Ok(printed) => {
@@ -619,7 +590,7 @@ fn printer_failure_hooks_match_typescript() {
     assert_eq!(artifact["route"], "direct-printer-hook-faults");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 25);
+    assert_eq!(cases.len(), 23);
     let mut mismatches = Vec::new();
     let mut actual_observations = Vec::new();
     let mut exact = 0usize;
@@ -925,7 +896,7 @@ fn review_entry_carry_controls() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 22);
+    assert_eq!(cases.len(), 11);
     let mut failures = Vec::new();
     let mut captures = Vec::new();
     for case in cases {

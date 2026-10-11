@@ -15,36 +15,16 @@ pub enum EmitSelection {
     TargetSourceFile(SourceFileId),
 }
 
-/// Typed bundle root retained for later `outFile` admission.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EmitBundle {
-    source_files: Box<[SourceFileId]>,
-}
-
-impl EmitBundle {
-    pub fn new(source_files: Vec<SourceFileId>) -> Self {
-        Self {
-            source_files: source_files.into_boxed_slice(),
-        }
-    }
-
-    pub fn source_files(&self) -> &[SourceFileId] {
-        &self.source_files
-    }
-}
-
 /// Input root paired with one output-path unit.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EmitRoot {
     SourceFile(SourceFileId),
-    Bundle(EmitBundle),
 }
 
 impl EmitRoot {
     pub fn source_files(&self) -> &[SourceFileId] {
         match self {
             Self::SourceFile(source) => std::slice::from_ref(source),
-            Self::Bundle(bundle) => bundle.source_files(),
         }
     }
 }
@@ -219,9 +199,6 @@ impl EmitOutputPlan {
             ));
         }
         for unit in &self.units {
-            if matches!(&unit.root, EmitRoot::Bundle(bundle) if bundle.source_files().is_empty()) {
-                return Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot));
-            }
             match unit.mode {
                 EmitMode::Script => {}
                 EmitMode::DeclarationOnly => {

@@ -80,12 +80,7 @@ pub(crate) fn transform_root(
     context: &mut TransformationContext,
     root: TransformRoot,
 ) -> Result<TransformRoot, TransformError> {
-    let TransformRoot::SourceFile(source) = root else {
-        // H2.7d owns bundle declaration composition.
-        return Err(TransformError::Unsupported(
-            crate::UnsupportedEmitFeature::BundleRoot,
-        ));
-    };
+    let TransformRoot::SourceFile(source) = root;
 
     let root_node = context.arena().root(source)?;
     // The facts read from the parsed source; the source itself stays in the
@@ -158,7 +153,6 @@ pub(crate) fn transform_root(
         source,
         output_directory.as_js(),
         program_source,
-        None,
     )?;
     let type_references = transformer.state()?.references.type_references();
     let lib_references = transformer.state()?.references.lib_references();
@@ -256,7 +250,6 @@ pub(crate) fn referenced_files(
     _source: TransformSourceId,
     output_directory: JsStr<'_>,
     program_source: SourceFileId,
-    bundle_sources: Option<&[TransformSourceId]>,
 ) -> Result<Vec<FileReference>, TransformError> {
     let mut result = Vec::new();
     for (referencing_source, reference) in &transformer.state()?.references.referenced {
@@ -283,15 +276,6 @@ pub(crate) fn referenced_files(
         {
             file.path().to_owned()
         } else {
-            if bundle_sources.is_some_and(|sources| {
-                sources.iter().any(|&source| {
-                    arena
-                        .source(source)
-                        .is_ok_and(|source| source.program_source() == Some(file.id()))
-                })
-            }) {
-                continue;
-            }
             transformer
                 .paths
                 .reference_target_path(file.id())

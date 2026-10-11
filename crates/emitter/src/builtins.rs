@@ -389,11 +389,7 @@ impl Transformer for TypeScriptTransformer<'_> {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Err(TransformError::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let TransformRoot::SourceFile(source) = root;
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(TransformRoot::SourceFile(source));
         }
@@ -847,11 +843,7 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Err(TransformError::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let TransformRoot::SourceFile(source) = root;
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(TransformRoot::SourceFile(source));
         }
@@ -2322,11 +2314,7 @@ impl Transformer for ImpliedNodeFormatDependentModuleTransformer<'_> {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Err(TransformError::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let TransformRoot::SourceFile(source) = root;
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(TransformRoot::SourceFile(source));
         }
@@ -2473,11 +2461,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Err(TransformError::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let TransformRoot::SourceFile(source) = root;
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(TransformRoot::SourceFile(source));
         }

@@ -14,7 +14,7 @@ use super::*;
 use crate::{
     transform_nodes, EmitHost, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags,
     EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitSource, EmitSymbolTracker,
-    TransformArena, TransformSourceId, UnsupportedEmitFeature,
+    TransformArena, TransformSourceId,
 };
 
 struct TestHost<'a> {
@@ -113,14 +113,7 @@ impl Transformer for ProbeTransformer<'_> {
         cx: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let source = match root {
-            TransformRoot::SourceFile(source) => source,
-            TransformRoot::Bundle(_) => {
-                return Err(TransformError::Unsupported(
-                    UnsupportedEmitFeature::BundleRoot,
-                ));
-            }
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = cx.arena().root(source)?;
         let program_source = cx.arena().source(source)?.program_source();
         self.declaration.state = Some(TransformState::for_source(source, root_node));
@@ -382,7 +375,6 @@ fn state_starts_from_the_source_root() {
     let state = TransformState::for_source(source, root);
 
     assert!(state.needs_declare);
-    assert!(!state.is_bundled_emit);
     assert!(!state.result_has_external_module_indicator);
     assert!(!state.needs_scope_fix_marker);
     assert!(!state.result_has_scope_marker);

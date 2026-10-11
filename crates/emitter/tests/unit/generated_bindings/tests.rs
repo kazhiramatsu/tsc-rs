@@ -76,9 +76,7 @@ impl Transformer for UnfinalizedGeneratedNameTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            unreachable!("generated-name fixtures use a source-file root");
-        };
+        let TransformRoot::SourceFile(source) = root;
         let binding = TargetBinding::allocate_numbered(context, "y".into(), "y".into())?;
         let generated = Self::create_identifier(context, source, "y")?;
         binding.write_generated_metadata(context.arena_mut()?, generated);

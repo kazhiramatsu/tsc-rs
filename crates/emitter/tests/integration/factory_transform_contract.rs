@@ -54,9 +54,7 @@ impl Transformer for ProbeTransformer {
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
         assert_eq!(context.state(), TransformationState::Initialized);
-        let TransformRoot::SourceFile(source) = root else {
-            unreachable!()
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let statements = match &context.arena().node(root_node)?.data {
             NodeData::SourceFile(data) => data
@@ -378,10 +376,7 @@ impl Transformer for SharedClassMemberArrayTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let source = match root {
-            TransformRoot::SourceFile(source) => source,
-            other => return Ok(other),
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let NodeData::SourceFile(mut root_data) = context.arena().node(root_node)?.data.clone()
         else {
@@ -606,10 +601,7 @@ impl Transformer for SyntheticArrowTokenOriginalTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let source = match root {
-            TransformRoot::SourceFile(source) => source,
-            other => return Ok(other),
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let (end_of_file_token, original_arrow_token, explicit_comment_range) = {
             let syntax = context.arena().source(source)?.syntax();
@@ -843,10 +835,7 @@ impl Transformer for NoAsiPartialExpressionTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let source = match root {
-            TransformRoot::SourceFile(source) => source,
-            other => return Ok(other),
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let (statements, end_of_file_token) = match &context.arena().node(root_node)?.data {
             NodeData::SourceFile(data) => (
@@ -1231,10 +1220,7 @@ impl Transformer for SyntheticExportAssignmentTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let source = match root {
-            TransformRoot::SourceFile(source) => source,
-            other => return Ok(other),
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let end_of_file_token = match &context.arena().node(root_node)?.data {
             NodeData::SourceFile(data) => data.end_of_file_token,
@@ -1302,10 +1288,7 @@ impl Transformer for SyntheticThrowRecoveryTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let source = match root {
-            TransformRoot::SourceFile(source) => source,
-            other => return Ok(other),
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let end_of_file_token = match &context.arena().node(root_node)?.data {
             NodeData::SourceFile(data) => data.end_of_file_token,
@@ -1385,9 +1368,7 @@ impl Transformer for ResolverProjectionTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Ok(root);
-        };
+        let TransformRoot::SourceFile(source) = root;
         let parsed_root = context.arena().root(source)?;
         let synthetic = context.factory()?.create_node(
             source,

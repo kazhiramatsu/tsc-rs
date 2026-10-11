@@ -26,9 +26,7 @@ impl Transformer for LiteralTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Ok(root);
-        };
+        let TransformRoot::SourceFile(source) = root;
         let arena = context.arena();
         let root_node = arena.root(source)?;
         let NodeData::SourceFile(file) = &arena.node(root_node)?.data else {

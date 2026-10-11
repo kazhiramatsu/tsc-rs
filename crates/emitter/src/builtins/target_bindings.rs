@@ -682,7 +682,6 @@ pub(crate) fn finalize_generated_binding_names(
         GeneratedNameReservedSetPolicy::TransformerRoot,
         None,
         None,
-        None,
     )
 }
 
@@ -723,7 +722,6 @@ fn finalize_generated_binding_names_with_policy(
     root: TransformNode,
     reserved_set_policy: GeneratedNameReservedSetPolicy<'_>,
     global_name_oracle: Option<&dyn GlobalNameOracle>,
-    mut bundle_generated_names: Option<&mut BTreeSet<String>>,
     carried: Option<&CarriedGeneratedNames>,
 ) -> Result<(), TransformError> {
     // Only generated bindings receive names here; a source whose arena
@@ -752,16 +750,12 @@ fn finalize_generated_binding_names_with_policy(
         }
         GeneratedNameReservedSetPolicy::PrintSource(reserved) => reserved.clone(),
     };
-    // writeBundle retains the printer's generatedNames set between sources;
-    // setSourceFile only changes the parsed identifier collision table. The
-    // scope model keeps those domains separate (`generated_names`): file-level
-    // optimistic names intentionally ignore generated peers, whereas scoped,
-    // temp and numbered names must avoid them.
+    // The scope model keeps the parsed identifier collision table and the
+    // generated names apart (`generated_names`): file-level optimistic names
+    // intentionally ignore generated peers, whereas scoped, temp and
+    // numbered names must avoid them.
     let mut scopes =
         GeneratedBindingScopes::new(reserved.clone(), AncestorBindingPolicy::AllowShadow);
-    if let Some(generated) = bundle_generated_names.as_deref() {
-        scopes.seed_generated_names(generated.iter().cloned());
-    }
     // A failed earlier print on the same printer left its tables behind
     // (tsc never resets them on a throw); the new print continues them.
     if let Some(carried) = carried {
@@ -1256,11 +1250,6 @@ fn finalize_generated_binding_names_with_policy(
         });
     }
     let _ = scopes.source_bindings();
-    if let Some(generated) = bundle_generated_names.as_mut() {
-        // The whole generatedNames set (file-level, file-wide and numbered
-        // names) carries into the next bundle source, as tsc's does.
-        generated.extend(scopes.generated_names().iter().cloned());
-    }
     for (binding, name) in &assigned {
         context.record_generated_binding_name(*binding, name);
     }
@@ -1369,45 +1358,11 @@ impl TransformationContext {
             root,
             GeneratedNameReservedSetPolicy::PrintSource(&reserved),
             global_name_oracle,
-            None,
             carried,
         )?;
         for event in events {
             if let BindingNameEvent::Identifier { binding, .. } = event {
                 self.record_print_finalized_generated_binding(binding);
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn finalize_bundle_generated_binding_names_for_print(
-        &mut self,
-        sources: &[TransformSourceId],
-        global_name_oracle: Option<&dyn GlobalNameOracle>,
-        carried: Option<&CarriedGeneratedNames>,
-    ) -> Result<(), TransformError> {
-        // TypeScript resets generatedNames once after writeBundle, while
-        // writeFile resets it after each standalone source (_tsc.js:
-        // 117058-117085, 117117-117145, 120638-120640, 120741-120786).
-        let mut generated_names = BTreeSet::new();
-        for &source in sources {
-            let root = self.arena().root(source)?;
-            let reserved = ParsedSourceIdentifierNames::collect(self.arena(), source)?.0;
-            finalize_generated_binding_names_with_policy(
-                self,
-                source,
-                root,
-                GeneratedNameReservedSetPolicy::PrintSource(&reserved),
-                global_name_oracle,
-                Some(&mut generated_names),
-                carried,
-            )?;
-            let mut events = Vec::new();
-            collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
-            for event in events {
-                if let BindingNameEvent::Identifier { binding, .. } = event {
-                    self.record_print_finalized_generated_binding(binding);
-                }
             }
         }
         Ok(())

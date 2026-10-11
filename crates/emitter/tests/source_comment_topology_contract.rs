@@ -96,9 +96,7 @@ impl Transformer for TopologyTransformer {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Ok(root);
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let original_statements = source_file_statements(context, root_node);
         let first = first_statement(context, source, original_statements);

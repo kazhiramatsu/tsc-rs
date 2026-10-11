@@ -684,10 +684,7 @@ impl crate::Transformer for Utf16LiteralTransformer {
         context: &mut crate::TransformationContext,
         root: crate::TransformRoot,
     ) -> Result<crate::TransformRoot, TransformError> {
-        let source = match root {
-            crate::TransformRoot::SourceFile(source) => source,
-            other => return Ok(other),
-        };
+        let crate::TransformRoot::SourceFile(source) = root;
         let root = context.arena().root(source)?;
         let end_of_file_token = match &context.arena().node(root)?.data {
             NodeData::SourceFile(data) => data.end_of_file_token,

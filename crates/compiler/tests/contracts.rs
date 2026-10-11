@@ -14,8 +14,6 @@ mod emit_session_contract;
 mod filesystem_loader_contract;
 #[path = "integration/h2_7a_ca_controls.rs"]
 mod h2_7a_ca_controls;
-#[path = "integration/h2_7a_m4_controls.rs"]
-mod h2_7a_m4_controls;
 #[path = "integration/library_loader_session_contract.rs"]
 mod library_loader_session_contract;
 #[path = "integration/live_program_contract.rs"]

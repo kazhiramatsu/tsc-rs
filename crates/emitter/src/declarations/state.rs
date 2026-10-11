@@ -23,7 +23,6 @@ pub(crate) enum VisitResult {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TransformState {
     pub(crate) needs_declare: bool,
-    pub(crate) is_bundled_emit: bool,
     pub(crate) result_has_external_module_indicator: bool,
     pub(crate) needs_scope_fix_marker: bool,
     pub(crate) result_has_scope_marker: bool,
@@ -45,7 +44,6 @@ impl TransformState {
     pub(crate) fn for_source(source: TransformSourceId, root: TransformNode) -> Self {
         Self {
             needs_declare: true,
-            is_bundled_emit: false,
             result_has_external_module_indicator: false,
             needs_scope_fix_marker: false,
             result_has_scope_marker: false,

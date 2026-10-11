@@ -21,20 +21,12 @@ use crate::{
     EmitHelper, EmitHint, EmitResolverError, EmitResolverMethod, GeneratedUtf16Location,
     GlobalNameOracle, NewLineKind, SourceBytePosition, SourceByteRange, SourceMapRange,
     SourcePositionError, SourceRange, SourceUtf16Location, SourceUtf16Position, SyntheticComment,
-    SyntheticCommentKind, TextWriter, TransformBundle, TransformError, TransformNode,
-    TransformNodeArray, TransformSourceId, TransformationResult, UnsupportedEmitFeature,
+    SyntheticCommentKind, TextWriter, TransformError, TransformNode, TransformNodeArray,
+    TransformSourceId, TransformationResult, UnsupportedEmitFeature,
 };
 
 use crate::transform::{CarriedBindingKey, CarriedGeneratedNames, CarriedNodeKey};
 use crate::writer::GeneratedText;
-
-mod bundle;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SourceFileEmitMode {
-    OwnFile,
-    Bundle,
-}
 
 #[derive(Clone, Copy)]
 enum SourceLineStart {
@@ -48,7 +40,6 @@ struct SourceFilePrintBody<'helpers> {
     statement_array: Option<TransformNodeArray>,
     statements: Vec<NodeId>,
     helpers: &'helpers [EmitHelper],
-    mode: SourceFileEmitMode,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -991,7 +982,6 @@ pub enum PrintRequest {
         node: TransformNode,
         writer: StandaloneWriter,
     },
-    Bundle(TransformBundle),
     Declaration(TransformSourceId),
 }
 
@@ -1102,9 +1092,6 @@ pub struct Printer {
     /// token/list helpers that do not receive an EmitContext. Normal completion
     /// restores it; a failure never reaches `emitCommentsAfterNode`.
     comments_disabled_after_failure: bool,
-    /// Unscoped helpers already emitted by this printer's bundle entry.
-    /// tsc's bundledHelpers survives reset() and failed prints alike.
-    bundled_helpers: BTreeSet<Box<str>>,
     /// tsc's name-generation tables as a failed print left them
     /// (`generatedNames`, root `reservedNames` / `tempFlags`,
     /// `nodeIdToGeneratedName`): `reset()` runs only after a completed
@@ -1255,7 +1242,6 @@ pub fn create_printer(options: PrinterOptions) -> Printer {
         root_comment_scope: CommentEmissionScope::empty(),
         failure_comment_scope: None,
         comments_disabled_after_failure: false,
-        bundled_helpers: BTreeSet::new(),
         carried_generated_names: None,
         carried_source_detached: std::cell::Cell::new(None),
         generated_names_this_print: GeneratedNamesThisPrint::default(),
@@ -1757,7 +1743,6 @@ impl Printer {
             PrintRequest::StandaloneNode { node, writer } => {
                 self.print_standalone_node(transformation, node, writer, recording)
             }
-            PrintRequest::Bundle(bundle) => self.print_bundle(transformation, &bundle, recording),
             PrintRequest::Declaration(source) => self.print_declaration_with_recording(
                 transformation,
                 source,
@@ -1767,7 +1752,7 @@ impl Printer {
         }
     }
 
-    /// Print a JavaScript SourceFile or Bundle with the actual checker global
+    /// Print a JavaScript SourceFile with the actual checker global
     /// name table. The `print` entry keeps its no-oracle contract;
     /// standalone-node and declaration requests keep their own APIs.
     pub fn print_javascript_with_global_names(
@@ -1786,12 +1771,6 @@ impl Printer {
             PrintRequest::SourceFile(source) => {
                 self.print_source_file(transformation, source, recording, Some(global_name_oracle))
             }
-            PrintRequest::Bundle(bundle) => self.print_bundle_worker(
-                transformation,
-                &bundle,
-                recording,
-                Some(global_name_oracle),
-            ),
             PrintRequest::StandaloneNode { .. } => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::StandaloneNodePrinting,
             )),
@@ -2190,7 +2169,6 @@ impl Printer {
                     statement_array,
                     statements,
                     helpers: if helper_body.is_some() { &[] } else { &helpers },
-                    mode: SourceFileEmitMode::OwnFile,
                 },
                 &mut writer,
             );
@@ -2340,7 +2318,6 @@ impl Printer {
             statement_array,
             statements,
             helpers,
-            mode,
         } = body;
         // writeFile order: shebang, then each prologue directive through its
         // own pipeline, THEN the SourceFile notification and emitSourceFile
@@ -2412,11 +2389,9 @@ impl Printer {
             }
         };
         let source_text = transformation.arena().source(source_id)?.syntax().text();
-        if mode == SourceFileEmitMode::OwnFile {
-            if let Some(shebang) = source_shebang(source_text) {
-                writer.write_comment(shebang);
-                writer.write_line(false);
-            }
+        if let Some(shebang) = source_shebang(source_text) {
+            writer.write_comment(shebang);
+            writer.write_line(false);
         }
         let helper_offset = statements
             .iter()
@@ -2459,30 +2434,9 @@ impl Printer {
             .flatten();
         let mut pending_detached_comments = PendingDetachedComments::default();
         self.carried_source_detached.set(None);
-        let skipped_prologues = if mode == SourceFileEmitMode::Bundle {
-            helper_offset
-        } else {
-            0
-        };
-        let mut accounted_for_original_prefix = source_owned_detached_prefix.is_some()
-            || skipped_prologues > 0
-                && original_first_statement
-                    .is_some_and(|first| self.is_prologue_statement(transformation, first));
+        let mut accounted_for_original_prefix = source_owned_detached_prefix.is_some();
         let mut last_original_statement = None;
-        for raw_statement in statements.iter().take(skipped_prologues) {
-            if let Some(statement) = transformation.arena().node_ref(source_id, *raw_statement) {
-                let original = transformation.arena().get_original_node(statement);
-                let record = transformation.arena().node(original)?;
-                let source = transformation.arena().source(original.source())?.syntax();
-                if matches!(
-                    SourceRange::from_raw(record.pos, record.end, source.positions())?,
-                    SourceRange::Original(_)
-                ) {
-                    last_original_statement = Some(original);
-                }
-            }
-        }
-        let has_body_statements = statements.len() > skipped_prologues;
+        let has_body_statements = !statements.is_empty();
         let statement_count = statements.len();
         // tsc leaves the prefix on detachedCommentsInfo until a leading phase at
         // its nodePos consumes it — or, for an EMPTY list (pos === end),
@@ -2511,9 +2465,7 @@ impl Printer {
                 self.emit_triple_slash_directives_if_needed(transformation, source_id, writer)?;
             }
         }
-        for (statement_index, raw_statement) in
-            statements.into_iter().enumerate().skip(skipped_prologues)
-        {
+        for (statement_index, raw_statement) in statements.into_iter().enumerate() {
             // tsc writes the statement separator BEFORE each item, never
             // after it: emitPrologueDirectives' writeLine before every
             // prologue (_tsc.js:119795-119799) and emitNodeListItems' leading
@@ -2730,15 +2682,10 @@ impl Printer {
                 true,
                 self.options.only_print_js_doc_style,
             );
-        } else if (mode == SourceFileEmitMode::OwnFile
-            || skipped_prologues == 0
-            || has_body_statements)
-            && !transformation
-                .arena()
-                .metadata(root)
-                .is_some_and(|metadata| {
-                    metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
-                })
+        } else if !transformation
+            .arena()
+            .metadata(root)
+            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS))
         {
             if let Some(statement_array) = statement_array {
                 // emitSourceFileWorker closes its MultiLine statement list

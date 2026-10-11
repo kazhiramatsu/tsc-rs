@@ -39,8 +39,7 @@ pub use builtins::{
     transform_ecmascript_module, transform_type_script,
 };
 pub use declaration_map::{
-    declaration_bundle_map_recording_inputs_for, declaration_map_recording_inputs_for,
-    finish_declaration_bundle_map, finish_declaration_map, DeclarationMapEmit,
+    declaration_map_recording_inputs_for, finish_declaration_map, DeclarationMapEmit,
 };
 pub use declarations::{
     get_declaration_diagnostics, transform_declaration_unit_for_harness, DeclBlockedInputs,
@@ -62,8 +61,8 @@ pub use execute::{
 };
 pub use factory::PreparedEmitSource;
 pub use factory::{
-    GeneratedIdentifierFlags, NodeFactory, ParsedEmitMetadata, TransformArena, TransformNode,
-    TransformNodeArray, TransformSource, TransformSourceId,
+    GeneratedIdentifierFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
+    TransformSource, TransformSourceId,
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{
@@ -74,8 +73,8 @@ pub use metadata::{
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
     for_each_emitted_file, get_output_paths_for, get_source_files_to_emit, preflight_emit,
-    source_file_may_be_emitted, EmitBundle, EmitMode, EmitOutputPaths, EmitOutputPlan,
-    EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection, JavascriptOmission,
+    source_file_may_be_emitted, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit,
+    EmitPreflight, EmitRoot, EmitSelection, JavascriptOmission,
 };
 pub use position::{
     GeneratedUtf16Location, GeneratedUtf16Position, PositionDomain, SourceBytePosition,
@@ -102,8 +101,8 @@ pub use sink::{
 pub use source_map::{SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields};
 pub use transform::{
     transform_nodes, DeclarationPrintHandlers, EmitHelper, EmitHint, GlobalNameOracle,
-    LexicalEnvironment, LexicalEnvironmentFlags, TransformBundle, TransformError, TransformFlags,
-    TransformRoot, TransformationContext, TransformationResult, TransformationState, Transformer,
+    LexicalEnvironment, LexicalEnvironmentFlags, TransformError, TransformFlags, TransformRoot,
+    TransformationContext, TransformationResult, TransformationState, Transformer,
     UnsupportedTransformFeature,
 };
 pub use tsc_program::SourceFileId;

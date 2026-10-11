@@ -11,7 +11,7 @@ use crate::{
     EmitHelper, EmitResolver, EmitResolverError, EmitResolverNode,
     EmitTypeReferenceSerializationKind, InternalEmitFlags, SourceMapRange, SourceRange,
     TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
-    TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
+    TransformSourceId, TransformationContext, Transformer,
 };
 
 use super::{
@@ -73,11 +73,7 @@ impl Transformer for LegacyDecoratorTransformer<'_> {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Err(TransformError::Unsupported(
-                UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let TransformRoot::SourceFile(source) = root;
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(root);
         }

@@ -115,7 +115,6 @@ pub(crate) fn emit_declaration_unit(
     declaration_path: JsStr<'_>,
     declaration_map_path: Option<JsStr<'_>>,
     force_dts_emit: bool,
-    parsed_emit_metadata: Option<&crate::ParsedEmitMetadata>,
 ) -> Result<DeclarationUnitEmit, EmitFailure> {
     let mut files_for_emit = Vec::new();
     for &source in planned_root.source_files() {
@@ -140,9 +139,6 @@ pub(crate) fn emit_declaration_unit(
             });
         }
         crate::EmitRoot::SourceFile(source) => crate::EmitRoot::SourceFile(*source),
-        crate::EmitRoot::Bundle(_) => {
-            crate::EmitRoot::Bundle(crate::EmitBundle::new(files_for_emit.clone()))
-        }
     };
     let options = host.compiler_options();
     for &source in &files_for_emit {
@@ -167,9 +163,6 @@ pub(crate) fn emit_declaration_unit(
     // Other program sources are mounted on first use
     // (`TransformArena::mount_parse_tree_transform_node`).
     let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root, false)?;
-    if let Some(metadata) = parsed_emit_metadata {
-        arena.restore_parsed_emit_metadata(metadata, host)?;
-    }
     let transformers = get_declaration_transformers(
         options,
         resolver,
@@ -207,10 +200,7 @@ pub(crate) fn emit_declaration_unit(
     }
     let transformed_root = result.roots()[0].clone();
     let source_files = crate::execute::transformed_source_paths(&result, &transformed_root, host)?;
-    let source_path = match &transformed_root {
-        TransformRoot::SourceFile(_) => Some(source_files[0].as_js()),
-        TransformRoot::Bundle(_) => None,
-    };
+    let source_path = source_files[0].as_js();
     let new_line = match options.new_line {
         Some(0) => NewLineKind::CarriageReturnLineFeed,
         None | Some(1) => NewLineKind::LineFeed,
@@ -229,33 +219,20 @@ pub(crate) fn emit_declaration_unit(
         .with_target(options.emit_script_target())
         .with_source_file_text_mode(SourceFileTextMode::Canonical);
     let global_name_oracle = crate::execute::ResolverGlobalNameOracle(resolver);
-    let recording_enabled = options.declaration_map == Some(true)
-        && !source_path.is_some_and(|path| path.ends_with(".json"));
+    let recording_enabled =
+        options.declaration_map == Some(true) && !source_path.ends_with(".json");
     let map_lane = recording_enabled.then(|| crate::execute::map_lane_inputs(host));
-    let recording = map_lane.as_ref().map(|lane| match source_path {
-        Some(source_path) => crate::declaration_map_recording_inputs_for(
-            lane,
-            options,
-            declaration_path,
-            source_path,
-        ),
-        None => crate::declaration_bundle_map_recording_inputs_for(lane, options, declaration_path),
+    let recording = map_lane.as_ref().map(|lane| {
+        crate::declaration_map_recording_inputs_for(lane, options, declaration_path, source_path)
     });
     let mut printer = create_printer(printer_options);
-    let printed = match transformed_root {
-        TransformRoot::SourceFile(root_source) => printer.print_declaration_with_recording(
-            &mut result,
-            root_source,
-            DeclarationPrintHandlers::new(&global_name_oracle),
-            recording,
-        ),
-        TransformRoot::Bundle(bundle) => printer.print_declaration_bundle(
-            &mut result,
-            &bundle,
-            DeclarationPrintHandlers::new(&global_name_oracle),
-            recording,
-        ),
-    };
+    let TransformRoot::SourceFile(root_source) = transformed_root;
+    let printed = printer.print_declaration_with_recording(
+        &mut result,
+        root_source,
+        DeclarationPrintHandlers::new(&global_name_oracle),
+        recording,
+    );
     result.dispose();
     let printed = printed?;
     let (artifact, map_artifact, map_observation) = if let Some(map_lane) = &map_lane {
@@ -263,28 +240,16 @@ pub(crate) fn emit_declaration_unit(
         let map_path = declaration_map_path.ok_or(EmitFailure::Contract(
             crate::EmitContractViolation::DeclarationMapPathMissing,
         ))?;
-        let mapped = match source_path {
-            Some(source_path) => crate::finish_declaration_map(
-                map_lane,
-                options,
-                declaration_path,
-                map_path,
-                source_path,
-                &printed,
-                diagnostics.clone(),
-                new_line,
-            ),
-            None => crate::finish_declaration_bundle_map(
-                map_lane,
-                options,
-                declaration_path,
-                map_path,
-                &source_files,
-                &printed,
-                diagnostics.clone(),
-                new_line,
-            ),
-        }?;
+        let mapped = crate::finish_declaration_map(
+            map_lane,
+            options,
+            declaration_path,
+            map_path,
+            source_path,
+            &printed,
+            diagnostics.clone(),
+            new_line,
+        )?;
         (
             mapped.declaration,
             Some(mapped.map),
