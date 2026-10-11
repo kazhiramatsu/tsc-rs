@@ -415,3 +415,19 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   （config 89／89 は json api を object の経路にしても全て一致）。checker は変わらないので並列対照は無し。
 - **hosted と merge**：PR #750 の hosted run 38137235257（rust 10m5s、conformance 16m15s、gates pass、head `6d5028d5b`）、merge commit
   `f99e90fa4`。
+
+## 実プロジェクト（tsgo `aa8149273` と、2026-10-11）
+
+- S6e の release build（`f99e90fa4` と同じ code）と `tsgo --singleThreaded`（tsc-rs は checker 1）、`--noEmit`、1 job・
+  `nice -n 20`（`~/dev/real-projects.noindex` の `compare-projects.py`・`dt-compare.py`）：
+  - material-ui：38／38 一致（46 s）。
+  - azure-sdk-for-js：2,756／2,756 一致（506 s）。
+  - DefinitelyTyped：9,066／9,067 一致（1,193 s）。違う 1 つは `koa-router` の error の message の型の切り詰め（tsgo は
+    `...middleware: ...` と引数の型ごと `...` にし、tsc-rs は `...middleware: IMiddleware<...>[]` まで書く）。追従の範囲の
+    tsgo の node builder の変更（#64556・#64461 など）の取り込み残りとみて、次の slice で直す。
+- 実行が clone に書いた `.tsbuildinfo`（material-ui 5 と build の directory、azure 338）は消した。DefinitelyTyped の ignored の
+  9,065 は install の `pnpm-lock.yaml`。
+- **追従のまとめ**：S0〜S6e で本家 `aa8149273` に追従した。conformance は errors 13,562 Full・mismatch 0、emit・source map・
+  trace・`.js.map` も mismatch 0、`.types` 85／`.symbols` 49（追従前からの残り）、harness error 15（content mapper）。suites
+  は 731 のうち既知の 24（ES5 を残す 14、content mapper 8、generateTrace の型 id 2）が違う。API の client は sync 336／356、
+  async 345／365（残りは LS 16、`formatNodeForInsertion` 3、`createSourceFile` の parse の共有 1）。
