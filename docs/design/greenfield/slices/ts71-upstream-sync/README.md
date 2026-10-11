@@ -129,3 +129,28 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   18 構成の入力は S1 が触れた構文（phase の import、meta-property、import attributes）を含まず、1 checker の結果も S0 と同じ。
 - **hosted と merge**：PR #741 の hosted run 38107146066（rust 11m38s、conformance (TypeScript 7.1) 21m13s、gates pass）。
   merge commit `67a759ffd`（2026-10-11）。
+
+## S2 checker（2026-10-11）
+
+- **本家の 10 commit**（違う 28 stem）：#64674（enum member の computed name を式として検査し、markLinkedReferences も
+  飛ばさない。15 stem）、#64636（import type の qualifier の名前は印を付けない）、#64479（getExternalModuleFileFromDeclaration
+  は ignoreErrors で解決）、#64646（JavaScript の class は自分の constructor が宣言した property の型を解決する：
+  checkConstructorDeclaredProperties）、#64482（isInExpressionContext：function／class 式の名前は宣言の名前）、#64525（static
+  property は自分の class で文脈型を付けない）、#64530（再帰の call の解決でも純粋な return type の推論は制約で絞る）、#64523
+  （strictPropertyInitialization の `this` の access は代入宣言の枝に入らない）、#63969（truncate 中の visitAndTransformType は
+  最初に省略する）、#64584 の checker の部分（`using` に `await using` の hint 18116）。
+- #63969 は checker の別の表示の道（`check.rs`：node builder の文字列版）にも入れた：symbol のある object、mapped、conditional、
+  deferred な reference の所で同じ check をする。node builder だけでは `unionElementErrorTruncation` は直らなかった。
+- **tsgo GetJSDocDeprecatedTag**：deprecated の suggestion の関連情報は宣言自身の JSDoc を読む（変数の JSDoc は文にあるので
+  無い。`deprecatedReferenceInEnumComputedNameNoFlake` で分かった）。getFirstJSDocTag は使う所が無くなり除いた。
+- **test**（tsgo の答えで pin）：CLI の contract（`using` の hint と enum の computed name の 2304）。truncation の表示の test は
+  省略した alias の引数を tsgo の `...` に、deprecated の alias の test は変数の宣言の関連情報が無いことに替えた。
+- **結果**（release build、`155dc8a73`）：full の conformance（`--workers 2 --check`、597 s）は 0 regressions、31 構成が受け入れの
+  tier を上回る。errors full 13,509 → 13,536（mismatch 46 → 21、text 2 → 1、category 1 → 0）、emit mismatch 39 → 37、types
+  mismatch 112 → 104、symbols 56・sourcemap 11・trace 1・harness error 19 は変わらない。S1 の report と構成ごとに比べると errors
+  +27・emit +2・types +8 で、下がった列は無い。上がった stem は slice の 28 の対象と、#63969 の truncation で直った types の 2
+  （`hugeDeclarationOutputGetsTruncatedWithError`、`nestedSpreadsAndWidening`）。
+- **並列対照**（`--checkers 4`、`scripts/conformance_ts71_compare.py`）：15,334 構成が一致、違う 5 構成は記録済みの順序の 4 構成と
+  partition で crash が変わる `declarationEmitUnserializableTypes`（S3）。S1 の対照で違った flaky な診断の test 17 は S2 の修正で
+  一致した。
+- ratchet は `--update` で 13,537 構成（新しい 25、上げた 6）。suites（`--check`）は 0 regressions で数は S1 と同じ。
