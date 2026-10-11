@@ -327,3 +327,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 - **結果**（release build、`4c68c56a1`。checker の crate に触れたので）：full の conformance（`--workers 2 --check`、475 s）は
   0 regressions で、S6a の report と全ての構成が全ての列と digest で同じ。並列対照（`--checkers 4`、469 s）は記録済みの順序の
   4 構成だけ、suites（`--check`）は 0 regressions・上がったもの無し（ratchet は変えない）。
+- **hosted と merge**：PR #747 の hosted run 38129643276（rust 11m16s、conformance 20m50s、gates pass、head `fa2e2588c`）、merge commit
+  `4b532ffdc`。
