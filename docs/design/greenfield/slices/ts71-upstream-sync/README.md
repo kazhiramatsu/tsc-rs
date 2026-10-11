@@ -154,3 +154,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   partition で crash が変わる `declarationEmitUnserializableTypes`（S3）。S1 の対照で違った flaky な診断の test 17 は S2 の修正で
   一致した。
 - ratchet は `--update` で 13,537 構成（新しい 25、上げた 6）。suites（`--check`）は 0 regressions で数は S1 と同じ。
+- **hosted と merge**：PR #742 の hosted run 38110517433（rust 9m56s、conformance (TypeScript 7.1) 12m52s、gates pass）。
+  merge commit `da383c9e7`（2026-10-11）。
