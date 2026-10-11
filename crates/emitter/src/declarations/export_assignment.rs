@@ -161,7 +161,9 @@ impl DeclarationTransformer<'_> {
             Some((class, SyntaxKind::ClassExpression)) => {
                 let modifiers = self.declare_modifiers(cx, source)?;
                 let declaration =
-                    self.transform_class_expression_to_declaration(cx, class, name, modifiers)?;
+                    self.with_default_export_diagnostics(cx, input, assignment, |this, cx| {
+                        this.transform_class_expression_to_declaration(cx, class, name, modifiers)
+                    })?;
                 let declaration = preserve_js_doc(cx, declaration, input)?;
                 let export = self.export_assignment_without_comments(cx, name, is_export_equals)?;
                 Ok(VisitResult::Nodes(vec![export, declaration]))
@@ -169,13 +171,16 @@ impl DeclarationTransformer<'_> {
             Some((function, kind)) if super::ensure::is_function_like(kind) => {
                 let modifiers = self.declare_modifiers(cx, source)?;
                 let full_signature_type = super::javascript::hosted_type(cx, assignment)?;
-                let declaration = self.transform_function_like_to_declaration(
-                    cx,
-                    function,
-                    name,
-                    modifiers,
-                    full_signature_type,
-                )?;
+                let declaration =
+                    self.with_default_export_diagnostics(cx, input, assignment, |this, cx| {
+                        this.transform_function_like_to_declaration(
+                            cx,
+                            function,
+                            name,
+                            modifiers,
+                            full_signature_type,
+                        )
+                    })?;
                 let declaration = preserve_js_doc(cx, declaration, input)?;
                 let export = self.export_assignment_without_comments(cx, name, is_export_equals)?;
                 Ok(VisitResult::Nodes(vec![export, declaration]))
@@ -203,38 +208,29 @@ impl DeclarationTransformer<'_> {
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let source = input.source();
-        let saved_diagnostic = self
-            .tracker
-            .replace_diagnostic_context(cx.arena(), DiagnosticContext::DefaultExport(input))?;
-        let saved_fallback = self
-            .tracker
-            .error_fallback_node
-            .replace(TrackerAnchor::Transform(assignment));
-        let result = (|| {
+        let result = self.with_default_export_diagnostics(cx, input, assignment, |this, cx| {
             let initializer = match unwrap_parenthesized_expression(cx, expression)? {
                 Some(literal) if super::ensure::is_primitive_literal_value(cx, literal)? => {
-                    let resolver_node = self.required_resolver_node(cx, assignment)?;
-                    let target = self.state()?.current_source_file;
-                    let result = self.resolver.create_literal_const_value(
+                    let resolver_node = this.required_resolver_node(cx, assignment)?;
+                    let target = this.state()?.current_source_file;
+                    let result = this.resolver.create_literal_const_value(
                         cx.arena_mut()?,
                         target,
                         resolver_node,
-                        &mut self.tracker,
+                        &mut this.tracker,
                     );
-                    let effects = self.tracker.take_pending_effects();
-                    materialize_effects(cx, self.host, effects)?;
+                    let effects = this.tracker.take_pending_effects();
+                    materialize_effects(cx, this.host, effects)?;
                     result.map_err(TransformError::from)?
                 }
                 _ => None,
             };
             let r#type = match initializer {
                 Some(_) => None,
-                None => self.ensure_type(cx, assignment, false)?,
+                None => this.ensure_type(cx, assignment, false)?,
             };
-            Ok::<_, TransformError>((r#type, initializer))
-        })();
-        self.tracker.error_fallback_node = saved_fallback;
-        self.tracker.restore_diagnostic_context(saved_diagnostic);
+            Ok((r#type, initializer))
+        });
         let (r#type, initializer) = result?;
         let modifiers = self.declare_modifiers(cx, source)?;
         let mut factory = cx.factory()?;
@@ -244,6 +240,29 @@ impl DeclarationTransformer<'_> {
         let list =
             factory.create_variable_declaration_list(source, declarations, NodeFlags::CONST)?;
         factory.create_variable_statement(source, Some(modifiers), list)
+    }
+
+    /// tsgo transformExportAssignment (#63989): the default export's
+    /// accessibility diagnostic and error fallback node cover whatever an
+    /// exported expression becomes, the class or function declaration too.
+    fn with_default_export_diagnostics<T>(
+        &mut self,
+        cx: &mut TransformationContext,
+        input: TransformNode,
+        assignment: TransformNode,
+        transform: impl FnOnce(&mut Self, &mut TransformationContext) -> Result<T, TransformError>,
+    ) -> Result<T, TransformError> {
+        let saved_diagnostic = self
+            .tracker
+            .replace_diagnostic_context(cx.arena(), DiagnosticContext::DefaultExport(input))?;
+        let saved_fallback = self
+            .tracker
+            .error_fallback_node
+            .replace(TrackerAnchor::Transform(assignment));
+        let result = transform(self, cx);
+        self.tracker.error_fallback_node = saved_fallback;
+        self.tracker.restore_diagnostic_context(saved_diagnostic);
+        result
     }
 
     /// `declare` when the statement needs it, else no modifiers.

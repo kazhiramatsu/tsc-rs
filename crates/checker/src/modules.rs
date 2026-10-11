@@ -7364,6 +7364,90 @@ impl<'a> CheckerState<'a> {
     /// file outside node_modules without a package `type` has no implied
     /// format, so that lookup misses an import the program recorded with
     /// its ESNext usage mode and the import contributes no container.
+    /// tsgo resolveExternalModule's resolution mode for `location`: the
+    /// usage mode of its context specifier — the location itself when it is
+    /// a module name, an import type's literal, a variable's bare or accessed
+    /// `require` argument, or the module specifier of the import call, import
+    /// or export declaration or import-equals around it — else the file's
+    /// default mode.
+    pub(crate) fn resolution_mode_for_module_lookup(
+        &self,
+        location: NodeId,
+    ) -> ModuleResolutionMode {
+        let is_string_literal_like = |node: NodeId| {
+            matches!(
+                self.kind_of(node),
+                SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+            )
+        };
+        let module_specifier_of = |node: NodeId| match self.data_of(node) {
+            NodeData::ImportDeclaration(data) => data.module_specifier,
+            NodeData::JSDocImportTag(data) => data.module_specifier,
+            NodeData::ExportDeclaration(data) => data.module_specifier,
+            _ => None,
+        };
+        let names_module = self.parent_of(location).is_some_and(|parent| {
+            matches!(self.data_of(parent), NodeData::ModuleDeclaration(data) if data.name == Some(location))
+        });
+        let context_specifier = if is_string_literal_like(location) || names_module {
+            Some(location)
+        } else if let NodeData::ModuleDeclaration(data) = self.data_of(location) {
+            data.name
+        } else if let NodeData::ImportType(data) = self.data_of(location) {
+            data.argument
+                .and_then(|argument| match self.data_of(argument) {
+                    NodeData::LiteralType(literal) => {
+                        literal.literal.filter(|&l| is_string_literal_like(l))
+                    }
+                    _ => None,
+                })
+        } else if let Some(argument) = self.external_module_require_argument(location) {
+            Some(argument)
+        } else if let Some(call) = self.import_call_ancestor(location) {
+            match self.data_of(call) {
+                NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
+                _ => None,
+            }
+        } else {
+            let find_ancestor = |kinds: &[SyntaxKind]| {
+                let mut current = Some(location);
+                while let Some(node) = current {
+                    if kinds.contains(&self.kind_of(node)) {
+                        return Some(node);
+                    }
+                    current = self.parent_of(node);
+                }
+                None
+            };
+            if let Some(declaration) =
+                find_ancestor(&[SyntaxKind::ImportDeclaration, SyntaxKind::JSDocImportTag])
+                    .or_else(|| find_ancestor(&[SyntaxKind::ExportDeclaration]))
+            {
+                module_specifier_of(declaration)
+            } else {
+                find_ancestor(&[SyntaxKind::ImportEqualsDeclaration]).and_then(|declaration| {
+                    match self.data_of(declaration) {
+                        NodeData::ImportEqualsDeclaration(data) => {
+                            data.module_reference.and_then(|reference| {
+                                match self.data_of(reference) {
+                                    NodeData::ExternalModuleReference(external) => {
+                                        external.expression
+                                    }
+                                    _ => None,
+                                }
+                            })
+                        }
+                        _ => None,
+                    }
+                })
+            }
+        };
+        match context_specifier.filter(|&specifier| is_string_literal_like(specifier)) {
+            Some(specifier) => self.resolution_mode_for_usage(specifier),
+            None => self.default_resolution_mode_for_file(location),
+        }
+    }
+
     pub(crate) fn default_resolution_mode_for_file(
         &self,
         location: NodeId,

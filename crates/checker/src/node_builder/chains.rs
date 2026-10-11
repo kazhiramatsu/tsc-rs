@@ -518,10 +518,9 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
     }
 
     /// No mode, as the declaration emitter's host answers: both hosts fill
-    /// the same specifier cache, so they must agree. An enclosing
-    /// declaration's specifier then leaves the file's default mode and the
-    /// ending inference reads every import; an existing import's usage mode
-    /// comes from the checker (tsgo `GetModeForUsageLocation`).
+    /// the same specifier cache, so they must agree. The modes of an
+    /// enclosing declaration's specifier and of an existing import come from
+    /// the checker (tsgo `GetModeForUsageLocation`).
     fn get_mode_for_resolution_at_index(
         &self,
         _file: EmitResolverNode,
@@ -1058,7 +1057,7 @@ fn alternative_containing_module_chains(
                 // syntax does not affect resolution; under bundler resolution a
                 // `.ts` file without a package `type` has no default mode).
                 if checker.import_syntax_affects_module_resolution()
-                    && checker.default_resolution_mode_for_file(enclosing)
+                    && checker.resolution_mode_for_module_lookup(enclosing)
                         != checker.resolution_mode_for_usage(import_ref)
                 {
                     continue;

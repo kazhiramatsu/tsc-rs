@@ -461,6 +461,8 @@ pub struct CheckerState<'a> {
     /// the slice guards both — divergence is observable only on a
     /// symbol-less self-containing type, which cannot be constructed.
     pub(crate) display_visited_types: rustc_hash::FxHashSet<TypeId>,
+    /// tsgo NodeBuilderContext.symbolDepth for the error display path.
+    pub(crate) display_symbol_depth: rustc_hash::FxHashMap<SymbolId, u32>,
     /// nodeBuilder context.inferTypeParameters. Conditional-type
     /// rendering installs the root's infer parameters only while its
     /// extends type is serialized; the type-parameter arm uses this
@@ -1550,6 +1552,7 @@ impl<'a> CheckerState<'a> {
             marker_sub_type_for_check: TypeId::new(0),
             variance_type_parameter: None,
             display_visited_types: rustc_hash::FxHashSet::default(),
+            display_symbol_depth: rustc_hash::FxHashMap::default(),
             display_infer_type_parameters: Vec::new(),
             display_approximate_length: 0,
             display_max_truncation_length: 160,

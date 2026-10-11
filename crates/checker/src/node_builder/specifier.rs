@@ -332,9 +332,15 @@ pub(crate) fn get_specifier_for_module_symbol(
     let importing_root = state.binder.source(importing_index).root;
     let importing_node = emit_resolver_node_for_file(state, importing_index, importing_root);
 
+    // tsgo getSpecifierForModuleSymbol: the enclosing declaration's module
+    // specifier gives the mode (Program.GetModeForUsageLocation), which the
+    // checker answers for every host alike.
     let original_mode = original_module_specifier
-        .and_then(|literal| module_specifier_index(state, importing_index, literal))
-        .map(|index| host.get_mode_for_resolution_at_index(importing_node, index))
+        .map(|literal| match state.resolution_mode_for_usage(literal) {
+            crate::modules::ModuleResolutionMode::CommonJs => EmitResolutionMode::CommonJs,
+            crate::modules::ModuleResolutionMode::EsNext => EmitResolutionMode::EsNext,
+            crate::modules::ModuleResolutionMode::Unknown => EmitResolutionMode::None,
+        })
         .filter(|mode| *mode != EmitResolutionMode::None);
     let resolution_mode = override_import_mode
         .filter(|mode| *mode != EmitResolutionMode::None)
@@ -4169,19 +4175,6 @@ fn emit_resolver_node_for_file(
             .0
     };
     EmitResolverNode::new(SourceFileId::from_raw(source), node)
-}
-
-fn module_specifier_index(
-    state: &CheckerState<'_>,
-    file_index: usize,
-    literal: NodeId,
-) -> Option<u32> {
-    let (imports, augmentations) = module_name_literals(state, file_index);
-    imports
-        .into_iter()
-        .chain(augmentations)
-        .position(|candidate| candidate == literal)
-        .and_then(|index| u32::try_from(index).ok())
 }
 
 pub(super) fn module_name_literals(

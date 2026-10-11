@@ -271,7 +271,13 @@ impl DeclarationTransformer<'_> {
         host: TransformNode,
     ) -> Result<(), TransformError> {
         let source = node.source();
+        let has_export_declaration = self.has_expando_export_declaration(cx, host)?;
         if cx.arena().node(right)?.kind == SyntaxKind::Identifier {
+            // tsgo (#64545): the earlier members stay exported once the
+            // namespace has an export declaration, this one too.
+            if !has_export_declaration {
+                self.add_export_modifier_to_expando_members(cx, host, source)?;
+            }
             // tsgo transformBinaryExpressionToExportDeclaration
             // (transform.go:1324-1341).
             let enclosing = self.state()?.enclosing_declaration.ok_or_else(|| {
@@ -291,7 +297,6 @@ impl DeclarationTransformer<'_> {
             return Ok(());
         }
 
-        let has_export_declaration = self.has_expando_export_declaration(cx, host)?;
         let r#type = self.expando_member_type(cx, node, use_property.then_some(property))?;
         let mut factory = cx.factory()?;
         let local_name = if use_property {
@@ -317,19 +322,29 @@ impl DeclarationTransformer<'_> {
             statements.push(named_exports_declaration(&mut factory, source, specifier)?);
         }
         if statements.len() > 1 && !has_export_declaration {
-            // The earlier members stay exported once the namespace has an
-            // export declaration.
-            let earlier = std::mem::take(self.expando_members_mut(host)?);
-            let mut exported = Vec::with_capacity(earlier.len());
-            for member in earlier {
-                let flags = super::statements::modifier_flags(cx, member)? | ModifierFlags::EXPORT;
-                let mut factory = cx.factory()?;
-                let modifiers = factory.create_modifiers_from_modifier_flags(source, flags)?;
-                exported.push(factory.replace_modifiers(member, modifiers)?);
-            }
-            *self.expando_members_mut(host)? = exported;
+            self.add_export_modifier_to_expando_members(cx, host, source)?;
         }
         self.expando_members_mut(host)?.extend(statements);
+        Ok(())
+    }
+
+    /// tsgo addExportModifierToExpandoMembers: the earlier members stay
+    /// exported once the namespace has an export declaration.
+    fn add_export_modifier_to_expando_members(
+        &mut self,
+        cx: &mut TransformationContext,
+        host: TransformNode,
+        source: crate::TransformSourceId,
+    ) -> Result<(), TransformError> {
+        let earlier = std::mem::take(self.expando_members_mut(host)?);
+        let mut exported = Vec::with_capacity(earlier.len());
+        for member in earlier {
+            let flags = super::statements::modifier_flags(cx, member)? | ModifierFlags::EXPORT;
+            let mut factory = cx.factory()?;
+            let modifiers = factory.create_modifiers_from_modifier_flags(source, flags)?;
+            exported.push(factory.replace_modifiers(member, modifiers)?);
+        }
+        *self.expando_members_mut(host)? = exported;
         Ok(())
     }
 

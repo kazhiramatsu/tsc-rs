@@ -1845,8 +1845,14 @@ fn type_to_type_node_worker(
             return create_anonymous_type_node(checker, arena, target, r#type, context, true, true)
                 .map(Some);
         }
+        // tsgo (#64556): an array or tuple goes through visitAndTransformType
+        // too (arrayOrTupleTypeToNode), so a cycle through one is detected.
         let has_node = checker.links.ty(r#type).deferred_node.is_some();
-        return if has_node {
+        let is_array_or_tuple = checker
+            .is_array_type(r#type)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+            || checker.tables.is_tuple_type(r#type);
+        return if is_array_or_tuple || has_node {
             visit_and_transform_type(
                 checker,
                 arena,
@@ -2435,13 +2441,7 @@ fn type_to_type_node_or_circularity_elision(
             .as_ref()
             .is_some_and(|visited| visited.contains(&r#type))
         {
-            if !has_flag(context, ALLOW_ANONYMOUS_IDENTIFIER) {
-                context.encountered_error = true;
-                context
-                    .tracker
-                    .report_cyclic_structure_error(&mut context.reported_diagnostic);
-            }
-            return create_elided_information_placeholder(arena, target, context).map(Some);
+            return create_cyclic_structure_placeholder(arena, target, context).map(Some);
         }
         return visit_and_transform_type(
             checker,
@@ -2774,9 +2774,28 @@ fn create_anonymous_type_node(
                     .map_err(|abort| checker_abort_error(checker, context, abort))?
                     == r#type
             {
-                if let Some(reused) = super::syntactic_try_reuse_existing_type_node(
+                // tsgo (nodebuilderimpl.go createAnonymousTypeNodeEx): when the
+                // node cannot be reused, the fallback re-enters with this same
+                // type; marking it visited for the attempt stops the recursion
+                // at the cyclic placeholder.
+                if context
+                    .visited_types
+                    .as_ref()
+                    .is_some_and(|visited| visited.contains(&r#type))
+                {
+                    return create_cyclic_structure_placeholder(arena, target, context);
+                }
+                context
+                    .visited_types
+                    .get_or_insert_with(Default::default)
+                    .insert(r#type);
+                let reused = super::syntactic_try_reuse_existing_type_node(
                     checker, arena, target, context, existing,
-                )? {
+                );
+                if let Some(visited) = context.visited_types.as_mut() {
+                    visited.remove(&r#type);
+                }
+                if let Some(reused) = reused? {
                     return Ok(reused);
                 }
             }
@@ -2786,7 +2805,7 @@ fn create_anonymous_type_node(
             .as_ref()
             .is_some_and(|visited| visited.contains(&r#type))
         {
-            return create_elided_information_placeholder(arena, target, context);
+            return create_cyclic_structure_placeholder(arena, target, context);
         }
         return visit_and_transform_type(
             checker,
@@ -2938,7 +2957,29 @@ fn create_anonymous_type_node(
                     }
                 }
             }
-            return create_elided_information_placeholder(arena, target, context);
+            return create_cyclic_structure_placeholder(arena, target, context);
+        }
+        return visit_and_transform_type(
+            checker,
+            arena,
+            target,
+            r#type,
+            context,
+            TypeTransform::Object,
+        )
+        .map(|node| node.expect("object transform always creates a node"));
+    }
+    // tsgo (#64558): in declaration emit a reverse mapped type is built in
+    // full, so it is visited like any structure.
+    if ty.object_flags.intersects(ObjectFlags::REVERSE_MAPPED)
+        && !has_flag(context, ALLOW_ANONYMOUS_IDENTIFIER)
+    {
+        if context
+            .visited_types
+            .as_ref()
+            .is_some_and(|visited| visited.contains(&r#type))
+        {
+            return create_cyclic_structure_placeholder(arena, target, context);
         }
         return visit_and_transform_type(
             checker,
@@ -3085,7 +3126,36 @@ fn visit_and_transform_type(
         return create_elided_information_placeholder(arena, target, context).map(Some);
     }
     context.visited_types.get_or_insert_with(Default::default);
-    let symbol = checker.tables.type_of(r#type).symbol;
+    // tsgo (#64556): an array or tuple takes the identity of its plain
+    // reference (a deferred and a regular reference are one cycle), and its
+    // nesting is not bounded by the shared Array symbol or tuple origin.
+    let is_array_or_tuple = checker
+        .is_array_type(r#type)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?
+        || checker.tables.is_tuple_type(r#type);
+    let identity = if is_array_or_tuple {
+        let reference_target = checker.tables.reference_target(r#type);
+        let arguments = checker
+            .get_type_arguments(r#type)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        checker
+            .tables
+            .create_type_reference(reference_target, &arguments)
+    } else {
+        r#type
+    };
+    if context
+        .visited_types
+        .as_ref()
+        .is_some_and(|visited| visited.contains(&identity))
+    {
+        return create_cyclic_structure_placeholder(arena, target, context).map(Some);
+    }
+    let symbol = if is_array_or_tuple {
+        None
+    } else {
+        checker.tables.type_of(r#type).symbol
+    };
     let depth = symbol.map(|symbol| {
         let old = context
             .symbol_depth
@@ -3106,13 +3176,14 @@ fn visit_and_transform_type(
             (
                 enclosing,
                 context.fake_scopes.top(),
-                r#type,
+                identity,
                 context.flags.0,
                 context.internal_flags.0,
+                context.infer_type_parameters.clone().unwrap_or_default(),
             )
         });
-    if let Some(key) = cache_key {
-        if let Some(cached) = context.serialized_types.get(&key).cloned() {
+    if let Some(key) = &cache_key {
+        if let Some(cached) = context.serialized_types.get(key).cloned() {
             if let Some(tracked) = cached.tracked_symbols {
                 for (symbol, enclosing, meaning) in tracked {
                     super::chains::track_symbol_in_context_at(
@@ -3127,7 +3198,37 @@ fn visit_and_transform_type(
             return deep_clone_cached_node(arena, cached.node).map(Some);
         }
     }
+    // tsgo (#64558): growing type arguments can keep a reverse mapped type
+    // from repeating, so its expansion is also bounded by its mapped
+    // declaration.
+    let reverse_mapped_origin = match &checker.tables.type_of(r#type).data {
+        TypeData::ReverseMapped(data) => match &checker.tables.type_of(data.mapped_type).data {
+            TypeData::Mapped(mapped) => Some(mapped.declaration),
+            _ => None,
+        },
+        _ => None,
+    };
+    let reverse_mapped_depth = reverse_mapped_origin.map(|origin| {
+        let old = context
+            .reverse_mapped_depth
+            .get(&origin)
+            .copied()
+            .unwrap_or(0);
+        (origin, old)
+    });
+    if reverse_mapped_depth.is_some_and(|(_, old)| old >= 100) {
+        context.truncating = true;
+        return create_elided_information_placeholder(arena, target, context).map(Some);
+    }
+    if let Some((origin, old)) = reverse_mapped_depth {
+        context.reverse_mapped_depth.insert(origin, old + 1);
+    }
     if depth.is_some_and(|(_, old)| old > 10) {
+        if let Some((origin, old)) = reverse_mapped_depth {
+            context.reverse_mapped_depth.insert(origin, old);
+        }
+        // tsgo (#64461): the depth limit truncates the rest of the request.
+        context.truncating = true;
         return create_elided_information_placeholder(arena, target, context).map(Some);
     }
     if let Some((symbol, old)) = depth {
@@ -3140,7 +3241,7 @@ fn visit_and_transform_type(
         .visited_types
         .as_mut()
         .expect("initialized above")
-        .insert(r#type);
+        .insert(identity);
     let old_tracked = context.tracked_symbols.take();
     let start_length = context.approximate_length;
     let result = match transform {
@@ -3174,13 +3275,16 @@ fn visit_and_transform_type(
         .visited_types
         .as_mut()
         .expect("initialized above")
-        .remove(&r#type);
+        .remove(&identity);
     if let Some((symbol, old)) = depth {
         context
             .symbol_depth
             .as_mut()
             .expect("initialized with symbol")
             .insert(symbol, old);
+    }
+    if let Some((origin, old)) = reverse_mapped_depth {
+        context.reverse_mapped_depth.insert(origin, old);
     }
     context.tracked_symbols = old_tracked;
     result
@@ -4035,7 +4139,9 @@ fn create_type_nodes_from_resolved_type(
             )?);
         }
         for info in &resolved.index_infos {
-            let type_node = if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
+            let type_node = if object_flags.intersects(ObjectFlags::REVERSE_MAPPED)
+                && has_flag(context, ALLOW_ANONYMOUS_IDENTIFIER)
+            {
                 Some(create_elided_information_placeholder(
                     arena, target, context,
                 )?)
@@ -4137,6 +4243,23 @@ fn create_type_nodes_from_resolved_type(
     result
 }
 
+/// tsgo createCyclicStructurePlaceholder (#64461): a cycle reports the
+/// cyclic structure error, unless anonymous identifiers are allowed, and
+/// elides.
+fn create_cyclic_structure_placeholder(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    context: &mut NodeBuilderContext<'_>,
+) -> BuildResult<TransformNode> {
+    if !has_flag(context, ALLOW_ANONYMOUS_IDENTIFIER) {
+        context.encountered_error = true;
+        context
+            .tracker
+            .report_cyclic_structure_error(&mut context.reported_diagnostic);
+    }
+    create_elided_information_placeholder(arena, target, context)
+}
+
 /// tsc-port: createElidedInformationPlaceholder @6.0.3
 /// tsc-hash: 9fe24796b9c8dc49e718e88a66c16cac0341b79590fdec1e7b8edc49122e169f
 /// tsc-span: _tsc.js:52212-52222
@@ -4164,6 +4287,11 @@ fn should_use_placeholder_for_property(
     property: SymbolId,
     context: &NodeBuilderContext<'_>,
 ) -> bool {
+    // tsgo (#64558): reverse mapped type placeholders are for display, not
+    // declaration emit.
+    if !has_flag(context, ALLOW_ANONYMOUS_IDENTIFIER) {
+        return false;
+    }
     if !checker
         .get_check_flags(property)
         .intersects(CheckFlags::REVERSE_MAPPED)
@@ -4191,33 +4319,35 @@ fn should_use_placeholder_for_property(
         || is_deeply_nested_reverse_mapped_type_property(checker, property, stack)
 }
 
-/// tsc-port: isDeeplyNestedReverseMappedTypeProperty @6.0.3
-/// tsc-hash: df3584e30d1c13c85520b98687a965cf29813b15a6bbce950b45d32825a366a1
-/// tsc-span: _tsc.js:52227-52239
+/// tsgo shouldUsePlaceholderForProperty's condition (3): with at least
+/// MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH entries on the stack, any of
+/// its last entries (indexes 0 through that depth) from the property's own
+/// mapped type (tsc 6.0 required each of the last three).
 fn is_deeply_nested_reverse_mapped_type_property(
     checker: &CheckerState<'_>,
     property: SymbolId,
     stack: &[SymbolId],
 ) -> bool {
-    const DEPTH: usize = 3;
-    if stack.len() < DEPTH {
+    const MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH: usize = 3;
+    if stack.len() < MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH {
         return false;
     }
-    let property_mapped_symbol = checker
-        .links
-        .symbol_cold()
-        .mapped_type
-        .get(property)
-        .and_then(|ty| checker.tables.type_of(ty).symbol);
-    stack.iter().rev().take(DEPTH).all(|entry| {
+    let mapped_symbol = |symbol: SymbolId| {
         checker
             .links
             .symbol_cold()
             .mapped_type
-            .get(*entry)
+            .get(symbol)
             .and_then(|ty| checker.tables.type_of(ty).symbol)
-            == property_mapped_symbol
-    })
+    };
+    let Some(property_mapped_symbol) = mapped_symbol(property) else {
+        return false;
+    };
+    stack
+        .iter()
+        .rev()
+        .take(MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH + 1)
+        .any(|&entry| mapped_symbol(entry) == Some(property_mapped_symbol))
 }
 
 fn create_property_name_for_symbol(
