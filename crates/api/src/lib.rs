@@ -25,6 +25,7 @@ pub mod request_fs;
 pub mod server;
 pub mod session;
 mod symbols;
+pub mod uri;
 
 use encoder::ScriptKind;
 use tsc_syntax::{LanguageVariant, ParseOptions, SourceFile};

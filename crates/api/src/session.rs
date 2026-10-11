@@ -2206,7 +2206,7 @@ fn document_file_name(document: &DocumentIdentifier) -> Result<String, String> {
     if document.uri.is_empty() {
         Ok(document.file_name.clone())
     } else {
-        crate::proto::uri_to_file_name(&document.uri).map_err(client_error)
+        crate::uri::uri_to_file_name(&document.uri).map_err(client_error)
     }
 }
 

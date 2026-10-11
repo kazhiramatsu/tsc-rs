@@ -173,7 +173,9 @@ fn a_diagnostic_response_round_trips_to_a_diagnostic() {
 
 #[test]
 fn uris_become_file_names_like_tsgo() {
-    // tsgo `DocumentUri.FileName` at 19dadef8, probed.
+    // tsgo `DocumentUri.FileName`, probed at 19dadef8 and aa8149273 (#64159's
+    // dynamic names for other schemes; `crate::uri` holds tsgo's own pairs).
+    use crate::uri::uri_to_file_name;
     for (uri, file_name) in [
         ("file:///D%3A/repo/index.ts", "D:/repo/index.ts"),
         ("file:///a/b%20c.ts", "/a/b c.ts"),
@@ -181,9 +183,12 @@ fn uris_become_file_names_like_tsgo() {
         ("bundled:///libs/lib.d.ts", "bundled:///libs/lib.d.ts"),
         (
             "untitled:Untitled-1",
-            "^/untitled/ts-nul-authority/Untitled-1",
+            "^/~ts-uri~/untitled/ts-nul-authority/Untitled-1",
         ),
-        ("vscode-vfs://github/x/y.ts", "^/vscode-vfs/github/x/y.ts"),
+        (
+            "vscode-vfs://github/x/y.ts",
+            "^/~ts-uri~/vscode-vfs/github/x/y.ts",
+        ),
         ("file:///c:/x.ts", "c:/x.ts"),
         ("file:///home/p/a.ts?query#frag", "/home/p/a.ts"),
         ("file:///%E3%81%82.ts", "/あ.ts"),

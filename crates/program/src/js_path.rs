@@ -45,6 +45,24 @@ fn root_end_byte(path: JsStr<'_>) -> usize {
             return 2;
         }
     }
+    // tsgo: a dynamic file name (an untitled document's) roots at `^/`, an
+    // encoded URI name past its scheme and authority.
+    if first == b'^' && bytes.get(1) == Some(&b'/') {
+        let prefix = tsc_host::DYNAMIC_URI_FILE_NAME_PREFIX.as_bytes();
+        if let Some(rest) = bytes.strip_prefix(prefix) {
+            if let Some(scheme_end) = rest.iter().position(|&byte| byte == b'/') {
+                let authority_start = prefix.len() + scheme_end + 1;
+                return match bytes[authority_start..]
+                    .iter()
+                    .position(|&byte| byte == b'/')
+                {
+                    Some(authority_end) => authority_start + authority_end + 1,
+                    None => bytes.len(),
+                };
+            }
+        }
+        return 2;
+    }
     let Some((scheme, rest)) = path.split_once("://") else {
         return 0;
     };
@@ -75,6 +93,18 @@ fn root_end_byte(path: JsStr<'_>) -> usize {
         }
     }
     authority_end + 1
+}
+
+/// tsgo `canonicalDynamicURIPath`: an encoded dynamic name that is only
+/// its root ends with a separator.
+pub fn canonical_dynamic_uri_path(mut path: String) -> String {
+    if tsc_host::is_encoded_dynamic_file_name(&path)
+        && root_end_byte(JsStr::from_str(&path)) == path.len()
+        && !path.ends_with('/')
+    {
+        path.push('/');
+    }
+    path
 }
 
 /// tspath `GetRootLength` as a split: the path's root (`/`, `c:/`, a UNC
