@@ -4946,6 +4946,7 @@ compiler/nodeModulesPackageImportsRootWildcard	full	js	full	full	full	full	full
 compiler/nodeModulesPackageImportsRootWildcardNode16	full	js	full	full	full	full	full
 compiler/nodeNextCjsNamespaceImportDefault1	full	js	full	full	full	full	full
 compiler/nodeNextCjsNamespaceImportDefault2	full	js	full	full	full	full	full
+compiler/nodeNextDirectoryImportExtensionSuggestion	full	js	full	full	full	full	full
 compiler/nodeNextEsmImportsOfPackagesWithExtensionlessMains	full	js	full	full	full	full	full
 compiler/nodeNextImportModeImplicitIndexResolution	full	js	full	full	full	full	full
 compiler/nodeNextImportModeImplicitIndexResolution2	full	js	full	full	full	full	full
@@ -6165,7 +6166,7 @@ compiler/symbolLinkDeclarationEmitModuleNamesRootDir_promoted	full	js	full	full	
 compiler/symbolMergeValueAndImportedType	full	js	full	full	full	full	full
 compiler/symbolObserverMismatchingPolyfillsWorkTogether	full	js	full	full	full	full	full
 compiler/symbolToNodeBoundaryNoStackOverflow	full	js	none	none	full	full	full
-compiler/symlinkedPackageReachedRelativelyIsNotExternalLibrary	full	none	none	none	full	full	full
+compiler/symlinkedPackageReachedRelativelyIsNotExternalLibrary	full	js	none	none	full	full	full
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesDeepNonrelativeName	full	js	full	full	full	full	full
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesNonrelativeName	full	js	full	full	full	full	full
 compiler/symlinkedWorkspaceDependenciesNoDirectLinkOptionalGeneratesNonrelativeName	full	js	full	full	full	full	full
@@ -6320,7 +6321,7 @@ compiler/tsCheckPreservedAfterReference	full	js	none	none	full	full	full
 compiler/tsconfigExtendsPackageJsonExportsWildcard	full	js	none	none	full	full	full
 compiler/tsconfigMalformedNonObject	full	js	full	full	full	full	full
 compiler/tsconfigMapOptionsAreCaseInsensitive	full	js	full	full	full	full	full
-compiler/tsconfigRootdirInclude	text	js	full	full	full	full	full
+compiler/tsconfigRootdirInclude	full	js	full	full	full	full	full
 compiler/tsconfigSimpleTest	full	js	full	full	full	full	full
 compiler/tslibImportDefaultHelperCommonJS	full	js	none	none	full	full	full
 compiler/tslibInJs	full	js	full	full	full	full	full
@@ -6499,7 +6500,7 @@ compiler/typePredicatesOptionalChaining1	full	js	full	full	full	full	full
 compiler/typePredicatesOptionalChaining2	full	js	full	full	full	full	full
 compiler/typePredicatesOptionalChaining3	full	js	full	full	full	full	full
 compiler/typeReferenceDirectiveScopedPackageCustomTypeRoot	full	js	full	full	full	full	full
-compiler/typeReferenceDirectiveTrailingSlashName	full	js	full	full	full	none	full
+compiler/typeReferenceDirectiveTrailingSlashName	full	js	full	full	full	full	full
 compiler/typeReferenceDirectiveWithFailedFromTypeRoot	full	js	full	full	full	full	full
 compiler/typeReferenceDirectiveWithTypeAsFile	full	js	full	full	full	full	full
 compiler/typeReferenceDirectives1	full	js	full	full	full	full	full
