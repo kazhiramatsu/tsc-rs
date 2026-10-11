@@ -51,10 +51,11 @@ func main() {
 			panic(err)
 		}
 		sourceText := string(text)
+		rooted := tspath.ToRootedFilePath(fileName, "/")
 		sourceFile := parser.ParseSourceFile(ast.SourceFileParseOptions{
-			FileName: fileName,
-			Path:     tspath.Path(fileName),
-		}, sourceText, core.GetScriptKindFromFileName(fileName))
+			FileName: rooted,
+			PathKey:  tspath.CaseSensitive.PathKey(rooted.AsPath()),
+		}, sourceText, core.GetScriptKindFromFileName(rooted))
 		sourceFile.Hash = xxh3.HashString128(sourceText)
 		data, _, err := encoder.EncodeSourceFile(sourceFile)
 		if err != nil {
