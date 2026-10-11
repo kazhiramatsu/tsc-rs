@@ -894,7 +894,6 @@ impl<'a> CheckerState<'a> {
     /// Order is the spec (m4-58 §6). addLazyDiagnostic = eager
     /// identity for the base-type block, the implements diagnostics,
     /// and the final index-constraint/property-initialization block.
-    /// The ES5 Extends helper is checked at the base-type node's parent.
     fn check_class_like_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_class_like_declaration(node);
         self.check_decorators(node)?;
@@ -934,17 +933,6 @@ impl<'a> CheckerState<'a> {
             let base_type_arguments = self.heritage_type_arguments(base_type_node);
             for argument in self.nodes_of(base_type_arguments) {
                 self.check_source_element(Some(argument));
-            }
-            // `if (languageVersion < LanguageFeatureMinimumTarget.Classes)
-            // checkExternalEmitHelpers(baseTypeNode.parent, Extends)` —
-            // live since the H2.5h-b B-5 target flip admitted the ES5 band.
-            if self.options.emit_script_target() < ScriptTarget::ES2015 {
-                if let Some(heritage_clause) = self.parent_of(base_type_node) {
-                    self.check_external_emit_helpers(
-                        heritage_clause,
-                        crate::modules::EMIT_HELPER_EXTENDS,
-                    )?;
-                }
             }
             let base_types = self.get_base_types(ty)?;
             if !base_types.is_empty() {

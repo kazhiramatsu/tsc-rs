@@ -221,8 +221,6 @@ fn mutate_everything(state: &mut CheckerState) {
     state.push_error_diagnostic(diagnostic);
     state.mark_partially_checked_node(root, "7.0t rollback test");
     state.elaborated_satisfies_expressions.insert(root);
-    state.potential_this_collisions.push(root);
-    state.potential_new_target_collisions.push(root);
     state.potential_weak_map_set_collisions.push(root);
     state.potential_reflect_collisions.push(root);
     state
@@ -265,8 +263,6 @@ struct Observed {
     partial_check_records: usize,
     partially_checked_files: usize,
     elaborated_satisfies_expressions: usize,
-    potential_this_collisions: usize,
-    potential_new_target_collisions: usize,
     potential_weak_map_set_collisions: usize,
     potential_reflect_collisions: usize,
     potential_unused_renamed_binding_elements_in_types: usize,
@@ -315,8 +311,6 @@ fn observe(state: &CheckerState) -> Observed {
         partial_check_records: state.partial_check_records.len(),
         partially_checked_files: state.partially_checked_ranges.len(),
         elaborated_satisfies_expressions: state.elaborated_satisfies_expressions.len(),
-        potential_this_collisions: state.potential_this_collisions.len(),
-        potential_new_target_collisions: state.potential_new_target_collisions.len(),
         potential_weak_map_set_collisions: state.potential_weak_map_set_collisions.len(),
         potential_reflect_collisions: state.potential_reflect_collisions.len(),
         potential_unused_renamed_binding_elements_in_types: state

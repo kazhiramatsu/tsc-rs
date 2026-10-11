@@ -26,8 +26,7 @@
 use tsc_diagnostics::{gen as diagnostics, Diagnostic, MessageChain, RelatedInfo};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    IterationTypeKind, IterationUse, ScriptTarget, SymbolFlags, TypeFacts, TypeFlags, TypeId,
-    UnionReduction,
+    IterationTypeKind, IterationUse, SymbolFlags, TypeFacts, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::calls::DiagSpan;
@@ -627,21 +626,13 @@ impl<'a> CheckerState<'a> {
         }
         let iterable_exists =
             self.get_global_iterable_type(/*report_errors*/ false)? != self.empty_generic_type;
-        let uplevel_iteration =
-            self.options.emit_script_target() >= ScriptTarget::ES2015 && iterable_exists;
-        let downlevel_iteration =
-            !uplevel_iteration && self.options.downlevel_iteration.unwrap_or(false);
         let possible_out_of_bounds = self.options.no_unchecked_indexed_access.unwrap_or(false)
             && use_.intersects(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
-        if uplevel_iteration || downlevel_iteration || allow_async_iterables {
+        if iterable_exists || allow_async_iterables {
             let iteration_types = self.get_iteration_types_of_iterable_at_target(
                 input_type,
                 use_,
-                if uplevel_iteration {
-                    error_target
-                } else {
-                    None
-                },
+                if iterable_exists { error_target } else { None },
             )?;
             if check_assignability {
                 if let Some(iteration_types) = iteration_types {
@@ -666,7 +657,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            if iteration_types.is_some() || uplevel_iteration {
+            if iteration_types.is_some() || iterable_exists {
                 let yield_type = iteration_types.map(|types| types.yield_type);
                 return if possible_out_of_bounds {
                     self.include_undefined_in_index_signature(yield_type)
@@ -722,13 +713,8 @@ impl<'a> CheckerState<'a> {
             if let Some(error_target) = error_target {
                 let allows_strings = use_.intersects(IterationUse::ALLOWS_STRING_INPUT_FLAG)
                     && !has_string_constituent;
-                let (default_diagnostic, maybe_missing_await) = self
-                    .get_iteration_diagnostic_details(
-                        use_,
-                        input_type,
-                        allows_strings,
-                        downlevel_iteration,
-                    )?;
+                let (default_diagnostic, maybe_missing_await) =
+                    self.get_iteration_diagnostic_details(use_, input_type, allows_strings)?;
                 let suggest_await =
                     maybe_missing_await && self.get_awaited_type_of_promise(array_type)?.is_some();
                 let display = self.type_to_string(array_type)?;
@@ -788,21 +774,7 @@ impl<'a> CheckerState<'a> {
         use_: IterationUse,
         input_type: TypeId,
         allows_strings: bool,
-        downlevel_iteration: bool,
     ) -> CheckResult<(&'static tsc_diagnostics::DiagnosticMessage, bool)> {
-        if downlevel_iteration {
-            return Ok(if allows_strings {
-                (
-                    &diagnostics::Type_0_is_not_an_array_type_or_a_string_type_or_does_not_have_a_Symbol_iterator_method_that_returns_an_iterator,
-                    true,
-                )
-            } else {
-                (
-                    &diagnostics::Type_0_is_not_an_array_type_or_does_not_have_a_Symbol_iterator_method_that_returns_an_iterator,
-                    true,
-                )
-            });
-        }
         let yield_type =
             self.get_iteration_type_of_iterable(use_, IterationTypeKind::YIELD, input_type, None)?;
         if yield_type.is_some() {

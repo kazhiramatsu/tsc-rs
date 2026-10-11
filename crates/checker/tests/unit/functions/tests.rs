@@ -1,5 +1,5 @@
 use tsc_syntax::SyntaxKind;
-use tsc_types::{CompilerOptions, NodeCheckFlags, ScriptTarget};
+use tsc_types::CompilerOptions;
 
 use crate::state::test_support::with_program_state;
 use crate::{check_program, InputFile};
@@ -49,52 +49,6 @@ fn checked_rows_with(text: &str, options: &CompilerOptions) -> Vec<(u32, u32, u3
             })
             .collect()
     })
-}
-
-#[test]
-fn private_names_in_a_loop_class_expression_publish_emit_placement_flags() {
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
-        ..CompilerOptions::default()
-    };
-    with_program_state(
-        &[(
-            "a.ts",
-            concat!(
-                "for (let i = 0; i < 2; i++) {\n",
-                "    void class { #field = i; #method() {} };\n",
-                "}\n",
-            ),
-        )],
-        &options,
-        |state| {
-            state.check_source_file(0);
-            let source = state.binder.source(0);
-            let private_names = source
-                .arena
-                .node_ids()
-                .filter(|node| source.arena.node(*node).kind == SyntaxKind::PrivateIdentifier)
-                .collect::<Vec<_>>();
-            let iteration = source
-                .arena
-                .node_ids()
-                .find(|node| source.arena.node(*node).kind == SyntaxKind::ForStatement)
-                .expect("loop statement");
-            assert_eq!(private_names.len(), 2);
-            for name in private_names {
-                assert!(state
-                    .links
-                    .node(name)
-                    .check_flags
-                    .intersects(NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP));
-            }
-            assert!(state
-                .links
-                .node(iteration)
-                .check_flags
-                .intersects(NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING));
-        },
-    );
 }
 
 #[test]
@@ -1225,31 +1179,22 @@ fn checked_js_variable_type_tag_is_no_async_return_annotation() {
 }
 
 #[test]
-fn es5_async_constructor_relation_elides_the_construct_return_marker() {
-    let lib = "declare type PromiseConstructorLike = new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void) => PromiseLike<T>;\n\
-                   interface PromiseLike<T> {\n\
-                     then<TResult1 = T, TResult2 = never>(onfulfilled?: (value: T) => TResult1 | PromiseLike<TResult1>, onrejected?: (reason: any) => TResult2 | PromiseLike<TResult2>): PromiseLike<TResult1 | TResult2>;\n\
-                   }\n";
-    let source = "declare class Thenable { then(): void; }\nasync function value(): Thenable {}\n";
+fn construct_relation_elides_the_construct_return_marker() {
+    let source = "declare class A { x: string }\nconst c: new () => { x: number } = A;\n";
     let result = check_program(
-        &[
-            InputFile::new("/lib.d.ts".to_owned(), lib.to_owned()),
-            InputFile::new("/a.ts".to_owned(), source.to_owned()),
-        ],
-        &CompilerOptions {
-            target: Some(tsc_types::ScriptTarget::ES5.bits()),
-            ..CompilerOptions::default()
-        },
+        &[InputFile::new("/a.ts".to_owned(), source.to_owned())],
+        &CompilerOptions::default(),
     );
     let diagnostic = result
         .diagnostics
         .iter()
-        .find(|diagnostic| diagnostic.code() == 1055)
-        .expect("the invalid ES5 promise constructor is reported");
+        .find(|diagnostic| diagnostic.code() == 2322)
+        .expect("the construct signature mismatch is reported");
     // tsgo's relation chain keeps the construct return-type row (2203) only
-    // as a marker elided from the diagnostic (relater.go:400-412).
+    // as a marker elided from the diagnostic (relater.go:400-412): tsgo
+    // prints 2322 / 2322 / 2326 / 2322.
     assert_eq!(diagnostic.message.next[0].code, 2322);
-    assert_eq!(diagnostic.message.next[0].next[0].code, 2201);
+    assert_eq!(diagnostic.message.next[0].next[0].code, 2326);
     assert_eq!(diagnostic.message.next[0].next[0].next[0].code, 2322);
 }
 

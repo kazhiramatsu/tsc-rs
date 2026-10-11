@@ -29,9 +29,7 @@ use crate::node_util::{
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsc_types::{
-    EscapedName, FlowFlags, JsStr, JsString, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags,
-};
+use tsc_types::{EscapedName, FlowFlags, JsStr, JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
 impl<'a> BinderWorker<'a> {
     /// tsc-port: bindSourceFile2 @6.0.3
@@ -41,7 +39,6 @@ impl<'a> BinderWorker<'a> {
     /// The closure-state reset tail is unnecessary (a Binder is
     /// per-file). file.symbolCount == symbols.len().
     pub fn bind_source_file(&mut self) {
-        self.in_strict_mode = self.bind_in_strict_mode();
         self.bind(Some(self.source.root));
         // tsgo bindContainer's source-file tail (TypeScript 7.1): the JSDoc
         // type aliases first, then the CommonJS variables and the type
@@ -52,14 +49,6 @@ impl<'a> BinderWorker<'a> {
         self.bind_jsdoc_imports();
     }
 
-    /// tsgo's binder tracks no strict mode: TypeScript 7 code is always
-    /// strict, so every strict-mode check applies, in declaration files and
-    /// scripts alike, and function declarations are block scoped
-    /// (binder/binder.go:1219-1225, 1374-1440).
-    fn bind_in_strict_mode(&self) -> bool {
-        true
-    }
-
     /// tsc-port: bind @6.0.3
     /// tsc-hash: d0f56450cb1e141f74a40208f49a2952dd81d23e726f1c07e9d897b22a56f546
     /// tsc-span: _tsc.js:44226-44255
@@ -68,7 +57,6 @@ impl<'a> BinderWorker<'a> {
     /// time).
     pub fn bind(&mut self, node: Option<NodeId>) {
         let Some(node) = node else { return };
-        let save_in_strict_mode = self.in_strict_mode;
         // A function declaration of a statement list binds before the other
         // statements; tsgo's namespaces reparsed from its JSDoc are statements
         // of their own, bound in their place (bind_each_functions_first).
@@ -93,7 +81,6 @@ impl<'a> BinderWorker<'a> {
         } else {
             self.bind_jsdoc(node);
         }
-        self.in_strict_mode = save_in_strict_mode;
     }
 
     /// tsc-port: bindWorker @6.0.3
@@ -317,7 +304,6 @@ impl<'a> BinderWorker<'a> {
                 _ => debug_assert!(false, "Unknown call expression assignment declaration kind"),
             },
             SyntaxKind::ClassExpression | SyntaxKind::ClassDeclaration => {
-                self.in_strict_mode = true;
                 self.bind_class_like_declaration(node);
             }
             SyntaxKind::InterfaceDeclaration => {
@@ -380,22 +366,7 @@ impl<'a> BinderWorker<'a> {
             SyntaxKind::ImportClause => self.bind_import_clause(node),
             SyntaxKind::ExportDeclaration => self.bind_export_declaration(node),
             SyntaxKind::ExportAssignment => self.bind_export_assignment(node),
-            SyntaxKind::SourceFile => {
-                self.update_strict_mode_statement_list(statements_of(self.source, node));
-                self.bind_source_file_if_external_module();
-            }
-            SyntaxKind::Block => {
-                let function_like_parent = parent_of(self.source, node).is_some_and(|parent| {
-                    is_function_like_kind(kind_of(self.source, parent))
-                        || kind_of(self.source, parent) == SyntaxKind::ClassStaticBlockDeclaration
-                });
-                if function_like_parent {
-                    self.update_strict_mode_statement_list(statements_of(self.source, node));
-                }
-            }
-            SyntaxKind::ModuleBlock => {
-                self.update_strict_mode_statement_list(statements_of(self.source, node));
-            }
+            SyntaxKind::SourceFile => self.bind_source_file_if_external_module(),
             _ => {}
         }
     }
@@ -782,9 +753,7 @@ impl<'a> BinderWorker<'a> {
     ///
     fn bind_variable_declaration_or_binding_element(&mut self, node: NodeId) {
         let name = name_field_of(self.source, node);
-        if self.in_strict_mode {
-            self.check_strict_mode_eval_or_arguments(node, name);
-        }
+        self.check_strict_mode_eval_or_arguments(node, name);
         let Some(name) = name else {
             // A missing name still declares a __missing symbol via
             // getDeclarationName's None path.
@@ -888,7 +857,7 @@ impl<'a> BinderWorker<'a> {
             return;
         }
         let name = name_field_of(self.source, node);
-        if self.in_strict_mode && !self.flags_of(node).intersects(NodeFlags::AMBIENT) {
+        if !self.flags_of(node).intersects(NodeFlags::AMBIENT) {
             self.check_strict_mode_eval_or_arguments(node, name);
         }
         let is_pattern = name.is_some_and(|name| is_binding_pattern(self.source, name));
@@ -988,6 +957,9 @@ impl<'a> BinderWorker<'a> {
     /// tsc-port: bindFunctionDeclaration @6.0.3
     /// tsc-hash: 2a556f1803e3f631bf473a352283bc91fb02ada41b843473fc8a06004ad46e7e
     /// tsc-span: _tsc.js:45038-45051
+    ///
+    /// TypeScript 7 code is always strict: tsgo tracks no strict mode, and a
+    /// function declaration is block scoped (binder/binder.go:1218-1224).
     fn bind_function_declaration(&mut self, node: NodeId) {
         if !self.source.is_declaration_file
             && !self.flags_of(node).intersects(NodeFlags::AMBIENT)
@@ -996,20 +968,11 @@ impl<'a> BinderWorker<'a> {
             self.emit_flags |= NodeFlags::HAS_ASYNC_FUNCTIONS.bits();
         }
         self.check_strict_mode_function_name(node);
-        if self.in_strict_mode {
-            self.check_strict_mode_function_declaration(node);
-            self.bind_block_scoped_declaration(
-                node,
-                SymbolFlags::FUNCTION,
-                SymbolFlags::FUNCTION_EXCLUDES,
-            );
-        } else {
-            self.declare_symbol_and_add_to_symbol_table(
-                node,
-                SymbolFlags::FUNCTION,
-                SymbolFlags::FUNCTION_EXCLUDES,
-            );
-        }
+        self.bind_block_scoped_declaration(
+            node,
+            SymbolFlags::FUNCTION,
+            SymbolFlags::FUNCTION_EXCLUDES,
+        );
         self.declare_reparsed_overloads(node);
     }
 
@@ -1762,58 +1725,6 @@ impl<'a> BinderWorker<'a> {
 
     // ---- strict-mode + contextual checks ----
 
-    /// tsc-port: updateStrictModeStatementList @6.0.3
-    /// tsc-hash: d1bb3cba59e561a09339542a9db07a3e28ad79548d76558148aa0a5652c541fb
-    /// tsc-span: _tsc.js:44270-44282
-    fn update_strict_mode_statement_list(&mut self, statements: Option<NodeArrayId>) {
-        if self.in_strict_mode {
-            return;
-        }
-        let Some(statements) = statements else { return };
-        let statements = self.source.arena.node_array(statements).nodes.to_vec();
-        for statement in statements {
-            if !self.is_prologue_directive(statement) {
-                return;
-            }
-            if self.is_use_strict_prologue_directive(statement) {
-                self.in_strict_mode = true;
-                return;
-            }
-        }
-    }
-
-    /// tsc isPrologueDirective (14161).
-    fn is_prologue_directive(&self, node: NodeId) -> bool {
-        match &self.source.arena.node(node).data {
-            NodeData::ExpressionStatement(data) => data.expression.is_some_and(|expression| {
-                kind_of(self.source, expression) == SyntaxKind::StringLiteral
-            }),
-            _ => false,
-        }
-    }
-
-    /// tsc-port: isUseStrictPrologueDirective @6.0.3
-    /// tsc-hash: 527b9111955b43a598d76c96fe2161f3ff9083830137a8aabb7b99fe401268da
-    /// tsc-span: _tsc.js:44283-44286
-    ///
-    /// Source-text comparison, quotes included.
-    fn is_use_strict_prologue_directive(&self, node: NodeId) -> bool {
-        let expression = match &self.source.arena.node(node).data {
-            NodeData::ExpressionStatement(data) => data.expression,
-            _ => None,
-        };
-        let Some(expression) = expression else {
-            return false;
-        };
-        let expr = self.source.arena.node(expression);
-        if expr.pos >= expr.end {
-            return false;
-        }
-        let start = tsc_syntax::skip_trivia(self.source.text(), expr.pos as usize);
-        let text = &self.source.text()[start..expr.end as usize];
-        text == "\"use strict\"" || text == "'use strict'"
-    }
-
     /// tsc-port: checkContextualIdentifier @6.0.3
     /// tsc-hash: bb7e4c3b7f001003aaee8702d1cd665931bc9e9330249a70a8fbf33aca674a3c
     /// tsc-span: _tsc.js:44104-44122
@@ -1842,8 +1753,7 @@ impl<'a> BinderWorker<'a> {
         };
         let keyword = original_keyword_kind as u16;
         let display = declaration_name_to_string(self.source, Some(node));
-        if self.in_strict_mode
-            && keyword >= SyntaxKind::ImplementsKeyword as u16
+        if keyword >= SyntaxKind::ImplementsKeyword as u16
             && keyword <= SyntaxKind::YieldKeyword as u16
         {
             let message = self.get_strict_mode_identifier_message(node);
@@ -1915,9 +1825,6 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 351653abd86c1f9c51244ccc3f4d53ba8185b945c34fad7b984cb5247e49c343
     /// tsc-span: _tsc.js:44139-44143
     fn check_strict_mode_binary_expression(&mut self, node: NodeId) {
-        if !self.in_strict_mode {
-            return;
-        }
         let (left, operator) = match &self.source.arena.node(node).data {
             NodeData::BinaryExpression(data) => (
                 data.left,
@@ -1940,9 +1847,6 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: aeaf9cdd1a2cdbae129c915bed2f44aa252461e410130d0d9d6ff014c719be46
     /// tsc-span: _tsc.js:44144-44148
     fn check_strict_mode_catch_clause(&mut self, node: NodeId) {
-        if !self.in_strict_mode {
-            return;
-        }
         let variable_declaration = match &self.source.arena.node(node).data {
             NodeData::CatchClause(data) => data.variable_declaration,
             _ => None,
@@ -1957,9 +1861,6 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 2d8f2e480393280022cdc7db903f5a4fd6d04ab2fd241b494a368db2af099156
     /// tsc-span: _tsc.js:44149-44154
     fn check_strict_mode_delete_expression(&mut self, node: NodeId) {
-        if !self.in_strict_mode {
-            return;
-        }
         let expression = match &self.source.arena.node(node).data {
             NodeData::DeleteExpression(data) => data.expression,
             _ => None,
@@ -2015,49 +1916,9 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 9085ec6898587e78da1d200e5c23632041cb6a8e59ce6facdcfd8120de6f59a3
     /// tsc-span: _tsc.js:44176-44180
     fn check_strict_mode_function_name(&mut self, node: NodeId) {
-        if self.in_strict_mode && !self.flags_of(node).intersects(NodeFlags::AMBIENT) {
+        if !self.flags_of(node).intersects(NodeFlags::AMBIENT) {
             let name = name_field_of(self.source, node);
             self.check_strict_mode_eval_or_arguments(node, name);
-        }
-    }
-
-    /// tsc-port: getStrictModeBlockScopeFunctionDeclarationMessage @6.0.3
-    /// tsc-hash: 7c7ab1a7c14b0b79ac5388f1a3a6ab347a3ae239940b73078b478eda0cf578ee
-    /// tsc-span: _tsc.js:44181-44189
-    fn get_strict_mode_block_scope_function_declaration_message(
-        &self,
-        node: NodeId,
-    ) -> &'static DiagnosticMessage {
-        if get_containing_class(self.source, node).is_some() {
-            return &diagnostics::Function_declarations_are_not_allowed_inside_blocks_in_strict_mode_when_targeting_ES5_Class_definitions_are_automatically_in_strict_mode;
-        }
-        if self.source.external_module_indicator.is_some() {
-            return &diagnostics::Function_declarations_are_not_allowed_inside_blocks_in_strict_mode_when_targeting_ES5_Modules_are_automatically_in_strict_mode;
-        }
-        &diagnostics::Function_declarations_are_not_allowed_inside_blocks_in_strict_mode_when_targeting_ES5
-    }
-
-    /// tsc-port: checkStrictModeFunctionDeclaration @6.0.3
-    /// tsc-hash: 2552b8a4d00aed70071c07ce855973540308e3086afe10acc4ce6cd59b012259
-    /// tsc-span: _tsc.js:44190-44197
-    ///
-    /// TARGET DEPENDENT: fires only below ES2015.
-    fn check_strict_mode_function_declaration(&mut self, node: NodeId) {
-        if self.language_version >= ScriptTarget::ES2015.bits() {
-            return;
-        }
-        let Some(block_scope_container) = self.block_scope_container else {
-            return;
-        };
-        let kind = kind_of(self.source, block_scope_container);
-        if kind != SyntaxKind::SourceFile
-            && kind != SyntaxKind::ModuleDeclaration
-            && !is_function_like_kind(kind)
-            && kind != SyntaxKind::ClassStaticBlockDeclaration
-        {
-            let (start, end) = get_error_span_for_node(self.source, node);
-            let message = self.get_strict_mode_block_scope_function_declaration_message(node);
-            self.push_file_diagnostic(start, end, message, &[]);
         }
     }
 
@@ -2065,28 +1926,24 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: e0ab6b73ec19c15fa6454693398d05ddf4e44c0e2bdefd38b0a7155d44bd9f5d
     /// tsc-span: _tsc.js:44198-44202
     fn check_strict_mode_postfix_unary_expression(&mut self, node: NodeId) {
-        if self.in_strict_mode {
-            let operand = match &self.source.arena.node(node).data {
-                NodeData::PostfixUnaryExpression(data) => data.operand,
-                _ => None,
-            };
-            self.check_strict_mode_eval_or_arguments(node, operand);
-        }
+        let operand = match &self.source.arena.node(node).data {
+            NodeData::PostfixUnaryExpression(data) => data.operand,
+            _ => None,
+        };
+        self.check_strict_mode_eval_or_arguments(node, operand);
     }
 
     /// tsc-port: checkStrictModePrefixUnaryExpression @6.0.3
     /// tsc-hash: 056a7fd1afe468b27ee376391672bf14333f4a94593979b8d5acda5500b8b087
     /// tsc-span: _tsc.js:44203-44209
     fn check_strict_mode_prefix_unary_expression(&mut self, node: NodeId) {
-        if self.in_strict_mode {
-            if let NodeData::PrefixUnaryExpression(data) = &self.source.arena.node(node).data {
-                if matches!(
-                    data.operator,
-                    SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
-                ) {
-                    let operand = data.operand;
-                    self.check_strict_mode_eval_or_arguments(node, operand);
-                }
+        if let NodeData::PrefixUnaryExpression(data) = &self.source.arena.node(node).data {
+            if matches!(
+                data.operator,
+                SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+            ) {
+                let operand = data.operand;
+                self.check_strict_mode_eval_or_arguments(node, operand);
             }
         }
     }
@@ -2095,40 +1952,30 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: d640a8d23aadf055a50215f0c0633f048f843d27ba5abcb0b2ebca046e1774f2
     /// tsc-span: _tsc.js:44210-44214
     fn check_strict_mode_with_statement(&mut self, node: NodeId) {
-        if self.in_strict_mode {
-            self.error_on_first_token(
-                node,
-                &diagnostics::with_statements_are_not_allowed_in_strict_mode,
-                &[],
-            );
-        }
+        self.error_on_first_token(
+            node,
+            &diagnostics::with_statements_are_not_allowed_in_strict_mode,
+            &[],
+        );
     }
 
     /// tsc-port: checkStrictModeLabeledStatement @6.0.3
     /// tsc-hash: 0d56574e1d9fbd4cb18d8c22773ef62cf041ca2c494bb67a8cc336b172e11de4
     /// tsc-span: _tsc.js:44215-44221
     ///
-    /// TARGET DEPENDENT: strict AND target ≥ ES2015 AND labeling a
-    /// declaration or variable statement.
+    /// tsgo reports a label on a declaration or variable statement in every
+    /// file (binder/binder.go:1440-1446).
     fn check_strict_mode_labeled_statement(&mut self, node: NodeId) {
-        if self.in_strict_mode
-            && self.options.emit_script_target().bits() >= ScriptTarget::ES2015.bits()
+        let (label, statement) = match &self.source.arena.node(node).data {
+            NodeData::LabeledStatement(data) => (data.label, data.statement),
+            _ => (None, None),
+        };
+        let Some(statement) = statement else { return };
+        if is_declaration_statement_kind(kind_of(self.source, statement))
+            || kind_of(self.source, statement) == SyntaxKind::VariableStatement
         {
-            let (label, statement) = match &self.source.arena.node(node).data {
-                NodeData::LabeledStatement(data) => (data.label, data.statement),
-                _ => (None, None),
-            };
-            let Some(statement) = statement else { return };
-            if is_declaration_statement_kind(kind_of(self.source, statement))
-                || kind_of(self.source, statement) == SyntaxKind::VariableStatement
-            {
-                if let Some(label) = label {
-                    self.error_on_first_token(
-                        label,
-                        &diagnostics::A_label_is_not_allowed_here,
-                        &[],
-                    );
-                }
+            if let Some(label) = label {
+                self.error_on_first_token(label, &diagnostics::A_label_is_not_allowed_here, &[]);
             }
         }
     }
@@ -3475,13 +3322,11 @@ impl<'a> BinderWorker<'a> {
             node: NodeId,
             stage: Stage,
             skip: bool,
-            saved_in_strict_mode: Option<bool>,
         }
         let mut stack = vec![Frame {
             node: root,
             stage: Stage::Enter,
             skip: false,
-            saved_in_strict_mode: None,
         }];
         while let Some(top) = stack.len().checked_sub(1) {
             let node = stack[top].node;
@@ -3494,10 +3339,9 @@ impl<'a> BinderWorker<'a> {
                 .unwrap_or(SyntaxKind::Unknown);
             match stack[top].stage {
                 Stage::Enter => {
-                    // Non-root frames re-run bindWorker with strict-mode
-                    // save/restore (the trampoline's onEnter with state).
+                    // Non-root frames re-run bindWorker (the trampoline's
+                    // onEnter).
                     if top > 0 {
-                        stack[top].saved_in_strict_mode = Some(self.in_strict_mode);
                         self.bind_worker(node);
                     }
                     if crate::node_util::is_logical_or_coalescing_binary_operator(operator)
@@ -3546,7 +3390,6 @@ impl<'a> BinderWorker<'a> {
                                     node: left,
                                     stage: Stage::Enter,
                                     skip: false,
-                                    saved_in_strict_mode: None,
                                 });
                             } else {
                                 self.bind(Some(left));
@@ -3576,7 +3419,6 @@ impl<'a> BinderWorker<'a> {
                                     node: right,
                                     stage: Stage::Enter,
                                     skip: false,
-                                    saved_in_strict_mode: None,
                                 });
                             } else {
                                 self.bind(Some(right));
@@ -3611,9 +3453,6 @@ impl<'a> BinderWorker<'a> {
                                 }
                             }
                         }
-                    }
-                    if let Some(saved) = stack[top].saved_in_strict_mode {
-                        self.in_strict_mode = saved;
                     }
                     stack.pop();
                 }

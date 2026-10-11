@@ -367,12 +367,6 @@ pub struct NodeLinksCold {
     /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
     /// EnumMember nodes.
     pub enum_member_value: SparseLinks<NodeId, Option<crate::evaluate::EvaluatorResult>>,
-    /// tsc links.capturedBlockScopeBindings
-    /// (checkNestedBlockScopedBinding 72267-72268): the block-scoped
-    /// symbols a for-statement part captures, recorded beside the
-    /// ContainsCapturedBlockScopeBinding flag and consumed only by the
-    /// emit resolver's isBindingCapturedByNode.
-    pub captured_block_scope_bindings: SparseLinks<NodeId, Vec<SymbolId>>,
     /// tsc links.assertionExpressionType (checkAssertionWorker 77920):
     /// the operand type stashed for checkAssertionDeferred.
     pub assertion_expression_type: SparseLinks<NodeId, Option<TypeId>>,
@@ -417,7 +411,6 @@ impl NodeLinksCold {
             jsx_flags,
             outer_type_parameters,
             enum_member_value,
-            captured_block_scope_bindings,
             assertion_expression_type,
             instantiation_expression_types,
             spread_indices,
@@ -438,7 +431,6 @@ impl NodeLinksCold {
             jsx_flags.memory_usage(),
             outer_type_parameters.memory_usage(),
             enum_member_value.memory_usage(),
-            captured_block_scope_bindings.memory_usage(),
             assertion_expression_type.memory_usage(),
             instantiation_expression_types.memory_usage(),
             spread_indices.memory_usage(),
@@ -2764,20 +2756,6 @@ impl LinksTables {
         );
         let slot = self.node_cold.is_visible.slot(id);
         *slot = Some(slot.unwrap_or(false) || value);
-    }
-
-    /// tsc `pushIfUnique(links.capturedBlockScopeBindings ||= [], symbol)`
-    /// (checkNestedBlockScopedBinding 72267-72268). The write sits beside
-    /// the ContainsCapturedBlockScopeBinding flag OR, so it follows that
-    /// flag's speculation protocol: candidate-context writes are dropped
-    /// and only the authoritative pass publishes.
-    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
-    /// links-field access; no standalone tsc function.
-    pub fn push_captured_block_scope_binding(&mut self, id: NodeId, symbol: SymbolId) {
-        let bindings = self.node_cold.captured_block_scope_bindings.slot(id);
-        if !bindings.contains(&symbol) {
-            bindings.push(symbol);
-        }
     }
 
     /// tsrs-native: links-table setter (tsc plain flags mutation).

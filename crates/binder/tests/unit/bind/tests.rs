@@ -1276,18 +1276,19 @@ fn jsdoc_visibility_tags_contribute_effective_modifier_flags() {
 }
 
 #[test]
-fn function_in_block_es5_strict_reports_1250_family() {
+fn function_in_block_reports_nothing_at_any_target_like_tsgo() {
+    // tsgo's binder never reports TS1250 (its message helper,
+    // binder.go:1380, has no caller): a function declaration in a block is
+    // block scoped and reported nowhere, even with the removed ES5 target.
     let options = CompilerOptions {
         target: Some(1),
-        always_strict: Some(true),
         ..CompilerOptions::default()
     };
     let source = parse("{ function g() {} }\n");
     let options_ref: &'static CompilerOptions = Box::leak(Box::new(options));
     let mut binder = Binder::new(&source, options_ref);
     binder.bind_source_file();
-    // Oracle-pinned: 1250 @ (11,1) (the function name g).
-    assert_eq!(diag_pins(&binder), [(1250, 11, 1)]);
+    assert_eq!(diag_pins(&binder), []);
 }
 
 #[test]

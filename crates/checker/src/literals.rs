@@ -23,8 +23,8 @@ use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    AccessFlags, CheckFlags, CheckMode, ContextFlags, ElementFlags, NodeCheckFlags, ObjectFlags,
-    SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    AccessFlags, CheckFlags, CheckMode, ContextFlags, ElementFlags, ObjectFlags, SymbolFlags,
+    TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::member_table::MemberTable;
@@ -183,9 +183,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c9548a5ffbc73ebc39448b27acad5fe94e216419bc688d0f785ab9a0b6d18fd9
     /// tsc-span: _tsc.js:73956-74033
     ///
-    /// The languageVersion emit-helper gate verifies imported helpers
-    /// below ES2015; the
-    /// [INFER] intra-expression site is behind the Inferential
+    /// The [INFER] intra-expression site is behind the Inferential
     /// checkMode bit — producible since M6 7.1 (Some-context pushes
     /// only); the 7.4 site-recording wiring is live. Non-array-like
     /// spreads run the §4 iteration protocol (5.8b).
@@ -218,15 +216,6 @@ impl<'a> CheckerState<'a> {
             let mut has_omitted_expression = false;
             for e in elements {
                 if state.kind_of(e) == SyntaxKind::SpreadElement {
-                    if state.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
-                        let helpers = if state.options.downlevel_iteration == Some(true) {
-                            crate::modules::EMIT_HELPER_READ
-                                | crate::modules::EMIT_HELPER_SPREAD_ARRAY
-                        } else {
-                            crate::modules::EMIT_HELPER_SPREAD_ARRAY
-                        };
-                        state.check_external_emit_helpers(e, helpers)?;
-                    }
                     let expression = match state.data_of(e) {
                         NodeData::SpreadElement(data) => data.expression,
                         _ => None,
@@ -508,33 +497,6 @@ impl<'a> CheckerState<'a> {
             node,
             crate::links::LinkSlot::Resolved(ty),
         );
-        if parent.is_some_and(|parent| {
-            self.kind_of(parent) == SyntaxKind::PropertyDeclaration
-                && !self.has_static_modifier(parent)
-        }) && grandparent
-            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ClassExpression)
-        {
-            let class_expression = grandparent.expect("class expression grandparent");
-            if let Some(container) = self.get_enclosing_block_scope_container(class_expression) {
-                if let Some(iteration) = self.get_enclosing_iteration_statement(container) {
-                    self.links.or_node_check_flags(
-                        self.speculation_depth,
-                        iteration,
-                        NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING,
-                    );
-                    self.links.or_node_check_flags(
-                        self.speculation_depth,
-                        node,
-                        NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP,
-                    );
-                    self.links.or_node_check_flags(
-                        self.speculation_depth,
-                        class_expression,
-                        NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP,
-                    );
-                }
-            }
-        }
         let nullable = self.tables.flags_of(ty).intersects(TypeFlags::NULLABLE);
         let legal = if nullable {
             false
@@ -1317,12 +1279,6 @@ impl<'a> CheckerState<'a> {
                     self.add_intra_expression_inference_site(inference_context, inference_node, ty);
                 }
             } else if kind == SyntaxKind::SpreadAssignment {
-                if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
-                    self.check_external_emit_helpers(
-                        member_decl,
-                        crate::modules::EMIT_HELPER_ASSIGN,
-                    )?;
-                }
                 if !acc.properties_array.is_empty() {
                     let segment = self.create_object_literal_segment(node, acc)?;
                     let raw_symbol = self.node_symbol(node);

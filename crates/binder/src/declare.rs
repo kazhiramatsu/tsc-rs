@@ -49,8 +49,6 @@ pub enum TableRef {
 pub struct BinderWorker<'a> {
     pub source: &'a SourceFile,
     pub options: &'a tsc_types::CompilerOptions,
-    /// tsc languageVersion = getEmitScriptTarget(options).
-    pub language_version: i32,
     /// tsc file.commonJsModuleIndicator.
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
@@ -119,7 +117,6 @@ pub struct BinderWorker<'a> {
     pub active_label_list: Vec<crate::flow::ActiveLabel>,
 
     // ---- walk state ----
-    pub in_strict_mode: bool,
     pub seen_this_keyword: bool,
     pub in_assignment_pattern: bool,
     pub has_explicit_return: bool,
@@ -145,7 +142,6 @@ pub struct BinderWorker<'a> {
 /// Its numeric identity maps use `FxHashMap`, as in `BinderWorker`.
 #[derive(Clone, Debug)]
 pub struct BindData {
-    pub language_version: i32,
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
     pub node_symbol: NodeSymbolMap,
@@ -239,7 +235,6 @@ impl BindData {
     /// fields without retaining the worker or borrowing its source.
     pub fn from_binder(binder: &BinderWorker<'_>) -> Self {
         Self {
-            language_version: binder.language_version,
             common_js_module_indicator: binder.common_js_module_indicator,
             symbols: binder.symbols.clone(),
             node_symbol: binder.node_symbol.clone(),
@@ -335,7 +330,6 @@ impl<'a> BinderWorker<'a> {
         Self {
             source,
             options,
-            language_version: options.emit_script_target().bits(),
             common_js_module_indicator: None,
             // About one symbol per six nodes: size the arena once instead of
             // growing (and moving every symbol) a dozen times.
@@ -375,7 +369,6 @@ impl<'a> BinderWorker<'a> {
             possibly_exhaustive: FxHashMap::default(),
             node_fallthrough_flow: FxHashMap::default(),
             active_label_list: Vec::new(),
-            in_strict_mode: false,
             seen_this_keyword: false,
             in_assignment_pattern: false,
             has_explicit_return: false,
@@ -1307,7 +1300,6 @@ impl BinderWorker<'_> {
         let Self {
             source: _,
             options: _,
-            language_version: _,
             common_js_module_indicator: _,
             symbols,
             node_symbol,
@@ -1345,7 +1337,6 @@ impl BinderWorker<'_> {
             possibly_exhaustive: _,
             node_fallthrough_flow: _,
             active_label_list: _,
-            in_strict_mode: _,
             seen_this_keyword: _,
             in_assignment_pattern: _,
             has_explicit_return: _,
@@ -1549,7 +1540,6 @@ impl BinderWorker<'_> {
         let Self {
             source: _,
             options: _,
-            language_version,
             common_js_module_indicator,
             symbols,
             node_symbol,
@@ -1587,7 +1577,6 @@ impl BinderWorker<'_> {
             possibly_exhaustive,
             node_fallthrough_flow,
             active_label_list: _,
-            in_strict_mode: _,
             seen_this_keyword: _,
             in_assignment_pattern: _,
             has_explicit_return: _,
@@ -1599,7 +1588,6 @@ impl BinderWorker<'_> {
             child_scratch: _,
         } = self;
         BindData {
-            language_version,
             common_js_module_indicator,
             symbols,
             node_symbol,

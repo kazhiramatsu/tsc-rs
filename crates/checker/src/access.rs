@@ -452,7 +452,7 @@ impl<'a> CheckerState<'a> {
     /// checkPropertyAccessibility + checkPropertyAccessibilityAtLocation
     /// + getEnclosingClassFromThisParameter + getThisParameterFromNode-
     ///   Context + symbolHasNonMethodDeclaration, one block. Arm order
-    ///   is the observable: super-ES5 2340 → super-abstract 2513 →
+    ///   is the observable: super-abstract 2513 →
     ///   super-instance-field 2855 → abstract-in-ctor 2715 → non-public
     ///   fast-path → private 2341 → super-protected OK → protected
     ///   derivation 2445 → static OK → type-parameter constraint →
@@ -500,18 +500,6 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<bool> {
         let flags = self.get_declaration_modifier_flags_from_symbol_write(prop, writing);
         if is_super {
-            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-                && self.symbol_has_non_method_declaration(prop)?
-            {
-                if let Some(error_node) = error_node {
-                    self.error_at_js(
-                        Some(error_node),
-                        &tsc_diagnostics::gen::Only_public_and_protected_methods_of_the_base_class_are_accessible_via_the_super_keyword,
-                        &[],
-                    );
-                }
-                return Ok(false);
-            }
             if flags.intersects(ModifierFlags::ABSTRACT) {
                 if let Some(error_node) = error_node {
                     let prop_name = self.symbol_display_name(prop);

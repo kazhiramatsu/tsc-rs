@@ -1278,25 +1278,6 @@ impl<'a> CheckerState<'a> {
             }
             let mut container = self.get_containing_function(node);
             if let Some(first_container) = container {
-                if self.options.emit_script_target() < ScriptTarget::ES2015 {
-                    if self.kind_of(first_container) == SyntaxKind::ArrowFunction {
-                        self.error_at(
-                            Some(node),
-                            &diagnostics::The_arguments_object_cannot_be_referenced_in_an_arrow_function_in_ES5_Consider_using_a_standard_function_expression,
-                            &[],
-                        );
-                    } else if node_util::has_syntactic_modifier(
-                        self.binder.source_of_node(first_container),
-                        first_container,
-                        ModifierFlags::ASYNC,
-                    ) {
-                        self.error_at(
-                            Some(node),
-                            &diagnostics::The_arguments_object_cannot_be_referenced_in_an_async_function_or_method_in_ES5_Consider_using_a_standard_function_or_method,
-                            &[],
-                        );
-                    }
-                }
                 self.links.or_node_check_flags(
                     self.speculation_depth,
                     first_container,
@@ -1387,265 +1368,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.check_nested_block_scoped_binding(node, symbol);
         Ok(())
-    }
-
-    /// tsc-port: checkNestedBlockScopedBinding @6.0.3
-    /// tsc-hash: f102e00417a0f87fce613db2ff0aab8819f26bb9955bd6173a39314342f2404c
-    /// tsc-span: _tsc.js:72250-72290
-    ///
-    /// languageVersion >= ES2015 exits immediately; with the default
-    /// target (ES2025) the ES5 loop-capture NodeCheckFlags bookkeeping
-    /// below the gate only runs for down-level fixtures. The flags are
-    /// inert emit-era bookkeeping either way (extraction doc §3).
-    fn check_nested_block_scoped_binding(&mut self, node: NodeId, symbol: SymbolId) {
-        if self.options.emit_script_target() >= ScriptTarget::ES2015 {
-            return;
-        }
-        let flags = self.binder.symbol(symbol).flags;
-        if !flags.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::CLASS) {
-            return;
-        }
-        let Some(value_declaration) = self.binder.symbol(symbol).value_declaration else {
-            return;
-        };
-        if self.kind_of(value_declaration) == SyntaxKind::SourceFile {
-            return;
-        }
-        if self
-            .parent_of(value_declaration)
-            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
-        {
-            return;
-        }
-        let Some(container) = self.get_enclosing_block_scope_container(value_declaration) else {
-            return;
-        };
-        let is_captured = self.is_inside_function_or_instance_property_initializer(node, container);
-        let enclosing_iteration_statement = self.get_enclosing_iteration_statement(container);
-        if let Some(iteration) = enclosing_iteration_statement {
-            if is_captured {
-                let mut captures_in_loop_body = true;
-                if self.kind_of(container) == SyntaxKind::ForStatement {
-                    let var_decl_list = self.get_ancestor_of_kind(
-                        value_declaration,
-                        SyntaxKind::VariableDeclarationList,
-                    );
-                    if var_decl_list
-                        .and_then(|list| self.parent_of(list))
-                        .is_some_and(|parent| parent == container)
-                    {
-                        if let Some(part) = self.get_part_of_for_statement_containing_node(
-                            self.parent_of(node).unwrap_or(node),
-                            container,
-                        ) {
-                            self.links.or_node_check_flags(
-                                self.speculation_depth,
-                                part,
-                                NodeCheckFlags::CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING,
-                            );
-                            self.links.push_captured_block_scope_binding(part, symbol);
-                            let initializer = match self.data_of(container) {
-                                NodeData::ForStatement(data) => data.initializer,
-                                _ => None,
-                            };
-                            if Some(part) == initializer {
-                                captures_in_loop_body = false;
-                            }
-                        }
-                    }
-                }
-                if captures_in_loop_body {
-                    self.links.or_node_check_flags(
-                        self.speculation_depth,
-                        iteration,
-                        NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING,
-                    );
-                }
-            }
-            if self.kind_of(container) == SyntaxKind::ForStatement {
-                let var_decl_list = self
-                    .get_ancestor_of_kind(value_declaration, SyntaxKind::VariableDeclarationList);
-                if var_decl_list
-                    .and_then(|list| self.parent_of(list))
-                    .is_some_and(|parent| parent == container)
-                    && self.is_assigned_in_body_of_for_statement(node, container)
-                {
-                    self.links.or_node_check_flags(
-                        self.speculation_depth,
-                        value_declaration,
-                        NodeCheckFlags::NEEDS_LOOP_OUT_PARAMETER,
-                    );
-                }
-            }
-            self.links.or_node_check_flags(
-                self.speculation_depth,
-                value_declaration,
-                NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP,
-            );
-        }
-        if is_captured {
-            self.links.or_node_check_flags(
-                self.speculation_depth,
-                value_declaration,
-                NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING,
-            );
-        }
-    }
-
-    /// tsc isInsideFunctionOrInstancePropertyInitializer (72237).
-    fn is_inside_function_or_instance_property_initializer(
-        &self,
-        node: NodeId,
-        threshold: NodeId,
-    ) -> bool {
-        self.find_ancestor(Some(node), |state, n| {
-            if n == threshold {
-                return Ancestor::Quit;
-            }
-            if node_util::is_function_like_kind(state.kind_of(n)) {
-                return Ancestor::Yes;
-            }
-            if let Some(parent) = state.parent_of(n) {
-                if state.kind_of(parent) == SyntaxKind::PropertyDeclaration
-                    && !state.has_static_modifier(parent)
-                {
-                    if let NodeData::PropertyDeclaration(data) = state.data_of(parent) {
-                        if data.initializer == Some(n) {
-                            return Ancestor::Yes;
-                        }
-                    }
-                }
-            }
-            Ancestor::No
-        })
-        .is_some()
-    }
-
-    /// tsc getPartOfForStatementContainingNode (72241).
-    fn get_part_of_for_statement_containing_node(
-        &self,
-        node: NodeId,
-        container: NodeId,
-    ) -> Option<NodeId> {
-        let NodeData::ForStatement(data) = self.data_of(container) else {
-            return None;
-        };
-        let (initializer, condition, incrementor, statement) = (
-            data.initializer,
-            data.condition,
-            data.incrementor,
-            data.statement,
-        );
-        self.find_ancestor(Some(node), |_, n| {
-            if n == container {
-                Ancestor::Quit
-            } else if Some(n) == initializer
-                || Some(n) == condition
-                || Some(n) == incrementor
-                || Some(n) == statement
-            {
-                Ancestor::Yes
-            } else {
-                Ancestor::No
-            }
-        })
-    }
-
-    /// tsc-port: getEnclosingIterationStatement @6.0.3
-    /// tsc-hash: 4bcb6018a19df115ef75decdd4a44420dc13681e5a9fb5b23ab1f813ca299b10
-    /// tsc-span: _tsc.js:72243-72249
-    pub(crate) fn get_enclosing_iteration_statement(&self, node: NodeId) -> Option<NodeId> {
-        self.find_ancestor(Some(node), |state, n| {
-            let kind = state.kind_of(n);
-            let starts_new_lexical_environment = matches!(
-                kind,
-                SyntaxKind::FunctionDeclaration
-                    | SyntaxKind::FunctionExpression
-                    | SyntaxKind::ArrowFunction
-                    | SyntaxKind::MethodDeclaration
-                    | SyntaxKind::GetAccessor
-                    | SyntaxKind::SetAccessor
-                    | SyntaxKind::Constructor
-                    | SyntaxKind::ModuleDeclaration
-                    | SyntaxKind::SourceFile
-            );
-            if starts_new_lexical_environment {
-                return Ancestor::Quit;
-            }
-            if matches!(
-                kind,
-                SyntaxKind::ForStatement
-                    | SyntaxKind::ForInStatement
-                    | SyntaxKind::ForOfStatement
-                    | SyntaxKind::DoStatement
-                    | SyntaxKind::WhileStatement
-            ) {
-                Ancestor::Yes
-            } else {
-                Ancestor::No
-            }
-        })
-    }
-
-    /// tsc isAssignedInBodyOfForStatement (72318).
-    fn is_assigned_in_body_of_for_statement(&self, node: NodeId, container: NodeId) -> bool {
-        let mut current = node;
-        while self
-            .parent_of(current)
-            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ParenthesizedExpression)
-        {
-            current = self.parent_of(current).expect("checked above");
-        }
-        let is_assigned = if self.get_assignment_target(current).is_some() {
-            // NB tsc uses isAssignmentTarget here, which is broader
-            // than the ++/-- test below.
-            true
-        } else if let Some(parent) = self.parent_of(current) {
-            match self.data_of(parent) {
-                NodeData::PrefixUnaryExpression(data) => matches!(
-                    data.operator,
-                    SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
-                ),
-                NodeData::PostfixUnaryExpression(data) => matches!(
-                    data.operator,
-                    SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
-                ),
-                _ => false,
-            }
-        } else {
-            false
-        };
-        if !is_assigned {
-            return false;
-        }
-        let statement = match self.data_of(container) {
-            NodeData::ForStatement(data) => data.statement,
-            _ => None,
-        };
-        self.find_ancestor(Some(current), |_, n| {
-            if n == container {
-                Ancestor::Quit
-            } else if Some(n) == statement {
-                Ancestor::Yes
-            } else {
-                Ancestor::No
-            }
-        })
-        .is_some()
-    }
-
-    /// tsc getAncestor (12654): nearest ancestor (or self) of `kind`.
-    fn get_ancestor_of_kind(&self, node: NodeId, kind: SyntaxKind) -> Option<NodeId> {
-        let mut current = Some(node);
-        while let Some(n) = current {
-            if self.kind_of(n) == kind {
-                return Some(n);
-            }
-            current = self.parent_of(n);
-        }
-        None
     }
 
     /// tsc isInPropertyInitializerOrClassStaticBlock (75388).
@@ -2383,7 +2106,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:72348-72421
     ///
     pub(crate) fn check_this_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        let is_node_in_type_query = self.is_in_type_query(node);
         let Some(mut container) = get_this_container_full(self, node, true, true) else {
             return Ok(self.tables.intrinsics.error);
         };
@@ -2446,12 +2168,6 @@ impl<'a> CheckerState<'a> {
                 }
                 _ => {}
             }
-        }
-        if !is_node_in_type_query
-            && captured_by_arrow_function
-            && self.options.emit_script_target() < ScriptTarget::ES2015
-        {
-            self.capture_lexical_this(node, container);
         }
         let ty = self.try_get_this_type_at(node, true, container)?;
         if self
@@ -2650,30 +2366,6 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    /// tsc captureLexicalThis (72346).
-    fn capture_lexical_this(&mut self, node: NodeId, container: NodeId) {
-        self.links
-            .or_node_check_flags(self.speculation_depth, node, NodeCheckFlags::LEXICAL_THIS);
-        if matches!(
-            self.kind_of(container),
-            SyntaxKind::PropertyDeclaration | SyntaxKind::Constructor
-        ) {
-            if let Some(class_node) = self.parent_of(container) {
-                self.links.or_node_check_flags(
-                    self.speculation_depth,
-                    class_node,
-                    NodeCheckFlags::CAPTURE_THIS,
-                );
-            }
-        } else {
-            self.links.or_node_check_flags(
-                self.speculation_depth,
-                container,
-                NodeCheckFlags::CAPTURE_THIS,
-            );
-        }
-    }
-
     /// tsc-port: checkThisBeforeSuper @6.0.3
     /// tsc-hash: daed1244a44f70594e7c958f240dffe730bafc433465674adbff32232cfd58c1
     /// tsc-span: _tsc.js:72330-72342
@@ -2798,7 +2490,6 @@ impl<'a> CheckerState<'a> {
         });
         let immediate_container = self.get_super_container(node, true);
         let mut container = immediate_container;
-        let mut need_to_capture_lexical_this = false;
         let mut in_async_function = false;
         if !is_call_expression {
             while let Some(current) = container {
@@ -2813,8 +2504,6 @@ impl<'a> CheckerState<'a> {
                     in_async_function = true;
                 }
                 container = self.get_super_container(current, true);
-                need_to_capture_lexical_this =
-                    self.options.emit_script_target() < ScriptTarget::ES2015;
             }
             if let Some(current) = container {
                 if node_util::has_syntactic_modifier(
@@ -2885,12 +2574,11 @@ impl<'a> CheckerState<'a> {
             )?;
         }
         let node_check_flag = if self.is_static_element(container) || is_call_expression {
-            // The ES2015..ES2021 static-initializer
+            // The ..ES2021 static-initializer
             // ContainsSuperPropertyInStaticInitializer walk.
             if !is_call_expression {
                 let language_version = self.options.emit_script_target();
-                if language_version >= ScriptTarget::ES2015
-                    && language_version <= ScriptTarget::ES2021
+                if language_version <= ScriptTarget::ES2021
                     && (self.kind_of(container) == SyntaxKind::PropertyDeclaration
                         || self.kind_of(container) == SyntaxKind::ClassStaticBlockDeclaration)
                 {
@@ -2942,22 +2630,10 @@ impl<'a> CheckerState<'a> {
             self.links
                 .or_node_check_flags(self.speculation_depth, container, flag);
         }
-        if need_to_capture_lexical_this {
-            let parent = self.parent_of(node).expect("super has a parent");
-            self.capture_lexical_this(parent, container);
-        }
         let container_parent = self
             .parent_of(container)
             .expect("legality implies a class/object-literal parent");
         if self.kind_of(container_parent) == SyntaxKind::ObjectLiteralExpression {
-            if self.options.emit_script_target() < ScriptTarget::ES2015 {
-                self.error_at(
-                    Some(node),
-                    &diagnostics::super_is_only_allowed_in_members_of_object_literal_expressions_when_option_target_is_ES2015_or_higher,
-                    &[],
-                );
-                return Ok(self.tables.intrinsics.error);
-            }
             return Ok(self.tables.intrinsics.any);
         }
         let class_like_declaration = container_parent;
@@ -3141,9 +2817,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkSpreadExpression @6.0.3
     /// tsc-hash: 3a8f89111524b9308588a5bccb7b84d080a64ba8ebb1e5858bcd85eb71ab52c6
     /// tsc-span: _tsc.js:73939-73945
-    ///
-    /// Sub-ES2015 spreads verify the imported `__spreadArray` helper
-    /// (and `__read` under downlevelIteration).
     fn check_spread_expression(
         &mut self,
         node: NodeId,
@@ -3155,14 +2828,6 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = data.expression else {
             return Ok(self.tables.intrinsics.error);
         };
-        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
-            let helpers = if self.options.downlevel_iteration == Some(true) {
-                crate::modules::EMIT_HELPER_READ | crate::modules::EMIT_HELPER_SPREAD_ARRAY
-            } else {
-                crate::modules::EMIT_HELPER_SPREAD_ARRAY
-            };
-            self.check_external_emit_helpers(node, helpers)?;
-        }
         let array_or_iterable_type = self.check_expression(expression, check_mode)?;
         let undefined_type = self.tables.intrinsics.undefined;
         self.check_iterated_type_or_element_type(
