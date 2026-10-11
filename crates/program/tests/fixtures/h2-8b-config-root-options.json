@@ -2,10 +2,10 @@
   "version": 2,
   "slice": "H2.8b-CFG1d",
   "typescript": "7.1.0-dev-aa814927",
-  "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
+  "source_commit": "aa8149273b23401f0a79a5f0384c42de51888693",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe()",
-    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show. Re-recorded on 2026-10-09 (ts71-suites P4-5b) for the cases whose configuration diagnostics TypeScript 7.1 reports differently, after the tsgo binary of the vendored commit printed the same diagnostics as the port for each case's files: tsgo's parse validates the JSON value (TS1327, TS1328, TS1136 are parse diagnostics), the conversion reports at a node's whole range and drops null array elements, `watchOptions` is not a tsconfig root option (nothing in it is diagnosed), an array is not an object option's value, and an extended config with parse diagnostics is not applied."
+    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show. Re-recorded on 2026-10-09 (ts71-suites P4-5b) for the cases whose configuration diagnostics TypeScript 7.1 reports differently, after the tsgo binary of the vendored commit printed the same diagnostics as the port for each case's files: tsgo's parse validates the JSON value (TS1327, TS1328, TS1136 are parse diagnostics), the conversion reports at a node's whole range and drops null array elements, `watchOptions` is not a tsconfig root option (nothing in it is diagnosed), an array is not an object option's value, and an extended config with parse diagnostics is not applied. Re-recorded on 2026-10-11 (microsoft/TypeScript aa8149273 sync, S5): tsgo has no watch options (#64457), so the records no longer probe them."
   },
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-root-options-inputs.json",
@@ -18,33 +18,6 @@
     {
       "case_id": "h2-8b-config-root-options/empty",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -165,33 +138,6 @@
     {
       "case_id": "h2-8b-config-root-options/jsconfig-default",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -315,33 +261,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-empty",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -463,34 +382,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-file",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 4
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -614,34 +505,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-directory",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "value",
-            "value": 2
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -765,34 +628,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-fallback",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "value",
-            "value": 1
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -916,34 +751,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-sync",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "value",
-            "value": true
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -1067,49 +874,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-paths",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/generated"
-              },
-              {
-                "state": "value",
-                "value": "/project/node_modules"
-              }
-            ]
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/temp.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -1239,39 +1003,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-template",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/generated"
-              }
-            ]
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -1397,33 +1128,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-invalid-enum",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "undefined"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -1547,33 +1251,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-enum-number",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "undefined"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -1697,34 +1374,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-enum-case",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 4
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -1848,33 +1497,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-unknown",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -1999,33 +1621,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-null",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -2147,33 +1742,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-false",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -2295,33 +1863,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-array",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -2443,33 +1984,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-null-values",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "undefined"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "undefined"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "undefined"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -2595,43 +2109,6 @@
     {
       "case_id": "h2-8b-config-root-options/watch-invalid-list",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project"
-              },
-              {
-                "state": "value",
-                "value": "/project/temp.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -2759,33 +2236,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-empty",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -2907,33 +2357,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-enable",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -3058,33 +2481,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-lists",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -3230,33 +2626,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-disable-name",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -3381,33 +2750,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-null",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -3529,33 +2871,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-false",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -3697,33 +3012,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-array",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -3865,33 +3153,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-invalid",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -4064,33 +3325,6 @@
     {
       "case_id": "h2-8b-config-root-options/acquisition-unknown",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -4234,33 +3468,6 @@
     {
       "case_id": "h2-8b-config-root-options/save-true",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -4382,33 +3589,6 @@
     {
       "case_id": "h2-8b-config-root-options/save-false",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -4530,33 +3710,6 @@
     {
       "case_id": "h2-8b-config-root-options/save-null",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -4678,33 +3831,6 @@
     {
       "case_id": "h2-8b-config-root-options/save-invalid",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -4846,33 +3972,6 @@
     {
       "case_id": "h2-8b-config-root-options/save-number",
       "typescript_observation": {
-        "watch_options_present": false,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "absent"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -5014,40 +4113,6 @@
     {
       "case_id": "h2-8b-config-root-options/inherit-no-own",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/base/base.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -5177,41 +4242,6 @@
     {
       "case_id": "h2-8b-config-root-options/inherit-watch-merge",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "watchDirectory",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/own.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -5347,40 +4377,6 @@
     {
       "case_id": "h2-8b-config-root-options/inherit-watch-null",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/base/base.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -5511,40 +4507,6 @@
     {
       "case_id": "h2-8b-config-root-options/inherit-acquisition-own",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/base/base.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -5685,40 +4647,6 @@
     {
       "case_id": "h2-8b-config-root-options/inherit-save-false",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/base/base.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -5848,40 +4776,6 @@
     {
       "case_id": "h2-8b-config-root-options/inherit-jsconfig",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/base/base.ts"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -6014,35 +4908,6 @@
     {
       "case_id": "h2-8b-config-root-options/duplicate-watch",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "watchDirectory",
-            "state": "value",
-            "value": 0
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "absent"
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",
@@ -6166,39 +5031,6 @@
     {
       "case_id": "h2-8b-config-root-options/unquoted-watch",
       "typescript_observation": {
-        "watch_options_present": true,
-        "watch_option_probes": [
-          {
-            "name": "watchFile",
-            "state": "undefined"
-          },
-          {
-            "name": "watchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "fallbackPolling",
-            "state": "absent"
-          },
-          {
-            "name": "synchronousWatchDirectory",
-            "state": "absent"
-          },
-          {
-            "name": "excludeDirectories",
-            "state": "absent"
-          },
-          {
-            "name": "excludeFiles",
-            "state": "list",
-            "elements": [
-              {
-                "state": "value",
-                "value": "/project/x"
-              }
-            ]
-          }
-        ],
         "acquisition_option_probes": [
           {
             "name": "enable",

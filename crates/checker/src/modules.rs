@@ -4772,7 +4772,14 @@ impl<'a> CheckerState<'a> {
             && !Self::has_extension(module_reference)
             && self.resolution_mode_for_usage(location) == ModuleResolutionMode::EsNext
         {
-            if let Some(suggested) = self.suggested_extension_for(location, module_reference) {
+            // tsgo (#64159): a specifier ending in a separator gets no
+            // suggested extension.
+            let suggested = if module_reference.ends_with("/") || module_reference.ends_with("\\") {
+                None
+            } else {
+                self.suggested_extension_for(location, module_reference)
+            };
+            if let Some(suggested) = suggested {
                 let suggestion = crate::concat_js(&[&(module_reference), &(suggested)]);
                 self.error_at_js(
                     Some(error_node),

@@ -23,13 +23,17 @@ pub(crate) struct ShowConfig<'a> {
     pub(crate) case_sensitive: bool,
 }
 
-/// The options tsgo removes from the output: the command's own.
+/// The options tsgo leaves out of the output: the command's own, which
+/// `ConvertToTSConfig` deletes, and `listFiles`, which the options model
+/// marks `showConfig: false` so the generated `serializeCompilerOptions`
+/// skips it (#64457; the model marks `listEmittedFiles` too).
 const COMMAND_OPTIONS: &[&str] = &[
     "showConfig",
     "configFile",
     "configFilePath",
     "help",
     "init",
+    "listFiles",
     "listFilesOnly",
     "listEmittedFiles",
     "project",

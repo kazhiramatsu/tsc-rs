@@ -107,9 +107,6 @@ fn observe(case: &Value, option_keys: &[Value]) -> Value {
         Err(error) => return json!({"unexpected_config_failure": error.to_string()}),
     };
     json!({
-        "watch_options_present": plan.watch_option_bag().is_some(),
-        "watch_option_probes": (["watchFile", "watchDirectory", "fallbackPolling", "synchronousWatchDirectory", "excludeDirectories", "excludeFiles"].iter()
-            .map(|name| plan.watch_option_bag().map_or_else(|| json!({"name": name, "state": "absent"}), |bag| option_record(bag, name))).collect::<Vec<_>>()),
         "acquisition_option_probes": (["enable", "include", "exclude", "disableFilenameBasedTypeAcquisition"].iter()
             .map(|name| option_record(plan.type_acquisition_option_bag(), name)).collect::<Vec<_>>()),
         "compile_on_save": plan.compile_on_save_enabled(),

@@ -1342,12 +1342,6 @@ pub fn option_min_value(name: &str) -> i64 {
     }
 }
 
-/// tsgo's `watchInterval` watch option (a number), which the config's watch
-/// group does not declare.
-pub const fn watch_interval_declaration() -> CompilerOptionDeclaration {
-    option("watchInterval", CompilerOptionValueKind::Number)
-}
-
 /// Whether a root property participates in TypeScript's misplaced compiler
 /// option hint.
 ///
@@ -1494,108 +1488,22 @@ pub const fn jsconfig_defaults() -> &'static [(&'static str, JsConfigDefaultValu
     JSCONFIG_DEFAULTS
 }
 
-// TypeScript 6.0.3 optionsForWatch (:36543–36620) and
-// typeAcquisitionDeclarations (:38000–38028). They use the same JSON option
-// converter, but have separate schemas and spelling suggestions.
-const WATCH_FILE_VALUES: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "fixedpollinginterval",
-        value: 0,
-    },
-    CompilerOptionNamedValue {
-        name: "prioritypollinginterval",
-        value: 1,
-    },
-    CompilerOptionNamedValue {
-        name: "dynamicprioritypolling",
-        value: 2,
-    },
-    CompilerOptionNamedValue {
-        name: "fixedchunksizepolling",
-        value: 3,
-    },
-    CompilerOptionNamedValue {
-        name: "usefsevents",
-        value: 4,
-    },
-    CompilerOptionNamedValue {
-        name: "usefseventsonparentdirectory",
-        value: 5,
-    },
-];
-const WATCH_DIRECTORY_VALUES: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "usefsevents",
-        value: 0,
-    },
-    CompilerOptionNamedValue {
-        name: "fixedpollinginterval",
-        value: 1,
-    },
-    CompilerOptionNamedValue {
-        name: "dynamicprioritypolling",
-        value: 2,
-    },
-    CompilerOptionNamedValue {
-        name: "fixedchunksizepolling",
-        value: 3,
-    },
-];
-const FALLBACK_POLLING_VALUES: &[CompilerOptionNamedValue] = &[
-    CompilerOptionNamedValue {
-        name: "fixedinterval",
-        value: 0,
-    },
-    CompilerOptionNamedValue {
-        name: "priorityinterval",
-        value: 1,
-    },
-    CompilerOptionNamedValue {
-        name: "dynamicpriority",
-        value: 2,
-    },
-    CompilerOptionNamedValue {
-        name: "fixedchunksize",
-        value: 3,
-    },
-];
-const fn root_list(element_name: &'static str, file_spec: bool) -> CompilerOptionValueKind {
+// TypeScript 6.0.3 typeAcquisitionDeclarations (:38000–38028): the same JSON
+// option converter, with its own schema and spelling suggestions. tsgo
+// (#64457) has no watch options.
+const fn root_list(element_name: &'static str) -> CompilerOptionValueKind {
     CompilerOptionValueKind::List(CompilerOptionListDescriptor {
         element_name,
-        element_kind: if file_spec {
-            CompilerOptionListElementKind::FilePath
-        } else {
-            CompilerOptionListElementKind::String
-        },
+        element_kind: CompilerOptionListElementKind::String,
         preserve_falsy_values: false,
-        allow_config_dir_template_substitution: file_spec,
-        validate_file_spec: file_spec,
+        allow_config_dir_template_substitution: false,
+        validate_file_spec: false,
     })
 }
-pub(crate) const WATCH_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
-    option(
-        "watchFile",
-        CompilerOptionValueKind::Named(WATCH_FILE_VALUES),
-    ),
-    option(
-        "watchDirectory",
-        CompilerOptionValueKind::Named(WATCH_DIRECTORY_VALUES),
-    ),
-    option(
-        "fallbackPolling",
-        CompilerOptionValueKind::Named(FALLBACK_POLLING_VALUES),
-    ),
-    option(
-        "synchronousWatchDirectory",
-        CompilerOptionValueKind::Boolean,
-    ),
-    option("excludeDirectories", root_list("excludeDirectory", true)),
-    option("excludeFiles", root_list("excludeFile", true)),
-];
 pub(crate) const ACQUISITION_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
     option("enable", CompilerOptionValueKind::Boolean),
-    option("include", root_list("include", false)),
-    option("exclude", root_list("exclude", false)),
+    option("include", root_list("include")),
+    option("exclude", root_list("exclude")),
     option(
         "disableFilenameBasedTypeAcquisition",
         CompilerOptionValueKind::Boolean,

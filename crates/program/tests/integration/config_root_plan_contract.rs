@@ -2614,8 +2614,9 @@ fn root_plan_exposes_effective_file_include_and_exclude_specs() {
     assert_eq!(plan.exclude(), Some(["src/generated".into()].as_slice()));
 }
 
+// tsgo (#64457) has no `watchOptions`: a base config's value is not read.
 #[test]
-fn root_plan_converts_watch_inheritance_and_keeps_tsgo_acquisition_defaults() {
+fn root_plan_ignores_watch_options_and_keeps_tsgo_acquisition_defaults() {
     let host = MemoryConfigHost::default()
         .with_file(
             "/project/base.json",
@@ -2632,7 +2633,6 @@ fn root_plan_converts_watch_inheritance_and_keeps_tsgo_acquisition_defaults() {
     .expect("root metadata projection");
 
     assert!(plan.references().is_none());
-    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4}).into()));
     // Type acquisition is not inherited, and a tsconfig.json has no default
     // (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947).
     assert_eq!(plan.type_acquisition(), Some(&json!({}).into()));
@@ -2661,7 +2661,7 @@ fn config_text_converts_to_its_object_like_tsgo() {
 }
 
 #[test]
-fn falsey_root_settings_preserve_watch_inheritance_and_raw_values() {
+fn falsey_root_settings_preserve_raw_values() {
     let host = MemoryConfigHost::default().with_file(
         "/project/base.json",
         r#"{"watchOptions":{"watchFile":"useFsEvents"},"typeAcquisition":{"include":["jest"]},"compileOnSave":true}"#,
@@ -2675,17 +2675,13 @@ fn falsey_root_settings_preserve_watch_inheritance_and_raw_values() {
     )
     .expect("falsey own root settings remain observable");
 
-    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4}).into()));
     assert_eq!(plan.raw()["watchOptions"], json!(false).into());
     assert_eq!(plan.type_acquisition(), Some(&json!({}).into()));
     assert_eq!(plan.raw()["typeAcquisition"], json!(null).into());
     assert_eq!(plan.compile_on_save(), Some(&json!(false).into()));
-    assert_eq!(
-        plan.unsupported_root_scopes().collect::<Vec<_>>(),
-        ["watchOptions"]
-    );
-    // tsgo's root options do not declare `watchOptions`: its value is not
+    // tsgo (#64457) has no `watchOptions`: neither value is read or
     // diagnosed.
+    assert_eq!(plan.unsupported_root_scopes().next(), None);
     assert!(plan.errors().is_empty());
 }
 

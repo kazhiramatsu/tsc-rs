@@ -4126,8 +4126,13 @@ impl<'a> ModuleResolver<'a> {
         };
 
         // An explicitly configured type root first receives the declaration
-        // file probe that default node_modules/@types roots deliberately omit.
-        if custom_type_roots {
+        // file probe that default node_modules/@types roots deliberately omit,
+        // unless the name is written as a directory: empty or ending in a
+        // separator (tsgo resolutionCandidateFromDirectoryPath, #64159).
+        let directory_only = name_for_lookup.is_empty()
+            || name_for_lookup.ends_with("/")
+            || name_for_lookup.ends_with("\\");
+        if custom_type_roots && !directory_only {
             let direct =
                 self.probe_direct_type_reference_file(&candidate, mode, follow_realpath)?;
             if matches!(direct, ResolutionOutcome::Resolved(_)) {

@@ -703,7 +703,7 @@ pub enum RootFileReason {
 
 /// Load a config-derived root closure while retaining the source of each root
 /// spelling for TypeScript's inclusion-chain diagnostics.
-pub(crate) fn load_program_with_root_reasons(
+pub fn load_program_with_root_reasons(
     host: &dyn CompilerHost,
     roots: &[(JsString, RootFileReason)],
     compiler_options: CompilerOptions,
@@ -732,7 +732,9 @@ pub(crate) fn load_program_with_root_reasons(
     )
 }
 
-pub(crate) fn load_emitting_program_with_root_reasons(
+/// [`load_emitting_program`] with each root's inclusion reason, as
+/// [`load_program_with_root_reasons`].
+pub fn load_emitting_program_with_root_reasons(
     host: &dyn CompilerHost,
     roots: &[(JsString, RootFileReason)],
     compiler_options: CompilerOptions,
@@ -4530,7 +4532,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
         let current_depth = depth.saturating_add(usize::from(self.tasks[task].increase_depth));
-        if current_depth < self.task_data[data].lowest_depth {
+        let lowered = current_depth < self.task_data[data].lowest_depth;
+        if lowered {
             self.task_data[data].lowest_depth = current_depth;
             start_subtasks = true;
             self.task_data[data].started_subtasks = true;
@@ -4557,7 +4560,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     self.task_data[data].started_subtasks = true;
                 }
             }
-            if !self.tasks[by_name].started_subtasks && load_subtasks {
+            // tsgo (#64632): an arrival at a lower depth restarts the
+            // subtasks, so the imports the deeper visit elided load.
+            if load_subtasks && (lowered || !self.tasks[by_name].started_subtasks) {
                 self.tasks[by_name].started_subtasks = true;
                 let subtasks = self.tasks[by_name].subtasks.clone();
                 let lowest_depth = self.task_data[data].lowest_depth;

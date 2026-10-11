@@ -18,10 +18,11 @@ use serde_json::{json, Value};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost};
 use tsc_program::{
-    load_emitting_program, load_program, parse_config_root_plan, CompilerOptionNumber,
-    CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
-    ConfigOptionValueState, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
-    ModuleSuffix, PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath,
+    load_emitting_program, load_emitting_program_with_root_reasons, load_program,
+    load_program_with_root_reasons, parse_config_root_plan, CompilerOptionNumber, CompilerOptions,
+    ConfigFilePattern, ConfigHostError, ConfigHostOperation, ConfigOptionValueState,
+    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, ModuleSuffix,
+    PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath, RootFileReason,
 };
 
 use super::compiler::{
@@ -402,24 +403,57 @@ fn load_native_program_files(
     // bytes while the production CLI continues to use its own host default.
     compiler_options.new_line.get_or_insert(0);
     let catalog = LibraryCatalog::typescript_7_1(library_directory);
-    let loaded = if compiler_options.no_emit == Some(true) {
-        load_program(
+    // The compiler runner gives the Program the parsed config, whose specs
+    // name each root's inclusion reason (tsgo fileIncludeReasonToDiagnostics
+    // matches them against the config's directory since #64159).
+    let root_reasons = plan.fixture.config_root_plan.as_ref().map(|config| {
+        roots
+            .iter()
+            .map(|root| {
+                let name = root.to_string_lossy();
+                let reason = config
+                    .file_names()
+                    .iter()
+                    .zip(config.root_reasons())
+                    .find(|(file_name, _)| file_name.as_js() == name.as_ref())
+                    .map_or(RootFileReason::Explicit, |(_, reason)| reason.clone());
+                (JsString::from(name.as_ref()), reason)
+            })
+            .collect::<Vec<_>>()
+    });
+    let loaded = match (compiler_options.no_emit == Some(true), root_reasons) {
+        (true, Some(roots)) => load_program_with_root_reasons(
             &host,
             &roots,
             compiler_options,
             program_options,
             &catalog,
             limits,
-        )
-    } else {
-        load_emitting_program(
+        ),
+        (true, None) => load_program(
             &host,
             &roots,
             compiler_options,
             program_options,
             &catalog,
             limits,
-        )
+        ),
+        (false, Some(roots)) => load_emitting_program_with_root_reasons(
+            &host,
+            &roots,
+            compiler_options,
+            program_options,
+            &catalog,
+            limits,
+        ),
+        (false, None) => load_emitting_program(
+            &host,
+            &roots,
+            compiler_options,
+            program_options,
+            &catalog,
+            limits,
+        ),
     };
     loaded.map_err(|load_error| {
         error(format!(

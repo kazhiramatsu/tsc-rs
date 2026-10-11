@@ -20617,7 +20617,9 @@ root.ts
 
 #[test]
 fn incremental_steps_explain_schedule_two() {
-    // tsgo's records of scratchpad/p36c/scenarios.py `explain-schedule-two`.
+    // tsgo's records of scratchpad/p36c/scenarios.py `explain-schedule-two`;
+    // the "shared imported first" step is tsgo aa8149273's, where #64632
+    // restarts `shared`'s imports when root.ts reaches it at a lower depth.
     let tree = TempTree::new();
     write_fixture_files(
         &tree,
@@ -20816,8 +20818,12 @@ error TS2318: Cannot find global type 'Number'.
 error TS2318: Cannot find global type 'Object'.
 error TS2318: Cannot find global type 'RegExp'.
 error TS2318: Cannot find global type 'String'.
+node_modules/shared/reference-leaf.js
+   Imported via "./reference-leaf.js" from file 'node_modules/shared/reference.js' with packageId 'shared/reference-leaf.js@1.0.0'
 node_modules/shared/reference.js
    Referenced via './reference.js' from file 'node_modules/shared/index.js'
+node_modules/shared/leaf.js
+   Imported via "./leaf.js" from file 'node_modules/shared/index.js' with packageId 'shared/leaf.js@1.0.0'
 node_modules/shared/index.js
    Imported via "shared" from file 'root.ts' with packageId 'shared/index.js@1.0.0'
    Imported via "shared" from file 'node_modules/a/index.js' with packageId 'shared/index.js@1.0.0'
@@ -21996,6 +22002,82 @@ fn an_erased_with_statement_body_follows_tsgo() {
         fs::read_to_string(tree.path("out/a.cjs")).expect("read out/a.cjs"),
         "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nwith (obj)\n    ;\nwith (obj)\n    var local = 2;\n"
     );
+}
+
+#[test]
+fn directory_specifier_gets_no_extension_suggestion_like_tsgo() {
+    // tsgo #64159: a relative ESM specifier ending in a separator gets
+    // TS2834 without a suggested extension (it suggested `./foo/.js`); the
+    // same specifier without the separator still gets TS2835. (foo.ts is a
+    // root: the port's suggestion looks at the program's files where tsgo
+    // asks the host.) The expected bytes are tsgo's for the same files and
+    // arguments.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("foo")).expect("create foo");
+    fs::write(tree.path("package.json"), "{ \"type\": \"module\" }\n").expect("write package.json");
+    fs::write(tree.path("foo.ts"), "export {};\n").expect("write foo.ts");
+    fs::write(tree.path("foo/index.ts"), "export {};\n").expect("write foo/index.ts");
+    fs::write(
+        tree.path("index.ts"),
+        "import \"./foo/\";\nimport \"./foo\";\n",
+    )
+    .expect("write index.ts");
+    fs::write(tree.path("tsconfig.json"), "{\"compilerOptions\":{\"module\":\"nodenext\",\"noEmit\":true,\"types\":[]},\"files\":[\"index.ts\",\"foo.ts\"]}")
+        .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "index.ts(1,8): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.\nindex.ts(2,8): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './foo.js'?\n");
+}
+
+#[test]
+fn removed_watch_options_are_unknown_like_tsgo() {
+    // tsgo #64457 removed the watch options: on the command line they are
+    // unknown compiler options (TS5023) and unknown build options (TS5072).
+    // The expected bytes are tsgo's for the same files and arguments.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export const a = 1;\n").expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        "{\"compilerOptions\":{\"noEmit\":true,\"types\":[]},\"files\":[\"a.ts\"]}",
+    )
+    .expect("write tsconfig.json");
+    let output = run(
+        &tree,
+        &[
+            "--pretty",
+            "false",
+            "--watchFile",
+            "useFsEvents",
+            "--excludeFiles",
+            "x",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "error TS5023: Unknown compiler option '--watchFile'.\nerror TS5023: Unknown compiler option '--excludeFiles'.\n");
+    let output = run(&tree, &["-b", "--pretty", "false", "--watchDirectory", "x"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "error TS5072: Unknown build option '--watchDirectory'.\n"
+    );
+}
+
+#[test]
+fn show_config_leaves_out_list_files_like_tsgo() {
+    // tsgo #64457: the options model marks listFiles `showConfig: false`,
+    // so --showConfig leaves it out (from the config and the command line)
+    // while it keeps explainFiles. The expected bytes are tsgo's for the
+    // same files and arguments.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "export const a = 1;\n").expect("write a.ts");
+    fs::write(
+        tree.path("tsconfig.json"),
+        "{\"compilerOptions\":{\"listFiles\":true,\"explainFiles\":true},\"files\":[\"a.ts\"]}",
+    )
+    .expect("write tsconfig.json");
+    let output = run(&tree, &["--showConfig", "--listFiles"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "{\n    \"compilerOptions\": {\n        \"explainFiles\": true\n    },\n    \"files\": [\n        \"./a.ts\"\n    ]\n}");
 }
 
 #[test]

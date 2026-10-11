@@ -973,12 +973,10 @@ pub struct ConfigRootPlan {
     /// TypeScript does not inherit them through `extends`.
     references: Option<Value>,
     project_references: Option<Vec<ConfigProjectReference>>,
-    /// Converted root schema projections. Watch options merge through
-    /// extends; type acquisition keeps this config's own defaults. The H0
-    /// loader separately retains its explicit root-scope validation.
-    watch_options: Option<Value>,
+    /// Converted root schema projection: type acquisition keeps this
+    /// config's own defaults. The H0 loader separately retains its explicit
+    /// root-scope validation. tsgo (#64457) has no `watchOptions`.
     type_acquisition: Option<Value>,
-    watch_option_bag: Option<ConfigOptionBag>,
     type_acquisition_option_bag: ConfigOptionBag,
     compile_on_save: Option<Value>,
     /// Truthy root-level schemas which the single-project no-emit loader does
@@ -1057,20 +1055,10 @@ impl ConfigRootPlan {
         self.project_references.as_deref()
     }
 
-    /// JSON projection of converted, merged watch options. Undefined values
-    /// are omitted; use `watch_option_bag` to preserve their presence.
-    pub fn watch_options(&self) -> Option<&Value> {
-        self.watch_options.as_ref()
-    }
-
     /// JSON projection of converted type acquisition options, including
     /// tsconfig/jsconfig defaults. These options do not inherit from extends.
     pub fn type_acquisition(&self) -> Option<&Value> {
         self.type_acquisition.as_ref()
-    }
-
-    pub fn watch_option_bag(&self) -> Option<&ConfigOptionBag> {
-        self.watch_option_bag.as_ref()
     }
 
     pub fn type_acquisition_option_bag(&self) -> &ConfigOptionBag {
@@ -1135,6 +1123,13 @@ impl ConfigRootPlan {
 
     pub fn file_names(&self) -> &[JsString] {
         &self.file_names
+    }
+
+    /// Each file name's inclusion reason: its `files` entry, the include
+    /// spec that matched it (against the config's directory), or the
+    /// default include.
+    pub fn root_reasons(&self) -> &[RootFileReason] {
+        &self.root_reasons
     }
 
     /// Directory watcher roots derived from the effective include/exclude
@@ -1664,7 +1659,6 @@ struct ParsedConfigNode {
     inheritable_include: Option<Vec<InheritedSpec>>,
     inheritable_exclude: Option<Vec<InheritedSpec>>,
     references: Option<Value>,
-    watch_options: Option<ConfigOptionBag>,
     type_acquisition: ConfigOptionBag,
     compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
@@ -1796,10 +1790,6 @@ fn parse_config_root_plan_inner(
         node.options.extend_from(command_line_options);
     }
     node.options.finalize_config_dir_templates(&config_base)?;
-    if let Some(watch) = &mut node.watch_options {
-        watch.finalize_group_config_dir_templates(&config_base, ConfigOptionGroup::Watch)?;
-        watch.restore_public_entry_order();
-    }
     node.type_acquisition.restore_public_entry_order();
     let paths_option_validation = paths_option_validation_plan(&node.options, &node.source);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
@@ -1900,9 +1890,7 @@ fn parse_config_root_plan_inner(
         exclude,
         references: node.references,
         project_references,
-        watch_options: node.watch_options.as_ref().map(typed_option_bag_json),
         type_acquisition: Some(typed_option_bag_json(&node.type_acquisition)),
-        watch_option_bag: node.watch_options,
         type_acquisition_option_bag: node.type_acquisition,
         compile_on_save: node.compile_on_save,
         unsupported_root_scopes: node.unsupported_root_scopes,
@@ -1923,8 +1911,7 @@ fn parse_config_root_plan_inner(
 /// carry through the narrower `CompilerOptions` projection. This check runs
 /// at the program-load gate rather than during parsing so the config oracle
 /// can still observe TypeScript's complete partial `ParsedCommandLine` shape.
-/// Root config scopes (`watchOptions`, `typeAcquisition`, `compileOnSave`)
-/// are inert for a command that neither watches nor serves an editor: tsgo
+/// Root config scopes (`typeAcquisition`, `compileOnSave`) are inert for a command that neither watches nor serves an editor: tsgo
 /// reports their conversion diagnostics and reads them no further, so every
 /// command admits them and the plan only observes them.
 fn unsupported_config_scope(
@@ -2772,8 +2759,6 @@ impl ParseContext<'_> {
         let mut unsupported_root_scopes = BTreeSet::new();
         let own_references =
             config_property_get(object, &raw_property_names, "references").cloned();
-        let raw_watch_options =
-            config_property_get(object, &raw_property_names, "watchOptions").cloned();
         let raw_type_acquisition =
             config_property_get(object, &raw_property_names, "typeAcquisition").cloned();
         let own_compile_on_save_present = raw_property_names.contains("compileOnSave".as_bytes());
@@ -2801,16 +2786,6 @@ impl ParseContext<'_> {
             );
         }
         own_options.extend_from(&converted_own_options);
-        // tsgo's tsconfig root options do not declare `watchOptions`: its
-        // value is converted as plain JSON and nothing in it is diagnosed.
-        let own_watch_options = config_option_group(
-            base_path,
-            ConfigOptionGroup::Watch,
-            &parsed,
-            &mut Vec::new(),
-        )?;
-        let own_watch_options =
-            (!own_watch_options.typed_entries.is_empty()).then_some(own_watch_options);
         let mut type_acquisition = default_type_acquisition(normalized_file_name);
         type_acquisition.extend_from(&config_option_group(
             base_path,
@@ -2847,7 +2822,6 @@ impl ParseContext<'_> {
         let mut inherited_files = None;
         let mut inherited_include = None;
         let mut inherited_exclude = None;
-        let mut inherited_watch_options: Option<ConfigOptionBag> = None;
         let mut inherited_compile_on_save = None;
         let mut extended_sources = Vec::new();
         let mut seen_sources = BTreeSet::new();
@@ -2933,11 +2907,6 @@ impl ParseContext<'_> {
                     extended_source_files.push(extended_source_file.clone());
                 }
             }
-            if let Some(watch) = &extended.watch_options {
-                inherited_watch_options
-                    .get_or_insert_with(ConfigOptionBag::default)
-                    .extend_from(watch);
-            }
             if extended.compile_on_save.is_some() {
                 inherited_compile_on_save = extended.compile_on_save.clone();
             }
@@ -2964,12 +2933,6 @@ impl ParseContext<'_> {
             .and_then(|node| config_location(&parsed, node));
         let include = own_include.or_else(|| inherited_paths(&inherited_include));
         let exclude = own_exclude.or_else(|| inherited_paths(&inherited_exclude));
-        let mut watch_options = inherited_watch_options;
-        if let Some(own) = own_watch_options {
-            watch_options
-                .get_or_insert_with(ConfigOptionBag::default)
-                .extend_from(&own);
-        }
         let compile_on_save = if own_compile_on_save_present {
             own_compile_on_save
         } else {
@@ -2978,16 +2941,12 @@ impl ParseContext<'_> {
             inherited_compile_on_save.filter(json_value_is_truthy)
         };
         for (name, value) in [
-            ("watchOptions", raw_watch_options.as_ref()),
             ("typeAcquisition", raw_type_acquisition.as_ref()),
             ("compileOnSave", compile_on_save.as_ref()),
         ] {
             if value.is_some_and(json_value_is_truthy) {
                 unsupported_root_scopes.insert(name.to_owned());
             }
-        }
-        if watch_options.is_some() {
-            unsupported_root_scopes.insert("watchOptions".to_owned());
         }
         let raw_object = raw
             .as_object_mut()
@@ -3049,7 +3008,6 @@ impl ParseContext<'_> {
             inheritable_include,
             inheritable_exclude,
             references: own_references,
-            watch_options,
             type_acquisition,
             compile_on_save,
             unsupported_root_scopes,
@@ -3202,7 +3160,7 @@ fn config_diagnostic_owners(source: &SourceFile) -> Vec<ConfigLocation> {
         }
         if matches!(
             property.name.as_str(),
-            Some("compilerOptions" | "watchOptions" | "typeAcquisition")
+            Some("compilerOptions" | "typeAcquisition")
         ) {
             owners.extend(
                 config_object_properties(source, property.initializer)
@@ -3978,8 +3936,8 @@ impl JsonConversionOption {
     }
 
     /// The option of an object value's property `key` (tsgo
-    /// `ElementOptions.Get` with its exact-name check). The root options
-    /// have no `watchOptions`, and no other option has element options.
+    /// `ElementOptions.Get` with its exact-name check). No other option has
+    /// element options.
     fn element(self, key: &JsString) -> Option<Self> {
         let declared = |name, value_type| Some(Self::Declared { name, value_type });
         match self {
@@ -5553,7 +5511,6 @@ fn validate_compile_on_save<'j0>(
 #[derive(Clone, Copy)]
 enum ConfigOptionGroup {
     Compiler,
-    Watch,
     Acquisition,
 }
 
@@ -5561,7 +5518,6 @@ impl ConfigOptionGroup {
     const fn name(self) -> &'static str {
         match self {
             Self::Compiler => "compilerOptions",
-            Self::Watch => "watchOptions",
             Self::Acquisition => "typeAcquisition",
         }
     }
@@ -5572,9 +5528,6 @@ impl ConfigOptionGroup {
         let name = name.into();
         match self {
             Self::Compiler => compiler_option_declaration(name),
-            Self::Watch => crate::config_options::WATCH_OPTION_DECLARATIONS
-                .iter()
-                .find(|d| name == d.name()),
             Self::Acquisition => crate::config_options::ACQUISITION_OPTION_DECLARATIONS
                 .iter()
                 .find(|d| name == d.name()),
@@ -5586,14 +5539,6 @@ impl ConfigOptionGroup {
                 &gen::Unknown_compiler_option_0,
                 &gen::Unknown_compiler_option_0_Did_you_mean_1,
                 compiler_option_spelling_suggestion(name),
-            ),
-            Self::Watch => (
-                &gen::Unknown_watch_option_0,
-                &gen::Unknown_watch_option_0_Did_you_mean_1,
-                crate::config_options::option_spelling_suggestion(
-                    name,
-                    crate::config_options::WATCH_OPTION_DECLARATIONS,
-                ),
             ),
             Self::Acquisition => (
                 &gen::Unknown_type_acquisition_option_0,

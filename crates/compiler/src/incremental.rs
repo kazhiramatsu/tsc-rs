@@ -1874,9 +1874,12 @@ impl<'p> Assembly<'p> {
                 }
             }
             let directory = directory_of(&source.path().display().to_string_lossy());
+            // tsgo (#64544) resolves a path reference against its file before
+            // asking for the redirect, so a referenced project's source is
+            // recorded as its output.
             for name in &facts.path_references {
                 if let Some(path) = self.to_path(name.as_js(), directory.as_str().into()) {
-                    files.push(path);
+                    files.push(self.redirected(path));
                 }
             }
             referenced[index] = files;

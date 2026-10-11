@@ -2,14 +2,16 @@
 //! `TestCommandLineParseResult` and `TestParseCommandLineVerifyNull` write
 //! `commandLineParsing/parseCommandLine/<name>.js` and
 //! `TestParseBuildCommandLine` writes
-//! `commandLineParsing/parseBuildOptions/<name>.js`.
+//! `commandLineParsing/parseBuildOptions/<name>.js`, and
+//! `TestRemovedWatchOptions` writes `removedWatchOptions/<option>.js`.
 //!
 //! A `parseCommandLine` baseline holds the arguments, the parser's raw
 //! options in first-assignment order with tsgo's values (an enum's number,
 //! a library's file name), the file names and the errors; a
 //! `parseBuildOptions` baseline holds the build options and the compiler
 //! options common with the build in tsgo's struct order, the projects and
-//! the errors.
+//! the errors; a `removedWatchOptions` baseline the errors of both command
+//! lines.
 
 use tsc_diagnostics::{Diagnostic, JsStr};
 use tsc_program::{
@@ -19,7 +21,8 @@ use tsc_program::{
 
 use super::errors_baseline::flatten_with;
 use super::tables::{
-    ExtraOptionKind, PARSE_BUILD_OPTIONS, PARSE_COMMAND_LINE, PARSE_COMMAND_LINE_FALSE, VERIFY_NULL,
+    ExtraOptionKind, PARSE_BUILD_OPTIONS, PARSE_COMMAND_LINE, PARSE_COMMAND_LINE_FALSE,
+    REMOVED_WATCH_OPTIONS, VERIFY_NULL,
 };
 use tsc_program::go_json::{
     enum_number, FieldKind, GoJson, BUILD_OPTIONS_FIELDS, COMPILER_OPTIONS_FIELDS,
@@ -47,9 +50,11 @@ pub(super) struct CommandLineCase {
 pub(super) enum CommandLineKind {
     Compile(Option<ExtraOptionKind>),
     Build,
+    /// `TestRemovedWatchOptions`: the arguments go to both command lines.
+    RemovedWatchOption,
 }
 
-/// Every scenario of the three tests, in their order.
+/// Every scenario of the four tests, in their order.
 pub(super) fn cases() -> Vec<CommandLineCase> {
     let compile = |name: &str, args: &[&str], extra| CommandLineCase {
         baseline: format!("commandLineParsing/parseCommandLine/{name}.js"),
@@ -100,6 +105,11 @@ pub(super) fn cases() -> Vec<CommandLineCase> {
                 kind: CommandLineKind::Build,
             }),
     );
+    cases.extend(REMOVED_WATCH_OPTIONS.iter().map(|option| CommandLineCase {
+        baseline: format!("removedWatchOptions/{option}.js"),
+        args: vec!["--watch".to_owned(), format!("--{option}")],
+        kind: CommandLineKind::RemovedWatchOption,
+    }));
     cases
 }
 
@@ -108,6 +118,17 @@ pub(super) fn cases() -> Vec<CommandLineCase> {
 pub(super) fn render(case: &CommandLineCase) -> String {
     let read_file = |_: JsStr<'_>| None;
     let current_directory = JsStr::from_str("/");
+    if let CommandLineKind::RemovedWatchOption = case.kind {
+        let parsed = parse_command_line_with_declarations(
+            &case.args,
+            current_directory,
+            true,
+            &read_file,
+            &[],
+        );
+        let build = parse_build_command_line(&case.args, current_directory, true, &read_file);
+        return format_errors(&parsed.errors) + &format_errors(&build.errors);
+    }
     let mut text = format!("Args::\n{}\n\n", format_args(&case.args));
     match case.kind {
         CommandLineKind::Compile(extra) => {
@@ -143,7 +164,7 @@ pub(super) fn render(case: &CommandLineCase) -> String {
             text.push_str(&struct_json(BUILD_OPTIONS_FIELDS, &parsed.build_options).compact());
             text.push_str("\n\ncompilerOptions::\n");
             // ParseBuildCommandLine parses the compiler options common with
-            // the build (not the watch options) into core.CompilerOptions.
+            // the build into core.CompilerOptions.
             let compiler_options = parsed
                 .options
                 .iter()
@@ -158,6 +179,7 @@ pub(super) fn render(case: &CommandLineCase) -> String {
             text.push_str("\n\nErrors::\n");
             text.push_str(&format_errors(&parsed.errors));
         }
+        CommandLineKind::RemovedWatchOption => unreachable!("rendered above"),
     }
     text
 }
@@ -255,7 +277,7 @@ mod tests {
     #[test]
     fn scenario_names_follow_the_tests() {
         let cases = cases();
-        assert_eq!(cases.len(), 80);
+        assert_eq!(cases.len(), 70);
         assert!(cases.iter().any(|case| case.baseline
             == "commandLineParsing/parseCommandLine/option of type number errors if its last option.js"
             && case.args == ["0.ts", "--optionName"]));

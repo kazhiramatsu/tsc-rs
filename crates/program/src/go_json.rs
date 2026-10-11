@@ -391,26 +391,6 @@ fn enum_table(option: &str) -> Option<&'static [(&'static str, i64)]> {
             ("react", 2),
         ],
         "newLine" => &[("crlf", 1), ("lf", 2)],
-        "watchFile" => &[
-            ("fixedpollinginterval", 1),
-            ("prioritypollinginterval", 2),
-            ("dynamicprioritypolling", 3),
-            ("fixedchunksizepolling", 4),
-            ("usefsevents", 5),
-            ("usefseventsonparentdirectory", 6),
-        ],
-        "watchDirectory" => &[
-            ("usefsevents", 1),
-            ("fixedpollinginterval", 2),
-            ("dynamicprioritypolling", 3),
-            ("fixedchunksizepolling", 4),
-        ],
-        "fallbackPolling" => &[
-            ("fixedinterval", 1),
-            ("priorityinterval", 2),
-            ("dynamicpriority", 3),
-            ("fixedchunksize", 4),
-        ],
         _ => return None,
     })
 }
@@ -678,7 +658,6 @@ mod tests {
     fn enum_numbers_are_tsgo_numbers() {
         assert_eq!(enum_number("moduleDetection", "Auto"), Some(1));
         assert_eq!(enum_number("newLine", "crlf"), Some(1));
-        assert_eq!(enum_number("watchFile", "UseFsEvents"), Some(5));
         assert_eq!(enum_number("target", "ES2017"), Some(4));
         assert_eq!(enum_number("target", "es3"), None);
     }

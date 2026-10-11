@@ -137,18 +137,16 @@ fn inherited_root_scopes_respect_acquisition_noninheritance() {
             &LibraryCatalog::typescript_7_1("/vendor/typescript/lib"),
             LIMITS,
         );
-        if scope == "typeAcquisition" {
-            assert!(
-                loaded.is_ok(),
-                "typeAcquisition does not inherit into this config"
-            );
+        // typeAcquisition does not inherit into this config, and tsgo
+        // (#64457) has no watchOptions.
+        if scope == "typeAcquisition" || scope == "watchOptions" {
+            assert!(loaded.is_ok(), "{scope} does not reach this config");
             assert_eq!(plan.unsupported_root_scopes().next(), None);
             continue;
         }
-        // An inherited watchOptions and a truthy compileOnSave reach the
-        // child's config, and a command that neither watches nor serves an
-        // editor never reads them: the plan observes the scope and the
-        // no-emit loader admits it.
+        // A truthy compileOnSave reaches the child's config, and a command
+        // that serves no editor never reads it: the plan observes the scope
+        // and the no-emit loader admits it.
         assert!(loaded.is_ok(), "{scope} is inert for a tsc command");
         assert_eq!(plan.unsupported_root_scopes().collect::<Vec<_>>(), [scope]);
     }

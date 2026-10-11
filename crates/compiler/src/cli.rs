@@ -435,12 +435,7 @@ fn execute<'a>(
         locale,
     };
     if !parsed.errors.is_empty() {
-        return rendered_diagnostics_with_exit(
-            format,
-            &BTreeMap::new(),
-            &parsed.errors,
-            EXIT_COMMAND_LINE,
-        );
+        return reported_diagnostics_with_exit(format, &parsed.errors, EXIT_COMMAND_LINE);
     }
     // tsgo createColors follows the environment and the terminal, not
     // --pretty.
@@ -779,12 +774,7 @@ fn execute_build<'a>(
         locale,
     };
     if !parsed.errors.is_empty() {
-        return rendered_diagnostics_with_exit(
-            format,
-            &BTreeMap::new(),
-            &parsed.errors,
-            EXIT_COMMAND_LINE,
-        );
+        return reported_diagnostics_with_exit(format, &parsed.errors, EXIT_COMMAND_LINE);
     }
     if parsed.option_bool("help") == Some(true) {
         let help = Help::new(system, default_pretty(system), locale, TYPESCRIPT_VERSION);
@@ -1741,6 +1731,27 @@ fn execute_emitting_prepared(
 
 /// The command line's own errors (tsgo `tscCompilation` reports each one and
 /// stops; no error summary follows).
+/// tsgo's `reportDiagnostic` for each of a command line's errors
+/// (execute/tsc.go:97-99, 128-131): in their order, neither sorted nor
+/// deduplicated.
+fn reported_diagnostics_with_exit(
+    format: Format<'_>,
+    diagnostics: &[Diagnostic],
+    exit_code: i32,
+) -> Result<CliOutput, CliError> {
+    let mut stdout = String::new();
+    for diagnostic in diagnostics {
+        let reported = rendered_diagnostics_with_exit(
+            format,
+            &BTreeMap::new(),
+            std::slice::from_ref(diagnostic),
+            exit_code,
+        )?;
+        stdout.push_str(&reported.stdout);
+    }
+    Ok(CliOutput::new(stdout, exit_code))
+}
+
 fn rendered_diagnostics_with_exit(
     format: Format<'_>,
     source_texts: &DiagnosticSourceMap,
