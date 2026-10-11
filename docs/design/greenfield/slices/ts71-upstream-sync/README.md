@@ -226,3 +226,44 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   前からの範囲（ES5 の意図した差、content mapper）。
 - **hosted と merge**：PR #744 の hosted run 38118692919（rust 11m31s、conformance 23m44s、gates pass、head `0bc0b9af7`）、merge commit
   `9f0c0cb86`。
+
+## S5 program と build（2026-10-11）
+
+- **conformance の 4 stem**：#64632（node_modules の深さが下がって再び届いた file は subtask をやり直す（`filesParser.start`）。
+  `symlinkedPackageReachedRelativelyIsNotExternalLibrary`）、#64159（区切りで終わる相対の ESM specifier は TS2834 で拡張子を
+  提案しない（`./foo/.js` を提案していた）。`nodeNextDirectoryImportExtensionSuggestion`。custom の type root はディレクトリとして
+  書かれた名前（空か区切りで終わる）の file を探さない。`typeReferenceDirectiveTrailingSlashName` の trace。root file の include
+  の理由は config のディレクトリで include spec と照らす。`tsconfigRootdirInclude`）。最後のものは port が既に config のディレクトリで
+  照らしていた（CLI の config の道は理由を渡す）が、conformance の harness は config の fixture を root 名だけで load していた
+  （tsgo の harness の matcher が空の current directory を使っていた間は一致）。tsgo の compiler runner は Program に parse した
+  config を渡すので、harness は config plan の各 root の理由で load する（理由つきの loader を public に、
+  `ConfigRootPlan::root_reasons()` を追加）。
+- **suites の 35 baseline**（再 vendor で壊れた 18、新しい 17）：#64457 は watch option（watchFile、watchDirectory、
+  fallbackPolling、synchronousWatchDirectory、excludeDirectories、excludeFiles、watchInterval）を消した。両方の command line で
+  未知（TS5023、TS5072）、tsconfig の `watchOptions` は root の option ではない（読まない、診断しない。port の変換は `${configDir}`
+  の置換で config を失敗させえた）。宣言、command line の watch group、config の watch scope、enum 名を消し、写した table から
+  `commandLineParsing` の watch option の 17 case を除いて `TestRemovedWatchOptions`（7）を加えた。tscWatch の「Reject removed
+  watch interval option」も一致。`--showConfig` は options model が `showConfig: false` とする `listFiles` を出さない（4）。#64159
+  の tsconfig の table に「handles empty file name in files list」（2。振る舞いは既に tsgo のもの）。#64544 の referenced map は
+  triple-slash の参照を file に対して解決してから redirect を問う（参照先の composite project の source は出力として記録。2）。
+  #64556 の incremental の scenario：tsgo の emitter は declaration の診断を `DiagnosticsCollection` に足し、等しい診断は 1 つ、
+  並べ替える。port は報告を全て file の signature に入れていた（再帰する tagged tuple が TS5088 を数千回。tsgo の 2,108 byte に
+  対し 327,863 byte の `.tsbuildinfo`）。`sort_and_dedupe_equal_diagnostics` を declaration unit の診断に（1）。
+- **新しい test で分かったこと**：tsgo は command line の errors を順に 1 つずつ報告する（port は program の診断のように並べ替えて
+  いた）。記録だけ：checker の拡張子の提案（TS2835）は program が読んだ file を見るが、tsgo は host の `FileExists` を問う。
+  program の外の file への拡張子の無い ESM import は TS2834 になる（conformance は全ての file が root なので見えない）。checker に
+  host の file の存在を見せる必要がある。
+- **test**：program の watch option の contract は tsgo のもの（base の `watchOptions` は読まない、root scope は無い）、`h2-8b` の
+  config fixture（tsgo と違う所で再記録する port 自身の記録）は watch option を probe しない（`verification` に記し、
+  `source_commit` を `aa8149273` に）。command line の unit test と API の `parseCommandLine` の test は未知の option に、
+  `incremental_steps_explain_schedule_two` の「shared imported first」は tsgo `aa8149273` の出力に（tsgo の binary で再生、他の
+  step は同じ）。3 つの CLI contract で tsgo の byte を固定。
+- **結果**（release build、`77296c7f0`）：full の conformance（`--workers 2 --check`、487 s）は 0 regressions、4 構成（slice の
+  stem）が上がった。errors full 13,560 → 13,562（mismatch 0）、emit 1 → 0、trace 1 → 0。比べた全ての構成が tsgo `aa8149273` と
+  errors・emit・source map・trace・`.js.map` で一致し、違うのは `.types`／`.symbols` の tail（85／49、同期の後）と content mapper の
+  harness error 15。
+- **並列対照**（`--checkers 4`、`scripts/conformance_ts71_compare.py`）：15,335 構成が一致、違うのは記録済みの順序の 4 構成だけ。
+- ratchet は `--update` で 13,562 構成（新しい 1、上げた 3）。suites（`--check`）は 0 regressions、18 上がった（config 87 → 89、
+  tsbuild 182 → 183、tsc 211 → 217、tscWatch 40 → 42、tsoptions の `removedWatchOptions` 7）。`--update` で記録し、消えた
+  watch option の 17 baseline は ratchet から落ちた（748 → 731）。suites に残る違いは前からの範囲の 24（tsbuild 10、
+  tsbuildWatch 2、tsc 12。ES5 の意図した差、content mapper など）。
