@@ -390,3 +390,26 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   0 regressions・上がったもの無し。checker は変わらないので並列対照は無し。
 - **hosted と merge**：PR #749 の hosted run 38136052277（rust 8m7s、conformance 16m20s、gates pass、head `880669d19`）、merge commit
   `f185ff5a5`。
+
+## S6e JSON の object の `parseJsonConfigFileContent`（2026-10-11）
+
+- tsgo の `ParseJsonConfigFileContent` は object を source file なしで読む（`sourceFile == nil`）。tsc-rs は object を JSON の
+  text にして source file として読んでいたので、配列の null を変換で落とし（null だけの配列は無い扱い）、要素ごとに型の
+  error を出していた。新しい入口 `parse_config_root_plan_of_json_object`（tsgo の 2 つの入口の片方、parser は共有）で root の
+  config を object として読む：
+  - `references`・`files`・`include`・`exclude` は tsgo の `getPropFromRaw`：配列は与えられたまま（null も要素）で、文字列
+    （`references` は object）でない要素があれば property ごとに 1 回 TS5024、配列でない値は TS5024（`Array`）。
+  - error の位置も tsgo の順：`references` と `files` は file 名の前、`include` と `exclude` は空の `files` の検査の後、
+    `references` は `getProjectReferences` がもう一度読むので reference の error の前にもう 1 回。
+  - `raw` は object のまま（null を含む）、TS18003 の include／exclude も null を含む（`'[null]'`）。
+- API の `parseJsonConfigFileContent` と、tsconfig の suite の json api（tsgo の `getParsedWithJsonApi` と同じく text を
+  `ParseConfigFileTextToJson` で object にしてから）がこの入口を使う。suite の json api の baseline は全て一致のまま
+  （config 89／89）。
+- **tsgo との照合**：object 11 通り（null、混ざった型、配列でない値、空の `files`（名前の有無）、不正な `references`、
+  `excludes` と options、null の値、`extends`、名前つきの `include: [null]`）を tsgo `aa8149273` と tsc-rs に送り、全て同じ
+  （error・順序・`raw`・file 名）。
+- **client の test**：sync 336／356、async 345／365。残り各 20 は LS 16、`formatNodeForInsertion` 3、bounded な
+  `createSourceFile` の共有 1。
+- **結果**（release build、`d24f817ab`。program の config の parser に触れたので）：full の conformance（`--workers 2 --check`、
+  489 s）は 0 regressions で、S6d の report と全ての field で同じ。suites（`--check`）は 0 regressions・上がったもの無し
+  （config 89／89 は json api を object の経路にしても全て一致）。checker は変わらないので並列対照は無し。
