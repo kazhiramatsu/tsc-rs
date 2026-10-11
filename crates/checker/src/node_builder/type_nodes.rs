@@ -1569,7 +1569,18 @@ fn type_to_type_node_worker(
                 if declared == r#type {
                     return Ok(Some(parent_name));
                 }
-                let member_name = checker.symbol_display_name(symbol);
+                // tsgo `ast.SymbolName`: an internal name (a nameless
+                // member's `missing`) starts with the byte 0xFE, which the
+                // printer reads as U+FFFD: `(typeof E)["\uFFFDmissing"]`.
+                let escaped = checker.binder.symbol(symbol).escaped_name;
+                let member_name = match escaped.as_js().strip_prefix("__") {
+                    Some(rest) if !rest.starts_with("_") => {
+                        let mut name = tsc_types::JsString::from("\u{FFFD}");
+                        name.push_js(rest);
+                        name
+                    }
+                    _ => checker.symbol_display_name(symbol),
+                };
                 if let Some(member_name) = member_name
                     .as_str()
                     .filter(|name| tsc_syntax::is_identifier_text(name))
@@ -3151,18 +3162,44 @@ fn visit_and_transform_type(
     {
         return create_cyclic_structure_placeholder(arena, target, context).map(Some);
     }
-    let symbol = if is_array_or_tuple {
+    // tsgo CompositeSymbolIdentity: arrays and tuples are not bounded; a
+    // deferred reference by its node, a conditional type by its root, any
+    // other type by its symbol.
+    let type_data = checker.tables.type_of(r#type);
+    let composite = if is_array_or_tuple {
         None
+    } else if type_data.object_flags.intersects(ObjectFlags::REFERENCE)
+        && checker.links.ty(r#type).deferred_node.is_some()
+    {
+        checker
+            .links
+            .ty(r#type)
+            .deferred_node
+            .map(super::context::CompositeSymbolIdentity::Node)
+    } else if let TypeData::Conditional(conditional) = &type_data.data {
+        Some(super::context::CompositeSymbolIdentity::ConditionalRoot(
+            conditional.root,
+        ))
     } else {
-        checker.tables.type_of(r#type).symbol
+        type_data
+            .symbol
+            .map(|symbol| super::context::CompositeSymbolIdentity::Symbol {
+                is_constructor_object: type_data.object_flags.intersects(ObjectFlags::ANONYMOUS)
+                    && checker
+                        .binder
+                        .symbol(symbol)
+                        .flags
+                        .intersects(SymbolFlags::CLASS),
+                symbol,
+            })
     };
-    let depth = symbol.map(|symbol| {
+    let depth = composite.map(|identity| {
         let old = context
             .symbol_depth
             .as_ref()
-            .and_then(|depths| depths.get(&symbol).copied())
+            .and_then(|depths| depths.get(&identity).copied())
             .unwrap_or(0);
-        (symbol, old)
+        (identity, old)
     });
     // links.serializedTypes (checker/nodebuilderimpl.go:3229-3246): this
     // request's cache of already-built nodes for the enclosing declaration,
@@ -3231,11 +3268,11 @@ fn visit_and_transform_type(
         context.truncating = true;
         return create_elided_information_placeholder(arena, target, context).map(Some);
     }
-    if let Some((symbol, old)) = depth {
+    if let Some((identity, old)) = depth {
         context
             .symbol_depth
             .get_or_insert_with(HashMap::default)
-            .insert(symbol, old + 1);
+            .insert(identity, old + 1);
     }
     context
         .visited_types
@@ -3276,12 +3313,12 @@ fn visit_and_transform_type(
         .as_mut()
         .expect("initialized above")
         .remove(&identity);
-    if let Some((symbol, old)) = depth {
+    if let Some((identity, old)) = depth {
         context
             .symbol_depth
             .as_mut()
             .expect("initialized with symbol")
-            .insert(symbol, old);
+            .insert(identity, old);
     }
     if let Some((origin, old)) = reverse_mapped_depth {
         context.reverse_mapped_depth.insert(origin, old);
@@ -3515,9 +3552,12 @@ fn type_reference_to_type_node(
         .is_array_type(r#type)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     if is_array {
-        let readonly = checker
-            .is_readonly_array_type(r#type)
-            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        // tsgo tests the `Array` target first: without a `ReadonlyArray`
+        // global (noLib) the two are one type, written `T[]`.
+        let readonly = target_type
+            != checker
+                .global_array_type()
+                .map_err(|abort| checker_abort_error(checker, context, abort))?;
         let element = arguments
             .first()
             .copied()
@@ -5063,15 +5103,19 @@ pub(crate) fn map_to_type_nodes(
     Ok(Some(result))
 }
 
-/// tsc-port: typesAreSameReference @6.0.3
-/// tsc-hash: d9ee2b44342848a14d7e49485aed022879cec63e4b385d12538235e872085bcb
-/// tsc-span: _tsc.js:52473-52475
+/// tsgo-port: typesAreSameReference @7.1 (nodebuilderimpl.go:484-486)
+///
+/// tsgo compares the `*TypeAlias` objects, symbol and type arguments
+/// together, so two instantiations of one alias are different references
+/// (`Partial<A> | Partial<B>` prints both fully qualified again).
 fn types_are_same_reference(checker: &CheckerState<'_>, left: TypeId, right: TypeId) -> bool {
     let left_type = checker.tables.type_of(left);
     let right_type = checker.tables.type_of(right);
     left == right
         || left_type.symbol.is_some() && left_type.symbol == right_type.symbol
-        || left_type.alias_symbol.is_some() && left_type.alias_symbol == right_type.alias_symbol
+        || left_type.alias_symbol.is_some()
+            && left_type.alias_symbol == right_type.alias_symbol
+            && left_type.alias_type_arguments == right_type.alias_type_arguments
 }
 
 fn format_union_types(

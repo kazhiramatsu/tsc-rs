@@ -1361,7 +1361,7 @@ impl<'a> CheckerState<'a> {
                         self.check_spread_prop_overrides(merged, &all, member_decl)?;
                     }
                     acc.offset = acc.properties_array.len();
-                    if acc.spread == self.tables.intrinsics.error {
+                    if self.tables.is_error_type(acc.spread) {
                         continue;
                     }
                     let raw_symbol = self.node_symbol(node);

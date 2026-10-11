@@ -652,10 +652,16 @@ pub(super) fn serialize_type_for_declaration_in_context(
         None => declaration_type_for_serialization(checker, context, declaration, symbol)?,
     };
 
+    // A JSDoc `@param` or property tag is what tsgo's reparser makes a
+    // parameter or property signature.
     let annotated_kind = declaration.is_some_and(|declaration| {
         matches!(
             checker.kind_of(declaration),
-            SyntaxKind::Parameter | SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
+            SyntaxKind::Parameter
+                | SyntaxKind::PropertySignature
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::JSDocParameterTag
+                | SyntaxKind::JSDocPropertyTag
         )
     });
     let requires_adding_undefined = match declaration.filter(|_| annotated_kind) {
@@ -669,8 +675,12 @@ pub(super) fn serialize_type_for_declaration_in_context(
         None => false,
     };
     let add_undefined_for_parameter = requires_adding_undefined
-        && declaration
-            .is_some_and(|declaration| checker.kind_of(declaration) == SyntaxKind::Parameter);
+        && declaration.is_some_and(|declaration| {
+            matches!(
+                checker.kind_of(declaration),
+                SyntaxKind::Parameter | SyntaxKind::JSDocParameterTag
+            )
+        });
     if add_undefined_for_parameter {
         r#type = checker
             .get_optional_type(r#type, false)
@@ -1152,7 +1162,7 @@ pub(crate) fn try_js_type_node_to_type_node(
         None,
         None,
         |checker, arena, target, context| {
-            syntactic_try_reuse_existing_type_node(checker, arena, target, context, type_node)
+            syntactic_try_reuse_existing_node(checker, arena, target, context, type_node)
         },
         None,
     )
@@ -2134,53 +2144,6 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                 }
                 None => None,
             };
-            // Parameter locals in a synthesized signature scope are not in
-            // scope for their own JSDoc type annotations. The parse-site
-            // resolver can conservatively return that parameter in Rust;
-            // recover the outer symbol that upstream resolved before it
-            // installed the fake scope so the reference-mismatch arm fires.
-            // Only a JSDoc-hosted reference is rejected upstream
-            // (resolveNameHelper _tsc.js:19558, 19563-19568: `lastLocation`
-            // is the JSDoc node). A reference in the parameter list or the
-            // return type annotation (`(name: unknown): name is string`,
-            // `typeof name`) keeps the parameter (`lastLocation.kind ===
-            // Parameter || lastLocation === location.type`), so
-            // trackExistingEntityName (_tsc.js:53555-53614) resolves the same
-            // symbol at both sites regardless of a same-named outer binding
-            // (DOM global `name`, an outer `const v`).
-            if let (Some(original), Some(fake), Some(enclosing)) =
-                (symbol, fake_scope_symbol, context.enclosing_declaration)
-            {
-                if original == fake
-                    && self.checker.node_flags(leftmost) & tsc_types::NodeFlags::JS_DOC.bits() != 0
-                    && self
-                        .checker
-                        .symbol_flags(fake)
-                        .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
-                    && self
-                        .checker
-                        .binder
-                        .symbol(fake)
-                        .value_declaration
-                        .is_some_and(|declaration| {
-                            node_util::is_part_of_parameter_declaration(
-                                self.checker.binder.source_of_node(declaration),
-                                declaration,
-                            )
-                        })
-                {
-                    let outer = self
-                        .checker
-                        .resolve_entity_name_ex(leftmost, flags, true, Some(enclosing), true)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                    if outer != Some(fake) {
-                        symbol = outer.map(|symbol| {
-                            self.checker
-                                .get_export_symbol_of_value_symbol_if_exported(symbol)
-                        });
-                    }
-                }
-            }
             let at_location = match (
                 context.enclosing_declaration_is_synthetic,
                 fake_scope_symbol,
@@ -2477,7 +2440,18 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                     return Ok(false);
                 };
                 let enclosing = get_enclosing_declaration_ignoring_fake_scope(enclosing);
-                return Ok(self.checker.is_node_descendant_of(existing, enclosing));
+                // tsgo's reparsed `@type` sits under the declaration it types.
+                let mut current = Some(existing);
+                while let Some(node) = current {
+                    if node == enclosing {
+                        return Ok(true);
+                    }
+                    current = self
+                        .checker
+                        .reparsed_type_owner(node)
+                        .or_else(|| self.checker.parent_of(node));
+                }
+                return Ok(false);
             }
         }
         Ok(true)

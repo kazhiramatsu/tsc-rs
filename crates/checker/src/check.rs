@@ -5823,7 +5823,11 @@ impl<'a> CheckerState<'a> {
             }
 
             let declaration = declarations[0];
-            if let Some(parent) = self.parent_of(declaration) {
+            // A reparsed `@type` literal's parent is its declaration.
+            let parent = self
+                .reparsed_type_owner(declaration)
+                .or_else(|| self.parent_of(declaration));
+            if let Some(parent) = parent {
                 if self.kind_of(parent) == SyntaxKind::VariableDeclaration {
                     let source = self.binder.source_of_node(parent);
                     if let Some(name) = node_util::get_name_of_declaration(source, parent) {
@@ -7709,7 +7713,7 @@ impl<'a> CheckerState<'a> {
                 expression = string_literal_name(&specifier, false)?.into();
                 continue;
             }
-            if index == 0 || can_use_property_access(&name, self.options.emit_script_target()) {
+            if index == 0 || can_use_property_access(&name) {
                 expression = if index == 0 {
                     name
                 } else {
@@ -7919,23 +7923,37 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: getAccessibleSymbolChain @6.0.3 (error-path slice)
-    /// tsc-hash: 86303c2907e872494ac8075b43923ebdd2dda7e3c0de5261e57930f45c0a8346
-    /// tsc-span: _tsc.js:50294-50375
+    /// tsgo-port: Checker.getAccessibleSymbolChainEx @7.1
+    /// (checker/symbolaccessibility.go:503-538)
     ///
-    /// The scope walk (symbol_tables_in_scope below) consults
-    /// each table in lexical order and the shared visited list rides
-    /// across them like tsc's per-symbol visitedSymbolTables. The
-    /// isPropertyOrMethodDeclarationSymbol guard (50295) cannot match
-    /// this face's module/namespace/variable declaration lists, and
-    /// the accessibleChainCache is a recomputation-only economy the
-    /// slice skips.
+    /// A symbol declared only by properties, methods and accessors has no
+    /// chain (`isPropertyOrMethodDeclarationSymbol`): the node builder
+    /// qualifies it by its parent, so a class's static `x` read inside a
+    /// namespace merged with the class prints `Clod.x`. Otherwise the scope
+    /// walk (symbol_tables_in_scope below) consults each table in lexical
+    /// order and the shared visited list rides across them like tsgo's
+    /// per-symbol visitedSymbolTables. The accessibleChainCache is a
+    /// recomputation-only economy the port skips.
     pub(crate) fn accessible_symbol_chain_at(
         &mut self,
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
+        let declarations = &self.binder.symbol(symbol).declarations;
+        if !declarations.is_empty()
+            && declarations.iter().all(|&declaration| {
+                matches!(
+                    self.kind_of(declaration),
+                    SyntaxKind::PropertyDeclaration
+                        | SyntaxKind::MethodDeclaration
+                        | SyntaxKind::GetAccessor
+                        | SyntaxKind::SetAccessor
+                )
+            })
+        {
+            return Ok(None);
+        }
         let tables = self.symbol_tables_in_scope(enclosing);
         let mut visited = Vec::new();
         for (table_key, table, is_local_name_lookup) in tables {
@@ -7955,18 +7973,16 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// tsc-port: forEachSymbolTableInScope @6.0.3 (display slice)
-    /// tsc-hash: 00a3e1adb3bf462d0d1b2ab5d4b5872871757447673fc172a4eaa9407eb4541e
-    /// tsc-span: _tsc.js:50227-50290
+    /// tsgo-port: Checker.someSymbolTableInScope @7.1
+    /// (checker/symbolaccessibility.go:819-877)
     ///
     /// Ancestor locals tables (any locals-bearing location except the
-    /// global source file, 50230-50240), the merged exports view of
-    /// module declarations and external/CJS source files on the way up
-    /// (50242-50259; getSymbolOfDeclaration's merged table — the same
-    /// view resolve_name_full's module-exports arm reads), then the
-    /// `globals` tail (50284-50289). The class/interface Type-filtered
-    /// members table (50260-50283) is omitted because no current reuse
-    /// canary enters this helper from a member-only lookup.
+    /// global source file), the merged exports view of module declarations
+    /// and external/CJS source files on the way up (getSymbolOfDeclaration's
+    /// merged table — the same view resolve_name_full's module-exports arm
+    /// reads), the type members of a class or interface (its type
+    /// parameters, bound as members) and a class expression's own name,
+    /// then the `globals` tail.
     fn symbol_tables_in_scope(
         &mut self,
         enclosing: Option<NodeId>,
@@ -7998,9 +8014,38 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                 }
-                // tsgo someSymbolTableInScope (symbolaccessibility.go:788-799):
-                // a class expression's own name is in scope inside it.
-                SyntaxKind::ClassExpression => {
+                SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::InterfaceDeclaration => {
+                    // The raw members of the type flagged as types: a
+                    // class's or interface's type parameters.
+                    if let Some(symbol) = self.binder.node_symbol(loc) {
+                        let symbol = self.get_merged_symbol(symbol);
+                        let mut table = tsc_binder::SymbolTable::default();
+                        for (name, &member) in self.binder.symbol(symbol).members().iter() {
+                            // tsgo's `Type &^ Assignment` is `Type`.
+                            if self
+                                .binder
+                                .symbol(member)
+                                .flags
+                                .intersects(tsc_types::SymbolFlags::TYPE)
+                            {
+                                table.insert(*name, member);
+                            }
+                        }
+                        if !table.is_empty() {
+                            tables.push((
+                                ScopeTableKey::Members(symbol),
+                                crate::program::ScopeTable::Owned(table),
+                                /*is_local_name_lookup*/ false,
+                            ));
+                        }
+                    }
+                    if self.kind_of(loc) != SyntaxKind::ClassExpression {
+                        location = self.parent_of(loc);
+                        continue;
+                    }
+                    // A class expression's own name is in scope inside it.
                     let name = match self.data_of(loc) {
                         NodeData::ClassExpression(data) => data.name,
                         _ => None,
@@ -8214,7 +8259,7 @@ impl<'a> CheckerState<'a> {
         let candidate_table = self.get_exports_of_symbol(resolved)?;
         let inner = self.accessible_chain_from_table(
             &candidate_table,
-            ScopeTableKey::Exports(resolved),
+            ScopeTableKey::ResolvedExports(resolved),
             symbol,
             meaning,
             /*ignore_qualification*/ true,
@@ -13962,6 +14007,10 @@ impl<'a> CheckerState<'a> {
 enum ScopeTableKey {
     Globals,
     Exports(SymbolId),
+    /// The exports `getExportsOfSymbol` resolves for an alias's target,
+    /// distinct from the raw exports of the same symbol.
+    ResolvedExports(SymbolId),
+    Members(SymbolId),
     Locals(NodeId),
 }
 
@@ -14077,32 +14126,16 @@ fn mapped_modifier_text(token: Option<SyntaxKind>, plain: &str) -> String {
     }
 }
 
-/// tsc canUsePropertyAccess (19293-19299): `charCodeAt` tests one
-/// UTF-16 CODE UNIT (or the unit after `#`) at the active language
-/// version. In particular, an astral identifier starts with a high
-/// surrogate here and therefore requires element access.
-/// (h2-7a-m-3 widening: shared property-access spelling decision.)
-/// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
-pub(crate) fn can_use_property_access<'n>(
-    name: impl Into<tsc_types::JsStr<'n>>,
-    language_version: tsc_types::ScriptTarget,
-) -> bool {
-    let name = name.into();
-    let mut units = name.code_units();
-    let Some(first) = units.next() else {
-        return false;
-    };
-    let start = if first == u16::from(b'#') {
-        let Some(after_hash) = units.next() else {
-            return false;
-        };
-        after_hash
-    } else {
-        first
-    };
-    char::from_u32(u32::from(start)).is_some_and(|start| {
-        tsc_syntax::is_identifier_text_for_target(&format!("{start}x"), language_version)
-    })
+/// tsgo-port: canUsePropertyAccess @7.1 (checker/nodebuilderimpl.go:913-923):
+/// the whole name, after a leading `#`, is identifier text by code points
+/// (tsc tested only the first UTF-16 unit, so `arg\u0032` read as an
+/// identifier and an astral `#𝑚` did not).
+pub(crate) fn can_use_property_access<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
+    let name = name.into().to_string_lossy();
+    match name.strip_prefix('#') {
+        Some(rest) => tsc_syntax::is_identifier_text(rest),
+        None => tsc_syntax::is_identifier_text(&name),
+    }
 }
 
 /// createExpressionFromSymbolChain's stripQuotes + `/\\./g` unescape

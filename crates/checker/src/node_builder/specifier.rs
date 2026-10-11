@@ -1695,23 +1695,9 @@ pub(crate) fn for_each_file_name_of_module<'path, T>(
     }
 
     let importing_file_name = normalized_absolute_path(importing_file_name, &cwd);
+    // tsgo reads only the directory links (`DirectoriesByRealpath`), from
+    // which the symlinks inside ignored paths are already left out.
     let mut symlink_candidates = Vec::new();
-    // EmitModuleSpecifierHost represents each symlink fact as
-    // `(real_path, symlink_path)`, matching the upstream cache's realpath key.
-    for (real_file, symlink_file) in host.symlinked_files() {
-        let real_file = normalized_absolute_path(&real_file, &cwd);
-        for target in &targets {
-            if paths_equal(target, &real_file, !case_sensitive) {
-                symlink_candidates.push((
-                    normalized_absolute_path(&symlink_file, &cwd),
-                    reference_redirect
-                        .as_ref()
-                        .is_some_and(|redirect| paths_equal(target, redirect, !case_sensitive)),
-                ));
-            }
-        }
-    }
-
     let symlinked_directories = host.symlinked_directories();
     let global_typings_cache_location = host
         .get_global_typings_cache_location()

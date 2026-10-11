@@ -292,7 +292,13 @@ impl<'a> CheckerState<'a> {
                 *self.binder.symbol_mut(target).members_mut() = target_members;
             }
             let source_exports = self.binder.symbol(source).exports().clone();
-            if !source_exports.is_empty() {
+            if !source_exports.is_empty() && target == self.global_this_symbol {
+                // globalThisSymbol's exports ARE `globals` (tsgo
+                // initializeChecker: `SetExports(c.globals)`): what a
+                // `namespace globalThis` augmentation or a checked-JS
+                // `globalThis.x = ...` declares is a global.
+                self.merge_into_globals(&source_exports, unidirectional, Some(target));
+            } else if !source_exports.is_empty() {
                 let mut target_exports =
                     std::mem::take(self.binder.symbol_mut(target).exports_mut());
                 self.merge_symbol_table(
@@ -387,6 +393,16 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn symbol_name_as_written(&self, symbol: SymbolId) -> JsString {
         for &declaration in &self.binder.symbol(symbol).declarations {
             let source = self.binder.source_of_node(declaration);
+            // The `this` parameter tsgo's reparser makes of a function's
+            // `@this` tag has a synthesized zero-width name
+            // (reparser.go:491-516).
+            if source.arena.node(declaration).kind == SyntaxKind::Identifier
+                && self
+                    .parent_of(declaration)
+                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocThisTag)
+            {
+                return "(Missing)".into();
+            }
             let Some(name_node) = get_name_of_declaration(source, declaration) else {
                 continue;
             };
@@ -442,7 +458,11 @@ impl<'a> CheckerState<'a> {
         // class or function (tsgo nodebuilderimpl.go:1004-1018).
         if let Some(&declaration) = self.binder.symbol(symbol).declarations.first() {
             let source = self.binder.source_of_node(declaration);
-            if let Some(parent) = self.parent_of(declaration) {
+            // A reparsed `@type` literal's parent is its declaration.
+            let parent = self
+                .reparsed_type_owner(declaration)
+                .or_else(|| self.parent_of(declaration));
+            if let Some(parent) = parent {
                 if let NodeData::VariableDeclaration(variable) = self.data_of(parent) {
                     return tsc_binder::node_util::declaration_name_to_string(
                         source,
@@ -679,13 +699,29 @@ impl<'a> CheckerState<'a> {
     /// global published earlier in this same merge, just as it does through
     /// tsc's shared `Map` identity. Looking up and inserting one entry at a
     /// time keeps the borrow local while preserving that visibility.
-    fn merge_into_globals(&mut self, source: &SymbolTable, unidirectional: bool) {
+    fn merge_into_globals(
+        &mut self,
+        source: &SymbolTable,
+        unidirectional: bool,
+        merged_parent: Option<SymbolId>,
+    ) {
         for (id, &source_symbol) in source {
             let target_symbol = self.globals.get(id).copied();
             let merged = match target_symbol {
                 Some(existing) => self.merge_symbol(existing, source_symbol, unidirectional),
                 None => self.get_merged_symbol(source_symbol),
             };
+            if let Some(parent) = merged_parent {
+                if target_symbol.is_some()
+                    && self
+                        .binder
+                        .symbol(merged)
+                        .flags
+                        .intersects(SymbolFlags::TRANSIENT)
+                {
+                    self.binder.symbol_mut(merged).parent = Some(parent);
+                }
+            }
             std::sync::Arc::make_mut(&mut self.globals).insert(*id, merged);
         }
     }
@@ -912,7 +948,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let exports = self.binder.symbol(symbol).exports().clone();
-            self.merge_into_globals(&exports, false);
+            self.merge_into_globals(&exports, false, None);
         }
         // tsc and tsgo look the global types up after the global-scope
         // augmentations ("We won't have the correct global types until

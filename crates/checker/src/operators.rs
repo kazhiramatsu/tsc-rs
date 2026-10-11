@@ -2501,7 +2501,7 @@ impl<'a> CheckerState<'a> {
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
         let target_type = self.get_type_from_type_node(type_node)?;
-        if target_type == self.tables.intrinsics.error {
+        if self.tables.is_error_type(target_type) {
             return Ok(());
         }
         // addLazyDiagnostic = eager identity (5.4).
@@ -2543,7 +2543,8 @@ impl<'a> CheckerState<'a> {
         let diagnostics_before_expression = self.diagnostics.len();
         let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let target_type = self.get_type_from_type_node(target)?;
-        if target_type == self.tables.intrinsics.error {
+        // isErrorType: an unresolved name's aliased error type too.
+        if self.tables.is_error_type(target_type) {
             return Ok(target_type);
         }
         let error_node = self.parent_of(target).and_then(|start| {
@@ -2675,9 +2676,11 @@ impl<'a> CheckerState<'a> {
         type_arguments: Option<tsc_syntax::NodeArrayId>,
     ) -> CheckResult<TypeId> {
         let argument_nodes = self.nodes_of(type_arguments);
+        // tsgo checker.go:10894: only an absent list returns the type; an
+        // empty one (`f<>`) instantiates with the defaults.
         if expr_type == self.tables.intrinsics.silent_never
-            || expr_type == self.tables.intrinsics.error
-            || argument_nodes.is_empty()
+            || self.tables.is_error_type(expr_type)
+            || type_arguments.is_none()
         {
             return Ok(expr_type);
         }
@@ -2913,9 +2916,12 @@ impl<'a> CheckerState<'a> {
         for signature in applicable {
             let type_argument_types =
                 self.check_type_arguments(signature, argument_nodes, true, None)?;
+            let is_javascript = self.signatures[signature.index() as usize]
+                .declaration
+                .is_some_and(|declaration| self.is_in_js_file(declaration));
             result.push(match type_argument_types {
                 Some(types) => {
-                    self.get_signature_instantiation(signature, Some(&types), false, None)?
+                    self.get_signature_instantiation(signature, Some(&types), is_javascript, None)?
                 }
                 None => signature,
             });

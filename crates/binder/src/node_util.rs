@@ -801,7 +801,17 @@ pub fn is_declaration(source: &SourceFile, node: NodeId) -> bool {
 /// M7 activated unused-local diagnostics for function owners.
 pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     match kind_of(source, id) {
-        SyntaxKind::Identifier => Some(id),
+        SyntaxKind::Identifier => {
+            // The tag name of a reparsed `@overload` declares tsgo's overload
+            // declaration, whose name is a clone of its host's.
+            match parent_of(source, id)
+                .filter(|&tag| kind_of(source, tag) == SyntaxKind::JSDocOverloadTag)
+                .and_then(|tag| crate::hosted::reparsed_overload_host(source, tag))
+            {
+                Some(host) => name_field_of(source, host),
+                None => Some(id),
+            }
+        }
         SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag => {
             let name = name_field_of(source, id)?;
             match &source.arena.node(name).data {
@@ -813,6 +823,9 @@ pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> 
             crate::assignment::get_assignment_declaration_name(source, id)
         }
         SyntaxKind::JSDocTypedefTag => name_field_of(source, id),
+        // The `this` parameter tsgo reparses from a JSDoc signature's `@this`
+        // is named by an identifier over the tag (reparser.go:168-176).
+        SyntaxKind::JSDocThisTag => Some(id),
         SyntaxKind::ExportAssignment => match &source.arena.node(id).data {
             NodeData::ExportAssignment(data) => data
                 .expression
@@ -1082,7 +1095,9 @@ pub fn get_containing_class(source: &SourceFile, id: NodeId) -> Option<NodeId> {
 }
 
 /// tsc declarationNameToString (_tsc.js 13854): missing names print
-/// "(Missing)", everything else its trivia-skipped source text.
+/// "(Missing)", everything else its trivia-skipped source text (tsgo
+/// GetTextOfNodeFromSourceText: a JSDoc type's lines without their leading
+/// `*`).
 pub fn declaration_name_to_string(source: &SourceFile, name: Option<NodeId>) -> String {
     match name {
         None => "(Missing)".to_owned(),
@@ -1092,9 +1107,117 @@ pub fn declaration_name_to_string(source: &SourceFile, name: Option<NodeId>) -> 
                 return "(Missing)".to_owned();
             }
             let start = tsc_syntax::skip_trivia(source.text(), node.pos as usize);
-            source.text()[start..node.end as usize].to_owned()
+            let text = &source.text()[start..node.end as usize];
+            if is_jsdoc_type_expression_or_child(source, name) {
+                normalize_jsdoc_type_source_text(text)
+            } else {
+                text.to_owned()
+            }
         }
     }
+}
+
+/// tsgo-port: isJSDocTypeExpressionOrChild @7.1 (scanner/utilities.go:26-39).
+/// A JSDoc signature's `@this` tag stands for the identifier tsgo reparses
+/// under the signature's function type.
+fn is_jsdoc_type_expression_or_child(source: &SourceFile, node: NodeId) -> bool {
+    if kind_of(source, node) == SyntaxKind::JSDocTypeExpression {
+        return true;
+    }
+    if !node_flags(source, node).intersects(NodeFlags::JS_DOC) {
+        return false;
+    }
+    if kind_of(source, node) == SyntaxKind::JSDocThisTag
+        && parent_of(source, node)
+            .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::JSDocSignature)
+    {
+        return true;
+    }
+    let mut current = Some(node);
+    while let Some(node) = current {
+        let kind = kind_of(source, node);
+        if (kind >= SyntaxKind::TypePredicate && kind <= SyntaxKind::ImportType)
+            || matches!(
+                kind,
+                SyntaxKind::AnyKeyword
+                    | SyntaxKind::UnknownKeyword
+                    | SyntaxKind::NumberKeyword
+                    | SyntaxKind::BigIntKeyword
+                    | SyntaxKind::ObjectKeyword
+                    | SyntaxKind::BooleanKeyword
+                    | SyntaxKind::StringKeyword
+                    | SyntaxKind::SymbolKeyword
+                    | SyntaxKind::VoidKeyword
+                    | SyntaxKind::UndefinedKeyword
+                    | SyntaxKind::NeverKeyword
+                    | SyntaxKind::IntrinsicKeyword
+                    | SyntaxKind::ExpressionWithTypeArguments
+                    | SyntaxKind::JSDocAllType
+                    | SyntaxKind::JSDocNullableType
+                    | SyntaxKind::JSDocNonNullableType
+                    | SyntaxKind::JSDocOptionalType
+                    | SyntaxKind::JSDocVariadicType
+            )
+        {
+            return true;
+        }
+        current = parent_of(source, node);
+    }
+    false
+}
+
+/// tsgo-port: normalizeJSDocTypeSourceText @7.1 (scanner/utilities.go:41-70):
+/// each line without its line break and its leading whitespace and `*`,
+/// joined by `\n`.
+fn normalize_jsdoc_type_source_text(text: &str) -> String {
+    fn strip_leading_jsdoc_comment(line: &str) -> &str {
+        let line = line.trim_start_matches(is_white_space_like);
+        let line = line.strip_prefix('*').unwrap_or(line);
+        line.trim_start_matches(is_white_space_like)
+    }
+    fn is_line_break(ch: char) -> bool {
+        matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')
+    }
+    fn is_white_space_like(ch: char) -> bool {
+        is_line_break(ch)
+            || matches!(
+                ch,
+                ' ' | '\t'
+                    | '\u{000B}'
+                    | '\u{000C}'
+                    | '\u{00A0}'
+                    | '\u{0085}'
+                    | '\u{1680}'
+                    | '\u{2000}'
+                    ..='\u{200B}' | '\u{202F}' | '\u{205F}' | '\u{3000}' | '\u{FEFF}'
+            )
+    }
+    // ECMA line starts: after `\r\n`, `\n`, `\r`, U+2028 and U+2029.
+    let mut lines = Vec::new();
+    let mut line_start = 0;
+    let mut chars = text.char_indices().peekable();
+    while let Some((index, ch)) = chars.next() {
+        if is_line_break(ch) {
+            let mut end = index + ch.len_utf8();
+            if ch == '\r' {
+                if let Some(&(next, '\n')) = chars.peek() {
+                    chars.next();
+                    end = next + 1;
+                }
+            }
+            lines.push(&text[line_start..end]);
+            line_start = end;
+        }
+    }
+    lines.push(&text[line_start..]);
+    if lines.len() == 1 {
+        return strip_leading_jsdoc_comment(text).to_owned();
+    }
+    lines
+        .iter()
+        .map(|line| strip_leading_jsdoc_comment(line.trim_end_matches(is_line_break)))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// tsc-port: getSpanOfTokenAtPosition @6.0.3

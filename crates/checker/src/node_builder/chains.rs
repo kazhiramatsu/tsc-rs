@@ -2187,7 +2187,8 @@ fn type_parameter_shadows_other_type_parameter_in_scope(
         checker
             .symbol_flags(resolved)
             .intersects(SymbolFlags::TYPE_PARAMETER)
-            && checker.tables.type_of(r#type).symbol != Some(resolved)
+            && (context.naming_reparsed_overload_type_parameters
+                || checker.tables.type_of(r#type).symbol != Some(resolved))
     }))
 }
 
@@ -2425,7 +2426,7 @@ fn create_expression_from_symbol_chain(
         add_approximate_length(context, js_len(&specifier) + 2);
         return create_string_literal(arena, target, &specifier, false);
     }
-    if index == 0 || can_use_property_access(&name, checker.options.emit_script_target()) {
+    if index == 0 || can_use_property_access(&name) {
         let identifier = create_output_identifier(arena, target, &name)?;
         let identifier = set_no_ascii_escaping(arena, identifier);
         add_approximate_length(context, js_len(&name) + 1);

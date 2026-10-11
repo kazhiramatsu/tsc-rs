@@ -5545,8 +5545,11 @@ fn mixin_class_static_side_uses_the_intersection_face() {
     );
 }
 
+/// tsgo canUsePropertyAccess reads the whole name by code points: an astral
+/// identifier is a property access (tsgo's declaration emit of
+/// `{ [A.𐐀.s]: 1 }` at ES2020 prints `[A.𐐀.s]: number`).
 #[test]
-fn symbol_expression_uses_utf16_property_access_gate() {
+fn symbol_expression_reads_astral_identifiers_as_property_access() {
     let text = "declare namespace A { namespace 𐐀 { const s: unique symbol; } }\n";
     let options = CompilerOptions {
         target: Some(ScriptTarget::ES2020.bits()),
@@ -5575,7 +5578,7 @@ fn symbol_expression_uses_utf16_property_access_gate() {
             state
                 .symbol_expression_face(symbol, None, true)
                 .expect("symbol expression"),
-            "A[𐐀].s"
+            "A.𐐀.s"
         );
     });
 }

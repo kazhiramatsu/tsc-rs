@@ -1129,7 +1129,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<()> {
         let node_type = self.get_type_from_type_node(type_ref_node)?;
         let t = self.get_reduced_type(node_type)?;
-        if t == self.tables.intrinsics.error {
+        if self.tables.is_error_type(t) {
             return Ok(());
         }
         if self.is_valid_base_type(t)? {

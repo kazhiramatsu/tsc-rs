@@ -69,6 +69,19 @@ impl<'a> BinderWorker<'a> {
     pub fn bind(&mut self, node: Option<NodeId>) {
         let Some(node) = node else { return };
         let save_in_strict_mode = self.in_strict_mode;
+        // A function declaration of a statement list binds before the other
+        // statements; tsgo's namespaces reparsed from its JSDoc are statements
+        // of their own, bound in their place (bind_each_functions_first).
+        let functions_first = kind_of(self.source, node) == SyntaxKind::FunctionDeclaration
+            && parent_of(self.source, node).is_some_and(|parent| {
+                matches!(
+                    kind_of(self.source, parent),
+                    SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock
+                )
+            });
+        if !functions_first {
+            self.bind_reparsed_jsdoc_namespaces(node);
+        }
         self.bind_worker(node);
         if kind_of(self.source, node) as u16 > SyntaxKind::LastToken as u16 {
             let container_flags = get_container_flags(self.source, node);
@@ -225,8 +238,11 @@ impl<'a> BinderWorker<'a> {
                 } else {
                     SymbolFlags::NONE
                 };
+                // tsgo binder.go:664-665: an object literal's method
+                // conflicts with every other value of its name (tsc's
+                // PropertyExcludes let it merge into an accessor).
                 let excludes = if is_object_literal_method(self.source, node) {
-                    SymbolFlags::PROPERTY_EXCLUDES
+                    SymbolFlags::VALUE
                 } else {
                     SymbolFlags::METHOD_EXCLUDES
                 };
@@ -235,6 +251,7 @@ impl<'a> BinderWorker<'a> {
                     SymbolFlags::METHOD | optional,
                     excludes,
                 );
+                self.declare_reparsed_overloads(node);
             }
             SyntaxKind::FunctionDeclaration => self.bind_function_declaration(node),
             SyntaxKind::Constructor => {
@@ -243,6 +260,7 @@ impl<'a> BinderWorker<'a> {
                     SymbolFlags::CONSTRUCTOR,
                     SymbolFlags::NONE,
                 );
+                self.declare_reparsed_overloads(node);
             }
             SyntaxKind::GetAccessor => {
                 self.bind_property_or_method_or_accessor(
@@ -342,7 +360,9 @@ impl<'a> BinderWorker<'a> {
             }
             SyntaxKind::JSDocPropertyTag => self.bind_jsdoc_property_like_tag(node),
             SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag => {
-                self.delayed_type_aliases.push(node)
+                if !self.is_reparsed_jsdoc_namespace(node) {
+                    self.delayed_type_aliases.push(node)
+                }
             }
             SyntaxKind::JSDocOverloadTag => self.bind(jsdoc_type_expression(self.source, node)),
             SyntaxKind::JSDocImportTag => self.js_doc_imports.push(node),
@@ -989,6 +1009,55 @@ impl<'a> BinderWorker<'a> {
                 SymbolFlags::FUNCTION,
                 SymbolFlags::FUNCTION_EXCLUDES,
             );
+        }
+        self.declare_reparsed_overloads(node);
+    }
+
+    /// tsgo reparses each `@overload` of a JavaScript function, method or
+    /// constructor outside object literals into an overload declaration
+    /// placed before its host (reparser.go:138-142, parser.go:612-631) and
+    /// bound into the host's symbol, declared at the tag's name. The tag
+    /// names join the symbol's declarations ahead of the host; the host
+    /// stays the value declaration and the checker reads the overloads'
+    /// signatures from their tags.
+    fn declare_reparsed_overloads(&mut self, node: NodeId) {
+        if !self.is_in_js_file() {
+            return;
+        }
+        let Some(js_doc) = self.source.arena.node(node).js_doc else {
+            return;
+        };
+        let mut names = Vec::new();
+        for &doc in self.source.arena.node_array(js_doc).nodes {
+            let NodeData::JSDoc(data) = &self.source.arena.node(doc).data else {
+                continue;
+            };
+            let Some(tags) = data.tags else {
+                continue;
+            };
+            for &tag in self.source.arena.node_array(tags).nodes {
+                if let NodeData::JSDocOverloadTag(overload) = &self.source.arena.node(tag).data {
+                    if crate::hosted::reparsed_overload_host(self.source, tag) == Some(node) {
+                        names.extend(overload.tag_name);
+                    }
+                }
+            }
+        }
+        if names.is_empty() {
+            return;
+        }
+        let Some(&symbol) = self.node_symbol.get(&node) else {
+            return;
+        };
+        let export_symbol = self.symbols.symbol(symbol).export_symbol;
+        for symbol in std::iter::once(symbol).chain(export_symbol) {
+            let mut declarations = self.symbols.symbol(symbol).declarations.to_vec();
+            let index = declarations
+                .iter()
+                .position(|&declaration| declaration == node)
+                .unwrap_or(declarations.len());
+            declarations.splice(index..index, names.iter().copied());
+            self.symbols.symbol_mut(symbol).declarations = declarations.into();
         }
     }
 
@@ -2121,6 +2190,8 @@ impl<'a> BinderWorker<'a> {
         for &node in &nodes {
             if kind_of(self.source, node) != SyntaxKind::FunctionDeclaration {
                 self.bind(Some(node));
+            } else {
+                self.bind_reparsed_jsdoc_namespaces(node);
             }
         }
     }
@@ -2370,6 +2441,63 @@ impl<'a> BinderWorker<'a> {
                     && kind_of(self.source, parent) != SyntaxKind::ClassStaticBlockDeclaration
             }),
             _ => false,
+        }
+    }
+
+    /// A `@typedef` / `@callback` with a type expression and a dotted name:
+    /// tsgo reparses it into a namespace declaration (reparser.go:74-125,
+    /// wrapInJSDocNamespace).
+    fn is_reparsed_jsdoc_namespace(&self, tag: NodeId) -> bool {
+        jsdoc_type_expression(self.source, tag).is_some()
+            && jsdoc_full_name(self.source, tag)
+                .is_some_and(|name| kind_of(self.source, name) != SyntaxKind::Identifier)
+    }
+
+    /// tsgo places the namespace declarations it reparses from a statement's
+    /// dotted `@typedef` / `@callback` tags before the statement
+    /// (parser.go:612-631) and binds them there, unlike the top-level type
+    /// aliases it binds after the file (binder.go:1607-1616).
+    fn bind_reparsed_jsdoc_namespaces(&mut self, host: NodeId) {
+        if !self.is_in_js_file() {
+            return;
+        }
+        let Some(js_doc) = self.source.arena.node(host).js_doc else {
+            return;
+        };
+        let in_statement_list = parent_of(self.source, host).is_some_and(|parent| {
+            matches!(
+                kind_of(self.source, parent),
+                SyntaxKind::SourceFile
+                    | SyntaxKind::Block
+                    | SyntaxKind::ModuleBlock
+                    | SyntaxKind::CaseClause
+                    | SyntaxKind::DefaultClause
+            )
+        });
+        if !in_statement_list {
+            return;
+        }
+        let mut namespaces = Vec::new();
+        for &doc in self.source.arena.node_array(js_doc).nodes {
+            let NodeData::JSDoc(data) = &self.source.arena.node(doc).data else {
+                continue;
+            };
+            let Some(tags) = data.tags else {
+                continue;
+            };
+            for &tag in self.source.arena.node_array(tags).nodes {
+                if matches!(
+                    kind_of(self.source, tag),
+                    SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag
+                ) && self.is_reparsed_jsdoc_namespace(tag)
+                {
+                    namespaces.push(tag);
+                }
+            }
+        }
+        for tag in namespaces {
+            self.bind(jsdoc_type_expression(self.source, tag));
+            self.bind(jsdoc_full_name(self.source, tag));
         }
     }
 

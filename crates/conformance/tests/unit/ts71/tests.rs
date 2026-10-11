@@ -520,3 +520,65 @@ fn outputs_follow_the_native_harness_order() {
         Some("/.src/a.d.mts".to_owned())
     );
 }
+
+/// Cases from the `.types`/`.symbols` tail: tsc-rs printed a different type
+/// or symbol in each before, and reproduces tsgo's baselines byte for byte
+/// now, with its errors and emit. Package redirects, inner heritage names,
+/// property-access names, `globalThis` merges, escaped names, readonly
+/// arrays, JSDoc overloads, `@this` and namespaces, tuple inference, error
+/// types, instantiation expressions, JSX tags, string-literal specifiers and
+/// the JSDoc reuse of `Object<K, V>` and `unique symbol`.
+#[test]
+fn the_types_and_symbols_tail_reproduces_tsgo() {
+    for case in [
+        "compiler/duplicatePackage.ts",
+        "compiler/packageDeduplicationDuplicateGlobals.ts",
+        "compiler/heritageClauseTypeReferenceTypes.ts",
+        "compiler/declFileWithInternalModuleNameConflictsInExtendsClause1.ts",
+        "compiler/extendedUnicodePlaneIdentifiers.ts",
+        "compiler/extendGlobalThis.ts",
+        "compiler/underscoreEscapedNameInEnum.ts",
+        "compiler/noLibAndNoUncheckedIndexedAccessDestructuringArray.ts",
+        "compiler/jsFileMethodOverloads.ts",
+        "conformance/jsdoc/overloadTag1.ts",
+        "conformance/jsdoc/thisTag1.ts",
+        "compiler/jsdocCallbackParamQualifiedName.ts",
+        "conformance/salsa/constructorFunctions.ts",
+        "compiler/inferFromTupleRestAndVariadic.ts",
+        "compiler/circularTypeArgumentsLocalAndOuterNoCrash1.ts",
+        "conformance/types/typeParameters/typeArgumentLists/instantiationExpressions.ts",
+        "compiler/jsxIntrinsicDeclaredUsingTemplateLiteralTypeSignatures.tsx",
+        "conformance/types/intersection/intersectionsAndEmptyObjects.ts",
+        "conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts",
+        "conformance/jsdoc/declarations/jsDeclarationsReusesExistingNodesMappingJSDocTypes.ts",
+        "compiler/uniqueSymbolJs2.ts",
+    ] {
+        let options = RunOptions {
+            profile: PROFILE.to_owned(),
+            filter: None,
+            case: Some(case.to_owned()),
+            threads: 1,
+            checkers: 1,
+            dump: None,
+        };
+        let results = run(&workspace(), &options).unwrap();
+        assert!(!results.is_empty(), "{case}");
+        for result in &results {
+            assert!(
+                matches!(
+                    result.outcome,
+                    Outcome::Compared {
+                        agreement: Agreement::Full,
+                        emit: EmitAgreement::Full,
+                        types: EmitAgreement::Full,
+                        symbols: EmitAgreement::Full,
+                        ..
+                    }
+                ),
+                "{}: {:?}",
+                result.stem,
+                result.outcome
+            );
+        }
+    }
+}

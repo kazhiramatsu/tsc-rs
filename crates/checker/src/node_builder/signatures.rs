@@ -915,13 +915,11 @@ pub(super) fn enter_signature_scope(
         Some(&signature.parameters),
         signature.mapper,
     );
-    prime_type_parameter_names_for_scope(
-        checker,
-        arena,
-        target,
-        context,
-        signature.type_parameters.as_deref().unwrap_or_default(),
-    )?;
+    // The parameters' fake scope comes first, then the type parameters'
+    // (nodebuilderscopes.go:163-238): naming a type parameter sees the
+    // parameter locals, so an instantiated parameter that shares a type
+    // parameter's symbol (`pipe<fn>(fn: fn)`) shadows the fresh type
+    // parameter, which is named `fn_1`.
     if context.enclosing_declaration_is_synthetic {
         let locals = context
             .synthetic_scope_locals
@@ -941,6 +939,23 @@ pub(super) fn enter_signature_scope(
             }
         }
     }
+    let is_reparsed_overload = signature.declaration.is_some_and(|declaration| {
+        checker.kind_of(declaration) == SyntaxKind::JSDocSignature
+            && checker
+                .parent_of(declaration)
+                .is_some_and(|tag| checker.is_reparsed_overload_tag(tag))
+    });
+    let saved_overload_naming = context.naming_reparsed_overload_type_parameters;
+    context.naming_reparsed_overload_type_parameters = is_reparsed_overload;
+    let primed = prime_type_parameter_names_for_scope(
+        checker,
+        arena,
+        target,
+        context,
+        signature.type_parameters.as_deref().unwrap_or_default(),
+    );
+    context.naming_reparsed_overload_type_parameters = saved_overload_naming;
+    primed?;
     Ok((expanded_parameters, scope))
 }
 
@@ -1303,6 +1318,22 @@ pub(super) fn get_effective_parameter_declaration(
 ) -> Option<NodeId> {
     checker
         .get_declaration_of_kind(parameter, SyntaxKind::Parameter)
+        .or_else(|| {
+            // A `@callback` or `@overload` signature's `@param` is the
+            // parameter tsgo's reparser makes of it (reparser.go:166-229).
+            checker
+                .binder
+                .symbol(parameter)
+                .declarations
+                .iter()
+                .copied()
+                .find(|&declaration| {
+                    checker.kind_of(declaration) == SyntaxKind::JSDocParameterTag
+                        && checker.parent_of(declaration).is_some_and(|parent| {
+                            checker.kind_of(parent) == SyntaxKind::JSDocSignature
+                        })
+                })
+        })
         .or_else(|| {
             (!checker
                 .binder

@@ -35,17 +35,23 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         // `type.members && isEmptyResolvedType(type)`: checks ALREADY
-        // resolved members without forcing resolution.
+        // resolved members without forcing resolution. Either disjunct
+        // makes the type empty (tsgo checker.go isEmptyAnonymousObjectType):
+        // a synthetic `{ default: ... }` has members, yet its `__type`
+        // symbol has none.
         if let Some(members) = self
             .links
             .read_ty(ty, |links| links.resolved_members.resolved())
         {
             let resolved = self.members_of(members);
-            return Ok(ty != self.any_function_type
+            if ty != self.any_function_type
                 && resolved.properties.is_empty()
                 && resolved.call_signatures.is_empty()
                 && resolved.construct_signatures.is_empty()
-                && resolved.index_infos.is_empty());
+                && resolved.index_infos.is_empty()
+            {
+                return Ok(true);
+            }
         }
         match self.tables.type_of(ty).symbol {
             Some(symbol)

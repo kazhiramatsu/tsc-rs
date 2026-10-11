@@ -8358,12 +8358,13 @@ impl<'a> CheckerState<'a> {
             let types: Vec<TypeId> = applicable.iter().map(|info| info.value_type).collect();
             let value = self.get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)?;
             let is_readonly = applicable.iter().all(|info| info.is_readonly);
-            let declaration = applicable[0].declaration;
+            // tsgo findApplicableIndexInfo: the synthetic info has no
+            // declaration.
             return Ok(Some(IndexInfo {
                 key_type: self.tables.intrinsics.unknown,
                 value_type: value,
                 is_readonly,
-                declaration,
+                declaration: None,
                 components: None,
                 is_enum_number_index_info: false,
                 is_any_base_type_index_info: false,

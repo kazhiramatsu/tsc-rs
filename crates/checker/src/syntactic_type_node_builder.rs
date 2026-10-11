@@ -4,9 +4,8 @@ use tsc_emitter::{
     TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformSourceId,
 };
 use tsc_syntax::nodes::{
-    ArrayTypeData, ConstructorTypeData, FunctionTypeData, IdentifierData, IndexSignatureData,
-    LiteralTypeData, ParameterData, PropertySignatureData, StringLiteralData, TypeLiteralData,
-    UnionTypeData,
+    ArrayTypeData, ConstructorTypeData, FunctionTypeData, IdentifierData, LiteralTypeData,
+    ParameterData, PropertySignatureData, StringLiteralData, TypeLiteralData, UnionTypeData,
 };
 use tsc_syntax::{
     try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
@@ -855,47 +854,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             }
         }
 
-        if self.is_jsdoc_index_signature(node)? {
-            let arguments = match &data {
-                NodeData::TypeReference(reference) => reference.type_arguments,
-                NodeData::ExpressionWithTypeArguments(reference) => reference.type_arguments,
-                _ => None,
-            };
-            let arguments = self.nodes(source, arguments)?;
-            if arguments.len() == 2 {
-                let key = self
-                    .visit_existing_node_tree_symbols(arguments[0])?
-                    .unwrap_or(arguments[0]);
-                let value = self
-                    .visit_existing_node_tree_symbols(arguments[1])?
-                    .unwrap_or(arguments[1]);
-                let name = self.create_identifier(source, "x")?;
-                let parameter = self.create_node(
-                    source,
-                    NodeData::Parameter(ParameterData {
-                        name: Some(name.node()),
-                        modifiers: None,
-                        dot_dot_dot_token: None,
-                        question_token: None,
-                        r#type: Some(key.node()),
-                        initializer: None,
-                    }),
-                    TransformFlags::CONTAINS_TYPE_SCRIPT,
-                )?;
-                let parameters = self.create_node_array(source, vec![parameter])?;
-                let index = self.create_type_node(
-                    source,
-                    NodeData::IndexSignature(IndexSignatureData {
-                        type_parameters: None,
-                        parameters: Some(parameters.array()),
-                        r#type: Some(value.node()),
-                        modifiers: None,
-                    }),
-                )?;
-                return self.create_type_literal(source, vec![index]).map(Some);
-            }
-        }
-
         if matches!(data, NodeData::JSDocFunctionType(_)) {
             return self.visit_jsdoc_function_type(node).map(Some);
         }
@@ -1621,24 +1579,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             }
             _ => Ok(false),
         }
-    }
-
-    fn is_jsdoc_index_signature(&self, node: TransformNode) -> Result<bool, EmitResolverError> {
-        let NodeData::TypeReference(data) = &self.node(node)?.data else {
-            return Ok(false);
-        };
-        let Some(name) = self.child(node.source(), data.type_name) else {
-            return Ok(false);
-        };
-        if self.kind(name)? != SyntaxKind::Identifier || self.identifier_text(name)? != "Object" {
-            return Ok(false);
-        }
-        let arguments = self.nodes(node.source(), data.type_arguments)?;
-        Ok(arguments.len() == 2
-            && matches!(
-                self.kind(arguments[0])?,
-                SyntaxKind::StringKeyword | SyntaxKind::NumberKeyword
-            ))
     }
 
     fn visit_jsdoc_function_type(

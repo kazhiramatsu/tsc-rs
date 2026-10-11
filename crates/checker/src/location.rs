@@ -35,6 +35,11 @@ impl CheckerState<'_> {
             // We cannot answer semantic questions within a with block.
             return Ok(error);
         }
+        // tsgo's qualified name of a type heritage element: its inner parts
+        // fall through every case below to the error type.
+        if self.is_inner_type_heritage_name(node) {
+            return Ok(error);
+        }
 
         let heritage = self.try_get_class_implementing_or_extending_heritage_clause_element(node);
         let class_type = match heritage {
@@ -660,8 +665,11 @@ impl CheckerState<'_> {
         if info.is_any_base_type_index_info {
             return Ok(None);
         }
+        // tsgo caches the symbol on the IndexInfo: a synthetic info (several
+        // applicable signatures, keyed `unknown`) is new on every lookup.
         let cache_key = (ty, info.key_type);
-        if let Some(&symbol) = self.index_symbols.get(&cache_key) {
+        let cacheable = info.key_type != self.tables.intrinsics.unknown;
+        if let Some(&symbol) = self.index_symbols.get(&cache_key).filter(|_| cacheable) {
             return Ok(Some(symbol));
         }
         let declarations = match info.declaration {
@@ -697,7 +705,9 @@ impl CheckerState<'_> {
             symbol,
             crate::links::LinkSlot::Resolved(info.value_type),
         );
-        self.index_symbols.insert(cache_key, symbol);
+        if cacheable {
+            self.index_symbols.insert(cache_key, symbol);
+        }
         Ok(Some(symbol))
     }
 
@@ -1090,7 +1100,11 @@ impl CheckerState<'_> {
         let Some(text) = self.literal_like_text(node) else {
             return Ok(None);
         };
-        self.get_property_of_type_full(object_type, text.as_str())
+        // The literal's text is a property name, escaped like any other.
+        self.get_property_of_type_full(
+            object_type,
+            tsc_binder::escape_leading_underscores(text.as_str()),
+        )
     }
 
     fn literal_import_type_literal(&self, node: NodeId) -> Option<NodeId> {

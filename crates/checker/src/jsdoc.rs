@@ -105,6 +105,19 @@ impl<'a> CheckerState<'a> {
         self.hosted_jsdoc(class).implements_tags_of(class)
     }
 
+    /// The host of a reparsed `@overload` declaration: the binder declares
+    /// tsgo's overload declarations at their tags' names.
+    pub(crate) fn reparsed_overload_declaration_host(&self, declaration: NodeId) -> Option<NodeId> {
+        if self.kind_of(declaration) != SyntaxKind::Identifier {
+            return None;
+        }
+        let tag = self.parent_of(declaration)?;
+        if self.kind_of(tag) != SyntaxKind::JSDocOverloadTag {
+            return None;
+        }
+        tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
+    }
+
     /// An `@overload` tsgo reparses into an overload declaration of its
     /// host: a function, method or constructor outside object literals
     /// (reparser.go:138-142).
@@ -112,6 +125,34 @@ impl<'a> CheckerState<'a> {
         self.kind_of(tag) == SyntaxKind::JSDocOverloadTag
             && tsc_binder::hosted::reparsed_overload_host(self.binder.source_of_node(tag), tag)
                 .is_some()
+    }
+
+    /// The declaration whose reparsed `Type()` is `type_node`, the type of
+    /// a hosted `@type` tag: tsgo's reparser parents that type to the
+    /// declaration (reparser.go:348-366).
+    pub(crate) fn reparsed_type_owner(&self, type_node: NodeId) -> Option<NodeId> {
+        let expression = self.parent_of(type_node)?;
+        if self.kind_of(expression) != SyntaxKind::JSDocTypeExpression {
+            return None;
+        }
+        let tag = self.parent_of(expression)?;
+        if self.kind_of(tag) != SyntaxKind::JSDocTypeTag {
+            return None;
+        }
+        let host = self.parent_of(self.parent_of(tag)?)?;
+        let candidates = match self.data_of(host) {
+            NodeData::VariableStatement(data) => match data
+                .declaration_list
+                .map(|list| self.data_of(list))
+            {
+                Some(NodeData::VariableDeclarationList(list)) => self.nodes_of(list.declarations),
+                _ => Vec::new(),
+            },
+            _ => vec![host],
+        };
+        candidates
+            .into_iter()
+            .find(|&declaration| self.reparsed_type_node(declaration) == Some(type_node))
     }
 
     /// The function whose reparsed return type is `type_node`, the type of
