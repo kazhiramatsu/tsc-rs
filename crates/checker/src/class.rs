@@ -643,7 +643,29 @@ impl<'a> CheckerState<'a> {
         for member in self.nodes_of(members) {
             self.check_source_element(Some(member));
         }
+        self.check_constructor_declared_properties(node)?;
         self.register_for_unused_identifiers_check(node);
+        Ok(())
+    }
+
+    /// tsgo checkConstructorDeclaredProperties (#64646): a JavaScript class
+    /// resolves the type of each property its own constructor declares, so
+    /// the diagnostics of those types do not depend on what is checked
+    /// first.
+    fn check_constructor_declared_properties(&mut self, node: NodeId) -> CheckResult<()> {
+        if !self.is_in_js_file(node) {
+            return Ok(());
+        }
+        let symbol = self.get_symbol_of_declaration(node)?;
+        let class_type = self.get_declared_type_of_symbol(symbol)?;
+        for property in self.get_properties_of_type(class_type)? {
+            let (kind, constructor) = self.this_assignment_declaration_kind(property)?;
+            if kind == crate::annotate::ThisAssignmentDeclarationKind::Constructor
+                && constructor.is_some_and(|constructor| self.parent_of(constructor) == Some(node))
+            {
+                self.get_type_of_symbol(property)?;
+            }
+        }
         Ok(())
     }
 
@@ -860,6 +882,7 @@ impl<'a> CheckerState<'a> {
         for member in self.nodes_of(data.members) {
             self.check_source_element(Some(member));
         }
+        self.check_constructor_declared_properties(node)?;
         self.register_for_unused_identifiers_check(node);
         Ok(())
     }

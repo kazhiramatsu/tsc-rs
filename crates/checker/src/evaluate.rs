@@ -1763,6 +1763,14 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
+        // tsgo (#64674): a computed name is checked like any expression.
+        if let Some(name) = name {
+            if let NodeData::ComputedPropertyName(computed) = self.data_of(name) {
+                if let Some(expression) = computed.expression {
+                    self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
+                }
+            }
+        }
         if let Some(initializer) = initializer {
             self.check_expression(initializer, tsc_types::CheckMode::NORMAL)?;
         }

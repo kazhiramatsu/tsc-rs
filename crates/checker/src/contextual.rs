@@ -592,6 +592,12 @@ impl<'a> CheckerState<'a> {
         let Some(parent_type) = self.get_contextual_type(parent, context_flags)? else {
             return Ok(None);
         };
+        // tsgo (#64525): not by its own class, whose type may still be in
+        // progress (a spurious circularity).
+        let class_symbol = self.get_symbol_of_declaration(parent)?;
+        if self.tables.type_of(parent_type).symbol == Some(class_symbol) {
+            return Ok(None);
+        }
         let symbol = self.get_symbol_of_declaration(declaration)?;
         let name = self.binder.symbol(symbol).escaped_name;
         self.get_type_of_property_of_contextual_type(parent_type, name, None)

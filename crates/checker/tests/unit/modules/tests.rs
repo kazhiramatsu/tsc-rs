@@ -592,13 +592,15 @@ fn import_specifiers_report_direct_and_intermediate_deprecated_aliases() {
                 "'old' is deprecated.",
                 vec![2798],
             ),
+            // tsgo GetJSDocDeprecatedTag reads the declaration's own JSDoc:
+            // a variable's sits on its statement, so no related 2798.
             (
                 Some("/main.js"),
                 Some(main.find("old as direct").expect("direct alias") as u32),
                 Some("old as direct".len() as u32),
                 DiagnosticCategory::Suggestion,
                 "'old' is deprecated.",
-                vec![2798],
+                vec![],
             ),
         ]
     );

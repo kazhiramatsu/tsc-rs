@@ -625,15 +625,6 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// tsc-port: getFirstJSDocTag @6.0.3
-    /// tsc-hash: 692bf3520107ebc11067c254d2e883b0e4767a5dccd1d9dbdd795d8e7dd5e679
-    /// tsc-span: _tsc.js:11767-11769
-    pub(crate) fn first_jsdoc_tag(&self, node: NodeId, kind: SyntaxKind) -> Option<NodeId> {
-        self.get_jsdoc_tags(node)
-            .into_iter()
-            .find(|&tag| self.kind_of(tag) == kind)
-    }
-
     /// tsc-port: getAllJSDocTags @6.0.3
     /// tsc-hash: 6c226e3f48d70df7f1b44a4c28faa15dc7cf9e6d1771b9613d28408109deb00a
     /// tsc-span: _tsc.js:11770-11772

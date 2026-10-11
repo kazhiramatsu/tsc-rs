@@ -6545,6 +6545,10 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
         {
+            // tsgo visitAndTransformType (#63969).
+            if self.tables.type_of(ty).symbol.is_some() && self.display_check_truncation_length() {
+                return Ok(self.display_truncation_type_node());
+            }
             return self.type_node_from_object_type(ty, fully_qualified);
         }
         if self
@@ -6552,6 +6556,10 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
         {
+            // tsgo visitAndTransformType (#63969): a deferred reference.
+            if self.links.ty(ty).deferred_node.is_some() && self.display_check_truncation_length() {
+                return Ok(self.display_truncation_type_node());
+            }
             let target = self.tables.reference_target(ty);
             // typeReferenceToTypeNode's tuple arm (51948-51978),
             // checked before the symbol head: tuple targets are the
@@ -6925,6 +6933,10 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
+            // tsgo visitAndTransformType (#63969).
+            if self.display_check_truncation_length() {
+                return Ok(self.display_truncation_type_node());
+            }
             let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
                 unreachable!("CONDITIONAL flag implies Conditional data");
             };
@@ -7272,6 +7284,11 @@ impl<'a> CheckerState<'a> {
                 }
             }
             return Ok(self.reverse_mapped_elision_placeholder());
+        }
+        // tsgo visitAndTransformType (#63969): once truncating, a type
+        // with a symbol elides before its structure is built.
+        if self.tables.type_of(ty).symbol.is_some() && self.display_check_truncation_length() {
+            return Ok(self.display_truncation_type_node());
         }
         self.display_visited_types.insert(ty);
         let result = self.type_node_from_object_type(ty, fully_qualified);

@@ -3079,6 +3079,11 @@ fn visit_and_transform_type(
     context: &mut NodeBuilderContext<'_>,
     transform: TypeTransform,
 ) -> BuildResult<Option<TransformNode>> {
+    // tsgo (#63969): a truncated request elides before a cached node is
+    // copied.
+    if check_truncation_length(context) {
+        return create_elided_information_placeholder(arena, target, context).map(Some);
+    }
     context.visited_types.get_or_insert_with(Default::default);
     let symbol = checker.tables.type_of(r#type).symbol;
     let depth = symbol.map(|symbol| {
