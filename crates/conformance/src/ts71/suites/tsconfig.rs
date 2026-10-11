@@ -4,11 +4,11 @@
 //! (`TestParseJsonConfigFileContent`, `TestParseJsonSourceFileConfigFileContent`,
 //! `TestParseTypeAcquisition`).
 //!
-//! tsc-rs parses a config file from its text only, as the jsonSourceFile
-//! api does. The json api parses the object converted from the same text and
-//! reports the same errors without a location (the 40 vendored pairs agree
-//! apart from that), so its baseline is rendered from the same parse with the
-//! errors' locations removed and the text's own parse errors left out.
+//! The jsonSourceFile api parses the config's text; the json api, as tsgo's
+//! test does (`getParsedWithJsonApi`), converts the text to an object first
+//! (`ParseConfigFileTextToJson`, its errors left out) and parses that object
+//! without a source file (`parse_config_root_plan_of_json_object`), its
+//! errors without a location.
 
 use std::collections::BTreeMap;
 
@@ -16,8 +16,8 @@ use tsc_diagnostics::{Diagnostic, FormatDiagnosticsHost, JsString};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::go_json::{compiler_options_json, struct_json, GoJson, TYPE_ACQUISITION_FIELDS};
 use tsc_program::{
-    parse_config_file_text_to_json, parse_config_root_plan, CompilerConfigHost, ConfigRootPlan,
-    ConfigRootPlanRequest,
+    parse_config_file_text_to_json, parse_config_root_plan, parse_config_root_plan_of_json_object,
+    CompilerConfigHost, ConfigRootPlan, ConfigRootPlanRequest,
 };
 
 use super::tables::{TestConfig, JSON_PARSE, PARSE_JSON_CONFIG, TYPE_ACQUISITION};
@@ -175,7 +175,7 @@ fn render_config(
     text.push_str(config.config_file_name);
     text.push('\n');
 
-    let plan = parse(&files, &config_file_name, &base_path, config.json_text)?;
+    let plan = parse(&files, &config_file_name, &base_path, config.json_text, api)?;
     if include_compiler_options {
         text.push_str("CompilerOptions::\n");
         text.push_str(&compiler_options_json(&plan).indented());
@@ -210,6 +210,7 @@ fn parse(
     config_file_name: &str,
     base_path: &str,
     json_text: &str,
+    api: Api,
 ) -> Result<ConfigRootPlan, String> {
     let current_directory = if base_path.starts_with('/') {
         base_path
@@ -221,14 +222,23 @@ fn parse(
         builder = builder.file(path.clone(), content.as_bytes().to_vec());
     }
     let host = builder.build().map_err(|error| format!("{error:?}"))?;
-    parse_config_root_plan(
-        &CompilerConfigHost::new(&host),
-        ConfigRootPlanRequest {
-            file_name: JsString::from(config_file_name),
-            text: json_text.to_owned(),
-            base_path: JsString::from(current_directory),
-        },
-    )
+    let host = CompilerConfigHost::new(&host);
+    let request = |text: String| ConfigRootPlanRequest {
+        file_name: JsString::from(config_file_name),
+        text,
+        base_path: JsString::from(current_directory),
+    };
+    match api {
+        Api::JsonSourceFile => parse_config_root_plan(&host, request(json_text.to_owned())),
+        Api::Json => {
+            let (object, _) = parse_config_file_text_to_json(config_file_name, json_text)
+                .map_err(|error| error.to_string())?;
+            parse_config_root_plan_of_json_object(
+                &host,
+                request(GoJson::from_json(&object).compact()),
+            )
+        }
+    }
     .map_err(|error| error.to_string())
 }
 
