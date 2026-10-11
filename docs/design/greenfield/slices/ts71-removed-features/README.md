@@ -74,3 +74,27 @@ project で差を出すため）。順は `.types`／`.symbols` の残り（#751
   test と clippy（`-D warnings`）は通る。
 - **hosted と merge**：PR #754 の hosted run 38164098280（rust 11m9s、conformance 20m29s、gates pass、head `2de700bc3`）、merge
   commit `8a0f1950e`。次は R2（checker と binder の ES5 の検査）。
+
+## R2 checker と binder の ES5 の検査（2026-10-12）
+
+- tsgo の checker に残る ES2015 未満の検査は空の配列の binding pattern の型（checker.go:18378）の 1 つだけで、binder には無い。
+  tsc 6.0 から持っていた残りを除いた：ES5 の helper の要求（`__extends`・`__generator`・`__values`・`__read`・`__spreadArray`・
+  `__assign`・`__makeTemplateObject`）、ES5 の診断（arrow／async の `arguments`、ES2015 未満の private 名と `accessor`、object
+  literal と method でない `super`、async の戻り値の型の ES5 の道と promise の constructor の検査）。iteration は global の
+  `Iterable` だけを見る（`downlevelIteration` は何も選ばない）。名前の解決は arrow に `arguments` を与えず、parameter の scope に
+  target の条件を持たない。static の `super` の走査と `Reflect` の衝突の検査は ES2021 以下のすべての target で行う。
+- 除いた ES2015 の変換だけが読んでいた記録も除いた：入れ子の block-scoped binding の走査と loop の捕捉の check flag（tsgo に
+  無い）、捕捉した binding の link、lexical な `this` の捕捉、空だった `this`／`new.target` の衝突の列とその検査、R1 から呼ばれて
+  いなかった emit resolver の 4 つの method。
+- binder：strict mode の flag は常に真だった（tsgo は strict mode を追わない）ので prologue の走査とともに除いた。関数宣言は常に
+  block scoped、TS1250 は出さない（tsgo の message の helper は呼ばれない）、label の検査に target の条件は無い。binder は言語
+  version を持たない。lib の bundle の cache の key から `alwaysStrict` を外した。
+- **test**：TS1250 を出さない binder の test、construct signature の戻り値の行を省く relation の鎖（既定の target で tsgo の
+  2322/2322/2326/2322）、`alwaysStrict` が bundle を分けないことを tsgo に合わせた。tsgo との横並び（`arguments`、private 名、
+  `super`、async の戻り値の型、label、script の strict mode、global の `Iterable` の無い iteration を es5〜esnext で 20 構成）は
+  全て同じ。
+- **結果**（release build、head `f4c3dcc27`）：full の conformance（`--workers 2 --check`、472 s）は 0 regressions で R1b の
+  report と全ての field で同じ。並列対照は記録済みの順序の 4 構成だけ。suites（`--check`）は 0 regressions、既知の違い 10。binder・
+  checker・emitter の test 2,214 と clippy（`-D warnings`）は通る。
+- **hosted と merge**：PR #755 の hosted run 38168904641（rust 10m48s、conformance 13m15s、gates pass、head `f4c3dcc27`）、merge
+  commit `994d449fc`。次は R3（parse と bind が option を読まない）。
