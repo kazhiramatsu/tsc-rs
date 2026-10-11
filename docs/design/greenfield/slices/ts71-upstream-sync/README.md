@@ -388,3 +388,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 - **結果**（release build、`d26107f88`（S6c + S6d）、#748 の CLI contract の test だけの修正の後の `main` に rebase）：full の
   conformance（`--workers 2 --check`、486 s）は 0 regressions で、S6c の report と全ての field で同じ。suites（`--check`）は
   0 regressions・上がったもの無し。checker は変わらないので並列対照は無し。
+- **hosted と merge**：PR #749 の hosted run 38136052277（rust 8m7s、conformance 16m20s、gates pass、head `880669d19`）、merge commit
+  `f185ff5a5`。
