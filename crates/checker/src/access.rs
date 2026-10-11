@@ -1978,24 +1978,10 @@ impl<'a> CheckerState<'a> {
 }
 
 impl<'a> CheckerState<'a> {
-    /// tsc stores `globalThisSymbol.exports = globals` by Map identity
-    /// (46491-46494). Rust owns those tables separately; a top-level
-    /// checked-JS `globalThis.x = ...` augmentation is therefore on the
-    /// merged globalThis symbol while ordinary globals remain in
-    /// `self.globals`. Project the aliased-map lookup exactly at the
-    /// property-access producer.
+    /// `globalThisSymbol.Exports()[name]`: tsgo's globalThis exports ARE
+    /// `globals` (initializeChecker `SetExports(c.globals)`), and the merge
+    /// writes what a `globalThis` augmentation declares there.
     fn effective_global_this_export(&mut self, name: &str) -> CheckResult<Option<SymbolId>> {
-        let merged = self.get_merged_symbol(self.global_this_symbol);
-        // A top-level `globalThis.x = ...` reaches mergeSymbol as an
-        // export of the JS `globalThis` augmentation. In tsc,
-        // globalThisSymbol.exports and globals are the same Map, so
-        // mergeSymbolTable writes `x` into globals. Rust cannot alias
-        // those owned tables: the exact write remains on the merged
-        // symbol's binder exports. Read that projection first, then
-        // the ordinary globals table.
-        if let Some(symbol) = self.binder.symbol(merged).exports().get(name).copied() {
-            return Ok(Some(symbol));
-        }
         Ok(self.globals.get(name).copied())
     }
 
@@ -3154,6 +3140,27 @@ impl<'a> CheckerState<'a> {
         if assignment_kind == crate::expr::AssignmentKind::None {
             return Ok(false);
         }
+        // tsgo checker.go:27823-27832: CommonJS `exports.x` / `exports[k]`
+        // is never readonly.
+        let object = match self.data_of(expr) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        if let Some(object) = object.map(|object| self.skip_parentheses(object)) {
+            if self.kind_of(object) == SyntaxKind::Identifier
+                && self
+                    .get_resolved_symbol(object)?
+                    .is_some_and(|expression_symbol| {
+                        self.binder
+                            .symbol(expression_symbol)
+                            .flags
+                            .intersects(SymbolFlags::MODULE_EXPORTS)
+                    })
+            {
+                return Ok(false);
+            }
+        }
         if self.is_readonly_symbol(symbol)? {
             if self
                 .binder
@@ -3915,7 +3922,7 @@ impl<'a> CheckerState<'a> {
             expr_type
         };
         let index_type = self.check_expression(index_expression, CheckMode::NORMAL)?;
-        if object_type == self.tables.intrinsics.error
+        if self.tables.is_error_type(object_type)
             || object_type == self.tables.intrinsics.silent_never
         {
             return Ok(object_type);

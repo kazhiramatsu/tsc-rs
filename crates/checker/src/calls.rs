@@ -807,7 +807,7 @@ impl<'a> CheckerState<'a> {
         );
         let func_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let apparent_type = self.get_apparent_type(func_type)?;
-        if apparent_type == self.tables.intrinsics.error {
+        if self.tables.is_error_type(apparent_type) {
             return self.resolve_error_call(node);
         }
         let call_signatures = self.get_signatures_of_type(apparent_type, SignatureKind::Call)?;
@@ -5599,7 +5599,7 @@ impl<'a> CheckerState<'a> {
                 }
                 return Ok(self.any_signature);
             }
-            if super_type != self.tables.intrinsics.error {
+            if !self.tables.is_error_type(super_type) {
                 let base_type_node = self
                     .get_containing_class_of(node)
                     .and_then(|class| self.get_effective_base_type_node(class));
@@ -5654,7 +5654,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.silent_never_signature);
         }
         let apparent_type = self.get_apparent_type(func_type)?;
-        if apparent_type == self.tables.intrinsics.error {
+        if self.tables.is_error_type(apparent_type) {
             return self.resolve_error_call(node);
         }
         let call_signatures = self.get_signatures_of_type(apparent_type, SignatureKind::Call)?;
@@ -5672,7 +5672,7 @@ impl<'a> CheckerState<'a> {
             // real undefined, so checkNonNullExpression's 2722 face
             // forms exactly like tsc's.)
             // 77014-77016: 2347 on non-error targets with typeArguments.
-            if func_type != self.tables.intrinsics.error && type_arguments.is_some() {
+            if !self.tables.is_error_type(func_type) && type_arguments.is_some() {
                 self.error_at(
                     Some(node),
                     &diagnostics::Untyped_function_calls_may_not_accept_type_arguments,
@@ -5777,7 +5777,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.silent_never_signature);
         }
         let expression_type = self.get_apparent_type(expression_type)?;
-        if expression_type == self.tables.intrinsics.error {
+        if self.tables.is_error_type(expression_type) {
             return self.resolve_error_call(node);
         }
         if self
@@ -6280,7 +6280,7 @@ impl<'a> CheckerState<'a> {
         );
         let tag_type = self.check_expression(tag, CheckMode::NORMAL)?;
         let apparent_type = self.get_apparent_type(tag_type)?;
-        if apparent_type == self.tables.intrinsics.error {
+        if self.tables.is_error_type(apparent_type) {
             return self.resolve_error_call(node);
         }
         let call_signatures = self.get_signatures_of_type(apparent_type, SignatureKind::Call)?;
@@ -6396,7 +6396,7 @@ impl<'a> CheckerState<'a> {
                 self.get_symbol_has_instance_method_of_object_type(right_type)?;
             if let Some(has_instance_method_type) = has_instance_method_type {
                 let apparent_type = self.get_apparent_type(has_instance_method_type)?;
-                if apparent_type == self.tables.intrinsics.error {
+                if self.tables.is_error_type(apparent_type) {
                     return self.resolve_error_call(node);
                 }
                 let call_signatures =

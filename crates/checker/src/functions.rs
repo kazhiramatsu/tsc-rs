@@ -3464,6 +3464,11 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         flags_to_check: tsc_types::ModifierFlags,
     ) -> tsc_types::ModifierFlags {
+        // A reparsed `@overload` declaration (its tag name) carries its
+        // host's modifiers (reparser.go reparseJSDocSignature clones them).
+        let node = self
+            .reparsed_overload_declaration_host(node)
+            .unwrap_or(node);
         let source = self.binder.source_of_node(node);
         let mut flags = node_util::get_combined_modifier_flags(source, node);
         let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
@@ -3623,9 +3628,15 @@ impl<'a> CheckerState<'a> {
                 && node_util::is_function_like_kind(node_kind)
                 && self.has_jsdoc_property(node)
             {
-                has_overloads = !self
+                has_overloads = self
                     .all_jsdoc_tags(node, SyntaxKind::JSDocOverloadTag)
-                    .is_empty();
+                    .into_iter()
+                    .any(|tag| {
+                        tsc_binder::hosted::reparsed_overload_host(
+                            self.binder.source_of_node(tag),
+                            tag,
+                        ) == Some(node)
+                    });
             }
         }
         if multiple_constructor_implementation {

@@ -11226,6 +11226,14 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isNotOverload: not a bodiless function/method declaration.
     fn is_not_overload(&self, declaration: NodeId) -> bool {
+        // A reparsed `@overload` declaration (its tag name) is a bodyless
+        // overload in tsgo.
+        if self
+            .reparsed_overload_declaration_host(declaration)
+            .is_some()
+        {
+            return false;
+        }
         !matches!(
             self.kind_of(declaration),
             SyntaxKind::FunctionDeclaration | SyntaxKind::MethodDeclaration

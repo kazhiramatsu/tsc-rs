@@ -130,12 +130,15 @@ crate::id_type!(
 /// createTypeReference's `getTypeListId(typeArguments)` and
 /// getObjectTypeInstantiation's list id plus `getAliasId(aliasSymbol,
 /// aliasTypeArguments)`, as one value. The alias arguments count only
-/// with an alias symbol, as in getAliasId.
+/// with an alias symbol, as in getAliasId. An instantiation of a single
+/// signature type is keyed apart (tsgo getTypeInstantiationKey's `!`), so
+/// the target's seeded self entry never answers it.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct InstantiationKey {
     pub arguments: TypeListId,
     pub alias_symbol: Option<SymbolId>,
     pub alias_arguments: Option<TypeListId>,
+    pub single_signature: bool,
 }
 
 impl InstantiationKey {
@@ -144,6 +147,7 @@ impl InstantiationKey {
             arguments,
             alias_symbol: None,
             alias_arguments: None,
+            single_signature: false,
         }
     }
 }
@@ -1106,12 +1110,14 @@ impl TypeTables {
         self.instantiations.insert((target, key), value);
     }
 
-    /// The instantiations-map key of `type_arguments` under an alias.
+    /// The instantiations-map key of `type_arguments` under an alias, for a
+    /// single signature type or not.
     pub fn instantiation_key(
         &mut self,
         type_arguments: &[TypeId],
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
+        single_signature: bool,
     ) -> InstantiationKey {
         InstantiationKey {
             arguments: self.intern_type_list(type_arguments),
@@ -1119,6 +1125,7 @@ impl TypeTables {
             alias_arguments: alias_symbol
                 .and(alias_type_arguments)
                 .map(|arguments| self.intern_type_list(arguments)),
+            single_signature,
         }
     }
 

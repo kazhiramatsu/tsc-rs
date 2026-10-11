@@ -3285,8 +3285,9 @@ impl InferTypesWalker<'_, '_> {
 
     /// The 69089-69158 tuple-target ladder, split from
     /// `infer_from_object_types` for the early returns. Slice bounds
-    /// follow JS Array.prototype.slice clamping (see slice_tuple_type
-    /// and js_slice_bounds).
+    /// follow JS Array.prototype.slice clamping (see slice_tuple_type);
+    /// a middle slice the source does not have is not inferred from
+    /// (tsgo inference.go:776-807).
     #[allow(clippy::needless_range_loop)] // index walk over paired lists, ported as tsc wrote it
     fn infer_to_tuple_target(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let source_is_tuple = self.st.tables.is_tuple_type(source);
@@ -3398,30 +3399,38 @@ impl InferTypesWalker<'_, '_> {
                             source_arity.saturating_sub(start_length + implied_arity),
                         )?;
                         self.infer_from_types(first, element_types[start_length])?;
-                        let second = self.st.get_element_type_of_slice_of_tuple_type(
+                        if let Some(rest_type) = self.st.get_element_type_of_slice_of_tuple_type(
                             source,
                             start_length + implied_arity,
                             end_length,
                             /*writing*/ false,
                             /*no_reductions*/ false,
-                        )?;
-                        if !self.infer_from_middle_slice(second, element_types[start_length + 1])? {
-                            return Ok(());
+                        )? {
+                            self.infer_from_types(rest_type, element_types[start_length + 1])?;
                         }
                     }
                 } else if element_flags[start_length].intersects(ElementFlags::REST)
                     && element_flags[start_length + 1].intersects(ElementFlags::VARIADIC)
                 {
-                    // 69124-69139: rest then variadic — trailing slice
-                    // bounds carry JS negative-index semantics.
+                    // tsgo inference.go:789-806: rest then variadic, when
+                    // the variable's fixed length fits after the leading
+                    // elements.
                     let implied = self.middle_implied_arity(element_types[start_length + 1])?;
-                    if let Some(implied_arity) = implied {
-                        let end_index = source_arity as i64
-                            - crate::structural::end_element_count(
-                                &element_flags,
-                                ElementFlags::FIXED,
-                            ) as i64;
-                        let start_index = end_index - implied_arity as i64;
+                    let end_index = source_arity.checked_sub(crate::structural::end_element_count(
+                        &element_flags,
+                        ElementFlags::FIXED,
+                    ));
+                    let bounds = implied
+                        .zip(end_index)
+                        .and_then(|(implied_arity, end_index)| {
+                            let start_index = end_index.checked_sub(implied_arity)?;
+                            (start_index >= start_length).then_some((
+                                implied_arity,
+                                start_index,
+                                end_index,
+                            ))
+                        });
+                    if let Some((implied_arity, start_index, end_index)) = bounds {
                         let source_arguments = self.st.get_type_arguments(source)?;
                         let source_target = self.st.tables.reference_target(source);
                         let TypeData::TupleTarget(source_data) =
@@ -3429,26 +3438,24 @@ impl InferTypesWalker<'_, '_> {
                         else {
                             unreachable!("tuple type targets a tuple target");
                         };
-                        let (from, to) = js_slice_bounds(source_arity, start_index, end_index);
                         let labels = source_data
                             .labeled_element_declarations
                             .as_ref()
-                            .map(|declarations| declarations[from..to].to_vec());
+                            .map(|declarations| declarations[start_index..end_index].to_vec());
                         let trailing_slice = self.st.create_tuple_type_forced(
-                            &source_arguments[from..to],
-                            Some(&source_data.element_flags[from..to]),
+                            &source_arguments[start_index..end_index],
+                            Some(&source_data.element_flags[start_index..end_index]),
                             /*readonly*/ false,
                             labels.as_deref(),
                         )?;
-                        let first = self.st.get_element_type_of_slice_of_tuple_type(
+                        if let Some(rest_type) = self.st.get_element_type_of_slice_of_tuple_type(
                             source,
                             start_length,
                             end_length + implied_arity,
                             /*writing*/ false,
                             /*no_reductions*/ false,
-                        )?;
-                        if !self.infer_from_middle_slice(first, element_types[start_length])? {
-                            return Ok(());
+                        )? {
+                            self.infer_from_types(rest_type, element_types[start_length])?;
                         }
                         self.infer_from_types(trailing_slice, element_types[start_length + 1])?;
                     }
@@ -3516,36 +3523,6 @@ impl InferTypesWalker<'_, '_> {
             return Ok(None);
         }
         Ok(Some(data.fixed_length))
-    }
-
-    /// tsc passes an undefined middle slice straight into
-    /// inferFromTypes, which survives ONLY on the 68647 head guard —
-    /// `!couldContainTypeVariables(target) || isNoInferType(target)`
-    /// — and TypeErrors otherwise: the recorded tsc-crash deviation
-    /// (m8-readiness row 4, probe-tuple.mjs f6). The port preserves
-    /// the harmless guard and finitely contains the crash shape at
-    /// this call boundary: `false` stops the remaining tuple-target
-    /// ladder without adding a candidate at or after the crash point.
-    fn infer_from_middle_slice(
-        &mut self,
-        source: Option<TypeId>,
-        target: TypeId,
-    ) -> CheckResult<bool> {
-        match source {
-            Some(source) => {
-                self.infer_from_types(source, target)?;
-                Ok(true)
-            }
-            None => {
-                if self.st.could_contain_type_variables(target)
-                    && !self.st.tables.is_no_infer_type(target)
-                {
-                    Ok(false)
-                } else {
-                    Ok(true)
-                }
-            }
-        }
     }
 
     /// tsc-port: inferFromProperties @6.0.3
@@ -3846,23 +3823,6 @@ impl InferTypesWalker<'_, '_> {
         }
         Ok(())
     }
-}
-
-/// JS Array.prototype.slice index clamping over a length-`len` list:
-/// negative indexes count from the end; the pair is clamped to
-/// [0, len] with an empty range when end <= start (the 69131-69137
-/// trailing-slice bounds go negative for short sources — probed).
-fn js_slice_bounds(len: usize, start: i64, end: i64) -> (usize, usize) {
-    let clamp = |i: i64| -> usize {
-        if i < 0 {
-            (len as i64 + i).max(0) as usize
-        } else {
-            (i as usize).min(len)
-        }
-    };
-    let from = clamp(start);
-    let to = clamp(end).max(from);
-    (from, to)
 }
 
 #[cfg(test)]

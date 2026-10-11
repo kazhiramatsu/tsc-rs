@@ -339,7 +339,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         let mapper = self.make_unary_type_mapper(source_tp, target_marker);
         let ty = self.get_declared_type_of_symbol_for_variance(symbol)?;
-        if ty == self.tables.intrinsics.error {
+        if self.tables.is_error_type(ty) {
             return Ok(ty);
         }
         let result = if self

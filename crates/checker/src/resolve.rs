@@ -2950,6 +2950,26 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// Whether `node` is an inner part of a type heritage element's entity
+    /// name (`type_heritage_qualified_name_root`): a name or access below
+    /// the whole name, other than the last name. tsgo's parser makes these
+    /// the left sides of qualified names, which are neither type nodes nor
+    /// expressions (`getTypeOfNode` gives them the error type).
+    pub(crate) fn is_inner_type_heritage_name(&self, node: NodeId) -> bool {
+        // The name of an access stands where its access does.
+        let access = match self
+            .parent_of(node)
+            .map(|parent| (parent, self.data_of(parent)))
+        {
+            Some((parent, NodeData::PropertyAccessExpression(data))) if data.name == Some(node) => {
+                parent
+            }
+            _ => node,
+        };
+        self.type_heritage_qualified_name_root(access)
+            .is_some_and(|root| root != access)
+    }
+
     /// tsrs-native: typed HeritageClause projection for tsc's direct
     /// token comparison.
     pub(crate) fn heritage_clause_is_extends(&self, clause: NodeId) -> bool {

@@ -1227,31 +1227,33 @@ impl<'a> CheckerState<'a> {
                 self.links
                     .add_node_jsx_flags(node, JsxFlags::INTRINSIC_NAMED_ELEMENT);
                 symbol = intrinsic_prop;
+            } else if let Some(index_symbol) = {
+                // tsgo getIntrinsicTagSymbol (jsx.go:1233-1244): the
+                // applicable index signatures' symbol, else the
+                // IntrinsicElements symbol when some member or index answers
+                // the name.
+                let key_type = self.tables.get_string_literal_type(prop_name.as_str());
+                self.get_applicable_index_symbol(intrinsic_elements_type, key_type)?
+            } {
+                self.links
+                    .add_node_jsx_flags(node, JsxFlags::INTRINSIC_INDEXED_ELEMENT);
+                symbol = index_symbol;
             } else if self
-                .get_applicable_index_info_for_name(intrinsic_elements_type, &prop_name)?
+                .get_type_of_property_or_index_signature_of_type(
+                    intrinsic_elements_type,
+                    prop_name.as_str(),
+                )?
                 .is_some()
             {
                 self.links
                     .add_node_jsx_flags(node, JsxFlags::INTRINSIC_INDEXED_ELEMENT);
-                let members = self.resolve_structured_type_members(intrinsic_elements_type)?;
-                let index_symbol = self
-                    .members_of(members)
-                    .members
-                    .get(&self.binder, tsc_binder::InternalSymbolName::INDEX);
-                // tsc stores `intrinsicElementsType.symbol` here, which
-                // an alias-declared IntrinsicElements leaves undefined:
-                // the memo then never fills and no T0 path reads the
-                // identity (flags are already published; the INDEXED
-                // attribute type reads the index info, not the symbol).
+                // An alias-declared IntrinsicElements has no symbol;
                 // unknownSymbol is the identity-free stand-in.
-                symbol = match index_symbol {
-                    Some(index_symbol) => index_symbol,
-                    None => self
-                        .tables
-                        .type_of(intrinsic_elements_type)
-                        .symbol
-                        .unwrap_or(self.unknown_symbol),
-                };
+                symbol = self
+                    .tables
+                    .type_of(intrinsic_elements_type)
+                    .symbol
+                    .unwrap_or(self.unknown_symbol);
             } else {
                 let display = self.intrinsic_tag_name_to_string(tag_name)?;
                 let container = format!("JSX.{JSX_INTRINSIC_ELEMENTS}");
@@ -1445,6 +1447,12 @@ impl<'a> CheckerState<'a> {
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         self.tables.type_mut(id).object_flags =
             ObjectFlags::ANONYMOUS | ObjectFlags::SINGLE_SIGNATURE_TYPE;
+        // tsgo: the declaration's symbol, so the type instantiates through
+        // the declaration's outer type parameters.
+        self.tables.type_mut(id).symbol = self
+            .signature_of(signature)
+            .declaration
+            .and_then(|declaration| self.binder.node_symbol(declaration));
         let members = self.alloc_members(crate::state::ResolvedMembers {
             members: Default::default(),
             properties: Vec::new(),

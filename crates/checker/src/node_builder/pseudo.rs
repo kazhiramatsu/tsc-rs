@@ -37,8 +37,7 @@ use super::type_nodes::{
 };
 use super::{
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
-    get_type_from_type_node2, restore_flags, save_restore_flags,
-    syntactic_try_reuse_existing_type_node, NodeBuilderContext,
+    get_type_from_type_node2, restore_flags, save_restore_flags, NodeBuilderContext,
 };
 
 const IN_OBJECT_TYPE_LITERAL: u32 = 4_194_304;
@@ -1559,8 +1558,10 @@ fn reuse_type_node(
     context: &mut NodeBuilderContext<'_>,
     node: NodeId,
 ) -> BuildResult<TransformNode> {
-    if let Some(reused) =
-        syntactic_try_reuse_existing_type_node(checker, arena, target, context, node)?
+    // tsgo reuseTypeNode (nodecopy.go:56-73) is reuseNode: the visitor
+    // under its recovery boundary, without tsc's canReuseTypeNode gate, so
+    // a remapped type parameter inside is serialized on its own.
+    if let Some(reused) = syntactic_try_reuse_existing_node(checker, arena, target, context, node)?
     {
         return Ok(reused);
     }

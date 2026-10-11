@@ -918,6 +918,7 @@ impl<'a> CheckerState<'a> {
             &type_arguments,
             new_alias_symbol,
             new_alias_type_arguments.as_deref(),
+            object_flags.intersects(ObjectFlags::SINGLE_SIGNATURE_TYPE),
         );
         // 63489-63492: the target's instantiations map is seeded with
         // itself under its own type-parameter list id.
@@ -927,6 +928,7 @@ impl<'a> CheckerState<'a> {
             &type_parameters,
             target_alias_symbol,
             target_alias_arguments.as_deref(),
+            false,
         );
         if self.tables.instantiation_get(target, self_key).is_none() {
             self.tables.instantiation_insert(target, self_key, target);
@@ -2929,14 +2931,12 @@ impl<'a> CheckerState<'a> {
             })
     }
 
-    /// tsc-port: fillMissingTypeArguments @6.0.3
-    /// tsc-hash: 351c698c8fa3fccd898708b4e8b00822609109bfa95b5dc7f7203adec3c8fe90
-    /// tsc-span: _tsc.js:59545-59568
+    /// tsgo-port: Checker.fillMissingTypeArguments @7.1 (checker.go:22418-22448)
     pub fn fill_missing_type_arguments(
         &mut self,
         type_arguments: Option<&[TypeId]>,
         type_parameters: Option<&[TypeId]>,
-        min_type_argument_count: usize,
+        _min_type_argument_count: usize,
         is_javascript_implicit_any: bool,
     ) -> CheckResult<Option<Vec<TypeId>>> {
         let num_type_parameters = type_parameters.map_or(0, <[TypeId]>::len);
@@ -2944,10 +2944,10 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(Vec::new()));
         }
         let num_type_arguments = type_arguments.map_or(0, <[TypeId]>::len);
-        if is_javascript_implicit_any
-            || (num_type_arguments >= min_type_argument_count
-                && num_type_arguments <= num_type_parameters)
-        {
+        // tsgo checker.go:22424 fills any short list (tsc also required the
+        // minimum count, leaving a too-short list as written); tsgo keeps the
+        // count parameter unread.
+        if is_javascript_implicit_any || num_type_arguments < num_type_parameters {
             let type_parameters = type_parameters.expect("non-zero length implies a list");
             let mut result: Vec<TypeId> = type_arguments.map(<[_]>::to_vec).unwrap_or_default();
             result.resize(num_type_parameters, self.tables.intrinsics.error);

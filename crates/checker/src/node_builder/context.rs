@@ -31,6 +31,20 @@ pub(crate) type RecoveryTrackedSymbol = (
     EmitSymbolMeaning,
 );
 
+/// tsgo `CompositeSymbolIdentity` (nodebuilderimpl.go visitAndTransformType):
+/// what bounds a type's nesting at ten — a deferred reference's node, a
+/// conditional type's root, or the type's symbol (a class's constructor
+/// object apart from the class).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum CompositeSymbolIdentity {
+    Node(NodeId),
+    ConditionalRoot(tsc_types::ConditionalRootId),
+    Symbol {
+        is_constructor_object: bool,
+        symbol: SymbolId,
+    },
+}
+
 /// The explicit emit-channel NodeBuilder state. This is deliberately separate
 /// from `CheckerState::slice_*`, whose fields belong to the display channel.
 ///
@@ -53,7 +67,11 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) suppress_report_inference_fallback: bool,
     pub(crate) reported_diagnostic: bool,
     pub(crate) visited_types: Option<HashSet<TypeId>>,
-    pub(crate) symbol_depth: Option<HashMap<SymbolId, u32>>,
+    pub(crate) symbol_depth: Option<HashMap<CompositeSymbolIdentity, u32>>,
+    /// Naming the type parameters of a reparsed `@overload` signature: tsgo
+    /// gives each overload its own clones of the comment's `@template`
+    /// parameters, so a same-named type parameter in scope is never its own.
+    pub(crate) naming_reparsed_overload_type_parameters: bool,
     pub(crate) infer_type_parameters: Option<Vec<TypeId>>,
     pub(crate) approximate_length: u32,
     pub(crate) tracked_symbols: Option<Vec<TrackedSymbol>>,
@@ -237,6 +255,7 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         reported_diagnostic: false,
         visited_types: None,
         symbol_depth: None,
+        naming_reparsed_overload_type_parameters: false,
         infer_type_parameters: None,
         approximate_length: 0,
         tracked_symbols: None,

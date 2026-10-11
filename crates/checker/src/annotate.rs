@@ -738,17 +738,21 @@ impl<'a> CheckerState<'a> {
                 .create_type_reference_ex(target, element_types, object_flags));
         }
         if data.combined_flags.intersects(ElementFlags::VARIADIC) {
-            // Union/never variadic distribution (61218-61223).
-            let union_index = (0..element_types.len()).find(|&i| {
-                Self::element_flag_at(&data.element_flags, i).intersects(ElementFlags::VARIADIC)
-                    && self
-                        .tables
-                        .flags_of(element_types[i])
-                        .intersects(TypeFlags::from_bits(
-                            TypeFlags::NEVER.bits() | TypeFlags::UNION.bits(),
-                        ))
-            });
-            if let Some(union_index) = union_index {
+            // Union/never variadic distribution (tsgo checker.go:23838-23855):
+            // each such element in turn; when the cross product is too large
+            // the tuple is normalized as written.
+            let union_indexes: Vec<usize> = (0..element_types.len())
+                .filter(|&i| {
+                    Self::element_flag_at(&data.element_flags, i).intersects(ElementFlags::VARIADIC)
+                        && self
+                            .tables
+                            .flags_of(element_types[i])
+                            .intersects(TypeFlags::from_bits(
+                                TypeFlags::NEVER.bits() | TypeFlags::UNION.bits(),
+                            ))
+                })
+                .collect();
+            for union_index in union_indexes {
                 let cross: Vec<TypeId> = element_types
                     .iter()
                     .enumerate()
@@ -762,15 +766,14 @@ impl<'a> CheckerState<'a> {
                         }
                     })
                     .collect();
-                if !self.check_cross_product_union(&cross) {
-                    return Ok(self.tables.intrinsics.error);
+                if self.check_cross_product_union(&cross) {
+                    let outer = element_types.to_vec();
+                    return self.map_type_result(outer[union_index], move |state, t| {
+                        let mut replaced = outer.clone();
+                        replaced[union_index] = t;
+                        state.create_normalized_tuple_type_ex(target, &replaced, object_flags)
+                    });
                 }
-                let outer = element_types.to_vec();
-                return self.map_type_result(outer[union_index], move |state, t| {
-                    let mut replaced = outer.clone();
-                    replaced[union_index] = t;
-                    state.create_normalized_tuple_type_ex(target, &replaced, object_flags)
-                });
             }
         }
         let mut expanded_types: Vec<TypeId> = Vec::new();
@@ -1643,6 +1646,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
     ) -> CheckResult<Option<TypeId>> {
+        // tsgo checker.go:23550: JSDoc type references only.
+        if !self.is_jsdoc_type_reference(node) {
+            return Ok(None);
+        }
         let NodeData::TypeReference(data) = self.data_of(node) else {
             return Ok(None);
         };
@@ -2049,28 +2056,16 @@ impl<'a> CheckerState<'a> {
         Ok(self.tables.type_arguments(ty).to_vec())
     }
 
-    /// The push/pop-failure filler (60206/60213): outer type parameters
-    /// stay themselves, local ones become errorType —
-    /// `concatenate(outerTypeParameters, localTypeParameters?.map(() =>
-    /// errorType)) || emptyArray`. Tuple targets treat every parameter
-    /// as local (createTupleTargetType 61186-61188).
+    /// The push/pop-failure filler (tsgo checker.go:22361-22363,
+    /// 22382-22384): every type parameter, outer ones included, becomes
+    /// errorType (tsc kept the outer type parameters).
     fn error_filled_type_arguments(&self, ty: TypeId) -> Vec<TypeId> {
         let target = self.tables.reference_target(ty);
         let error = self.tables.intrinsics.error;
         match &self.tables.type_of(target).data {
             TypeData::GenericType {
-                type_parameters,
-                outer_type_parameter_count,
-                ..
-            } => {
-                let mut arguments: Vec<TypeId> =
-                    type_parameters[..*outer_type_parameter_count].to_vec();
-                arguments.extend(std::iter::repeat_n(
-                    error,
-                    type_parameters.len() - outer_type_parameter_count,
-                ));
-                arguments
-            }
+                type_parameters, ..
+            } => vec![error; type_parameters.len()],
             TypeData::TupleTarget(data) => vec![error; data.type_parameters.len()],
             _ => Vec::new(),
         }
@@ -3623,16 +3618,10 @@ impl<'a> CheckerState<'a> {
         let ty = self.check_expression_with_type_arguments(node)?;
         let widened = self.get_widened_type(ty)?;
         let resolved = self.regular_type_of_literal_type(widened);
-        // First write wins: the entity resolution above can re-enter
-        // this node (5.8a declaration-site forcing) and fill the slot;
-        // tsc's raw assignment silently overwrites with the identical
-        // recomputation.
-        if let Some(already) = self
-            .links
-            .read_node(node, |links| links.resolved_type.resolved())
-        {
-            return Ok(already);
-        }
+        // The outer evaluation's write wins (tsgo checker.go
+        // getTypeFromTypeQueryNode): the expression check can re-enter this
+        // node and cache an inner result, as a circular `typeof c.foo` in
+        // `c`'s own accessor caches `error` before its outer `any`.
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
@@ -5462,7 +5451,7 @@ impl<'a> CheckerState<'a> {
             for node in self.interface_base_type_nodes(declaration) {
                 let from_node = self.get_type_from_type_node(node)?;
                 let base_type = self.get_reduced_type(from_node)?;
-                if base_type == self.tables.intrinsics.error {
+                if self.tables.is_error_type(base_type) {
                     continue;
                 }
                 if self.is_valid_base_type(base_type)? {
@@ -6022,7 +6011,7 @@ impl<'a> CheckerState<'a> {
             }
             base_type = self.get_return_type_of_signature(constructors[0])?;
         }
-        if base_type == self.tables.intrinsics.error {
+        if self.tables.is_error_type(base_type) {
             return Ok(());
         }
         let reduced_base_type = self.get_reduced_type(base_type)?;
@@ -8486,12 +8475,12 @@ impl<'a> CheckerState<'a> {
                 is_optional,
             )));
         }
+        // tsgo reads `noImplicitAny` alone (checker.go:17092); tsc also gave
+        // every JavaScript file the evolving auto type.
         let no_implicit_any = self
             .options
             .strict_option_value(self.options.no_implicit_any);
-        if (no_implicit_any || self.is_in_js_file(declaration))
-            && kind == SyntaxKind::VariableDeclaration
-        {
+        if no_implicit_any && kind == SyntaxKind::VariableDeclaration {
             let name_is_binding_pattern = self.name_of_node(declaration).is_some_and(|name| {
                 matches!(
                     self.kind_of(name),
@@ -8615,9 +8604,7 @@ impl<'a> CheckerState<'a> {
                 is_optional,
             )));
         }
-        if kind == SyntaxKind::PropertyDeclaration
-            && (no_implicit_any || self.is_in_js_file(declaration))
-        {
+        if kind == SyntaxKind::PropertyDeclaration && no_implicit_any {
             // 56107-56117 (LIVE since 6.6e): a constructor/static
             // block wins over the ambient base-class read; a None
             // flow answer returns None (the caller's widening tail
@@ -8766,7 +8753,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 134b4ea51c0e63244ba9e3640b567e1455ff00b981dee40817ca46e89ef520cd
     /// tsc-span: _tsc.js:56013-56020
     fn is_null_or_undefined_expr(&mut self, node: NodeId) -> CheckResult<bool> {
-        let expr = self.skip_parentheses(node);
+        // A JavaScript `/** @type {T} */ (undefined)` is a cast in tsgo,
+        // which skipParentheses does not unwrap.
+        let expr = self.skip_parentheses_excluding_jsdoc_type_assertions(node);
         Ok(match self.kind_of(expr) {
             SyntaxKind::NullKeyword => true,
             SyntaxKind::Identifier => {
@@ -9743,7 +9732,19 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if self.is_in_js_file(declaration) && self.has_jsdoc_property(declaration) {
-                let overloads = self.all_jsdoc_tags(declaration, SyntaxKind::JSDocOverloadTag);
+                // tsgo's overload declarations: the `@overload` tags its
+                // reparser hosts on this very function, method or
+                // constructor (reparser.go:138-142).
+                let overloads: Vec<NodeId> = self
+                    .all_jsdoc_tags(declaration, SyntaxKind::JSDocOverloadTag)
+                    .into_iter()
+                    .filter(|&tag| {
+                        tsc_binder::hosted::reparsed_overload_host(
+                            self.binder.source_of_node(tag),
+                            tag,
+                        ) == Some(declaration)
+                    })
+                    .collect();
                 if !overloads.is_empty() {
                     for overload in overloads {
                         let NodeData::JSDocOverloadTag(data) = self.data_of(overload) else {
@@ -9770,13 +9771,11 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
             }
-            let type_tag_signature = if !self.is_function_expression_or_arrow_function(declaration)
-                && !self.is_object_literal_method(declaration)
-            {
-                self.get_signature_of_type_tag(declaration)?
-            } else {
-                None
-            };
+            // tsgo checker.go:20238-20242: every function-like declaration
+            // with a reparsed `@type` full signature takes it (tsc skipped
+            // the contextually typed function expressions and object
+            // literal methods).
+            let type_tag_signature = self.get_signature_of_type_tag(declaration)?;
             result.push(match type_tag_signature {
                 Some(signature) => signature,
                 None => self.get_signature_from_declaration(declaration)?,
@@ -9979,6 +9978,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut parameters: Vec<SymbolId> = Vec::new();
         let mut this_parameter: Option<SymbolId> = None;
+        let mut this_tag_in_signature = false;
         let mut min_argument_count = 0u32;
         let parameter_start = usize::from(node_util::is_jsdoc_construct_signature(
             self.binder.source_of_node(declaration),
@@ -9992,6 +9992,7 @@ impl<'a> CheckerState<'a> {
         {
             if self.kind_of(parameter) == SyntaxKind::JSDocThisTag {
                 this_tag = Some(parameter);
+                this_tag_in_signature = true;
                 continue;
             }
             if self.is_jsdoc_property_path_parameter(parameter) {
@@ -10118,6 +10119,22 @@ impl<'a> CheckerState<'a> {
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                     tsc_types::EscapedName::internal(InternalSymbolName::THIS),
                 );
+                // tsgo binds the `this` parameter its reparser makes of the
+                // tag (reparser.go:168-176, 491-516): a signature's at the
+                // tag, a function's at the tag's name.
+                let declaration = if this_tag_in_signature {
+                    Some(this_tag)
+                } else {
+                    match self.data_of(this_tag) {
+                        NodeData::JSDocThisTag(data) => data.tag_name,
+                        _ => None,
+                    }
+                };
+                if let Some(declaration) = declaration {
+                    let record = self.binder.symbol_mut(symbol);
+                    record.declarations.push(declaration);
+                    record.value_declaration = Some(declaration);
+                }
                 self.links
                     .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
                 this_parameter = Some(symbol);
@@ -10604,7 +10621,6 @@ impl<'a> CheckerState<'a> {
             _ => Vec::new(),
         };
         let mut members = tsc_binder::SymbolTable::default();
-        let mut properties: Vec<SymbolId> = Vec::new();
         let mut string_index_info: Option<crate::state::IndexInfo> = None;
         let mut object_flags =
             ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
@@ -10650,8 +10666,10 @@ impl<'a> CheckerState<'a> {
             self.links
                 .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(element_type));
             members.insert(text, symbol);
-            properties.push(symbol);
         }
+        // The properties are the table's (getNamedMembers): a repeated name
+        // keeps its last element.
+        let mut properties: Vec<SymbolId> = members.values().copied().collect();
         let id = self
             .tables
             .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);

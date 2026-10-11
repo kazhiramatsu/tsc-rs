@@ -3661,11 +3661,11 @@ impl<'text> Parser<'text> {
                     &gen::Identifier_expected,
                     &[],
                 );
-                let missing = self.create_missing_node(SyntaxKind::Identifier, false, None, &[]);
-                let missing_node = self.arena.node_mut(missing);
-                missing_node.pos = name_pos as u32;
-                missing_node.end = name_pos as u32;
-                name = missing;
+                // tsgo parseImportSpecifier: an empty identifier over the
+                // name's range (tsc's was a zero-width missing node), so the
+                // import still binds and reads as its source text.
+                let identifier = self.arena.alloc_missing(SyntaxKind::Identifier, name_pos);
+                name = self.finish_node_at(identifier, name_pos, name_end);
             } else if check_identifier_is_keyword {
                 self.parse_error_at_position(
                     check_identifier_start,

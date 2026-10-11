@@ -428,3 +428,44 @@ fn type_reference_and_typeof_faces_serialize_through_the_chains_cluster() {
         },
     );
 }
+
+/// tsgo typesAreSameReference (nodebuilderimpl.go:484-486) compares the
+/// `*TypeAlias` objects: two instantiations of one alias (`Partial<A>`,
+/// `Partial<B>`) are different references, so mapToTypeNodes prints both
+/// again fully qualified and their lengths count twice; the same alias
+/// arguments are the same reference.
+#[test]
+fn alias_instantiations_are_different_references() {
+    with_builder(
+        "export {};",
+        EmitNodeBuilderFlags::NONE,
+        |checker, _, _, _| {
+            let string = checker.tables.intrinsics.string;
+            let number = checker.tables.intrinsics.number;
+            let alias = tsc_binder::SymbolId::new(1);
+            let mut aliased = |arguments: &[_]| {
+                let union = checker.tables.create_type(
+                    TypeFlags::UNION,
+                    TypeData::Union {
+                        types: vec![string, number].into_boxed_slice(),
+                        origin: None,
+                    },
+                );
+                let ty = checker.tables.type_mut(union);
+                ty.alias_symbol = Some(alias);
+                ty.alias_type_arguments = Some(arguments.into());
+                union
+            };
+            let of_string = aliased(&[string]);
+            let of_string_again = aliased(&[string]);
+            let of_number = aliased(&[number]);
+            assert!(types_are_same_reference(
+                checker,
+                of_string,
+                of_string_again
+            ));
+            assert!(!types_are_same_reference(checker, of_string, of_number));
+            Ok(())
+        },
+    );
+}

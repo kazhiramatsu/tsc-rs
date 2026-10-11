@@ -676,25 +676,47 @@ struct SecondProgram {
     walk: Option<Result<WalkLines, String>>,
 }
 
-/// The walk's lines per unit of the case (absolute unit name, `.types`
-/// lines, `.symbols` lines), in the order of `toBeCompiled` then
-/// `otherFiles`, for the units the Program holds.
-type WalkLines = Vec<(String, Vec<TypeWriterLine>, Vec<TypeWriterLine>)>;
+/// The walk's lines per unit of the case (the unit's place in the walk's
+/// units, the file walked for it, `.types` lines, `.symbols` lines), in the
+/// order of `toBeCompiled` then `otherFiles`, for the units the Program
+/// holds. Two units may have one name; each keeps its own content.
+type WalkLines = Vec<(usize, String, Vec<TypeWriterLine>, Vec<TypeWriterLine>)>;
+
+/// The deduplicated package files of the Program, each with the file it
+/// redirects to (tsgo `GetSourceFile` answers the latter for the former).
+fn package_redirect_names(prepared: &tsc_program::PreparedProgram) -> Vec<(String, String)> {
+    prepared
+        .package_redirect_files()
+        .iter()
+        .filter_map(|redirect| {
+            let target = prepared.source_file(redirect.target)?;
+            Some((
+                redirect.path.display().to_string_lossy().into_owned(),
+                target.path().display().to_string_lossy().into_owned(),
+            ))
+        })
+        .collect()
+}
 
 /// The native runner's type and symbol walk (`verifyTypesAndSymbols`): the
-/// units of the case that are files of the Program, each walked over the
-/// checked session.
+/// units of the case that are files of the Program (a deduplicated package
+/// file as the file it redirects to), each walked over the checked session.
 fn walk_program(
     snapshot: &ProgramSnapshot,
     session: &CheckerSession<'_>,
     units: &[String],
+    redirects: &[(String, String)],
 ) -> Result<WalkLines, String> {
     let mut lines = Vec::new();
-    for unit in units {
+    for (unit_index, unit) in units.iter().enumerate() {
+        let file_name = redirects
+            .iter()
+            .find(|(redirect, _)| redirect == unit)
+            .map_or(unit.as_str(), |(_, target)| target.as_str());
         let Some(file_index) = snapshot
             .documents()
             .iter()
-            .position(|document| document.source().file_name.to_string_lossy() == unit.as_str())
+            .position(|document| document.source().file_name.to_string_lossy() == file_name)
         else {
             continue;
         };
@@ -717,7 +739,7 @@ fn walk_program(
             Err(format!("walk panicked: {message}"))
         });
         let (types, symbols) = walked.map_err(|error| format!("{unit}: {error}"))?;
-        lines.push((unit.clone(), types, symbols));
+        lines.push((unit_index, file_name.to_owned(), types, symbols));
     }
     Ok(lines)
 }
@@ -766,12 +788,13 @@ fn emit_outputs(
         });
     }
     let mut sink = MemoryOutputSink::new();
+    let redirects = package_redirect_names(&prepared);
     let session = ProgramSession::new(prepared).with_checker_budget(budget);
     let mut walk_lines = None;
     let run = match walk_units {
         Some(units) => {
             let mut walk = |snapshot: &ProgramSnapshot, session: &CheckerSession<'_>| {
-                walk_lines = Some(walk_program(snapshot, session, units));
+                walk_lines = Some(walk_program(snapshot, session, units, &redirects));
             };
             session.emit_then_run_for_native_harness_with_walk(collection, &mut sink, &mut walk)
         }
@@ -1277,7 +1300,7 @@ fn compare_live_program(
                 state.check_source_file(file);
             }
         });
-        for (unit, types, symbols) in walk {
+        for (_, unit, types, symbols) in walk {
             let Some(file) = live.file_index(unit.as_str()) else {
                 report(&format!("walk: {unit} is not in the live Program"));
                 continue;
@@ -1404,15 +1427,16 @@ fn run_lane_a(
     let mut live_walk = None;
     let live_walks = live_prepared.is_some() && walk_allowed && walk_in_second;
     let outcome = {
+        let redirects = package_redirect_names(&prepared);
         let session = ProgramSession::new(prepared).with_checker_budget(budget());
         let run = if walk_allowed && !walk_in_second {
             let mut walk = |snapshot: &ProgramSnapshot, session: &CheckerSession<'_>| {
-                first_walk = Some(walk_program(snapshot, session, &walk_units));
+                first_walk = Some(walk_program(snapshot, session, &walk_units, &redirects));
             };
             session.run_for_native_harness_with_walk(collection, &mut walk)
         } else if live_walks {
             let mut walk = |snapshot: &ProgramSnapshot, session: &CheckerSession<'_>| {
-                live_walk = Some(walk_program(snapshot, session, &walk_units));
+                live_walk = Some(walk_program(snapshot, session, &walk_units, &redirects));
             };
             session.run_for_native_harness_with_walk(collection, &mut walk)
         } else {
@@ -1875,11 +1899,11 @@ fn walk_baselines(
     };
     let mut outcome = Vec::new();
     for is_symbols in [false, true] {
-        let converted: Vec<(String, Vec<WalkResult>)> = lines
+        let converted: Vec<(usize, Vec<WalkResult>)> = lines
             .iter()
-            .map(|(unit, types, symbols)| {
+            .map(|(unit, _, types, symbols)| {
                 (
-                    unit.clone(),
+                    *unit,
                     convert(if is_symbols { symbols } else { types }, is_symbols),
                 )
             })
@@ -1887,14 +1911,11 @@ fn walk_baselines(
         let files: Vec<WalkedFile<'_>> = converted
             .iter()
             .filter_map(|(unit, results)| {
-                units
-                    .iter()
-                    .find(|(name, _)| name == unit)
-                    .map(|(name, content)| WalkedFile {
-                        unit_name: name,
-                        content,
-                        results,
-                    })
+                units.get(*unit).map(|(name, content)| WalkedFile {
+                    unit_name: name,
+                    content,
+                    results,
+                })
             })
             .collect();
         let (rendered, error) = match type_symbol_baseline::render(header, &files) {
