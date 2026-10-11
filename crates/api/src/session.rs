@@ -48,8 +48,8 @@ use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 
 use crate::checker::Registry;
 use crate::encoder::{
-    build_node_index_table, encode_source_file, ScriptKind, SourceFileFacts,
-    HEADER_OFFSET_SOURCE_FILE_LEASE,
+    build_node_index_table, encode_source_file, set_source_file_id, set_source_file_lease,
+    ScriptKind, SourceFileFacts,
 };
 use crate::ipc::{panic_message, Conn, Handler, Payload};
 use crate::module_resolution::{
@@ -739,9 +739,10 @@ impl Session {
                 ..SourceFileFacts::default()
             },
         );
+        // tsgo `encodeLeasedSourceFile`: the parse's node id and the lease.
+        set_source_file_id(&mut data, tsc_checker::program::next_document_id());
         let lease = self.next_source_file_lease.fetch_add(1, Ordering::Relaxed) + 1;
-        data[HEADER_OFFSET_SOURCE_FILE_LEASE..HEADER_OFFSET_SOURCE_FILE_LEASE + 8]
-            .copy_from_slice(&lease.to_le_bytes());
+        set_source_file_lease(&mut data, lease);
         self.source_file_leases
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -925,11 +926,12 @@ impl Session {
         Ok((file, node))
     }
 
-    /// tsgo `encodeSourceFileResponse` of a program's file.
+    /// tsgo `encodeSourceFileResponse` of a program's file, with its parse's
+    /// node id.
     fn encode_program_file(&self, file: &ProgramFile) -> Payload {
         let source = file.document.source();
         let references = collect_external_module_references(source);
-        let (data, _) = encode_source_file(
+        let (mut data, _) = encode_source_file(
             source,
             &SourceFileFacts {
                 path: Some(&file.path),
@@ -941,6 +943,7 @@ impl Session {
                 ..SourceFileFacts::default()
             },
         );
+        set_source_file_id(&mut data, file.document.parsed.id());
         self.source_file_payload(data)
     }
 
@@ -1008,7 +1011,7 @@ impl Session {
             file_name.as_str(),
             tsc_diagnostics::TextSnapshot::new(text, Default::default()),
         );
-        let (data, _) = encode_source_file(
+        let (mut data, _) = encode_source_file(
             &source,
             &SourceFileFacts {
                 path: Some(&requested),
@@ -1017,6 +1020,7 @@ impl Session {
                 ..SourceFileFacts::default()
             },
         );
+        set_source_file_id(&mut data, tsc_checker::program::next_document_id());
         Ok(self.source_file_payload(data))
     }
 

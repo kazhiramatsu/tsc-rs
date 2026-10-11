@@ -1,5 +1,5 @@
 //! tsgo `parseAPIFlags` (cmd/tsc/api.go) with Go's `flag` package, pinned
-//! to tsgo's messages at 19dadef8.
+//! to tsgo's messages at aa8149273.
 
 use tsc_api::server::{parse_api_flags, ServerOptions};
 
@@ -8,15 +8,18 @@ fn parse(arguments: &[&str]) -> Result<ServerOptions, Option<String>> {
         .iter()
         .map(|argument| (*argument).to_owned())
         .collect::<Vec<_>>();
-    parse_api_flags(&arguments, "/default")
+    parse_api_flags(&arguments, "/default", false)
 }
 
 #[test]
 fn the_flags_take_go_forms() {
+    // The command line always sets the case sensitivity, by default the OS
+    // file system's.
     assert_eq!(
         parse(&[]).unwrap(),
         ServerOptions {
             current_directory: "/default".to_owned(),
+            use_case_sensitive_file_names: Some(false),
             ..ServerOptions::default()
         }
     );
@@ -27,16 +30,22 @@ fn the_flags_take_go_forms() {
             "--cwd=/work",
             "-pipe",
             "/tmp/api.sock",
-            "--callbacks=readFile,fileExists",
+            "--callbacks=readFile,fileExists,realpath:identity",
             "--runExternalCode",
+            "--useCaseSensitiveFileNames=true",
         ])
         .unwrap(),
         ServerOptions {
             current_directory: "/work".to_owned(),
             pipe_path: Some("/tmp/api.sock".to_owned()),
-            callbacks: vec!["readFile".to_owned(), "fileExists".to_owned()],
+            callbacks: vec![
+                "readFile".to_owned(),
+                "fileExists".to_owned(),
+                "realpath:identity".to_owned()
+            ],
             async_protocol: true,
             collect_timing: true,
+            use_case_sensitive_file_names: Some(true),
         }
     );
     // Parsing stops at the first argument that is not a flag.

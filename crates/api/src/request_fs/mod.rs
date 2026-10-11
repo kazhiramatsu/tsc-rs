@@ -5,7 +5,7 @@
 //! system always lies directly over the host's and keeps no history.
 
 mod path_tree;
-mod paths;
+pub(crate) mod paths;
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::io;
