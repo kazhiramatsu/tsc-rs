@@ -15,7 +15,7 @@
 //! does, and tsgo's other methods answer that they are not implemented
 //! yet.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -44,7 +44,7 @@ use tsc_project::{
     ApiSnapshotRequest, CommandLine, CreateProgramRequest, FileChangeSummary, Project, ProjectId,
     ProjectKind, ProjectProgram, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotHost,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 
 use crate::checker::Registry;
 use crate::encoder::{
@@ -65,15 +65,15 @@ use crate::proto::{
     GetDefaultProjectForFileParams, GetModeForResolutionAtIndexParams,
     GetModeForUsageLocationParams, GetResolvedModuleFromModuleSpecifierParams,
     GetResolvedModuleParams, GetResolvedTypeReferenceDirectiveFromReferenceParams,
-    GetResolvedTypeReferenceDirectiveParams, GetSourceFileParams, InitializeResponse,
-    OpenedFileOperationResult, PackageIdResponse, ParseCommandLineParams,
+    GetResolvedTypeReferenceDirectiveParams, GetSourceFileParams, GetSymbolOfDeclarationParams,
+    InitializeResponse, OpenedFileOperationResult, PackageIdResponse, ParseCommandLineParams,
     ParseJsonConfigFileContentParams, ProjectFileChanges, ProjectParams, ProjectReference,
     ProjectResponse, ReadConfigFileResponse, ReleaseModuleResolverParams, ReleaseParams,
     ReleaseSourceFileParams, ResolveModuleNameParams, ResolveModuleNameResult,
     ResolvedModuleResponse, ResolvedTypeReferenceDirectiveResponse, SnapshotChanges, SnapshotId,
-    SnapshotOperationResponse, SnapshotRequestChanges, SourceFileMetadata, SourceFileResponse,
-    TranspileFromFileParams, TranspileOptions, TranspileOutputResponse, TranspileParams,
-    UpdateSnapshotParams,
+    SnapshotOperationResponse, SnapshotRequestChanges, SourceFileDescriptor,
+    SourceFileDescriptorParams, SourceFileMetadata, SourceFileResponse, TranspileFromFileParams,
+    TranspileOptions, TranspileOutputResponse, TranspileParams, UpdateSnapshotParams,
 };
 use crate::references::collect_external_module_references;
 use crate::request_fs::{RequestFileSystem, SnapshotFileSystem};
@@ -148,7 +148,11 @@ pub struct Session {
     next_batch_page: AtomicU64,
     /// The source files the client holds (tsgo `sourceFileLeases`), by
     /// lease.
-    source_file_leases: Mutex<BTreeSet<u64>>,
+    source_file_leases: Mutex<BTreeMap<u64, Arc<BoundDocument>>>,
+    /// Each parse's descriptor (tsgo `newSourceFileDescriptor`), by node id:
+    /// a parse never changes. A cache of the hash tsgo keeps on its source
+    /// file, pruned as snapshots and leases are released.
+    descriptors: Mutex<HashMap<u64, SourceFileDescriptor>>,
     next_source_file_lease: AtomicU64,
     /// The client's module resolvers (tsgo `moduleResolvers`), by ID, with
     /// the resolution their programs share (a program with the same
@@ -181,6 +185,7 @@ impl Session {
             batch_pages: Mutex::default(),
             next_batch_page: AtomicU64::new(0),
             source_file_leases: Mutex::default(),
+            descriptors: Mutex::default(),
             next_source_file_lease: AtomicU64::new(0),
             module_resolvers: Mutex::default(),
             next_module_resolver: AtomicU64::new(0),
@@ -308,6 +313,20 @@ impl Session {
                 let params = parse::<ReleaseSourceFileParams>("ReleaseSourceFileParams", params)?;
                 self.handle_release_source_file(&params)
                     .map(|()| json(&true))
+            }
+            "retainSourceFile" => {
+                let params = parse::<SourceFileDescriptorParams>("RetainSourceFileParams", params)?;
+                self.handle_retain_source_file(&params)
+            }
+            "getCachedSourceFile" => {
+                let params =
+                    parse::<SourceFileDescriptorParams>("GetCachedSourceFileParams", params)?;
+                self.handle_get_cached_source_file(&params)
+            }
+            "getSymbolOfDeclaration" => {
+                let params =
+                    parse::<GetSymbolOfDeclarationParams>("GetSymbolOfDeclarationParams", params)?;
+                self.handle_get_symbol_of_declaration(&params)
             }
             "transpileModule" | "transpileDeclaration" => {
                 let params = parse::<TranspileParams>("TranspileParams", params)?;
@@ -721,33 +740,250 @@ impl Session {
             kind => ScriptKind::from_number(kind)
                 .ok_or_else(|| client_error(format!("invalid scriptKind {kind}")))?,
         };
+        // tsgo `resolveCreateSourceFileName`.
+        if file_name.is_empty() {
+            return Err(client_error("fileName must not be empty"));
+        }
         let file_name = self.host.absolute_file_name(file_name);
-        let file = crate::parse_source_file(&file_name, source_text, script_kind);
-        let options = tsc_types::CompilerOptions::default();
-        let bind_data = tsc_binder::bind_source_file(&file, &options).into_bind_data();
-        let references = collect_external_module_references(&file);
+        // tsgo `AcquireSourceFile`: a live parse of the same file, text and
+        // parse options (none for a created file) is the parse cache's entry.
+        let found = self.find_live_document(&file_name, |document, descriptor| {
+            descriptor.parse_options_key == "0"
+                && descriptor.script_kind == script_kind as i32
+                && document.source().text() == source_text
+        });
+        let document = found.unwrap_or_else(|| {
+            let file = crate::parse_source_file(&file_name, source_text, script_kind);
+            let options = tsc_types::CompilerOptions::default();
+            let bind_data = tsc_binder::bind_source_file(&file, &options).into_bind_data();
+            let document = Arc::new(BoundDocument::new(
+                Arc::new(tsc_checker::program::ParsedDocument::new(Arc::new(file))),
+                bind_data,
+            ));
+            // The parse's script kind is the one asked for (tsgo keeps it on
+            // the source file); a program's file takes its name's.
+            let path = self.host.to_path(&file_name);
+            let descriptor = crate::symbols::source_file_descriptor(
+                document.source(),
+                &path,
+                document.parsed.id(),
+                script_kind,
+            );
+            self.descriptors
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .insert(document.parsed.id(), descriptor);
+            document
+        });
+        Ok(self.encode_leased_document(document, script_kind))
+    }
+
+    /// tsgo `encodeLeasedSourceFile`: the file with its parse's node id and a
+    /// new lease, which holds the parse.
+    fn encode_leased_document(
+        &self,
+        document: Arc<BoundDocument>,
+        script_kind: ScriptKind,
+    ) -> Payload {
+        let file_name = document.source().file_name.to_string_lossy().into_owned();
+        let references = collect_external_module_references(document.source());
         let path = self.host.to_path(&file_name);
         let (mut data, _) = encode_source_file(
-            &file,
+            document.source(),
             &SourceFileFacts {
                 path: Some(&path),
                 script_kind,
                 imports: &references.imports,
                 module_augmentations: &references.module_augmentations,
                 ambient_module_names: &references.ambient_module_names,
-                bind_data: Some(&bind_data),
+                bind_data: Some(&document.data),
                 ..SourceFileFacts::default()
             },
         );
-        // tsgo `encodeLeasedSourceFile`: the parse's node id and the lease.
-        set_source_file_id(&mut data, tsc_checker::program::next_document_id());
-        let lease = self.next_source_file_lease.fetch_add(1, Ordering::Relaxed) + 1;
+        set_source_file_id(&mut data, document.parsed.id());
+        let lease = self.register_source_file_lease(document);
         set_source_file_lease(&mut data, lease);
+        self.source_file_payload(data)
+    }
+
+    /// tsgo `registerSourceFileLease`.
+    fn register_source_file_lease(&self, document: Arc<BoundDocument>) -> u64 {
+        let lease = self.next_source_file_lease.fetch_add(1, Ordering::Relaxed) + 1;
         self.source_file_leases
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .insert(lease);
+            .insert(lease, document);
+        lease
+    }
+
+    /// tsgo `newSourceFileDescriptor` of a parse, remembered by its node id.
+    pub(crate) fn document_descriptor(
+        &self,
+        source: &SourceFile,
+        node_id: u64,
+    ) -> SourceFileDescriptor {
+        let mut descriptors = self
+            .descriptors
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        descriptors
+            .entry(node_id)
+            .or_insert_with(|| {
+                let file_name = source.file_name.to_string_lossy();
+                let path = self.host.to_path(&file_name);
+                crate::symbols::source_file_descriptor(
+                    source,
+                    &path,
+                    node_id,
+                    script_kind_of(&file_name),
+                )
+            })
+            .clone()
+    }
+
+    /// The live parses of `file_name` a client can name (tsgo's parse cache:
+    /// the leased ones, the shared ones and those of the live snapshots'
+    /// programs, libraries included), the first one `matches` accepts.
+    fn find_live_document(
+        &self,
+        file_name: &str,
+        matches: impl Fn(&BoundDocument, &SourceFileDescriptor) -> bool,
+    ) -> Option<Arc<BoundDocument>> {
+        let accept = |document: &Arc<BoundDocument>| {
+            document.source().file_name.as_js() == JsStr::from_str(file_name)
+                && matches(
+                    document,
+                    &self.document_descriptor(document.source(), document.parsed.id()),
+                )
+        };
+        let leased = self
+            .source_file_leases
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .values()
+            .find(|document| accept(document))
+            .cloned();
+        if leased.is_some() {
+            return leased;
+        }
+        if let Some(document) = self
+            .host
+            .documents()
+            .documents_of(JsStr::from_str(file_name))
+            .into_iter()
+            .find(|document| accept(document))
+        {
+            return Some(document);
+        }
+        let snapshots = self
+            .lock_snapshots()
+            .values()
+            .map(|data| Arc::clone(&data.snapshot))
+            .collect::<Vec<_>>();
+        snapshots.iter().find_map(|snapshot| {
+            snapshot.projects().find_map(|project| {
+                project.program()?.with_live(|live| {
+                    (0..live.file_count()).find_map(|index| {
+                        let document = live.document(index)?;
+                        accept(document).then(|| Arc::clone(document))
+                    })
+                })
+            })
+        })
+    }
+
+    /// tsgo `acquireCachedSourceFile`: the live parse a descriptor names
+    /// (never a new parse), checked by its node id.
+    pub(crate) fn acquire_cached_source_file(
+        &self,
+        descriptor: &SourceFileDescriptor,
+    ) -> Result<Arc<BoundDocument>, String> {
+        if descriptor.content_hash.len() != 32 {
+            return Err(client_error(
+                "invalid source file descriptor: content hash must contain 32 hexadecimal digits",
+            ));
+        }
+        // The parse cache's key: everything but the node id, which then
+        // tells the observed parse from a new one of the same key.
+        let document = self
+            .find_live_document(&descriptor.file_name, |_, found| {
+                SourceFileDescriptor {
+                    node_id: descriptor.node_id.clone(),
+                    ..found.clone()
+                } == *descriptor
+            })
+            .ok_or_else(|| client_error("source file is not available"))?;
+        if document.parsed.id().to_string() != descriptor.node_id {
+            return Err(client_error(
+                "source file descriptor no longer identifies the cached source file",
+            ));
+        }
+        Ok(document)
+    }
+
+    /// tsgo `handleRetainSourceFile`.
+    fn handle_retain_source_file(
+        &self,
+        params: &SourceFileDescriptorParams,
+    ) -> Result<Payload, String> {
+        let document = self.acquire_cached_source_file(&params.file)?;
+        let lease = self.register_source_file_lease(document);
+        Ok(json(&serde_json::json!({ "lease": lease })))
+    }
+
+    /// tsgo `handleGetCachedSourceFile`.
+    fn handle_get_cached_source_file(
+        &self,
+        params: &SourceFileDescriptorParams,
+    ) -> Result<Payload, String> {
+        let document = self.acquire_cached_source_file(&params.file)?;
+        let file_name = document.source().file_name.to_string_lossy().into_owned();
+        let references = collect_external_module_references(document.source());
+        let path = self.host.to_path(&file_name);
+        let (mut data, _) = encode_source_file(
+            document.source(),
+            &SourceFileFacts {
+                path: Some(&path),
+                script_kind: script_kind_of(&file_name),
+                imports: &references.imports,
+                module_augmentations: &references.module_augmentations,
+                ambient_module_names: &references.ambient_module_names,
+                bind_data: Some(&document.data),
+                ..SourceFileFacts::default()
+            },
+        );
+        set_source_file_id(&mut data, document.parsed.id());
         Ok(self.source_file_payload(data))
+    }
+
+    /// tsgo `handleGetSymbolOfDeclaration`: the binder symbol of a
+    /// declaration of a cached file, by its index in the file's encoding.
+    fn handle_get_symbol_of_declaration(
+        &self,
+        params: &GetSymbolOfDeclarationParams,
+    ) -> Result<Payload, String> {
+        let document = self.acquire_cached_source_file(&params.file)?;
+        let symbols = crate::symbols::FileSymbols::new(&document, params.file.clone());
+        let node = (params.index != 0)
+            .then(|| symbols.node(params.index))
+            .flatten()
+            .ok_or_else(|| {
+                client_error(format!(
+                    "declaration node index {} is out of range",
+                    params.index
+                ))
+            })?
+            .filter(|&node| symbols.is_declaration(node))
+            .ok_or_else(|| {
+                client_error(format!("node index {} is not a declaration", params.index))
+            })?;
+        let symbol = symbols.symbol_of_node(node).ok_or_else(|| {
+            client_error(format!(
+                "declaration node index {} has no binder symbol",
+                params.index
+            ))
+        })?;
+        Ok(json(&symbols.response(symbol)))
     }
 
     /// tsgo `handleReleaseSourceFile`.
@@ -755,17 +991,19 @@ impl Session {
         if params.lease == 0 {
             return Err(client_error("empty source file lease"));
         }
-        if !self
+        let released = self
             .source_file_leases
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .remove(&params.lease)
-        {
+            .remove(&params.lease);
+        if released.is_none() {
             return Err(client_error(format!(
                 "source file lease {} not found",
                 params.lease
             )));
         }
+        drop(released);
+        self.prune_descriptors();
         Ok(())
     }
 
@@ -1315,8 +1553,43 @@ impl Session {
             }
         };
         // The snapshot's programs go outside the lock.
-        drop(released);
+        if released.is_some() {
+            drop(released);
+            self.prune_descriptors();
+        }
         Ok(())
+    }
+
+    /// Forget the descriptors of the parses no live snapshot or lease holds
+    /// (a live parse's is made again when asked for; a created file's lives
+    /// with its leases).
+    fn prune_descriptors(&self) {
+        let mut live = self
+            .source_file_leases
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .values()
+            .map(|document| document.parsed.id())
+            .collect::<HashSet<_>>();
+        let snapshots = self
+            .lock_snapshots()
+            .values()
+            .map(|data| Arc::clone(&data.snapshot))
+            .collect::<Vec<_>>();
+        for program in snapshots
+            .iter()
+            .flat_map(|snapshot| snapshot.projects().filter_map(|project| project.program()))
+        {
+            program.with_live(|program| {
+                live.extend((0..program.file_count()).filter_map(|index| {
+                    program.document(index).map(|document| document.parsed.id())
+                }));
+            });
+        }
+        self.descriptors
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .retain(|id, _| live.contains(id));
     }
 
     /// tsgo `handleCreateSnapshot`: a snapshot made from an empty one.

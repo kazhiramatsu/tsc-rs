@@ -5492,7 +5492,7 @@ impl<'a> CheckerState<'a> {
     /// symbols; a symbol left unstamped self-resolves (tsc
     /// `links.lateSymbol ||= symbol`) — the stamp-as-self write is
     /// elided (pure memo).
-    pub(crate) fn get_late_bound_symbol(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
+    pub fn get_late_bound_symbol(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         let data = self.binder.symbol(symbol);
         if !data.flags.intersects(tsc_types::SymbolFlags::CLASS_MEMBER)
             || data.escaped_name != "__computed"

@@ -175,6 +175,16 @@ impl DocumentRegistry {
         });
     }
 
+    /// The live documents of `file_name`, at any address (tsgo's parse cache
+    /// entries of the file).
+    pub fn documents_of(&self, file_name: JsStr<'_>) -> Vec<Arc<BoundDocument>> {
+        self.lock()
+            .iter()
+            .filter(|((name, _), _)| name.as_js() == file_name)
+            .flat_map(|(_, slot)| slot.iter().filter_map(|entry| entry.document.upgrade()))
+            .collect()
+    }
+
     /// Forget the entries no Program holds (tsgo deletes an entry when its
     /// count reaches zero).
     pub fn purge(&self) {
