@@ -202,6 +202,16 @@ fn a_source_file_reads_its_file() {
         .unwrap_err(),
         r#"api: client error: could not read file "/src/missing.ts""#
     );
+    // #64544: the name is checked before the read.
+    assert_eq!(
+        call(
+            &session,
+            "createSourceFileFromFile",
+            json!({ "fileName": "" }),
+        )
+        .unwrap_err(),
+        "api: client error: fileName must not be empty"
+    );
 }
 
 #[test]

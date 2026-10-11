@@ -417,6 +417,9 @@ pub struct AuthoritativeResolvedModule {
     /// derive this from the selected raw target before pattern substitution;
     /// the final resolved file extension alone is insufficient for TS2877.
     pub resolved_using_ts_extension: bool,
+    /// tsgo `ResolvedModule.IsCustomResolution`: the API supplied the
+    /// resolution, so the checks of the disk's layout do not apply.
+    pub is_custom_resolution: bool,
     pub is_tsx: bool,
     pub is_arbitrary_extension: bool,
     /// The host found this target through an external-library package lookup.

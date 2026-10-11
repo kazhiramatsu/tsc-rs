@@ -3225,6 +3225,31 @@ fn config_diagnostic_from_chain(
 /// tsc-port: getCompilerOptionsPropertySyntax @6.0.3
 /// tsc-hash: 4c61a15e16a789ede2365cd0244cf8457f4de81567509ffc83aac12c00ae5206
 /// tsc-span: _tsc.js:125396-125405
+/// The `paths` option's mappings (tsgo `CompilerOptions.Paths`), each
+/// pattern with its string substitutions.
+pub(crate) fn path_mappings(options: &ConfigOptionBag) -> Option<Vec<PathMapping>> {
+    let paths = options.typed_object_value("paths")?;
+    Some(
+        paths
+            .properties()
+            .iter()
+            .map(|mapping| {
+                let substitutions = match mapping.value() {
+                    Some(ConfigTypedJsonValue::Array(values)) => values
+                        .iter()
+                        .filter_map(|value| match value {
+                            ConfigTypedJsonValue::Json(Value::String(value)) => Some(value.clone()),
+                            _ => None,
+                        })
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                PathMapping::new(mapping.name(), substitutions)
+            })
+            .collect(),
+    )
+}
+
 fn config_paths_syntax_index(source: &SourceFile) -> ConfigPathsSyntaxIndex {
     let mut result = ConfigPathsSyntaxIndex::default();
     let Some(root) = config_root_expression(source) else {
@@ -5049,24 +5074,7 @@ fn config_module_resolution_options<'j0>(
                 .collect::<Result<Vec<_>, _>>()?,
         );
     }
-    if let Some(paths) = options.typed_object_value("paths") {
-        let mappings = paths
-            .properties()
-            .iter()
-            .map(|mapping| {
-                let substitutions = match mapping.value() {
-                    Some(ConfigTypedJsonValue::Array(values)) => values
-                        .iter()
-                        .filter_map(|value| match value {
-                            ConfigTypedJsonValue::Json(Value::String(value)) => Some(value.clone()),
-                            _ => None,
-                        })
-                        .collect(),
-                    _ => Vec::new(),
-                };
-                PathMapping::new(mapping.name(), substitutions)
-            })
-            .collect();
+    if let Some(mappings) = path_mappings(options) {
         program_options = program_options.with_config_paths_validation(
             mappings,
             options.stored_paths_base_path().map(JsStr::to_owned),
@@ -5111,7 +5119,7 @@ fn config_option_number(options: &ConfigOptionBag, name: &str) -> Option<Compile
     Some(CompilerOptionNumber::new(value))
 }
 
-fn config_option_string(options: &ConfigOptionBag, name: &str) -> Option<JsString> {
+pub(crate) fn config_option_string(options: &ConfigOptionBag, name: &str) -> Option<JsString> {
     options
         .typed_value(name)
         .and_then(Value::as_js)

@@ -51,6 +51,8 @@ pub(crate) struct ResolvedProgramModule {
     /// package-map resolution instead derives it from the selected raw target
     /// before pattern substitution. That distinction drives TS2877.
     pub resolved_using_ts_extension: bool,
+    /// tsgo `ResolvedModule.IsCustomResolution` (the API's resolution).
+    pub is_custom_resolution: bool,
     /// The resolved file ends `.tsx` (getResolutionDiagnostic's jsx
     /// row).
     pub is_tsx: bool,
@@ -4535,89 +4537,96 @@ impl<'a> CheckerState<'a> {
             if arbitrary_extension_diagnostic {
                 return Ok(None);
             }
-            if resolved.resolved_using_ts_extension
-                && Self::is_declaration_file_name(module_reference)
-            {
-                if (error_node.is_some()
-                    && self.import_or_export_is_type_only(location) == Some(false))
-                    || self.has_import_call_ancestor(location)
+            // tsgo #64638: the API's own resolution skips the checks of the
+            // disk's layout.
+            if !resolved.is_custom_resolution {
+                if resolved.resolved_using_ts_extension
+                    && Self::is_declaration_file_name(module_reference)
                 {
-                    let ts_extension =
-                        Self::try_extract_ts_extension(module_reference).unwrap_or(".d.ts");
-                    let suggestion =
-                        self.suggested_import_source(location, module_reference, ts_extension);
-                    self.error_at_js(
-                        error_node,
-                        &diagnostics::A_declaration_file_cannot_be_imported_without_import_type_Did_you_mean_to_import_an_implementation_file_0_instead,
-                        &[(&suggestion).into()],
-                    );
-                }
-            } else if resolved.resolved_using_ts_extension
-                && self.options.allow_importing_ts_extensions != Some(true)
-                && self.options.rewrite_relative_import_extensions != Some(true)
-                && !self.binder.source_of_node(location).is_declaration_file
-            {
-                // shouldAllowImportingTsExtension: the option OR a
-                // declaration-file importer legalizes the extension
-                // (bundlerImportTsExtensions pins the .d.ts face).
-                if let Some(error_node) = error_node {
-                    if !self.ts_extension_import_is_type_only(location) {
+                    if (error_node.is_some()
+                        && self.import_or_export_is_type_only(location) == Some(false))
+                        || self.has_import_call_ancestor(location)
+                    {
                         let ts_extension =
-                            Self::try_extract_ts_extension(module_reference).unwrap_or(".ts");
+                            Self::try_extract_ts_extension(module_reference).unwrap_or(".d.ts");
+                        let suggestion =
+                            self.suggested_import_source(location, module_reference, ts_extension);
                         self.error_at_js(
-                            Some(error_node),
-                            &diagnostics::An_import_path_can_only_end_with_a_0_extension_when_allowImportingTsExtensions_is_enabled,
-                            &[(ts_extension).into()],
-                        );
-                    }
-                }
-            } else if self.options.rewrite_relative_import_extensions == Some(true)
-                && !self
-                    .binder
-                    .flags_of(location)
-                    .intersects(tsc_types::NodeFlags::AMBIENT)
-                && !Self::is_declaration_file_name(module_reference)
-                && !self.is_literal_import_type_node(location)
-                && !self.is_part_of_type_only_import_or_export_declaration(location)
-            {
-                let should_rewrite = Self::is_external_module_name_relative(module_reference)
-                    && Self::try_extract_ts_extension(module_reference).is_some();
-                if !resolved.resolved_using_ts_extension && should_rewrite {
-                    if let Some(error_node) = error_node {
-                        let resolved_path = Self::relative_path_from_importer(
-                            &self.binder.source_of_node(location).file_name,
-                            &resolved_file_name,
-                        );
-                        self.error_at_js(
-                            Some(error_node),
-                            &diagnostics::This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
-                            &[(&resolved_path).into()],
+                            error_node,
+                            &diagnostics::A_declaration_file_cannot_be_imported_without_import_type_Did_you_mean_to_import_an_implementation_file_0_instead,
+                            &[(&suggestion).into()],
                         );
                     }
                 } else if resolved.resolved_using_ts_extension
-                    && !should_rewrite
-                    && !source.is_declaration_file
-                    && if self.authoritative_module_provider.is_some() {
-                        self.authoritative_source_may_be_emitted
-                            .get(resolved.file_index)
-                            .copied()
-                            .unwrap_or(false)
-                    } else {
-                        !resolved.is_external_library_import
-                    }
-                    && Self::try_extract_ts_extension(&resolved_file_name).is_some()
+                    && self.options.allow_importing_ts_extensions != Some(true)
+                    && self.options.rewrite_relative_import_extensions != Some(true)
+                    && !self.binder.source_of_node(location).is_declaration_file
                 {
+                    // shouldAllowImportingTsExtension: the option OR a
+                    // declaration-file importer legalizes the extension
+                    // (bundlerImportTsExtensions pins the .d.ts face).
                     if let Some(error_node) = error_node {
-                        let extension = Self::any_extension_from_path(module_reference);
-                        self.error_at_js(
-                            Some(error_node),
-                            &diagnostics::This_import_uses_a_0_extension_to_resolve_to_an_input_TypeScript_file_but_will_not_be_rewritten_during_emit_because_it_is_not_a_relative_path,
-                            &[(extension)],
-                        );
+                        if !self.ts_extension_import_is_type_only(location) {
+                            let ts_extension =
+                                Self::try_extract_ts_extension(module_reference).unwrap_or(".ts");
+                            self.error_at_js(
+                                Some(error_node),
+                                &diagnostics::An_import_path_can_only_end_with_a_0_extension_when_allowImportingTsExtensions_is_enabled,
+                                &[(ts_extension).into()],
+                            );
+                        }
                     }
-                } else if resolved.resolved_using_ts_extension && should_rewrite {
-                    if let Some(error_node) = error_node {
-                        self.check_rewrite_into_referenced_project(error_node, resolved.file_index);
+                } else if self.options.rewrite_relative_import_extensions == Some(true)
+                    && !self
+                        .binder
+                        .flags_of(location)
+                        .intersects(tsc_types::NodeFlags::AMBIENT)
+                    && !Self::is_declaration_file_name(module_reference)
+                    && !self.is_literal_import_type_node(location)
+                    && !self.is_part_of_type_only_import_or_export_declaration(location)
+                {
+                    let should_rewrite = Self::is_external_module_name_relative(module_reference)
+                        && Self::try_extract_ts_extension(module_reference).is_some();
+                    if !resolved.resolved_using_ts_extension && should_rewrite {
+                        if let Some(error_node) = error_node {
+                            let resolved_path = Self::relative_path_from_importer(
+                                &self.binder.source_of_node(location).file_name,
+                                &resolved_file_name,
+                            );
+                            self.error_at_js(
+                                Some(error_node),
+                                &diagnostics::This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
+                                &[(&resolved_path).into()],
+                            );
+                        }
+                    } else if resolved.resolved_using_ts_extension
+                        && !should_rewrite
+                        && !source.is_declaration_file
+                        && if self.authoritative_module_provider.is_some() {
+                            self.authoritative_source_may_be_emitted
+                                .get(resolved.file_index)
+                                .copied()
+                                .unwrap_or(false)
+                        } else {
+                            !resolved.is_external_library_import
+                        }
+                        && Self::try_extract_ts_extension(&resolved_file_name).is_some()
+                    {
+                        if let Some(error_node) = error_node {
+                            let extension = Self::any_extension_from_path(module_reference);
+                            self.error_at_js(
+                                Some(error_node),
+                                &diagnostics::This_import_uses_a_0_extension_to_resolve_to_an_input_TypeScript_file_but_will_not_be_rewritten_during_emit_because_it_is_not_a_relative_path,
+                                &[(extension)],
+                            );
+                        }
+                    } else if resolved.resolved_using_ts_extension && should_rewrite {
+                        if let Some(error_node) = error_node {
+                            self.check_rewrite_into_referenced_project(
+                                error_node,
+                                resolved.file_index,
+                            );
+                        }
                     }
                 }
             }
@@ -5496,6 +5505,7 @@ impl<'a> CheckerState<'a> {
                     file_index: target_index,
                     resolved_file_name: resolved.resolved_file_name,
                     resolved_using_ts_extension: resolved.resolved_using_ts_extension,
+                    is_custom_resolution: resolved.is_custom_resolution,
                     is_tsx: resolved.is_tsx,
                     is_arbitrary_extension: resolved.is_arbitrary_extension,
                     is_external_library_import: resolved.is_external_library_import,
@@ -5631,6 +5641,7 @@ impl<'a> CheckerState<'a> {
                             file_index: index,
                             resolved_file_name: probed.clone(),
                             resolved_using_ts_extension: false,
+                            is_custom_resolution: false,
                             is_tsx: probed.ends_with(".tsx"),
                             is_arbitrary_extension: false,
                             is_external_library_import: false,
@@ -5653,6 +5664,7 @@ impl<'a> CheckerState<'a> {
                                 file_index: index,
                                 resolved_file_name: probed.clone(),
                                 resolved_using_ts_extension: false,
+                                is_custom_resolution: false,
                                 is_tsx: probed.ends_with(".jsx"),
                                 is_arbitrary_extension: false,
                                 is_external_library_import: false,
@@ -6960,6 +6972,7 @@ impl<'a> CheckerState<'a> {
                 file_index,
                 resolved_file_name: path.to_owned(),
                 resolved_using_ts_extension,
+                is_custom_resolution: false,
                 is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
                     || path.ends_with(".jsx"),
                 is_arbitrary_extension: false,
@@ -6995,6 +7008,7 @@ impl<'a> CheckerState<'a> {
                             file_index: index,
                             resolved_file_name: twin,
                             resolved_using_ts_extension: false,
+                            is_custom_resolution: false,
                             is_tsx: false,
                             is_arbitrary_extension: true,
                             is_external_library_import: false,

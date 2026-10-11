@@ -230,6 +230,8 @@ fn defaults_answer_without_the_client() {
     let file = fs.metadata("/file.ts").unwrap();
     assert!(file.is_file());
     assert_eq!(file.len(), 0);
+    // A fake stat has Go's zero `ModTime`, which a build reads as no time.
+    assert_eq!(file.modified(), None);
     assert!(fs.metadata("/").unwrap().is_dir());
     assert_eq!(
         fs.metadata("/missing").unwrap_err().kind(),
@@ -260,7 +262,7 @@ fn stats_and_entries_take_the_clients_metadata() {
     assert_eq!(info.len(), 12);
     assert_eq!(
         info.modified(),
-        std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_704_164_645)
+        Some(std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_704_164_645))
     );
     assert_eq!(
         fs.metadata("/missing.ts").unwrap_err().kind(),

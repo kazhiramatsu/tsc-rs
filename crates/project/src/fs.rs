@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use tsc_diagnostics::JsStr;
 use tsc_host::vfs::{DirEntry, Entries, FileSystem, FileType, Metadata};
@@ -576,10 +576,11 @@ impl FileSystem for SnapshotView {
 
     fn metadata(&self, path: &str) -> io::Result<Metadata> {
         match self.fs.files.get(&self.fs.paths.to_path(path)) {
+            // tsgo `overlayFileInfo.ModTime`: zero.
             Some(file) => Ok(Metadata::new(
                 FileType::File,
                 file.content.len() as u64,
-                UNIX_EPOCH,
+                None,
             )),
             None => self.fs.base.metadata(path),
         }
@@ -713,7 +714,7 @@ impl FileSystem for SourceFs<'_> {
     fn metadata(&self, path: &str) -> io::Result<Metadata> {
         if self.builder.file_exists(path) {
             let len = self.builder.get(path).map_or(0, |file| file.content.len());
-            return Ok(Metadata::new(FileType::File, len as u64, UNIX_EPOCH));
+            return Ok(Metadata::new(FileType::File, len as u64, None));
         }
         self.builder.base.metadata(path)
     }

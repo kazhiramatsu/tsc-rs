@@ -83,7 +83,9 @@ pub(crate) trait BuildFileSystem {
 
 impl BuildFileSystem for dyn FileSystem + '_ {
     fn modified_time(&self, path: &str) -> Option<SystemTime> {
-        self.metadata(path).ok().map(|metadata| metadata.modified())
+        self.metadata(path)
+            .ok()
+            .and_then(|metadata| metadata.modified())
     }
 
     fn set_modified_time(&self, path: &str, time: SystemTime) -> Result<(), String> {

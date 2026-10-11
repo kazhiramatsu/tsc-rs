@@ -329,3 +329,37 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   4 構成だけ、suites（`--check`）は 0 regressions・上がったもの無し（ratchet は変えない）。
 - **hosted と merge**：PR #747 の hosted run 38129643276（rust 11m16s、conformance 20m50s、gates pass、head `fa2e2588c`）、merge commit
   `4b532ffdc`。
+
+## S6c raw な compiler options、型付きの path、client の解決（2026-10-11）
+
+- **#64159**：`createPrograms`・`reconfigurePrograms`・transpile の `compilerOptions` は `RawCompilerOptions`（client が書いた
+  ままの値）で、server の current directory に対して `Finalize` する。宣言された option は名前が完全一致のものだけ（ほかは
+  `configFilePath`・`allowNonTsExtensions`・`suppressOutputPathCheck`）、rooted な path（`outDir`・`rootDir`・`tsBuildInfoFile`・
+  `declarationDir`・`baseUrl`、`rootDirs`・`typeRoots` の要素など）は解決して `${configDir}` を置換、値は `ParseCompilerOptions`
+  の読み方（`null` は未設定、tristate は `true` 以外 false、型の違う string・数・list の要素は捨てる、数は切り捨て、plugin は
+  name だけ、enum が数でなければ tsgo と同じく panic）。module resolver と build orchestrator の options は finalized のまま。
+  `initialize` は `caseSensitivity`（0 区別しない、1 区別する）と、`--cwd` を process の directory に対して正規化した directory
+  （末尾の separator なし）。synthetic program の project は `configFileName` を持たない（omitzero）。
+- **API の program の `paths` と `configFilePath`**：tsc の command line では設定できず、port の command line の経路
+  （`command_line_program_inputs`）は落としていた。`paths` は config なしで current directory から解決し（config の経路と
+  mapping の組み立てを共有）、`configFilePath` は program の config path（その directory が既定の root など）。
+- **#64681**：project の response から deprecated な `rootFiles`・`compilerOptions` を除く。
+- **#64638**：API の static と callback の解決は `IsCustomResolution` で、checker は disk の配置の検査（`.d.ts` の import、
+  `allowImportingTsExtensions`、`rewriteRelativeImportExtensions` の書き換えの安全性）を飛ばす。
+- **#64544**：`createSourceFileFromFile` は読む前に名前を確かめる。
+- **時刻のない file**：tsgo の fake stat・overlay・request file・bundled の file の `ModTime` は Go の zero で、build の
+  up-to-date の検査はその input を missing として作り直す。port の `Metadata::modified` を `Option` にし（`None` が zero）、
+  これらは `None`。client の build orchestrator の test（fakeStat の virtual FS）が変更のたびに作り直す。
+- **client の test は `packages/typescript` から実行**：本家の手順で、root から実行すると directory に依存する test（raw な
+  option の path）が tsgo でも落ちる。tsgo はそこで 356／356。
+- **残り（S6d）**：#64159 の動的な URI の file 名（`^/~ts-uri~/<scheme>/<authority>/…`、`~ts-uri-escape~`、root の長さ）、
+  source file のない `parseJsonConfigFileContent`（`getPropFromRaw` の要素の検査、raw の `[null]`）、program の file と parse を
+  共有する `createSourceFile`。
+- **tsgo との照合**：同じ raw request（`initialize`、相対・`${configDir}`・未知・型違いの option を持つ synthetic program、
+  config の project、program の file と診断、`paths` の 6 通り、composite でない参照、`parseJsonConfigFileContent`・
+  `parseConfigFile`、空の file 名）を tsgo `aa8149273` と tsc-rs に送り、S6d の 3 つ以外は全て同じ。
+- **client の test**（release build、`packages/typescript` から）：sync 334／356、async 343／365。残り各 22 は LS 16、
+  `formatNodeForInsertion` 3、S6d の 3。
+- **結果**（release build、`2125d3b00`。checker・compiler・host・program の crate に触れたので）：full の conformance
+  （`--workers 2 --check`、484 s）は 0 regressions で、S6b の report と全ての field で同じ。並列対照（`--checkers 4`、468 s）は
+  記録済みの順序の 4 構成だけ、suites（`--check`）は 0 regressions・上がったもの無し（731 baselines、mismatch は既知の 24）。

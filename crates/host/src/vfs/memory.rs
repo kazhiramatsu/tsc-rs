@@ -146,7 +146,7 @@ impl Node {
             Kind::File(contents) => contents.len() as u64,
             _ => 0,
         };
-        Metadata::new(self.file_type(), len, self.modified)
+        Metadata::new(self.file_type(), len, Some(self.modified))
     }
 
     fn name(&self) -> &str {

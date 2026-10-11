@@ -604,3 +604,61 @@ fn resolvers_answer_tsgos_client_errors() {
         format!("api: client error: module resolver {id} not found")
     );
 }
+
+#[test]
+fn custom_resolutions_skip_the_checks_of_the_disks_layout() {
+    // TestCustomModuleResolutionsSkipUnsafeRewriteDiagnostic (#64638): a
+    // static or callback resolution of `./b.ts` is the client's, so the
+    // checker does not call it unsafe to rewrite.
+    let root = "/home/projects/p/src/a.ts";
+    let (session, _conn, calls) = session_with_client(
+        &[
+            (
+                root,
+                r#"import { b } from "./b.ts"; import { c } from "./c.ts"; export const a = b + c;"#,
+            ),
+            ("/home/projects/p/src/b.ts", "export const b = 1;"),
+            ("/home/projects/p/src/c.ts", "export const c = 2;"),
+        ],
+        vec![answer(
+            "resolveModuleName/1",
+            r#"{"resolvedFileName":"/home/projects/p/src/c.ts"}"#,
+        )],
+    );
+    let options = json!({
+        "noLib": true, "module": 199, "moduleResolution": 99,
+        "rewriteRelativeImportExtensions": true, "outDir": "/home/projects/p/out",
+    });
+    let id = resolver(
+        &session,
+        json!({
+            "compilerOptions": options,
+            "moduleResolutions": { "fallback": "resolve", "entries": [
+                { "moduleName": "./b.ts", "result": { "resolvedFileName": "/home/projects/p/src/b.ts" } },
+            ] },
+            "resolveModuleNameCallback": "resolveModuleName/1",
+        }),
+    );
+    let created = call(
+        &session,
+        "createSnapshot",
+        json!({ "createPrograms": [{
+            "rootFiles": [root, "/home/projects/p/src/b.ts", "/home/projects/p/src/c.ts"],
+            "compilerOptions": options,
+            "options": { "moduleResolver": id },
+        }] }),
+    )
+    .unwrap();
+    let diagnostics = call(
+        &session,
+        "getSemanticDiagnostics",
+        json!({
+            "snapshot": created["snapshot"],
+            "project": created["operation"]["createdPrograms"][0],
+            "files": [root],
+        }),
+    )
+    .unwrap();
+    assert_eq!(diagnostics, json!([]));
+    assert_eq!(calls.lock().unwrap().len(), 1);
+}

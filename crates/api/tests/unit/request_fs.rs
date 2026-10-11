@@ -1736,7 +1736,7 @@ fn a_layers_writes_follow_inherited_links() {
     cache.set_modified("/link/times.ts", modified).unwrap();
     assert_eq!(
         host_fs.metadata("/target/times.ts").unwrap().modified(),
-        modified
+        Some(modified)
     );
 }
 
@@ -2186,7 +2186,8 @@ fn a_file_and_a_directory_have_their_own_metadata() {
     let metadata = fs.metadata("/dir/file.ts").unwrap();
     assert_eq!(metadata.file_type(), FileType::File);
     assert_eq!(metadata.len(), "file content".len() as u64);
-    assert_eq!(metadata.modified(), UNIX_EPOCH);
+    // A request file keeps no time (Go's zero `ModTime`).
+    assert_eq!(metadata.modified(), None);
     let metadata = fs.metadata("/empty").unwrap();
     assert_eq!(metadata.file_type(), FileType::Directory);
     assert_eq!(metadata.len(), 0);
@@ -2217,7 +2218,7 @@ fn the_hosts_metadata_is_kept() {
     host_fs.set_modified("/host.ts", modified).unwrap();
     let fs = over(&Request::layer(), &on_host(host_fs));
     let metadata = fs.metadata("/host.ts").unwrap();
-    assert_eq!(metadata.modified(), modified);
+    assert_eq!(metadata.modified(), Some(modified));
     assert_eq!(metadata.len(), "host content".len() as u64);
 }
 

@@ -206,11 +206,13 @@ impl FileType {
 pub struct Metadata {
     file_type: FileType,
     len: u64,
-    modified: SystemTime,
+    /// `None` is Go's zero `time.Time`: a file system that keeps no time
+    /// (tsgo's overlays, request files and fake stats).
+    modified: Option<SystemTime>,
 }
 
 impl Metadata {
-    pub const fn new(file_type: FileType, len: u64, modified: SystemTime) -> Self {
+    pub const fn new(file_type: FileType, len: u64, modified: Option<SystemTime>) -> Self {
         Self {
             file_type,
             len,
@@ -243,7 +245,7 @@ impl Metadata {
         self.len == 0
     }
 
-    pub const fn modified(&self) -> SystemTime {
+    pub const fn modified(&self) -> Option<SystemTime> {
         self.modified
     }
 }
