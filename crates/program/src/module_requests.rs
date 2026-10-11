@@ -131,7 +131,6 @@ impl PlannedLibReferenceDirective {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceRequestPlan {
     is_external_module: bool,
-    external_module_diagnostic_span: Option<(u32, u32)>,
     path_references: Vec<PlannedPathReference>,
     module_requests: Vec<ResolutionKey>,
     unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
@@ -188,10 +187,6 @@ impl SourceRequestPlan {
     /// (tsgo does not reuse a Program in place of such a file).
     pub const fn has_synthetic_imports(&self) -> bool {
         self.synthetic_imports
-    }
-
-    pub(crate) const fn external_module_diagnostic_span(&self) -> Option<(u32, u32)> {
-        self.external_module_diagnostic_span
     }
 
     /// Source-owned module detection from the same parse used for requests.
@@ -860,13 +855,6 @@ fn plan_module_requests_worker(
     unpreprocessed_module_requests.retain(|key| !seen_module_requests.contains(key));
 
     let plan = SourceRequestPlan {
-        external_module_diagnostic_span: (!parsed.is_declaration_file)
-            .then(|| {
-                parsed
-                    .external_module_indicator
-                    .map(|node| external_module_error_span(&parsed, node))
-            })
-            .flatten(),
         is_external_module: parsed.external_module_indicator.is_some(),
         path_references,
         module_requests,
@@ -885,53 +873,6 @@ fn plan_module_requests_worker(
 // tsc-port: getErrorSpanForNode (external module indicators) @6.0.3
 // tsc-hash: dcb14b8979d1c3871354787b49af4e5fa54040952f7b6d256ab508d1bbc355b7
 // tsc-span: _tsc.js:14023-14118
-fn external_module_error_span(source: &SourceFile, id: NodeId) -> (u32, u32) {
-    let node = source.arena.node(id);
-    let error_node = match &node.data {
-        NodeData::ClassDeclaration(data) => data.name,
-        NodeData::FunctionDeclaration(data) => data.name,
-        NodeData::InterfaceDeclaration(data) => data.name,
-        NodeData::ModuleDeclaration(data) => data.name,
-        NodeData::EnumDeclaration(data) => data.name,
-        NodeData::TypeAliasDeclaration(data) => data.name,
-        _ => Some(id),
-    };
-    let (start, end) = match error_node {
-        Some(error_node) if node.kind != SyntaxKind::SourceFile => {
-            let node = source.arena.node(error_node);
-            (
-                if node.pos == node.end {
-                    node.pos as usize
-                } else {
-                    skip_trivia(source.text(), node.pos as usize)
-                },
-                node.end as usize,
-            )
-        }
-        _ => {
-            let position = if node.kind == SyntaxKind::SourceFile {
-                0
-            } else {
-                node.pos as usize
-            };
-            match tsc_syntax::scan_byte_tokens(&source.text()[position..], source.language_variant)
-                .next()
-            {
-                Some(token) => (
-                    position + token.start as usize,
-                    position + token.end as usize,
-                ),
-                None => (0, 0),
-            }
-        }
-    };
-    let positions = source.positions();
-    let start_utf16 = byte_to_utf16_offset(positions, source.text(), start);
-    (
-        start_utf16,
-        byte_to_utf16_offset(positions, source.text(), end) - start_utf16,
-    )
-}
 
 /// The UTF-16 offset of a byte offset: the position index answers a byte
 /// on a character boundary; a byte inside a character (or past the end)

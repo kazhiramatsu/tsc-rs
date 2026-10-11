@@ -1369,7 +1369,6 @@ fn specifier_result_for_module_symbol(
 ) -> BuildResult<ModuleSpecifierResult> {
     let enclosing_file = context.enclosing_file;
     let enclosing_declaration = context.enclosing_declaration;
-    let bundled = context.bundled;
     if enclosing_file.is_none() {
         return get_specifier_for_module_symbol(
             checker,
@@ -1377,7 +1376,6 @@ fn specifier_result_for_module_symbol(
             None,
             enclosing_file,
             enclosing_declaration,
-            bundled,
             override_import_mode,
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
@@ -1399,7 +1397,6 @@ fn specifier_result_for_module_symbol(
             Some(&host),
             enclosing_file,
             enclosing_declaration,
-            bundled,
             override_import_mode,
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
@@ -1410,7 +1407,6 @@ fn specifier_result_for_module_symbol(
         Some(fallback),
         enclosing_file,
         enclosing_declaration,
-        bundled,
         override_import_mode,
     )
     .map_err(|abort| checker_abort_error(checker, context, abort))
@@ -3008,7 +3004,7 @@ pub(crate) fn get_module_specifier_override(
         }),
         None => true,
     };
-    if !context.bundled && !literal_file_differs {
+    if !literal_file_differs {
         return Ok(None);
     }
     let parent_parse = arena

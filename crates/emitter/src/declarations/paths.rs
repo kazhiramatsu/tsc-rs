@@ -14,7 +14,6 @@ pub struct PlanDeclarationPaths {
     paths: BTreeMap<SourceFileId, EmitOutputPaths>,
     reference_paths: BTreeMap<SourceFileId, JsString>,
     root_declaration_paths: BTreeMap<SourceFileId, JsString>,
-    bundle_declaration_path: Option<JsString>,
 }
 
 impl PlanDeclarationPaths {
@@ -45,26 +44,11 @@ impl PlanDeclarationPaths {
                 })
             })
             .collect();
-        let bundle_declaration_path = Self::forced_bundle_declaration_path(host);
         Self {
             paths,
             reference_paths,
             root_declaration_paths: BTreeMap::new(),
-            bundle_declaration_path,
         }
-    }
-
-    fn forced_bundle_declaration_path(host: &dyn EmitHost) -> Option<JsString> {
-        host.compiler_options()
-            .out_file
-            .as_ref()
-            .map(JsString::as_js)
-            .filter(|path| !path.is_empty())
-            .and_then(|path| {
-                crate::plan::get_output_paths_for_bundle(host.compiler_options(), path, true)
-                    .declaration_path()
-                    .map(JsStr::to_owned)
-            })
     }
 
     /// The declaration transform uses forced paths for its own directory
@@ -72,10 +56,7 @@ impl PlanDeclarationPaths {
     /// A diagnostic getter computes this read-only projection without an
     /// output plan, blocking diagnostics, or an output sink.
     pub fn for_declaration_diagnostics(host: &dyn EmitHost) -> Result<Self, EmitFailure> {
-        let mut result = Self {
-            bundle_declaration_path: Self::forced_bundle_declaration_path(host),
-            ..Self::default()
-        };
+        let mut result = Self { ..Self::default() };
         for &source in host.source_file_ids() {
             let file = host.source_file(source).ok_or(EmitFailure::Contract(
                 crate::EmitContractViolation::PlannedSourceMissing(source),
@@ -108,8 +89,9 @@ impl PlanDeclarationPaths {
 }
 
 impl DeclarationPathResolver for PlanDeclarationPaths {
+    /// TypeScript 7 has no `outFile` bundle (TS5102).
     fn bundle_declaration_file_path(&self) -> Option<JsString> {
-        self.bundle_declaration_path.clone()
+        None
     }
 
     fn declaration_file_path(&self, source: SourceFileId) -> Option<JsString> {

@@ -598,14 +598,6 @@ pub fn source_file_may_be_emitted_for_options(
     if !name.ends_with(".json") {
         return true;
     }
-    if options
-        .out_file
-        .as_ref()
-        .map(JsString::as_js)
-        .is_some_and(|file| !file.is_empty())
-    {
-        return true;
-    }
     let Some(out_dir) = options
         .out_dir
         .as_ref()

@@ -160,10 +160,10 @@ tsbuild/declarationEmit/when-declaration-file-is-referenced-through-triple-slash
 tsbuild/declarationEmit/when-declaration-file-used-inferred-type-from-referenced-project.js	full
 tsbuild/declarationEmit/when-ts-file-is-referenced-through-triple-slash-from-another-project.js	full
 tsbuild/declarationEmitForReferencedProjectTypesSubpath/declaration-emit-names-referenced-project-type-via-types-subpath.js	full
-tsbuild/demo/in-bad-ref-branch-reports-the-error-about-files-not-in-rootDir-at-the-import-location.js	none
+tsbuild/demo/in-bad-ref-branch-reports-the-error-about-files-not-in-rootDir-at-the-import-location.js	full
 tsbuild/demo/in-circular-branch-reports-the-error-about-it-by-stopping-build.js	full
-tsbuild/demo/in-circular-is-set-in-the-reference.js	none
-tsbuild/demo/in-master-branch-with-everything-setup-correctly-and-reports-no-error.js	none
+tsbuild/demo/in-circular-is-set-in-the-reference.js	full
+tsbuild/demo/in-master-branch-with-everything-setup-correctly-and-reports-no-error.js	full
 tsbuild/dependencyUpdate/rebuilds-files-using-globals-when-global-scope-dependency-is-updated.js	full
 tsbuild/dependencyUpdate/rebuilds-transitive-dependents-when-dependency-update-batch-has-no-global-scope-change.js	full
 tsbuild/dependencyUpdate/rebuilds-transitive-dependents-when-dependency-update-batch-includes-a-global-scope-change.js	full
@@ -182,9 +182,9 @@ tsbuild/fileDelete/deleted-file-without-composite.js	full
 tsbuild/fileDelete/detects-deleted-file.js	full
 tsbuild/incremental/reverse-mapped-declaration-consumption.js	full
 tsbuild/inferredTypeFromMonorepoReference/inferred-type-from-referenced-project-that-references-another-project-in-monorepo.js	full
-tsbuild/inferredTypeFromTransitiveModule/inferred-type-from-transitive-module-with-isolatedModules.js	none
-tsbuild/inferredTypeFromTransitiveModule/inferred-type-from-transitive-module.js	none
-tsbuild/inferredTypeFromTransitiveModule/reports-errors-in-files-affected-by-change-in-signature-with-isolatedModules.js	none
+tsbuild/inferredTypeFromTransitiveModule/inferred-type-from-transitive-module-with-isolatedModules.js	full
+tsbuild/inferredTypeFromTransitiveModule/inferred-type-from-transitive-module.js	full
+tsbuild/inferredTypeFromTransitiveModule/reports-errors-in-files-affected-by-change-in-signature-with-isolatedModules.js	full
 tsbuild/javascriptProjectEmit/loads-js-based-projects-and-emits-them-correctly.js	full
 tsbuild/javascriptProjectEmit/loads-js-based-projects-with-non-moved-json-files-and-emits-them-correctly.js	full
 tsbuild/lateBoundSymbol/interface-is-merged-and-contains-late-bound-member.js	full
@@ -264,7 +264,7 @@ tsbuild/projectsBuilding/when-there-are-8-projects-in-a-solution-with---builders
 tsbuild/projectsBuilding/when-there-are-8-projects-in-a-solution.js	full
 tsbuild/resolveJsonModule/files-containing-json-file-non-composite.js	full
 tsbuild/resolveJsonModule/files-containing-json-file.js	full
-tsbuild/resolveJsonModule/importing-json-module-from-project-reference.js	none
+tsbuild/resolveJsonModule/importing-json-module-from-project-reference.js	full
 tsbuild/resolveJsonModule/include-and-files-non-composite.js	full
 tsbuild/resolveJsonModule/include-and-files.js	full
 tsbuild/resolveJsonModule/include-of-json-along-with-other-include-and-file-name-matches-ts-file-non-composite.js	full
@@ -304,7 +304,7 @@ tsbuild/sample/listEmittedFiles.js	full
 tsbuild/sample/listFiles.js	full
 tsbuild/sample/rebuilds-completely-when-version-in-tsbuildinfo-doesnt-match-ts-version.js	full
 tsbuild/sample/rebuilds-from-start-if-force-option-is-set.js	full
-tsbuild/sample/rebuilds-when-extended-config-file-changes.js	none
+tsbuild/sample/rebuilds-when-extended-config-file-changes.js	full
 tsbuild/sample/removes-all-files-it-built.js	full
 tsbuild/sample/reports-error-if-input-file-is-missing-with-force.js	full
 tsbuild/sample/reports-error-if-input-file-is-missing.js	full
@@ -326,8 +326,8 @@ tsbuild/solution/when-solution-is-referenced-indirectly.js	full
 tsbuild/transitiveReferences/builds-correctly.js	full
 tsbuild/transitiveReferences/reports-error-about-module-not-found-with-node-resolution-with-external-module-name.js	full
 tsbuildWatch/configFileErrors/reports-syntax-errors-in-config-file.js	full
-tsbuildWatch/demo/updates-with-bad-reference.js	none
-tsbuildWatch/demo/updates-with-circular-reference.js	none
+tsbuildWatch/demo/updates-with-bad-reference.js	full
+tsbuildWatch/demo/updates-with-circular-reference.js	full
 tsbuildWatch/dependencyUpdate/watches-absolute-non-root-dependency-updates.js	full
 tsbuildWatch/extends/configDir-template.js	full
 tsbuildWatch/libraryResolution/with-config-with-libReplacement.js	full
@@ -456,9 +456,9 @@ tsc/contentMapperSynthesized/diagnostics-in-synthesized-code-render-on-the-virtu
 tsc/declarationEmit/reports-dts-generation-errors-with-incremental.js	full
 tsc/declarationEmit/reports-dts-generation-errors.js	full
 tsc/declarationEmit/when-inferred-export-should-reuse-imported-type-alias-across-a-module-boundary.js	full
-tsc/declarationEmit/when-pkg-references-sibling-package-through-indirect-symlink.js	none
-tsc/declarationEmit/when-same-version-is-referenced-through-source-and-another-symlinked-package-with-indirect-link.js	none
-tsc/declarationEmit/when-same-version-is-referenced-through-source-and-another-symlinked-package.js	none
+tsc/declarationEmit/when-pkg-references-sibling-package-through-indirect-symlink.js	full
+tsc/declarationEmit/when-same-version-is-referenced-through-source-and-another-symlinked-package-with-indirect-link.js	full
+tsc/declarationEmit/when-same-version-is-referenced-through-source-and-another-symlinked-package.js	full
 tsc/declarationEmit/when-using-Windows-paths-and-uppercase-letters.js	full
 tsc/extends/configDir-template-showConfig.js	full
 tsc/extends/configDir-template-with-commandline.js	full
@@ -532,7 +532,7 @@ tsc/listFilesOnly/combined-with-incremental.js	full
 tsc/listFilesOnly/loose-file.js	full
 tsc/moduleResolution/alternateResult.js	full
 tsc/moduleResolution/package-json-scope.js	full
-tsc/moduleResolution/pnpm-style-layout.js	none
+tsc/moduleResolution/pnpm-style-layout.js	full
 tsc/noCheck/dts-errors-with-incremental.js	full
 tsc/noCheck/dts-errors.js	full
 tsc/noCheck/semantic-errors-with-incremental.js	full

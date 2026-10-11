@@ -280,7 +280,7 @@ impl Transformer for Es2018Transformer {
         initialize_transform_flags(context.arena_mut()?, source)?;
         context.start_lexical_environment()?;
         let current_root = context.arena().root(source)?;
-        let mut visitor = Es2018Visitor::new(context, source, self.target, current_root)?;
+        let mut visitor = Es2018Visitor::new(context, source, current_root)?;
         let transformed =
             visitor
                 .visit(current_root.node())?
@@ -307,7 +307,6 @@ impl Transformer for Es2018Transformer {
 struct Es2018Visitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
-    target: ScriptTarget,
     nodes: rustc_hash::FxHashMap<NodeId, Option<NodeId>>,
     arrays: rustc_hash::FxHashMap<NodeArrayId, Option<NodeArrayId>>,
     /// A tagged-template visit deliberately revisits its tag at LiftRestriction.
@@ -331,7 +330,6 @@ impl<'context> Es2018Visitor<'context> {
     fn new(
         context: &'context mut TransformationContext,
         source: TransformSourceId,
-        target: ScriptTarget,
         root: TransformNode,
     ) -> Result<Self, TransformError> {
         Ok(Self {
@@ -341,7 +339,6 @@ impl<'context> Es2018Visitor<'context> {
             ),
             context,
             source,
-            target,
             nodes: rustc_hash::FxHashMap::default(),
             arrays: rustc_hash::FxHashMap::default(),
             memo_enabled: true,
@@ -559,11 +556,7 @@ impl<'context> Es2018Visitor<'context> {
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let previous = std::mem::replace(&mut self.memo_enabled, false);
-        let result = super::tagged_template::process_tagged_template_expression(
-            self,
-            node,
-            super::tagged_template::ProcessLevel::LiftRestriction,
-        );
+        let result = super::tagged_template::process_tagged_template_expression(self, node);
         self.memo_enabled = previous;
         result
     }
@@ -2396,16 +2389,7 @@ impl<'context> Es2018Visitor<'context> {
         let introduces_super_boundary = owns_super_capture || kind != SyntaxKind::ArrowFunction;
         if introduces_super_boundary {
             let capture = if owns_super_capture {
-                let mut facts = self.collect_async_generator_super_facts(body)?;
-                // `emitSuperHelpers` (_tsc.js:102657): below ES2015 the ES2015
-                // pass lowers `super` itself, so the async generator keeps its
-                // direct uses and emits no `_super` access object.
-                if self.target < ScriptTarget::ES2015 {
-                    facts.owns_access = false;
-                    facts.has_element_access = false;
-                    facts.has_assignment = false;
-                    facts.captured_properties.clear();
-                }
+                let facts = self.collect_async_generator_super_facts(body)?;
                 let binding = facts
                     .owns_access
                     .then(|| self.allocate_scoped_preferred_binding("_super"))
@@ -2922,10 +2906,7 @@ impl<'context> Es2018Visitor<'context> {
             inner_flags,
         )?;
         // `createAsyncGeneratorHelper` marks the generator function
-        // `AsyncFunctionBody | ReuseTempVariableScope`: the ES2015 pass then
-        // enters it through `AsyncFunctionBodyExcludes`, keeping the
-        // enclosing method's `NonStaticClassElement` fact for `super`
-        // property lowering (`_super.prototype.x`).
+        // `AsyncFunctionBody | ReuseTempVariableScope`.
         self.context
             .arena_mut()?
             .metadata_mut(inner)
@@ -4082,18 +4063,6 @@ impl<'context> Es2018Visitor<'context> {
         &mut self,
         operands: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
-        // tsc createAssignHelper (_tsc.js:25724-25740): `Object.assign`
-        // at target >= ES2015, the `__assign` helper below it. The
-        // predicate lives in the helper factory upstream, so every
-        // caller of this chokepoint inherits the fork.
-        if self.target < ScriptTarget::ES2015 {
-            self.context.request_emit_helper(super::helpers::assign())?;
-            let callee = self
-                .context
-                .factory()?
-                .create_unscoped_helper_identifier(self.source, EmitHelperName::Assign)?;
-            return self.create_call(callee, operands);
-        }
         let object = self.create_identifier("Object")?;
         let assign = self.create_identifier("assign")?;
         let callee = self.create_property_access(object, assign)?;

@@ -1011,7 +1011,7 @@ fn transform_routes_match_typescript() {
     let cases = load(
         include_bytes!("fixtures/literal-update-transform.json"),
         "transform",
-        399,
+        266,
     );
     let summary = run_group("transform", &cases, transform_case);
     for (route, (exact, divergent, errors, na, failures)) in &summary {
@@ -1024,8 +1024,8 @@ fn transform_routes_match_typescript() {
             failures.len()
         );
         let expected = match *route {
-            "generic" => (315, 84),
-            "typed" => (399, 0),
+            "generic" => (210, 56),
+            "typed" => (266, 0),
             _ => unreachable!(),
         };
         assert_eq!((*exact, *na), expected, "transform/{route}: route coverage");

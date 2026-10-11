@@ -112,22 +112,16 @@ pub(super) trait TaggedTemplateHost {
     }
 }
 
-/// tsc `ProcessLevel` (taggedTemplate.ts): `LiftRestriction` lowers only
-/// templates whose cooked text is invalid (the ES2018 lane); `All` lowers
-/// every tagged template (the ES2015 lane).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ProcessLevel {
-    LiftRestriction,
-    All,
-}
-
 /// tsc-port: processTaggedTemplateExpression @6.0.3
 /// tsc-hash: d318d2539195d77c458bac08f12a8adfd7b03a2c933876e9f27df4bc4782446d
 /// tsc-span: _tsc.js:93972-94018
+///
+/// tsc's `ProcessLevel.LiftRestriction`, the one level TypeScript 7 has:
+/// only a template whose cooked text is invalid is lowered (the ES2015
+/// lane's `All` went with the ES5 target).
 pub(super) fn process_tagged_template_expression(
     host: &mut impl TaggedTemplateHost,
     node: TransformNode,
-    level: ProcessLevel,
 ) -> Result<TransformNode, TransformError> {
     let (tag, template) = {
         let NodeData::TaggedTemplateExpression(data) = &host.arena_node(node)?.data else {
@@ -147,7 +141,7 @@ pub(super) fn process_tagged_template_expression(
         (host.node(tag), host.node(template))
     };
     let tag = host.visit_required_expression(tag)?;
-    if level == ProcessLevel::LiftRestriction && !has_invalid_escape(host, template)? {
+    if !has_invalid_escape(host, template)? {
         return host.visit_each_child_required(node);
     }
     // `templateArguments[0]` is reserved for the template-object argument;

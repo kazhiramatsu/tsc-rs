@@ -139,11 +139,7 @@ fn module_transforms_preserve_js_name_values() {
             always_strict: Some(false),
             ..CompilerOptions::default()
         };
-        let module_transform = if module == ModuleKind::SYSTEM.bits() {
-            transform_system_module(&options, &resolver, None)
-        } else {
-            transform_module(&options, &resolver)
-        };
+        let module_transform = transform_module(&options, &resolver);
         let mut result = transform_nodes(
             arena,
             vec![TransformRoot::SourceFile(source)],
@@ -243,7 +239,6 @@ use super::{
     jsx::transform_jsx,
     legacy_decorators::transform_legacy_decorators,
     standard_decorators::transform_standard_decorators,
-    system::transform_system_module,
     transform_class_fields, transform_module, transform_type_script,
     CommonJsFileLevelGeneratedBindingExports,
 };
@@ -282,10 +277,6 @@ struct SourceNamedExportContainerResolver {
 }
 
 struct ImportEqualsCallResolver {
-    declaration_by_reference: BTreeMap<NodeId, NodeId>,
-}
-
-struct DefaultImportCallResolver {
     declaration_by_reference: BTreeMap<NodeId, NodeId>,
 }
 
@@ -1072,81 +1063,6 @@ impl EmitResolver for ImportEqualsCallResolver {
     }
 }
 
-impl DefaultImportCallResolver {
-    fn new(source: &tsc_syntax::SourceFile) -> Self {
-        let mut declaration = None;
-        let mut local_name = None;
-        let mut stack = vec![source.root];
-        while let Some(node) = stack.pop() {
-            if let NodeData::ImportClause(data) = &source.arena.node(node).data {
-                if let Some(name) = data.name {
-                    if let NodeData::Identifier(identifier) = &source.arena.node(name).data {
-                        declaration = Some(node);
-                        local_name = Some(identifier.text().to_owned());
-                    }
-                }
-            }
-            for_each_child(&source.arena, source.arena.node(node), |child| {
-                stack.push(child);
-                false
-            });
-        }
-        let declaration = declaration.expect("default-import clause");
-        let local_name = local_name.expect("default-import local name");
-        let mut declaration_by_reference = BTreeMap::new();
-        let mut stack = vec![source.root];
-        while let Some(node) = stack.pop() {
-            if matches!(
-                &source.arena.node(node).data,
-                NodeData::Identifier(identifier) if identifier.text() == local_name
-            ) {
-                declaration_by_reference.insert(node, declaration);
-            }
-            for_each_child(&source.arena, source.arena.node(node), |child| {
-                stack.push(child);
-                false
-            });
-        }
-        Self {
-            declaration_by_reference,
-        }
-    }
-}
-
-impl EmitResolver for DefaultImportCallResolver {
-    fn get_constant_value(
-        &self,
-        _node: EmitResolverNode,
-    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
-        Ok(None)
-    }
-
-    fn get_referenced_import_declaration(
-        &self,
-        node: EmitResolverNode,
-    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
-        Ok(self
-            .declaration_by_reference
-            .get(&node.node())
-            .copied()
-            .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
-    }
-
-    fn is_referenced_alias_declaration(
-        &self,
-        _node: EmitResolverNode,
-    ) -> Result<bool, EmitResolverError> {
-        Ok(true)
-    }
-
-    fn is_value_alias_declaration(
-        &self,
-        _node: EmitResolverNode,
-    ) -> Result<bool, EmitResolverError> {
-        Ok(true)
-    }
-}
-
 impl EnumBindingResolver {
     fn new(source: &tsc_syntax::SourceFile) -> Self {
         let mut declarations_by_name = BTreeMap::new();
@@ -1480,61 +1396,6 @@ fn transform_and_print_module_at_target(
     .to_owned()
 }
 
-// CA-2b family E: the synthesized require bindings choose their declaration
-// keyword by language version (tsc `languageVersion >= ES2015 ? Const :
-// None`, _tsc.js:111241/111277/111338/113555/113591). Expected bytes are
-// fresh-process vendored tsc emits (module CommonJS, alwaysStrict false,
-// LF; probe = ca2b-probe.mjs).
-#[test]
-fn commonjs_import_bindings_use_var_below_es2015() {
-    let printed = transform_and_print_module_at_target(
-        "import * as ns from \"./dep\";\nns.use(1);\n",
-        ModuleKind::COMMON_JS,
-        ScriptTarget::ES5,
-    );
-    assert_eq!(
-        printed,
-        r#""use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-var ns = __importStar(require("./dep"));
-ns.use(1);
-"#
-    );
-}
-
 #[test]
 fn commonjs_import_bindings_keep_const_at_es2015_and_above() {
     let printed = transform_and_print_module_at_target(
@@ -1581,23 +1442,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const ns = __importStar(require("./dep"));
 ns.use(1);
-"#
-    );
-}
-
-#[test]
-fn commonjs_import_equals_binding_uses_var_below_es2015() {
-    let printed = transform_and_print_module_at_target(
-        "import x = require(\"./dep\");\nx.use();\n",
-        ModuleKind::COMMON_JS,
-        ScriptTarget::ES5,
-    );
-    assert_eq!(
-        printed,
-        r#""use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var x = require("./dep");
-x.use();
 "#
     );
 }
@@ -1835,10 +1679,6 @@ fn transform_and_print_parsed_es2015_class_fields_with_mode(
         .expect("print ES2015 class-fields transform")
         .text()
         .to_owned()
-}
-
-fn transform_and_print_umd_module(source_text: &str) -> String {
-    transform_and_print_module(source_text, ModuleKind::UMD)
 }
 
 #[test]
@@ -2394,145 +2234,6 @@ fn dynamic_import_recovery_preserves_a_missing_argument_across_module_formats() 
     assert!(common_js.contains("require('./present')"), "{common_js}");
     assert!(common_js.contains("require('./first')"), "{common_js}");
     assert!(!common_js.contains("./ignored"), "{common_js}");
-
-    let amd = transform_and_print_module(source, ModuleKind::AMD);
-    assert!(amd.contains("require([,],"), "{amd}");
-    assert!(amd.contains("require(['./present'],"), "{amd}");
-    assert!(amd.contains("require(['./first'],"), "{amd}");
-    assert!(!amd.contains("./ignored"), "{amd}");
-
-    let umd = transform_and_print_module("const missing = import();\n", ModuleKind::UMD);
-    assert!(umd.contains("= void 0"), "{umd}");
-    assert!(umd.contains("require(_a)"), "{umd}");
-    assert!(umd.contains("require([_a],"), "{umd}");
-}
-
-#[test]
-fn umd_dynamic_import_preserves_literal_quote_provenance_in_its_amd_copy() {
-    let output = transform_and_print_umd_module(concat!(
-        "const single = import('./single');\n",
-        "const double = import(\"./double\");\n",
-    ));
-
-    assert!(output.contains("require(['./single'],"), "{output}");
-    assert!(output.contains("require([\"./double\"],"), "{output}");
-}
-
-#[test]
-fn amd_nested_dynamic_import_reserves_executor_bindings_in_emit_order() {
-    let output = transform_and_print_module(
-        "async function load() { return import((await import(\"./foo\")).default); }\n",
-        ModuleKind::AMD,
-    );
-
-    let outer = output
-        .find("new Promise((resolve_1, reject_1)")
-        .unwrap_or_else(|| panic!("{output}"));
-    let nested = output
-        .find("new Promise((resolve_2, reject_2)")
-        .unwrap_or_else(|| panic!("{output}"));
-    assert!(outer < nested, "{output}");
-}
-
-#[test]
-fn umd_nested_dynamic_import_reserves_executor_bindings_in_emit_order() {
-    let output = transform_and_print_umd_module(
-        "async function load() { return import((await import(\"./foo\")).default); }\n",
-    );
-
-    let nested = output
-        .find("new Promise((resolve_1, reject_1)")
-        .unwrap_or_else(|| panic!("{output}"));
-    let outer = output
-        .find("new Promise((resolve_2, reject_2)")
-        .unwrap_or_else(|| panic!("{output}"));
-    assert!(nested < outer, "{output}");
-}
-
-#[test]
-fn yield_parenthesizes_a_synthetic_umd_dynamic_import_comma_sequence() {
-    let output = transform_and_print_umd_module(concat!(
-        "export function* load(packageName) {\n",
-        "    return yield import(packageName + '/package.json');\n",
-        "}\n",
-    ));
-
-    assert!(
-        output.contains("yield (_a = packageName + '/package.json', __syncRequire ?"),
-        "{output}",
-    );
-}
-
-#[test]
-fn umd_dynamic_import_temp_is_owned_by_the_nearest_method_body() {
-    let text = transform_and_print_umd_module(concat!(
-        "class C {\n",
-        "    path() { return './other'; }\n",
-        "    dynamic() { return import(this.path()); }\n",
-        "}\n",
-    ));
-
-    let class = text.find("class C").expect("emitted class");
-    assert!(!text[..class].contains("var _a;"), "{text}");
-    assert!(
-        text.contains("dynamic() { var _a; return _a = this.path(),"),
-        "{text}",
-    );
-}
-
-#[test]
-fn umd_dynamic_import_temp_is_owned_by_a_static_block() {
-    let text =
-        transform_and_print_umd_module("class C { static { consume(import(getPath())); } }\n");
-
-    let class = text.find("class C").expect("emitted class");
-    assert!(!text[..class].contains("var _a;"), "{text}");
-    assert!(text.contains("static { var _a;"), "{text}");
-    assert!(text.contains("require(_a)"), "{text}");
-    assert!(text.contains("require([_a],"), "{text}");
-}
-
-#[test]
-fn umd_dynamic_import_temp_converts_a_concise_arrow_to_an_owned_body() {
-    let text = transform_and_print_umd_module("const load = () => import(getPath());\n");
-
-    let arrow = text.find("const load").expect("emitted arrow");
-    assert!(!text[..arrow].contains("var _a;"), "{text}");
-    assert!(
-        text.contains("const load = () => { var _a; return _a = getPath(),"),
-        "{text}",
-    );
-}
-
-#[test]
-fn umd_dynamic_import_temp_moves_an_es2015_parameter_default_into_the_body() {
-    let text = transform_and_print_umd_module(
-        "function load(path = import(getPath())) { return path; }\n",
-    );
-
-    let function = text.find("function load").expect("emitted function");
-    assert!(!text[..function].contains("var _a;"), "{text}");
-    assert!(
-        text.contains(
-            "function load(path) { var _a; if (path === void 0) { path = (_a = getPath(),"
-        ),
-        "{text}",
-    );
-}
-
-#[test]
-fn umd_exported_function_inherits_the_module_parameter_temp_scope() {
-    let text = transform_and_print_umd_module(
-        "export function load(path = import(getPath())) { return path; }\n",
-    );
-
-    let function = text.find("function load").expect("emitted function");
-    assert!(text[..function].contains("var _a;"), "{text}");
-    assert!(
-        text.contains("function load(path = (_a = getPath(),"),
-        "{text}",
-    );
-    assert!(!text.contains("function load(path) { var _a;"), "{text}");
 }
 
 #[test]
@@ -2935,151 +2636,8 @@ fn common_js_appends_explicit_exports_for_each_array_binding_leaf() {
 }
 
 #[test]
-fn amd_unnamed_dependency_comment_is_emitted_only_outside_the_wrapper() {
-    let output = transform_and_print_module(
-        "///<amd-dependency path='bar'/>\n\nimport \"m2\";\n",
-        ModuleKind::AMD,
-    );
-
-    assert_eq!(
-        output.matches("amd-dependency path='bar'").count(),
-        1,
-        "{output}"
-    );
-    let define = output.find("define(").expect("AMD define wrapper");
-    let dependency = output.find("\"bar\"").expect("AMD dependency path");
-    assert!(define < dependency, "{output}");
-    assert!(
-        !output[define..].contains("amd-dependency path='bar'"),
-        "{output}",
-    );
-}
-
-#[test]
-fn named_amd_module_keeps_named_dependency_semantics_without_reemitting_pragmas() {
-    let output = transform_and_print_module(
-        concat!(
-            "///<amd-module name='named'/>\n",
-            "///<amd-dependency path='bar' name='b'/>\n\n",
-            "export const value = 1;\n",
-        ),
-        ModuleKind::AMD,
-    );
-
-    assert_eq!(
-        output.matches("amd-module name='named'").count(),
-        1,
-        "{output}"
-    );
-    assert_eq!(
-        output.matches("amd-dependency path='bar' name='b'").count(),
-        1,
-        "{output}",
-    );
-    assert!(output.contains("define(\"named\""), "{output}");
-    assert!(
-        output.contains("function (require, exports, b)"),
-        "{output}"
-    );
-}
-
-#[test]
-fn umd_mixed_dependencies_keep_paired_aliases_and_one_outer_comment_prefix() {
-    let output = transform_and_print_module(
-        concat!(
-            "///<amd-dependency path='bar' name='b'/>\n",
-            "///<amd-dependency path='foo'/>\n",
-            "///<amd-dependency path='goo' name='c'/>\n\n",
-            "import \"m2\";\n",
-        ),
-        ModuleKind::UMD,
-    );
-
-    for pragma in [
-        "amd-dependency path='bar' name='b'",
-        "amd-dependency path='foo'",
-        "amd-dependency path='goo' name='c'",
-    ] {
-        assert_eq!(output.matches(pragma).count(), 1, "{output}");
-    }
-    assert!(
-        output.contains("function (require, exports, b, c)"),
-        "{output}"
-    );
-    let bar = output.find("\"bar\"").expect("named dependency bar");
-    let goo = output.find("\"goo\"").expect("named dependency goo");
-    let foo = output.find("\"foo\"").expect("unnamed dependency foo");
-    let m2 = output.find("\"m2\"").expect("external dependency m2");
-    assert!(bar < goo && goo < foo && foo < m2, "{output}");
-}
-
-#[test]
-fn umd_single_amd_dependency_pragmas_remain_owned_by_the_outer_source_prefix() {
-    for (source, pragma, parameters) in [
-        (
-            "///<amd-dependency path='bar'/>\n\nimport m1 = require(\"m2\");\nm1.f();\n",
-            "amd-dependency path='bar'",
-            "function (require, exports)",
-        ),
-        (
-            "///<amd-dependency path='bar' name='b'/>\n\nimport m1 = require(\"m2\");\nm1.f();\n",
-            "amd-dependency path='bar' name='b'",
-            "function (require, exports, b)",
-        ),
-    ] {
-        let output = transform_and_print_module(source, ModuleKind::UMD);
-
-        assert_eq!(output.matches(pragma).count(), 1, "{output}");
-        let wrapper = output
-            .find("(function (factory)")
-            .expect("UMD outer wrapper");
-        assert!(!output[wrapper..].contains(pragma), "{output}");
-        assert!(output.contains(parameters), "{output}");
-        let bar = output.find("\"bar\"").expect("pragma dependency");
-        let m2 = output.find("\"m2\"").expect("external dependency");
-        assert!(bar < m2, "{output}");
-    }
-}
-
-#[test]
-fn remove_comments_suppresses_relocated_prefix_without_losing_amd_dependency_semantics() {
-    let output = transform_and_print_module_with_remove_comments(
-        concat!(
-            "///<amd-dependency path='bar' name='b'/>\n",
-            "// ordinary detached comment\n\n",
-            "export const value = 1;\n",
-        ),
-        ModuleKind::AMD,
-        true,
-    );
-
-    assert!(!output.contains("amd-dependency"), "{output}");
-    assert!(!output.contains("ordinary detached comment"), "{output}");
-    assert!(output.contains("\"bar\""), "{output}");
-    assert!(
-        output.contains("function (require, exports, b)"),
-        "{output}"
-    );
-}
-
-#[test]
-fn ordinary_detached_comment_uses_the_same_relocated_statement_list_contract() {
-    let output = transform_and_print_module(
-        "// detached control\n\nexport const value = 1;\n",
-        ModuleKind::AMD,
-    );
-
-    assert_eq!(output.matches("// detached control").count(), 1, "{output}");
-    let define = output.find("define(").expect("AMD define wrapper");
-    assert!(
-        !output[define..].contains("// detached control"),
-        "{output}",
-    );
-}
-
-#[test]
 fn hoisted_exports_leave_detached_comments_for_the_function_declaration() {
-    for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
+    for module in [ModuleKind::COMMON_JS] {
         for (declaration, publication, function) in [
             (
                 "export default function () {}\n",
@@ -3128,50 +2686,6 @@ fn hoisted_exports_leave_detached_comments_for_the_function_declaration() {
 }
 
 #[test]
-fn amd_import_re_exports_are_published_at_their_import_source_positions() {
-    let output = transform_and_print_module(
-        concat!(
-            "import a = require(\"./dep\");\n",
-            "a.value;\n",
-            "import b, * as ns from \"./dep\";\n",
-            "b; ns.value;\n",
-            "import { value as named } from \"./dep\";\n",
-            "named;\n",
-            "export { a, b, ns, named };\n",
-        ),
-        ModuleKind::AMD,
-    );
-
-    let import_equals_export = output
-        .find("exports.a = a;")
-        .unwrap_or_else(|| panic!("{output}"));
-    let import_equals_read = output
-        .find("a.value;")
-        .unwrap_or_else(|| panic!("{output}"));
-    let namespace_alias = output
-        .find("const ns = dep_1;")
-        .unwrap_or_else(|| panic!("{output}"));
-    let default_export = output
-        .find("exports.b = dep_1.default;")
-        .unwrap_or_else(|| panic!("{output}"));
-    let namespace_export = output
-        .find("exports.ns = ns;")
-        .unwrap_or_else(|| panic!("{output}"));
-    let named_export = output
-        .find(concat!(
-            "Object.defineProperty(exports, \"named\", ",
-            "{ enumerable: true, get: function () { return dep_2.value; } });",
-        ))
-        .unwrap_or_else(|| panic!("{output}"));
-
-    assert!(import_equals_export < import_equals_read, "{output}");
-    assert!(import_equals_read < namespace_alias, "{output}");
-    assert!(namespace_alias < default_export, "{output}");
-    assert!(default_export < namespace_export, "{output}");
-    assert!(namespace_export < named_export, "{output}");
-}
-
-#[test]
 fn common_js_import_equals_appends_explicit_export_specifiers() {
     let output = transform_and_print_module(
         concat!(
@@ -3211,11 +2725,6 @@ fn exported_import_equals_re_exports_from_the_export_object_owner() {
         "{common_js}",
     );
     assert!(!common_js.contains("exports.alias = a;"), "{common_js}");
-
-    let amd = transform_and_print_module(source, ModuleKind::AMD);
-    assert!(amd.contains("exports.a = a;"), "{amd}");
-    assert!(amd.contains("exports.alias = exports.a;"), "{amd}");
-    assert!(!amd.contains("exports.alias = a;"), "{amd}");
 }
 
 #[test]
@@ -4871,36 +4380,6 @@ fn transform_and_print_classic_jsx_at_target(source_text: &str, target: ScriptTa
         .to_owned()
 }
 
-// CA-2b family F2: the JSX spread-attribute builder is upstream's second
-// createAssignHelper caller (transformJsxAttributesToExpression,
-// _tsc.js:104267) and forks identically — flat multi-operand form.
-// Expected bytes are fresh-process vendored tsc emits (jsx react,
-// alwaysStrict false, LF; probe = ca2b-probe3.mjs).
-#[test]
-fn jsx_spread_attributes_use_the_assign_helper_below_es2015() {
-    let printed = transform_and_print_classic_jsx_at_target(
-        "var attrs = { a: 1 };\nvar e = <div {...attrs} b=\"1\"/>;\n",
-        ScriptTarget::ES5,
-    );
-    assert_eq!(
-        printed,
-        r#"var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var attrs = { a: 1 };
-var e = React.createElement("div", __assign({}, attrs, { b: "1" }));
-"#
-    );
-}
-
 #[test]
 fn jsx_spread_attributes_keep_object_assign_at_es2015_and_above() {
     let printed = transform_and_print_classic_jsx_at_target(
@@ -5031,220 +4510,6 @@ fn common_js_leaves_orphan_automatic_jsx_import_references_in_scripts() {
     assert_eq!(
         output,
         "const value = _jsx(\"div\", { children: null /* preserved */ });\n"
-    );
-}
-
-#[test]
-fn system_module_preserves_generated_automatic_jsx_local_reference() {
-    let source_text = "export {}; const value = <div>{null/* preserved */}</div>;\n";
-    let parsed = parse_source_file(
-        "system-jsx.tsx",
-        source_text,
-        ParseOptions {
-            language_variant: LanguageVariant::Jsx,
-            ..ParseOptions::default()
-        },
-        None,
-    );
-    let resolver = LegacyScriptJsxResolver;
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
-        module: Some(ModuleKind::SYSTEM.bits()),
-        jsx: Some(4),
-        use_define_for_class_fields: Some(true),
-        always_strict: Some(false),
-        ..CompilerOptions::default()
-    };
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        vec![
-            transform_type_script(&options, &resolver),
-            transform_jsx(&options, &resolver),
-            transform_system_module(&options, &resolver, None),
-        ],
-        false,
-    )
-    .expect("System automatic JSX transform");
-    let output = create_printer(
-        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
-    )
-    .print(&mut result, PrintRequest::SourceFile(source), None)
-    .expect("print System automatic JSX transform")
-    .text()
-    .to_owned();
-
-    assert!(output.contains("_jsx(\"div\""), "{output}");
-    assert!(!output.contains("(0, jsx_runtime_1.jsx)"), "{output}");
-}
-
-#[test]
-fn system_default_import_call_keeps_the_substituted_direct_callee() {
-    let source_text = concat!(
-        "import repeat from \"repeat\";\n",
-        "const value: string = repeat(\"text\", 2);\n",
-    );
-    let parsed = parse_source_file(
-        "system-default-import-call.ts",
-        source_text,
-        Default::default(),
-        None,
-    );
-    let resolver = DefaultImportCallResolver::new(&parsed);
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
-        module: Some(ModuleKind::SYSTEM.bits()),
-        use_define_for_class_fields: Some(true),
-        always_strict: Some(false),
-        ..CompilerOptions::default()
-    };
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        vec![
-            transform_type_script(&options, &resolver),
-            transform_system_module(&options, &resolver, None),
-        ],
-        false,
-    )
-    .expect("System default-import call transform");
-    let output = create_printer(
-        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
-    )
-    .print(&mut result, PrintRequest::SourceFile(source), None)
-    .expect("print System default-import call")
-    .text()
-    .to_owned();
-
-    assert!(output.contains("repeat_1.default(\"text\", 2)"), "{output}");
-    assert!(!output.contains("(0, repeat_1.default)"), "{output}");
-}
-
-#[test]
-fn system_module_reuses_single_destructuring_initializer_without_a_temp() {
-    let source_text = concat!(
-        "export let { toString } = 1;\n",
-        "{\n",
-        "    let { toFixed } = 1;\n",
-        "}\n",
-    );
-    let parsed = parse_source_file(
-        "system-destructuring-variable.ts",
-        source_text,
-        Default::default(),
-        None,
-    );
-    let resolver = ExportedVariableResolver::new(&parsed);
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
-        module: Some(ModuleKind::SYSTEM.bits()),
-        use_define_for_class_fields: Some(true),
-        always_strict: Some(false),
-        ..CompilerOptions::default()
-    };
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        vec![
-            transform_type_script(&options, &resolver),
-            transform_system_module(&options, &resolver, None),
-        ],
-        false,
-    )
-    .expect("System exported destructuring declaration transform");
-    let output = create_printer(
-        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
-    )
-    .print(&mut result, PrintRequest::SourceFile(source), None)
-    .expect("print System exported destructuring declaration")
-    .text()
-    .to_owned();
-
-    assert_eq!(
-        output,
-        concat!(
-            "System.register([], function (exports_1, context_1) {\n",
-            "    \"use strict\";\n",
-            "    var toString;\n",
-            "    var __moduleName = context_1 && context_1.id;\n",
-            "    return {\n",
-            "        setters: [],\n",
-            "        execute: function () {\n",
-            "            exports_1(\"toString\", toString = 1..toString);\n",
-            "            {\n",
-            "                let { toFixed } = 1;\n",
-            "            }\n",
-            "        }\n",
-            "    };\n",
-            "});\n",
-        )
-    );
-}
-
-#[test]
-fn system_module_hoists_uninitialized_export_from_source_owned_if_statement() {
-    let source_text = concat!(
-        "// https://github.com/microsoft/TypeScript/issues/59373\n\n",
-        "if (true)\n",
-        "export const cssExports: CssExports;\n",
-        "export default cssExports;\n",
-    );
-    let parsed = parse_source_file(
-        "system-export-in-if.ts",
-        source_text,
-        Default::default(),
-        None,
-    );
-    let resolver = ExportedVariableResolver::new(&parsed);
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
-        module: Some(ModuleKind::SYSTEM.bits()),
-        use_define_for_class_fields: Some(true),
-        always_strict: Some(false),
-        ..CompilerOptions::default()
-    };
-    let transformers = get_script_transformers(&options, &resolver)
-        .expect("construct the complete System transform pipeline");
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        transformers,
-        false,
-    )
-    .expect("System embedded uninitialized export transform");
-    let output = create_printer(
-        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
-    )
-    .print(&mut result, PrintRequest::SourceFile(source), None)
-    .expect("print System embedded uninitialized export")
-    .text()
-    .to_owned();
-
-    assert_eq!(
-        output,
-        concat!(
-            "// https://github.com/microsoft/TypeScript/issues/59373\n",
-            "System.register([], function (exports_1, context_1) {\n",
-            "    \"use strict\";\n",
-            "    var cssExports;\n",
-            "    var __moduleName = context_1 && context_1.id;\n",
-            "    return {\n",
-            "        setters: [],\n",
-            "        execute: function () {// https://github.com/microsoft/TypeScript/issues/59373\n",
-            "            if (true) { }\n",
-            "            exports_1(\"default\", cssExports);\n",
-            "        }\n",
-            "    };\n",
-            "});\n",
-        )
     );
 }
 
@@ -5705,61 +4970,6 @@ fn common_js_merged_exported_namespace_publishes_its_initializer() {
     );
 }
 
-/// The B-5 registered joint pass: the ES5 pipeline pushes
-/// `transformES2015` then `transformGenerators` between the es2016 entry
-/// and the module transformer — the upstream registration order
-/// (`_tsc.js:115942-115945`, owner-graph `upstream_registration`).
-#[test]
-fn es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order() {
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES5.bits()),
-        module: Some(ModuleKind::SYSTEM.bits()),
-        ..CompilerOptions::default()
-    };
-    struct PipelineShapeResolver;
-    impl crate::EmitResolver for PipelineShapeResolver {
-        fn get_constant_value(
-            &self,
-            _node: crate::EmitResolverNode,
-        ) -> Result<Option<crate::EmitConstantValue>, crate::EmitResolverError> {
-            Ok(None)
-        }
-
-        fn get_enum_member_value(
-            &self,
-            _node: crate::EmitResolverNode,
-        ) -> Result<Option<crate::EmitEnumMemberValue>, crate::EmitResolverError> {
-            Ok(None)
-        }
-    }
-    let resolver = PipelineShapeResolver;
-    let transformers = get_script_transformers(&options, &resolver)
-        .expect("construct the complete ES5 transform pipeline");
-    let names = transformers
-        .iter()
-        .map(|transformer| transformer.name())
-        .collect::<Vec<_>>();
-    assert_eq!(
-        names,
-        [
-            "transformTypeScript",
-            "transformESNext",
-            "transformESDecorators",
-            "transformClassFields",
-            "transformES2021",
-            "transformES2020",
-            "transformES2019",
-            "transformES2018",
-            "transformES2017",
-            "transformES2016",
-            "transformES2015",
-            "transformGenerators",
-            "transformSystemModule",
-            "inlineConstEnums",
-        ],
-    );
-}
-
 fn record_class_flag_difference(
     failures: &mut Vec<serde_json::Value>,
     case_id: &str,
@@ -6153,17 +5363,6 @@ fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_bou
             assert!(result.is_ok(), "module {module}");
             assert!(host.format_calls.borrow().is_empty(), "module {module}");
         }
-        let bundle_options = CompilerOptions {
-            out_file: Some("/project/bundle.js".into()),
-            ..options
-        };
-        assert!(matches!(
-            get_script_transformers(&bundle_options, &host),
-            Err(TransformError::UnsupportedCompilerOption {
-                option: "outFile",
-                ..
-            })
-        ));
     }
     for module in [-1, 8, 201] {
         let options = CompilerOptions {

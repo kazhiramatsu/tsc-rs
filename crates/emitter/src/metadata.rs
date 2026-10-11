@@ -225,10 +225,6 @@ pub(crate) struct RelocatedStatementListComments {
 }
 
 impl RelocatedStatementListComments {
-    pub(crate) const fn owned_by_source_file(original: TransformNodeArray) -> Self {
-        Self { original }
-    }
-
     pub(crate) const fn original(self) -> TransformNodeArray {
         self.original
     }
@@ -741,13 +737,6 @@ impl EmitMetadata {
         self.comment_range = Some(range);
     }
 
-    pub(crate) fn set_relocated_statement_list_comments(
-        &mut self,
-        comments: RelocatedStatementListComments,
-    ) {
-        self.relocated_statement_list_comments = Some(comments);
-    }
-
     pub fn set_constant_value(&mut self, value: EmitConstantValue) {
         self.constant_value = Some(value);
     }
@@ -820,14 +809,6 @@ impl EmitMetadata {
 
     pub(crate) const fn generated_binding_print_order(&self) -> bool {
         self.generated_binding_print_order
-    }
-
-    pub(crate) fn mark_generated_binding_print_order(&mut self) {
-        self.generated_binding_print_order = true;
-    }
-
-    pub(crate) const fn class_expression_alias_assigned(&self) -> bool {
-        self.class_expression_alias_assigned
     }
 
     pub(crate) fn mark_class_expression_alias_assigned(&mut self) {

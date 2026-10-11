@@ -269,7 +269,3 @@ impl Printer {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/unit/bundle_printer/tests.rs"]
-mod bundle_printer_tests;

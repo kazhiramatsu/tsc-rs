@@ -87,12 +87,6 @@ impl UsedNames {
         self.added.insert(name)
     }
 
-    pub(super) fn extend(&mut self, names: impl IntoIterator<Item = String>) {
-        for name in names {
-            self.insert(name);
-        }
-    }
-
     pub(super) fn contains(&self, name: &str) -> bool {
         self.shared.contains(name) || self.added.contains(name)
     }
@@ -223,11 +217,6 @@ pub(super) struct TargetBinding {
 }
 
 impl TargetBinding {
-    pub(super) fn with_derived_from(mut self, parent: Option<GeneratedBindingId>) -> Self {
-        self.derived_from = parent;
-        self
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub(super) fn from_existing(
         id: GeneratedBindingId,
@@ -309,25 +298,6 @@ impl TargetBinding {
             preferred_role_suffix: None,
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::PlannedSpellingAuthoritative,
-            reserve_in_nested_scopes: false,
-            derived_from: None,
-        })
-    }
-
-    /// tsc `createLoopVariable()`: the visit-time spelling is provisional;
-    /// the finalize walk re-assigns per printer scope (H2.5h CA-2a C(i)).
-    pub(super) fn allocate_planned_loop(
-        context: &mut TransformationContext,
-        provisional_name: String,
-    ) -> Result<Self, TransformError> {
-        Ok(Self {
-            id: context.allocate_generated_binding_id()?,
-            provisional_name,
-            numbered_base: None,
-            preferred_base: None,
-            preferred_role_suffix: None,
-            preferred_name_domain: None,
-            ordinary_temp_name_policy: OrdinaryTempNamePolicy::LoopVariable,
             reserve_in_nested_scopes: false,
             derived_from: None,
         })
@@ -1922,3 +1892,13 @@ fn collect_function_body_declaration_name_events(
 #[cfg(test)]
 #[path = "../../tests/unit/target_bindings_tests.rs"]
 mod tests;
+
+/// Every identifier text of the source's nodes at this moment (parsed and
+/// synthesized alike), shared through the arena's census: see
+/// [`TransformArena::identifier_texts`].
+pub(super) fn collect_identifier_texts(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> UsedNames {
+    UsedNames::from(arena.identifier_texts(source))
+}

@@ -32,7 +32,6 @@ pub(crate) enum EmitHelperName {
     ExportStar,
     Rest,
     RewriteRelativeImportExtension,
-    Read,
     Awaiter,
     PropKey,
     ClassPrivateFieldGet,
@@ -50,12 +49,7 @@ pub(crate) enum EmitHelperName {
     DisposeResources,
     EsDecorate,
     RunInitializers,
-    Generator,
-    Values,
-    Extends,
-    SpreadArray,
     MakeTemplateObject,
-    Assign,
 }
 
 impl EmitHelperName {
@@ -66,7 +60,6 @@ impl EmitHelperName {
             Self::ExportStar => "__exportStar",
             Self::Rest => "__rest",
             Self::RewriteRelativeImportExtension => "__rewriteRelativeImportExtension",
-            Self::Read => "__read",
             Self::Awaiter => "__awaiter",
             Self::PropKey => "__propKey",
             Self::ClassPrivateFieldGet => "__classPrivateFieldGet",
@@ -84,12 +77,7 @@ impl EmitHelperName {
             Self::DisposeResources => "__disposeResources",
             Self::EsDecorate => "__esDecorate",
             Self::RunInitializers => "__runInitializers",
-            Self::Generator => "__generator",
-            Self::Values => "__values",
-            Self::Extends => "__extends",
-            Self::SpreadArray => "__spreadArray",
             Self::MakeTemplateObject => "__makeTemplateObject",
-            Self::Assign => "__assign",
         }
     }
 }
@@ -685,56 +673,6 @@ impl TransformArena {
         };
         data.escaped_text = tsc_types::EscapedName::escape(text.into());
         Ok(())
-    }
-
-    /// The label-literal analog of [`Self::set_generated_identifier_text`]:
-    /// a text-only completion of a deliberately-deferred synthesized
-    /// numeric literal. The Generators machine mints upstream's
-    /// `Number.MAX_SAFE_INTEGER` label placeholders and
-    /// `updateLabelExpressions` (its sole caller) assigns the final case
-    /// numbers here once the build resolves them
-    /// (`docs/design/greenfield/slices/h2-5h-b-b-3.md` §12.4).
-    pub(crate) fn set_numeric_literal_text(
-        &mut self,
-        node: TransformNode,
-        text: &str,
-    ) -> Result<(), TransformError> {
-        let record = self
-            .source_mut(node.source)?
-            .source
-            .arena
-            .node_mut(node.node);
-        let NodeData::NumericLiteral(data) = &mut record.data else {
-            return Err(TransformError::FactoryKindMismatch {
-                expected: SyntaxKind::NumericLiteral,
-                actual: record.kind,
-            });
-        };
-        data.text.clear();
-        data.text.push_str(text);
-        Ok(())
-    }
-
-    /// tsc-port: moveSyntheticComments @6.0.3
-    /// tsc-hash: dbec5c77db1209731faea7ecc4bbe067a09abe111ed885ca1c4dfb7b7b90677a
-    /// tsc-span: _tsc.js:25388-25395
-    ///
-    /// Replace `node`'s synthetic comment lists with `original`'s and clear
-    /// `original`'s — a METADATA relocation through the sanctioned arena
-    /// surface (the `set_generated_identifier_text` discipline); the sole
-    /// production caller is the ES2015 arrow expression-body return
-    /// statement (`docs/design/greenfield/slices/h2-5h-b-b-4.md` §12.6).
-    pub(crate) fn move_synthetic_comments(&mut self, node: TransformNode, original: TransformNode) {
-        let (leading, trailing) = {
-            let source = self.metadata_mut(original);
-            (
-                std::mem::take(&mut source.leading_comments),
-                std::mem::take(&mut source.trailing_comments),
-            )
-        };
-        let target = self.metadata_mut(node);
-        target.leading_comments = leading;
-        target.trailing_comments = trailing;
     }
 
     pub fn node_array(&self, array: TransformNodeArray) -> Result<NodeArray<'_>, TransformError> {
@@ -5035,9 +4973,8 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc's `createNodeArray(elements, hasTrailingComma)` keeps a trailing
-    /// comma even for a final omitted expression. That distinction is needed
-    /// for recovery trees such as the AMD lowering of `import()`, whose
-    /// one-hole dependency list must print as `[,]` rather than `[]`.
+    /// comma even for a final omitted expression, so a one-hole list prints
+    /// as `[,]` rather than `[]`.
     pub fn create_node_array_with_trailing_comma(
         &mut self,
         source: TransformSourceId,
@@ -6414,30 +6351,6 @@ impl<'arena> NodeFactory<'arena> {
                 .then_some(left_kind)
                 .flatten(),
         )
-    }
-
-    /// Explicit `setParent(node, original.parent)` used by upstream workers
-    /// after cloneNode. Ordinary cloning deliberately leaves parent unset.
-    pub(crate) fn set_parent_from(
-        &mut self,
-        node: TransformNode,
-        original: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        if node.source != original.source {
-            return Err(TransformError::CrossSourceNode {
-                expected: node.source,
-                actual: original.source,
-            });
-        }
-        let parent = self.arena.node(original)?.parent;
-        self.arena.node(node)?;
-        self.arena
-            .source_mut(node.source)?
-            .source
-            .arena
-            .node_mut(node.node)
-            .parent = parent;
-        Ok(node)
     }
 
     pub fn set_text_range(

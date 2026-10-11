@@ -8,7 +8,6 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName,
     position::{SourceByteRange, SourceRange},
     EmitResolver, EmitResolverNode, TransformError, TransformFlags, TransformNode,
     TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
@@ -971,30 +970,6 @@ impl<'context> JsxVisitor<'context> {
         &mut self,
         operands: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
-        // tsc createAssignHelper (_tsc.js:25724-25740) reached through
-        // transformJsxAttributesToExpression (_tsc.js:104267): the same
-        // `Object.assign` / `__assign` fork as the es2018 chokepoint.
-        if self.target < ScriptTarget::ES2015 {
-            self.context.request_emit_helper(super::helpers::assign())?;
-            let callee = self
-                .context
-                .factory()?
-                .create_unscoped_helper_identifier(self.source, EmitHelperName::Assign)?;
-            let arguments = self
-                .context
-                .factory()?
-                .create_node_array(self.source, operands)?;
-            return self.context.factory()?.create_node(
-                self.source,
-                NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
-                    expression: Some(callee.node()),
-                    question_dot_token: None,
-                    type_arguments: None,
-                    arguments: Some(arguments.array()),
-                }),
-                TransformFlags::NONE,
-            );
-        }
         let object = self.create_identifier("Object")?;
         let assign = self.create_identifier("assign")?;
         let callee = self.context.factory()?.create_node(
@@ -1351,7 +1326,7 @@ impl<'context> JsxVisitor<'context> {
 
     fn used_names(&mut self) -> &mut super::target_bindings::UsedNames {
         if self.used_names.is_none() {
-            self.used_names = Some(super::system::collect_identifier_texts(
+            self.used_names = Some(super::target_bindings::collect_identifier_texts(
                 self.context.arena(),
                 self.source,
             ));

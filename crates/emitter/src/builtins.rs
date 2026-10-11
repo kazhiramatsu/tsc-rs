@@ -38,20 +38,17 @@ const MODULE_PRESERVE: i32 = 200;
 
 mod class_fields;
 mod const_enums;
-mod es2015;
 mod es2017;
 mod es2018;
 mod es2021;
 mod es_next;
 mod flatten_destructuring;
 mod generated_bindings;
-mod generators;
 pub(crate) mod helpers;
 mod jsx;
 mod legacy_decorators;
 mod relative_imports;
 mod standard_decorators;
-mod system;
 mod tagged_template;
 mod target_bindings;
 
@@ -131,13 +128,12 @@ pub fn get_script_transformers_for_source<'transformers>(
 enum ModuleTransformerKind {
     EcmaScript,
     ImpliedNodeFormat,
-    System,
     Module,
 }
 
-/// tsc-port: getModuleTransformer @6.0.3
-/// tsc-hash: bbb6a0f805e34703e2cf88a3a7e6fe951a390a2b6da3899aab9c02584fff9174
-/// tsc-span: _tsc.js:115876-115895
+/// tsgo-port: getModuleTransformer @7.1 (compiler/emitter.go:92-112): the
+/// removed AMD, UMD and System formats (TS5108) take the CommonJS
+/// transformer.
 fn get_module_transformer_kind(module_kind: i32) -> ModuleTransformerKind {
     match module_kind {
         MODULE_PRESERVE => ModuleTransformerKind::EcmaScript,
@@ -145,7 +141,6 @@ fn get_module_transformer_kind(module_kind: i32) -> ModuleTransformerKind {
         | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT | MODULE_COMMON_JS => {
             ModuleTransformerKind::ImpliedNodeFormat
         }
-        MODULE_SYSTEM => ModuleTransformerKind::System,
         _ => ModuleTransformerKind::Module,
     }
 }
@@ -156,17 +151,6 @@ fn get_script_transformers_with_optional_host<'transformers>(
     host: Option<(&'transformers dyn EmitHost, SourceFileId)>,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
-    if host.is_none()
-        && options
-            .out_file
-            .as_ref()
-            .is_some_and(|path| !path.is_empty())
-    {
-        return Err(TransformError::UnsupportedCompilerOption {
-            option: "outFile",
-            detail: "bundle module names require a Program emit host",
-        });
-    }
     if target < ScriptTarget::ES5 || target == ScriptTarget::JSON {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
@@ -219,16 +203,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2017).then(|| es2017::transform_es2017(options, resolver));
     let transform_es2016 =
         (target < ScriptTarget::ES2016).then(|| es2021::transform_es2016(options));
-    let transform_es2015 =
-        (target < ScriptTarget::ES2015).then(|| es2015::transform_es2015(options, resolver));
-    let transform_generators =
-        (target < ScriptTarget::ES2015).then(|| generators::transform_generators(target, resolver));
     let module_transformer = match get_module_transformer_kind(options.emit_module_kind()) {
         ModuleTransformerKind::EcmaScript => {
             transform_ecmascript_module_with_host(options, host.map(|(host, _)| host))
-        }
-        ModuleTransformerKind::System => {
-            system::transform_system_module(options, resolver, host.map(|(host, _)| host))
         }
         ModuleTransformerKind::ImpliedNodeFormat => {
             let (host, _) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
@@ -270,15 +247,6 @@ fn get_script_transformers_with_optional_host<'transformers>(
     if let Some(transform_es2016) = transform_es2016 {
         transformers.push(transform_es2016);
     }
-    // The joint H2.5h pass in the upstream registration order
-    // (_tsc.js:115942-115945): transformES2015 then transformGenerators,
-    // both ahead of the module transformer.
-    if let Some(transform_es2015) = transform_es2015 {
-        transformers.push(transform_es2015);
-    }
-    if let Some(transform_generators) = transform_generators {
-        transformers.push(transform_generators);
-    }
     transformers.push(module_transformer);
     // tsgo inlines const enum values after the module transform, in place of
     // tsc's print-time substitution (compiler/emitter.go:174-177).
@@ -301,7 +269,6 @@ pub fn transform_type_script<'resolver>(
         resolver,
         legacy_decorators: options.experimental_decorators,
         always_strict: options.always_strict_effective(),
-        downlevel_iteration: options.downlevel_iteration == Some(true),
         module_kind: options.emit_module_kind(),
         preserve_const_enums: options.should_preserve_const_enums(),
         verbatim_module_syntax: options.verbatim_module_syntax == Some(true),
@@ -313,7 +280,6 @@ pub fn transform_type_script<'resolver>(
         // initializers, including assignment-mode output where it replaces
         // the earlier constructor statements.
         project_parameter_properties_for_class_fields: true,
-        promote_class_iife: options.emit_script_target() < ScriptTarget::ES2015,
         namespace_container_names: BTreeMap::new(),
         enum_container_names: BTreeMap::new(),
         active_namespace_emit_depth: 0,
@@ -356,7 +322,6 @@ pub fn transform_ecmascript_module_with_host<'host>(
         host,
         current_source: None,
         helper_aliases: BTreeMap::new(),
-        target: options.emit_script_target(),
     })
 }
 
@@ -386,7 +351,6 @@ struct TypeScriptTransformer<'resolver> {
     /// records that decorator syntax is supported by the complete pipeline.
     legacy_decorators: bool,
     always_strict: bool,
-    downlevel_iteration: bool,
     module_kind: i32,
     preserve_const_enums: bool,
     verbatim_module_syntax: bool,
@@ -397,7 +361,6 @@ struct TypeScriptTransformer<'resolver> {
     /// with static initialized properties (or decorator facts) into the
     /// `TypeScriptClassWrapper` arrow IIFE consumed by the ES2015 owner's
     /// wrapper surgery (upstream `promoteToIIFE`, `_tsc.js:94436`).
-    promote_class_iife: bool,
     namespace_container_names: BTreeMap<TransformNode, Box<str>>,
     enum_container_names: BTreeMap<TransformNode, Box<str>>,
     active_namespace_emit_depth: usize,
@@ -461,8 +424,6 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.legacy_decorators,
             self.preserve_const_enums,
             self.project_parameter_properties_for_class_fields,
-            self.downlevel_iteration,
-            self.promote_class_iife,
             self.verbatim_module_syntax,
         );
         let transformed = visitor.visit_typescript(root_node.node())?.ok_or(
@@ -868,10 +829,6 @@ struct EcmaScriptModuleTransformer<'host> {
     /// One generated binding per colliding helper and source. Import aliases
     /// and helper references share its finalized file-level name.
     helper_aliases: BTreeMap<(TransformSourceId, String), TransformNode>,
-    // The synthesized require/createRequire bindings choose their
-    // declaration keyword by language version (tsc: `languageVersion >=
-    // ES2015 ? Const : None`, _tsc.js:113555/113591).
-    target: ScriptTarget,
 }
 
 impl Transformer for EcmaScriptModuleTransformer<'_> {
@@ -969,7 +926,6 @@ impl Transformer for EcmaScriptModuleTransformer<'_> {
                 context,
                 source,
                 self.module_kind,
-                self.target,
                 self.rewrite_relative_import_extensions
                     .then_some(self.preserve_jsx),
             );
@@ -1145,7 +1101,6 @@ struct EcmaScriptModuleEqualsVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     module_kind: i32,
-    target: ScriptTarget,
     /// `Some(preserve_jsx)` under rewriteRelativeImportExtensions.
     rewrite_relative_import_extensions: Option<bool>,
     used_names: target_bindings::UsedNames,
@@ -1158,15 +1113,13 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         module_kind: i32,
-        target: ScriptTarget,
         rewrite_relative_import_extensions: Option<bool>,
     ) -> Self {
-        let used_names = system::collect_identifier_texts(context.arena(), source);
+        let used_names = target_bindings::collect_identifier_texts(context.arena(), source);
         Self {
             context,
             source,
             module_kind,
-            target,
             rewrite_relative_import_extensions,
             used_names,
             create_require_name: None,
@@ -1416,11 +1369,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             self.create_identifier(&require_name)?
         };
         let call = self.create_call(require, vec![module_specifier])?;
-        let keyword = if self.target >= ScriptTarget::ES2015 {
-            NodeFlags::CONST
-        } else {
-            NodeFlags::NONE
-        };
+        let keyword = NodeFlags::CONST;
         let statement = self.create_variable_statement(name, call, keyword)?;
         self.set_original_and_range(statement, original)?;
         let mut output = vec![statement];
@@ -1525,11 +1474,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         let import_meta_url = self.create_identifier("import.meta.url")?;
         let initializer = self.create_call(create_require, vec![import_meta_url])?;
         let name = self.create_identifier(&require_name)?;
-        let keyword = if self.target >= ScriptTarget::ES2015 {
-            NodeFlags::CONST
-        } else {
-            NodeFlags::NONE
-        };
+        let keyword = NodeFlags::CONST;
         let declaration = self.create_variable_statement(name, initializer, keyword)?;
         Ok(vec![import, declaration])
     }
@@ -2462,11 +2407,9 @@ fn transform_module_with_optional_host<'resolver>(
         module_kind: options.emit_module_kind(),
         always_strict: options.always_strict_effective(),
         es_module_interop: options.es_module_interop_effective(),
-        preserves_native_parameter_defaults: options.emit_script_target() >= ScriptTarget::ES2015,
         rewrite_relative_import_extensions: options
             .rewrite_relative_import_extensions
             .unwrap_or(false),
-        downlevel_iteration: options.downlevel_iteration == Some(true),
         target: options.emit_script_target(),
         import_helpers: options.import_helpers.unwrap_or(false),
         current_source: None,
@@ -2482,13 +2425,11 @@ struct CommonJsModuleTransformer<'resolver> {
     module_kind: i32,
     always_strict: bool,
     es_module_interop: bool,
-    preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
     // The synthesized import/require bindings choose their declaration
     // keyword by language version (tsc: `languageVersion >= ES2015 ?
     // Const : None`, _tsc.js:111241/111277/111338).
     target: ScriptTarget,
-    downlevel_iteration: bool,
     import_helpers: bool,
     current_source: Option<TransformSourceId>,
     /// The module state of every transformed source, kept for the print-time
@@ -2497,15 +2438,12 @@ struct CommonJsModuleTransformer<'resolver> {
 }
 
 impl CommonJsModuleTransformer<'_> {
-    fn visitor_options(&self, has_dynamic_import: bool) -> CommonJsVisitorOptions {
+    fn visitor_options(&self) -> CommonJsVisitorOptions {
         CommonJsVisitorOptions {
             preserve_jsx: self.preserve_jsx,
             module_kind: self.module_kind,
             es_module_interop: self.es_module_interop,
-            has_dynamic_import,
-            preserves_native_parameter_defaults: self.preserves_native_parameter_defaults,
             rewrite_relative_import_extensions: self.rewrite_relative_import_extensions,
-            downlevel_iteration: self.downlevel_iteration,
             target: self.target,
         }
     }
@@ -2568,51 +2506,22 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                         .require_parse_tree_resolver_node(current_root)?,
                 )?;
         let has_dynamic_import = source_contains_dynamic_import(context.arena(), current_root)?;
-        // transformModule also enters the AMD outFile branch for JSON even
-        // though JSON has no external-module indicator (_tsc.js:110131).
-        // hasJsonModuleEmitEnabled excludes System/UMD/None; those JSON roots
-        // keep their expression and do not acquire an asynchronous wrapper.
-        let is_json = is_json_file_name(&context.arena().source(source)?.syntax().file_name);
-        let json_amd_bundle = is_json
-            && self.module_kind == MODULE_AMD
-            && self.host.is_some_and(|host| {
-                host.compiler_options()
-                    .out_file
-                    .as_ref()
-                    .is_some_and(|path| !path.is_empty())
-            });
-        let requires_module_rewrite =
-            is_effective_external || has_dynamic_import || json_amd_bundle;
         // tsgo's CommonJS transform leaves a script alone
-        // (commonjsmodule.go:228-233), so a reference carrying an import
-        // declaration there (a JSX runtime name) keeps its name. tsc's
-        // substitution hook rewrote it, which the AMD and UMD formats (not in
-        // tsgo) keep: only they scan a script for one.
-        if !requires_module_rewrite
-            && (!matches!(self.module_kind, MODULE_AMD | MODULE_UMD)
-                || !source_contains_import_reference_substitution(context.arena(), current_root)?)
-        {
+        // (commonjsmodule.go:228-233); it also serves the removed AMD, UMD
+        // and System formats.
+        if !(is_effective_external || has_dynamic_import) {
             return Ok(TransformRoot::SourceFile(source));
         }
-        if requires_module_rewrite
-            && !is_json
-            && (matches!(self.module_kind, MODULE_AMD | MODULE_UMD)
-                || self.always_strict
-                || is_external)
-        {
+        let is_json = is_json_file_name(&context.arena().source(source)?.syntax().file_name);
+        if !is_json && (self.always_strict || is_external) {
             let strict_root = context.arena().root(source)?;
             let strict_root = ensure_use_strict_prologue(context, source, strict_root)?;
             context.arena_mut()?.replace_root(source, strict_root)?;
         }
 
         let current_root = context.arena().root(source)?;
-        let mut info = CommonJsModuleInfo::collect(
-            context.arena(),
-            source,
-            current_root,
-            self.resolver,
-            self.module_kind,
-        )?;
+        let mut info =
+            CommonJsModuleInfo::collect(context.arena(), source, current_root, self.resolver)?;
         if self.import_helpers && is_effective_external {
             self.collect_external_helpers_import(context, source, &mut info)?;
         }
@@ -2622,29 +2531,19 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         let mut state = CommonJsModuleState {
             info,
             generated_module_bindings: BTreeMap::new(),
-            dynamic_import_ordinal: 0,
-            used_names: system::collect_identifier_texts(context.arena(), source),
+            used_names: target_bindings::collect_identifier_texts(context.arena(), source),
             temp_ordinal: 0,
         };
-        let options = self.visitor_options(has_dynamic_import);
+        let options = self.visitor_options();
         let mut visitor = CommonJsVisitor::new(
             context,
             source,
             self.resolver,
-            self.host,
             options,
             &mut state,
             &mut self.rewrite_calls,
         );
-        let updated = if json_amd_bundle {
-            visitor.transform_amd_json_module(current_root)?
-        } else {
-            let mut updated = visitor.transform_source_file(current_root)?;
-            if requires_module_rewrite && matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
-                updated = visitor.wrap_asynchronous_module(updated)?;
-            }
-            updated
-        };
+        let updated = visitor.transform_source_file(current_root)?;
         visitor.context.arena_mut()?.replace_root(source, updated)?;
         drop(visitor);
         self.retained.push((source, state));
@@ -2691,7 +2590,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             else {
                 return Ok(node);
             };
-            let options = self.visitor_options(false);
+            let options = self.visitor_options();
             let (_, state) = &mut self.retained[index];
             context.enter_substitution();
             let substituted = {
@@ -2699,7 +2598,6 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                     context,
                     source,
                     self.resolver,
-                    self.host,
                     options,
                     state,
                     &mut self.rewrite_calls,
@@ -2867,8 +2765,6 @@ fn collect_external_helpers_import_declaration(
     info.imports.insert(
         declaration.node(),
         ImportPlan {
-            declaration,
-            module_specifier_node: specifier,
             runtime_name: Some(identifier_text_owned(context.arena(), namespace)?.into_boxed_str()),
             namespace_alias: None,
             helper: ImportHelperKind::None,
@@ -2887,8 +2783,6 @@ enum ImportHelperKind {
 
 #[derive(Clone, Debug)]
 struct ImportPlan {
-    declaration: TransformNode,
-    module_specifier_node: TransformNode,
     runtime_name: Option<Box<str>>,
     namespace_alias: Option<Box<str>>,
     helper: ImportHelperKind,
@@ -2897,8 +2791,8 @@ struct ImportPlan {
 
 /// Runtime owner selected by `visitTopLevelImportEqualsDeclaration`.
 ///
-/// A plain external import-equals owns a local declaration (or an AMD
-/// parameter), while a syntactically exported import-equals owns
+/// A plain external import-equals owns a local declaration, while a
+/// syntactically exported import-equals owns
 /// `exports.name` after its initial publication. Keeping that distinction in
 /// the collected plan is important for later `export { local as alias }`
 /// statements: the latter must read `exports.name` when no local binding was
@@ -2927,7 +2821,7 @@ struct GeneratedModuleNameAllocator {
 impl GeneratedModuleNameAllocator {
     fn new(arena: &TransformArena, source: TransformSourceId) -> Self {
         Self {
-            used_names: system::collect_identifier_texts(arena, source),
+            used_names: target_bindings::collect_identifier_texts(arena, source),
             generated_bases: BTreeMap::new(),
         }
     }
@@ -3003,34 +2897,6 @@ fn create_import_binding_access(
             .factory()?
             .create_property_access_expression(source, target, name)
     }
-}
-
-/// Return the source-written local selected for a namespace export. Default
-/// and string-literal namespace names deliberately fall back to generated
-/// identities at the caller.
-///
-/// tsc-port: getLocalNameForExternalImport @6.0.3
-/// tsc-hash: 50466eb807c5b844a6c46e9dce377be409f411f46fcd706c916f24be66a0fc4a
-/// tsc-span: _tsc.js:27696-27711
-fn namespace_export_identifier_name(
-    arena: &TransformArena,
-    source: TransformSourceId,
-    export_clause: Option<NodeId>,
-) -> Result<Option<Box<str>>, TransformError> {
-    let Some(clause) = export_clause.and_then(|id| arena.node_ref(source, id)) else {
-        return Ok(None);
-    };
-    let NodeData::NamespaceExport(namespace) = &arena.node(clause)?.data else {
-        return Ok(None);
-    };
-    let Some(name) = namespace.name.and_then(|id| arena.node_ref(source, id)) else {
-        return Ok(None);
-    };
-    if arena.node(name)?.kind != SyntaxKind::Identifier {
-        return Ok(None);
-    }
-    let text = identifier_text_owned(arena, name)?;
-    Ok((text != "default").then(|| text.into_boxed_str()))
 }
 
 /// Text keys and syntax provenance have distinct roles in module publication.
@@ -3395,7 +3261,6 @@ impl CommonJsModuleInfo {
         source: TransformSourceId,
         root: TransformNode,
         resolver: &dyn EmitResolver,
-        module_kind: i32,
     ) -> Result<Self, TransformError> {
         let is_external = arena
             .source(source)?
@@ -3633,8 +3498,6 @@ impl CommonJsModuleInfo {
                     info.imports.insert(
                         arena.get_original_node(*statement).node(),
                         ImportPlan {
-                            declaration: arena.get_original_node(*statement),
-                            module_specifier_node: module_specifier,
                             runtime_name,
                             namespace_alias,
                             helper,
@@ -3656,12 +3519,13 @@ impl CommonJsModuleInfo {
                     else {
                         continue;
                     };
-                    let Some(module_specifier) = reference
+                    if reference
                         .expression
                         .and_then(|id| arena.node_ref(source, id))
-                    else {
+                        .is_none()
+                    {
                         continue;
-                    };
+                    }
                     let Some(name) = data
                         .name
                         .and_then(|id| arena.node_ref(source, id))
@@ -3675,8 +3539,6 @@ impl CommonJsModuleInfo {
                     info.imports.insert(
                         key,
                         ImportPlan {
-                            declaration: arena.get_original_node(*statement),
-                            module_specifier_node: module_specifier,
                             runtime_name: Some(name.clone().into_boxed_str()),
                             namespace_alias: None,
                             helper: ImportHelperKind::None,
@@ -3882,32 +3744,21 @@ impl CommonJsModuleInfo {
                     // `getGeneratedNameForNode` is lazy in tsc: a synchronous
                     // export-star or namespace export constructs an identity
                     // but never materializes it, so it must not consume an
-                    // ordinal. Named re-exports own a local require binding;
-                    // AMD also needs a setter parameter for every external
-                    // export declaration.
+                    // ordinal. Named re-exports own a local require binding.
                     let has_named_exports = data
                         .export_clause
                         .and_then(|clause| arena.node_ref(source, clause))
                         .is_some_and(|clause| {
                             matches!(arena.node(clause), Ok(record) if matches!(record.data, NodeData::NamedExports(_)))
                         });
-                    let namespace_identifier_name =
-                        namespace_export_identifier_name(arena, source, data.export_clause)?;
-                    let runtime_name =
-                        if module_kind == MODULE_AMD {
-                            Some(namespace_identifier_name.unwrap_or_else(|| {
-                                info.generated_module_names.allocate(module_text)
-                            }))
-                        } else if module_kind != MODULE_SYSTEM && has_named_exports {
-                            Some(info.generated_module_names.allocate(module_text))
-                        } else {
-                            None
-                        };
+                    // tsgo visitTopLevelExportDeclaration
+                    // (commonjsmodule.go:830-850): `export { x } from` requires
+                    // into a generated name, whatever the module format.
+                    let runtime_name = has_named_exports
+                        .then(|| info.generated_module_names.allocate(module_text));
                     info.imports.insert(
                         key,
                         ImportPlan {
-                            declaration: arena.get_original_node(*statement),
-                            module_specifier_node: module_specifier,
                             runtime_name,
                             namespace_alias: None,
                             helper: ImportHelperKind::None,
@@ -4209,29 +4060,6 @@ fn source_file_statement_nodes(
         });
     };
     node_array_nodes(arena, source, data.statements)
-}
-
-/// The parsed statement-list owner behind a transformed SourceFile.
-///
-/// Module transforms can update the SourceFile more than once before moving
-/// its runtime statements into a synthetic function body.  The current array
-/// can therefore begin with a synthesized prologue even though detached
-/// comments are still owned by the first parse-tree statement.  Follow the
-/// SourceFile's original chain once at this boundary instead of asking each
-/// wrapper transform to infer comment ownership from its current children.
-fn parsed_source_file_statement_array(
-    arena: &TransformArena,
-    root: TransformNode,
-) -> Result<Option<TransformNodeArray>, TransformError> {
-    let parsed_root = arena.get_original_node(root);
-    let NodeData::SourceFile(data) = &arena.node(parsed_root)?.data else {
-        return Err(TransformError::RootKindExpected {
-            actual: arena.node(parsed_root)?.kind,
-        });
-    };
-    Ok(data
-        .statements
-        .and_then(|array| arena.node_array_ref(parsed_root.source(), array)))
 }
 
 fn node_array_nodes(
@@ -4540,45 +4368,6 @@ fn source_contains_dynamic_import(
             {
                 return Ok(true);
             }
-        }
-        for_each_child(
-            &arena.source(root.source())?.syntax().arena,
-            record,
-            |child| {
-                stack.push(child);
-                false
-            },
-        );
-    }
-    Ok(false)
-}
-
-/// The upstream module transform installs expression substitutions even for a
-/// source file that does not need a module statement rewrite. In particular,
-/// automatic JSX can retain a generated import-specifier identity without
-/// inserting its implicit import into a legacy script. Our mutable-AST
-/// substitution model must still visit that script so the reference receives
-/// the same generated namespace access at emit time.
-fn source_contains_import_reference_substitution(
-    arena: &TransformArena,
-    root: TransformNode,
-) -> Result<bool, TransformError> {
-    let mut stack = vec![root.node()];
-    while let Some(id) = stack.pop() {
-        let node = arena
-            .node_ref(root.source(), id)
-            .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(root.source(), id)))?;
-        if arena
-            .metadata(node)
-            .and_then(crate::EmitMetadata::referenced_import_declaration)
-            .is_some()
-        {
-            return Ok(true);
-        }
-        let record = arena.node(node)?;
-        // Missing declarations retain syntax for binding, but emit no subtree.
-        if record.kind == SyntaxKind::MissingDeclaration {
-            continue;
         }
         for_each_child(
             &arena.source(root.source())?.syntax().arena,
@@ -5029,10 +4818,7 @@ struct CommonJsVisitorOptions {
     preserve_jsx: bool,
     module_kind: i32,
     es_module_interop: bool,
-    has_dynamic_import: bool,
-    preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
-    downlevel_iteration: bool,
     target: ScriptTarget,
 }
 
@@ -5151,38 +4937,6 @@ struct DeclarationExportPlan {
     exported_name: ModuleExportName,
 }
 
-struct AliasedAsynchronousDependency {
-    path: JsString,
-    parameter: TransformNode,
-}
-
-struct AsynchronousDependencies {
-    aliased: Vec<AliasedAsynchronousDependency>,
-    unaliased: Vec<JsString>,
-}
-
-/// Names owned by one AMD dynamic-import executor. Reserving the pair before
-/// visiting an AMD dependency mirrors the printer-order allocation of tsc's
-/// generated identifiers: the outer executor is emitted before a nested
-/// dependency expression and therefore owns the lower ordinal.
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct AmdDynamicImportBindings {
-    resolve: Box<str>,
-    reject: Box<str>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum StringLiteralQuote {
-    Single,
-    Double,
-}
-
-impl StringLiteralQuote {
-    const fn is_single(self) -> bool {
-        matches!(self, Self::Single)
-    }
-}
-
 /// Module lowering and the later emit-time expression substitutions are
 /// distinct upstream phases. A shim argument bypasses only the former.
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -5198,13 +4952,9 @@ struct CommonJsVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
-    host: Option<&'resolver dyn EmitHost>,
     module_kind: i32,
     es_module_interop: bool,
-    has_dynamic_import: bool,
-    preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
-    downlevel_iteration: bool,
     target: ScriptTarget,
     /// The module's state, owned by the transformer: the transform builds
     /// it and the print-time substitutions continue it.
@@ -5220,7 +4970,6 @@ struct CommonJsVisitor<'context, 'resolver> {
 struct CommonJsModuleState {
     info: CommonJsModuleInfo,
     generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
-    dynamic_import_ordinal: usize,
     used_names: target_bindings::UsedNames,
     temp_ordinal: usize,
 }
@@ -5230,7 +4979,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
-        host: Option<&'resolver dyn EmitHost>,
         options: CommonJsVisitorOptions,
         state: &'context mut CommonJsModuleState,
         rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
@@ -5242,7 +4990,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
-            host,
             options,
             state,
             rewrite_calls,
@@ -5258,7 +5005,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
-        host: Option<&'resolver dyn EmitHost>,
         options: CommonJsVisitorOptions,
         state: &'context mut CommonJsModuleState,
         rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
@@ -5268,7 +5014,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
-            host,
             options,
             state,
             rewrite_calls,
@@ -5283,7 +5028,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
-        host: Option<&'resolver dyn EmitHost>,
         options: CommonJsVisitorOptions,
         state: &'context mut CommonJsModuleState,
         rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
@@ -5297,13 +5041,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
-            host,
             module_kind: options.module_kind,
             es_module_interop: options.es_module_interop,
-            has_dynamic_import: options.has_dynamic_import,
-            preserves_native_parameter_defaults: options.preserves_native_parameter_defaults,
             rewrite_relative_import_extensions: options.rewrite_relative_import_extensions,
-            downlevel_iteration: options.downlevel_iteration,
             target: options.target,
             state,
             nodes,
@@ -5516,9 +5256,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 offset += 1;
             }
 
-            if self.module_kind == MODULE_UMD && self.has_dynamic_import {
-                output.push(self.create_sync_require_declaration()?);
-            }
             let temp_insertion = output.len();
             if self.should_emit_es_module_marker(root)? {
                 output.push(self.create_es_module_marker()?);
@@ -5541,9 +5278,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
             if let Some(import) = self.state.info.external_helpers_import_declaration {
                 output.extend(self.visit_top_level_statement(import)?);
-            }
-            if self.module_kind == MODULE_AMD {
-                output.extend(self.create_amd_import_initializers()?);
             }
             for statement in input.into_iter().skip(offset) {
                 output.extend(self.visit_top_level_statement(statement)?);
@@ -5600,10 +5334,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(true)
     }
 
-    /// The UMD sync-require helper is represented as an ordinary statement in
-    /// this arena, while tsc carries it as an emit helper. Preserve the same
-    /// observable order by inserting lexical declarations after that helper
-    /// and before the module marker at the source-body ownership boundary.
+    /// Insert the source body's lexical declarations before the module
+    /// marker, at the source-body ownership boundary.
     fn insert_source_lexical_environment(
         &mut self,
         statements: &mut Vec<TransformNode>,
@@ -5627,75 +5359,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(())
     }
 
-    fn create_amd_import_initializers(&mut self) -> Result<Vec<TransformNode>, TransformError> {
-        let plans = self
-            .state
-            .info
-            .external_imports
-            .iter()
-            .filter_map(|key| self.state.info.imports.get(key).cloned())
-            .collect::<Vec<_>>();
-        let mut statements = Vec::new();
-        for plan in plans {
-            // Import-equals publication and the namespace alias of a combined
-            // default/namespace import belong to their original source
-            // positions. This phase initializes only AMD dependency
-            // parameters with interop helpers, before ordinary statements.
-            if plan.import_equals_publication.is_some() {
-                continue;
-            }
-            let Some(runtime_name) = plan.runtime_name.as_deref() else {
-                continue;
-            };
-            if self.es_module_interop {
-                let helper_name = match plan.helper {
-                    ImportHelperKind::Star => Some(EmitHelperName::ImportStar),
-                    ImportHelperKind::Default => Some(EmitHelperName::ImportDefault),
-                    ImportHelperKind::None => None,
-                };
-                if let Some(helper_name) = helper_name {
-                    match plan.helper {
-                        ImportHelperKind::Star => self.request_import_star_helper()?,
-                        ImportHelperKind::Default => self.request_import_default_helper()?,
-                        ImportHelperKind::None => {}
-                    }
-                    let target = self.create_identifier(runtime_name)?;
-                    let helper = self
-                        .context
-                        .factory()?
-                        .create_unscoped_helper_identifier(self.source, helper_name)?;
-                    let argument = self.create_identifier(runtime_name)?;
-                    let value = self.create_call(helper, vec![argument])?;
-                    let assignment = self.create_assignment(target, value)?;
-                    statements.push(self.create_expression_statement(assignment)?);
-                }
-            }
-        }
-        Ok(statements)
-    }
-
-    fn create_sync_require_declaration(&mut self) -> Result<TransformNode, TransformError> {
-        let module = self.create_identifier("module")?;
-        let module_type = self.create_typeof(module)?;
-        let object = self.create_string_literal("object")?;
-        let module_is_object =
-            self.create_binary(module_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
-
-        let module = self.create_identifier("module")?;
-        let module_exports = self.create_property_access(module, "exports")?;
-        let exports_type = self.create_typeof(module_exports)?;
-        let object = self.create_string_literal("object")?;
-        let exports_is_object =
-            self.create_binary(exports_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
-        let condition = self.create_binary(
-            module_is_object,
-            SyntaxKind::AmpersandAmpersandToken,
-            exports_is_object,
-        )?;
-        let declaration = self.create_variable_declaration("__syncRequire", condition)?;
-        self.create_variable_statement(vec![declaration], NodeFlags::NONE)
-    }
-
     /// tsc-port: addExportEqualsIfNeeded @6.0.3
     /// tsc-hash: d04181926d998191c370e6a96184e7700d2a60a17d62275755ef3fdcaa9ac74d
     /// tsc-span: _tsc.js:110535-110562
@@ -5713,357 +5376,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             field: "expression",
         })?;
         let expression = self.visit(expression)?;
-        let statement = if matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
-            self.context.factory()?.create_node(
-                self.source,
-                NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
-                    expression: Some(expression.node()),
-                }),
-                TransformFlags::NONE,
-            )?
-        } else {
-            let module = self.create_identifier("module")?;
-            let target = self.create_property_access(module, "exports")?;
-            let assignment = self.create_assignment(target, expression)?;
-            self.create_expression_statement(assignment)?
-        };
+        let module = self.create_identifier("module")?;
+        let target = self.create_property_access(module, "exports")?;
+        let assignment = self.create_assignment(target, expression)?;
+        let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, original)?;
         self.context
             .arena_mut()?
             .metadata_mut(statement)
             .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_TOKEN_SOURCE_MAPS);
         Ok(statement)
-    }
-
-    fn asynchronous_dependencies(&mut self) -> Result<AsynchronousDependencies, TransformError> {
-        let source = self.context.arena().source(self.source)?.syntax();
-        let amd_dependencies = source.amd_dependencies.clone();
-        let import_plans = self
-            .state
-            .info
-            .external_imports
-            .iter()
-            .filter_map(|key| self.state.info.imports.get(key).cloned())
-            .collect::<Vec<_>>();
-        let mut aliased = Vec::new();
-        let mut unaliased = Vec::new();
-        for dependency in amd_dependencies {
-            let path = dependency.path;
-            if let Some(name) = dependency.name {
-                aliased.push(AliasedAsynchronousDependency {
-                    path,
-                    parameter: self.create_identifier(&name)?,
-                });
-            } else {
-                unaliased.push(path);
-            }
-        }
-        for plan in import_plans {
-            let module_specifier = self
-                .external_module_name_literal(plan.declaration, plan.module_specifier_node)?
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::ImportDeclaration,
-                    field: "string module_specifier",
-                })?;
-            // collectAsynchronousDependencies (_tsc.js:110461) uses the
-            // external module name directly. Rewriting belongs to require /
-            // import expressions; it does not apply to this dependency array.
-            let module_specifier =
-                string_literal_text(self.context.arena(), module_specifier)?.to_owned();
-            if self.module_kind == MODULE_AMD && plan.runtime_name.is_some() {
-                let generated_name = match &self.context.arena().node(plan.declaration)?.data {
-                    NodeData::ImportEqualsDeclaration(data) => data
-                        .name
-                        .and_then(|name| self.context.arena().node_ref(self.source, name))
-                        .filter(|name| {
-                            self.context
-                                .arena()
-                                .metadata(*name)
-                                .and_then(crate::EmitMetadata::generated_binding_id)
-                                .is_some()
-                        }),
-                    _ => None,
-                };
-                let parameter = match generated_name {
-                    Some(name) => name,
-                    None => self.create_identifier(
-                        plan.runtime_name
-                            .as_deref()
-                            .expect("an aliased AMD dependency owns a runtime binding"),
-                    )?,
-                };
-                aliased.push(AliasedAsynchronousDependency {
-                    path: module_specifier,
-                    parameter,
-                });
-            } else {
-                unaliased.push(module_specifier);
-            }
-        }
-        Ok(AsynchronousDependencies { aliased, unaliased })
-    }
-
-    /// JSON arm of transformAMDModule (_tsc.js:110205-110280). Its third
-    /// define argument is the original JSON expression, not a module-body
-    /// function. Empty JSON supplies a synthesized empty object. Only the
-    /// outer statement-list range is copied; the payload keeps its own range.
-    fn transform_amd_json_module(
-        &mut self,
-        root: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        let mut source_data = match self.context.arena().node(root)?.data.clone() {
-            NodeData::SourceFile(data) => data,
-            _ => {
-                return Err(TransformError::RootKindExpected {
-                    actual: self.context.arena().node(root)?.kind,
-                })
-            }
-        };
-        let original_array = source_data
-            .statements
-            .and_then(|array| self.context.arena().node_array_ref(self.source, array));
-        let input = node_array_nodes(self.context.arena(), self.source, source_data.statements)?;
-        let payload = if let Some(&statement) = input.first() {
-            let expression = match &self.context.arena().node(statement)?.data {
-                NodeData::ExpressionStatement(data) => data.expression,
-                _ => None,
-            };
-            expression
-                .and_then(|node| self.context.arena().node_ref(self.source, node))
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::ExpressionStatement,
-                    field: "JSON expression",
-                })?
-        } else {
-            let properties = self
-                .context
-                .factory()?
-                .create_node_array(self.source, Vec::new())?;
-            self.context.factory()?.create_node(
-                self.source,
-                NodeData::ObjectLiteralExpression(tsc_syntax::nodes::ObjectLiteralExpressionData {
-                    properties: Some(properties.array()),
-                }),
-                TransformFlags::NONE,
-            )?
-        };
-        let module_name = crate::external_module_names::try_get_module_name_from_file(
-            self.host,
-            self.context.arena().source(self.source)?.syntax(),
-        );
-        let define = self.create_identifier("define")?;
-        let mut arguments = Vec::new();
-        if let Some(module_name) = module_name {
-            arguments.push(self.create_string_literal(&module_name)?);
-        }
-        arguments.push(self.create_array_literal(Vec::new())?);
-        arguments.push(payload);
-        let call = self.create_call(define, arguments)?;
-        let statement = self.create_expression_statement(call)?;
-        let statements = self
-            .context
-            .factory()?
-            .create_node_array(self.source, vec![statement])?;
-        if let Some(original_array) = original_array {
-            let original_array = self.context.arena().node_array(original_array)?;
-            let (pos, end) = (original_array.pos, original_array.end);
-            self.context
-                .factory()?
-                .set_node_array_text_range(statements, pos, end)?;
-        }
-        source_data.statements = Some(statements.array());
-        let flags = self.context.arena().transform_flags(root);
-        self.context
-            .factory()?
-            .update_node(root, NodeData::SourceFile(source_data), flags)
-    }
-
-    fn wrap_asynchronous_module(
-        &mut self,
-        root: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        let parsed_statement_array =
-            parsed_source_file_statement_array(self.context.arena(), root)?;
-        let (mut source_data, original_array) = match self.context.arena().node(root)?.data.clone()
-        {
-            NodeData::SourceFile(data) => {
-                let statements = data.statements;
-                (data, statements)
-            }
-            _ => {
-                return Err(TransformError::RootKindExpected {
-                    actual: self.context.arena().node(root)?.kind,
-                })
-            }
-        };
-        let body_statements =
-            node_array_nodes(self.context.arena(), self.source, source_data.statements)?;
-        // Only the outer wrapper list retains the parsed statement-list range.
-        // The body is a new lexical container, but carries typed provenance so
-        // the printer can seed the original detached-comment boundary without
-        // emitting the SourceFile-owned prefix a second time.
-        let relocated_comments = parsed_statement_array
-            .map(crate::metadata::RelocatedStatementListComments::owned_by_source_file);
-        let body = self.create_block_from_array(body_statements, None, true)?;
-        if let Some(relocated_comments) = relocated_comments {
-            self.context
-                .arena_mut()?
-                .metadata_mut(body)
-                .set_relocated_statement_list_comments(relocated_comments);
-        }
-        let asynchronous_dependencies = self.asynchronous_dependencies()?;
-
-        let mut body_parameters = vec![
-            self.create_parameter("require")?,
-            self.create_parameter("exports")?,
-        ];
-        for dependency in &asynchronous_dependencies.aliased {
-            body_parameters.push(self.context.factory()?.create_parameter_declaration(
-                self.source,
-                None,
-                None,
-                dependency.parameter,
-                None,
-                None,
-                None,
-            )?);
-        }
-        let body_function = self.create_function_expression(body_parameters, body)?;
-        let mut dependency_elements = vec![
-            self.create_string_literal("require")?,
-            self.create_string_literal("exports")?,
-        ];
-        for path in asynchronous_dependencies
-            .aliased
-            .into_iter()
-            .map(|dependency| dependency.path)
-            .chain(asynchronous_dependencies.unaliased)
-        {
-            dependency_elements.push(self.create_string_literal(&path)?);
-        }
-        let dependencies = self.create_array_literal(dependency_elements)?;
-        let module_name = crate::external_module_names::try_get_module_name_from_file(
-            self.host,
-            self.context.arena().source(self.source)?.syntax(),
-        );
-
-        let wrapper = if self.module_kind == MODULE_AMD {
-            let define = self.create_identifier("define")?;
-            let mut arguments = Vec::new();
-            if let Some(module_name) = module_name {
-                arguments.push(self.create_string_literal(&module_name)?);
-            }
-            arguments.push(dependencies);
-            arguments.push(body_function);
-            let call = self.create_call(define, arguments)?;
-            self.create_expression_statement(call)?
-        } else {
-            self.create_umd_wrapper(
-                module_name.as_ref().map(JsString::as_js),
-                dependencies,
-                body_function,
-            )?
-        };
-
-        let statements = if let Some(original_array) =
-            original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
-        {
-            self.context
-                .factory()?
-                .update_node_array(original_array, vec![wrapper])?
-        } else {
-            self.context
-                .factory()?
-                .create_node_array(self.source, vec![wrapper])?
-        };
-        source_data.statements = Some(statements.array());
-        let flags = self.context.arena().transform_flags(root);
-        self.context
-            .factory()?
-            .update_node(root, NodeData::SourceFile(source_data), flags)
-    }
-
-    fn create_umd_wrapper(
-        &mut self,
-        module_name: Option<JsStr<'_>>,
-        dependencies: TransformNode,
-        body_function: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        let module = self.create_identifier("module")?;
-        let module_type = self.create_typeof(module)?;
-        let object = self.create_string_literal("object")?;
-        let module_is_object =
-            self.create_binary(module_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
-        let module = self.create_identifier("module")?;
-        let module_exports = self.create_property_access(module, "exports")?;
-        let exports_type = self.create_typeof(module_exports)?;
-        let object = self.create_string_literal("object")?;
-        let exports_is_object =
-            self.create_binary(exports_type, SyntaxKind::EqualsEqualsEqualsToken, object)?;
-        let common_js_condition = self.create_binary(
-            module_is_object,
-            SyntaxKind::AmpersandAmpersandToken,
-            exports_is_object,
-        )?;
-
-        let factory = self.create_identifier("factory")?;
-        let require = self.create_identifier("require")?;
-        let exports = self.create_identifier("exports")?;
-        let factory_call = self.create_call(factory, vec![require, exports])?;
-        let value_declaration = self.create_variable_declaration("v", factory_call)?;
-        let value_statement =
-            self.create_variable_statement(vec![value_declaration], NodeFlags::NONE)?;
-        let value = self.create_identifier("v")?;
-        let undefined = self.create_identifier("undefined")?;
-        let value_present =
-            self.create_binary(value, SyntaxKind::ExclamationEqualsEqualsToken, undefined)?;
-        let module = self.create_identifier("module")?;
-        let module_exports = self.create_property_access(module, "exports")?;
-        let value = self.create_identifier("v")?;
-        let assignment = self.create_assignment(module_exports, value)?;
-        let assignment = self.create_expression_statement(assignment)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(assignment)
-            .add_flags(crate::EmitFlags::SINGLE_LINE);
-        let value_if = self.create_if_statement(value_present, assignment, None)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(value_if)
-            .add_flags(crate::EmitFlags::SINGLE_LINE);
-        let common_js_block = self.create_block(vec![value_statement, value_if], true)?;
-
-        let define = self.create_identifier("define")?;
-        let define_type = self.create_typeof(define)?;
-        let function = self.create_string_literal("function")?;
-        let define_is_function =
-            self.create_binary(define_type, SyntaxKind::EqualsEqualsEqualsToken, function)?;
-        let define = self.create_identifier("define")?;
-        let define_amd = self.create_property_access(define, "amd")?;
-        let amd_condition = self.create_binary(
-            define_is_function,
-            SyntaxKind::AmpersandAmpersandToken,
-            define_amd,
-        )?;
-        let define = self.create_identifier("define")?;
-        let mut define_arguments = Vec::new();
-        if let Some(module_name) = module_name {
-            define_arguments.push(self.create_string_literal(module_name)?);
-        }
-        define_arguments.push(dependencies);
-        define_arguments.push(self.create_identifier("factory")?);
-        let define_call = self.create_call(define, define_arguments)?;
-        let define_statement = self.create_expression_statement(define_call)?;
-        let amd_block = self.create_block(vec![define_statement], true)?;
-        let amd_if = self.create_if_statement(amd_condition, amd_block, None)?;
-        let outer_if =
-            self.create_if_statement(common_js_condition, common_js_block, Some(amd_if))?;
-        let header_body = self.create_block(vec![outer_if], true)?;
-        let factory_parameter = self.create_parameter("factory")?;
-        let header = self.create_function_expression(vec![factory_parameter], header_body)?;
-        let header = self.create_parenthesized(header)?;
-        let call = self.create_call(header, vec![body_function])?;
-        self.create_expression_statement(call)
     }
 
     /// tsgo's visitTopLevelNested (commonjsmodule.go:86-128) transforms the
@@ -6247,32 +5569,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ImportDeclaration,
                 field: "module_specifier",
             })?;
-        if self.module_kind == MODULE_AMD {
-            let mut statements = Vec::new();
-            // tsc materializes the namespace side of
-            // `import default, * as namespace` while visiting the import,
-            // after the parameter-wide interop initialization phase.
-            if let Some(namespace_alias) = plan.namespace_alias.as_deref() {
-                let runtime_name = plan
-                    .runtime_name
-                    .as_deref()
-                    .expect("an AMD namespace alias owns a dependency parameter");
-                let value = self.create_identifier(runtime_name)?;
-                let declaration = self.create_variable_declaration(namespace_alias, value)?;
-                let declaration = self.set_original_and_range(declaration, original)?;
-                let keyword = if self.target >= ScriptTarget::ES2015 {
-                    NodeFlags::CONST
-                } else {
-                    NodeFlags::NONE
-                };
-                statements.push(self.create_variable_statement(vec![declaration], keyword)?);
-            }
-            for re_export in self.import_re_exports(&data)? {
-                statements.push(self.create_import_re_export_statement(re_export)?);
-            }
-            return Ok(statements);
-        }
-        let require = self.create_require_call(original, module_specifier)?;
+        let require = self.create_require_call(module_specifier)?;
         if data.import_clause.is_none() {
             let statement = self.create_expression_statement(require)?;
             self.set_original_and_range(statement, original)?;
@@ -6344,11 +5641,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
             declarations.push(alias_declaration);
         }
-        let keyword = if self.target >= ScriptTarget::ES2015 {
-            NodeFlags::CONST
-        } else {
-            NodeFlags::NONE
-        };
+        let keyword = NodeFlags::CONST;
         let statement = self.create_variable_statement(declarations, keyword)?;
         self.set_original_and_range(statement, original)?;
         let mut statements = vec![statement];
@@ -6730,24 +6023,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             parent: SyntaxKind::ExternalModuleReference,
             field: "expression",
         })?;
-        let runtime_name = plan
-            .runtime_name
-            .as_deref()
-            .expect("an external import-equals plan owns a runtime binding");
         let mut statements = Vec::new();
-        match (&publication, self.module_kind == MODULE_AMD) {
-            (ImportEqualsPublication::LocalBinding, true) => {
-                // The AMD dependency parameter is the local binding.
-            }
-            (ImportEqualsPublication::ExportObject { exported_name }, true) => {
-                let target = self.create_export_access(exported_name)?;
-                let value = self.create_identifier(runtime_name)?;
-                let assignment = self.create_assignment(target, value)?;
-                let statement = self.create_expression_statement(assignment)?;
-                statements.push(self.set_original_and_range(statement, original)?);
-            }
-            (ImportEqualsPublication::LocalBinding, false) => {
-                let require = self.create_require_call(original, module_specifier)?;
+        match &publication {
+            ImportEqualsPublication::LocalBinding => {
+                let require = self.create_require_call(module_specifier)?;
                 let name = data
                     .name
                     .and_then(|name| self.context.arena().node_ref(self.source, name))
@@ -6762,18 +6041,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 self.set_source_map_range_from(name, source_name)?;
                 let declaration =
                     self.create_variable_declaration_from_name(name, Some(require))?;
-                let statement = self.create_variable_statement(
-                    vec![declaration],
-                    if self.target >= ScriptTarget::ES2015 {
-                        NodeFlags::CONST
-                    } else {
-                        NodeFlags::NONE
-                    },
-                )?;
+                let statement =
+                    self.create_variable_statement(vec![declaration], NodeFlags::CONST)?;
                 statements.push(self.set_original_and_range(statement, original)?);
             }
-            (ImportEqualsPublication::ExportObject { exported_name }, false) => {
-                let require = self.create_require_call(original, module_specifier)?;
+            ImportEqualsPublication::ExportObject { exported_name } => {
+                let require = self.create_require_call(module_specifier)?;
                 let target = self.create_export_access(exported_name)?;
                 // createExportExpression accesses the name's clone, which
                 // maps to the name (commonjsmodule.go:784-797, 660-667).
@@ -6841,15 +6114,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .factory()?
                 .create_unscoped_helper_identifier(self.source, EmitHelperName::ExportStar)?;
             let exports = self.create_identifier("exports")?;
-            let module = if self.module_kind == MODULE_AMD {
-                let generated_name = plan
-                    .runtime_name
-                    .as_deref()
-                    .expect("an AMD export-star declaration owns a generated module binding");
-                self.create_identifier(generated_name)?
-            } else {
-                self.create_require_call(original, module_specifier)?
-            };
+            let module = self.create_require_call(module_specifier)?;
             let call = self.create_call(helper, vec![module, exports])?;
             let statement = self.create_expression_statement(call)?;
             self.set_original_and_range(statement, original)?;
@@ -6864,14 +6129,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .expect("a named external export owns a generated module binding")
                     .to_owned();
                 let mut statements = Vec::new();
-                if self.module_kind != MODULE_AMD {
-                    let require = self.create_require_call(original, module_specifier)?;
-                    let declaration = self.create_variable_declaration(&generated_name, require)?;
-                    let statement =
-                        self.create_variable_statement(vec![declaration], NodeFlags::NONE)?;
-                    self.set_original_and_range(statement, original)?;
-                    statements.push(statement);
-                }
+                let require = self.create_require_call(module_specifier)?;
+                let declaration = self.create_variable_declaration(&generated_name, require)?;
+                let statement =
+                    self.create_variable_statement(vec![declaration], NodeFlags::NONE)?;
+                self.set_original_and_range(statement, original)?;
+                statements.push(statement);
 
                 let apply_import_helpers = self.es_module_interop
                     && !self
@@ -6962,15 +6225,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         parent: SyntaxKind::NamespaceExport,
                         field: "name",
                     })?;
-                let mut value = if self.module_kind == MODULE_AMD {
-                    let generated_name = plan
-                        .runtime_name
-                        .as_deref()
-                        .expect("an AMD namespace export owns a generated module binding");
-                    self.create_identifier(generated_name)?
-                } else {
-                    self.create_require_call(original, module_specifier)?
-                };
+                let mut value = self.create_require_call(module_specifier)?;
                 if self.es_module_interop {
                     self.request_import_star_helper()?;
                     let helper = self.context.factory()?.create_unscoped_helper_identifier(
@@ -8432,12 +7687,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .set_lexical_environment_flags(LexicalEnvironmentFlags::IN_PARAMETERS, false);
             let parameters = parameters_result?;
             clear_parameter_flag?;
-            let parameters =
-                if variables_hoisted_in_parameters && self.preserves_native_parameter_defaults {
-                    self.lower_module_parameter_defaults(original_parameters, parameters)?
-                } else {
-                    parameters
-                };
+            let parameters = if variables_hoisted_in_parameters {
+                self.lower_module_parameter_defaults(original_parameters, parameters)?
+            } else {
+                parameters
+            };
             let body = self.visit_optional_node(body)?;
             Ok((parameters, body))
         })();
@@ -9667,32 +8921,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .node(*element)
                 .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
         });
-        if self.downlevel_iteration {
-            self.context.request_emit_helper(helpers::read())?;
-            let helper = self
-                .context
-                .factory()?
-                .create_unscoped_helper_identifier(self.source, EmitHelperName::Read)?;
-            let last_is_rest = elements
-                .last()
-                .copied()
-                .map(|element| {
-                    self.module_destructuring_element(element)
-                        .map(|element| element.rest)
-                })
-                .transpose()?
-                .unwrap_or(false);
-            let mut arguments = vec![value];
-            if !last_is_rest {
-                arguments.push(self.create_numeric_literal(&elements.len().to_string())?);
-            }
-            let read = self.create_call(helper, arguments)?;
-            if let Some(original) = original {
-                self.context.factory()?.set_text_range(read, original)?;
-            }
-            value =
-                self.ensure_module_destructuring_identifier(expressions, read, false, original)?;
-        } else if elements.len() != 1 || all_omitted {
+        if elements.len() != 1 || all_omitted {
             let declaration = original.is_some_and(|original| {
                 self.context.arena().node(original).is_ok_and(|node| {
                     matches!(
@@ -10215,44 +9444,27 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 return self.update_generic(original, NodeData::CallExpression(data));
             }
             let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
-            // Resolve literal dynamic imports through the same bundle module
-            // identity protocol as static imports (_tsc.js:110956-110958).
+            // tsgo getExternalModuleNameLiteral (moduletransforms/utilities.go:53-66):
+            // a literal dynamic import keeps its text unless the host renames
+            // the dependency (tryRenameExternalModule).
             let external_module_name = if arguments.first().is_some_and(|argument| {
                 self.context
                     .arena()
                     .node(*argument)
                     .is_ok_and(|node| node.kind == SyntaxKind::StringLiteral)
             }) {
-                let resolved = crate::external_module_names::resolved_external_module_name_literal(
-                    self.host,
-                    self.resolver,
-                    self.context.arena(),
-                    original,
-                )?;
-                match resolved {
-                    Some(name) => Some(name),
-                    // tryRenameExternalModule (27716) for dynamic imports.
-                    None => string_literal_text(self.context.arena(), arguments[0])
-                        .ok()
-                        .and_then(|text| {
-                            let source = self.context.arena().source(self.source).ok()?.syntax();
-                            crate::external_module_names::try_rename_external_module(source, text)
-                        }),
-                }
+                string_literal_text(self.context.arena(), arguments[0])
+                    .ok()
+                    .and_then(|text| {
+                        let source = self.context.arena().source(self.source).ok()?.syntax();
+                        crate::external_module_names::try_rename_external_module(source, text)
+                    })
             } else {
                 None
             };
-            // AMD emits its executor parameters before the dependency
-            // expression. Reserve those generated bindings before descending
-            // into a nested import so ordinal assignment follows emit order.
-            // UMD emits the copied argument before its AMD branch, so it
-            // intentionally reserves later in `create_umd_dynamic_import`.
-            let amd_bindings = (self.module_kind == MODULE_AMD)
-                .then(|| self.reserve_amd_dynamic_import_bindings());
             // Grammar diagnostics do not suppress JavaScript emission. tsc's
             // module transform carries `firstOrUndefined(node.arguments)`
-            // through this boundary: CommonJS emits `require()`, AMD uses an
-            // omitted dependency element, and UMD stabilizes `void 0`.
+            // through this boundary: CommonJS emits `require()`.
             let argument = arguments
                 .first()
                 .copied()
@@ -10277,24 +9489,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             } else {
                 argument
             };
-            if let Some(amd_bindings) = amd_bindings {
-                let transformed = self.create_amd_dynamic_import(argument, amd_bindings)?;
-                return Ok(transformed);
-            }
-            if self.module_kind == MODULE_UMD {
-                let transformed = self.create_umd_dynamic_import(argument)?;
-                return Ok(transformed);
-            }
             let transformed = self.create_common_js_dynamic_import_value(argument, false)?;
             return Ok(transformed);
         }
 
         // tsc decides indirect-call syntax from the substitution result, not
-        // merely from the fact that a symbol was imported. An AMD
-        // import-equals reference substitutes to its local parameter
-        // identifier and keeps `fn()`, while a named CommonJS import or a
-        // direct export substitutes to a property access and needs
-        // `(0, object.fn)()` to erase the receiver.
+        // merely from the fact that a symbol was imported: a named CommonJS
+        // import or a direct export substitutes to a property access and
+        // needs `(0, object.fn)()` to erase the receiver.
         // The receiver erasure of a substituted callee prints through
         // substituteCallExpression; the Substitute phase keeps it eager.
         let callee_requires_receiver_erasure = self.visit_phase == CommonJsVisitPhase::Substitute
@@ -10466,15 +9668,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             Some(argument)
                 if !is_inlineable && !self.is_simple_inlineable_expression(argument)? =>
             {
-                // ES2015+: a template `${arg}`; ES5: `"".concat(arg)`
-                // (`_tsc.js:111096-111108`).
-                let coerced = if self.target >= ScriptTarget::ES2015 {
-                    self.create_string_coercion_template(argument)?
-                } else {
-                    let empty = self.create_string_literal("")?;
-                    let concat = self.create_property_access(empty, "concat")?;
-                    self.create_call(concat, vec![argument])?
-                };
+                // A template `${arg}` (`_tsc.js:111096-111108`).
+                let coerced = self.create_string_coercion_template(argument)?;
                 let parameter = self.create_parameter("s")?;
                 (
                     vec![coerced],
@@ -10495,177 +9690,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         } else {
             require
         };
-        // `languageVersion >= ES2015 ? createArrowFunction(..., requireCall)
-        // : createFunctionExpression(..., createBlock([return requireCall]))`
+        // `createArrowFunction(..., requireCall)`
         // (`createImportCallExpressionCommonJS`, `_tsc.js:111128-111159`).
-        let callback = if self.target >= ScriptTarget::ES2015 {
-            self.create_arrow_function(parameters, loaded)?
-        } else {
-            let return_statement = self.context.factory()?.create_node(
-                self.source,
-                NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
-                    expression: Some(loaded.node()),
-                }),
-                TransformFlags::NONE,
-            )?;
-            let body = self.create_block(vec![return_statement], false)?;
-            self.create_function_expression(parameters, body)?
-        };
+        let callback = self.create_arrow_function(parameters, loaded)?;
         let promise = self.create_identifier("Promise")?;
         let resolve = self.create_property_access(promise, "resolve")?;
         let resolved = self.create_call(resolve, resolve_arguments)?;
         let then = self.create_property_access(resolved, "then")?;
         self.create_call(then, vec![callback])
-    }
-
-    fn reserve_amd_dynamic_import_bindings(&mut self) -> AmdDynamicImportBindings {
-        self.state.dynamic_import_ordinal += 1;
-        AmdDynamicImportBindings {
-            resolve: format!("resolve_{}", self.state.dynamic_import_ordinal).into_boxed_str(),
-            reject: format!("reject_{}", self.state.dynamic_import_ordinal).into_boxed_str(),
-        }
-    }
-
-    fn create_amd_dynamic_import(
-        &mut self,
-        argument: Option<TransformNode>,
-        bindings: AmdDynamicImportBindings,
-    ) -> Result<TransformNode, TransformError> {
-        let resolve_parameter = self.create_parameter(&bindings.resolve)?;
-        let reject_parameter = self.create_parameter(&bindings.reject)?;
-        let (dependency, has_trailing_comma) = match argument {
-            Some(argument) => (argument, false),
-            None => (self.create_omitted_expression()?, true),
-        };
-        let dependency =
-            self.create_array_literal_with_trailing_comma(vec![dependency], has_trailing_comma)?;
-        let require = self.create_identifier("require")?;
-        let resolve = self.create_identifier(&bindings.resolve)?;
-        let reject = self.create_identifier(&bindings.reject)?;
-        let require_call = self.create_call(require, vec![dependency, resolve, reject])?;
-        let require_statement = self.create_expression_statement(require_call)?;
-        let body = self.create_block(vec![require_statement], false)?;
-        // `languageVersion >= ES2015 ? createArrowFunction : createFunctionExpression`
-        // (`createImportCallExpressionAMD`, `_tsc.js:111040-111071`).
-        let executor = if self.target >= ScriptTarget::ES2015 {
-            self.create_arrow_function(vec![resolve_parameter, reject_parameter], body)?
-        } else {
-            self.create_function_expression(vec![resolve_parameter, reject_parameter], body)?
-        };
-        let promise = self.create_identifier("Promise")?;
-        let loaded = self.create_new(promise, vec![executor])?;
-        if self.es_module_interop {
-            self.request_import_star_helper()?;
-            let then = self.create_property_access(loaded, "then")?;
-            let helper = self
-                .context
-                .factory()?
-                .create_unscoped_helper_identifier(self.source, EmitHelperName::ImportStar)?;
-            self.create_call(then, vec![helper])
-        } else {
-            Ok(loaded)
-        }
-    }
-
-    fn create_umd_dynamic_import(
-        &mut self,
-        argument: Option<TransformNode>,
-    ) -> Result<TransformNode, TransformError> {
-        let argument = match argument {
-            Some(argument) => argument,
-            None => self.create_void_zero()?,
-        };
-        if self.is_simple_copiable_expression(argument)? {
-            let asynchronous_argument = self.clone_umd_dynamic_import_argument(argument)?;
-            let common_js = self.create_common_js_dynamic_import_value(Some(argument), false)?;
-            let bindings = self.reserve_amd_dynamic_import_bindings();
-            let amd = self.create_amd_dynamic_import(Some(asynchronous_argument), bindings)?;
-            let condition = self.create_identifier("__syncRequire")?;
-            return self.create_conditional(condition, common_js, amd);
-        }
-
-        let binding = self.allocate_temp_binding()?;
-        let temp = self.create_temp_reference(&binding)?;
-        let assignment = self.create_assignment(temp, argument)?;
-        let common_argument = self.create_temp_reference(&binding)?;
-        let common_js = self.create_common_js_dynamic_import_value(Some(common_argument), true)?;
-        let asynchronous_argument = self.create_temp_reference(&binding)?;
-        let bindings = self.reserve_amd_dynamic_import_bindings();
-        let amd = self.create_amd_dynamic_import(Some(asynchronous_argument), bindings)?;
-        let condition = self.create_identifier("__syncRequire")?;
-        let conditional = self.create_conditional(condition, common_js, amd)?;
-        self.create_binary(assignment, SyntaxKind::CommaToken, conditional)
-    }
-
-    /// tsc's UMD transform uses `createStringLiteralFromNode` for the AMD
-    /// copy of a literal argument. Rust string nodes keep decoded text rather
-    /// than a `textSourceNode`, so carry the source quote as typed emit
-    /// metadata when cloning. Other copiable expressions retain the ordinary
-    /// clone path.
-    fn clone_umd_dynamic_import_argument(
-        &mut self,
-        argument: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        let quote = self.string_literal_quote(argument)?;
-        let clone = self.context.factory()?.clone_node(argument)?;
-        if let Some(quote) = quote {
-            self.context
-                .arena_mut()?
-                .literal_properties_mut(clone)?
-                .set_string_literal_single_quote(quote.is_single());
-        }
-        Ok(clone)
-    }
-
-    fn string_literal_quote(
-        &self,
-        literal: TransformNode,
-    ) -> Result<Option<StringLiteralQuote>, TransformError> {
-        if self.context.arena().node(literal)?.kind != SyntaxKind::StringLiteral {
-            return Ok(None);
-        }
-        if let Some(single_quote) = self
-            .context
-            .arena()
-            .literal_properties(literal)
-            .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
-        {
-            return Ok(Some(if single_quote {
-                StringLiteralQuote::Single
-            } else {
-                StringLiteralQuote::Double
-            }));
-        }
-
-        let original = self.context.arena().get_original_node(literal);
-        if self.context.arena().node(original)?.kind != SyntaxKind::StringLiteral {
-            return Ok(None);
-        }
-        let source = self.context.arena().source(original.source())?.syntax();
-        let record = self.context.arena().node(original)?;
-        let SourceRange::Original(range) =
-            SourceRange::from_raw(record.pos, record.end, source.positions()).map_err(|error| {
-                TransformError::InvalidSourceRange {
-                    node: original,
-                    error,
-                }
-            })?
-        else {
-            return Ok(None);
-        };
-        let range = range
-            .without_leading_trivia(source.text(), source.positions())
-            .map_err(|error| TransformError::InvalidSourceRange {
-                node: original,
-                error,
-            })?;
-        Ok(
-            match source.text().as_bytes().get(range.start().value() as usize) {
-                Some(b'\'') => Some(StringLiteralQuote::Single),
-                Some(b'"') => Some(StringLiteralQuote::Double),
-                _ => None,
-            },
-        )
     }
 
     fn is_simple_copiable_expression(
@@ -11243,9 +10275,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )?;
         // Import/re-export aliases are generated identities, not their
         // provisional text. Factory parameters and body references must share
-        // one binding so bundle finalization can rename both. Standalone AMD
-        // uses the same identity and the existing per-file name reset. A
-        // binding registered from an earlier transform's generated
+        // one binding so finalization can rename both. A binding registered from an earlier transform's generated
         // declaration name (transformTypeScript's `default_1`) takes
         // precedence over allocating a module-name binding for the spelling.
         let binding = if let Some(binding) = self.state.generated_module_bindings.get(text) {
@@ -11444,27 +10474,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )
     }
 
-    fn create_new(
-        &mut self,
-        expression: TransformNode,
-        arguments: Vec<TransformNode>,
-    ) -> Result<TransformNode, TransformError> {
-        let arguments = self
-            .context
-            .factory()?
-            .create_node_array(self.source, arguments)?;
-        self.context.factory()?.create_node(
-            self.source,
-            NodeData::NewExpression(tsc_syntax::nodes::NewExpressionData {
-                expression: Some(expression.node()),
-                type_arguments: None,
-                arguments: Some(arguments.array()),
-                question_dot_token: None,
-            }),
-            TransformFlags::NONE,
-        )
-    }
-
     fn create_typeof(
         &mut self,
         expression: TransformNode,
@@ -11619,7 +10628,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     /// has one (`None` for a recovered non-string specifier).
     fn external_module_name_literal(
         &mut self,
-        declaration: TransformNode,
         fallback: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
         let Ok(text) = string_literal_text(self.context.arena(), fallback) else {
@@ -11629,17 +10637,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let source = self.context.arena().source(self.source)?.syntax();
             crate::external_module_names::try_rename_external_module(source, text)
         };
-        let module_name = crate::external_module_names::resolved_external_module_name_literal(
-            self.host,
-            self.resolver,
-            self.context.arena(),
-            declaration,
-        )?;
-        if let Some(module_name) = module_name {
-            return self.create_string_literal(&module_name).map(Some);
-        }
-        // tryRenameExternalModule (27716): API renamedDependencies apply
-        // after the resolved-file branch and before the clone.
+        // tsgo getExternalModuleNameLiteral (moduletransforms/utilities.go:53-66):
+        // tryGetModuleNameFromFile names nothing (no `amd-module` or outFile
+        // names), so the API's renamedDependencies apply before the clone.
         if let Some(renamed) = renamed {
             self.create_string_literal(&renamed).map(Some)
         } else {
@@ -11651,11 +10651,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     /// module name is not a string literal.
     fn create_require_call(
         &mut self,
-        declaration: TransformNode,
         module_specifier: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let module_specifier = self
-            .external_module_name_literal(declaration, module_specifier)?
+            .external_module_name_literal(module_specifier)?
             .map(|specifier| self.rewrite_import_argument(specifier))
             .transpose()?;
         self.create_raw_require_call_optional(module_specifier)
@@ -11820,21 +10819,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let exports = self.create_identifier("exports")?;
-        // Extended `\u{...}` escapes normalize in upstream's ES2015
-        // visitIdentifier, which the transformer selection runs only for
-        // targets below ES2015 (_tsc.js:105072, :115942). ES2015+ module
-        // lowering keeps the positioned name, so the printed spelling stays
-        // the source's.
-        let property_name = if self.target < ScriptTarget::ES2015
-            && self.identifier_name_uses_extended_escape(name)?
-        {
-            let text = identifier_text_owned(self.context.arena(), name)?;
-            let normalized = self.create_identifier(&text)?;
-            self.set_source_map_range_from(normalized, name)?;
-            normalized
-        } else {
-            name
-        };
+        // Module lowering keeps the positioned name, so the printed spelling
+        // (an extended `\u{...}` escape included) stays the source's.
+        let property_name = name;
         let access = if self.context.arena().node(name)?.kind != SyntaxKind::StringLiteral {
             self.context.factory()?.create_node(
                 self.source,
@@ -11864,24 +10851,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         self.context.factory()?.set_text_range(access, name)?;
         self.set_source_map_range_from(access, name)?;
         Ok(access)
-    }
-
-    fn identifier_name_uses_extended_escape(
-        &self,
-        name: TransformNode,
-    ) -> Result<bool, TransformError> {
-        let record = self.context.arena().node(name)?;
-        if record.pos == u32::MAX || record.end == u32::MAX {
-            return Ok(false);
-        }
-        let source = self.context.arena().source(name.source())?.syntax();
-        let start = record.pos as usize;
-        let end = record.end as usize;
-        Ok(
-            start <= end
-                && end <= source.text().len()
-                && source.text()[start..end].contains("\\u{"),
-        )
     }
 
     fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
@@ -12007,33 +10976,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .context
             .factory()?
             .create_node_array(self.source, statements)?;
-        let block = self.context.factory()?.create_node(
-            self.source,
-            NodeData::Block(tsc_syntax::nodes::BlockData {
-                statements: Some(statements.array()),
-            }),
-            TransformFlags::NONE,
-        )?;
-        self.context.factory()?.set_multi_line(block, multi_line)
-    }
-
-    fn create_block_from_array(
-        &mut self,
-        statements: Vec<TransformNode>,
-        original_array: Option<NodeArrayId>,
-        multi_line: bool,
-    ) -> Result<TransformNode, TransformError> {
-        let statements = if let Some(original) =
-            original_array.and_then(|array| self.context.arena().node_array_ref(self.source, array))
-        {
-            self.context
-                .factory()?
-                .update_node_array(original, statements)?
-        } else {
-            self.context
-                .factory()?
-                .create_node_array(self.source, statements)?
-        };
         let block = self.context.factory()?.create_node(
             self.source,
             NodeData::Block(tsc_syntax::nodes::BlockData {
@@ -12234,8 +11176,6 @@ struct TypeScriptVisitor<'context, 'resolver> {
     legacy_decorators: bool,
     preserve_const_enums: bool,
     project_parameter_properties_for_class_fields: bool,
-    downlevel_iteration: bool,
-    promote_class_iife: bool,
     verbatim_module_syntax: bool,
     nodes: NodeMemo<Option<NodeId>>,
     arrays: ArrayMemo<Option<NodeArrayId>>,
@@ -12358,8 +11298,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         legacy_decorators: bool,
         preserve_const_enums: bool,
         project_parameter_properties_for_class_fields: bool,
-        downlevel_iteration: bool,
-        promote_class_iife: bool,
         verbatim_module_syntax: bool,
     ) -> Self {
         let nodes = node_memo(context.arena(), source);
@@ -12371,8 +11309,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             legacy_decorators,
             preserve_const_enums,
             project_parameter_properties_for_class_fields,
-            downlevel_iteration,
-            promote_class_iife,
             verbatim_module_syntax,
             nodes,
             arrays,
@@ -12394,8 +11330,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// The parsed identifier texts of the source (tsc `sourceFile.identifiers`),
     /// collected on first use.
     fn source_identifier_names(&self) -> &target_bindings::UsedNames {
-        self.source_identifier_names
-            .get_or_init(|| system::collect_identifier_texts(self.context.arena(), self.source))
+        self.source_identifier_names.get_or_init(|| {
+            target_bindings::collect_identifier_texts(self.context.arena(), self.source)
+        })
     }
 
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
@@ -12871,26 +11808,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                             }
                         }
                         data.type_parameters = None;
-                        let class_is_decorated =
-                            self.has_modifier(data.modifiers, SyntaxKind::Decorator)?;
-                        let promote = self.promote_class_iife
-                            && (facts.has_static_initialized_properties
-                                || facts.has_member_decorators
-                                || class_is_decorated);
-                        if promote {
-                            Some(self.promote_class_declaration_to_iife(
-                                original,
-                                id,
-                                data,
-                                facts.has_static_initialized_properties,
-                            )?)
-                        } else {
-                            let updated = self.update_class_declaration(original, id, data)?;
-                            Some(self.finish_typescript_class_declaration(
-                                updated,
-                                facts.has_static_initialized_properties,
-                            )?)
-                        }
+                        let updated = self.update_class_declaration(original, id, data)?;
+                        Some(self.finish_typescript_class_declaration(
+                            updated,
+                            facts.has_static_initialized_properties,
+                        )?)
                     }
                 }
                 NodeData::ClassExpression(mut data) => {
@@ -14284,28 +13206,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     .node(*element)
                     .is_ok_and(|node| node.kind == SyntaxKind::OmittedExpression)
             });
-        if self.downlevel_iteration {
-            self.context.request_emit_helper(helpers::read())?;
-            let helper = self
-                .context
-                .factory()?
-                .create_unscoped_helper_identifier(self.source, EmitHelperName::Read)?;
-            let value_argument = self.context.factory()?.clone_node(value)?;
-            let last_is_rest = elements.last().is_some_and(|element| {
-                self.context.arena().node(*element).is_ok_and(|node| {
-                    matches!(
-                        &node.data,
-                        NodeData::BindingElement(data) if data.dot_dot_dot_token.is_some()
-                    )
-                })
-            });
-            let mut arguments = vec![value_argument];
-            if !last_is_rest {
-                arguments.push(self.create_numeric_literal(&elements.len().to_string())?);
-            }
-            let read = self.create_call(helper, arguments)?;
-            value = self.ensure_namespace_destructuring_identifier(plan, read, false, original)?;
-        } else if elements.len() != 1 || all_omitted {
+        if elements.len() != 1 || all_omitted {
             value = self.ensure_namespace_destructuring_identifier(
                 plan,
                 value,
@@ -15239,43 +14140,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     .array(),
             ))
         }
-    }
-
-    /// The class wrapper variable's `getLocalName` clone (see the call site);
-    /// a generated class name keeps the synthesized identifier.
-    fn create_wrapper_local_name(
-        &mut self,
-        updated_class: TransformNode,
-        name_text: &str,
-    ) -> Result<TransformNode, TransformError> {
-        let name = match &self.context.arena().node(updated_class)?.data {
-            NodeData::ClassDeclaration(data) => data.name,
-            _ => None,
-        }
-        .map(|name| TransformNode::new(self.source, name));
-        let plain_name = match name {
-            Some(name)
-                if matches!(
-                    self.context.arena().node(name)?.data,
-                    NodeData::Identifier(_)
-                ) && self
-                    .context
-                    .arena()
-                    .metadata(name)
-                    .and_then(|metadata| metadata.generated_binding_id())
-                    .is_none() =>
-            {
-                name
-            }
-            _ => return self.create_identifier(name_text),
-        };
-        let clone = self.context.factory()?.clone_node(plain_name)?;
-        self.context.factory()?.set_text_range(clone, plain_name)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(clone)
-            .add_flags(EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP);
-        Ok(clone)
     }
 
     fn identifier_text(&self, id: NodeId) -> Result<&str, TransformError> {
@@ -16801,248 +15665,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(facts)
     }
 
-    /// tsc-port: visitClassDeclaration @6.0.3
-    /// tsc-hash: b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59
-    /// tsc-span: _tsc.js:94434-94548
-    ///
-    /// The `promoteToIIFE` arm of the owner function:
-    /// `languageVersion < ES2015` wraps a class declaration carrying static
-    /// initialized properties in the `TypeScriptClassWrapper` arrow IIFE the
-    /// ES2015 owner's wrapper surgery consumes
-    /// (`visitTypeScriptClassWrapper`). The wrapper owns the original
-    /// class's comments and its range past decorators; moved exports own
-    /// their separate declaration-name ranges.
-    fn promote_class_declaration_to_iife(
-        &mut self,
-        original: TransformNode,
-        parent: NodeId,
-        data: tsc_syntax::nodes::ClassDeclarationData,
-        has_static_initialized_properties: bool,
-    ) -> Result<NodeId, TransformError> {
-        // Upstream promotes unconditionally at `languageVersion < ES2015`
-        // (`_tsc.js:94436`, `94448`); the decorated lanes compose with the
-        // separate decorator transformers over the wrapper's inner class
-        // (H2.5h CA-2a A/D).
-        // `moveModifiers`: the promoted lane elides the declaration's
-        // modifiers (`modifierElidingVisitor`); the export binding is
-        // re-created AFTER the wrapper by the caller's lane split
-        // (`_tsc.js:94451-94452`, `94515-94546`).
-        let original_modifiers = data.modifiers;
-        let mut data = data;
-        data.modifiers = self.elide_moved_class_modifiers(data.modifiers)?;
-        // `needsName = moveModifiers && !node.name || …; name = needsName ?
-        // node.name ?? factory.getGeneratedNameForNode(node) : node.name`
-        // (_tsc.js:94454-94455): an anonymous default class promoted at ES5
-        // is named `default_N`.
-        if data.name.is_none() {
-            let name = self.ensure_generated_declaration_name(original.node(), "default")?;
-            data.name = Some(self.create_identifier(&name)?.node());
-        }
-        // `createTokenRange(skipTrivia(currentSourceFile.text, node.members.end),
-        // CloseBraceToken)` over the PARSE positions (the promote arm runs on
-        // parse-owned classes; `wrapping_add` mirrors the -1 sentinel
-        // arithmetic exactly as in the ES2015 owner's `transformClassBody`).
-        let members_end = match data.members {
-            Some(members) => self.context.arena().node_array(self.array(members))?.end,
-            None => self.context.arena().node(original)?.end,
-        };
-        let close_brace_start = {
-            let source = self.context.arena().source(self.source)?.syntax();
-            es2015::skip_trivia_bytes(source.text(), members_end)
-        };
-        self.context.start_lexical_environment()?;
-        let updated_class = self.update_class_declaration(original, parent, data)?;
-        let updated_class = self.node(updated_class);
-        // `if (facts & HasStaticInitializedProperties) emitFlags |= NoTrailingSourceMap`
-        if has_static_initialized_properties {
-            self.context
-                .arena_mut()?
-                .metadata_mut(updated_class)
-                .add_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
-        }
-        let name_text = {
-            let NodeData::ClassDeclaration(updated) =
-                &self.context.arena().node(updated_class)?.data
-            else {
-                unreachable!("update_class_declaration returns a class declaration");
-            };
-            let name = updated.name.ok_or(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::ClassDeclaration,
-                field: "promoted class name",
-            })?;
-            self.identifier_text(name)?.to_owned()
-        };
-        let outer = {
-            let local = self.create_identifier(&name_text)?;
-            let created = self.context.factory()?.create_node(
-                self.source,
-                NodeData::PartiallyEmittedExpression(
-                    tsc_syntax::nodes::PartiallyEmittedExpressionData {
-                        expression: Some(local.node()),
-                    },
-                ),
-                TransformFlags::NONE,
-            )?;
-            self.set_close_brace_token_range(created, close_brace_start)?;
-            self.set_comment_range_raw(created, u32::MAX, close_brace_start.wrapping_add(1))?;
-            created
-        };
-        self.context
-            .arena_mut()?
-            .metadata_mut(outer)
-            .add_flags(EmitFlags::NO_COMMENTS);
-        let return_statement = self.context.factory()?.create_node(
-            self.source,
-            NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
-                expression: Some(outer.node()),
-            }),
-            TransformFlags::NONE,
-        )?;
-        self.set_close_brace_token_range(return_statement, close_brace_start)?;
-        self.set_comment_range_raw(return_statement, close_brace_start, u32::MAX)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(return_statement)
-            .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_TOKEN_SOURCE_MAPS);
-        let environment = self.context.end_lexical_environment()?;
-        let block =
-            self.create_block_from_array(vec![updated_class, return_statement], None, true)?;
-        // `insertStatementsAfterStandardPrologue(statements,
-        // context.endLexicalEnvironment())` — the wrapper body has no
-        // prologue directives, so hoisted declarations land first.
-        let block = self.merge_namespace_lexical_environment(block, environment)?;
-        let arrow = {
-            let parameters = self
-                .context
-                .factory()?
-                .create_node_array(self.source, Vec::new())?;
-            let token = self.context.factory()?.create_token(
-                self.source,
-                SyntaxKind::EqualsGreaterThanToken,
-                TransformFlags::NONE,
-            )?;
-            self.context.factory()?.create_node(
-                self.source,
-                NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
-                    modifiers: None,
-                    type_parameters: None,
-                    parameters: Some(parameters.array()),
-                    r#type: None,
-                    body: Some(block.node()),
-                    equals_greater_than_token: Some(token.node()),
-                }),
-                TransformFlags::NONE,
-            )?
-        };
-        let iife = {
-            let arguments = self
-                .context
-                .factory()?
-                .create_node_array(self.source, Vec::new())?;
-            self.context.factory()?.create_node(
-                self.source,
-                NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
-                    expression: Some(arrow.node()),
-                    question_dot_token: None,
-                    type_arguments: None,
-                    arguments: Some(arguments.array()),
-                }),
-                TransformFlags::NONE,
-            )?
-        };
-        self.context
-            .arena_mut()?
-            .metadata_mut(iife)
-            .set_internal_flags(InternalEmitFlags::TYPE_SCRIPT_CLASS_WRAPPER);
-        let variable_declaration = {
-            // `getLocalName(node, false, false)` (_tsc.js:94487-94494): a clone
-            // of the parsed class name (`LocalName | NoComments | NoSourceMap`)
-            // whose original reaches the parse tree, so the ES2015
-            // block-scoped-binding substitution renames a colliding
-            // block-level class (`var Foo_1 = (function () { … }())`).
-            let name = self.create_wrapper_local_name(updated_class, &name_text)?;
-            self.context.factory()?.create_node(
-                self.source,
-                NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
-                    name: Some(name.node()),
-                    exclamation_token: None,
-                    r#type: None,
-                    initializer: Some(iife.node()),
-                }),
-                TransformFlags::NONE,
-            )?
-        };
-        self.context
-            .arena_mut()?
-            .set_original_node(variable_declaration, Some(original))?;
-        let variable_statement =
-            self.create_variable_statement(vec![variable_declaration], None, NodeFlags::LET)?;
-        self.context
-            .arena_mut()?
-            .set_original_node(variable_statement, Some(original))?;
-        let (statement_range, map_range) = {
-            let record = self.context.arena().node(original)?;
-            let mut map_start = record.pos;
-            for modifier in node_array_nodes(self.context.arena(), self.source, original_modifiers)?
-                .into_iter()
-                .rev()
-            {
-                let modifier = self.context.arena().node(modifier)?;
-                if modifier.kind == SyntaxKind::Decorator {
-                    if modifier.end != u32::MAX {
-                        map_start = modifier.end;
-                    }
-                    break;
-                }
-            }
-            let source = self.context.arena().source(self.source)?.syntax();
-            (
-                SourceRange::from_raw(record.pos, record.end, source.positions()),
-                SourceRange::from_raw(map_start, record.end, source.positions()),
-            )
-        };
-        if let Ok(range) = statement_range {
-            let metadata = self.context.arena_mut()?.metadata_mut(variable_statement);
-            metadata.set_comment_range(CommentRange::new(original.source(), range));
-        }
-        if let Ok(range) = map_range {
-            let metadata = self.context.arena_mut()?.metadata_mut(variable_statement);
-            metadata.set_source_map_range(SourceMapRange::new(original.source(), range));
-        }
-        self.context
-            .arena_mut()?
-            .metadata_mut(variable_statement)
-            .set_starts_on_new_line(true);
-        Ok(variable_statement.node())
-    }
-
-    /// `modifierElidingVisitor` preserves decorators for their later
-    /// transformer and drops the modifiers moved outside the wrapper.
-    fn elide_moved_class_modifiers(
-        &mut self,
-        modifiers: Option<NodeArrayId>,
-    ) -> Result<Option<NodeArrayId>, TransformError> {
-        let Some(modifiers) = modifiers else {
-            return Ok(None);
-        };
-        let nodes = node_array_nodes(self.context.arena(), self.source, Some(modifiers))?;
-        let mut kept = Vec::new();
-        for modifier in nodes {
-            let kind = self.context.arena().node(modifier)?.kind;
-            if kind == SyntaxKind::Decorator {
-                kept.push(modifier);
-            }
-        }
-        if kept.is_empty() {
-            return Ok(None);
-        }
-        let array = {
-            let source = self.source;
-            self.context.factory()?.create_node_array(source, kept)?
-        };
-        Ok(Some(array.array()))
-    }
-
     /// The external-module lane split after a moved-modifier class visit:
     /// an exported promoted class keeps the wrapper statement and gains a
     /// separate export binding AFTER it, never `export var`.
@@ -17165,49 +15787,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             )?
         };
         Ok(vec![visited, export_statement])
-    }
-
-    /// The class return expression owns only the closing-brace end; its return
-    /// statement owns only the start. Source maps retain their paired encoding.
-    ///
-    /// tsc-port: visitClassDeclaration @6.0.3
-    /// tsc-hash: b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59
-    /// tsc-span: _tsc.js:94434-94548
-    fn set_comment_range_raw(
-        &mut self,
-        node: TransformNode,
-        start: u32,
-        end: u32,
-    ) -> Result<(), TransformError> {
-        let range = {
-            let source = self.context.arena().source(self.source)?.syntax();
-            CommentRange::from_raw(self.source, start, end, source.positions())
-                .map_err(|error| TransformError::InvalidSourceRange { node, error })?
-        };
-        self.context
-            .arena_mut()?
-            .metadata_mut(node)
-            .set_comment_range(range);
-        Ok(())
-    }
-
-    /// The one-byte close-brace token range shared by the wrapper's
-    /// partially-emitted return protocol.
-    fn set_close_brace_token_range(
-        &mut self,
-        node: TransformNode,
-        start: u32,
-    ) -> Result<(), TransformError> {
-        let range = {
-            let source = self.context.arena().source(self.source)?.syntax();
-            SourceRange::from_raw(start, start.wrapping_add(1), source.positions())
-        };
-        if let Ok(range) = range {
-            self.context
-                .factory()?
-                .set_text_range_from_source_range(node, self.source, range)?;
-        }
-        Ok(())
     }
 
     /// tsc-port: nodeCanBeDecorated/nodeIsDecorated/childIsDecorated @6.0.3
@@ -18549,8 +17128,7 @@ fn compute_transform_flags_walk(
 /// A class-fields `this` substitute (an identifier whose original is the
 /// `this` token, see `StaticThisSubstitution::Emit`) keeps the retained
 /// token's `ContainsES2015 | ContainsLexicalThis`: tsc never re-classifies
-/// the token it leaves in the tree until print-time substitution, and the
-/// ES2015 pass reads those bits for the `var _this = this` capture.
+/// the token it leaves in the tree until print-time substitution.
 fn static_this_substitute_flags(arena: &TransformArena, node: TransformNode) -> TransformFlags {
     // An identifier (bound class receiver) or a `(void 0)` (decorated class
     // without a constructor reference).

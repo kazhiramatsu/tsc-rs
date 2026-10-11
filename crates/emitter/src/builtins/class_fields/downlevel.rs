@@ -30,7 +30,7 @@ use super::super::{
     generated_bindings::{
         AncestorBindingPolicy, GeneratedBindingOwner, GeneratedBindingScopes, GeneratedBindings,
     },
-    system::collect_identifier_texts,
+    target_bindings::collect_identifier_texts,
     target_bindings::{finalize_generated_binding_names, TargetBinding},
 };
 
@@ -1450,9 +1450,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     }
 
     /// The transform flags a retained `this` token carries
-    /// (`ContainsES2015 | ContainsLexicalThis`, createToken): the ES2015 pass
-    /// visits the substitute and applies `visitThisKeyword`'s hierarchy facts
-    /// to it because its original is the `this` token.
+    /// (`ContainsES2015 | ContainsLexicalThis`, createToken), which the
+    /// substitute keeps.
     fn add_lexical_this_flag(&mut self, node: TransformNode) -> Result<(), TransformError> {
         let flags = self.context.arena().transform_flags(node);
         self.context.arena_mut()?.set_transform_flags(
@@ -1529,7 +1528,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     .context
                     .lexical_environment_flags()
                     .contains(LexicalEnvironmentFlags::VARIABLES_HOISTED_IN_PARAMETERS);
-                if hoisted_in_parameters && visitor.target >= ScriptTarget::ES2015 {
+                if hoisted_in_parameters {
                     visitor.lower_function_parameter_defaults(visitor.node(transformed))
                 } else {
                     Ok(transformed)
@@ -4525,8 +4524,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // member traversal allocates computed-name caches.
             let member_flags = self.context.arena().transform_flags(member);
             facts.contains_this |= member_flags.contains(TransformFlags::CONTAINS_LEXICAL_THIS);
-            facts.contains_super |= self.target >= ScriptTarget::ES2015
-                && member_flags.contains(TransformFlags::CONTAINS_LEXICAL_SUPER);
+            facts.contains_super |= member_flags.contains(TransformFlags::CONTAINS_LEXICAL_SUPER);
         }
         Ok(facts)
     }
@@ -5607,17 +5605,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         expression: TransformNode,
     ) -> Result<Option<StaticSuperAccessResolution>, TransformError> {
-        // `shouldTransformSuperInStaticInitializers` is
-        // `shouldTransformThisInStaticInitializers && languageVersion >=
-        // ES2015`: below ES2015 every static `super` access (including the
-        // legacy-decorated invalidation) is left to the ES2015 class lowering.
-        //
-        // tsc-port: transformClassFields @6.0.3 (the static-initializer flags)
-        // tsc-hash: f50fa08524ca3b3e4eccf9ed89118e4105f8aed45e116a3484920d86b6885eb7
-        // tsc-span: _tsc.js:95871-95872
-        if self.target < ScriptTarget::ES2015 {
-            return Ok(None);
-        }
         let access = match self.context.arena().node(expression)?.data.clone() {
             NodeData::PropertyAccessExpression(data)
                 if self.property_receiver_is_super(data.expression)? =>

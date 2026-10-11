@@ -1488,7 +1488,6 @@ impl SourceClass {
 
 struct StagedSource {
     prepared: PreparedSourceFile,
-    external_module_diagnostic_span: Option<(u32, u32)>,
     /// Root-file inclusion occurrences are retained separately from the
     /// canonical source identity.  They are observable in the TS1149
     /// program-preprocessing message chain when two root spellings collapse
@@ -3932,12 +3931,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         self.program_diagnostics
             .extend(case_sensitive_casing_diagnostics);
         let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
-        // getOptionsDiagnostics selects only global/config-file rows from
-        // the combined collection (_tsc.js:124024-124036). Source-owned
-        // module constraints instead feed getSemanticDiagnostics, which
-        // command reporting skips after an option/global diagnostic.
-        self.program_diagnostics
-            .extend(self.source_module_option_diagnostics());
         let (reference_diagnostics, build_info_emit_blocked) = self.project_reference_diagnostics();
         self.program_diagnostics.extend(reference_diagnostics);
         self.program_diagnostics.extend(root_diagnostics);
@@ -4121,50 +4114,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             }
         }
         (diagnostics, build_info_emit_blocked)
-    }
-
-    // tsc-port: verifyCompilerOptions (source module constraints) @6.0.3
-    // tsc-hash: 38bf2ea163bba1c3f40bceda14aeb650fd97e8f3893c6e669b2e8a8bca289f78
-    // tsc-span: _tsc.js:124874-124898
-    fn source_module_option_diagnostics(&self) -> Vec<Diagnostic> {
-        let options = self.compiler_options;
-        let message = if options.isolated_modules != Some(true)
-            && options.verbatim_module_syntax != Some(true)
-            && options.module == Some(0)
-            && options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-        {
-            MessageChain::new(
-                &gen::Cannot_use_imports_exports_or_module_augmentations_when_module_is_none,
-                &[],
-            )
-        } else if options
-            .out_file
-            .as_ref()
-            .is_some_and(|path| !path.is_empty())
-            && options.emit_declaration_only != Some(true)
-            && options.module.is_none()
-        {
-            MessageChain::new(
-                &gen::Cannot_compile_modules_using_option_0_unless_the_module_flag_is_amd_or_system,
-                &["outFile".to_owned()],
-            )
-        } else {
-            return Vec::new();
-        };
-        self.program_order
-            .iter()
-            .find_map(|&index| {
-                let source = &self.sources[index];
-                let (start, length) = source.external_module_diagnostic_span?;
-                Some(Diagnostic::new_js(
-                    Some(source.prepared.path().display().to_owned()),
-                    Some(start),
-                    Some(length),
-                    message.clone(),
-                ))
-            })
-            .into_iter()
-            .collect()
     }
 
     /// tsc-port: verifyCompilerOptions @6.0.3 (output directories)
@@ -4888,12 +4837,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 source_from_project_reference,
             });
         }
-        if is_json_source(path.canonical())
-            && self.compiler_options.out_dir.is_none()
-            && self.compiler_options.out_file.is_none()
-        {
-            // tsc sourceFileMayBeEmitted: a JSON source is copied only when a
-            // distinct output location (or a future bundle output) exists.
+        if is_json_source(path.canonical()) && self.compiler_options.out_dir.is_none() {
+            // tsgo sourceFileMayBeEmitted (compiler/emitter.go:516-519): a
+            // JSON source is copied only into an outDir.
             prepared = prepared
                 .with_may_be_emitted(false)
                 .with_may_emit_forced_declaration(true);
@@ -4987,9 +4933,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let source = self.sources.len();
         self.sources.push(StagedSource {
             prepared,
-            external_module_diagnostic_span: plan
-                .as_ref()
-                .and_then(|plan| plan.external_module_diagnostic_span()),
             root_inclusions: Vec::new(),
             inclusion_reasons: Vec::new(),
             alternate_inclusion_reasons: Vec::new(),
