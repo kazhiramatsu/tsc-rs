@@ -292,3 +292,38 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   suites（`--check`）は 0 regressions・上がったもの無し（ratchet は変えない）。
 - **hosted と merge**：PR #746 の hosted run 38125615894（rust 11m47s、conformance 15m48s、gates pass、head `1397c519f`）、merge commit
   `670995a6c`。
+
+## S6b file が持つ symbol（2026-10-11）
+
+- **#64518**：binder の symbol は bind した source file のもの（`SymbolReference { kind: 0, file, id }`。`file` は descriptor：file 名・
+  path・content hash（text の xxh3-128、上位 64 bit が先）・parse options key（JSX 1、Force 2）・script kind・node id）、checker の
+  symbol（transient）は snapshot のもの（`{ kind: 1, snapshot, project, id }`、snapshot に登録）。他の response の中の symbol は
+  `CompactSymbolReference { id, file }`（file の node id。snapshot の symbol は空）：type の `symbol`・`aliasSymbol`、signature の
+  `parameters`・`thisParameter`、symbol の `parent`・`exportSymbol`。request は symbol を reference で渡す（symbol の数値と symbol
+  の `objectId` は無くなった）。
+- file の symbol の parent・export symbol・members・exports は checker なしに file の binder data で答える（table は最初の宣言の
+  位置、宣言の無いものは後、tsgo の持つ名前の byte 順、番号の順。空の table は Go の nil slice で、tsgo の JSON は `[]`）。snapshot
+  の symbol は snapshot の checker で答える（table は checker の順）。tsc-rs の binder の symbol の番号は file の identity の中の
+  位置で、file を共有する program で同じなので、file の symbol の番号はその位置 + 1。
+- **新しい method**：`retainSourceFile`（descriptor の parse に lease）、`getCachedSourceFile`、`getSymbolOfDeclaration`（#64571。
+  encoding の node index の宣言の binder の symbol。tsgo の `ast.IsDeclaration` は node の data が `DeclarationBase` を持つこと
+  （source file も含む）で、tsc 6.0.3 の kind の list より広い）、#64598 の checker の `getSymbolOfNode`・
+  `getSymbolOfDeclarationForChecker`・`getParentOfSymbolForChecker`・`getMergedSymbol`。descriptor は parse cache の key（node id
+  以外）で live な parse（lease、共有の document、live な snapshot の program。lib も）を探し、node id で同じ parse か確かめる。
+  `createSourceFile` は同じ file・text・script kind の live な parse を再利用し、空の file 名は tsgo の error。
+- descriptor は parse ごとの cache（tsgo は hash を source file に持つ）。snapshot と lease の release で、live な snapshot と lease
+  のどれも持たない parse のものを捨てる。
+- checker の crate：`get_late_bound_symbol` を `pub` に、`DocumentRegistry::documents_of` を追加（compiler の動作は変わらない）。
+- **tsgo との照合**：同じ file に同じ raw request（symbol、property、checker の 4 method、不正な reference 13、cached source
+  file、node index）を tsgo `aa8149273` と tsc-rs に送り、node id と番号を正規化すると全て同じ（違うのは `initialize` と
+  `createSnapshot` の project の field だけ：#64159 と #64681、S6c）。
+- **client の test**：sync 202 → 331／356、async 210 → 340／365。残り各 25 は LS（completion・auto-import・references・
+  signature usage・JSDoc：16）、`formatNodeForInsertion` 3、その他 6（program の file と parse を共有する `createSourceFile`、
+  `parseJsonConfigFileContent` の null の要素、raw の compiler option の path、FS の変更の rebuild、VS Code の URI、読めない
+  virtual file）。
+- **test**：API の unit test は新しい reference に（`shape` は reference を `file:<名前>` か `snapshot:<project>` に）、新しい
+  `session_symbols.rs`（descriptor の hash と script kind、checker なしの関係、snapshot の symbol、checker の 4 method、不正な
+  reference、node index の宣言、descriptor の prune）。どれも tsgo の raw の response に合わせた。
+- **結果**（release build、`4c68c56a1`。checker の crate に触れたので）：full の conformance（`--workers 2 --check`、475 s）は
+  0 regressions で、S6a の report と全ての構成が全ての列と digest で同じ。並列対照（`--checkers 4`、469 s）は記録済みの順序の
+  4 構成だけ、suites（`--check`）は 0 regressions・上がったもの無し（ratchet は変えない）。

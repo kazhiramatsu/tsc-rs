@@ -32,8 +32,15 @@ use crate::astnav::{Found, Navigator};
 use crate::decoder::port_kind;
 use crate::encoder::{build_node_index_table, encode_node, tsgo_kind, NodeIndexTable, PositionMap};
 use crate::ipc::Payload;
-use crate::proto::{CheckerParams, DocumentIdentifier, SnapshotId};
+use crate::proto::{
+    CheckerParams, CompactSymbolReference, DocumentIdentifier, SnapshotId, SourceFileDescriptor,
+    SymbolReference, SYMBOL_OWNER_FILE, SYMBOL_OWNER_SNAPSHOT,
+};
 use crate::session::{client_error, go_parse_uint32, json, Session};
+use crate::symbols::{
+    escape_symbol_name, file_symbol_id, record_flags, symbol_of_file_id, FileSymbols,
+    SymbolResponse,
+};
 
 /// A symbol's identity in a snapshot (tsgo's `*ast.Symbol`): a binder
 /// symbol by the source file whose bind created it, the same in every
@@ -67,25 +74,6 @@ pub(crate) struct Registry {
 struct ProjectRegistry {
     types: HashSet<u32>,
     signatures: HashSet<u32>,
-}
-
-/// tsgo `SymbolResponse`.
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct SymbolResponse {
-    id: u64,
-    project: String,
-    name: String,
-    flags: u32,
-    check_flags: u32,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    declarations: Vec<String>,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    value_declaration: String,
-    #[serde(skip_serializing_if = "is_zero")]
-    parent: u64,
-    #[serde(skip_serializing_if = "is_zero")]
-    export_symbol: u64,
 }
 
 /// tsgo `TypeResponse`. Go's `omitempty` keeps `false` and `0`.
@@ -146,10 +134,10 @@ pub(crate) struct TypeResponse {
     intrinsic_name: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     alias_type_arguments: Vec<u32>,
-    #[serde(skip_serializing_if = "is_zero")]
-    alias_symbol: u64,
-    #[serde(skip_serializing_if = "is_zero")]
-    symbol: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    alias_symbol: Option<CompactSymbolReference>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    symbol: Option<CompactSymbolReference>,
 }
 
 /// tsgo `ConstantValueResponse`.
@@ -171,9 +159,9 @@ struct SignatureResponse {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     type_parameters: Vec<u32>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    parameters: Vec<u64>,
-    #[serde(skip_serializing_if = "is_zero")]
-    this_parameter: u64,
+    parameters: Vec<CompactSymbolReference>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    this_parameter: Option<CompactSymbolReference>,
     #[serde(skip_serializing_if = "is_zero")]
     target: u32,
 }
@@ -219,14 +207,9 @@ fn is_zero<T: Default + PartialEq>(value: &T) -> bool {
     *value == T::default()
 }
 
-/// tsgo `ast.EscapeSymbolName` of a symbol's name: tsc-rs's names are
-/// escaped as tsgo writes them, but a late-bound name starts with tsgo's
-/// internal prefix (U+FFFD here), which tsgo writes as `__`.
-fn escape_symbol_name(name: &str) -> String {
-    match name.strip_prefix('\u{FFFD}') {
-        Some(rest) => format!("__{rest}"),
-        None => name.to_owned(),
-    }
+/// A request's symbol (tsgo's zero `SymbolReference` when it has none).
+fn symbol_param(params: &CheckerParams) -> SymbolReference {
+    params.symbol.clone().unwrap_or_default()
 }
 
 /// The type handle of a type property request (`objectId`).
@@ -348,8 +331,13 @@ impl Session {
             | "getExportSymbolOfSymbolForChecker"
             | "getFullyQualifiedName"
             | "getExportsOfModule"
-            | "isReadonlySymbol" => "CheckerSymbolParams",
-            "getExportSpecifierLocalTargetSymbol" | "getConstantValue" => "CheckerNodeParams",
+            | "isReadonlySymbol"
+            | "getMergedSymbol"
+            | "getParentOfSymbolForChecker" => "CheckerSymbolParams",
+            "getExportSpecifierLocalTargetSymbol"
+            | "getConstantValue"
+            | "getSymbolOfNode"
+            | "getSymbolOfDeclarationForChecker" => "CheckerNodeParams",
             "getMemberInModuleExports" => "GetMemberInModuleExportsParams",
             "getSignaturesOfType" => "GetSignaturesOfTypeParams",
             "getResolvedSignature" => "GetResolvedSignatureParams",
@@ -478,7 +466,7 @@ impl Session {
                 Ok(json(&results))
             }
             "getTypeOfSymbol" | "getDeclaredTypeOfSymbol" | "getNonMissingTypeOfSymbol" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let state = &mut query.state;
                 let ty = match method {
                     "getTypeOfSymbol" => state.get_type_of_symbol(symbol),
@@ -490,8 +478,8 @@ impl Session {
             }
             "getTypesOfSymbols" => {
                 let mut results = Vec::with_capacity(params.symbols.len());
-                for &symbol in &params.symbols {
-                    let symbol = query.resolve_symbol(symbol)?;
+                for reference in &params.symbols {
+                    let symbol = query.resolve_symbol(reference)?;
                     let ty = query.state.get_type_of_symbol(symbol).map_err(aborted)?;
                     results.push(query.type_response(ty)?);
                 }
@@ -528,7 +516,7 @@ impl Session {
                 Ok(json(&results))
             }
             "getTypeOfSymbolAtLocation" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let node = query.resolve_node(&params.location)?;
                 let ty = query
                     .state
@@ -641,12 +629,44 @@ impl Session {
                 }))
             }
             "getAliasedSymbol" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let aliased = query.state.get_aliased_symbol(symbol).map_err(aborted)?;
                 Ok(json(&query.symbol_response(aliased)))
             }
+            // tsgo `GetMergedSymbol`.
+            "getMergedSymbol" => {
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
+                let merged = query.state.get_merged_symbol(symbol);
+                Ok(json(&query.symbol_response(merged)))
+            }
+            // tsgo `GetParentOfSymbol` (`getParentOfSymbol`): the parent,
+            // late-bound and merged.
+            "getParentOfSymbolForChecker" => {
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
+                let parent = match query.state.binder.symbol(symbol).parent {
+                    Some(parent) => {
+                        let parent = query.state.get_late_bound_symbol(parent).map_err(aborted)?;
+                        Some(query.state.get_merged_symbol(parent))
+                    }
+                    None => None,
+                };
+                Ok(json(&parent.map(|symbol| query.symbol_response(symbol))))
+            }
+            // tsgo `GetSymbolOfNode` and `GetSymbolOfDeclaration`: the node's
+            // own symbol, late-bound and merged.
+            "getSymbolOfNode" | "getSymbolOfDeclarationForChecker" => {
+                let node = query.resolve_node(&params.location)?;
+                let symbol = match query.state.node_symbol(node) {
+                    Some(symbol) => {
+                        let symbol = query.state.get_late_bound_symbol(symbol).map_err(aborted)?;
+                        Some(query.state.get_merged_symbol(symbol))
+                    }
+                    None => None,
+                };
+                Ok(json(&symbol.map(|symbol| query.symbol_response(symbol))))
+            }
             "getImmediateAliasedSymbol" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let aliased = query
                     .state
                     .get_immediate_aliased_symbol(symbol)
@@ -654,22 +674,22 @@ impl Session {
                 Ok(json(&aliased.map(|symbol| query.symbol_response(symbol))))
             }
             "getTargetSymbol" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let target = query.state.get_target_symbol(symbol);
                 Ok(json(&query.symbol_response(target)))
             }
             "getExportSymbolOfSymbolForChecker" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let export_symbol = query.state.get_export_symbol_of_symbol(symbol);
                 Ok(json(&query.symbol_response(export_symbol)))
             }
             "getFullyQualifiedName" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let name = query.state.get_fully_qualified_name(symbol);
                 Ok(json(&name.to_string_lossy()))
             }
             "getExportsOfModule" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let mut exports = query
                     .state
                     .get_exports_of_module_symbols(symbol)
@@ -686,7 +706,7 @@ impl Session {
                 Ok(json(&results))
             }
             "getMemberInModuleExports" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let member = query
                     .state
                     .try_get_member_in_module_exports(&params.name, symbol)
@@ -694,7 +714,7 @@ impl Session {
                 Ok(json(&member.map(|symbol| query.symbol_response(symbol))))
             }
             "isReadonlySymbol" => {
-                let symbol = query.resolve_symbol(params.symbol)?;
+                let symbol = query.resolve_symbol(&symbol_param(params))?;
                 let readonly = query.state.is_readonly_symbol(symbol).map_err(aborted)?;
                 Ok(json(&readonly))
             }
@@ -1086,40 +1106,81 @@ impl Session {
     /// tsgo `resolveSymbolPropertyOfSymbol` and
     /// `resolveSymbolTablePropertyOfSymbol`: a symbol's parent, export
     /// symbol, members or exports, the tables sorted by `CompareSymbols`.
+    /// tsgo `resolveSymbolPropertyOfSymbol` and
+    /// `resolveSymbolTablePropertyOfSymbol`: a file-owned symbol's parent,
+    /// export symbol, members and exports come from its file's binder data,
+    /// a snapshot's symbol's through the snapshot's checker.
     fn symbol_property(&self, method: &str, params: &CheckerParams) -> Result<Payload, String> {
-        let setup = self.setup_checker(params.snapshot, &params.project)?;
-        setup.query(self, |query| {
-            let symbol = query.resolve_symbol(params.object_id)?;
-            let data = query.state.binder.symbol(symbol);
-            match method {
-                "getParentOfSymbol" | "getExportSymbolOfSymbol" => {
-                    let result = if method == "getParentOfSymbol" {
-                        data.parent
-                    } else {
-                        data.export_symbol
-                    };
-                    Ok(json(&result.map(|symbol| query.symbol_response(symbol))))
-                }
-                _ => {
-                    let table = if method == "getMembersOfSymbol" {
-                        Arc::clone(data.members())
-                    } else {
-                        query.state.symbol_exports(symbol)
-                    };
-                    let mut symbols = table.values().copied().collect::<Vec<_>>();
-                    if symbols.is_empty() {
-                        // Go writes a nil slice as `[]`.
-                        return Ok(json(&Vec::<SymbolResponse>::new()));
+        let reference = symbol_param(params);
+        match reference.kind {
+            SYMBOL_OWNER_FILE => {
+                let descriptor = reference
+                    .file
+                    .as_ref()
+                    .filter(|_| reference.snapshot == 0 && reference.project.is_empty())
+                    .ok_or_else(|| client_error("invalid file symbol reference"))?;
+                let document = self.acquire_cached_source_file(descriptor)?;
+                let symbols = FileSymbols::new(&document, descriptor.clone());
+                let symbol = symbols.symbol(reference.id).ok_or_else(|| {
+                    client_error(format!("symbol {} not found in source file", reference.id))
+                })?;
+                let data = symbols.record(symbol);
+                // An empty table is Go's nil slice, which tsgo's JSON writes
+                // as `[]`.
+                let table =
+                    |table: &Arc<tsc_binder::SymbolTable>| json(&symbols.table_responses(table));
+                Ok(match method {
+                    "getParentOfSymbol" => {
+                        json(&data.parent.map(|symbol| symbols.response(symbol)))
                     }
-                    query.state.sort_symbols(&mut symbols);
-                    let results = symbols
-                        .into_iter()
-                        .map(|symbol| query.symbol_response(symbol))
-                        .collect::<Vec<_>>();
-                    Ok(json(&results))
-                }
+                    "getExportSymbolOfSymbol" => {
+                        json(&data.export_symbol.map(|symbol| symbols.response(symbol)))
+                    }
+                    "getMembersOfSymbol" => table(data.members()),
+                    _ => table(data.exports()),
+                })
             }
-        })
+            SYMBOL_OWNER_SNAPSHOT => {
+                if reference.file.is_some()
+                    || reference.snapshot == 0
+                    || reference.project.is_empty()
+                {
+                    return Err(client_error("invalid snapshot symbol reference"));
+                }
+                let setup = self.setup_checker(reference.snapshot, &reference.project)?;
+                setup.query(self, |query| {
+                    let symbol = query.resolve_registered_symbol(reference.id)?;
+                    let data = query.state.binder.symbol(symbol);
+                    match method {
+                        "getParentOfSymbol" | "getExportSymbolOfSymbol" => {
+                            let result = if method == "getParentOfSymbol" {
+                                data.parent
+                            } else {
+                                data.export_symbol
+                            };
+                            Ok(json(&result.map(|symbol| query.symbol_response(symbol))))
+                        }
+                        _ => {
+                            let table = if method == "getMembersOfSymbol" {
+                                Arc::clone(data.members())
+                            } else {
+                                Arc::clone(data.exports())
+                            };
+                            let mut symbols = table.values().copied().collect::<Vec<_>>();
+                            query.state.sort_symbols(&mut symbols);
+                            let results = symbols
+                                .into_iter()
+                                .map(|symbol| query.symbol_response(symbol))
+                                .collect::<Vec<_>>();
+                            Ok(json(&results))
+                        }
+                    }
+                })
+            }
+            kind => Err(client_error(format!(
+                "invalid symbol reference kind {kind}"
+            ))),
+        }
     }
 
     /// tsgo `setupChecker`: the snapshot's registry and the project's
@@ -1129,6 +1190,7 @@ impl Session {
         let (_, program) = self.program(snapshot, project)?;
         Ok(CheckerSetup {
             registry,
+            snapshot,
             project: project.to_owned(),
             program,
         })
@@ -1149,6 +1211,7 @@ impl Session {
 /// tsgo `checkerSetup`: a snapshot's registry, a project and its program.
 struct CheckerSetup {
     registry: Arc<Mutex<Registry>>,
+    snapshot: SnapshotId,
     project: String,
     program: Arc<ProjectProgram>,
 }
@@ -1163,12 +1226,21 @@ impl CheckerSetup {
         let mut registry = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
         let program = Arc::as_ptr(&self.program) as usize;
         self.program.with_live(|live| {
+            // Each file's parse identity, for its symbols' owner descriptors.
+            let documents = (0..live.file_count())
+                .map(|index| {
+                    live.document(index)
+                        .map_or(0, |document| document.parsed.id())
+                })
+                .collect::<Vec<_>>();
             live.with_checker(|state| {
                 query(&mut Query {
                     state,
                     registry: &mut registry,
+                    snapshot: self.snapshot,
                     project: &self.project,
                     program,
+                    documents: &documents,
                     session,
                 })
             })
@@ -1181,9 +1253,12 @@ impl CheckerSetup {
 pub(crate) struct Query<'q, 'a> {
     state: &'q mut CheckerState<'a>,
     registry: &'q mut Registry,
+    snapshot: SnapshotId,
     project: &'q str,
     /// The program's identity.
     program: usize,
+    /// Each program file's parse identity (tsgo's source file node id).
+    documents: &'q [u64],
     session: &'q Session,
 }
 
@@ -1226,20 +1301,70 @@ impl Query<'_, '_> {
         (id, canonical.clone())
     }
 
-    /// tsgo `newSymbolResponse`.
+    /// tsgo `symbolOwnerFile`: the program file whose bind created
+    /// `symbol`, `None` for a checker's (transient) symbol.
+    fn owner_file(&self, symbol: SymbolId) -> Option<usize> {
+        self.state.binder.file_index_of_symbol(symbol)
+    }
+
+    /// tsgo `newSourceFileDescriptor` of the program's file `file`.
+    fn file_descriptor(&self, file: usize) -> SourceFileDescriptor {
+        let node_id = self.documents.get(file).copied().unwrap_or_default();
+        self.session
+            .document_descriptor(self.state.binder.source(file), node_id)
+    }
+
+    /// tsgo `newSymbolReference`: a file-owned symbol by its file's node id,
+    /// a snapshot's symbol by its number alone (not registered).
+    fn compact(&mut self, symbol: SymbolId) -> CompactSymbolReference {
+        match self.owner_file(symbol) {
+            Some(file) => CompactSymbolReference {
+                id: file_symbol_id(symbol),
+                file: self
+                    .documents
+                    .get(file)
+                    .copied()
+                    .unwrap_or_default()
+                    .to_string(),
+            },
+            None => CompactSymbolReference {
+                id: self.symbol_id(symbol),
+                file: String::new(),
+            },
+        }
+    }
+
+    /// tsgo `newSymbolResponse`: a file-owned symbol by its file's
+    /// descriptor, a checker's symbol registered in the snapshot.
     fn symbol_response(&mut self, symbol: SymbolId) -> SymbolResponse {
-        let (id, project) = self.register_symbol(symbol);
+        let reference = match self.owner_file(symbol) {
+            Some(file) => SymbolReference {
+                kind: SYMBOL_OWNER_FILE,
+                file: Some(self.file_descriptor(file)),
+                id: file_symbol_id(symbol),
+                ..SymbolReference::default()
+            },
+            None => {
+                let (id, project) = self.register_symbol(symbol);
+                SymbolReference {
+                    kind: SYMBOL_OWNER_SNAPSHOT,
+                    file: None,
+                    snapshot: self.snapshot,
+                    project,
+                    id,
+                }
+            }
+        };
         let data = self.state.binder.symbol(symbol);
         let declarations = data.declarations.to_vec();
         let value_declaration = data.value_declaration;
         let parent = data.parent;
         let export_symbol = data.export_symbol;
         let name = escape_symbol_name(&data.escaped_name.as_js().to_string_lossy());
-        let flags = symbol_flags(self.state, symbol);
+        let flags = record_flags(data);
         let check_flags = check_flags(self.state.get_check_flags(symbol));
         SymbolResponse {
-            id,
-            project,
+            reference,
             name,
             flags,
             check_flags,
@@ -1250,14 +1375,55 @@ impl Query<'_, '_> {
             value_declaration: value_declaration
                 .map(|declaration| self.node_handle(declaration))
                 .unwrap_or_default(),
-            parent: parent.map_or(0, |parent| self.symbol_id(parent)),
-            export_symbol: export_symbol.map_or(0, |symbol| self.symbol_id(symbol)),
+            parent: parent.map(|parent| self.compact(parent)),
+            export_symbol: export_symbol.map(|symbol| self.compact(symbol)),
         }
     }
 
-    /// tsgo `resolveSymbolHandle`, of a symbol of this program: a binder
-    /// symbol of one of its files, or a symbol of its checker.
-    fn resolve_symbol(&self, handle: u64) -> Result<SymbolId, String> {
+    /// tsgo `checkerSetup.resolveSymbolHandle`: a snapshot's symbol of this
+    /// checker, or a file-owned symbol of a file of this program.
+    fn resolve_symbol(&mut self, reference: &SymbolReference) -> Result<SymbolId, String> {
+        match reference.kind {
+            SYMBOL_OWNER_SNAPSHOT => {
+                if reference.snapshot != self.snapshot || reference.file.is_some() {
+                    return Err(client_error(
+                        "snapshot symbol reference does not match the requested checker",
+                    ));
+                }
+                self.resolve_registered_symbol(reference.id)
+            }
+            SYMBOL_OWNER_FILE => {
+                let descriptor = reference
+                    .file
+                    .as_ref()
+                    .filter(|_| reference.snapshot == 0 && reference.project.is_empty())
+                    .ok_or_else(|| client_error("invalid file symbol reference"))?;
+                let file = self
+                    .file_paths()
+                    .get(&descriptor.path)
+                    .copied()
+                    .filter(|&file| self.file_descriptor(file) == *descriptor)
+                    .ok_or_else(|| {
+                        client_error("source file is not part of the requested program")
+                    })?;
+                symbol_of_file_id(reference.id)
+                    .filter(|&symbol| self.owner_file(symbol) == Some(file))
+                    .ok_or_else(|| {
+                        client_error(format!(
+                            "symbol handle {} not found in source file",
+                            reference.id
+                        ))
+                    })
+            }
+            kind => Err(client_error(format!(
+                "invalid symbol reference kind {kind}"
+            ))),
+        }
+    }
+
+    /// tsgo `snapshotData.resolveSymbolHandle`, of a symbol of this program:
+    /// a binder symbol of one of its files, or a symbol of its checker.
+    fn resolve_registered_symbol(&self, handle: u64) -> Result<SymbolId, String> {
         if handle == 0 {
             return Err(client_error("empty symbol handle"));
         }
@@ -1383,9 +1549,9 @@ impl Query<'_, '_> {
             type_parameters: type_parameters.into_iter().map(Self::type_handle).collect(),
             parameters: parameters
                 .into_iter()
-                .map(|symbol| self.symbol_id(symbol))
+                .map(|symbol| self.compact(symbol))
                 .collect(),
-            this_parameter: this_parameter.map_or(0, |symbol| self.symbol_id(symbol)),
+            this_parameter: this_parameter.map(|symbol| self.compact(symbol)),
             target: target.map_or(0, Self::signature_handle),
         }
     }
@@ -1523,8 +1689,8 @@ impl Query<'_, '_> {
                 _ => {}
             }
         }
-        response.symbol = symbol.map_or(0, |symbol| self.symbol_id(symbol));
-        response.alias_symbol = alias_symbol.map_or(0, |symbol| self.symbol_id(symbol));
+        response.symbol = symbol.map(|symbol| self.compact(symbol));
+        response.alias_symbol = alias_symbol.map(|symbol| self.compact(symbol));
         response
     }
 
@@ -1721,21 +1887,6 @@ impl Query<'_, '_> {
             },
         }
     }
-}
-
-/// tsgo's `SymbolFlags` of a symbol: tsc-rs's flags are tsgo's first 28;
-/// tsgo's `ConstEnumOnlyModule` and `ReplaceableByMethod` tsc-rs keeps
-/// beside them.
-fn symbol_flags(state: &CheckerState<'_>, symbol: SymbolId) -> u32 {
-    let data = state.binder.symbol(symbol);
-    let mut flags = data.flags.bits() as u32 & ((1 << 28) - 1);
-    if data.extras().const_enum_only_module == Some(true) {
-        flags |= 1 << 28;
-    }
-    if data.extras().is_replaceable_by_method {
-        flags |= 1 << 29;
-    }
-    flags
 }
 
 /// tsgo's `CheckFlags` of tsc-rs's, bit by name (tsgo's

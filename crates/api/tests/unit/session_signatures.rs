@@ -62,7 +62,12 @@ fn type_of(session: &Session, base: &Value, text: &str, declared: bool) -> Value
     } else {
         "getTypeOfSymbol"
     };
-    ask(session, base, method, json!({ "symbol": symbol["id"] }))
+    ask(
+        session,
+        base,
+        method,
+        json!({ "symbol": symbol["reference"] }),
+    )
 }
 
 /// The call (`kind` 0) or construct signatures of the type at `text`.
@@ -192,7 +197,7 @@ fn signatures_of_types_and_their_parts() {
     );
     assert_eq!(this["name"], "this");
     assert_eq!(this["declarations"], json!(["92.171./src/main.ts"]));
-    assert_eq!(asserts["thisParameter"], this["id"]);
+    assert_eq!(asserts["thisParameter"], compact(&this));
 }
 
 #[test]
@@ -237,7 +242,7 @@ fn type_predicates_of_signatures() {
             &session,
             &base,
             "getTypeOfSymbol",
-            json!({ "symbol": property["id"] }),
+            json!({ "symbol": property["reference"] }),
         );
         ask(
             &session,

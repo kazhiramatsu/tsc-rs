@@ -1,9 +1,10 @@
 //! The checker's queries (P5-4a): the symbol at a position or node handle,
 //! the types of symbols and locations, the symbol and type responses, the
 //! symbol queries, `typeToString` and the intrinsic types. Pinned to tsgo's
-//! responses at 19dadef8 for the same files; the numbers of symbols and
-//! types are each implementation's own, so the tests compare what they
-//! identify.
+//! responses at 19dadef8 for the same files, and to aa8149273's symbol
+//! references (#64518: a binder symbol is its file's, a checker's symbol
+//! the snapshot's); the numbers of symbols and types are each
+//! implementation's own, so the tests compare what they identify.
 
 use super::*;
 
@@ -74,9 +75,17 @@ fn symbol_at(session: &Session, base: &Value, at: usize) -> Value {
     .unwrap()
 }
 
-/// The response with its handles replaced by `*` (non-zero) or `0`.
+/// The response with its handles replaced by `*` (non-zero or a symbol
+/// reference) or `0`, and a symbol's own reference by its owner:
+/// `file:<file name>` or `snapshot:<project>`.
 fn shape(response: &Value) -> Value {
     let mut response = response.clone();
+    if let Some(reference) = response.get_mut("reference") {
+        *reference = json!(match reference["kind"].as_u64() {
+            Some(0) => format!("file:{}", reference["file"]["fileName"].as_str().unwrap()),
+            _ => format!("snapshot:{}", reference["project"].as_str().unwrap()),
+        });
+    }
     for key in [
         "id",
         "parent",
@@ -89,14 +98,25 @@ fn shape(response: &Value) -> Value {
         "thisType",
     ] {
         if let Some(value) = response.get_mut(key) {
-            *value = json!(if value.as_u64().unwrap_or(0) == 0 {
-                "0"
-            } else {
+            *value = json!(if value.is_object() || value.as_u64().unwrap_or(0) != 0 {
                 "*"
+            } else {
+                "0"
             });
         }
     }
     response
+}
+
+/// The compact reference (tsgo `CompactSymbolReference`) other responses
+/// name a symbol response's symbol by: its number, and its file's node id
+/// for a file's symbol.
+fn compact(symbol: &Value) -> Value {
+    let reference = &symbol["reference"];
+    match reference["file"]["nodeId"].as_str() {
+        Some(file) => json!({ "id": reference["id"], "file": file }),
+        None => json!({ "id": reference["id"] }),
+    }
 }
 
 #[test]
@@ -106,15 +126,15 @@ fn the_symbol_at_a_position_is_its_response() {
     assert_eq!(
         shape(&x),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "x", "flags": 2, "checkFlags": 0,
+            "reference": "file:/src/main.ts", "name": "x", "flags": 2, "checkFlags": 0,
             "declarations": ["8.262./src/main.ts"], "valueDeclaration": "8.262./src/main.ts",
             "parent": "*",
         })
     );
     // The end of a name touches it; the `=` after it has no symbol.
     assert_eq!(
-        symbol_at(&session, &base, position("x = 42") + 1)["id"],
-        x["id"]
+        symbol_at(&session, &base, position("x = 42") + 1)["reference"],
+        x["reference"]
     );
     assert_eq!(symbol_at(&session, &base, position("= 42")), Value::Null);
     // The parent is the module, which the file's symbol is.
@@ -124,11 +144,11 @@ fn the_symbol_at_a_position_is_its_response() {
         with(&base, json!({ "file": "/src/main.ts" })),
     )
     .unwrap();
-    assert_eq!(module["id"], x["parent"]);
+    assert_eq!(compact(&module), x["parent"]);
     assert_eq!(
         shape(&module),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "\"/src/main\"", "flags": 512,
+            "reference": "file:/src/main.ts", "name": "\"/src/main\"", "flags": 512,
             "checkFlags": 0, "declarations": ["1.308./src/main.ts"],
             "valueDeclaration": "1.308./src/main.ts",
         })
@@ -160,12 +180,12 @@ fn the_symbols_of_members_and_namespaces() {
     assert_eq!(
         shape(&value),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "value", "flags": 4, "checkFlags": 0,
+            "reference": "file:/src/main.ts", "name": "value", "flags": 4, "checkFlags": 0,
             "declarations": ["51.174./src/main.ts"], "valueDeclaration": "51.174./src/main.ts",
             "parent": "*",
         })
     );
-    assert_eq!(value["parent"], class["id"]);
+    assert_eq!(value["parent"], compact(&class));
     // An optional property, an enum member, a local namespace.
     let p = symbol_at(&session, &base, position("p?"));
     assert_eq!(
@@ -179,12 +199,12 @@ fn the_symbols_of_members_and_namespaces() {
     assert_eq!(
         shape(&namespace),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "NS", "flags": 512, "checkFlags": 0,
+            "reference": "file:/src/main.ts", "name": "NS", "flags": 512, "checkFlags": 0,
             "declarations": ["202.269./src/main.ts"], "valueDeclaration": "202.269./src/main.ts",
         })
     );
     let inner = symbol_at(&session, &base, position("inner"));
-    assert_eq!(inner["parent"], namespace["id"]);
+    assert_eq!(inner["parent"], compact(&namespace));
 }
 
 #[test]
@@ -206,7 +226,7 @@ fn tokens_the_tree_does_not_keep_have_their_symbols() {
     assert_eq!(
         shape(&arrow),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "__function", "flags": 16,
+            "reference": "file:/src/main.ts", "name": "__function", "flags": 16,
             "checkFlags": 0, "declarations": ["221.221./src/main.ts"],
             "valueDeclaration": "221.221./src/main.ts",
         })
@@ -235,7 +255,7 @@ fn the_type_of_a_symbol_is_its_response() {
         call(
             &session,
             "getTypeOfSymbol",
-            with(&base, json!({ "symbol": symbol["id"] })),
+            with(&base, json!({ "symbol": symbol["reference"] })),
         )
         .unwrap()
     };
@@ -267,7 +287,7 @@ fn the_type_of_a_symbol_is_its_response() {
     );
     assert_eq!(
         add["symbol"],
-        symbol_at(&session, &base, position("add("))["id"]
+        compact(&symbol_at(&session, &base, position("add(")))
     );
     // A tuple reference made from a type node.
     assert_eq!(
@@ -288,7 +308,7 @@ fn the_type_of_a_symbol_is_its_response() {
     );
     assert_eq!(
         member["symbol"],
-        symbol_at(&session, &base, position("A, B"))["id"]
+        compact(&symbol_at(&session, &base, position("A, B")))
     );
     assert_eq!(type_of("sym")["flags"], 16_384);
     // An interface has no value type.
@@ -303,7 +323,7 @@ fn declared_and_non_missing_types() {
         call(
             &session,
             method,
-            with(&base, json!({ "symbol": symbol["id"] })),
+            with(&base, json!({ "symbol": symbol["reference"] })),
         )
         .unwrap()
     };
@@ -323,7 +343,7 @@ fn declared_and_non_missing_types() {
     assert_eq!(alias["flags"], 134_217_728);
     assert_eq!(
         alias["aliasSymbol"],
-        symbol_at(&session, &base, position("U ="))["id"]
+        compact(&symbol_at(&session, &base, position("U =")))
     );
     let enum_type = ask("getDeclaredTypeOfSymbol", "E {");
     assert_eq!(enum_type["flags"], 134_250_496);
@@ -359,7 +379,7 @@ fn the_type_at_a_position_or_node() {
     );
     assert_eq!(
         this["symbol"],
-        symbol_at(&session, &base, position("MyClass"))["id"]
+        compact(&symbol_at(&session, &base, position("MyClass")))
     );
     // The `export` modifier is a node without a type.
     assert_eq!(at(0)["intrinsicName"], "error");
@@ -435,7 +455,7 @@ fn members_exports_and_parents_of_symbols() {
         call(
             &session,
             method,
-            with(&base, json!({ "objectId": symbol["id"] })),
+            with(&base, json!({ "symbol": symbol["reference"] })),
         )
         .unwrap()
     };
@@ -493,13 +513,14 @@ fn a_shared_files_symbol_has_one_handle_in_every_project() {
     let a = symbol("/a/tsconfig.json");
     let b = symbol("/b/tsconfig.json");
     assert_eq!(a, b);
-    // The project is the one it was first handed out in.
-    assert_eq!(b["project"], "/a/tsconfig.json");
+    // A binder symbol is its file's, which both programs share.
+    assert_eq!(shape(&b)["reference"], "file:/shared/shared.ts");
+    assert!(b["reference"].get("project").is_none());
     // The other project's checker answers for it, with its own types.
     let ty = call(
         &session,
         "getTypeOfSymbol",
-        json!({ "snapshot": snapshot, "project": "/b/tsconfig.json", "symbol": a["id"] }),
+        json!({ "snapshot": snapshot, "project": "/b/tsconfig.json", "symbol": a["reference"] }),
     )
     .unwrap();
     assert_eq!(ty["value"], 42);
@@ -562,7 +583,7 @@ fn aliases_resolve_to_their_targets() {
         call(
             &session,
             method,
-            with(&base, json!({ "symbol": symbol["id"] })),
+            with(&base, json!({ "symbol": symbol["reference"] })),
         )
         .unwrap()
     };
@@ -570,7 +591,7 @@ fn aliases_resolve_to_their_targets() {
     assert_eq!(
         shape(&alias),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "helper", "flags": 2_097_152,
+            "reference": "file:/main.ts", "name": "helper", "flags": 2_097_152,
             "checkFlags": 0, "declarations": ["7.278./main.ts"],
         })
     );
@@ -578,7 +599,7 @@ fn aliases_resolve_to_their_targets() {
     assert_eq!(
         shape(&target),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "helper", "flags": 16,
+            "reference": "file:/lib.ts", "name": "helper", "flags": 16,
             "checkFlags": 0, "declarations": ["3.264./lib.ts"],
             "valueDeclaration": "3.264./lib.ts", "parent": "*",
         })
@@ -603,7 +624,10 @@ fn aliases_resolve_to_their_targets() {
         call(
             &session,
             "getMemberInModuleExports",
-            with(&base, json!({ "symbol": module["id"], "name": name })),
+            with(
+                &base,
+                json!({ "symbol": module["reference"], "name": name }),
+            ),
         )
         .unwrap()
     };
@@ -649,7 +673,7 @@ fn symbol_queries_of_the_checker() {
         call(
             &session,
             method,
-            with(&base, json!({ "symbol": symbol["id"] })),
+            with(&base, json!({ "symbol": symbol["reference"] })),
         )
         .unwrap()
     };
@@ -701,7 +725,7 @@ fn narrowing_at_a_reference() {
         "getTypeOfSymbolAtLocation",
         with(
             &base,
-            json!({ "symbol": symbol["id"], "location": symbol["declarations"][0] }),
+            json!({ "symbol": symbol["reference"], "location": symbol["declarations"][0] }),
         ),
     )
     .unwrap();
@@ -715,7 +739,7 @@ fn type_to_string_takes_tsgos_format_flags() {
     let ty = call(
         &session,
         "getTypeOfSymbol",
-        with(&base, json!({ "symbol": big["id"] })),
+        with(&base, json!({ "symbol": big["reference"] })),
     )
     .unwrap();
     let text = |flags: u32| {
@@ -741,13 +765,48 @@ fn handles_the_snapshot_does_not_know_are_the_clients_errors() {
     let (session, base) = checker(FILES, "/tsconfig.json");
     let error =
         |method: &str, fields: Value| call(&session, method, with(&base, fields)).unwrap_err();
+    let snapshot = |id: u64| {
+        json!({ "symbol": {
+            "kind": 1, "snapshot": base["snapshot"], "project": "/tsconfig.json", "id": id,
+        } })
+    };
     assert_eq!(
-        error("getTypeOfSymbol", json!({ "symbol": 0 })),
+        error("getTypeOfSymbol", snapshot(0)),
         "api: client error: empty symbol handle"
     );
     assert_eq!(
-        error("getTypeOfSymbol", json!({ "symbol": 999_999 })),
+        error("getTypeOfSymbol", snapshot(999_999)),
         "api: client error: symbol handle 999999 not found in snapshot registry"
+    );
+    assert_eq!(
+        error(
+            "getTypeOfSymbol",
+            json!({ "symbol": { "kind": 1, "snapshot": 99, "project": "/tsconfig.json", "id": 1 } })
+        ),
+        "api: client error: snapshot symbol reference does not match the requested checker"
+    );
+    assert_eq!(
+        error("getTypeOfSymbol", json!({ "symbol": {} })),
+        "api: client error: invalid file symbol reference"
+    );
+    assert_eq!(
+        error("getTypeOfSymbol", json!({ "symbol": { "kind": 7 } })),
+        "api: client error: invalid symbol reference kind 7"
+    );
+    // A file's symbol: its descriptor must be the program's file's, and the
+    // number one of the file's symbols.
+    let x = symbol_at(&session, &base, position("x = 42"));
+    let mut stale = x["reference"].clone();
+    stale["file"]["contentHash"] = json!("0".repeat(32));
+    assert_eq!(
+        error("getTypeOfSymbol", json!({ "symbol": stale })),
+        "api: client error: source file is not part of the requested program"
+    );
+    let mut missing = x["reference"].clone();
+    missing["id"] = json!(999_999);
+    assert_eq!(
+        error("getTypeOfSymbol", json!({ "symbol": missing })),
+        "api: client error: symbol handle 999999 not found in source file"
     );
     assert_eq!(
         error("getSymbolAtLocation", json!({ "location": "bad" })),
@@ -786,3 +845,6 @@ mod types;
 
 #[path = "session_signatures.rs"]
 mod signatures;
+
+#[path = "session_symbols.rs"]
+mod symbols;

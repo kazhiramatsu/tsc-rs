@@ -1070,6 +1070,84 @@ pub struct TranspileOutputResponse {
     pub source_map_text: String,
 }
 
+/// tsgo `SourceFileDescriptor`: an ordinary cached source file's complete
+/// identity, its node id included.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceFileDescriptor {
+    #[serde(default, deserialize_with = "nullable")]
+    pub file_name: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub path: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub content_hash: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub parse_options_key: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub script_kind: i32,
+    #[serde(default, deserialize_with = "nullable")]
+    pub node_id: String,
+}
+
+/// tsgo `SymbolOwnerKindFile`.
+pub const SYMBOL_OWNER_FILE: u32 = 0;
+/// tsgo `SymbolOwnerKindSnapshot`.
+pub const SYMBOL_OWNER_SNAPSHOT: u32 = 1;
+
+/// tsgo `SymbolReference` (its `SymbolOwner` embedded): a symbol and its
+/// owner, a source file or a snapshot's project.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SymbolReference {
+    #[serde(default, deserialize_with = "nullable")]
+    pub kind: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<SourceFileDescriptor>,
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "is_zero_u64"
+    )]
+    pub snapshot: u64,
+    #[serde(
+        default,
+        deserialize_with = "nullable",
+        skip_serializing_if = "String::is_empty"
+    )]
+    pub project: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub id: u64,
+}
+
+/// tsgo `CompactSymbolReference`: a symbol in another response, by its id
+/// and its owning file's node id (empty for a snapshot's symbol).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct CompactSymbolReference {
+    pub id: u64,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub file: String,
+}
+
+fn is_zero_u64(value: &u64) -> bool {
+    *value == 0
+}
+
+/// tsgo `RetainSourceFileParams` and `GetCachedSourceFileParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct SourceFileDescriptorParams {
+    #[serde(default)]
+    pub file: SourceFileDescriptor,
+}
+
+/// tsgo `GetSymbolOfDeclarationParams`.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct GetSymbolOfDeclarationParams {
+    #[serde(default)]
+    pub file: SourceFileDescriptor,
+    #[serde(default, deserialize_with = "nullable")]
+    pub index: u32,
+}
+
 /// The parameters of tsgo's checker requests (`GetSymbolAtPositionParams`,
 /// `GetTypeOfSymbolParams`, `GetSymbolPropertyParams`,
 /// `TypeToTypeNodeParams`, …): each method reads the fields its tsgo
@@ -1095,12 +1173,12 @@ pub struct CheckerParams {
     #[serde(default, deserialize_with = "nullable")]
     pub locations: Vec<String>,
     #[serde(default, deserialize_with = "nullable")]
-    pub symbol: u64,
+    pub symbol: Option<SymbolReference>,
     #[serde(default, deserialize_with = "nullable")]
-    pub symbols: Vec<u64>,
+    pub symbols: Vec<SymbolReference>,
     #[serde(default, rename = "type", deserialize_with = "nullable")]
     pub type_id: u32,
-    /// A symbol, type or signature, by the property requests.
+    /// A type or signature, by the property requests.
     #[serde(default, deserialize_with = "nullable")]
     pub object_id: u64,
     #[serde(default, deserialize_with = "nullable")]

@@ -76,7 +76,12 @@ fn type_of(session: &Session, base: &Value, text: &str, declared: bool) -> Value
     } else {
         "getTypeOfSymbol"
     };
-    ask(session, base, method, json!({ "symbol": symbol["id"] }))
+    ask(
+        session,
+        base,
+        method,
+        json!({ "symbol": symbol["reference"] }),
+    )
 }
 
 /// A type response's kind: its flags, object flags and intrinsic name or
@@ -385,7 +390,7 @@ fn properties_and_index_infos() {
     assert_eq!(
         shape(&value),
         json!({
-            "id": "*", "project": "/tsconfig.json", "name": "value", "flags": 33_554_436,
+            "reference": "snapshot:/tsconfig.json", "name": "value", "flags": 33_554_436,
             "checkFlags": 1, "declarations": ["11.173./src/main.ts"],
             "valueDeclaration": "11.173./src/main.ts", "parent": "*",
         })
