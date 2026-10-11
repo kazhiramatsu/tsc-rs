@@ -318,14 +318,17 @@ impl SourceMapGenerator {
     /// order is the literal upstream order — `version`, `file`,
     /// `sourceRoot`, `sources`, `names`, `mappings`, and
     /// `sourcesContent` LAST, dropped entirely while unset
-    /// (`JSON.stringify` elides `undefined` properties).
+    /// (`JSON.stringify` elides `undefined` properties). tsgo (#64544)
+    /// omits an empty `sourceRoot` (`json:"sourceRoot,omitzero"`).
     pub fn to_json_string(&mut self) -> String {
         self.commit_pending_mapping();
         let mut out = String::new();
         out.push_str("{\"version\":3,\"file\":");
         push_json_string(&mut out, &self.file);
-        out.push_str(",\"sourceRoot\":");
-        push_json_string(&mut out, &self.source_root);
+        if !self.source_root.is_empty() {
+            out.push_str(",\"sourceRoot\":");
+            push_json_string(&mut out, &self.source_root);
+        }
         out.push_str(",\"sources\":[");
         for (index, source) in self.sources.iter().enumerate() {
             if index > 0 {

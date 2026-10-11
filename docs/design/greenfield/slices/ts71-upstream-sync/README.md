@@ -190,3 +190,37 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   （`tsbuild/incremental/reverse-mapped-declaration-consumption`。#64558）ので `--update` で記録した（tsbuild 152 → 153）。
 - **hosted と merge**：PR #743 の hosted run 38115411840（rust 9m6s、conformance 14m7s、gates pass、head `dae9944cf`）、merge commit
   `d9b82ae85`。
+
+## S4 emit（2026-10-11）
+
+- **本家の 7 commit**（違う 13 stem）：#64544 の emit の部分（空の sourceRoot の field を書かない
+  （`json:"sourceRoot,omitzero"`）。map file と inline の map。7）、#64460（declaration emit の export assignment（identifier、
+  class／function 宣言の名前、`_default`）を文に map する。2）、#64470（JSX の attribute の値は 1 つの要素として parse し、兄弟の
+  要素の recovery は外の要素を包む。2）、#64670（下記。1）、#64422（名前が binding pattern の rest 要素は assignment pattern に
+  変える。tsc は identifier を assert していた。1）、#64578（verbatimModuleSyntax で、型だけの消去で空になった named import は
+  default import の隣なら落とす。書かれた `{}` は残す。1）、#64574（消えた `with` の本体は labeled statement と同じく空文。1）。
+- **#64670**：tsgo の private name の環境は名前ごとに 1 つの entry を source の順に持ち、そのまま残す member
+  （`PrivateIdentifierKindUntransformed`）は前の entry を置き換え、後の entry を invalid にする。member の宣言は自分の class の
+  entry を読み、それが untransformed か invalid ならそのまま残る。port は untransformed の名前を順序の無い別の set に持ち、宣言の
+  slot を全ての環境から引いていたので、decorated class の `static #a() {}` と `#a() {}` で transform が失敗していた。環境を tsgo の
+  entry（`PrivateEntry::{Untransformed, Slot}`）にし、使う場所は entry のある一番内側の環境で止まり（`accessPrivateIdentifier`）、
+  member の宣言は今の環境を読む。ES2022 の invalid な static field は static block を作らずに残る。
+- **ほかに**：tsgo `emitBinaryExpression` は側の優先度より低い operand を全て括弧で囲む（port は TypeScript の式だけ。parse した木
+  では recovery から来る。#64470 の兄弟要素の comma）。
+- **`.js.map` の列**：runner は emit の比較を始めた時から構成ごとに `.js.map` の baseline を比べていた（report の `map`）が、
+  `scripts/conformance_ts71.py` は数えも ratchet もしていなかった。19dadef8 では比べた 13,451 構成が全て一致、再 vendor（S0）で
+  150 が違った（全て空の sourceRoot）が、summary の列を読んだ S0 の分析はそれを見落とした。ratchet に 8 列目の `.js.map` の tier
+  （`full`／`none`。列の無い行は `none`）、summary に `map_full`／`map_mismatch`／`map_not_assessed` を足した。
+- **test**：空の sourceRoot を固定していた 16 の contract と unit test（CLI 10、API 2、transpile 2、emitter 2）は tsgo の省略に
+  した（emitter の凍結された 6.0.3 の bundle の観測は field を除いて比べ、空でない sourceRoot を固定した）。7 つの変更の tsgo の
+  byte を 6 つの CLI contract で固定した。
+- **結果**（release build、`840d710c9` = rebase 前の `b768f82a7` と同じ code）：full の conformance（`--workers 2 --check`、
+  495 s）は 0 regressions。errors full 13,557 → 13,560（mismatch 4 → 1、text 1）、emit mismatch 13 → 1、sourcemap 11 → 0、
+  `.js.map` 150 → 0（13,562 全て一致）、types 85・symbols 49・trace 1・harness error 15（content mapper）は変わらず。S3 の report と
+  構成ごとに比べると errors +3・emit +12・sourcemap +11・`.js.map` +150 で、下がった列は無い。上がった stem は slice の 13 の対象
+  だけ。同期で残るのは errors 2 と trace 1（#64159）、emit 1（#64632）で、S5。
+- **並列対照**（`--checkers 4`、`scripts/conformance_ts71_compare.py`）：15,335 構成が一致、違うのは記録済みの順序の 4 構成だけ。
+- ratchet は `--update` で 13,561 構成（新しい 3、上げた 12、`.js.map` の列は全て `full`）。suites（`--check`）は 0 regressions、
+  空の sourceRoot が直したものが 49 上がった（transpile 38 → 41、tsbuild 153 → 182、tsbuildWatch 49 → 63、tsc 208 → 211）ので
+  `--update` で記録した。suites に残る違い（config 2、tsbuild 11、tsbuildWatch 2、tsc 18、tscWatch 2、tsoptions 24）は S5 以降と、
+  前からの範囲（ES5 の意図した差、content mapper）。

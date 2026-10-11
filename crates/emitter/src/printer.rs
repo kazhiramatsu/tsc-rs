@@ -8475,17 +8475,17 @@ impl Printer {
                 } else {
                     expression_context
                 };
-                // A TypeScript operand (only a tree decoded from the API has
-                // one) takes tsgo's parentheses for its side.
+                // An operand below its side's precedence takes tsgo's
+                // parentheses.
                 let (left_precedence, right_precedence) =
                     crate::factory::tsgo_binary_operand_precedences(transformation.arena(), node)?;
                 let left_parenthesized = !exponentiation_parenthesized
-                    && self.type_operand_needs_parentheses(
+                    && self.binary_operand_needs_parentheses(
                         transformation,
                         left_node,
                         left_precedence,
                     )?;
-                let right_parenthesized = self.type_operand_needs_parentheses(
+                let right_parenthesized = self.binary_operand_needs_parentheses(
                     transformation,
                     right_node,
                     right_precedence,
@@ -17024,11 +17024,12 @@ impl Printer {
             && !NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
     }
 
-    /// Whether `operand` is a TypeScript expression (`as`, `satisfies`,
-    /// non-null, type assertion) whose tsgo precedence is below
-    /// `precedence`: only a tree decoded from the API reaches the printer
-    /// with one, and tsgo parenthesizes it while printing.
-    fn type_operand_needs_parentheses(
+    /// tsgo emitBinaryExpression's `emitExpression(operand, precedence)`:
+    /// whether a binary operand's tsgo precedence is below its side's. A
+    /// parsed tree has one only from recovery (the synthetic comma of sibling
+    /// JSX elements), a tree decoded from the API from its TypeScript
+    /// expressions (`as`, `satisfies`, non-null, type assertion).
+    fn binary_operand_needs_parentheses(
         &self,
         transformation: &TransformationResult<'_>,
         operand: Option<TransformNode>,
@@ -17037,14 +17038,7 @@ impl Printer {
         let Some(operand) = operand else {
             return Ok(false);
         };
-        let kind = transformation.arena().node(operand)?.kind;
-        Ok(matches!(
-            kind,
-            SyntaxKind::AsExpression
-                | SyntaxKind::SatisfiesExpression
-                | SyntaxKind::NonNullExpression
-                | SyntaxKind::TypeAssertionExpression
-        ) && crate::factory::operand_needs_parentheses(
+        Ok(crate::factory::operand_needs_parentheses(
             transformation.arena(),
             operand,
             precedence,

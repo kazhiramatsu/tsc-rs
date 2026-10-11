@@ -1277,6 +1277,10 @@ const fn make_assignment_element(name: TransformNode) -> TransformNode {
 /// tsc-port: convertToArrayAssignmentElement @6.0.3
 /// tsc-hash: a53d9e38c4ae559cf9c2cd29ef7b8bb1f189b05f53f47ca88e0ca5228c1c23bb
 /// tsc-span: _tsc.js:20716-20732
+///
+/// tsgo convertBindingElementToArrayAssignmentElement (#64422): a rest
+/// element's name is converted like any element's, so a nested binding
+/// pattern becomes an assignment pattern (tsc asserted an identifier).
 fn convert_to_array_assignment_element(
     context: &mut TransformationContext,
     source: TransformSourceId,
@@ -1291,9 +1295,9 @@ fn convert_to_array_assignment_element(
                 parent: SyntaxKind::BindingElement,
                 field: "name",
             })?;
+        let expression = convert_to_assignment_element_target(context, source, name, role)?;
         if data.dot_dot_dot_token.is_some() {
-            require_identifier(context, name)?;
-            let name = assignment_reference_target(context, name, role)?;
+            let name = expression;
             let flags = context.arena().propagate_child_flags(name)?
                 | TransformFlags::CONTAINS_ES_2015
                 | TransformFlags::CONTAINS_REST_OR_SPREAD;
@@ -1306,7 +1310,6 @@ fn convert_to_array_assignment_element(
             )?;
             return with_original_and_range(context, spread, element);
         }
-        let expression = convert_to_assignment_element_target(context, source, name, role)?;
         return match data.initializer {
             Some(initializer) => {
                 let initializer = context.arena().node_ref(source, initializer).ok_or(

@@ -196,7 +196,7 @@ fn namespace_import_alias_maps_like_tsgo() {
     );
     assert_eq!(
         output.source_map_text.as_deref(),
-        Some("{\"version\":3,\"file\":\"namespace.js\",\"sourceRoot\":\"\",\"sources\":[\"namespace.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAW,EAAE,CAOlB;AAPD,WAAiB,EAAE;IACf,IAAU,QAAQ,CAEjB;IAFD,WAAU,QAAQ;QACd,MAAa,GAAG;SAAG;QAAN,SAAA,GAAG,MAAG,CAAA;IACvB,CAAC,EAFS,QAAQ,KAAR,QAAQ,QAEjB;IACD,IAAiB,MAAM,CAEtB;IAFD,WAAiB,MAAM;QACL,OAAA,KAAK,GAAG,QAAS,CAAA;IACnC,CAAC,EAFgB,MAAM,GAAN,GAAA,MAAM,KAAN,GAAA,MAAM,QAEtB;AACL,CAAC,EAPgB,EAAE,KAAF,EAAE,QAOlB\"}")
+        Some("{\"version\":3,\"file\":\"namespace.js\",\"sources\":[\"namespace.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,KAAW,EAAE,CAOlB;AAPD,WAAiB,EAAE;IACf,IAAU,QAAQ,CAEjB;IAFD,WAAU,QAAQ;QACd,MAAa,GAAG;SAAG;QAAN,SAAA,GAAG,MAAG,CAAA;IACvB,CAAC,EAFS,QAAQ,KAAR,QAAQ,QAEjB;IACD,IAAiB,MAAM,CAEtB;IAFD,WAAiB,MAAM;QACL,OAAA,KAAK,GAAG,QAAS,CAAA;IACnC,CAAC,EAFgB,MAAM,GAAN,GAAA,MAAM,KAAN,GAAA,MAAM,QAEtB;AACL,CAAC,EAPgB,EAAE,KAAF,EAAE,QAOlB\"}")
     );
 }
 
@@ -220,6 +220,6 @@ fn hoisted_using_binding_maps_like_tsgo() {
     .expect("transpileModule");
     assert_eq!(
         output.source_map_text.as_deref(),
-        Some("{\"version\":3,\"file\":\"variables.js\",\"sourceRoot\":\"\",\"sources\":[\"variables.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC;AACnB,MAAM,CAAC,IAAI,CAAC,GAAG,CAAC,CAAC;AACjB,MAAM,CAAC,IAAI,CAAC,GAAG,CAAC,CAAC;AAEjB,OAAO,EAAE,CAAC,EAAE,CAAC;AAEb,OAAO,EAAE,CAAC,EAAE,CAAC;;;;IAHP,CAAC,kCAAG,SAAS,QAAA,CAAC;IAER,CAAC,kCAAG,SAAS,OAAA,CAAC\"}")
+        Some("{\"version\":3,\"file\":\"variables.js\",\"sources\":[\"variables.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,MAAM,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC;AACnB,MAAM,CAAC,IAAI,CAAC,GAAG,CAAC,CAAC;AACjB,MAAM,CAAC,IAAI,CAAC,GAAG,CAAC,CAAC;AAEjB,OAAO,EAAE,CAAC,EAAE,CAAC;AAEb,OAAO,EAAE,CAAC,EAAE,CAAC;;;;IAHP,CAAC,kCAAG,SAAS,QAAA,CAAC;IAER,CAAC,kCAAG,SAAS,OAAA,CAAC\"}")
     );
 }

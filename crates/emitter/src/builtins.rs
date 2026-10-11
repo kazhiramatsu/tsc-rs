@@ -8017,9 +8017,15 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .expression
             .map(|id| self.visit(id).map(TransformNode::node))
             .transpose()?;
+        // tsgo visitTopLevelNestedWithStatement (#64574): an erased statement
+        // becomes an empty statement, as in a labeled statement.
         data.statement = Some(
-            self.transform_embedded_statement(data.statement, SyntaxKind::WithStatement)?
-                .node(),
+            self.transform_embedded_statement_with_empty_result(
+                data.statement,
+                SyntaxKind::WithStatement,
+                CommonJsEmptyEmbeddedStatement::EmptyStatementWithSourceRange,
+            )?
+            .node(),
         );
         let flags = self.context.arena().transform_flags(original);
         Ok(vec![self.context.factory()?.update_node(
@@ -16309,13 +16315,43 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             data.name = None;
         }
         if let Some(bindings) = data.named_bindings {
-            data.named_bindings = self.visit_import_bindings(bindings)?;
+            let visited = self.visit_import_bindings(bindings)?;
+            // tsgo's type eraser (#64578): a `{}` emptied by type-only erasure
+            // is dropped next to a default import; a written `{}` stays.
+            data.named_bindings = match visited {
+                Some(visited)
+                    if data.name.is_some()
+                        && self.named_imports_len(visited)? == Some(0)
+                        && self.named_imports_len(bindings)? != Some(0) =>
+                {
+                    None
+                }
+                visited => visited,
+            };
         }
         if data.name.is_none() && data.named_bindings.is_none() {
             return Ok(None);
         }
         let node = self.update_generic(original, NodeData::ImportClause(data))?;
         Ok(Some(self.node(node)))
+    }
+
+    /// The element count of named imports, `None` for other bindings.
+    fn named_imports_len(&self, id: NodeId) -> Result<Option<usize>, TransformError> {
+        let node = self.node(id);
+        let NodeData::NamedImports(data) = &self.context.arena().node(node)?.data else {
+            return Ok(None);
+        };
+        match data.elements {
+            Some(elements) => Ok(Some(
+                self.context
+                    .arena()
+                    .node_array(self.array(elements))?
+                    .nodes
+                    .len(),
+            )),
+            None => Ok(Some(0)),
+        }
     }
 
     fn visit_import_bindings(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
