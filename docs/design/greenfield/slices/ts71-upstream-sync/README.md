@@ -220,7 +220,9 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   構成ごとに比べると errors +3・emit +12・sourcemap +11・`.js.map` +150 で、下がった列は無い。上がった stem は slice の 13 の対象
   だけ。同期で残るのは errors 2 と trace 1（#64159）、emit 1（#64632）で、S5。
 - **並列対照**（`--checkers 4`、`scripts/conformance_ts71_compare.py`）：15,335 構成が一致、違うのは記録済みの順序の 4 構成だけ。
-- ratchet は `--update` で 13,561 構成（新しい 3、上げた 12、`.js.map` の列は全て `full`）。suites（`--check`）は 0 regressions、
+- ratchet は `--update` で 13,561 構成（新しい 3、上げた 11、`.js.map` の列は全て `full`）。suites（`--check`）は 0 regressions、
   空の sourceRoot が直したものが 49 上がった（transpile 38 → 41、tsbuild 153 → 182、tsbuildWatch 49 → 63、tsc 208 → 211）ので
   `--update` で記録した。suites に残る違い（config 2、tsbuild 11、tsbuildWatch 2、tsc 18、tscWatch 2、tsoptions 24）は S5 以降と、
   前からの範囲（ES5 の意図した差、content mapper）。
+- **hosted と merge**：PR #744 の hosted run 38118692919（rust 11m31s、conformance 23m44s、gates pass、head `0bc0b9af7`）、merge commit
+  `9f0c0cb86`。
