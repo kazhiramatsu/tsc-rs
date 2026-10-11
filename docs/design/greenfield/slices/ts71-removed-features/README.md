@@ -34,3 +34,28 @@ project で差を出すため）。順は `.types`／`.symbols` の残り（#751
   cache の key を tsgo のもの（`DocumentAddress`）にする。program の file と parse を共有する `createSourceFile`（API の client
   の bounded な 1）もこれで閉じる。
 - 各 slice は今までと同じく full の conformance と suites で 0 regressions、checker に触れたら並列対照。
+
+## R1 emit（2026-10-12）
+
+- ES5 は ES2015 として変換する：ES2015 と generators の変換（`es2015.rs`・`generators.rs`）と、ほかの変換の ES2015／ES5 の
+  分岐（`const` の代わりの `var`、`"".concat`、arrow の代わりの関数式、`__assign`、class の IIFE、`__awaiter` の promise の
+  constructor、decorate した class の内部名、ES5 の tagged template の段階）、それらだけが使った helper（`__extends`・
+  `__generator`・`__values`・`__spreadArray`・`__read`・`__assign`）と分割代入の flattener を除いた。`downlevelIteration` は効果
+  なし（`__read` の腕も）。
+- AMD・UMD・System は CommonJS の変換（tsgo `getModuleTransformer` の default）。AMD／UMD の wrapper、AMD の dynamic import と
+  import の初期化、UMD の同期 require、`export =` の `return`、`system.rs` を除いた。module kind は tsgo が読む所
+  （`IsEffectiveExternalModule`、helper の module 名と enum の comment の System）では書いたまま読む。module 名は tsgo の
+  `tryGetModuleNameFromFile` と同じく付けない（`amd-module` も outFile も）、`renamedDependencies` は残る。
+- `outFile` は出力に使わない（TS5102 と rootDir の layout の検査だけ）：file ごとに出し、JSON は outDir にだけ、node builder の
+  bundled mode・sharded emit の outFile の gate・loader の TS6131 と TS1148（tsgo はどちらも出さない）を除いた。
+- **test**：`--target es5` の CLI contract（tsgo の TS5108 と ES2015 の出力）、AMD／UMD／System（`export =`、import-equals）と
+  AMD + outFile（source ごとの CommonJS）の emit-session contract を tsgo の byte に。除いた変換・wrapper・flattener・outFile の
+  bundle の計画の test と fixture を除き、literal-update の transform の fixture から ES5 の 133 行を除いた。tsgo との横並び
+  （`--target es3/es5`、`--module amd/system/umd/none`、AMD + `--outFile`、`--moduleResolution classic`、`--esModuleInterop false`、
+  `--alwaysStrict false`、`--downlevelIteration`、ES5 の例を es5〜es2018 で）は全て同じ。
+- **結果**（release build、head `41feca255`）：full の conformance（`--workers 2 --check`、472 s）は 0 regressions で、#752 の
+  report と全ての field で同じ（tsgo の harness はこれらの構成を飛ばす）。並列対照は記録済みの順序の 4 構成だけ。suites
+  （`--check`）は 0 regressions、ES5 を残していた 14 が全て一致して `--update` で記録（既知の違いは 24 → 10：content mapper 8、
+  generateTrace の型 id 2）。約 10 万行を除いた。
+- **hosted と merge**：PR #753 の hosted run 38162182191（rust 11m9s、conformance 13m30s、gates pass、head `41feca255`）、merge
+  commit `e092970b3`。次は R1b（到達しなくなった bundle の仕組みを除く。振る舞いは変わらない）。
