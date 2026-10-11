@@ -6304,9 +6304,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::PrivateIdentifier(data) if !self.is_generated_binding_name(name)? => {
                 data.text().strip_prefix('#')
             }
-            NodeData::StringLiteral(data) => data.text.as_str().filter(|text| {
-                tsc_syntax::is_identifier_text_for_target(text, ScriptTarget::ES_NEXT)
-            }),
+            NodeData::StringLiteral(data) => data
+                .text
+                .as_str()
+                .filter(|text| tsc_syntax::is_identifier_text(text)),
             _ => None,
         };
         Ok(stem.unwrap_or("member").to_owned())

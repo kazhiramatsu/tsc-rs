@@ -92,7 +92,7 @@ fn malformed_alias_declarations_have_no_target_and_keep_resolved_value_fallback(
 fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
     let source = parse_js("export {};\n");
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
     let recovered = state.binder.create_symbol(
         SymbolFlags::ALIAS,

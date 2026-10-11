@@ -147,7 +147,7 @@ impl LiveChecker {
                 effective_lib_metadata.push(metadata.clone());
             }
         }
-        let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, &options));
+        let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs));
         let lib_documents = bundle.map_or(&[][..], |bundle| bundle.documents);
         let identity_domain = bundle
             .map(|bundle| bundle.identity_domain.clone())
@@ -211,7 +211,7 @@ impl LiveChecker {
             .map(|(_, source_file)| Arc::clone(source_file))
             .collect::<Vec<_>>();
         let mut bind_data =
-            bind_sources_in_program_order(&new_sources, &options, &identity_domain, workers, None)
+            bind_sources_in_program_order(&new_sources, &identity_domain, workers, None)
                 .into_iter();
         for (index, source_file) in program_sources.iter().enumerate() {
             if let Some(document) = found(index) {

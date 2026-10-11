@@ -7,43 +7,15 @@ fn nodes_of_kind(source: &crate::SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
         .collect()
 }
 
-fn parse_with_target(text: &str, target: ScriptTarget) -> SourceFile {
-    parse_source_file(
-        "a.ts".into(),
-        text.to_owned(),
-        ParseOptions {
-            script_target: target,
-            ..ParseOptions::default()
-        },
-        None,
-    )
-}
-
-#[test]
-fn source_file_stores_default_explicit_and_json_language_versions() {
-    let default_source =
-        parse_source_file("a.ts".into(), String::new(), ParseOptions::default(), None);
-    assert_eq!(default_source.language_version, ScriptTarget::ES2025);
-
-    let es5_source = parse_with_target("", ScriptTarget::ES5);
-    assert_eq!(es5_source.language_version, ScriptTarget::ES5);
-
-    let json_source = parse_json_text("a.json".into(), "{}".to_owned());
-    assert_eq!(json_source.language_version, ScriptTarget::ES2015);
-}
-
 #[test]
 fn amd_pragmas_are_source_owned_and_duplicate_module_names_report_exactly() {
-    let source = parse_with_target(
-        concat!(
-            "/// <amd-module name=\"first\" />\n",
-            "/// <amd-dependency path=\"dep-a\" />\n",
-            "/// <amd-dependency name=\"alias\" path=\"dep-b\" />\n",
-            "/// <amd-module name=\"second\" />\n",
-            "export {};\n",
-        ),
-        ScriptTarget::ES_NEXT,
-    );
+    let source = parse_ts(concat!(
+        "/// <amd-module name=\"first\" />\n",
+        "/// <amd-dependency path=\"dep-a\" />\n",
+        "/// <amd-dependency name=\"alias\" path=\"dep-b\" />\n",
+        "/// <amd-module name=\"second\" />\n",
+        "export {};\n",
+    ));
 
     assert_eq!(
         source.module_name.as_ref().and_then(|name| name.as_str()),
@@ -71,21 +43,18 @@ fn amd_pragmas_are_source_owned_and_duplicate_module_names_report_exactly() {
         [2458]
     );
 
-    let missing_required_attributes = parse_with_target(
-        concat!(
-            "/// <amd-module />\n",
-            "/// <amd-dependency name=\"alias\" />\n",
-            "export {};\n",
-        ),
-        ScriptTarget::ES_NEXT,
-    );
+    let missing_required_attributes = parse_ts(concat!(
+        "/// <amd-module />\n",
+        "/// <amd-dependency name=\"alias\" />\n",
+        "export {};\n",
+    ));
     assert_eq!(missing_required_attributes.module_name, None);
     assert!(missing_required_attributes.amd_dependencies.is_empty());
 }
 
 #[test]
 fn numeric_literals_retain_the_scanner_flags_used_by_the_printer() {
-    let source = parse_with_target("0x10; 1e2; 1;", ScriptTarget::ES2015);
+    let source = parse_ts("0x10; 1e2; 1;");
     let literals = nodes_of_kind(&source, SyntaxKind::NumericLiteral);
     assert_eq!(
         literals
@@ -104,10 +73,8 @@ fn numeric_literals_retain_the_scanner_flags_used_by_the_printer() {
 
 #[test]
 fn literal_and_block_nodes_retain_the_printer_multiline_bit() {
-    let source = parse_with_target(
-        "const a = [\n1]; const b = [1]; const c = {\na: 1}; function f() {\nreturn;}",
-        ScriptTarget::ES2015,
-    );
+    let source =
+        parse_ts("const a = [\n1]; const b = [1]; const c = {\na: 1}; function f() {\nreturn;}");
     assert_eq!(
         nodes_of_kind(&source, SyntaxKind::ArrayLiteralExpression)
             .into_iter()
@@ -133,7 +100,7 @@ fn literal_and_block_nodes_retain_the_printer_multiline_bit() {
 
 #[test]
 fn throw_line_break_recovery_ends_at_the_keyword_boundary() {
-    let source = parse_with_target("throw\na;", ScriptTarget::ES2015);
+    let source = parse_ts("throw\na;");
     let NodeData::SourceFile(root) = &source.arena.node(source.root).data else {
         unreachable!()
     };
@@ -162,77 +129,33 @@ fn throw_line_break_recovery_ends_at_the_keyword_boundary() {
 }
 
 #[test]
-fn regex_flag_extent_is_target_aware() {
-    let es5 = parse_with_target("/a/\u{08a1};", ScriptTarget::ES5);
-    let es2015 = parse_with_target("/a/\u{08a1};", ScriptTarget::ES2015);
-
-    let es5_regex = nodes_of_kind(&es5, SyntaxKind::RegularExpressionLiteral);
-    let es2015_regex = nodes_of_kind(&es2015, SyntaxKind::RegularExpressionLiteral);
-    let NodeData::RegularExpressionLiteral(es5_data) = &es5.arena.node(es5_regex[0]).data else {
+fn regex_flags_and_names_take_esnext_identifier_parts_like_tsgo() {
+    // tsgo's scanner has only the ESNext identifier tables: `ࢡ` (U+08A1,
+    // ID_Start since Unicode 7) is a regex flag and a property name. tsgo
+    // reports the flag later, in the checker (TS1499), and nothing at parse.
+    let source = parse_ts("/a/\u{08a1}; foo.\u{08a1};");
+    let regex = nodes_of_kind(&source, SyntaxKind::RegularExpressionLiteral)[0];
+    let NodeData::RegularExpressionLiteral(data) = &source.arena.node(regex).data else {
         unreachable!()
     };
-    let NodeData::RegularExpressionLiteral(es2015_data) = &es2015.arena.node(es2015_regex[0]).data
-    else {
-        unreachable!()
-    };
-
-    assert_eq!(es5_data.text, "/a/");
-    assert_eq!(es5.arena.node(es5_regex[0]).end, 3);
-    assert_eq!(es2015_data.text, "/a/\u{08a1}");
-    assert_eq!(
-        es2015.arena.node(es2015_regex[0]).end,
-        "/a/\u{08a1}".len() as u32
-    );
-    assert_eq!(
-        es5.parse_diagnostics
-            .iter()
-            .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
-            .collect::<Vec<_>>(),
-        vec![(gen::Invalid_character.code, Some(3), Some(1))]
-    );
-    assert!(es2015.parse_diagnostics.is_empty());
-}
-
-#[test]
-fn invalid_identifier_rescan_preserves_target_rejected_property_name() {
-    let source = parse_with_target("foo.\u{08a1};", ScriptTarget::ES5);
-    let recovered = nodes_of_kind(&source, SyntaxKind::Identifier)
+    assert_eq!(data.text, "/a/\u{08a1}");
+    assert_eq!(source.arena.node(regex).end, "/a/\u{08a1}".len() as u32);
+    assert!(nodes_of_kind(&source, SyntaxKind::Identifier)
         .into_iter()
-        .find(|&node| {
-            source
-                .arena
-                .node(node)
-                .data
-                .as_identifier()
-                .is_some_and(|data| data.text() == "\u{08a1}")
-        })
-        .expect("ESNext retry preserves the property identifier");
-    let recovered = source.arena.node(recovered);
-
-    assert_eq!((recovered.pos, recovered.end), (4, 7));
+        .any(|node| source
+            .arena
+            .node(node)
+            .data
+            .as_identifier()
+            .is_some_and(|data| data.text() == "\u{08a1}")));
     assert!(is_identifier_text("\u{08a1}"));
-    assert!(!is_identifier_text_for_target(
-        "\u{08a1}",
-        ScriptTarget::ES5
-    ));
-    assert!(is_identifier_text_for_target(
-        "\u{08a1}",
-        ScriptTarget::ES2015
-    ));
-    assert_eq!(
-        source
-            .parse_diagnostics
-            .iter()
-            .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
-            .collect::<Vec<_>>(),
-        vec![(gen::Invalid_character.code, Some(4), Some(1))]
-    );
+    assert!(source.parse_diagnostics.is_empty());
 }
 
 #[test]
 fn regex_literal_stores_only_true_unterminated_state() {
-    let terminated = parse_with_target("/a/;", ScriptTarget::ES5);
-    let unterminated = parse_with_target("/a", ScriptTarget::ES5);
+    let terminated = parse_ts("/a/;");
+    let unterminated = parse_ts("/a");
     let terminated_regex = nodes_of_kind(&terminated, SyntaxKind::RegularExpressionLiteral)[0];
     let unterminated_regex = nodes_of_kind(&unterminated, SyntaxKind::RegularExpressionLiteral)[0];
     assert!(terminated
@@ -4294,7 +4217,7 @@ fn merge_conflict_markers_are_reported_trivia_like_tsgo() {
     // class keeps the first alternative. Markers are trivia, so the tree
     // admits emit.
     let text = "class C {\n<<<<<<< HEAD\n    v = 1;\n||||||| base\n    v = 3;\n=======\n    v = 2;\n>>>>>>> B\n}\n";
-    let source = parse_with_target(text, ScriptTarget::ES2015);
+    let source = parse_ts(text);
     let rows: Vec<(u32, Option<u32>, Option<u32>)> = source
         .parse_diagnostics
         .iter()
@@ -4317,10 +4240,7 @@ fn merge_conflict_markers_are_reported_trivia_like_tsgo() {
 
     // Away from a line start, or with nothing after the seven characters,
     // they are operators.
-    let source = parse_with_target(
-        "let y = 1 <<<<<<< 2;\nlet z = 1;\n=======",
-        ScriptTarget::ES2015,
-    );
+    let source = parse_ts("let y = 1 <<<<<<< 2;\nlet z = 1;\n=======");
     assert!(source
         .parse_diagnostics
         .iter()

@@ -204,7 +204,7 @@ fn empty_template_fragments_keep_empty_cooked_text() {
         None,
     );
     assert!(source.parse_diagnostics.is_empty());
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
     let annotation = find_probe_annotation(&source, "c").expect("annotation");
     let ty = state

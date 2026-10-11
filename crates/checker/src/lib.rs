@@ -1466,20 +1466,17 @@ pub fn check_program_with_libs_at<'cwd>(
 /// differential conformance harness.
 ///
 /// The returned handle is only a lookup hint. Every use revalidates the
-/// projected parser/binder options and the exact ordered library names and
-/// texts before reusing it; a mismatch falls back to the ordinary cache.
+/// exact ordered library names and texts before reusing it; a mismatch falls
+/// back to the ordinary cache. Parsing and binding read no options.
 /// Production program sessions do not use this API.
 #[doc(hidden)]
-pub fn prepare_harness_lib_bundle(
-    libs: &[InputFile],
-    options: &CompilerOptions,
-) -> Option<PreparedHarnessLibBundle> {
+pub fn prepare_harness_lib_bundle(libs: &[InputFile]) -> Option<PreparedHarnessLibBundle> {
     if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
         return None;
     }
     let libs = libs.iter().collect::<Vec<_>>();
     (!libs.is_empty()).then(|| PreparedHarnessLibBundle {
-        bundle: lib_bundle(&libs, options),
+        bundle: lib_bundle(&libs),
     })
 }
 
@@ -1494,7 +1491,6 @@ pub fn prepare_harness_lib_bundle(
 pub fn prepare_authoritative_harness_lib_bundle(
     libs: &[InputFile],
     files: &[InputFile],
-    options: &CompilerOptions,
 ) -> Option<OwnedHarnessLibBundle> {
     if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
         return None;
@@ -1508,15 +1504,7 @@ pub fn prepare_authoritative_harness_lib_bundle(
         .iter()
         .filter(|lib| !fixture_names.contains(&lib.name.as_js()))
         .collect::<Vec<_>>();
-    (!effective_libs.is_empty()).then(|| build_owned_lib_bundle(&effective_libs, options))
-}
-
-/// tsrs-native: return the opaque parser/binder option projection used by prepared harness
-/// bundles. Harnesses may use this as a small cache key without learning or
-/// duplicating the projection's fields.
-#[doc(hidden)]
-pub fn harness_lib_bundle_options_key(options: &CompilerOptions) -> HarnessLibBundleOptionsKey {
-    HarnessLibBundleOptionsKey(lib_bundle_options(options))
+    (!effective_libs.is_empty()).then(|| build_owned_lib_bundle(&effective_libs))
 }
 
 /// tsrs-native: run one harness case with a previously prepared standard-library lookup
@@ -1613,22 +1601,15 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
     if !effective_libs.is_empty() && !cache_enabled {
         // Cache-off is the L3 A/B path. Keep the parsed and bound prefix local
         // so repeated disabled-cache calls do not leak one bundle each.
-        let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
         let (lib_sources, lib_work) = parse_lib_sources(
             &effective_libs,
-            &bundle_options,
             &identity_domain,
             WorkerBudget::serial(),
             None,
         );
-        let lib_binders = bind_lib_sources(
-            &lib_sources,
-            &bundle_options,
-            &identity_domain,
-            WorkerBudget::serial(),
-            None,
-        );
+        let lib_binders =
+            bind_lib_sources(&lib_sources, &identity_domain, WorkerBudget::serial(), None);
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         return check_program_with_prebound_libs_at_observed(
@@ -1651,10 +1632,9 @@ fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
     }
 
     let bundle = (!effective_libs.is_empty()).then(|| {
-        let bundle_options = lib_bundle_options(options);
         prepared
-            .and_then(|prepared| prepared.validated(&effective_libs, &bundle_options))
-            .unwrap_or_else(|| lib_bundle(&effective_libs, options))
+            .and_then(|prepared| prepared.validated(&effective_libs))
+            .unwrap_or_else(|| lib_bundle(&effective_libs))
     });
     let lib_documents: &[Arc<BoundDocument>] = match bundle {
         Some(bundle) => bundle.documents,
@@ -1704,22 +1684,15 @@ pub fn check_program_with_owned_libs_at<'cwd>(
         .iter()
         .filter(|lib| !fixture_names.contains(&lib.name.as_js()))
         .collect();
-    let bundle_options = lib_bundle_options(options);
     let identity_domain = IdentityDomain::ephemeral();
     let (lib_sources, lib_work) = parse_lib_sources(
         &effective_libs,
-        &bundle_options,
         &identity_domain,
         WorkerBudget::serial(),
         None,
     );
-    let lib_binders = bind_lib_sources(
-        &lib_sources,
-        &bundle_options,
-        &identity_domain,
-        WorkerBudget::serial(),
-        None,
-    );
+    let lib_binders =
+        bind_lib_sources(&lib_sources, &identity_domain, WorkerBudget::serial(), None);
     let lib_data = binders_into_data(lib_binders);
     let lib_documents = publish_bound_documents(lib_sources, lib_data);
     let mut observe_phase = |_| {};
@@ -2492,8 +2465,8 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
     };
     let mut observe_phase = |_| {};
     let execution = if cache_enabled {
-        let prepared = prepared_owned_bundle
-            .filter(|bundle| bundle.exactly_matches(&effective_libs, &lib_bundle_options(options)));
+        let prepared =
+            prepared_owned_bundle.filter(|bundle| bundle.exactly_matches(&effective_libs));
         if let Some(bundle) = prepared {
             check_program_with_prebound_libs_at_observed(
                 libs,
@@ -2512,7 +2485,7 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
                 workers,
             )
         } else {
-            let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
+            let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs));
             let lib_documents: &[Arc<BoundDocument>] = match bundle {
                 Some(bundle) => bundle.documents,
                 None => &[],
@@ -2538,24 +2511,12 @@ fn check_program_with_authoritative_modules_at_cache_mode_with_source<'cwd>(
             )
         }
     } else {
-        let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
         let tracing = run.tracing.as_ref();
-        let (lib_sources, lib_work) = parse_lib_sources(
-            &effective_libs,
-            &bundle_options,
-            &identity_domain,
-            workers,
-            tracing,
-        );
+        let (lib_sources, lib_work) =
+            parse_lib_sources(&effective_libs, &identity_domain, workers, tracing);
         run.begin_bind_phase();
-        let lib_binders = bind_lib_sources(
-            &lib_sources,
-            &bundle_options,
-            &identity_domain,
-            workers,
-            tracing,
-        );
+        let lib_binders = bind_lib_sources(&lib_sources, &identity_domain, workers, tracing);
         let lib_data = binders_into_data(lib_binders);
         let lib_documents = publish_bound_documents(lib_sources, lib_data);
         // Sharding is a property of the eager whole-Program schedule with
@@ -2810,7 +2771,6 @@ fn parse_program_inputs(
     let serial_started = std::time::Instant::now();
     let mut pending_sources: Vec<PendingProgramSource> = Vec::new();
     let mut shared_documents = Vec::new();
-    let bind_options = documents.map(|_| lib_bundle_options(options));
     // tsgo's parse cache: a source whose text and address a Program already
     // holds is that Program's document; another is parsed and recorded.
     let share = |file_name: JsStr<'_>,
@@ -2818,8 +2778,8 @@ fn parse_program_inputs(
                  parse_options: &tsc_syntax::ParseOptions,
                  shared_documents: &mut Vec<SharedDocument>|
      -> Option<Arc<tsc_syntax::SourceFile>> {
-        let (documents, bind_options) = documents.zip(bind_options.as_ref())?;
-        let address = DocumentAddress::new(parse_options, bind_options.clone(), identity_domain);
+        let documents = documents?;
+        let address = DocumentAddress::new(parse_options, identity_domain);
         match documents.get(file_name, text, &address) {
             Some(document) => {
                 let source = Arc::clone(&document.parsed.source);
@@ -2969,7 +2929,6 @@ fn parse_program_inputs(
             tsc_syntax::LanguageVariant::Standard
         };
         let parse_options = tsc_syntax::ParseOptions {
-            script_target: options.emit_script_target(),
             language_variant,
             javascript_file,
             force_external_module,
@@ -4163,7 +4122,6 @@ fn check_program_with_prebound_libs_sharded<'cwd>(
     let phase_started = std::time::Instant::now();
     let bind_data = bind_sources_in_program_order(
         &program_sources,
-        options,
         identity_domain,
         workers,
         run.tracing.as_ref(),
@@ -5045,7 +5003,6 @@ fn check_program_with_prebound_libs_at_observed<'cwd>(
 
     let bind_data = bind_sources_in_program_order(
         &program_sources,
-        options,
         identity_domain,
         workers,
         authoritative_run.and_then(|run| run.tracing.as_ref()),
@@ -5736,7 +5693,6 @@ fn assemble_check_result_with_facts(
 /// records; the temporary BinderWorker is consumed before the bundle is
 /// inserted into the cache.
 struct LibBundle {
-    options: &'static CompilerOptions,
     documents: &'static [Arc<BoundDocument>],
     identity_domain: IdentityDomain,
 }
@@ -5750,15 +5706,13 @@ struct LibBundle {
 /// process. The production checker never constructs this type.
 #[doc(hidden)]
 pub struct OwnedHarnessLibBundle {
-    options: CompilerOptions,
     documents: Vec<Arc<BoundDocument>>,
     identity_domain: IdentityDomain,
 }
 
 impl OwnedHarnessLibBundle {
-    fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
-        &self.options == options
-            && self.documents.len() == libs.len()
+    fn exactly_matches(&self, libs: &[&InputFile]) -> bool {
+        self.documents.len() == libs.len()
             && self.documents.iter().zip(libs).all(|(document, lib)| {
                 let source = document.source();
                 source.file_name == lib.name && Arc::ptr_eq(source.snapshot(), lib.snapshot())
@@ -5777,31 +5731,18 @@ pub struct PreparedHarnessLibBundle {
 }
 
 impl PreparedHarnessLibBundle {
-    fn validated(
-        self,
-        libs: &[&InputFile],
-        options: &CompilerOptions,
-    ) -> Option<&'static LibBundle> {
-        self.bundle
-            .exactly_matches(libs, options)
-            .then_some(self.bundle)
+    fn validated(self, libs: &[&InputFile]) -> Option<&'static LibBundle> {
+        self.bundle.exactly_matches(libs).then_some(self.bundle)
     }
 }
 
-/// Opaque cache key for the exact parser/binder option projection used by a
-/// [`PreparedHarnessLibBundle`].
-#[doc(hidden)]
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub struct HarnessLibBundleOptionsKey(CompilerOptions);
-
 impl LibBundle {
-    /// The same libraries (names and full texts) and projected options. A
+    /// The same libraries (names and full texts). A
     /// Program loaded again reads the library files again, so its snapshots
     /// are other objects with the same text (the project system's Programs);
     /// matching them reuses the bundle instead of building and leaking another.
-    fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
-        self.options == options
-            && self.documents.len() == libs.len()
+    fn exactly_matches(&self, libs: &[&InputFile]) -> bool {
+        self.documents.len() == libs.len()
             && self.documents.iter().zip(libs).all(|(document, lib)| {
                 let source = document.source();
                 source.file_name == lib.name
@@ -5811,64 +5752,35 @@ impl LibBundle {
     }
 }
 
-/// The per-lib-set bundle cache. Indexed by the ordered (name, text
-/// fingerprint) list plus the projection of CompilerOptions onto the parser
-/// target and the binder's one option observable — the only option fields
-/// a cached bundle can expose. Parsing reads `emit_script_target()` for
-/// scanner classification and SourceFile.language_version. The binder
-/// reads only `no_fallthrough_cases_in_switch == Some(true)`
-/// (bindCaseBlock), and `Binder.options` is read nowhere outside the
-/// binder crate. Keying
-/// the full struct rebuilt+leaked one identical bundle per matrix
-/// option combination (~11.5 GB peak over the conformance corpus);
-/// the projection restores the per-lib-set bound. A new `options.`
-/// read in the binder MUST extend this projection.
-/// The fingerprint key only selects a bucket. Reuse additionally requires
-/// exact ordered file-name, full-text, and projected-option equality.
-/// `TSRS_LIB_BUNDLE_CACHE=0` bypasses this process-lifetime harness cache and
-/// builds a locally owned prefix — the L3 A/B lever proving reuse changes
-/// nothing without leaking one fresh bundle per call.
-fn lib_bundle_options(options: &CompilerOptions) -> CompilerOptions {
-    // Each field holds the observable's canonical preimage, so the
-    // projected struct evaluates every binder read identically to the
-    // program's own options (ES3/absent targets share the computed
-    // ES2025, options.rs:139) while bind-inert fields collapse to one
-    // key. A new `options.` read in the binder must extend this
-    // projection.
-    CompilerOptions {
-        target: Some(options.emit_script_target().bits()),
-        no_fallthrough_cases_in_switch: Some(options.no_fallthrough_cases_in_switch == Some(true)),
-        ..CompilerOptions::default()
-    }
-}
-
-fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
-    lib_bundle_with_fingerprint(libs, options, lib_text_fingerprint)
+/// The per-lib-set bundle cache, indexed by the ordered (name, text
+/// fingerprint) list: parsing and binding read no compiler options (tsgo's
+/// parse cache keys a document by its parse options and text alone), so one
+/// bundle serves every option combination. The fingerprint key only selects
+/// a bucket; reuse additionally requires exact ordered file-name and
+/// full-text equality. `TSRS_LIB_BUNDLE_CACHE=0` bypasses this
+/// process-lifetime harness cache and builds a locally owned prefix — the L3
+/// A/B lever proving reuse changes nothing without leaking one fresh bundle
+/// per call.
+fn lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
+    lib_bundle_with_fingerprint(libs, lib_text_fingerprint)
 }
 
 fn lib_bundle_with_fingerprint(
     libs: &[&InputFile],
-    options: &CompilerOptions,
     fingerprint: impl Fn(&str) -> u64,
 ) -> &'static LibBundle {
     use rustc_hash::FxHashMap as HashMap;
     use std::sync::{Arc, Mutex, OnceLock};
 
-    type Key = (Vec<(JsString, u64)>, CompilerOptions);
+    type Key = Vec<(JsString, u64)>;
     type Bucket = Arc<Mutex<Vec<&'static LibBundle>>>;
     type Buckets = HashMap<Key, Bucket>;
     static CACHE: OnceLock<Mutex<Buckets>> = OnceLock::new();
 
-    // The bundle is built from the projection too: whichever program
-    // builds first, the leaked options are the same struct.
-    let bundle_options = lib_bundle_options(options);
-
-    let key: Key = (
-        libs.iter()
-            .map(|lib| (lib.name.clone(), fingerprint(lib.text())))
-            .collect(),
-        bundle_options.clone(),
-    );
+    let key: Key = libs
+        .iter()
+        .map(|lib| (lib.name.clone(), fingerprint(lib.text())))
+        .collect();
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::default()));
     let bucket = {
         let mut cache = cache.lock().expect("lib bundle cache");
@@ -5879,17 +5791,14 @@ fn lib_bundle_with_fingerprint(
         )
     };
     let mut bucket = bucket.lock().expect("lib bundle cache bucket");
-    if let Some(&bundle) = bucket
-        .iter()
-        .find(|bundle| bundle.exactly_matches(libs, &bundle_options))
-    {
+    if let Some(&bundle) = bucket.iter().find(|bundle| bundle.exactly_matches(libs)) {
         return bundle;
     }
 
     // Build under the per-index-key lock so equal cold callers cannot leak
     // duplicate process-lifetime bundles. Distinct lib sets still build in
     // parallel without holding the short-lived map lock.
-    let bundle = build_lib_bundle(libs, &bundle_options);
+    let bundle = build_lib_bundle(libs);
     bucket.push(bundle);
     bundle
 }
@@ -5912,57 +5821,30 @@ fn lib_text_fingerprint(text: &str) -> u64 {
     hash ^ bytes.len() as u64
 }
 
-fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
-    // Binder borrows its CompilerOptions for the bundle's lifetime.
-    let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
+fn build_lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
     let identity_domain = IdentityDomain::reclaiming();
-    let (sources, _lib_work) = parse_lib_sources(
-        libs,
-        options,
-        &identity_domain,
-        WorkerBudget::serial(),
-        None,
-    );
-    let binders = bind_lib_sources(
-        &sources,
-        options,
-        &identity_domain,
-        WorkerBudget::serial(),
-        None,
-    );
+    let (sources, _lib_work) =
+        parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
+    let binders = bind_lib_sources(&sources, &identity_domain, WorkerBudget::serial(), None);
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
     let documents = publish_bound_documents_from_handles(sources, data);
     let documents: &'static [Arc<BoundDocument>] = Box::leak(documents.into_boxed_slice());
     Box::leak(Box::new(LibBundle {
-        options,
         documents,
         identity_domain,
     }))
 }
 
-fn build_owned_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> OwnedHarnessLibBundle {
-    let options = lib_bundle_options(options);
+fn build_owned_lib_bundle(libs: &[&InputFile]) -> OwnedHarnessLibBundle {
     let identity_domain = IdentityDomain::reclaiming();
-    let (sources, _lib_work) = parse_lib_sources(
-        libs,
-        &options,
-        &identity_domain,
-        WorkerBudget::serial(),
-        None,
-    );
-    let binders = bind_lib_sources(
-        &sources,
-        &options,
-        &identity_domain,
-        WorkerBudget::serial(),
-        None,
-    );
+    let (sources, _lib_work) =
+        parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
+    let binders = bind_lib_sources(&sources, &identity_domain, WorkerBudget::serial(), None);
     let data = binders_into_data(binders);
     let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
     let documents = publish_bound_documents_from_handles(sources, data);
     OwnedHarnessLibBundle {
-        options,
         documents,
         identity_domain,
     }
@@ -5973,7 +5855,6 @@ fn build_owned_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> Own
 /// Returns the sources with the parse work actually performed.
 fn parse_lib_sources(
     libs: &[&InputFile],
-    options: &CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
@@ -5982,7 +5863,6 @@ fn parse_lib_sources(
     let mut pending: Vec<PendingProgramSource> = Vec::new();
     for lib in libs {
         let parse_options = tsc_syntax::ParseOptions {
-            script_target: options.emit_script_target(),
             language_variant: tsc_syntax::LanguageVariant::Standard,
             javascript_file: false,
             force_external_module: false,
@@ -6029,13 +5909,12 @@ fn parse_lib_sources(
 /// in order from `identity_domain` (see [`bind_reserved_in_program_order`]).
 fn bind_lib_sources<'a>(
     sources: &'a [tsc_syntax::SourceFile],
-    options: &'a CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<tsc_binder::Binder<'a>> {
     let sources = sources.iter().collect::<Vec<_>>();
-    bind_reserved_in_program_order(&sources, options, identity_domain, workers, tracing)
+    bind_reserved_in_program_order(&sources, identity_domain, workers, tracing)
 }
 
 /// A `createSourceFile` span of one parse (tsgo `parseSourceFile`).
@@ -6062,7 +5941,6 @@ fn trace_parse(
 /// Program order.
 fn bind_reserved_in_program_order<'a>(
     sources: &[&'a tsc_syntax::SourceFile],
-    options: &'a CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
@@ -6092,7 +5970,6 @@ fn bind_reserved_in_program_order<'a>(
             });
             let mut binder = tsc_binder::Binder::bind_reserved(
                 sources[index],
-                options,
                 symbol_lease.range().start(),
                 serial_lease.range().start(),
             );
@@ -6165,13 +6042,12 @@ fn reserve_bind_identities(
 /// reservations are the same for every budget.
 fn bind_sources_in_program_order(
     sources: &[Arc<tsc_syntax::SourceFile>],
-    options: &CompilerOptions,
     identity_domain: &IdentityDomain,
     workers: WorkerBudget,
     tracing: Option<&Arc<Tracing>>,
 ) -> Vec<BindData> {
     let sources = sources.iter().map(Arc::as_ref).collect::<Vec<_>>();
-    bind_reserved_in_program_order(&sources, options, identity_domain, workers, tracing)
+    bind_reserved_in_program_order(&sources, identity_domain, workers, tracing)
         .into_iter()
         .map(tsc_binder::Binder::into_bind_data)
         .collect()

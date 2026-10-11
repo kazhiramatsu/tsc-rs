@@ -24,7 +24,6 @@ use std::sync::Arc;
 use tsc_diagnostics::{DiagnosticList, DocumentVersion, JsString, PositionIndex, TextSnapshot};
 use tsc_types::{
     IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease, IdentitySpace,
-    ScriptTarget,
 };
 
 pub use arena::{NodeArena, SyntaxMemory};
@@ -46,8 +45,8 @@ pub use nodes::{
 };
 pub use observable_fields::{for_each_observable_field, ObservableField};
 pub use parser::{
-    is_entity_name_js_text, is_entity_name_text, is_identifier_text, is_identifier_text_for_target,
-    parse_entity_name_components, JSDocParsingMode, ParseOptions,
+    is_entity_name_js_text, is_entity_name_text, is_identifier_text, parse_entity_name_components,
+    JSDocParsingMode, ParseOptions,
 };
 pub use recovery::{
     MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,
@@ -132,9 +131,6 @@ pub struct ExternalModuleIndicatorOptions {
 pub struct SourceFile {
     pub file_name: JsString,
     snapshot: Arc<TextSnapshot>,
-    /// tsc SourceFile.languageVersion: the effective target used by the
-    /// parser and scanner for this file.
-    pub language_version: ScriptTarget,
     pub language_variant: LanguageVariant,
     pub is_declaration_file: bool,
     /// tsc SourceFile.jsDocParsingMode.
@@ -211,7 +207,6 @@ impl SourceFile {
         Self {
             file_name: file_name.into(),
             snapshot,
-            language_version: ScriptTarget::LATEST,
             language_variant,
             is_declaration_file,
             js_doc_parsing_mode: JSDocParsingMode::default(),

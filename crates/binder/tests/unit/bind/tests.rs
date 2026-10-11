@@ -1,20 +1,14 @@
 use super::*;
 use crate::containers::{get_module_instance_state, ModuleInstanceState};
 use tsc_syntax::{parse_source_file, ParseOptions, SourceFile};
-use tsc_types::CompilerOptions;
 
 fn parse(text: &str) -> SourceFile {
     parse_source_file("main.ts", text, ParseOptions::default(), None)
 }
 
-fn default_options() -> CompilerOptions {
-    CompilerOptions::default()
-}
-
 fn bind(source: &SourceFile) -> Binder<'_> {
     // Leak the options for test lifetimes only.
-    let options: &'static CompilerOptions = Box::leak(Box::new(default_options()));
-    let mut binder = Binder::new(source, options);
+    let mut binder = Binder::new(source);
     binder.bind_source_file();
     binder
 }
@@ -617,8 +611,7 @@ fn set_value_declaration_ambient_displacement_reads_root_js_flag() {
     let text = "f.x = 1;\ndeclare var d: number;\n";
     for (javascript_file, ambient_wins) in [(true, true), (false, false)] {
         let source = parse_named("a.ts", text, javascript_file);
-        let options: &'static CompilerOptions = Box::leak(Box::new(default_options()));
-        let mut binder = Binder::new(&source, options);
+        let mut binder = Binder::new(&source);
         let assignment = find_nodes(&source, SyntaxKind::BinaryExpression)[0];
         let ambient = find_nodes(&source, SyntaxKind::VariableDeclaration)[0];
         assert!(crate::node_util::node_flags(&source, ambient).intersects(NodeFlags::AMBIENT));
@@ -1276,17 +1269,12 @@ fn jsdoc_visibility_tags_contribute_effective_modifier_flags() {
 }
 
 #[test]
-fn function_in_block_reports_nothing_at_any_target_like_tsgo() {
+fn function_in_block_reports_nothing_like_tsgo() {
     // tsgo's binder never reports TS1250 (its message helper,
-    // binder.go:1380, has no caller): a function declaration in a block is
-    // block scoped and reported nowhere, even with the removed ES5 target.
-    let options = CompilerOptions {
-        target: Some(1),
-        ..CompilerOptions::default()
-    };
+    // binder.go:1380, has no caller) and reads no options: a function
+    // declaration in a block is block scoped and reported nowhere.
     let source = parse("{ function g() {} }\n");
-    let options_ref: &'static CompilerOptions = Box::leak(Box::new(options));
-    let mut binder = Binder::new(&source, options_ref);
+    let mut binder = Binder::new(&source);
     binder.bind_source_file();
     assert_eq!(diag_pins(&binder), []);
 }

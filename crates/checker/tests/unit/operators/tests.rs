@@ -60,10 +60,7 @@ fn with_synthetic_recovery_state<R>(
     let mut source = parse_source_file(
         "a.ts".to_owned(),
         text.to_owned(),
-        ParseOptions {
-            script_target: options.emit_script_target(),
-            ..ParseOptions::default()
-        },
+        ParseOptions::default(),
         None,
     );
     assert!(
@@ -71,7 +68,7 @@ fn with_synthetic_recovery_state<R>(
         "synthetic recovery fixture must start from a valid sibling tree"
     );
     let nodes = mutate(&mut source);
-    let mut binder = Binder::with_bases(&source, &options, 1, 0);
+    let mut binder = Binder::with_bases(&source, 1, 0);
     binder.bind_source_file();
     let mut state = CheckerState::new(&source, &binder, &options);
     state.merge_module_augmentations();

@@ -16,9 +16,7 @@ use std::sync::{Arc, Mutex, PoisonError, Weak};
 
 use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
 use tsc_syntax::{NodeArray, NodeArrayId, NodeId, ParseOptions, SourceFile};
-use tsc_types::{
-    CompilerOptions, IdentityDomain, JsStr, JsString, SymbolFlags, TRANSIENT_SYMBOL_BIT,
-};
+use tsc_types::{IdentityDomain, JsStr, JsString, SymbolFlags, TRANSIENT_SYMBOL_BIT};
 
 /// Immutable parsed source handle retained by a Program snapshot.
 #[derive(Clone, Debug)]
@@ -73,31 +71,24 @@ impl BoundDocument {
 
 /// What a program source's parse and bind depend on besides its file name
 /// and text (tsgo `ParseCacheKey` without the hash): the parse options at
-/// base-zero identities, the options the binder reads (the projection the
-/// library bundle uses; tsgo's binder reads none), and the identity domain
-/// the document's nodes and symbols belong to.
+/// base-zero identities and the identity domain the document's nodes and
+/// symbols belong to. Parsing and binding read no compiler options.
 #[derive(Clone, Debug)]
 pub struct DocumentAddress {
     parse: ParseOptions,
-    bind: CompilerOptions,
     identity_domain: IdentityDomain,
 }
 
 impl DocumentAddress {
     /// tsrs-native: the address of a source parsed with `parse` and bound
-    /// with the binder's projection `bind` in `identity_domain`.
-    pub fn new(
-        parse: &ParseOptions,
-        bind: CompilerOptions,
-        identity_domain: &IdentityDomain,
-    ) -> Self {
+    /// in `identity_domain`.
+    pub fn new(parse: &ParseOptions, identity_domain: &IdentityDomain) -> Self {
         Self {
             parse: ParseOptions {
                 node_id_base: 0,
                 node_array_id_base: 0,
                 ..parse.clone()
             },
-            bind,
             identity_domain: identity_domain.clone(),
         }
     }
@@ -105,9 +96,7 @@ impl DocumentAddress {
 
 impl PartialEq for DocumentAddress {
     fn eq(&self, other: &Self) -> bool {
-        self.parse == other.parse
-            && self.bind == other.bind
-            && self.identity_domain.same_domain(&other.identity_domain)
+        self.parse == other.parse && self.identity_domain.same_domain(&other.identity_domain)
     }
 }
 

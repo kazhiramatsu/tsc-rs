@@ -9,7 +9,7 @@
 use tsc_diagnostics::{
     gen, sort_and_dedupe_diagnostics, Diagnostic, JsStr, JsString, MessageChain,
 };
-use tsc_syntax::{is_entity_name_js_text, is_identifier_text_for_target};
+use tsc_syntax::{is_entity_name_js_text, is_identifier_text};
 use tsc_types::CompilerOptions;
 
 use crate::prepared::{
@@ -426,7 +426,6 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     if options.emit_decorator_metadata == Some(true) && !options.experimental_decorators {
         violations.push(CompilerOptionViolation::DecoratorMetadataRequiresExperimentalDecorators);
     }
-    let target = options.emit_script_target();
     let jsx_factory = options
         .jsx_factory
         .as_ref()
@@ -452,16 +451,13 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
             violations
                 .push(CompilerOptionViolation::JsxFactoryConflictsWithAutomaticRuntime { jsx });
         }
-        if !is_entity_name_js_text(factory.as_js(), target) {
+        if !is_entity_name_js_text(factory.as_js()) {
             violations.push(CompilerOptionViolation::InvalidJsxFactory {
                 value: factory.to_owned(),
             });
         }
     } else if let Some(namespace) = react_namespace {
-        if !namespace
-            .as_str()
-            .is_some_and(|text| is_identifier_text_for_target(text, target))
-        {
+        if !namespace.as_str().is_some_and(is_identifier_text) {
             violations.push(CompilerOptionViolation::InvalidReactNamespace {
                 value: namespace.to_owned(),
             });
@@ -477,7 +473,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
                 CompilerOptionViolation::JsxFragmentFactoryConflictsWithAutomaticRuntime { jsx },
             );
         }
-        if !is_entity_name_js_text(fragment_factory.as_js(), target) {
+        if !is_entity_name_js_text(fragment_factory.as_js()) {
             violations.push(CompilerOptionViolation::InvalidJsxFragmentFactory {
                 value: fragment_factory.to_owned(),
             });

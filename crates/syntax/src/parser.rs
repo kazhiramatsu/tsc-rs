@@ -58,7 +58,7 @@ use tsc_diagnostics::{
     PositionIndex, TextSnapshot,
 };
 use tsc_diagnostics::{MessageChain, RelatedInfo};
-use tsc_types::{NodeFlags, ScriptTarget};
+use tsc_types::NodeFlags;
 
 /// tsc JSDocParsingMode @6.0.3.
 #[repr(u8)]
@@ -78,9 +78,6 @@ pub enum JSDocParsingMode {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParseOptions {
-    /// tsc languageVersion. Parse-only callers default to the latest
-    /// standard target; program callers pass getEmitScriptTarget(options).
-    pub script_target: ScriptTarget,
     pub language_variant: LanguageVariant,
     /// tsc ContextFlags.JavaScriptFile (subset: the parse-steering uses).
     pub javascript_file: bool,
@@ -106,7 +103,6 @@ pub struct ParseOptions {
 impl Default for ParseOptions {
     fn default() -> Self {
         Self {
-            script_target: ScriptTarget::ES2025,
             language_variant: LanguageVariant::Standard,
             javascript_file: false,
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
@@ -211,7 +207,6 @@ struct Parser<'text> {
     source_text: &'text str,
     arena: NodeArena,
     file_name: JsString,
-    language_version: ScriptTarget,
     language_variant: LanguageVariant,
     javascript_file: bool,
     is_declaration_file: bool,
@@ -259,7 +254,6 @@ enum Tristate {
 
 struct FinishedParse {
     file_name: JsString,
-    language_version: ScriptTarget,
     language_variant: LanguageVariant,
     is_declaration_file: bool,
     arena: NodeArena,
@@ -852,21 +846,19 @@ impl<'text> Parser<'text> {
         language_variant: LanguageVariant,
         javascript_file: bool,
     ) -> Self {
-        Self::new_with_target(
+        Self::new_with_positions(
             file_name,
             text,
             Arc::new(PositionIndex::new_static(text)),
-            ScriptTarget::ES2025,
             language_variant,
             javascript_file,
         )
     }
 
-    fn new_with_target(
+    fn new_with_positions(
         file_name: JsString,
         text: &'text str,
         positions: Arc<PositionIndex>,
-        language_version: ScriptTarget,
         language_variant: LanguageVariant,
         javascript_file: bool,
     ) -> Self {
@@ -901,11 +893,10 @@ impl<'text> Parser<'text> {
             source_flags |= NodeFlags::AMBIENT;
         }
         Self {
-            scanner: Scanner::new_with_target(text, language_variant, language_version),
+            scanner: Scanner::new(text, language_variant),
             source_text: text,
             arena: NodeArena::new(),
             file_name,
-            language_version,
             language_variant,
             javascript_file,
             is_declaration_file,
@@ -1357,10 +1348,9 @@ impl<'text> Parser<'text> {
         self.finish_node_at(id, pos, pos)
     }
 
-    /// tsc createIdentifier: after the ordinary identifier/private paths,
-    /// an Unknown token gets one speculative ESNext rescan. This preserves
-    /// a target-rejected Unicode identifier in the recovery AST while
-    /// retaining the original scanner diagnostic.
+    /// tsc createIdentifier. tsgo's createIdentifierWithDiagnostic has no
+    /// rescan of an Unknown token: with only the ESNext tables, no character
+    /// a scan rejects is an identifier (parser.go:5931).
     fn create_identifier_node(
         &mut self,
         is_identifier: bool,
@@ -1376,9 +1366,6 @@ impl<'text> Parser<'text> {
                     .unwrap_or(&gen::Private_identifiers_are_not_allowed_outside_class_bodies),
                 &[],
             );
-            return self.create_identifier_node(true, None, None);
-        }
-        if self.token() == SyntaxKind::Unknown && self.scanner.try_re_scan_invalid_identifier() {
             return self.create_identifier_node(true, None, None);
         }
         let report_at_current_position = self.token() == SyntaxKind::EndOfFileToken;
@@ -9033,9 +9020,7 @@ impl<'text> Parser<'text> {
             NodeData::Identifier(data) => Some(data.text().to_owned()),
             _ => None,
         };
-        let Some(expression_text) = expression_text
-            .filter(|text| is_identifier_text_for_target(text, self.language_version))
-        else {
+        let Some(expression_text) = expression_text.filter(|text| is_identifier_text(text)) else {
             self.parse_error_at_current_token(
                 &gen::_0_expected,
                 &[&token_to_string(SyntaxKind::SemicolonToken)],
@@ -10153,7 +10138,6 @@ impl<'text> Parser<'text> {
         };
         FinishedParse {
             file_name: self.file_name,
-            language_version: self.language_version,
             language_variant: self.language_variant,
             is_declaration_file: self.is_declaration_file,
             arena: self.arena,
@@ -10370,24 +10354,20 @@ fn parse_source_file(
 /// tsc-hash: 38241864551c9c11c2146069951211d38747175eeb21a3c2f780d2e2bd720c6e
 /// tsc-span: _tsc.js:29042-29060
 /// Reference detail: parseIsolatedEntityName2 (validity projection) @6.0.3
-pub fn is_entity_name_text(text: &str, language_version: ScriptTarget) -> bool {
-    parse_entity_name_components(text.into(), language_version).is_some()
+pub fn is_entity_name_text(text: &str) -> bool {
+    parse_entity_name_components(text.into()).is_some()
 }
 
 /// Parse the identifier values of an isolated qualified name. Comments and
 /// escapes are consumed by the same grammar used for option validation.
 /// Only identifier values leave this function; arbitrary units in comments
 /// never become part of a returned name.
-pub fn parse_entity_name_components(
-    text: tsc_diagnostics::JsStr<'_>,
-    language_version: ScriptTarget,
-) -> Option<Vec<String>> {
+pub fn parse_entity_name_components(text: tsc_diagnostics::JsStr<'_>) -> Option<Vec<String>> {
     let text = entity_name_scalar_input(text)?;
-    let mut parser = Parser::new_with_target(
+    let mut parser = Parser::new_with_positions(
         JsString::new(),
         &text,
         Arc::new(PositionIndex::new_static(&text)),
-        language_version,
         LanguageVariant::Standard,
         true,
     );
@@ -10420,11 +10400,8 @@ pub fn parse_entity_name_components(
 /// a comment cannot occur in a valid entity name, so it fails the predicate.
 /// The normal parser still validates escapes, qualification, and unfinished
 /// comments; no projected text is returned as a name or diagnostic value.
-pub fn is_entity_name_js_text(
-    text: tsc_diagnostics::JsStr<'_>,
-    language_version: ScriptTarget,
-) -> bool {
-    parse_entity_name_components(text, language_version).is_some()
+pub fn is_entity_name_js_text(text: tsc_diagnostics::JsStr<'_>) -> bool {
+    parse_entity_name_components(text).is_some()
 }
 
 fn entity_name_scalar_input(text: tsc_diagnostics::JsStr<'_>) -> Option<std::borrow::Cow<'_, str>> {
@@ -10515,11 +10492,10 @@ fn parse_source_file_from_snapshot_worker(
     incremental_options: IncrementalParseOptions,
 ) -> (SourceFile, IncrementalParseStats) {
     let text = snapshot.text();
-    let mut parser = Parser::new_with_target(
+    let mut parser = Parser::new_with_positions(
         file_name,
         text,
         snapshot.shared_positions(),
-        options.script_target,
         options.language_variant,
         options.javascript_file,
     );
@@ -10571,7 +10547,6 @@ fn parse_source_file_from_snapshot_worker(
     let source = SourceFile {
         file_name: finished.file_name,
         snapshot,
-        language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
         js_doc_parsing_mode: options.js_doc_parsing_mode,
@@ -10647,11 +10622,10 @@ fn parse_json_text_with_options(
     let text = snapshot.text();
     // initializeState(JSON): getLanguageVariant gives a JSON file the JSX
     // variant, as it does JavaScript and TSX.
-    let mut parser = Parser::new_with_target(
+    let mut parser = Parser::new_with_positions(
         file_name,
         text,
         snapshot.shared_positions(),
-        ScriptTarget::ES2015,
         LanguageVariant::Jsx,
         true,
     );
@@ -10745,7 +10719,6 @@ fn parse_json_text_with_options(
     SourceFile {
         file_name: finished.file_name,
         snapshot,
-        language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
         js_doc_parsing_mode: JSDocParsingMode::ParseAll,
@@ -11094,20 +11067,17 @@ fn is_class_member_modifier(kind: SyntaxKind) -> bool {
     )
 }
 
-pub fn is_identifier_text(text: &str) -> bool {
-    is_identifier_text_for_target(text, ScriptTarget::ES2025)
-}
-
 /// tsc-port: isIdentifierText @6.0.3
 /// tsc-hash: ce44c13a3f2ea2f826209e812605d2e30c3ff5a4e9a6925a0683821d18048b5d
 /// tsc-span: _tsc.js:8676-8687
-pub fn is_identifier_text_for_target(text: &str, language_version: ScriptTarget) -> bool {
+///
+/// tsgo's IsIdentifierText (scanner/utilities.go:129) reads no target.
+pub fn is_identifier_text(text: &str) -> bool {
     let mut chars = text.chars();
     let Some(first) = chars.next() else {
         return false;
     };
-    crate::chars::is_identifier_start(first, language_version)
-        && chars.all(|ch| crate::chars::is_identifier_part(ch, language_version))
+    crate::chars::is_identifier_start(first) && chars.all(crate::chars::is_identifier_part)
 }
 
 /// tsc getSpellingSuggestion.

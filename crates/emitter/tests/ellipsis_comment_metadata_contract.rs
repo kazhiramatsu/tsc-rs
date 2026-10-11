@@ -4,7 +4,6 @@ use tsc_emitter::{
     PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
 };
 use tsc_syntax::{parse_source_file, LanguageVariant, NodeId, ParseOptions};
-use tsc_types::ScriptTarget;
 
 #[test]
 fn ellipsis_comment_printer_metadata_matches_typescript() {
@@ -27,7 +26,6 @@ fn ellipsis_comment_printer_metadata_matches_typescript() {
                     case["file_name"].as_str().unwrap(),
                     case["text"].as_str().unwrap(),
                     ParseOptions {
-                        script_target: ScriptTarget::ES_NEXT,
                         language_variant: if case["file_name"].as_str().unwrap().ends_with(".tsx") {
                             LanguageVariant::Jsx
                         } else {

@@ -3,7 +3,7 @@
 
 use tsc_binder::bind_source_file;
 use tsc_syntax::{for_each_child, NodeId, ParseOptions, SourceFile};
-use tsc_types::{CompilerOptions, JsString, ScriptTarget};
+use tsc_types::JsString;
 
 struct Case {
     id: &'static str,
@@ -30,8 +30,7 @@ fn source_module_names_and_duplicate_diagnostic_paths_keep_js_values() {
             ParseOptions::default(),
             None,
         );
-        let options = CompilerOptions::default();
-        let binder = bind_source_file(&source, &options);
+        let binder = bind_source_file(&source);
         let symbol = binder.symbols.symbol(binder.node_symbol[&source.root]);
         let mut expected = "\"/work/".encode_utf16().collect::<Vec<_>>();
         expected.extend([unit, 0x22]);
@@ -71,14 +70,12 @@ fn binder_names_match_independent_typescript_observations() {
             "main.ts",
             case.source,
             ParseOptions {
-                script_target: ScriptTarget::ES2015,
                 ..ParseOptions::default()
             },
             None,
         );
         assert!(source.parse_diagnostics.is_empty(), "{}", case.id);
-        let options = CompilerOptions::default();
-        let binder = bind_source_file(&source, &options);
+        let binder = bind_source_file(&source);
         let selected = find_kind(&source, source.root, case.kind).unwrap();
         let table = match case.table {
             "locals" => &binder.locals[&selected],

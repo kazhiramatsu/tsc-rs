@@ -121,11 +121,8 @@ fn leading_jsx_pragmas(text: &str) -> JsxPragmaSettings {
 /// the source-name -> symbol-table-key boundary. tsc obtains an
 /// Identifier node here and returns its `escapedText`; compiler-option
 /// and pragma strings therefore need the same escaping explicitly.
-fn first_entity_escaped_identifier<'n>(
-    entity: impl Into<JsStr<'n>>,
-    target: tsc_types::ScriptTarget,
-) -> Option<EscapedName> {
-    let parts = tsc_syntax::parse_entity_name_components(entity.into(), target)?;
+fn first_entity_escaped_identifier<'n>(entity: impl Into<JsStr<'n>>) -> Option<EscapedName> {
+    let parts = tsc_syntax::parse_entity_name_components(entity.into())?;
     parts
         .first()
         .map(|first| EscapedName::escape(first.as_str().into()))
@@ -2266,19 +2263,17 @@ impl<'a> CheckerState<'a> {
             // getJsxFragmentFactoryEntity, then falls through to the
             // ordinary JSX namespace.
             if let Some(local) = pragmas.fragment_factory {
-                return first_entity_escaped_identifier(&local, self.options.emit_script_target())
+                return first_entity_escaped_identifier(&local)
                     .unwrap_or_else(|| self.global_jsx_namespace_name());
             }
             if let Some(option) = self.options.jsx_fragment_factory.as_ref() {
-                return first_entity_escaped_identifier(option, self.options.emit_script_target())
+                return first_entity_escaped_identifier(option)
                     .unwrap_or_else(|| self.global_jsx_namespace_name());
             }
             return self.global_jsx_namespace_name();
         }
         if let Some(local) = pragmas.factory {
-            if let Some(namespace) =
-                first_entity_escaped_identifier(&local, self.options.emit_script_target())
-            {
+            if let Some(namespace) = first_entity_escaped_identifier(&local) {
                 return namespace;
             }
         }
@@ -2290,9 +2285,7 @@ impl<'a> CheckerState<'a> {
         pragmas
             .factory
             .as_deref()
-            .and_then(|entity| {
-                first_entity_escaped_identifier(entity, self.options.emit_script_target())
-            })
+            .and_then(first_entity_escaped_identifier)
             .unwrap_or_else(|| self.global_jsx_namespace_name())
     }
 
@@ -2303,7 +2296,7 @@ impl<'a> CheckerState<'a> {
             .as_ref()
             .filter(|value| !value.is_empty())
         {
-            return first_entity_escaped_identifier(factory, self.options.emit_script_target())
+            return first_entity_escaped_identifier(factory)
                 .unwrap_or_else(|| EscapedName::from_identifier_escaped_text("React"));
         }
         self.options

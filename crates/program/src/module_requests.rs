@@ -392,7 +392,6 @@ pub fn source_request_parse_options(
     let detect_external_module_from_jsx =
         !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
     ParseOptions {
-        script_target: options.emit_script_target(),
         language_variant,
         javascript_file,
         force_external_module,

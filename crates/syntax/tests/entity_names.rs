@@ -1,6 +1,5 @@
 use tsc_diagnostics::JsString;
-use tsc_syntax::{is_entity_name_js_text, is_identifier_text_for_target};
-use tsc_types::ScriptTarget;
+use tsc_syntax::{is_entity_name_js_text, is_identifier_text};
 
 #[test]
 fn entity_and_identifier_predicates_match_typescript_utf16_values() {
@@ -14,18 +13,15 @@ fn entity_and_identifier_predicates_match_typescript_utf16_values() {
             .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
             .collect();
         let value = JsString::from_code_units(&units);
-        let target = ScriptTarget::from_bits(case["target"].as_i64().unwrap() as i32);
         assert_eq!(
-            is_entity_name_js_text(value.as_js(), target),
+            is_entity_name_js_text(value.as_js()),
             case["expected"]["entity"].as_bool().unwrap(),
             "{} {:?}",
             case["case_id"],
             value
         );
         assert_eq!(
-            value
-                .as_str()
-                .is_some_and(|text| is_identifier_text_for_target(text, target)),
+            value.as_str().is_some_and(is_identifier_text),
             case["expected"]["identifier"].as_bool().unwrap(),
             "{} {:?}",
             case["case_id"],
@@ -48,12 +44,10 @@ fn isolated_entity_components_keep_identifier_values_after_comment_and_escape_pa
     commented.push_str("*/.createElement");
     for value in [commented, JsString::from(r"R.\u0063reateElement")] {
         assert_eq!(
-            tsc_syntax::parse_entity_name_components(value.as_js(), ScriptTarget::ES2015),
+            tsc_syntax::parse_entity_name_components(value.as_js()),
             Some(vec!["R".into(), "createElement".into()]),
         );
     }
     let invalid = JsString::from_code_units(&[82, 0xd800]);
-    assert!(
-        tsc_syntax::parse_entity_name_components(invalid.as_js(), ScriptTarget::ES2015).is_none()
-    );
+    assert!(tsc_syntax::parse_entity_name_components(invalid.as_js()).is_none());
 }

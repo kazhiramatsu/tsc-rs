@@ -810,7 +810,9 @@ impl<'a> CheckerState<'a> {
             (
                 literal_text,
                 raw.is_unterminated() == Some(true),
-                source.language_version,
+                // tsgo's regular expression scanner reads the checker's
+                // languageVersion (grammarchecks.go:76); parsing reads none.
+                self.options.emit_script_target(),
                 source.file_name.clone(),
                 token_start_utf16,
             )

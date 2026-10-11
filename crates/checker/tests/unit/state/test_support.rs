@@ -6,11 +6,7 @@ use super::CheckerState;
 
 /// Multi-file program construction mirroring check_program's parse/
 /// bind base chaining (M4 5.0).
-fn parse_program_with_target(
-    files: &[(&str, &str)],
-    script_target: tsc_types::ScriptTarget,
-    require_clean_parse: bool,
-) -> Vec<SourceFile> {
+fn parse_program(files: &[(&str, &str)], require_clean_parse: bool) -> Vec<SourceFile> {
     let mut sources: Vec<SourceFile> = Vec::new();
     for (name, text) in files {
         let (node_id_base, node_array_id_base) = match sources.last() {
@@ -23,7 +19,6 @@ fn parse_program_with_target(
             (*name).to_owned(),
             (*text).to_owned(),
             ParseOptions {
-                script_target,
                 language_variant: if javascript_file || jsx_file {
                     LanguageVariant::Jsx
                 } else {
@@ -75,8 +70,7 @@ fn with_program_state_impl<R>(
     require_clean_parse: bool,
     run: impl FnOnce(&mut CheckerState) -> R,
 ) -> R {
-    let sources =
-        parse_program_with_target(files, options.emit_script_target(), require_clean_parse);
+    let sources = parse_program(files, require_clean_parse);
     let mut binders: Vec<Binder<'_>> = Vec::new();
     for source in &sources {
         let (seed, base) = match binders.last() {
@@ -86,7 +80,7 @@ fn with_program_state_impl<R>(
             ),
             None => (1, 0),
         };
-        let mut binder = Binder::with_bases(source, options, seed, base);
+        let mut binder = Binder::with_bases(source, seed, base);
         binder.bind_source_file();
         binders.push(binder);
     }

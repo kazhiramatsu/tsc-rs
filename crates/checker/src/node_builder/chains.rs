@@ -2524,7 +2524,6 @@ fn create_property_name_for_identifier_or_literal(
     arena: &mut TransformArena,
     target: TransformSourceId,
     name: impl NameKey,
-    script_target: tsc_types::ScriptTarget,
     single_quote: bool,
     string_named: bool,
     is_method: bool,
@@ -2534,9 +2533,7 @@ fn create_property_name_for_identifier_or_literal(
     // Identifier and canonical numeric spellings cannot contain unpaired
     // surrogates. Values outside those grammars remain string literal names.
     if let Some(scalar_name) = name.as_str() {
-        if !method_named_new
-            && tsc_syntax::is_identifier_text_for_target(scalar_name, script_target)
-        {
+        if !method_named_new && tsc_syntax::is_identifier_text(scalar_name) {
             return create_identifier(arena, target, scalar_name);
         }
         if !string_named
@@ -2597,7 +2594,6 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
         arena,
         target,
         raw_name,
-        checker.options.emit_script_target(),
         single_quote,
         string_named,
         is_method,
@@ -2680,9 +2676,8 @@ fn get_property_name_node_for_symbol_from_name_type(
         let numeric = name
             .as_str()
             .filter(|name| crate::evaluate::is_numeric_literal_name(*name));
-        if !name.as_str().is_some_and(|name| {
-            tsc_syntax::is_identifier_text_for_target(name, checker.options.emit_script_target())
-        }) && (string_named || numeric.is_none())
+        if !name.as_str().is_some_and(tsc_syntax::is_identifier_text)
+            && (string_named || numeric.is_none())
         {
             return create_string_literal(arena, target, &name, single_quote).map(Some);
         }
@@ -2710,7 +2705,6 @@ fn get_property_name_node_for_symbol_from_name_type(
             arena,
             target,
             &name,
-            checker.options.emit_script_target(),
             single_quote,
             string_named,
             is_method,

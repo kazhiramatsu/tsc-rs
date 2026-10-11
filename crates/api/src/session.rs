@@ -760,8 +760,7 @@ impl Session {
         });
         let document = found.unwrap_or_else(|| {
             let file = crate::parse_source_file(&file_name, source_text, script_kind);
-            let options = tsc_types::CompilerOptions::default();
-            let bind_data = tsc_binder::bind_source_file(&file, &options).into_bind_data();
+            let bind_data = tsc_binder::bind_source_file(&file).into_bind_data();
             let document = Arc::new(BoundDocument::new(
                 Arc::new(tsc_checker::program::ParsedDocument::new(Arc::new(file))),
                 bind_data,

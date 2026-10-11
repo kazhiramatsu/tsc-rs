@@ -1,7 +1,7 @@
 use crate::parser::JSDocParsingMode;
 use crate::{chars, keywords, SyntaxKind};
 use tsc_diagnostics::{gen, DiagnosticMessage};
-use tsc_types::{JsStr, JsString, ScriptTarget};
+use tsc_types::{JsStr, JsString};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum LanguageVariant {
@@ -182,7 +182,6 @@ pub(crate) struct Scanner<'text> {
     token: SyntaxKind,
     token_value: JsString,
     token_flags: TokenFlags,
-    language_version: ScriptTarget,
     language_variant: LanguageVariant,
     js_doc_parsing_mode: JSDocParsingMode,
     is_typescript_file: bool,
@@ -198,38 +197,8 @@ pub(crate) struct Scanner<'text> {
     comment_directives: Vec<CommentDirective>,
 }
 
-trait Truthy {
-    fn is_truthy(&self) -> bool;
-}
-
-impl Truthy for bool {
-    fn is_truthy(&self) -> bool {
-        *self
-    }
-}
-
-impl<T> Truthy for Option<T> {
-    fn is_truthy(&self) -> bool {
-        self.is_some()
-    }
-}
-
-impl Truthy for SyntaxKind {
-    fn is_truthy(&self) -> bool {
-        *self != SyntaxKind::Unknown
-    }
-}
-
 impl<'text> Scanner<'text> {
     pub(crate) fn new(text: &'text str, language_variant: LanguageVariant) -> Self {
-        Self::new_with_target(text, language_variant, ScriptTarget::ES2025)
-    }
-
-    pub(crate) fn new_with_target(
-        text: &'text str,
-        language_variant: LanguageVariant,
-        language_version: ScriptTarget,
-    ) -> Self {
         Self {
             text,
             end: text.len(),
@@ -239,7 +208,6 @@ impl<'text> Scanner<'text> {
             token: SyntaxKind::Unknown,
             token_value: JsString::new(),
             token_flags: TokenFlags::empty(),
-            language_version,
             language_variant,
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
             is_typescript_file: true,
@@ -499,7 +467,7 @@ impl<'text> Scanner<'text> {
                     return self.token;
                 }
                 _ => {
-                    if chars::is_identifier_start(ch, self.language_version) {
+                    if chars::is_identifier_start(ch) {
                         return self.scan_identifier();
                     }
                     self.error_at(self.pos, ch.len_utf8(), &gen::Invalid_character);
@@ -569,9 +537,7 @@ impl<'text> Scanner<'text> {
             return true;
         }
         self.text[self.pos..].chars().next().is_none_or(|ch| {
-            chars::is_identifier_start(ch, tsc_types::ScriptTarget::ES_NEXT)
-                || is_single_line_whitespace(ch)
-                || is_line_break(ch)
+            chars::is_identifier_start(ch) || is_single_line_whitespace(ch) || is_line_break(ch)
         })
     }
 
@@ -682,14 +648,14 @@ impl<'text> Scanner<'text> {
             return self.token;
         }
 
-        if chars::is_identifier_start(ch, self.language_version) {
+        if chars::is_identifier_start(ch) {
             self.token_value.push(ch);
             self.advance_char();
             loop {
                 let Some(next) = self.current_char() else {
                     break;
                 };
-                if chars::is_identifier_part(next, self.language_version) || next == '-' {
+                if chars::is_identifier_part(next) || next == '-' {
                     self.token_value.push(next);
                     self.advance_char();
                     continue;
@@ -697,7 +663,7 @@ impl<'text> Scanner<'text> {
                 if next == '\\' {
                     let escape_start = self.pos;
                     if let Some((cooked, escape_flag)) = self.scan_unicode_escape() {
-                        if chars::is_identifier_part(cooked, self.language_version) {
+                        if chars::is_identifier_part(cooked) {
                             self.token_flags.insert(escape_flag);
                             self.token_value.push(cooked);
                             continue;
@@ -713,28 +679,6 @@ impl<'text> Scanner<'text> {
         self.advance_char();
         self.token = SyntaxKind::Unknown;
         self.token
-    }
-
-    fn speculation_helper<R: Truthy>(
-        &mut self,
-        callback: impl FnOnce(&mut Self) -> R,
-        is_lookahead: bool,
-    ) -> R {
-        let saved = self.save();
-        let result = callback(self);
-        if is_lookahead || !result.is_truthy() {
-            self.restore(saved);
-        }
-        result
-    }
-
-    #[cfg(test)]
-    fn look_ahead<R: Truthy>(&mut self, callback: impl FnOnce(&mut Self) -> R) -> R {
-        self.speculation_helper(callback, true)
-    }
-
-    fn try_scan<R: Truthy>(&mut self, callback: impl FnOnce(&mut Self) -> R) -> R {
-        self.speculation_helper(callback, false)
     }
 
     pub(crate) fn pos(&self) -> usize {
@@ -968,31 +912,28 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_identifier(&mut self) -> SyntaxKind {
-        self.scan_identifier_with_target(self.language_version)
+        self.try_scan_identifier()
             .expect("scan_identifier requires an identifier start")
     }
 
-    fn scan_identifier_with_target(
-        &mut self,
-        language_version: ScriptTarget,
-    ) -> Option<SyntaxKind> {
+    fn try_scan_identifier(&mut self) -> Option<SyntaxKind> {
         self.token_value.clear();
         let first = self
             .current_char()
             .expect("scan_identifier requires a current character");
-        if !chars::is_identifier_start(first, language_version) {
+        if !chars::is_identifier_start(first) {
             return None;
         }
         self.token_value.push(first);
         self.advance_char();
-        self.scan_identifier_parts_with_target(language_version);
+        self.scan_identifier_parts();
         Some(self.finish_identifier_token())
     }
 
     fn scan_identifier_escape_start(&mut self) -> Option<SyntaxKind> {
         let start = self.pos;
         let (ch, escape_flag) = self.scan_unicode_escape()?;
-        if !chars::is_identifier_start(ch, self.language_version) {
+        if !chars::is_identifier_start(ch) {
             self.pos = start;
             return None;
         }
@@ -1004,10 +945,6 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_identifier_parts(&mut self) {
-        self.scan_identifier_parts_with_target(self.language_version);
-    }
-
-    fn scan_identifier_parts_with_target(&mut self, language_version: ScriptTarget) {
         loop {
             // ASCII identifier parts are the common case: take the whole run
             // as one slice (same bytes as the per-character pushes).
@@ -1029,13 +966,13 @@ impl<'text> Scanner<'text> {
             let Some(ch) = self.current_char() else {
                 break;
             };
-            if chars::is_identifier_part(ch, language_version) {
+            if chars::is_identifier_part(ch) {
                 self.token_value.push(ch);
                 self.advance_char();
             } else if ch == '\\' {
                 let start = self.pos;
                 if let Some((ch, escape_flag)) = self.scan_unicode_escape() {
-                    if chars::is_identifier_part(ch, language_version) {
+                    if chars::is_identifier_part(ch) {
                         self.token_flags.insert(escape_flag);
                         self.token_value.push(ch);
                         continue;
@@ -1092,7 +1029,7 @@ impl<'text> Scanner<'text> {
         self.token_value.push('#');
 
         match self.current_char() {
-            Some(ch) if chars::is_identifier_start(ch, self.language_version) => {
+            Some(ch) if chars::is_identifier_start(ch) => {
                 self.token_value.push(ch);
                 self.advance_char();
                 self.scan_identifier_parts();
@@ -1100,9 +1037,7 @@ impl<'text> Scanner<'text> {
             Some('\\') => {
                 let escape_start = self.pos;
                 match self.scan_unicode_escape() {
-                    Some((ch, escape_flag))
-                        if chars::is_identifier_start(ch, self.language_version) =>
-                    {
+                    Some((ch, escape_flag)) if chars::is_identifier_start(ch) => {
                         self.token_flags.insert(escape_flag);
                         self.token_value.push(ch);
                         self.scan_identifier_parts();
@@ -1511,38 +1446,6 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    /// tsc-port: reScanInvalidIdentifier @6.0.3
-    /// tsc-hash: 068189a72955edaa28413940b9f41389cad096155a51c9124869b141c45ab8bd
-    /// tsc-span: _tsc.js:9842-9853
-    ///
-    /// A target-rejected identifier is retried with ESNext solely for
-    /// recovery-tree fidelity. The original target-aware scan error is
-    /// retained by the parser.
-    fn re_scan_invalid_identifier(&mut self) -> SyntaxKind {
-        debug_assert_eq!(
-            self.token,
-            SyntaxKind::Unknown,
-            "re_scan_invalid_identifier requires an Unknown token"
-        );
-        self.pos = self.full_start_pos;
-        self.token_start = self.full_start_pos;
-        self.token_flags = TokenFlags::empty();
-        if self
-            .scan_identifier_with_target(ScriptTarget::ES_NEXT)
-            .is_some()
-        {
-            return self.token;
-        }
-        if self.current_char().is_some() {
-            self.advance_char();
-        }
-        self.token
-    }
-
-    pub(crate) fn try_re_scan_invalid_identifier(&mut self) -> bool {
-        self.try_scan(|scanner| scanner.re_scan_invalid_identifier()) == SyntaxKind::Identifier
-    }
-
     pub(crate) fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
         if !matches!(
             self.token,
@@ -1590,7 +1493,7 @@ impl<'text> Scanner<'text> {
         } else {
             self.pos += 1;
             while let Some(ch) = self.current_char() {
-                if !chars::is_identifier_part(ch, self.language_version) {
+                if !chars::is_identifier_part(ch) {
                     break;
                 }
                 self.advance_char();
@@ -2230,7 +2133,7 @@ impl<'text> Scanner<'text> {
         let Some(ch) = self.current_char() else {
             return;
         };
-        if !chars::is_identifier_start(ch, self.language_version) {
+        if !chars::is_identifier_start(ch) {
             return;
         }
 
@@ -2264,12 +2167,12 @@ impl<'text> Scanner<'text> {
     fn scan_identifier_part_length_worker(&mut self) -> usize {
         let start = self.pos;
         while let Some(ch) = self.current_char() {
-            if chars::is_identifier_part(ch, self.language_version) {
+            if chars::is_identifier_part(ch) {
                 self.advance_char();
             } else if ch == '\\' {
                 let escape_start = self.pos;
                 if let Some((ch, _)) = self.scan_unicode_escape() {
-                    if chars::is_identifier_part(ch, self.language_version) {
+                    if chars::is_identifier_part(ch) {
                         continue;
                     }
                 }
@@ -2753,8 +2656,7 @@ pub struct TokenScanner<'text> {
 
 impl<'text> TokenScanner<'text> {
     pub fn new(file: &'text crate::SourceFile, pos: usize) -> Self {
-        let mut scanner =
-            Scanner::new_with_target(file.text(), file.language_variant, file.language_version);
+        let mut scanner = Scanner::new(file.text(), file.language_variant);
         scanner.reset_token_state(pos);
         scanner.scan();
         Self { scanner }
