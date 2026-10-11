@@ -23,6 +23,15 @@ pub use filesystem::FsCompilerHost;
 pub use js_path::to_file_name_lower_case_js;
 pub use memory::{MemoryCompilerHost, MemoryCompilerHostBuilder};
 
+/// tsgo `tspath.DynamicURIFileNamePrefix`: the file names of documents
+/// whose URI is not a `file:` URI.
+pub const DYNAMIC_URI_FILE_NAME_PREFIX: &str = "^/~ts-uri~/";
+
+/// tsgo `tspath.IsEncodedDynamicFileName`.
+pub fn is_encoded_dynamic_file_name(path: &str) -> bool {
+    path.starts_with(DYNAMIC_URI_FILE_NAME_PREFIX)
+}
+
 /// TypeScript's locale-independent file-name case fold.
 ///
 /// TypeScript protects U+0130, U+0131, and U+00DF from the Unicode lowercase
@@ -34,7 +43,13 @@ pub use memory::{MemoryCompilerHost, MemoryCompilerHostBuilder};
 /// tsc-port: toFileNameLowerCase @6.0.3
 /// tsc-hash: 65dcaf0c3334d707bf26b65cb7670523b964dc52d8f70cde69526e8af1d66186
 /// tsc-span: _tsc.js:874-876
+///
+/// tsgo `PathKey.CaseInsensitiveKey`: an encoded dynamic URI name keeps its
+/// case.
 pub fn to_file_name_lower_case(path: &str) -> String {
+    if is_encoded_dynamic_file_name(path) {
+        return path.to_owned();
+    }
     fn protected(character: char) -> bool {
         character.is_ascii_lowercase()
             || character.is_ascii_digit()

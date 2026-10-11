@@ -39,11 +39,15 @@ impl<F: FileSystem> VfsCompilerHost<F> {
     fn query(&self, path: JsStr<'_>, operation: HostOperation) -> Result<String, HostError> {
         crate::js_path::validate(path, operation)?;
         let path = path.to_string_lossy();
-        Ok(if normalize(&path).is_ok() || path.contains("://") {
-            path.into_owned()
-        } else {
-            format!("{}/{path}", self.current_directory.trim_end_matches('/'))
-        })
+        // tsgo roots a dynamic name (`^/`, an untitled or other non-file
+        // document's) as it roots a URL.
+        Ok(
+            if normalize(&path).is_ok() || path.contains("://") || path.starts_with("^/") {
+                path.into_owned()
+            } else {
+                format!("{}/{path}", self.current_directory.trim_end_matches('/'))
+            },
+        )
     }
 
     fn error(

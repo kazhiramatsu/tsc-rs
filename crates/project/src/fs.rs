@@ -64,10 +64,13 @@ impl Paths {
         .into_owned()
     }
 
-    /// tsgo `tspath.ToPath`.
+    /// tsgo `tspath.ToPath` (`CaseSensitivity.PathKey`): an encoded dynamic
+    /// URI name keeps its case, its root ending with a separator.
     pub(crate) fn to_path(&self, file_name: &str) -> String {
         let absolute = self.absolute(file_name);
-        if self.case_sensitive {
+        if tsc_program::is_encoded_dynamic_file_name(&absolute) {
+            tsc_program::canonical_dynamic_uri_path(absolute)
+        } else if self.case_sensitive {
             absolute
         } else {
             tsc_host::to_file_name_lower_case(&absolute)

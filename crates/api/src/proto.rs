@@ -113,76 +113,9 @@ impl DocumentIdentifier {
             .to_string_lossy()
             .into_owned())
         } else {
-            uri_to_file_name(&self.uri)
+            crate::uri::uri_to_file_name(&self.uri)
         }
     }
-}
-
-/// tsgo `bundled.IsBundled`: a file of the embedded standard library.
-fn is_bundled(name: &str) -> bool {
-    name.starts_with("bundled:///")
-}
-
-/// tsgo `DocumentUri.FileName` (lsp/lsproto/lsp.go): a `file:` URI's path,
-/// percent-decoded (`//host/path` for one with a host, without the slash
-/// before a drive letter), and any other URI as `^/scheme/authority/path`
-/// with its escapes kept.
-pub fn uri_to_file_name(uri: &str) -> Result<String, String> {
-    if is_bundled(uri) {
-        return Ok(uri.to_owned());
-    }
-    if let Some(rest) = uri.strip_prefix("file://") {
-        // url.Parse: the authority up to the path, the path up to a query
-        // or fragment.
-        let rest = rest.split(['?', '#']).next().unwrap_or_default();
-        let (host, path) = match rest.find('/') {
-            Some(index) => rest.split_at(index),
-            None => (rest, ""),
-        };
-        let invalid = || format!("invalid file URI: {uri}");
-        let host = percent_decode(host).ok_or_else(invalid)?;
-        let path = percent_decode(path).ok_or_else(invalid)?;
-        if !host.is_empty() {
-            return Ok(format!("//{host}{path}"));
-        }
-        // fixWindowsURIPath.
-        if let Some(rest) = path.strip_prefix('/') {
-            let bytes = rest.as_bytes();
-            if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
-                return Ok(rest.to_owned());
-            }
-        }
-        return Ok(path);
-    }
-    let Some((scheme, path)) = uri.split_once(':') else {
-        return Err(format!("invalid URI: {uri}"));
-    };
-    let (authority, path) = match path.strip_prefix("//") {
-        Some(rest) => rest
-            .split_once('/')
-            .ok_or_else(|| format!("invalid URI: {uri}"))?,
-        None => ("ts-nul-authority", path),
-    };
-    Ok(format!("^/{scheme}/{authority}/{path}"))
-}
-
-/// The bytes `%XX` escapes stand for, as UTF-8; nothing for a malformed
-/// escape or text.
-fn percent_decode(text: &str) -> Option<String> {
-    let bytes = text.as_bytes();
-    let mut decoded = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' {
-            let hex = text.get(index + 1..index + 3)?;
-            decoded.push(u8::from_str_radix(hex, 16).ok()?);
-            index += 3;
-        } else {
-            decoded.push(bytes[index]);
-            index += 1;
-        }
-    }
-    String::from_utf8(decoded).ok()
 }
 
 /// tsgo `FileNotifications`.

@@ -1384,3 +1384,64 @@ mod print;
 
 #[path = "session_build.rs"]
 mod build;
+
+#[test]
+fn documents_of_other_schemes_open_by_their_dynamic_names() {
+    // The client test "full file system accepts and caches paths decoded
+    // from VS Code document URIs": #64159's dynamic names, rooted after
+    // their authority and keyed with their case, reach the inferred project
+    // through the request file system.
+    let (session, _) = session_in("/work", &[]);
+    let documents = [
+        ("file:///workspace/file%20name.ts", "/workspace/file name.ts"),
+        (
+            "vscode-remote://ssh-remote+host/workspace/src/remote%20name.ts",
+            "^/~ts-uri~/vscode-remote/ssh-remote+host/workspace/src/remote%20name.ts",
+        ),
+        (
+            "vscode-notebook-cell:/workspace/notebook.ipynb/cell%20name.ts",
+            "^/~ts-uri~/vscode-notebook-cell/ts-nul-authority/~ts-uri-escape~~/workspace/notebook.ipynb/cell%20name.ts",
+        ),
+        ("untitled:Untitled-1", "^/~ts-uri~/untitled/ts-nul-authority/Untitled-1"),
+    ];
+    let files = documents
+        .iter()
+        .map(|(_, name)| ((*name).to_owned(), json!("export const x = true;")))
+        .collect::<serde_json::Map<_, _>>();
+    let response = call(
+        &session,
+        "createSnapshot",
+        json!({
+            "openFiles": documents.iter().map(|(uri, _)| json!({ "uri": uri })).collect::<Vec<_>>(),
+            "fileSystem": { "kind": "full", "files": files },
+        }),
+    )
+    .unwrap();
+    let project = &response["projects"][0];
+    assert_eq!(project["id"], "/dev/null/inferred");
+    let names = project["parsedCommandLine"]["fileNames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|name| name.as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        names,
+        documents
+            .iter()
+            .map(|(_, name)| *name)
+            .collect::<BTreeSet<_>>()
+    );
+    for (uri, _) in documents {
+        assert_eq!(
+            call(
+                &session,
+                "getDefaultProjectForFile",
+                json!({ "snapshot": response["snapshot"], "file": { "uri": uri } }),
+            )
+            .unwrap()["id"],
+            "/dev/null/inferred",
+            "{uri}"
+        );
+    }
+}
