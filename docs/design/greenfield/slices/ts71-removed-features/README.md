@@ -98,3 +98,32 @@ project で差を出すため）。順は `.types`／`.symbols` の残り（#751
   checker・emitter の test 2,214 と clippy（`-D warnings`）は通る。
 - **hosted と merge**：PR #755 の hosted run 38168904641（rust 10m48s、conformance 13m15s、gates pass、head `f4c3dcc27`）、merge
   commit `994d449fc`。次は R3（parse と bind が option を読まない）。
+
+## R3 parse と bind が option を読まない（2026-10-12）
+
+- tsgo の scanner は ESNext の identifier の表だけを持ち（`stringutil/identifier.go`）、parse は target を読まず、binder は option
+  を読まない。parse cache の key は file 名・path・module indicator の option・script kind・text。tsc-rs は parse で target を、
+  bind で `noFallthroughCasesInSwitch` を読み、document と lib の bundle の cache がそれで分かれていた。
+- scanner と parser：ES5 の identifier の表と、scanner・parser・`SourceFile`・`ParseOptions` の言語 version を除いた。
+  `is_identifier_text` と entity name の helper は target を取らない。`createIdentifier` の不正な identifier の再 scan（tsgo に
+  無い。表が 1 つなら成功しない）と、それだけが使った scanner の投機の helper を除いた。正規表現は checker の target で検査する
+  （tsgo grammarchecks.go:76）。
+- binder は option を取らない。case 節の fallthrough の flow は常に記録し（tsgo `bindCaseBlock`）、診断は checker が
+  `noFallthroughCasesInSwitch` のときだけ出す。
+- cache：`DocumentAddress` は parse の option と identity domain だけ、lib の bundle の key は lib の名前と text の列だけ（どの
+  option の組でも 1 つの bundle）。option の projection・その key の型・harness の key を除いた。
+- **test**：U+08A1 と U+10400 はどの target でも identifier（`/a/ࢡ` は tsgo の checker が TS1499 にする flag、`foo.ࢡ` は
+  parse できる）。binding の名前の不正な escape の emit の回復は、どの target も受け付けない `\u{30}` で確かめる。ES5 で観測した
+  fixture の case のうち ES2015 と同じもの（literal 11、entity name 43）を除いた。tsgo との横並び（R3 の 15 構成と R2 の 20 構成）
+  は全て同じ。
+- **結果**（release build、head `891a3db64`）：full の conformance（`--workers 2 --check`、473 s）は 0 regressions で R2 の
+  report と全ての field で同じ。並列対照は記録済みの順序の 4 構成だけ。suites（`--check`）は 0 regressions、既知の違い 10。
+  syntax・binder・checker・emitter・program・compiler・api・cli・conformance の test 3,865 と clippy（`-D warnings`）は通る。
+  TypeScript の API の client の test（local）は sync 336／356、async 345／365 で変わらない。
+- **hosted と merge**：PR #756 の hosted run 38172710048（rust 10m55s、conformance 21m12s、gates pass、head `891a3db64`）、merge
+  commit `4d7f1e58e`。R1〜R3 でこの計画は終わる。
+- **残る差（bounded、利用者の判断が要る）**：client の test「createSourceFile shares identity with a matching program file」は
+  option ではなく identity domain で分かれる。lib を持つ program は lib の bundle の domain で node の id を割り当て、作った file は
+  registry の domain にあるので共有できない。同じ理由で、lib の組が違う project の間でも parse を共有できない。domain を 1 つに
+  まとめれば共有できる（checker の node の表は page 単位で確保するので id の範囲が広がっても大きくは増えない見込み）が、program
+  をまたぐ id の割り当ての変更なので、性能の計測と合わせて判断する。
