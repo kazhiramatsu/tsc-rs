@@ -188,3 +188,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   （partition で変わる crash は直った）。
 - ratchet は `--update` で 13,558 構成（新しい 21、上げた 18）。suites（`--check`）は 0 regressions、1 つ上がった
   （`tsbuild/incremental/reverse-mapped-declaration-consumption`。#64558）ので `--update` で記録した（tsbuild 152 → 153）。
+- **hosted と merge**：PR #743 の hosted run 38115411840（rust 9m6s、conformance 14m7s、gates pass、head `dae9944cf`）、merge commit
+  `d9b82ae85`。
