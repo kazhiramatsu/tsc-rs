@@ -5913,8 +5913,11 @@ impl<'text> Parser<'text> {
                 return self.parse_jsx_expression(true);
             }
             if self.token() == SyntaxKind::LessThanToken {
+                // tsgo (#64470): an attribute value is a single JsxAttributeValue,
+                // so the sibling-element recovery may not wrap it in a synthetic
+                // binary expression.
                 return Some(self.parse_jsx_element_or_self_closing_element_or_fragment(
-                    true, None, None, false,
+                    true, None, None, true,
                 ));
             }
             self.parse_error_at_current_token(&gen::or_JSX_element_expected, &[]);

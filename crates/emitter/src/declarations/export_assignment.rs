@@ -16,7 +16,7 @@ use crate::{
 
 use super::diagnostics::DiagnosticContext;
 use super::state::VisitResult;
-use super::subtree::preserve_js_doc;
+use super::subtree::{keep_source_map_range, preserve_js_doc};
 use super::tracker::{materialize_effects, TrackerAnchor};
 use super::DeclarationTransformer;
 
@@ -148,6 +148,7 @@ impl DeclarationTransformer<'_> {
                 is_export_equals,
                 expression,
             )?;
+            keep_source_map_range(cx, export, input)?;
             return preserve_js_doc(cx, export, input).map(VisitResult::Node);
         }
 
@@ -165,7 +166,8 @@ impl DeclarationTransformer<'_> {
                         this.transform_class_expression_to_declaration(cx, class, name, modifiers)
                     })?;
                 let declaration = preserve_js_doc(cx, declaration, input)?;
-                let export = self.export_assignment_without_comments(cx, name, is_export_equals)?;
+                let export =
+                    self.export_assignment_without_comments(cx, input, name, is_export_equals)?;
                 Ok(VisitResult::Nodes(vec![export, declaration]))
             }
             Some((function, kind)) if super::ensure::is_function_like(kind) => {
@@ -182,7 +184,8 @@ impl DeclarationTransformer<'_> {
                         )
                     })?;
                 let declaration = preserve_js_doc(cx, declaration, input)?;
-                let export = self.export_assignment_without_comments(cx, name, is_export_equals)?;
+                let export =
+                    self.export_assignment_without_comments(cx, input, name, is_export_equals)?;
                 Ok(VisitResult::Nodes(vec![export, declaration]))
             }
             _ => {
@@ -192,6 +195,7 @@ impl DeclarationTransformer<'_> {
                 let export =
                     cx.factory()?
                         .create_export_assignment(source, None, is_export_equals, name)?;
+                keep_source_map_range(cx, export, input)?;
                 Ok(VisitResult::Nodes(vec![statement, export]))
             }
         }
@@ -287,12 +291,14 @@ impl DeclarationTransformer<'_> {
     fn export_assignment_without_comments(
         &self,
         cx: &mut TransformationContext,
+        input: TransformNode,
         name: TransformNode,
         is_export_equals: bool,
     ) -> Result<TransformNode, TransformError> {
         let export =
             cx.factory()?
                 .create_export_assignment(name.source(), None, is_export_equals, name)?;
+        keep_source_map_range(cx, export, input)?;
         Ok(cx.arena_mut()?.remove_all_comments(export))
     }
 

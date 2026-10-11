@@ -1776,7 +1776,7 @@ fn typescript_expando_declaration_map_follows_tsgo() {
     );
     assert_eq!(
         fs::read_to_string(tree.path("out/expando.d.ts.map")).expect("read expando.d.ts.map"),
-        r#"{"version":3,"file":"expando.d.ts","sourceRoot":"","sources":["../expando.ts"],"names":[],"mappings":"AAAA,wBAAgB,KAAK,CAAC,IAAI,EAAE,MAAM,UAEjC;yBAFe,KAAK;;;AAKrB,iBAAS,MAAM,SAAK;kBAAX,MAAM;;;AAEf,eAAO,MAAM,SAAS,EAAE,OAAO,MAAe,CAAC"}"#
+        r#"{"version":3,"file":"expando.d.ts","sources":["../expando.ts"],"names":[],"mappings":"AAAA,wBAAgB,KAAK,CAAC,IAAI,EAAE,MAAM,UAEjC;yBAFe,KAAK;;;AAKrB,iBAAS,MAAM,SAAK;kBAAX,MAAM;;;AAEf,eAAO,MAAM,SAAS,EAAE,OAAO,MAAe,CAAC"}"#
     );
 }
 
@@ -5806,23 +5806,23 @@ fn source_maps_follow_tsgo() {
     let read = |name: &str| fs::read_to_string(tree.path(name)).expect("read map");
     assert_eq!(
         read("out/a.js.map"),
-        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC,CAAC,CAAC,GAAW,CAAC;IACpB,SAAS;IACT,QAAQ,CAAC,EAAE,CAAC;QACR,KAAK,CAAC,EAAE,OAAO,IAAI,MAAM,CAAC;QAC1B,SAAS,OAAO,CAAC,CAAC;IACtB,CAAC;AACL,CAAC;AACD,MAAM,CAAC;IAEH,YAAmB,CAAS;iBAAT,CAAC;IAAY,CAAC;CACpC;AAFU,GAAC,GAAG,CAAC,CAAC;AAGjB,IAAU,CAAC,CAIV;AAJD,WAAU,CAAC;IAAC,IAAA,CAAC,CAIZ;IAJW,WAAA,CAAC;QACT,MAAa,CAAC;SAAI;QAAL,EAAA,CAAC,IAAI,CAAA;QACP,GAAC,GAAG,CAAC,CAAC;QACjB,GAAC,GAAG,CAAC,CAAC;IACV,CAAC,EAJW,CAAC,GAAD,EAAA,CAAC,KAAD,EAAA,CAAC,QAIZ;AAAD,CAAC,EAJS,CAAC,KAAD,CAAC,QAIV"}"#
+        r#"{"version":3,"file":"a.js","sources":["../a.ts"],"names":[],"mappings":";AAAA,SAAS,CAAC,CAAC,CAAC,GAAW,CAAC;IACpB,SAAS;IACT,QAAQ,CAAC,EAAE,CAAC;QACR,KAAK,CAAC,EAAE,OAAO,IAAI,MAAM,CAAC;QAC1B,SAAS,OAAO,CAAC,CAAC;IACtB,CAAC;AACL,CAAC;AACD,MAAM,CAAC;IAEH,YAAmB,CAAS;iBAAT,CAAC;IAAY,CAAC;CACpC;AAFU,GAAC,GAAG,CAAC,CAAC;AAGjB,IAAU,CAAC,CAIV;AAJD,WAAU,CAAC;IAAC,IAAA,CAAC,CAIZ;IAJW,WAAA,CAAC;QACT,MAAa,CAAC;SAAI;QAAL,EAAA,CAAC,IAAI,CAAA;QACP,GAAC,GAAG,CAAC,CAAC;QACjB,GAAC,GAAG,CAAC,CAAC;IACV,CAAC,EAJW,CAAC,GAAD,EAAA,CAAC,KAAD,EAAA,CAAC,QAIZ;AAAD,CAAC,EAJS,CAAC,KAAD,CAAC,QAIV"}"#
     );
     assert_eq!(
         read("out/a.d.ts.map"),
-        r#"{"version":3,"file":"a.d.ts","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"AAAA,iBAAS,CAAC,CAAC,CAAC,GAAE,MAAU,qBAMvB;AACD,cAAM,CAAC;IAEgB,CAAC,EAAE,MAAM;IAD5B,MAAM,CAAC,CAAC,SAAK;IACb,YAAmB,CAAC,EAAE,MAAM,EAAK;CACpC;AACD,kBAAU,CAAC,CAAC,CAAC,CAAC;IACV,MAAa,CAAC;KAAI;IACX,IAAI,CAAC,QAAI,CAAC;CAEpB"}"#
+        r#"{"version":3,"file":"a.d.ts","sources":["../a.ts"],"names":[],"mappings":"AAAA,iBAAS,CAAC,CAAC,CAAC,GAAE,MAAU,qBAMvB;AACD,cAAM,CAAC;IAEgB,CAAC,EAAE,MAAM;IAD5B,MAAM,CAAC,CAAC,SAAK;IACb,YAAmB,CAAC,EAAE,MAAM,EAAK;CACpC;AACD,kBAAU,CAAC,CAAC,CAAC,CAAC;IACV,MAAa,CAAC;KAAI;IACX,IAAI,CAAC,QAAI,CAAC;CAEpB"}"#
     );
     assert_eq!(
         read("out/b.js.map"),
-        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":";;;;AAAA,MAAO,CAAC,kBAAkB;AAC1B,QAAc,CAAC,kBAAkB;AACjC;CAAkB;;AAClB,eAAsB,CAAC;AACvB,MAAM,CAAC;CAAI;QACF,CAAC;AACV,CAAC,CAAC,CAAC,CAAC;AAAC,QAAA,CAAC,CAAC,CAAC,CAAC"}"#
+        r#"{"version":3,"file":"b.js","sources":["../b.ts"],"names":[],"mappings":";;;;AAAA,MAAO,CAAC,kBAAkB;AAC1B,QAAc,CAAC,kBAAkB;AACjC;CAAkB;;AAClB,eAAsB,CAAC;AACvB,MAAM,CAAC;CAAI;QACF,CAAC;AACV,CAAC,CAAC,CAAC,CAAC;AAAC,QAAA,CAAC,CAAC,CAAC,CAAC"}"#
     );
     assert_eq!(
         read("out/d.js.map"),
-        r#"{"version":3,"file":"d.js","sourceRoot":"","sources":["../d.ts"],"names":[],"mappings":";;;AAAA;IACI,YAAY,CAAS,IAAI,CAAC;IAC1B,CAAC,KAAW,CAAC;CAChB"}"#
+        r#"{"version":3,"file":"d.js","sources":["../d.ts"],"names":[],"mappings":";;;AAAA;IACI,YAAY,CAAS,IAAI,CAAC;IAC1B,CAAC,KAAW,CAAC;CAChB"}"#
     );
     assert_eq!(
         read("out/d.d.ts.map"),
-        r#"{"version":3,"file":"d.d.ts","sourceRoot":"","sources":["../d.ts"],"names":[],"mappings":"AAAA,qBAAa,CAAC;IACV,YAAY,CAAC,EAAE,MAAM,EAAK;IAC1B,CAAC,IAAI,IAAI,CAAI;CAChB"}"#
+        r#"{"version":3,"file":"d.d.ts","sources":["../d.ts"],"names":[],"mappings":"AAAA,qBAAa,CAAC;IACV,YAAY,CAAC,EAAE,MAAM,EAAK;IAC1B,CAAC,IAAI,IAAI,CAAI;CAChB"}"#
     );
 }
 
@@ -5899,11 +5899,11 @@ fn const_enum_values_are_inlined_after_the_module_transform_like_tsgo() {
     );
     assert_eq!(
         read("out/a.js.map"),
-        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAGA,MAAM,CAAC,GAAG,CAAC,EAAE;IACT,MAAM;IACN,CAAC;AACD,MAAM;AACN,CAAC,YAAI,CAAC;AACV,MAAM,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC,aAAK,CAAC,YACd,CAAC;AACR,MAAM,CAAC,GAAG,CAAC,6BAAoB,CAAC;AAChC,MAAM,CAAC,GAAG,yBACD,CAAC"}"#
+        r#"{"version":3,"file":"a.js","sources":["../a.ts"],"names":[],"mappings":";AAGA,MAAM,CAAC,GAAG,CAAC,EAAE;IACT,MAAM;IACN,CAAC;AACD,MAAM;AACN,CAAC,YAAI,CAAC;AACV,MAAM,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC,aAAK,CAAC,YACd,CAAC;AACR,MAAM,CAAC,GAAG,CAAC,6BAAoB,CAAC;AAChC,MAAM,CAAC,GAAG,yBACD,CAAC"}"#
     );
     assert_eq!(
         read("out/b.js.map"),
-        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,MAAY,EAAE,gCAAY;AAE1B,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,KAAK,+CAAR,CAAC,CAAW,CAAC;AACb,IAAI,EAAC,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,EAAE,CAAC,CAAC,CAAC;AACd,IAAI,CAAC;IAAC,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,KAAK,+CAAR,CAAC,CAAW,CAAC;AAAC,CAAC;WAAO,CAAC,CAAC,CAAC;AAC/B,MAAM,CAAC,GAAG,GAAG,EAAE,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAa,CAAA,CAAC;AACrC,EAAE,CAAC,CAAC,CAAC"}"#
+        r#"{"version":3,"file":"b.js","sources":["../b.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,MAAY,EAAE,gCAAY;AAE1B,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,KAAK,+CAAR,CAAC,CAAW,CAAC;AACb,IAAI,EAAC,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,CAAA,EAAE,CAAC,CAAC,CAAC;AACd,IAAI,CAAC;IAAC,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,KAAK,+CAAR,CAAC,CAAW,CAAC;AAAC,CAAC;WAAO,CAAC,CAAC,CAAC;AAC/B,MAAM,CAAC,GAAG,GAAG,EAAE,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAa,CAAA,CAAC;AACrC,EAAE,CAAC,CAAC,CAAC"}"#
     );
 }
 
@@ -5967,7 +5967,7 @@ fn const_enum_values_are_inlined_in_kept_rebuilt_and_moved_subtrees_like_tsgo() 
     );
     assert_eq!(
         read("out/a.js.map"),
-        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";;;AAIA,IAAI,CAAC,gBAAQ,EAAE,CAAC;IAAC,CAAC,cAAM,CAAC;AAAC,CAAC;AAC3B,SAAS,CAAC,CAAC,CAAS,IAAY,OAAO,CAAC,gBAAQ,CAAC,CAAC,aAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAC7D,MAAM,CAAC;IAAP;QACI,MAAC,GAAG,4BAAY,CAAC;IAGrB,CAAC;IADG,CAAC,KAAK,OAAO,eAAI,QAAQ,EAAE,GAAG,YAAI,OAAO,EAAE,CAAC,CAAC,CAAC;CACjD;AAFU,GAAC,gBAAA,CAAO;AAGN,QAAA,CAAC,GAAG,cAAM,IAAI,CAAC,EAAE,CAAC,CAAC,EAAE,CAAC,aAAK,CAAC,CAAC"}"#
+        r#"{"version":3,"file":"a.js","sources":["../a.ts"],"names":[],"mappings":";;;AAIA,IAAI,CAAC,gBAAQ,EAAE,CAAC;IAAC,CAAC,cAAM,CAAC;AAAC,CAAC;AAC3B,SAAS,CAAC,CAAC,CAAS,IAAY,OAAO,CAAC,gBAAQ,CAAC,CAAC,aAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AAC7D,MAAM,CAAC;IAAP;QACI,MAAC,GAAG,4BAAY,CAAC;IAGrB,CAAC;IADG,CAAC,KAAK,OAAO,eAAI,QAAQ,EAAE,GAAG,YAAI,OAAO,EAAE,CAAC,CAAC,CAAC;CACjD;AAFU,GAAC,gBAAA,CAAO;AAGN,QAAA,CAAC,GAAG,cAAM,IAAI,CAAC,EAAE,CAAC,CAAC,EAAE,CAAC,aAAK,CAAC,CAAC"}"#
     );
 }
 
@@ -6084,7 +6084,7 @@ fn concise_body_blocks_and_name_clones_map_like_tsgo() {
     );
     assert_eq!(
         read("out/a.js.map"),
-        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";;;;;;;AACO,MAAM,CAAC,GAAG,GAAG,EAAE,WAAC,OAAA,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,CAAA,CAAQ,CAAC,AAAT,CAAC,OAAO,CAAC;AAA1B,QAAA,CAAC,GAAD,CAAC,CAAyB;AACvC,eAAsB,CAAkC;IACtD,MAAM,GAAG,GAAG,GAAG,EAAE;;QACf,OAAA,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,CACJ,IAAI,CAAC,CAAC,CAAC,EAAE,EAAE,CAAC,CAAC,CAAC,CAAA;QAEnB,iBAAiB;IACjB,CAAC,AAHkB,CAAA;IAEnB,iBAAiB;IACjB,OAAO,GAAG,CAAC;AACb,CAAC;AACD,WAAkB,MAAM,CAAC,CAAC,CAAC,MAAgB,gBAAlB,CAAC,CAAC,MAAM,aAAR,EAAA,EAAE,MAAM,SAAG,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,IAAI,OAAO,CAAC,CAAC,CAAC,CAAC;AAC1D;IAAA;QACI,eAAK,CAAC,EAAC;IAEX,CAAC;IADG,GAAG,aAAK,uBAAA,IAAI,SAAJ,4BAAA,IAAI,YAAG,EAAP,IAAS,IAAA,OAAA,CAAC,CAAC,CAAC;CACvB;;;AACD,MAAM,KAAK,GAAG,GAAG,EAAE,CAAC,CAAC,CAAC;QACb,KAAK;AACP,KAAK;;;QACR,MAAY,CAAC,kCAAG,EAAE,KAAK,CAAC,CAAC,MAAM,CAAC,YAAY,CAAC,KAAI,CAAC,EAAE,OAAA,CAAC;QACrD,OAAO,CAAC,CAAC;;;;;;;;;;;AACb,CAAC"}"#
+        r#"{"version":3,"file":"a.js","sources":["../a.ts"],"names":[],"mappings":";;;;;;;AACO,MAAM,CAAC,GAAG,GAAG,EAAE,WAAC,OAAA,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,CAAA,CAAQ,CAAC,AAAT,CAAC,OAAO,CAAC;AAA1B,QAAA,CAAC,GAAD,CAAC,CAAyB;AACvC,eAAsB,CAAkC;IACtD,MAAM,GAAG,GAAG,GAAG,EAAE;;QACf,OAAA,MAAA,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,CACJ,IAAI,CAAC,CAAC,CAAC,EAAE,EAAE,CAAC,CAAC,CAAC,CAAA;QAEnB,iBAAiB;IACjB,CAAC,AAHkB,CAAA;IAEnB,iBAAiB;IACjB,OAAO,GAAG,CAAC;AACb,CAAC;AACD,WAAkB,MAAM,CAAC,CAAC,CAAC,MAAgB,gBAAlB,CAAC,CAAC,MAAM,aAAR,EAAA,EAAE,MAAM,SAAG,CAAC,aAAD,CAAC,uBAAD,CAAC,CAAE,CAAC,0CAAE,CAAC,IAAI,OAAO,CAAC,CAAC,CAAC,CAAC;AAC1D;IAAA;QACI,eAAK,CAAC,EAAC;IAEX,CAAC;IADG,GAAG,aAAK,uBAAA,IAAI,SAAJ,4BAAA,IAAI,YAAG,EAAP,IAAS,IAAA,OAAA,CAAC,CAAC,CAAC;CACvB;;;AACD,MAAM,KAAK,GAAG,GAAG,EAAE,CAAC,CAAC,CAAC;QACb,KAAK;AACP,KAAK;;;QACR,MAAY,CAAC,kCAAG,EAAE,KAAK,CAAC,CAAC,MAAM,CAAC,YAAY,CAAC,KAAI,CAAC,EAAE,OAAA,CAAC;QACrD,OAAO,CAAC,CAAC;;;;;;;;;;;AACb,CAAC"}"#
     );
     assert_eq!(
         read("out/b.js"),
@@ -6100,7 +6100,7 @@ fn concise_body_blocks_and_name_clones_map_like_tsgo() {
     );
     assert_eq!(
         read("out/b.js.map"),
-        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":";;AAAA,MAAqB,CAAC;CAErB;AADU,OAAK,GAAG,IAAI,CAAC,EAAE,CAAC"}"#
+        r#"{"version":3,"file":"b.js","sources":["../b.ts"],"names":[],"mappings":";;AAAA,MAAqB,CAAC;CAErB;AADU,OAAK,GAAG,IAAI,CAAC,EAAE,CAAC"}"#
     );
 }
 
@@ -6153,7 +6153,7 @@ fn print_time_parentheses_and_new_callees_follow_tsgo() {
     );
     assert_eq!(
         read("out/a.js.map"),
-        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"AAEA,MAAM,CAAC,MAAM,EAAE,GAAG,CAAC,MAAM,CAAC,KAAK,EAAE,KAAa,EAAC,EAAE,CAAC;AAClD,MAAM,CAAC,MAAM,IAAI,GAAG,IAAK,IAAI,EAAU,CAAC,CAAC,EAAE,CAAC;AAC5C,MAAM,CAAC,MAAM,IAAI,GAAG,IAAI,CAAC,IAAI,EAAE,CAAC,CAAC,CAAC,EAAE,CAAC"}"#
+        r#"{"version":3,"file":"a.js","sources":["../a.ts"],"names":[],"mappings":"AAEA,MAAM,CAAC,MAAM,EAAE,GAAG,CAAC,MAAM,CAAC,KAAK,EAAE,KAAa,EAAC,EAAE,CAAC;AAClD,MAAM,CAAC,MAAM,IAAI,GAAG,IAAK,IAAI,EAAU,CAAC,CAAC,EAAE,CAAC;AAC5C,MAAM,CAAC,MAAM,IAAI,GAAG,IAAI,CAAC,IAAI,EAAE,CAAC,CAAC,CAAC,EAAE,CAAC"}"#
     );
     assert_eq!(
         read("out/b.js"),
@@ -6167,7 +6167,7 @@ fn print_time_parentheses_and_new_callees_follow_tsgo() {
     );
     assert_eq!(
         read("out/b.js.map"),
-        r#"{"version":3,"file":"b.js","sourceRoot":"","sources":["../b.ts"],"names":[],"mappings":"AAAA,MAAqB,CAAC;CAErB;AADU,OAAK,GAAG,IAAI,CAAC,EAAE,CAAC"}"#
+        r#"{"version":3,"file":"b.js","sources":["../b.ts"],"names":[],"mappings":"AAAA,MAAqB,CAAC;CAErB;AADU,OAAK,GAAG,IAAI,CAAC,EAAE,CAAC"}"#
     );
 }
 
@@ -6351,7 +6351,7 @@ fn declaration_type_nodes_are_named_reused_and_mapped_like_tsgo() {
     );
     assert_eq!(
         read("out/src/user.d.ts.map"),
-        r#"{"version":3,"file":"user.d.ts","sourceRoot":"","sources":["../../src/user.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,GAAG,MAAM,OAAO,CAAC;AAC7B,OAAO,EAAE,GAAG,EAAE,MAAM,OAAO,CAAC;AAE5B,eAAO,MAAM,OAAO;;;mBAAe,CAAC;AACpC,eAAO,MAAM,CAAC,yCAAgB,CAAC;AAC/B,eAAO,MAAM,IAAI;;;;;CAAe,CAAC;AACjC,eAAO,MAAM,WAAW,GAAI,GAAG,SAAS,GAAG,CAAC,GAAG,WAAW;IAAE,QAAQ,CAAC,GAAG,EAAE,GAAG,CAAA;CAAE;kBAAL,GAAG;CAAc,CAAC;AAC5F,eAAO,MAAM,KAAK,MAAO,GAAG,CAAC,GAAG,QAAM,CAAC;AACvC,eAAO,MAAM,EAAE,GAAI,CAAC,SAAS,MAAM,SAAS,CAAC,MAC5C,CAAC,EAAE,EAAE,SAAS,CAAC,CAAC,EAAE,OAAO,CAAC,CAAC,EAAE,MAAM,CAAC,CAAC,EAAE,MAAM,CAAC,CAAC,KAAK,CAAC,KAAK,EAAE,OAAM,CAAC;AACpE,eAAO,MAAM,EAAE,GADd,CAAC,EAAE,EAAE,SAAS,CAAC,CAAC,EAAE,OAAO,IAAI,MAAM,SAAI,MAAM,CAAC,CAAC,MAAM,cAC1B,CAAC;AAC7B,eAAO,MAAM,KAAK,GAAI,CAAC,QAAQ,CAAC,KAAG,CAAC,GAAG;IAAE,KAAK,EAAE,GAAG,CAAC;IAAC,KAAK,CAAC,EAAE,OAAO,CAAA;CAAiB,CAAC;AACtF,wBAAgB,KAAK;IACV,OAAO;;;eAF8B,GAAG;gBAAU,OAAO;;IAE7B,KAAK;;;;;;EAC3C;AACD,eAAO,MAAM,GAAG;;;WAJgC,GAAG;YAAU,OAAO;CAIlC,CAAC;AACnC,eAAO,MAAM,GAAG;;;WALgC,GAAG;YAAU,OAAO;CAKlC,CAAC;AACnC,qBAAa,GAAG,CAAC,CAAC,EAAE,CAAC;IACP,QAAQ,CAAC,CAAC,CAAC,EAAE,CAAC;IAAE,QAAQ,CAAC,CAAC,CAAC,EAAE,CAAC;IAA1C,YAAqB,CAAC,CAAC,EAAE,CAAC,YAAA,EAAW,CAAC,CAAC,EAAE,CAAC,YAAA,EAAI;IAC9C,MAAM,CAAC,IAAI,qBAAgC,CAAC,GAAG,EAAE,GAAC,KAAK,GAAC,mBAA+B;CACxF"}"#
+        r#"{"version":3,"file":"user.d.ts","sources":["../../src/user.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,GAAG,MAAM,OAAO,CAAC;AAC7B,OAAO,EAAE,GAAG,EAAE,MAAM,OAAO,CAAC;AAE5B,eAAO,MAAM,OAAO;;;mBAAe,CAAC;AACpC,eAAO,MAAM,CAAC,yCAAgB,CAAC;AAC/B,eAAO,MAAM,IAAI;;;;;CAAe,CAAC;AACjC,eAAO,MAAM,WAAW,GAAI,GAAG,SAAS,GAAG,CAAC,GAAG,WAAW;IAAE,QAAQ,CAAC,GAAG,EAAE,GAAG,CAAA;CAAE;kBAAL,GAAG;CAAc,CAAC;AAC5F,eAAO,MAAM,KAAK,MAAO,GAAG,CAAC,GAAG,QAAM,CAAC;AACvC,eAAO,MAAM,EAAE,GAAI,CAAC,SAAS,MAAM,SAAS,CAAC,MAC5C,CAAC,EAAE,EAAE,SAAS,CAAC,CAAC,EAAE,OAAO,CAAC,CAAC,EAAE,MAAM,CAAC,CAAC,EAAE,MAAM,CAAC,CAAC,KAAK,CAAC,KAAK,EAAE,OAAM,CAAC;AACpE,eAAO,MAAM,EAAE,GADd,CAAC,EAAE,EAAE,SAAS,CAAC,CAAC,EAAE,OAAO,IAAI,MAAM,SAAI,MAAM,CAAC,CAAC,MAAM,cAC1B,CAAC;AAC7B,eAAO,MAAM,KAAK,GAAI,CAAC,QAAQ,CAAC,KAAG,CAAC,GAAG;IAAE,KAAK,EAAE,GAAG,CAAC;IAAC,KAAK,CAAC,EAAE,OAAO,CAAA;CAAiB,CAAC;AACtF,wBAAgB,KAAK;IACV,OAAO;;;eAF8B,GAAG;gBAAU,OAAO;;IAE7B,KAAK;;;;;;EAC3C;AACD,eAAO,MAAM,GAAG;;;WAJgC,GAAG;YAAU,OAAO;CAIlC,CAAC;AACnC,eAAO,MAAM,GAAG;;;WALgC,GAAG;YAAU,OAAO;CAKlC,CAAC;AACnC,qBAAa,GAAG,CAAC,CAAC,EAAE,CAAC;IACP,QAAQ,CAAC,CAAC,CAAC,EAAE,CAAC;IAAE,QAAQ,CAAC,CAAC,CAAC,EAAE,CAAC;IAA1C,YAAqB,CAAC,CAAC,EAAE,CAAC,YAAA,EAAW,CAAC,CAAC,EAAE,CAAC,YAAA,EAAI;IAC9C,MAAM,CAAC,IAAI,qBAAgC,CAAC,GAAG,EAAE,GAAC,KAAK,GAAC,mBAA+B;CACxF"}"#
     );
 }
 
@@ -6392,7 +6392,7 @@ fn async_arrow_concise_body_block_maps_like_tsgo() {
     );
     assert_eq!(
         read("out/a.js.map"),
-        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":";AAEA,IAAI,CAAC,GAAS,EAAE,kDACd,OAAA,IAAI,CAAC,QAAQ,CAAC,GAAG,EAAE,CAAC,IAAI,CAAC,CAAA,CAC3B,CAAC,CAD0B,EACzB,CAAC,CAAC,CAAC"}"#
+        r#"{"version":3,"file":"a.js","sources":["../a.ts"],"names":[],"mappings":";AAEA,IAAI,CAAC,GAAS,EAAE,kDACd,OAAA,IAAI,CAAC,QAAQ,CAAC,GAAG,EAAE,CAAC,IAAI,CAAC,CAAA,CAC3B,CAAC,CAD0B,EACzB,CAAC,CAAC,CAAC"}"#
     );
 }
 
@@ -6483,7 +6483,7 @@ fn declaration_type_parameter_names_end_with_their_scope_like_tsgo() {
     );
     assert_eq!(
         read("out/a.d.ts.map"),
-        r#"{"version":3,"file":"a.d.ts","sourceRoot":"","sources":["../a.ts"],"names":[],"mappings":"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"}"#
+        r#"{"version":3,"file":"a.d.ts","sources":["../a.ts"],"names":[],"mappings":"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"}"#
     );
 }
 
@@ -6743,7 +6743,7 @@ fn jsx_children_start_on_their_own_marks_like_tsgo() {
     );
     assert_eq!(
         read("out/a.js.map"),
-        r#"{"version":3,"file":"a.js","sourceRoot":"","sources":["../a.tsx"],"names":[],"mappings":";;;AAAA,yCAAiC;AACjC,2CAAmC;AAExB,QAAA,KAAK,GAAQ,gBAAI,CAAC;AAC7B,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI,EAAE,gBAAI,CAAO,CAAC;AAC3C,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI;IAAC,oBAAC,GAAG,OAAG,CAAM,CAAC;AAC7C,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAE,oBAAC,GAAG,OAAG,EAAC,gBAAI,CAAO,CAAC;AAC5C,MAAM,QAAQ,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG;IAAA,KAAK,EAAE;IAAA,KAAK,CAAO,CAAC;AACjD,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAG,GAAG;IAAE,GAAG,CAAO,CAAC"}"#
+        r#"{"version":3,"file":"a.js","sources":["../a.tsx"],"names":[],"mappings":";;;AAAA,yCAAiC;AACjC,2CAAmC;AAExB,QAAA,KAAK,GAAQ,gBAAI,CAAC;AAC7B,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI,EAAE,gBAAI,CAAO,CAAC;AAC3C,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG,gBAAI;IAAC,oBAAC,GAAG,OAAG,CAAM,CAAC;AAC7C,MAAM,IAAI,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAE,oBAAC,GAAG,OAAG,EAAC,gBAAI,CAAO,CAAC;AAC5C,MAAM,QAAQ,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC,IAAG;IAAA,KAAK,EAAE;IAAA,KAAK,CAAO,CAAC;AACjD,MAAM,KAAK,GAAG,oBAAC,GAAG,IAAC,CAAC,EAAE,CAAC;IAAG,GAAG;IAAE,GAAG,CAAO,CAAC"}"#
     );
 }
 
@@ -21844,6 +21844,157 @@ fn using_hint_and_enum_computed_names_follow_tsgo() {
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
         "main.ts(2,18): error TS2741: Property '[Symbol.dispose]' is missing in type 'AsyncDisposable' but required in type 'Disposable'.\n  This initializer has a '[Symbol.asyncDispose]()' method. Did you mean to use 'await using'?\nmain.ts(3,10): error TS1164: Computed property names are not allowed in enums.\nmain.ts(3,11): error TS2304: Cannot find name 'missing'.\n"
+    );
+}
+
+#[test]
+fn declaration_maps_of_default_exports_and_inline_maps_follow_tsgo() {
+    // tsgo #64460: the declaration emit of `export default` (an identifier, or
+    // an expression behind `_default`) maps the export assignment to the
+    // statement; #64544: a map with no sourceRoot leaves the field out. The
+    // expected bytes are tsgo's for the same files and arguments.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "const x = 1;\nexport default x;\n").expect("write a.ts");
+    fs::write(tree.path("b.ts"), "export default { value: 1 };\n").expect("write b.ts");
+    fs::write(tree.path("tsconfig.json"), "{\"compilerOptions\":{\"types\":[],\"target\":\"es2022\",\"module\":\"esnext\",\"declaration\":true,\"declarationMap\":true,\"inlineSourceMap\":true,\"outDir\":\"out\"},\"files\":[\"a.ts\",\"b.ts\"]}")
+        .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
+        "declare const x = 1;\nexport default x;\n//# sourceMappingURL=a.d.ts.map"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.d.ts.map")).expect("read out/a.d.ts.map"),
+        "{\"version\":3,\"file\":\"a.d.ts\",\"sources\":[\"../a.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,CAAC,IAAI,CAAC;AACZ,eAAe,CAAC,CAAC\"}"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        "const x = 1;\nexport default x;\n//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZXMiOlsiLi4vYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUM7QUFDWixlQUFlLENBQUMsQ0FBQyJ9"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.d.ts")).expect("read out/b.d.ts"),
+        "declare const _default: {\n    value: number;\n};\nexport default _default;\n//# sourceMappingURL=b.d.ts.map"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.d.ts.map")).expect("read out/b.d.ts.map"),
+        "{\"version\":3,\"file\":\"b.d.ts\",\"sources\":[\"../b.ts\"],\"names\":[],\"mappings\":\";IAAiB,KAAK;;AAAtB,wBAA4B\"}"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.js")).expect("read out/b.js"),
+        "export default { value: 1 };\n//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZXMiOlsiLi4vYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFlLEVBQUUsS0FBSyxFQUFFLENBQUMsRUFBRSxDQUFDIn0="
+    );
+}
+
+#[test]
+fn jsx_attribute_sibling_elements_follow_tsgo() {
+    // tsgo #64470: a JSX attribute value is one element, so the recovery that
+    // joins sibling elements with a comma wraps the outer element instead,
+    // and the printer parenthesizes that comma as the left operand of `/`.
+    // The expected bytes are tsgo's for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.tsx"), "<X a=<b/><c/> />\n").expect("write a.tsx");
+    fs::write(tree.path("tsconfig.json"), "{\"compilerOptions\":{\"types\":[],\"jsx\":\"preserve\",\"outDir\":\"out\"},\"files\":[\"a.tsx\"]}")
+        .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "a.tsx(1,1): error TS2657: JSX expressions must have one parent element.\na.tsx(1,10): error TS1003: Identifier expected.\na.tsx(1,16): error TS1109: Expression expected.\na.tsx(1,17): error TS1109: Expression expected.\n");
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.jsx")).expect("read out/a.jsx"),
+        "\"use strict\";\n(<X a=<b />/>, <c />) /  >\n;\n"
+    );
+}
+
+#[test]
+fn decorated_duplicate_private_names_follow_tsgo() {
+    // tsgo #64670: in a decorated class, a member declaration reads its own
+    // class's private name entry, where a later member kept as written
+    // replaces an earlier one; such a member and an invalid duplicate stay as
+    // written (the static ones still hoist their names). The expected bytes
+    // are tsgo's for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "declare let dec: any;\n\n@dec\nclass E {\n    static #a() {}\n    #a() {}\n    #b = 0;\n    static #b = 0;\n}\n")
+        .expect("write a.ts");
+    fs::write(tree.path("tsconfig.json"), "{\"compilerOptions\":{\"types\":[],\"target\":\"es2022\",\"noEmitHelpers\":true,\"outDir\":\"out\"},\"files\":[\"a.ts\"]}")
+        .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "a.ts(5,12): error TS2804: Duplicate identifier '#a'. Static and instance elements cannot share the same private name.\na.ts(6,5): error TS2804: Duplicate identifier '#a'. Static and instance elements cannot share the same private name.\na.ts(7,5): error TS2804: Duplicate identifier '#b'. Static and instance elements cannot share the same private name.\na.ts(8,12): error TS2804: Duplicate identifier '#b'. Static and instance elements cannot share the same private name.\n");
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        "\"use strict\";\nlet E = (() => {\n    var _E_a, _E_b;\n    let _classDecorators = [dec];\n    let _classDescriptor;\n    let _classExtraInitializers = [];\n    let _classThis;\n    var E = class {\n        static { _classThis = this; }\n        static { __setFunctionName(this, \"E\"); }\n        static {\n            const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n            E = _classThis = _classDescriptor.value;\n            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n        }\n        static #a() { }\n        #a() { }\n        #b = 0;\n        static #b = 0;\n        static {\n            __runInitializers(_classThis, _classExtraInitializers);\n        }\n    };\n    return E = _classThis;\n})();\n"
+    );
+}
+
+#[test]
+fn nested_rest_bindings_follow_tsgo() {
+    // tsgo #64422: a rest element whose name is a binding pattern becomes an
+    // assignment pattern when a top-level `using` turns the declarations into
+    // assignments. The expected bytes are tsgo's for the same file and
+    // arguments.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "using z = { [Symbol.dispose]() {} };\nvar [...[a, b]] = [0, 1];\nvar [...[d = 2, , ...[e]]] = [undefined, 1, 3];\n")
+        .expect("write a.ts");
+    fs::write(tree.path("tsconfig.json"), "{\"compilerOptions\":{\"types\":[],\"target\":\"es2022\",\"lib\":[\"esnext\"],\"noEmitHelpers\":true,\"outDir\":\"out\"},\"files\":[\"a.ts\"]}")
+        .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        "\"use strict\";\nvar z, a, b, d, e;\nconst env_1 = { stack: [], error: void 0, hasError: false };\ntry {\n    z = __addDisposableResource(env_1, { [Symbol.dispose]() { } }, false);\n    [...[a, b]] = [0, 1];\n    [...[d = 2, , ...[e]]] = [undefined, 1, 3];\n}\ncatch (e_1) {\n    env_1.error = e_1;\n    env_1.hasError = true;\n}\nfinally {\n    __disposeResources(env_1);\n}\n"
+    );
+}
+
+#[test]
+fn erased_named_imports_beside_a_default_import_follow_tsgo() {
+    // tsgo #64578: under verbatimModuleSyntax, named imports that type-only
+    // erasure empties are dropped next to a default import, while a written
+    // `{}` stays. The expected bytes are tsgo's for the same files and
+    // arguments.
+    let tree = TempTree::new();
+    fs::write(tree.path("a.ts"), "import d, { type T } from \"./b\";\nimport e, {} from \"./b\";\nexport const x: T = d + e;\n")
+        .expect("write a.ts");
+    fs::write(
+        tree.path("b.ts"),
+        "export default 1;\nexport type T = number;\n",
+    )
+    .expect("write b.ts");
+    fs::write(tree.path("tsconfig.json"), "{\"compilerOptions\":{\"types\":[],\"target\":\"es2022\",\"module\":\"esnext\",\"verbatimModuleSyntax\":true,\"outDir\":\"out\"},\"files\":[\"a.ts\",\"b.ts\"]}")
+        .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read out/a.js"),
+        "import d from \"./b\";\nimport e, {} from \"./b\";\nexport const x = d + e;\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.js")).expect("read out/b.js"),
+        "export default 1;\n"
+    );
+}
+
+#[test]
+fn an_erased_with_statement_body_follows_tsgo() {
+    // tsgo #64574: the CommonJS transform writes an empty statement for a
+    // `with` body it erases (an exported declaration without initializer).
+    // The expected bytes are tsgo's for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("a.cts"),
+        "declare const obj: object;\n\nwith (obj) export let a;\nwith (obj) var local = 2;\n",
+    )
+    .expect("write a.cts");
+    fs::write(tree.path("tsconfig.json"), "{\"compilerOptions\":{\"types\":[],\"module\":\"commonjs\",\"outDir\":\"out\"},\"files\":[\"a.cts\"]}")
+        .expect("write tsconfig.json");
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "a.cts(3,1): error TS1101: 'with' statements are not allowed in strict mode.\na.cts(3,1): error TS2410: The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.\na.cts(4,1): error TS1101: 'with' statements are not allowed in strict mode.\na.cts(4,1): error TS2410: The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.\n");
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.cjs")).expect("read out/a.cjs"),
+        "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nwith (obj)\n    ;\nwith (obj)\n    var local = 2;\n"
     );
 }
 

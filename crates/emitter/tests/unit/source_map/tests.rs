@@ -188,9 +188,12 @@ fn h2_7e_bundle_declaration_map_path_lanes_match_typescript() {
                     segment.name,
                 );
             }
+            // tsgo (#64544) omits an empty sourceRoot
+            // (`json:"sourceRoot,omitzero"`); the frozen 6.0.3 observation
+            // keeps it.
             assert_eq!(
                 generator.to_json_string(),
-                frozen,
+                frozen.replace("\"sourceRoot\":\"\",", ""),
                 "{id}: complete path-lane map replay"
             );
             let url = crate::execute::source_mapping_url_for_output(
@@ -480,7 +483,15 @@ fn serialization_shape_key_order_and_sources_content() {
     generator.add_mapping(0, 0, source(0, 0, 0), None);
     assert_eq!(
         generator.to_json_string(),
-        "{\"version\":3,\"file\":\"out.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\"AAAA\"}"
+        "{\"version\":3,\"file\":\"out.js\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\"AAAA\"}"
+    );
+    // tsgo (#64544) omits an empty sourceRoot and writes any other.
+    let mut rooted = SourceMapGenerator::new("out.js", "root/", "/project", "/project", true);
+    rooted.add_source("/project/input.ts");
+    rooted.add_mapping(0, 0, source(0, 0, 0), None);
+    assert_eq!(
+        rooted.to_json_string(),
+        "{\"version\":3,\"file\":\"out.js\",\"sourceRoot\":\"root/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\"AAAA\"}"
     );
     // sourcesContent joins as the LAST key with null holes when set.
     let mut with_content = SourceMapGenerator::new("out.js", "", "/project", "/project", true);
@@ -491,7 +502,7 @@ fn serialization_shape_key_order_and_sources_content() {
     with_content.set_source_content(0, None);
     assert_eq!(
         with_content.to_json_string(),
-        "{\"version\":3,\"file\":\"out.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"\",\"sourcesContent\":[null,\"const b = 1;\"]}"
+        "{\"version\":3,\"file\":\"out.js\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"\",\"sourcesContent\":[null,\"const b = 1;\"]}"
     );
 }
 

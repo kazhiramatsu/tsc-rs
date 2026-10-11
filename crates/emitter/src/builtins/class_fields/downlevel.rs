@@ -301,12 +301,22 @@ impl PrivateSlot {
     }
 }
 
+/// An entry of tsgo `privateEnvironment.members`: a member kept as written
+/// (`PrivateIdentifierKindUntransformed`) or a helper-backed slot.
+#[derive(Clone, Copy)]
+enum PrivateEntry {
+    Untransformed,
+    Slot(usize),
+}
+
 #[derive(Clone, Default)]
 struct PrivateEnvironment {
-    /// The slot visible to private-name references after the class declaration
-    /// scan. tsc replaces this entry for an invalid duplicate, so declaration
-    /// lowering must observe the last entry rather than its own allocation.
-    effective_slots: BTreeMap<String, usize>,
+    /// The entry visible to private-name references after the class
+    /// declaration scan. tsgo registers the members in source order and a
+    /// later member replaces the entry (an invalid duplicate, or a member kept
+    /// as written), so declaration lowering must observe the last entry rather
+    /// than its own allocation.
+    effective_slots: BTreeMap<String, PrivateEntry>,
     /// Slots own their data exactly once. The name table and declaration log
     /// refer to stable indices instead of cloning mutable accessor state.
     private_slots: Vec<PrivateSlot>,
@@ -315,8 +325,8 @@ struct PrivateEnvironment {
     /// last index remains visible through `effective_slots`; a legal accessor
     /// pair shares one slot index.
     declarations: Vec<PrivateDeclarationSlot>,
-    /// Native private names retained at ES2022 shadow transformed names in
-    /// enclosing classes, but have no helper-backed slot of their own.
+    /// Native private names retained at ES2022, whose private identifiers
+    /// stay as written (`visit_private_identifier`).
     untransformed_names: BTreeSet<String>,
     class_alias: Option<ClassBinding>,
     /// `currentClassContainer.name`: the declared class name, the last
@@ -349,10 +359,11 @@ impl PrivateEnvironment {
         index
     }
 
-    fn effective_slot(&self, name: &str) -> Option<&PrivateSlot> {
-        self.effective_slots
-            .get(name)
-            .and_then(|index| self.private_slots.get(*index))
+    fn effective_slot_index(&self, name: &str) -> Option<usize> {
+        match self.effective_slots.get(name) {
+            Some(PrivateEntry::Slot(index)) => Some(*index),
+            Some(PrivateEntry::Untransformed) | None => None,
+        }
     }
 }
 
@@ -650,6 +661,9 @@ struct PrivateDeclaration {
 struct PrivateEnvironmentPlan {
     declarations: Vec<PrivateDeclaration>,
     untransformed_names: BTreeSet<String>,
+    /// Each member kept as written, after how many of `declarations`: its
+    /// entry replaces the name's earlier one in source order.
+    untransformed_entries: Vec<(usize, String)>,
     instance_brand_owner: Option<LexicalBindingOwner>,
 }
 
@@ -4074,6 +4088,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let mut declarations = Vec::<PrivateDeclaration>::new();
         let mut auto_accessor_backings = Vec::<PrivateDeclaration>::new();
         let mut untransformed_names = BTreeSet::new();
+        let mut untransformed_entries = Vec::new();
         for member in self.array_nodes(members)? {
             let record = self.context.arena().node(member)?;
             let (name, modifiers, kind) = match &record.data {
@@ -4101,6 +4116,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let private_name = private_name.to_owned();
             let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
             if !self.should_transform_private_class_element(member, modifiers)? {
+                untransformed_entries.push((declarations.len(), private_name.clone()));
                 untransformed_names.insert(private_name);
                 continue;
             }
@@ -4156,6 +4172,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(PrivateEnvironmentPlan {
             declarations,
             untransformed_names,
+            untransformed_entries,
             instance_brand_owner,
         })
     }
@@ -4257,6 +4274,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let PrivateEnvironmentPlan {
             declarations,
             untransformed_names,
+            untransformed_entries,
             instance_brand_owner: _,
         } = plan;
         let mut environment = PrivateEnvironment {
@@ -4275,7 +4293,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             has_class_facts: false,
             will_hoist_initializers_to_constructor: false,
         };
-        for declaration in declarations {
+        let mut untransformed_entries = untransformed_entries.into_iter().peekable();
+        for (index, declaration) in declarations.into_iter().enumerate() {
+            // tsgo transformClassMembers: a member kept as written replaces
+            // the name's entry (PrivateIdentifierKindUntransformed).
+            while let Some((_, name)) =
+                untransformed_entries.next_if(|(before, _)| *before == index)
+            {
+                environment
+                    .effective_slots
+                    .insert(name, PrivateEntry::Untransformed);
+            }
             let PrivateDeclaration {
                 original,
                 name,
@@ -4346,7 +4374,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         PrivateGeneratedNameRole::Getter,
                         binding_owner,
                     )?;
-                    let previous_index = environment.effective_slots.get(&name).copied();
+                    let previous_index = environment.effective_slot_index(&name);
                     let can_extend = previous_index
                         .and_then(|index| environment.private_slots.get(index))
                         .is_some_and(|previous| {
@@ -4399,7 +4427,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         PrivateGeneratedNameRole::Setter,
                         binding_owner,
                     )?;
-                    let previous_index = environment.effective_slots.get(&name).copied();
+                    let previous_index = environment.effective_slot_index(&name);
                     let can_extend = previous_index
                         .and_then(|index| environment.private_slots.get(index))
                         .is_some_and(|previous| {
@@ -4448,12 +4476,19 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
             };
             if replaces_effective_slot {
-                environment.effective_slots.insert(name, slot_index);
+                environment
+                    .effective_slots
+                    .insert(name, PrivateEntry::Slot(slot_index));
             }
             environment.declarations.push(PrivateDeclarationSlot {
                 declaration: original,
                 slot_index,
             });
+        }
+        for (_, name) in untransformed_entries {
+            environment
+                .effective_slots
+                .insert(name, PrivateEntry::Untransformed);
         }
         Ok(environment)
     }
@@ -4570,19 +4605,41 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
     }
 
-    fn private_slot(&self, name: TransformNode) -> Result<&PrivateSlot, TransformError> {
-        self.private_slot_if_declared(name)?
-            .ok_or(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::PrivateIdentifier,
-                field: "declared private slot",
-            })
+    /// tsgo `getPrivateIdentifier(getPrivateIdentifierEnvironment(), name)`
+    /// in visitMethodOrAccessorDeclaration and transformPrivateFieldInitializer
+    /// (#64670): a member declaration reads its own class's entry, `None` when
+    /// a later member of the name is kept as written. A name with no entry
+    /// remains an internal invariant violation.
+    fn declared_private_slot(
+        &self,
+        name: TransformNode,
+    ) -> Result<Option<&PrivateSlot>, TransformError> {
+        let missing = TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::PrivateIdentifier,
+            field: "declared private slot",
+        };
+        let private_name =
+            self.private_name_text(name)
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::PrivateIdentifier,
+                    field: "private identifier text",
+                })?;
+        let environment = self.private_environments.last().ok_or(missing.clone())?;
+        match environment.effective_slots.get(private_name) {
+            Some(PrivateEntry::Untransformed) => Ok(None),
+            Some(PrivateEntry::Slot(index)) => environment
+                .private_slots
+                .get(*index)
+                .map(Some)
+                .ok_or(missing),
+            None => Err(missing),
+        }
     }
 
-    /// tsc's `accessPrivateIdentifier2` is an optional lookup for use sites:
-    /// a syntactic private name can be invalid because no enclosing private
-    /// environment declares it. Declaration planning continues to use
-    /// `private_slot` so a missing slot there remains an internal invariant
-    /// violation rather than being silently recovered.
+    /// tsgo `accessPrivateIdentifier`, an optional lookup for use sites: a
+    /// syntactic private name can be invalid because no enclosing private
+    /// environment declares it. The innermost environment with an entry
+    /// answers, and a member kept as written has no slot.
     fn private_slot_if_declared(
         &self,
         name: TransformNode,
@@ -4594,11 +4651,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     field: "private identifier text",
                 })?;
         for environment in self.private_environments.iter().rev() {
-            if environment.untransformed_names.contains(private_name) {
-                return Ok(None);
-            }
-            if let Some(slot) = environment.effective_slot(private_name) {
-                return Ok(Some(slot));
+            match environment.effective_slots.get(private_name) {
+                Some(PrivateEntry::Untransformed) => return Ok(None),
+                Some(PrivateEntry::Slot(index)) => {
+                    return Ok(environment.private_slots.get(*index));
+                }
+                None => {}
             }
         }
         Ok(None)
@@ -6069,14 +6127,26 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         parent: SyntaxKind::PropertyDeclaration,
                         field: "private name",
                     })?;
-                    let slot = self.private_slot(self.node(private_name))?.clone();
                     let is_static_member =
                         self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?;
+                    let Some(slot) = self
+                        .declared_private_slot(self.node(private_name))?
+                        .cloned()
+                    else {
+                        operations.retained_members.push(member);
+                        continue;
+                    };
                     if !slot.is_valid {
                         // tsc retains every declaration that resolves to an
                         // invalid duplicate entry, while still generating its
-                        // constructor/static recovery initializer below.
+                        // constructor/static recovery initializer below; tsgo
+                        // transformPrivateFieldInitializer returns it before
+                        // making a static field's static block.
                         operations.retained_members.push(member);
+                        if is_static_member && self.selectively_transforms_private_static_elements()
+                        {
+                            continue;
+                        }
                     }
                     if !matches!(&slot.element, PrivateElement::Field { .. }) {
                         continue;
@@ -6118,11 +6188,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         parent: SyntaxKind::MethodDeclaration,
                         field: "private name",
                     })?;
-                    let slot = self.private_slot(self.node(name))?.clone();
-                    if !slot.is_valid {
+                    let Some(slot) = self
+                        .declared_private_slot(self.node(name))?
+                        .cloned()
+                        .filter(|slot| slot.is_valid)
+                    else {
                         operations.retained_members.push(member);
                         continue;
-                    }
+                    };
                     let PrivateElement::Method { method_name } = &slot.element else {
                         return Err(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::MethodDeclaration,
@@ -6147,11 +6220,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         parent: SyntaxKind::GetAccessor,
                         field: "private name",
                     })?;
-                    let slot = self.private_slot(self.node(name))?.clone();
-                    if !slot.is_valid {
+                    let Some(slot) = self
+                        .declared_private_slot(self.node(name))?
+                        .cloned()
+                        .filter(|slot| slot.is_valid)
+                    else {
                         operations.retained_members.push(member);
                         continue;
-                    }
+                    };
                     let PrivateElement::Accessor { getter_name, .. } = &slot.element else {
                         return Err(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::GetAccessor,
@@ -6191,11 +6267,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         parent: SyntaxKind::SetAccessor,
                         field: "private name",
                     })?;
-                    let slot = self.private_slot(self.node(name))?.clone();
-                    if !slot.is_valid {
+                    let Some(slot) = self
+                        .declared_private_slot(self.node(name))?
+                        .cloned()
+                        .filter(|slot| slot.is_valid)
+                    else {
                         operations.retained_members.push(member);
                         continue;
-                    }
+                    };
                     let PrivateElement::Accessor { setter_name, .. } = &slot.element else {
                         return Err(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::SetAccessor,

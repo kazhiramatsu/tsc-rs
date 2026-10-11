@@ -20,7 +20,9 @@ use super::{statements, DeclarationTransformer};
 /// transformers/declarations/transform.go:1074-1085, 1140-1159), so the
 /// declaration keeps its range and maps to it; tsc created new nodes. The
 /// range is given to source maps only, leaving comments to `preserveJsDoc`.
-fn keep_source_map_range(
+/// Also tsgo `AssignSourceMapRange(exportAssignment, input)` in
+/// transformExportAssignment (#64460).
+pub(super) fn keep_source_map_range(
     cx: &mut TransformationContext,
     created: TransformNode,
     input: TransformNode,
