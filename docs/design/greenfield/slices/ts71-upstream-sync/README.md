@@ -290,3 +290,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 - **結果**（release build、`75274a66c`。checker の crate の `ParsedDocument` に触れたので）：full の conformance（`--workers 2
   --check`、479 s）は 0 regressions で、S5 の report と全ての構成が全ての列と digest で同じ。並列対照は記録済みの順序の 4 構成だけ、
   suites（`--check`）は 0 regressions・上がったもの無し（ratchet は変えない）。
+- **hosted と merge**：PR #746 の hosted run 38125615894（rust 11m47s、conformance 15m48s、gates pass、head `1397c519f`）、merge commit
+  `670995a6c`。
