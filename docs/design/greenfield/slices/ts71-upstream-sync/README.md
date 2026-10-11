@@ -127,3 +127,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   `*EnumComputedNameNoFlake` 9、`flakyDiagnosticsJsClassPropertyInitializedToUndefined`、`importElisionTypeofImportTypeQualifier`。
   順序に依らない診断にする修正は S2 の commit）と、partition で crash が変わる `declarationEmitUnserializableTypes`（S3）。
   18 構成の入力は S1 が触れた構文（phase の import、meta-property、import attributes）を含まず、1 checker の結果も S0 と同じ。
+- **hosted と merge**：PR #741 の hosted run 38107146066（rust 11m38s、conformance (TypeScript 7.1) 21m13s、gates pass）。
+  merge commit `67a759ffd`（2026-10-11）。
