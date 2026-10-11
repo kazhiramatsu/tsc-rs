@@ -497,14 +497,14 @@ fn jsdoc_template_prototype_index_carriers_keep_their_annotations() {
             "jsdocTemplateTag4",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/jsdoc/jsdocTemplateTag4.ts"
+                "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/jsdoc/jsdocTemplateTag4.ts"
             )),
         ),
         (
             "jsdocTemplateTag5",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/jsdoc/jsdocTemplateTag5.ts"
+                "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/jsdoc/jsdocTemplateTag5.ts"
             )),
         ),
     ] {

@@ -1,0 +1,372 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/microsoft/TypeScript.git",
+  "commit": "aa8149273b23401f0a79a5f0384c42de51888693",
+  "commit_date": "2026-10-09T23:42:02Z",
+  "profile": "7.1.0-dev-aa814927",
+  "vendored_root": "vendor/typescript-native/7.1.0-dev-aa814927/upstream",
+  "sets": [
+    {
+      "path": "tsc/testdata/tests/cases/compiler",
+      "git_tree_sha1": "ad08bc3c76ab3acd2086e3110f4b99ef3d81626a",
+      "blob_inventory_sha256": "f3a8f27218f01cd1d2c4a10f2ff50d3db8462f8a38775b5fca933ea0498aeea2",
+      "files": 6896,
+      "bytes": 4871190
+    },
+    {
+      "path": "tsc/testdata/tests/cases/conformance",
+      "git_tree_sha1": "6af25df3ecdd4a72ebe6aa695387c469ef3a7920",
+      "blob_inventory_sha256": "59a30d89fe68806e2bf3be5dfad6a2f2859751c354215fbc956b71edad860693",
+      "files": 5935,
+      "bytes": 3841389
+    },
+    {
+      "path": "tsc/testdata/tests/cases/transpile",
+      "git_tree_sha1": "d0e4420ac210519b709dd5f1a15a7cbeea90dc60",
+      "blob_inventory_sha256": "0554edfaebb7d579b072a4b48acb5a4a2b5760dd4a58d7c3aff80d0c585400c0",
+      "files": 25,
+      "bytes": 13841
+    },
+    {
+      "path": "tsc/testdata/tests/lib",
+      "git_tree_sha1": "dc0280a0cee5e76a93e1d0f02efe230929823db9",
+      "blob_inventory_sha256": "1862fce29dad7d495c4f6df325d89ceaf7203768946c46aa91960444a669b5a1",
+      "files": 4,
+      "bytes": 394949
+    },
+    {
+      "path": "tsc/internal/bundled/libs",
+      "git_tree_sha1": "1ae0de6475fa98494ecf7bd4bdad491c79e4bb3e",
+      "blob_inventory_sha256": "17300571f6c4ad75a3da1712c1d3476a596cc621758d3869e0720149a877f4f6",
+      "files": 116,
+      "bytes": 3869830
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/transpile",
+      "git_tree_sha1": "699bcac06c5ab759078c9bed296d5c662c068fdf",
+      "blob_inventory_sha256": "c0ba2a3ace3423a6a08848618f66ea7d038b1071cdfde3495769ac103d022438",
+      "files": 41,
+      "bytes": 90569
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/tsoptions",
+      "git_tree_sha1": "1147ba75128f76984c760ae096f94ebe98c3611c",
+      "blob_inventory_sha256": "270159700cb0cfdffc09dce2fe94675aa0123ede500e47c4f6fcebfb6b78f2d6",
+      "files": 70,
+      "bytes": 13835
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/config/tsconfigParsing",
+      "git_tree_sha1": "96d0bee5385cebfeffd76404d8d44b5593570262",
+      "blob_inventory_sha256": "8821f06ca52a4bfec8c0f2edda87dc5c482c149e4716641e1990d30a1ccb026b",
+      "files": 89,
+      "bytes": 48664
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/tsc",
+      "git_tree_sha1": "cd999ffed308ee8686ecd1845ffa6ac26dd72e56",
+      "blob_inventory_sha256": "d7a6718ec50126c8550702e01a12c04a51ca40206bec92077e3df32adb307477",
+      "files": 230,
+      "bytes": 2771612
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/tsbuild",
+      "git_tree_sha1": "d520cc90d9105e0ff5040ef87266cc6c7aedf1d8",
+      "blob_inventory_sha256": "8edad74b33ee580d7235d078180da63dc17d734a90e92efefcb54924731e6b5a",
+      "files": 193,
+      "bytes": 5309410
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/tscWatch",
+      "git_tree_sha1": "e3654875df38d6822e8a75771a7f02e525730563",
+      "blob_inventory_sha256": "020aa70991b4d92c07e7a0b62e8f634bf827130392d1a5061f004484113c2b00",
+      "files": 42,
+      "bytes": 131644
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/tsbuildWatch",
+      "git_tree_sha1": "a77892404be011bfe5813efc470063d8675f5e88",
+      "blob_inventory_sha256": "2e2547c81e5b51c05c4dbbc0575744673dcccff36c3419e9028be750381ca4d2",
+      "files": 65,
+      "bytes": 2630226
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/api",
+      "git_tree_sha1": "746158bfb2fb7b2d2f2b67410964842956d17688",
+      "blob_inventory_sha256": "5c74de3a63beb8165c46c931e96f3a8e808f05ac42b402c7352758c22a2421e0",
+      "files": 2,
+      "bytes": 2867
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/astnav",
+      "git_tree_sha1": "b89802f10b1476add1c4194cbcd34e61bdfe17bb",
+      "blob_inventory_sha256": "cc9350da953efae9cbaebb77af8f31c5f98d7386c4ca2a5dfb5846e14f980cfe",
+      "files": 7,
+      "bytes": 646535
+    },
+    {
+      "path": "tsc/internal/diagnostics/diagnosticMessages.json",
+      "git_blob_sha1": "18e70488747719d33101bce373caf77f8df04939",
+      "blob_inventory_sha256": "acc3ab996372516469536e5d667db76fee404653bc4bc49f78c487f7ef6436cd",
+      "files": 1,
+      "bytes": 312042
+    },
+    {
+      "path": "tsc/internal/tsoptions/declarations_generated.go",
+      "git_blob_sha1": "7f3b37706c4b90a8ace38fd7b7009371847f0676",
+      "blob_inventory_sha256": "bc118cba65b90539278d83a2feefe9072a677149b6e8a08d9b7f62c852bac393",
+      "files": 1,
+      "bytes": 58896
+    },
+    {
+      "path": "tsc/internal/tsoptions/options_generated.go",
+      "git_blob_sha1": "975913279a80c2c8a04a88dd9bee922aed9a6f2e",
+      "blob_inventory_sha256": "94120158bbfc8c07d9dcd86daeff648648937ef5a36472bbaea71cf8d8737744",
+      "files": 1,
+      "bytes": 78574
+    },
+    {
+      "path": "tsc/internal/tsoptions/commandlineoption.go",
+      "git_blob_sha1": "caacd179997d8bd686849a40f5f13fd863ab09f0",
+      "blob_inventory_sha256": "3a08d1306530a4511229c3679edc2474bba09d49ff541fe0fd64e489862a1006",
+      "files": 1,
+      "bytes": 4103
+    },
+    {
+      "path": "tsc/internal/tsoptions/enummaps.go",
+      "git_blob_sha1": "47548032da0a4143a9c303360641f44bf167e1ab",
+      "blob_inventory_sha256": "746b7c2f9449482b53529cd314ba83e1effb0c75d732027e986435872ff79639",
+      "files": 1,
+      "bytes": 1010
+    },
+    {
+      "path": "tsc/internal/core/compileroptions.go",
+      "git_blob_sha1": "0ffd0cddd4e5b6dfb77eb741e4e24c4156342215",
+      "blob_inventory_sha256": "3bb2c1b46f6cf4a9efc2b6f9416e49d4d5f3749f194a1b3f17ce162814c3d411",
+      "files": 1,
+      "bytes": 7492
+    },
+    {
+      "path": "tsc/internal/core/options_generated.go",
+      "git_blob_sha1": "911b2d6af13d6cc6df682862835f3b5290bcc2f3",
+      "blob_inventory_sha256": "e190946574833714eeb15440de1b929b2de3cf73d62c237874bf88326334f57d",
+      "files": 1,
+      "bytes": 40283
+    },
+    {
+      "path": "tsc/internal/ast/kind_generated.go",
+      "git_blob_sha1": "23f2c9ccf9de63437971c8e700c3f791e88bfc81",
+      "blob_inventory_sha256": "5bbe21d23381bc61fe4f786e5c7e6a6f73c7e26681a0423672661bd316ccef49",
+      "files": 1,
+      "bytes": 26900
+    },
+    {
+      "path": "tsc/internal/api/encoder/encoder_generated.go",
+      "git_blob_sha1": "3f695dabfb03a840cc66b265079a30bc99d0962f",
+      "blob_inventory_sha256": "d209972b5558b195caa1b636e012f4a6a847fca8324ff38c760346329d6e9b83",
+      "files": 1,
+      "bytes": 35696
+    },
+    {
+      "path": "tsc/testdata/fixtures/services/mapCode.ts",
+      "git_blob_sha1": "11d9fb5acf2f93955c39cad8dc27e51c818edfb7",
+      "blob_inventory_sha256": "e7f5bc95fd2654edb5a7e5b43f5340112e8f733a850cef52ccae2096c287c33c",
+      "files": 1,
+      "bytes": 9772
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/cs-CZ.json.gz",
+      "git_blob_sha1": "6ac304636b4b2f4e6a2450287636e2cc873e070f",
+      "blob_inventory_sha256": "fd44304cfacbf8036ee310af8e3010e6ccc9ddbf2b389d947360f94e84f13eb1",
+      "files": 1,
+      "bytes": 87618
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/de-DE.json.gz",
+      "git_blob_sha1": "3834be5a9a12728709aa67f9a0bc9b0be4d47f6d",
+      "blob_inventory_sha256": "043771d2ccea00847e080a1732638245784151950194f443c02a6956b1bca670",
+      "files": 1,
+      "bytes": 89290
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/es-ES.json.gz",
+      "git_blob_sha1": "cde61718c84c14fd970c48abf324bbf8b2ba0456",
+      "blob_inventory_sha256": "2a08938823b8dbb205c3f98c6cc1d54ce59277eecce27a7cbcc8f036bd295eb3",
+      "files": 1,
+      "bytes": 85725
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/fr-FR.json.gz",
+      "git_blob_sha1": "8726081d6bf0f66c3e1d66c2f26262efbeb102be",
+      "blob_inventory_sha256": "81dc58f7107ab9f30afb01993a5f1b7880c78427aaac2c1ac3ed0689aa89eb25",
+      "files": 1,
+      "bytes": 87608
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/it-IT.json.gz",
+      "git_blob_sha1": "72c2fcbf45775442ef0513d01dcf0178c9b5079e",
+      "blob_inventory_sha256": "338c8c6371d112bc2517eb0d741ebad0341e16cc215e39f52c5555199c6c1b35",
+      "files": 1,
+      "bytes": 84205
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/ja-JP.json.gz",
+      "git_blob_sha1": "afafe4189d32a3c68f6538a27c72cfa91435a16a",
+      "blob_inventory_sha256": "ac31e088c4f8242f574e43c0d5a44f7e9dfaab6abf349fb877791a0475f62455",
+      "files": 1,
+      "bytes": 89903
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/ko-KR.json.gz",
+      "git_blob_sha1": "21bb28dc6f382bd29f131467a935ef64caae4862",
+      "blob_inventory_sha256": "4d83f145550c98e97ac953bd0ca3fdb7d2232a1108f088ea1478afe7a5ec0e0a",
+      "files": 1,
+      "bytes": 85612
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/pl-PL.json.gz",
+      "git_blob_sha1": "63d425689962d295394e6b231ace3beda81cdc65",
+      "blob_inventory_sha256": "e113c94a8005873847ff1050d91c9e9f8a1858f505c77b13691492146581c3f4",
+      "files": 1,
+      "bytes": 89950
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/pt-BR.json.gz",
+      "git_blob_sha1": "6d699f3a96c47052a03241a5614c278b5ee496b0",
+      "blob_inventory_sha256": "83e0c6aafacdafc26e2f0f9714d2d7aea9d3c20c47358b1c5e26cb4e46156ac5",
+      "files": 1,
+      "bytes": 84354
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/ru-RU.json.gz",
+      "git_blob_sha1": "1edb434eccdf1134a095cb025a3c4e72c4b9b6f0",
+      "blob_inventory_sha256": "6fb87038216c1b7299b20d699702a82cc70c677d503d860766f279963ef4622e",
+      "files": 1,
+      "bytes": 100048
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/tr-TR.json.gz",
+      "git_blob_sha1": "0d8d69ea479aa922bfd1d1e71f9fb6227590e61b",
+      "blob_inventory_sha256": "457d93409718e1763b1c67a779dcbc154d9f8af94f082ae70ec1afb9ed540098",
+      "files": 1,
+      "bytes": 85327
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/zh-CN.json.gz",
+      "git_blob_sha1": "70860134fe3e9087c78647793b9df7e6c11667b8",
+      "blob_inventory_sha256": "b8af45504d4622ae0be76441aa918c7f56528379018151c2967c7ed473a83d5e",
+      "files": 1,
+      "bytes": 84706
+    },
+    {
+      "path": "tsc/internal/diagnostics/loc/zh-TW.json.gz",
+      "git_blob_sha1": "39cf34302c3748f9c8d35f83c96a2e089633dec9",
+      "blob_inventory_sha256": "a8fd74254c39b06ee8fcb5911484cd68068cc6a3c88cfd1e57878b3d267a9e50",
+      "files": 1,
+      "bytes": 84704
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.errors.txt",
+      "blob_inventory_sha256": "59d14286e8ffe193387c3e08b374963c1a0add49805226e7d05c7574d63ef052",
+      "files": 3507,
+      "bytes": 6958300
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.js",
+      "blob_inventory_sha256": "9eaf9e4098a0db4b5a119d9463855237b17c16cb33b356ec62cae325ad3737f1",
+      "files": 6232,
+      "bytes": 9013611
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.js.map",
+      "blob_inventory_sha256": "1f18054738d95e19a3c82ce92e1103533e96609c1bea2c4883963e381b06d54c",
+      "files": 131,
+      "bytes": 671928
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.sourcemap.txt",
+      "blob_inventory_sha256": "8a7c9221673026e5af4c006fe7a7ff2c2a9fc244178cf204202c599a6a4fba5a",
+      "files": 138,
+      "bytes": 3400063
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.types",
+      "blob_inventory_sha256": "1d8a6a5a9e35cf4bb56443cb66ef3f07c6e01dc67057b9269aa67acf75fd1386",
+      "files": 6756,
+      "bytes": 31191985
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.symbols",
+      "blob_inventory_sha256": "bfbcf151ca927820e271783c790e94ef2f0640870aa957cad4be5521a046b99e",
+      "files": 6756,
+      "bytes": 24598264
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.trace.json",
+      "blob_inventory_sha256": "3b6bad0f8a48924020ad51f045c019c3a9d8aaf99bbf444a383f9a89112f4d2e",
+      "files": 73,
+      "bytes": 336927
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.errors.txt",
+      "blob_inventory_sha256": "1935c4e2c903c41b7be5cdb5097df73846380fced1fb27327d3fb9bc846eebea",
+      "files": 3885,
+      "bytes": 10996843
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.js",
+      "blob_inventory_sha256": "2875cba45e63e2d27c755d24f667d8b7b129f06e73ff46ae1866fa96ef18b02c",
+      "files": 6046,
+      "bytes": 9394997
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.js.map",
+      "blob_inventory_sha256": "fa0e3d82386341cbec393e3f5edeb998c32d456f2fce20d90e451f10e94f090a",
+      "files": 20,
+      "bytes": 68928
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.sourcemap.txt",
+      "blob_inventory_sha256": "967593979d2f90a2d56cff99ce00b9a9d768f0da4c60e2c439ea06c6d65773d7",
+      "files": 20,
+      "bytes": 220784
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.types",
+      "blob_inventory_sha256": "a047de420f8657b8b5e60f1e1a25b734580199f82467bc616ad606f18e4ee9a9",
+      "files": 6120,
+      "bytes": 13101000
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.symbols",
+      "blob_inventory_sha256": "c51e54453c7f2a08c07fe1bb5e3ed8c46b0c08c72ddfe41b9e98490da11c106d",
+      "files": 6120,
+      "bytes": 20191143
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.trace.json",
+      "blob_inventory_sha256": "b80a6c61edc1c7f31d8e032a8dcb7218b8d4d76769b7f03430d25229add3b5b8",
+      "files": 76,
+      "bytes": 354654
+    }
+  ],
+  "baseline_names": {
+    "path": "baseline-names.txt",
+    "entries": 45895,
+    "sha256": "288beed05a6c4fe970cc2ec6ab6b11f1183cd70340a90d0e536a9a28f669f10c"
+  }
+}

@@ -168,8 +168,8 @@ impl CompilerOptionValueKind {
     }
 }
 
-/// TypeScript 7.1's `LibMap` insertion order (`tsoptions/enummaps.go` at the
-/// vendored native profile). This single catalog backs both compiler-option
+/// TypeScript 7.1's `LibMap` insertion order (`tsoptions/declarations_generated.go`
+/// at the vendored native profile). This single catalog backs both compiler-option
 /// conversion and standard-library loading, so aliases and diagnostic
 /// choices cannot drift apart.
 pub static TYPESCRIPT_7_1_LIBRARIES: &[CompilerOptionNamedStringValue] = &[
@@ -578,10 +578,6 @@ pub static TYPESCRIPT_7_1_LIBRARIES: &[CompilerOptionNamedStringValue] = &[
         value: "lib.es2025.float16.d.ts",
     },
     CompilerOptionNamedStringValue {
-        name: "esnext.promise",
-        value: "lib.es2025.promise.d.ts",
-    },
-    CompilerOptionNamedStringValue {
         name: "esnext.array",
         value: "lib.es2026.array.d.ts",
     },
@@ -594,12 +590,16 @@ pub static TYPESCRIPT_7_1_LIBRARIES: &[CompilerOptionNamedStringValue] = &[
         value: "lib.es2026.error.d.ts",
     },
     CompilerOptionNamedStringValue {
-        name: "esnext.iterator",
-        value: "lib.es2026.iterator.d.ts",
-    },
-    CompilerOptionNamedStringValue {
         name: "esnext.typedarrays",
         value: "lib.es2026.typedarrays.d.ts",
+    },
+    CompilerOptionNamedStringValue {
+        name: "esnext.iterator",
+        value: "lib.esnext.iterator.d.ts",
+    },
+    CompilerOptionNamedStringValue {
+        name: "esnext.promise",
+        value: "lib.esnext.promise.d.ts",
     },
     CompilerOptionNamedStringValue {
         name: "esnext.date",
@@ -616,6 +616,10 @@ pub static TYPESCRIPT_7_1_LIBRARIES: &[CompilerOptionNamedStringValue] = &[
     CompilerOptionNamedStringValue {
         name: "esnext.intl",
         value: "lib.esnext.intl.d.ts",
+    },
+    CompilerOptionNamedStringValue {
+        name: "esnext.modulesource",
+        value: "lib.esnext.modulesource.d.ts",
     },
     CompilerOptionNamedStringValue {
         name: "esnext.sharedmemory",

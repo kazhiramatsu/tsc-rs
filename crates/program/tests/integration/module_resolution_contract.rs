@@ -1442,7 +1442,7 @@ fn types_versions_probe_past_package_directory_misses_while_the_commonjs_index_d
         ModuleResolver::new(&host, &options).expect("create missing package-field parent resolver");
     // tsgo tryLoadModuleUsingPaths has no onlyRecordFailures: the substitution
     // file is probed although the package field's parent directory is
-    // missing, and it resolves (tsgo 7.1.0-dev-19dadef8 on this layout).
+    // missing, and it resolves (tsgo 7.1.0-dev-aa814927 on this layout).
     let module = resolved(
         resolver
             .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs)
@@ -1668,7 +1668,7 @@ fn node_esm_index_exception_and_commonjs_index_run_after_a_types_versions_miss()
 
     // tsgo tryLoadModuleUsingPaths continues past a matched mapping whose
     // substitutions all fail: the `types` file is probed, then the index
-    // (tsgo 7.1.0-dev-19dadef8 on this layout resolves index.d.ts).
+    // (tsgo 7.1.0-dev-aa814927 on this layout resolves index.d.ts).
     let host = build();
     let mut resolver =
         ModuleResolver::new(&host, &options).expect("create CommonJS typesVersions-miss resolver");
@@ -8594,7 +8594,7 @@ fn types_versions_targets_follow_tsgo_get_paths() {
     // tsgo packagejson VersionPaths.GetPaths: only an array value is a
     // mapping, an element that is not a string is the empty string, and
     // tryLoadModuleUsingPaths replaces the first `*` literally (probes G and
-    // H of the ts71-suites P4-3 record, tsgo 7.1.0-dev-19dadef8).
+    // H of the ts71-suites P4-3 record, tsgo 7.1.0-dev-aa814927).
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .file(

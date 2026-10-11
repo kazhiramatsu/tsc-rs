@@ -257,7 +257,7 @@ fn misspelled_exports_and_class_type_parameters_keep_suggestions() {
         "lib.es5.d.ts".to_owned(),
         std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"
+            "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"
         ))
         .expect("vendored lib.es5.d.ts"),
     )];
@@ -296,7 +296,7 @@ fn misspelled_exports_and_class_type_parameters_keep_suggestions() {
 fn unchecked_js_spelling_rows_publish_as_suggestions() {
     let lib_path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"
     );
     let result = check_program_with_libs(
         &[InputFile::new(

@@ -95,7 +95,7 @@ def update_ratchet(path, results):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--profile", default="7.1.0-dev-19dadef8")
+    parser.add_argument("--profile", default="7.1.0-dev-aa814927")
     parser.add_argument("--filter")
     parser.add_argument("--dump", help="write the differing baselines under this directory")
     ratchet_mode = parser.add_mutually_exclusive_group()

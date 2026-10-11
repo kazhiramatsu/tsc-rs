@@ -108,7 +108,7 @@ fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
         .expect("read embedded library")
         .expect("embedded ES5 library exists");
     let vendored = std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
-        "../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/lib.es5.d.ts",
+        "../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs/lib.es5.d.ts",
     ))
     .expect("read pinned ES5 library");
     assert!(host
@@ -125,6 +125,6 @@ fn embedded_library_overlay_owns_the_pinned_catalog_bytes() {
         host.read_directory(library_directory)
             .expect("list embedded library directory")
             .len(),
-        113
+        116
     );
 }

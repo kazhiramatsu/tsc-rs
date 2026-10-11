@@ -22,6 +22,7 @@ import (
 
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/testutil/baseline"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 const tsrsDumpVariable = "TSRS_TSCTESTS_DUMP"
@@ -127,12 +128,12 @@ func tsrsString(value string) *string {
 
 // Chtimes records an edit's touch (an edit sets the time to the clock's
 // next reading) and changes the time.
-func (f *testFs) Chtimes(path string, aTime time.Time, mTime time.Time) error {
+func (f *testFs) Chtimes(path tspath.RootedPath, aTime time.Time, mTime time.Time) error {
 	if value, ok := tsrsFsRecorders.Load(f); ok {
 		recorder := value.(*tsrsRecorder)
 		recorder.mu.Lock()
 		if recorder.depth == 0 {
-			recorder.ops = append(recorder.ops, tsrsOp{Op: "touch", Path: path})
+			recorder.ops = append(recorder.ops, tsrsOp{Op: "touch", Path: string(path)})
 		}
 		recorder.mu.Unlock()
 	}

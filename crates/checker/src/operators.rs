@@ -3168,7 +3168,7 @@ impl<'a> CheckerState<'a> {
             } else if is_callee {
                 self.grammar_error_on_node(
                     name,
-                    &tsc_diagnostics::gen::_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_or_defer,
+                    &tsc_diagnostics::gen::_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_defer_or_source,
                     &[&name_text],
                 );
             } else {

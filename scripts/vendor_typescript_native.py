@@ -12,8 +12,8 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/internal/bundled/libs                         the embedded standard libraries
   tsc/internal/diagnostics/diagnosticMessages.json  the diagnostic message catalog
   tsc/internal/diagnostics/loc/<locale>.json.gz     the localized messages (13 locales)
-  tsc/internal/tsoptions/{declscompiler,declsbuild,declswatch,commandlineoption,enummaps}.go
-  tsc/internal/core/{compileroptions,watchoptions}.go
+  tsc/internal/tsoptions/{declarations_generated,options_generated,commandlineoption,enummaps}.go
+  tsc/internal/core/{compileroptions,options_generated}.go
                                                     the option declarations and enum values
   tsc/testdata/baselines/reference/{compiler,conformance}/*.errors.txt
   tsc/testdata/baselines/reference/{compiler,conformance}/*.js
@@ -79,14 +79,14 @@ LOCALES = ["cs-CZ", "de-DE", "es-ES", "fr-FR", "it-IT", "ja-JP", "ko-KR", "pl-PL
 FILES = [
     "tsc/internal/diagnostics/diagnosticMessages.json",
     # The command-line option declarations the help, --init and
-    # --showConfig read (scripts/tsgo_option_declarations.py).
-    "tsc/internal/tsoptions/declscompiler.go",
-    "tsc/internal/tsoptions/declsbuild.go",
-    "tsc/internal/tsoptions/declswatch.go",
+    # --showConfig read (scripts/tsgo_option_declarations.py), generated
+    # upstream from tools/scripts/tsc/options.ts.
+    "tsc/internal/tsoptions/declarations_generated.go",
+    "tsc/internal/tsoptions/options_generated.go",
     "tsc/internal/tsoptions/commandlineoption.go",
     "tsc/internal/tsoptions/enummaps.go",
     "tsc/internal/core/compileroptions.go",
-    "tsc/internal/core/watchoptions.go",
+    "tsc/internal/core/options_generated.go",
     # The kind numbers and the encoder's per-kind tables the API's source
     # file encoder follows (scripts/generate_api_encoder.py).
     "tsc/internal/ast/kind_generated.go",

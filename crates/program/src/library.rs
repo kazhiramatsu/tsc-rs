@@ -71,7 +71,7 @@ impl LibraryCatalog {
     /// The number of distinct files the entries name (several aliases share
     /// a file).
     pub const fn distinct_file_count(&self) -> usize {
-        99
+        102
     }
 
     /// Resolve one raw `compilerOptions.lib` key.

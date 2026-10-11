@@ -16,9 +16,11 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORK = ROOT / "target/typescript7"
+# The real path: a worktree may link target/typescript7 to a shared one, and
+# go.work names its modules relative to where it really is.
+WORK = (ROOT / "target/typescript7").resolve()
 UPSTREAM = WORK / "upstream"
-PIN = "19dadef8888ba5b27d8b9f622480745cf623e020"
+PIN = "aa8149273b23401f0a79a5f0384c42de51888693"
 REMOTE = "https://github.com/microsoft/TypeScript.git"
 TOOLCHAIN = "go1.27.1"
 

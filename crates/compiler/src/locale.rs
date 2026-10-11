@@ -35,7 +35,7 @@ macro_rules! catalog_bytes {
     ($name:literal) => {
         include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/diagnostics/loc/",
+            "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/diagnostics/loc/",
             $name,
             ".json.gz"
         ))

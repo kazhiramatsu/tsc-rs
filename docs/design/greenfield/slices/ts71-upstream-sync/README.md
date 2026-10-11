@@ -40,3 +40,44 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 ## 決定（2026-10-11）
 
 - 利用者の選択：**今の main（`aa8149273`）に追従する**。7.1 の beta の tag が出たら、その差分だけもう一度追従する。
+
+## S0 再 vendor（2026-10-11）
+
+- **profile**：`vendor/typescript-native/7.1.0-dev-aa814927`（`aa8149273b23401f0a79a5f0384c42de51888693`、59,618 file。manifest を
+  検査済み）。同じ commit の tsgo の tsc と tsc -b の場面を記録した（`tsctests-scenarios.json`。記録の実行で tsgo の test は全ての
+  baseline を再現した）。tsgo の binary は `target/typescript7/bin/tsc-aa814927`（repository の外）。
+- **本家の配置の変更に合わせた道具**：
+  - option の宣言は本家で生成になった（`tools/scripts/tsc/generate-options.ts`）。`tsoptions/declscompiler.go`・`declsbuild.go`・
+    `declswatch.go` は `declarations_generated.go`（と `options_generated.go`）に、core の enum と `CompilerOptions` の struct は
+    `core/options_generated.go` に移り、watch の option は無くなった（`core/watchoptions.go` を削除）。vendor する file と
+    `scripts/tsgo_option_declarations.py` は新しい file を読む。
+  - file の path に型が付いた（#64159）：tsc の場面の記録の `testFs.Chtimes` と API の encoder の dump の道具は `tspath` の型を使う。
+  - `scripts/typescript7.py` は `aa8149273` を pin し、`target/typescript7` の実体の path を使う（worktree が共有の checkout に
+    link していると、`go.work` の module の相対 path が合わない）。
+- **切り替え**：profile の名前を使う所（44 file）、生成物（diagnostics：message 8 件を追加、18061 は `source` も挙げる。option：
+  watch の option が無くなり help の WATCH OPTIONS の節も無くなる（tsgo の `printAllHelp`）、library 3 件（`esnext.iterator`・
+  `esnext.promise`・`esnext.modulesource`）、help が省く `module` の値。API の encoder と decoder の表：tsgo の `SourceKeyword` で
+  以降の kind が 1 つずれる）、library の catalog（tsgo の `LibMap`、116 entry・102 file）と埋め込みの library（116 file）。古い
+  profile と ratchet を除いた（計画では「終わり」に除くはずだったが、runner と CI は新しい profile だけを使い、古い ratchet を検査する
+  ものは無いので S0 で除いた。古い答えは git の履歴と `target/typescript7/bin/tsc-19dadef8` で比べられる）。
+- **test**：tsgo `19dadef8` の答えで pin した test を `aa8149273` の答えに替えた（API の encoder の fixture を encode し直し、session
+  の test の node の handle・encoding・kind の引数はずれた kind、CLI の contract は tsgo の新しい出力（`--lib` の値、build info の
+  library の version、WATCH OPTIONS が無い）、数の pin は新しい profile の数）。
+- **新しい profile での状態**（release build、`e0fcda2dd`。ratchet は `--update` で作り直した：`7.1.0-dev-aa814927.tsv` に 13,478
+  configuration、`suites-7.1.0-dev-aa814927.tsv` に 748 baseline）：
+  - conformance：configuration 15,339（`19dadef8` では 15,228）、lane A 13,577（13,466）。errors full 13,475・mismatch 80・text 2・
+    category 1・harness error 19（content mapper 15 は前から、新しい 4 のうち 2 は crash）、emit mismatch 65、types mismatch 143、
+    symbols mismatch 83、sourcemap mismatch 11、trace mismatch 1。
+  - suites：api 2/2、config 87/89、transpile 38/41、tsbuild 152/193、tsbuildWatch 49/65、tsc 208/229、tscWatch 40/42、
+    tsoptions 63/87。
+  - 違いの class（S1 以降で直す）：source phase import（`importSource/*`、#63915：errors 約 30・emit 約 25・symbols 約 25）、
+    本家の修正の新しい test（enum の computed name の NoFlake 9、noFlakyDiagnostics 系、declaration emit の merged／default の
+    export alias・re-export の index・reverse mapped type・循環と省略の報告（crash 2）、emit の with 文・入れ子の using の rest・
+    JSX の属性・decorated class の private name・inline の source map）、types と symbols（`duplicatePackage_*` ほか checker の
+    変更）、text（18116 の新しい message）、suites の watch の option の削除（tsoptions）と `tsbuild/sample` 系。
+- **client の test**（`aa8149273` の `packages/typescript`、Node 25、release `e0fcda2dd`）：tsgo `aa8149273` は sync 356/356・
+  async 365/365。tsc-rs は sync 6/356、async は 2 件目の後で client が待ち続けるので止めた。新しい client は server を
+  `--useCaseSensitiveFileNames=<bool>` と callback の既定（`realpath:identity`・`stat:fakeStat`・`writeFile:noop`・
+  `removeFile:noop`、tsgo の `internal/api/callbackfs.go`）を付けて起動し、tsc-rs の `--api` はどちらも受け付けずに終わる（flag
+  だけを wrapper で除いても callback の名前で終わる）。API の slice（最後の S）で直す。main（`19dadef8` の client）では sync
+  310/327・async 318/335 だった。

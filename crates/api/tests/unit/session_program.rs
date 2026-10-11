@@ -367,7 +367,7 @@ fn node_handles_name_a_files_encoded_nodes() {
         call(
             &session,
             "getModeForUsageLocation",
-            with(json!({ "file": "src/index.ts", "usage": "1.307./app/src/index.ts" })),
+            with(json!({ "file": "src/index.ts", "usage": "1.308./app/src/index.ts" })),
         )
         .unwrap_err(),
         "api: client error: usage must be a StringLiteralLike node"

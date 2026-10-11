@@ -8,7 +8,7 @@ compiler and conformance reference baselines (`baseline-names.txt`).
 
 | Profile | Commit | Contents |
 | --- | --- | --- |
-| `7.1.0-dev-19dadef8` | `19dadef8888ba5b27d8b9f622480745cf623e020` (main, 2026-09-29; no 7.1 tag yet) | `tsc/testdata/tests/cases/{compiler,conformance}`, `tsc/testdata/tests/lib`, `tsc/internal/bundled/libs`, `tsc/internal/diagnostics/diagnosticMessages.json`, and the `*.errors.txt`, `*.js`, `*.js.map` and `*.sourcemap.txt` files of `tsc/testdata/baselines/reference/{compiler,conformance}` |
+| `7.1.0-dev-aa814927` | `aa8149273b23401f0a79a5f0384c42de51888693` (main, 2026-10-09; no 7.1 tag yet) | `tsc/testdata/tests/cases/{compiler,conformance,transpile}`, `tsc/testdata/tests/lib`, `tsc/internal/bundled/libs`, `tsc/internal/diagnostics/diagnosticMessages.json` and the localized messages, the option declarations (`tsc/internal/tsoptions/declarations_generated.go` and its neighbours, `tsc/internal/core/{compileroptions,options_generated}.go`), the kind and API encoder tables, the reference baselines of `tsc/testdata/baselines/reference/{compiler,conformance}` (`*.errors.txt`, `*.js`, `*.js.map`, `*.sourcemap.txt`, `*.types`, `*.symbols`, `*.trace.json`) and of the transpile, tsoptions, tsconfig parsing, tsc, tsc -b, watch, API and astnav suites, and `tsctests-scenarios.json` (the tsc and tsc -b scenarios recorded by `scripts/tsctests_scenarios.py`) |
 
 Produce or verify a profile with:
 

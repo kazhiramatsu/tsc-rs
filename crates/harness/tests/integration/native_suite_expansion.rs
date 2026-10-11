@@ -18,7 +18,7 @@ use tsc_harness::upstream_suites::native::{
     NativeSuite,
 };
 
-const PROFILE: &str = "7.1.0-dev-19dadef8";
+const PROFILE: &str = "7.1.0-dev-aa814927";
 
 fn workspace() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -30,7 +30,7 @@ fn native_expansion_reproduces_the_reference_baseline_configurations() {
     let cases = profile.cases().expect("native cases");
     assert_eq!(
         cases.len(),
-        6_838 + 5_910,
+        6_895 + 5_934,
         "TestLocal enumerates every .ts/.tsx case"
     );
 
@@ -217,7 +217,7 @@ fn native_vendored_inputs_match_the_manifest() {
         manifest.repository,
         "https://github.com/microsoft/TypeScript.git"
     );
-    assert_eq!(manifest.commit, "19dadef8888ba5b27d8b9f622480745cf623e020");
+    assert_eq!(manifest.commit, "aa8149273b23401f0a79a5f0384c42de51888693");
     assert_eq!(manifest.profile, PROFILE);
     let upstream = profile.upstream_root();
     let mut vendored = 0;
@@ -246,17 +246,15 @@ fn native_vendored_inputs_match_the_manifest() {
         }
         vendored += rows.len();
     }
-    // 32,680 inputs of the first profile plus the 12,779 `.types` and 12,779
-    // `.symbols` baselines vendored for the type and symbol comparison, the
-    // 148 `.trace.json` baselines of the trace comparison, the 25 cases and
-    // 41 baselines of the transpile suite, the 80 command-line and 87
-    // tsconfig parsing baselines, the 224 tsc and 192 tsc -b baselines, the
-    // 7 Go sources of the option declarations and 13 message catalogs the
-    // help, `--init`, `--showConfig` and `--locale` read, the 42 tsc
-    // --watch and 65 tsc -b --watch baselines, the 2 API encoder
-    // baselines and the 2 Go sources of the encoder's tables, and the 7
-    // token navigation baselines and the file they navigate.
-    assert_eq!(vendored, 59_174);
+    // Every set the manifest lists: the compiler and conformance cases and
+    // their baselines (`.errors.txt`, `.js`, `.js.map`, `.sourcemap.txt`,
+    // `.types`, `.symbols`, `.trace.json`), the transpile cases and
+    // baselines, the command-line and tsconfig parsing, tsc, tsc -b and
+    // watch baselines, the libraries, the message catalogs and option
+    // declarations the help, `--init`, `--showConfig` and `--locale` read,
+    // the API encoder's baselines and tables, and the token navigation
+    // baselines and the file they navigate.
+    assert_eq!(vendored, 59_618);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()

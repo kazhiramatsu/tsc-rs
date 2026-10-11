@@ -6,7 +6,7 @@ use tsc_diagnostics::{gen, DiagnosticMessage, MessageCatalog};
 use crate::locale::Locale;
 use crate::options::{
     DefaultValue, EnumValue, OptionDeclaration, OptionKind, BUILD_OPTION,
-    COMMON_OPTIONS_WITH_BUILD, OPTIONS_FOR_BUILD, OPTIONS_FOR_WATCH,
+    COMMON_OPTIONS_WITH_BUILD, OPTIONS_FOR_BUILD,
 };
 use crate::system::System;
 
@@ -245,17 +245,6 @@ impl<'a> Help<'a> {
             true,
             None,
             Some(&after),
-        ));
-        let before_watch = self.text(
-            &gen::Including_watch_w_will_start_watching_the_current_project_for_the_file_changes_Once_set_you_can_config_watch_mode_with,
-        );
-        let watch = OPTIONS_FOR_WATCH.iter().collect::<Vec<_>>();
-        output.push_str(&self.section(
-            &self.text(&gen::WATCH_OPTIONS),
-            &watch,
-            false,
-            Some(&before_watch),
-            None,
         ));
         output.push_str(&self.build_section(&OPTIONS_FOR_BUILD.iter().collect::<Vec<_>>()));
         output

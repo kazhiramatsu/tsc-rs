@@ -10,7 +10,7 @@ use std::fs;
 use crate::codegen_common::{find_workspace_root, rustfmt_text, write_generated};
 
 const DIAGNOSTIC_MESSAGES_PATH: &str =
-    "vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/diagnostics/diagnosticMessages.json";
+    "vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/diagnostics/diagnosticMessages.json";
 const GENERATED_PATH: &str = "crates/diagnostics/src/gen.rs";
 
 #[derive(Clone, Debug)]

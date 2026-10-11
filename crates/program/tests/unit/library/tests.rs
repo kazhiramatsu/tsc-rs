@@ -20,8 +20,8 @@ fn physical_library_priority_accepts_optional_filename_affixes() {
 #[test]
 fn typescript_7_1_catalog_pins_aliases_counts_and_target_defaults() {
     let catalog = LibraryCatalog::typescript_7_1("/vendor/lib");
-    assert_eq!(catalog.logical_entry_count(), 115);
-    assert_eq!(catalog.distinct_file_count(), 99);
+    assert_eq!(catalog.logical_entry_count(), 116);
+    assert_eq!(catalog.distinct_file_count(), 102);
     assert_eq!(catalog.option_file_name("es6"), Some("lib.es2015.d.ts"));
     assert_eq!(catalog.option_file_name("es2026"), Some("lib.es2026.d.ts"));
     assert_eq!(
@@ -30,7 +30,11 @@ fn typescript_7_1_catalog_pins_aliases_counts_and_target_defaults() {
     );
     assert_eq!(
         catalog.option_file_name("esnext.iterator"),
-        Some("lib.es2026.iterator.d.ts")
+        Some("lib.esnext.iterator.d.ts")
+    );
+    assert_eq!(
+        catalog.option_file_name("esnext.modulesource"),
+        Some("lib.esnext.modulesource.d.ts")
     );
     assert_eq!(catalog.option_file_name("DOM"), None);
     assert_eq!(catalog.option_file_name("lib.dom.d.ts"), None);

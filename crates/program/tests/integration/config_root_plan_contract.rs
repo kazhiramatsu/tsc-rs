@@ -1071,7 +1071,7 @@ fn undefined_files_presence_suppresses_no_input_diagnostics() {
 
 /// tsgo applyExtendedConfig: `files: null` is written, so the base config's
 /// files are not inherited and the default include applies (checked against
-/// tsgo 7.1.0-dev-19dadef8 `--showConfig`; tsc 6.0.3 inherited them).
+/// tsgo 7.1.0-dev-aa814927 `--showConfig`; tsc 6.0.3 inherited them).
 #[test]
 fn own_null_files_blocks_inheritance() {
     let host = MemoryConfigHost::default()
@@ -1093,7 +1093,7 @@ fn own_null_files_blocks_inheritance() {
 }
 
 /// A written property blocks the inheritance even without a value (tsgo
-/// applyExtendedConfig's `Has`; checked against tsgo 7.1.0-dev-19dadef8
+/// applyExtendedConfig's `Has`; checked against tsgo 7.1.0-dev-aa814927
 /// `--showConfig`, where the default include applies).
 #[test]
 fn undefined_duplicate_include_blocks_inheritance() {
@@ -1813,7 +1813,7 @@ fn published_compiler_options_strip_jsonc_prototype_state_recursively() {
 /// tsgo applyExtendedConfig reads the extended config's own keys (a JSONC
 /// `__proto__` is an ordinary key), and any key the extending config writes,
 /// even without a value, blocks the inheritance (checked against tsgo
-/// 7.1.0-dev-19dadef8 `--showConfig`).
+/// 7.1.0-dev-aa814927 `--showConfig`).
 #[test]
 fn jsonc_prototype_keys_neither_supply_nor_block_inheritance() {
     let inherited = MemoryConfigHost::default()
@@ -2482,7 +2482,7 @@ fn exact_drive_root_extends_is_resolved_as_a_disk_path() {
 /// tsgo applyExtendedConfig inherits an array only: a scalar or a string
 /// `files` is not inherited, and an array of nulls is no array once tsgo's
 /// JSON conversion drops its nulls (checked against tsgo
-/// 7.1.0-dev-19dadef8 `--showConfig`).
+/// 7.1.0-dev-aa814927 `--showConfig`).
 #[test]
 fn inherited_specs_are_arrays_as_tsgo_converts_them() {
     for base in [

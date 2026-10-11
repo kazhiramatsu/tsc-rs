@@ -125,7 +125,7 @@ fn observe(case: &Value, option_keys: &[Value]) -> Value {
     })
 }
 
-/// The cases where tsgo (7.1.0-dev-19dadef8) parts from these tsc 6.0.3
+/// The cases where tsgo (7.1.0-dev-aa814927) parts from these tsc 6.0.3
 /// observations, each pinned to tsgo in `config_root_plan_contract`: a
 /// written `files: null` blocks the inherited files
 /// (`own_null_files_blocks_inheritance`).

@@ -10,7 +10,7 @@ use serde::Serialize;
 use super::*;
 use crate::encoder::{kind_name, tsgo_kind, ScriptKind};
 
-const PROFILE: &str = "7.1.0-dev-19dadef8";
+const PROFILE: &str = "7.1.0-dev-aa814927";
 
 fn upstream(path: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

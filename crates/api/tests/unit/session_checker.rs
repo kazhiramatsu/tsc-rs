@@ -107,7 +107,7 @@ fn the_symbol_at_a_position_is_its_response() {
         shape(&x),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "x", "flags": 2, "checkFlags": 0,
-            "declarations": ["8.261./src/main.ts"], "valueDeclaration": "8.261./src/main.ts",
+            "declarations": ["8.262./src/main.ts"], "valueDeclaration": "8.262./src/main.ts",
             "parent": "*",
         })
     );
@@ -129,8 +129,8 @@ fn the_symbol_at_a_position_is_its_response() {
         shape(&module),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "\"/src/main\"", "flags": 512,
-            "checkFlags": 0, "declarations": ["1.307./src/main.ts"],
-            "valueDeclaration": "1.307./src/main.ts",
+            "checkFlags": 0, "declarations": ["1.308./src/main.ts"],
+            "valueDeclaration": "1.308./src/main.ts",
         })
     );
     let batch = call(
@@ -149,7 +149,7 @@ fn the_symbol_at_a_position_is_its_response() {
     assert_eq!(batch[1], Value::Null);
     assert_eq!(batch[2]["name"], "add");
     assert_eq!(batch[2]["flags"], 16);
-    assert_eq!(batch[2]["declarations"], json!(["19.263./src/main.ts"]));
+    assert_eq!(batch[2]["declarations"], json!(["19.264./src/main.ts"]));
 }
 
 #[test]
@@ -161,7 +161,7 @@ fn the_symbols_of_members_and_namespaces() {
         shape(&value),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "value", "flags": 4, "checkFlags": 0,
-            "declarations": ["51.173./src/main.ts"], "valueDeclaration": "51.173./src/main.ts",
+            "declarations": ["51.174./src/main.ts"], "valueDeclaration": "51.174./src/main.ts",
             "parent": "*",
         })
     );
@@ -174,13 +174,13 @@ fn the_symbols_of_members_and_namespaces() {
     );
     let member = symbol_at(&session, &base, position("B = 2"));
     assert_eq!(member["flags"], 8);
-    assert_eq!(member["declarations"], json!(["132.306./src/main.ts"]));
+    assert_eq!(member["declarations"], json!(["132.307./src/main.ts"]));
     let namespace = symbol_at(&session, &base, position("NS"));
     assert_eq!(
         shape(&namespace),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "NS", "flags": 512, "checkFlags": 0,
-            "declarations": ["202.268./src/main.ts"], "valueDeclaration": "202.268./src/main.ts",
+            "declarations": ["202.269./src/main.ts"], "valueDeclaration": "202.269./src/main.ts",
         })
     );
     let inner = symbol_at(&session, &base, position("inner"));
@@ -207,8 +207,8 @@ fn tokens_the_tree_does_not_keep_have_their_symbols() {
         shape(&arrow),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "__function", "flags": 16,
-            "checkFlags": 0, "declarations": ["221.220./src/main.ts"],
-            "valueDeclaration": "221.220./src/main.ts",
+            "checkFlags": 0, "declarations": ["221.221./src/main.ts"],
+            "valueDeclaration": "221.221./src/main.ts",
         })
     );
     assert_eq!(
@@ -368,7 +368,7 @@ fn the_type_at_a_position_or_node() {
     let declaration = call(
         &session,
         "getTypeAtLocation",
-        with(&base, json!({ "location": "8.261./src/main.ts" })),
+        with(&base, json!({ "location": "8.262./src/main.ts" })),
     )
     .unwrap();
     assert_eq!(declaration["value"], 42);
@@ -376,7 +376,7 @@ fn the_type_at_a_position_or_node() {
     let module = call(
         &session,
         "getSymbolAtLocation",
-        with(&base, json!({ "location": "1.307./src/main.ts" })),
+        with(&base, json!({ "location": "1.308./src/main.ts" })),
     )
     .unwrap();
     assert_eq!(module["name"], "\"/src/main\"");
@@ -571,7 +571,7 @@ fn aliases_resolve_to_their_targets() {
         shape(&alias),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "helper", "flags": 2_097_152,
-            "checkFlags": 0, "declarations": ["7.277./main.ts"],
+            "checkFlags": 0, "declarations": ["7.278./main.ts"],
         })
     );
     let target = ask("getAliasedSymbol", &alias);
@@ -579,8 +579,8 @@ fn aliases_resolve_to_their_targets() {
         shape(&target),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "helper", "flags": 16,
-            "checkFlags": 0, "declarations": ["3.263./lib.ts"],
-            "valueDeclaration": "3.263./lib.ts", "parent": "*",
+            "checkFlags": 0, "declarations": ["3.264./lib.ts"],
+            "valueDeclaration": "3.264./lib.ts", "parent": "*",
         })
     );
     assert_eq!(ask("getImmediateAliasedSymbol", &alias), target);

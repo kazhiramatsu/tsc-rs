@@ -1002,7 +1002,7 @@ mod tests {
         assert_eq!(parsed.file_names, ["0.ts"]);
     }
 
-    // tsgo 7.1.0-dev-19dadef8, `tsgo -p . <args>` (scratchpad p36g/probe).
+    // tsgo 7.1.0-dev-aa814927, `tsgo -p . <args>` (scratchpad p36g/probe).
     #[test]
     fn unknown_options_are_reported_like_tsgo() {
         assert_eq!(

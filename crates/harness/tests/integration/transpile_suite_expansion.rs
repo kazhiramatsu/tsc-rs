@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use tsc_harness::upstream_suites::native::NativeProfile;
 
-const PROFILE: &str = "7.1.0-dev-19dadef8";
+const PROFILE: &str = "7.1.0-dev-aa814927";
 
 fn workspace() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")

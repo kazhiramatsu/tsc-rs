@@ -315,7 +315,7 @@ fn the_parts_of_structured_types() {
     assert_eq!(target["elementFlags"], json!([1, 2]));
     assert_eq!(
         target["labeledElementDeclarations"],
-        json!(["131.203./src/main.ts", "134.203./src/main.ts"])
+        json!(["131.204./src/main.ts", "134.204./src/main.ts"])
     );
     let arguments = property("getTypeArguments", &pair);
     assert!(is(&arguments[0], STRING, "string"));
@@ -353,11 +353,11 @@ fn properties_and_index_infos() {
     assert!(is(&infos[0]["keyType"], STRING, "string"));
     assert!(is(&infos[0]["valueType"], NUMBER, "number"));
     assert_eq!(infos[0]["isReadonly"], false);
-    assert_eq!(infos[0]["declaration"], "170.182./src/main.ts");
+    assert_eq!(infos[0]["declaration"], "170.183./src/main.ts");
     assert!(is(&infos[1]["keyType"], NUMBER, "number"));
     assert_eq!(kind(&infos[1]["valueType"]), json!([2048, 0, 1]));
     assert_eq!(infos[1]["isReadonly"], true);
-    assert_eq!(infos[1]["declaration"], "176.182./src/main.ts");
+    assert_eq!(infos[1]["declaration"], "176.183./src/main.ts");
     let number_info = ask(
         &session,
         &base,
@@ -386,8 +386,8 @@ fn properties_and_index_infos() {
         shape(&value),
         json!({
             "id": "*", "project": "/tsconfig.json", "name": "value", "flags": 33_554_436,
-            "checkFlags": 1, "declarations": ["11.172./src/main.ts"],
-            "valueDeclaration": "11.172./src/main.ts", "parent": "*",
+            "checkFlags": 1, "declarations": ["11.173./src/main.ts"],
+            "valueDeclaration": "11.173./src/main.ts", "parent": "*",
         })
     );
     assert_eq!(
@@ -530,7 +530,7 @@ fn contextual_types_and_type_nodes() {
     let node = |fields: Value, method: &str| ask(&session, &base, method, fields);
     // The arrow function `a => {}` takes the declared function type.
     let function = type_of(&session, &base, "ctx:", false);
-    let arrow = json!({ "location": "236.220./src/main.ts" });
+    let arrow = json!({ "location": "236.221./src/main.ts" });
     assert_eq!(
         node(arrow.clone(), "getContextualType")["id"],
         function["id"]
@@ -539,7 +539,7 @@ fn contextual_types_and_type_nodes() {
     // `f(1)`'s argument.
     assert!(is(
         &node(
-            json!({ "location": "253.214./src/main.ts", "index": 0 }),
+            json!({ "location": "253.215./src/main.ts", "index": 0 }),
             "getContextualTypeForArgument"
         ),
         NUMBER,
@@ -549,7 +549,7 @@ fn contextual_types_and_type_nodes() {
     let union = type_of(&session, &base, "union:", false);
     assert_eq!(
         node(
-            json!({ "location": "145.193./src/main.ts" }),
+            json!({ "location": "145.194./src/main.ts" }),
             "getTypeFromTypeNode"
         ),
         union

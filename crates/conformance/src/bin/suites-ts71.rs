@@ -16,7 +16,7 @@ use tsc_conformance::ts71::suites::{report_path, run, summarize, SuiteRunOptions
 
 fn main() {
     let mut options = SuiteRunOptions {
-        profile: "7.1.0-dev-19dadef8".to_owned(),
+        profile: "7.1.0-dev-aa814927".to_owned(),
         filter: None,
         dump: None,
     };

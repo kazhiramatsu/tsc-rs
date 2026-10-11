@@ -17,7 +17,7 @@ class SelectionTests(unittest.TestCase):
     def test_any_other_change_selects_both_jobs(self):
         for path in ("crates/checker/src/engine.rs", "CLAUDE.md", ".github/workflows/ci.yml",
                      "scripts/conformance_ts71.py", "vendor/typescript-native/x/manifest.json",
-                     "ratchets/ts71/7.1.0-dev-19dadef8.tsv", "docs-not-a-directory.md"):
+                     "ratchets/ts71/7.1.0-dev-aa814927.tsv", "docs-not-a-directory.md"):
             plan = replay.selection(["docs/design/README.md", path])
             self.assertEqual((plan["rust"], plan["conformance_ts71"]), (True, True), path)
 

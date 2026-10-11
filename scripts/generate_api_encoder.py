@@ -27,7 +27,7 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PROFILE = "7.1.0-dev-19dadef8"
+DEFAULT_PROFILE = "7.1.0-dev-aa814927"
 OUTPUT = ROOT / "crates/api/src/encoder/generated.rs"
 DECODER_OUTPUT = ROOT / "crates/api/src/decoder/generated.rs"
 
