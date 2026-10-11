@@ -269,3 +269,24 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   tsbuildWatch 2、tsc 12。ES5 の意図した差、content mapper など）。
 - **hosted と merge**：PR #745 の hosted run 38122507114（rust 11m53s、conformance 14m8s、gates pass、head `770404b2d`）、merge commit
   `e1b66157e`。
+
+## S6a API の transport と callback file system（2026-10-11）
+
+- `aa8149273` の TypeScript client（`packages/typescript/test/{sync,async}/api.test.ts`、356／365 test。tsgo は全て通る）は
+  request の前に要るものが 3 つある。`--api` の `--useCaseSensitiveFileNames`（Go の bool、既定は OS の file system。client は
+  常に渡す。server は callback か case sensitivity があれば file system を包む）、#64447 の callback file system（答えは全て
+  `{ kind, value }`：値、または `useOS`・`missing`・`identity`・`fakeStat`・`noop`。`stat` の callback（Node の mode・size・
+  RFC 3339 の mtime）、`name:error` はその操作を失敗させる、`realpath:identity`・`stat:fakeStat`・`writeFile:noop`・
+  `removeFile:noop` は client が答えない操作の既定、`error` の答え・kind の欠落・不正な kind は tsgo の message で panic）、
+  source file の response の node id（tsgo `SetSourceFileID`。client はこれで file の cache と remote の参照を引く。program の
+  file は parse の identity（新しい `ParsedDocument::id`、parse を再利用する snapshot で共有）、作った file と config の file は
+  新しい id）。
+- **client の test**（release build、`node --conditions=@typescript/source --test`）：sync 6 → 202／356、async 210／365。残りは
+  #64518 の symbol の所有（126／127。S6b）、新しい method（`getSymbolOfDeclaration` 7、`retainSourceFile` 2）、program の
+  file と parse を共有する `createSourceFile`（2）、LS（completion 5 など 8）と `formatNodeForInsertion`（3）、その他 7。
+- **test**：callback file system の test は tsgo の `callbackfs_test.go` の case（既定、stat と entries、write の pass-through と
+  no-op、呼び出しごとの fakeStat と identity、error の callback、remove の no-op）と kind／value の答えに、flag の test は新しい
+  flag と既定に。
+- **結果**（release build、`75274a66c`。checker の crate の `ParsedDocument` に触れたので）：full の conformance（`--workers 2
+  --check`、479 s）は 0 regressions で、S5 の report と全ての構成が全ての列と digest で同じ。並列対照は記録済みの順序の 4 構成だけ、
+  suites（`--check`）は 0 regressions・上がったもの無し（ratchet は変えない）。
