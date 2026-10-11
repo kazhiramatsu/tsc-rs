@@ -677,7 +677,9 @@ impl Session {
             _ => "{}".to_owned(),
         };
         let host = self.config_host();
-        let plan = parse_config_root_plan(
+        // tsgo `ParseJsonConfigFileContent`: the object, without a source
+        // file.
+        let plan = tsc_program::parse_config_root_plan_of_json_object(
             &CompilerConfigHost::new(&host),
             ConfigRootPlanRequest {
                 file_name: JsString::from(file_name.as_str()),

@@ -451,6 +451,105 @@ fn a_config_value_parses_in_its_directory_or_as_its_file() {
 }
 
 #[test]
+fn a_config_object_is_read_as_given() {
+    // tsgo `ParseJsonConfigFileContent` of an object (no source file),
+    // pinned to tsgo aa8149273's responses: `getPropFromRaw` reports an
+    // array of other values than strings (objects for `references`) once
+    // per read, nulls included, and the array stays present; `raw` is the
+    // object as given.
+    let (session, _) = session(&[("/src/a.ts", "export {};"), ("/src/b.ts", "export {};")]);
+    let parse = |json: Value, options: Value| {
+        let mut params = options;
+        params["json"] = json;
+        call(&session, "parseJsonConfigFileContent", params).unwrap()
+    };
+    let directory = json!({ "configDirectory": "/src" });
+    let texts = |response: &Value| {
+        response["errors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|error| error["text"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+    let requires = |name: &str, kind: &str| {
+        format!("Compiler option '{name}' requires a value of type {kind}.")
+    };
+    // The client test "parseJsonConfigFileContent reports null array
+    // elements".
+    let nulls = parse(
+        json!({ "files": [null], "include": [null], "exclude": [null] }),
+        directory.clone(),
+    );
+    assert_eq!(
+        nulls,
+        json!({
+            "fileNames": [], "options": {}, "compileOnSave": false,
+            "raw": { "files": [null], "include": [null], "exclude": [null] },
+            "errors": [
+                { "pos": -1, "end": -1, "code": 5024, "category": 1, "text": requires("files", "string") },
+                { "pos": -1, "end": -1, "code": 5024, "category": 1, "text": requires("include", "string") },
+                { "pos": -1, "end": -1, "code": 5024, "category": 1, "text": requires("exclude", "string") },
+            ],
+        })
+    );
+    let mixed = parse(
+        json!({ "files": ["a.ts", null, 1, { "x": 1 }] }),
+        directory.clone(),
+    );
+    assert_eq!(mixed["fileNames"], json!(["/src/a.ts"]));
+    assert_eq!(
+        mixed["raw"],
+        json!({ "files": ["a.ts", null, 1, { "x": 1 }] })
+    );
+    assert_eq!(texts(&mixed), [requires("files", "string")]);
+    // `references` first, and again with the project references.
+    let non_arrays = parse(
+        json!({ "files": "a.ts", "include": 1, "exclude": {}, "references": "x" }),
+        directory.clone(),
+    );
+    assert_eq!(non_arrays["fileNames"], json!(["/src/a.ts", "/src/b.ts"]));
+    assert_eq!(
+        texts(&non_arrays),
+        [
+            requires("references", "Array"),
+            requires("files", "Array"),
+            requires("include", "Array"),
+            requires("exclude", "Array"),
+            requires("references", "Array"),
+        ]
+    );
+    let references = parse(
+        json!({ "files": ["a.ts"], "references": [1, null, { "path": "../x" }] }),
+        directory,
+    );
+    assert_eq!(
+        references["projectReferences"],
+        json!([{ "path": "/x", "originalPath": "../x", "circular": false }])
+    );
+    assert_eq!(
+        texts(&references),
+        [
+            requires("references", "object"),
+            requires("references", "object")
+        ]
+    );
+    // A null keeps `include` present; the message shows it.
+    let include = parse(
+        json!({ "include": [null] }),
+        json!({ "configFileName": "/src/tsconfig.json" }),
+    );
+    assert_eq!(include["fileNames"], json!([]));
+    assert_eq!(
+        texts(&include),
+        [
+            requires("include", "string"),
+            "No inputs were found in config file '/src/tsconfig.json'. Specified 'include' paths were '[null]' and 'exclude' paths were '[]'.".to_owned(),
+        ]
+    );
+}
+
+#[test]
 fn transpilation_answers_as_tsgo_does() {
     let (session, _) = session(&[(
         "/src/file.ts",

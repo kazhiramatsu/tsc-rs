@@ -1665,8 +1665,22 @@ struct ParsedConfigNode {
     /// tsgo `getProjectReferences`' errors for the root config's
     /// `references` (reported after the file names').
     reference_errors: Vec<Diagnostic>,
+    /// The root config's `getPropFromRaw` errors when it is a JSON object.
+    json_object_errors: JsonObjectErrors,
     extended_sources: Vec<ConfigSourceText>,
     extended_source_files: Vec<JsString>,
+}
+
+/// tsgo `getPropFromRaw`'s errors for a config given as a JSON object (no
+/// source file), where tsgo reports them: `references` and `files` before
+/// the empty `files` check, `include` and `exclude` after it, and
+/// `references` again with the project references (`getProjectReferences`
+/// reads it a second time).
+#[derive(Clone, Debug, Default, PartialEq)]
+struct JsonObjectErrors {
+    before_files_empty: Vec<Diagnostic>,
+    after_files_empty: Vec<Diagnostic>,
+    references_again: Option<Diagnostic>,
 }
 
 /// Caller-owned cache of extended configs, matching TypeScript's optional
@@ -1699,6 +1713,9 @@ struct ParseContext<'a> {
     stack: Vec<JsString>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
+    /// tsgo `ParseJsonConfigFileContent`: the root config is a JSON object,
+    /// with no source file.
+    json_object: bool,
 }
 
 /// Parse one config graph and derive the `ConfigRootPlan` projection qualified
@@ -1726,7 +1743,19 @@ pub fn parse_config_root_plan(
     host: &dyn ConfigParseHost,
     request: ConfigRootPlanRequest,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
-    parse_config_root_plan_inner(host, request, None, None)
+    parse_config_root_plan_inner(host, request, None, None, false)
+}
+
+/// tsgo `ParseJsonConfigFileContent`: the root config is a JSON object (the
+/// request's text is its JSON), parsed without a source file. Its `raw` is
+/// the object, and `getPropFromRaw` reads `references`, `files`, `include`
+/// and `exclude` as given: an array of other values than strings (objects
+/// for `references`), nulls included, is reported once and stays present.
+pub fn parse_config_root_plan_of_json_object(
+    host: &dyn ConfigParseHost,
+    request: ConfigRootPlanRequest,
+) -> Result<ConfigRootPlan, ConfigParseError> {
+    parse_config_root_plan_inner(host, request, None, None, true)
 }
 
 /// Parse with the caller's extended-config cache. The root is always parsed
@@ -1736,7 +1765,7 @@ pub fn parse_config_root_plan_with_cache(
     request: ConfigRootPlanRequest,
     cache: &mut ConfigExtendedCache,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
-    parse_config_root_plan_inner(host, request, Some(cache), None)
+    parse_config_root_plan_inner(host, request, Some(cache), None, false)
 }
 
 /// tsgo `GetParsedCommandLineOfConfigFile` with the command line's options
@@ -1748,7 +1777,13 @@ pub fn parse_config_root_plan_with_command_line(
     command_line_options: &ConfigOptionBag,
     cache: &mut ConfigExtendedCache,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
-    parse_config_root_plan_inner(host, request, Some(cache), Some(command_line_options))
+    parse_config_root_plan_inner(
+        host,
+        request,
+        Some(cache),
+        Some(command_line_options),
+        false,
+    )
 }
 
 fn parse_config_root_plan_inner(
@@ -1756,6 +1791,7 @@ fn parse_config_root_plan_inner(
     request: ConfigRootPlanRequest,
     extended_cache: Option<&mut ConfigExtendedCache>,
     command_line_options: Option<&ConfigOptionBag>,
+    json_object: bool,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
     // tsgo `ParseJsonConfigFileContent` without a config file name: the
     // config is based at the base path.
@@ -1775,6 +1811,7 @@ fn parse_config_root_plan_inner(
         stack: Vec::new(),
         root_parse_diagnostics: Vec::new(),
         errors: Vec::new(),
+        json_object,
     };
     let phase_started = std::time::Instant::now();
     let mut node = context
@@ -1813,6 +1850,10 @@ fn parse_config_root_plan_inner(
     option_diagnostics.extend(option_relationship_diagnostics(&node.options, &node.source));
     sort_and_dedupe_diagnostics(&mut option_diagnostics);
     let phase_started = std::time::Instant::now();
+    let mut json_object_errors = std::mem::take(&mut node.json_object_errors);
+    context
+        .errors
+        .append(&mut json_object_errors.before_files_empty);
     let DerivedFileNames {
         file_names,
         include_specs,
@@ -1823,9 +1864,11 @@ fn parse_config_root_plan_inner(
         &config_base,
         &config_file_name,
         &discovery_options,
+        json_object.then_some(&mut json_object_errors.after_files_empty),
         &mut context.errors,
     )?;
     tsc_types::trace::mark("config: file names", phase_started);
+    context.errors.extend(json_object_errors.references_again);
     context.errors.append(&mut node.reference_errors);
     let phase_started = std::time::Instant::now();
     let root_reasons = config_root_reasons(
@@ -2028,6 +2071,79 @@ fn validate_references_value(source: &SourceFile, errors: &mut Vec<Diagnostic>) 
             ));
         }
     }
+}
+
+/// A JSON object config's value: its text parsed as plain JSON, nulls and
+/// order kept (tsgo hands `ParseJsonConfigFileContent` the object itself).
+fn json_object_of_config_text(source: &ConfigSourceText) -> Result<Value, ConfigParseError> {
+    serde_json::from_str::<serde_json::Value>(source.text())
+        .map(Value::from)
+        .map_err(|error| {
+            ConfigParseError::new_js(
+                ConfigParseErrorKind::Unsupported,
+                Some(source.file_name.clone()),
+                format!("a JSON object config's text is not JSON: {error}"),
+            )
+        })
+}
+
+/// tsgo `getPropFromRaw("references", <object>, "object")` of a JSON object
+/// config.
+fn json_object_references_error(object: &Map) -> Option<Diagnostic> {
+    let element_type = match json_object_own_get(object, "references")? {
+        Value::Null => return None,
+        Value::Array(values) if values.iter().all(Value::is_object) => return None,
+        Value::Array(_) => "object",
+        _ => "Array",
+    };
+    Some(config_diagnostic(
+        &gen::Compiler_option_0_requires_a_value_of_type_1,
+        &["references", element_type],
+        None,
+    ))
+}
+
+/// tsgo `getPropFromRaw(name, isStringValue, "string")` of a JSON object
+/// config: an array's strings (an array with any other element, null
+/// included, is reported once and stays present), nothing for an absent or
+/// null value, and nothing with an error for any other value.
+fn json_object_specs<'j0>(
+    object: &Map,
+    name: &str,
+    base_path: impl Into<JsStr<'j0>>,
+    errors: &mut Vec<Diagnostic>,
+) -> Option<Vec<ConfigSpec>> {
+    let base_path = base_path.into();
+    let element_type = match json_object_own_get(object, name)? {
+        Value::Null => return None,
+        Value::Array(values) => {
+            if !values.iter().all(|value| value.as_js().is_some()) {
+                errors.push(config_diagnostic(
+                    &gen::Compiler_option_0_requires_a_value_of_type_1,
+                    &[name, "string"],
+                    None,
+                ));
+            }
+            return Some(
+                values
+                    .iter()
+                    .filter_map(Value::as_js)
+                    .map(|text| ConfigSpec {
+                        text: text.to_owned(),
+                        base_path: base_path.to_owned(),
+                        location: None,
+                    })
+                    .collect(),
+            );
+        }
+        _ => "Array",
+    };
+    errors.push(config_diagnostic(
+        &gen::Compiler_option_0_requires_a_value_of_type_1,
+        &[name, element_type],
+        None,
+    ));
+    None
 }
 
 fn project_reference_diagnostics(source: &SourceFile, references: &[Value]) -> Vec<Diagnostic> {
@@ -2794,10 +2910,49 @@ impl ParseContext<'_> {
             &mut own_errors,
         )?);
         validate_compile_on_save(&parsed, base_path, &mut own_errors)?;
-        validate_references_value(&parsed, &mut own_errors);
-        let own_files = specs("files", base_path, &parsed, &mut own_errors);
-        let own_include = specs("include", base_path, &parsed, &mut own_errors);
-        let own_exclude = specs("exclude", base_path, &parsed, &mut own_errors);
+        // A JSON object root (tsgo `ParseJsonConfigFileContent`) is read as
+        // given, `getPropFromRaw` reporting what its source file's
+        // conversion would.
+        let json_object = (is_root && self.json_object)
+            .then(|| json_object_of_config_text(&source))
+            .transpose()?;
+        let mut json_object_errors = JsonObjectErrors::default();
+        let (own_files, own_include, own_exclude) = match &json_object {
+            Some(Value::Object(object)) => {
+                let references = json_object_references_error(object);
+                json_object_errors
+                    .before_files_empty
+                    .extend(references.clone());
+                json_object_errors.references_again = references;
+                let files = json_object_specs(
+                    object,
+                    "files",
+                    base_path,
+                    &mut json_object_errors.before_files_empty,
+                );
+                let include = json_object_specs(
+                    object,
+                    "include",
+                    base_path,
+                    &mut json_object_errors.after_files_empty,
+                );
+                let exclude = json_object_specs(
+                    object,
+                    "exclude",
+                    base_path,
+                    &mut json_object_errors.after_files_empty,
+                );
+                (files, include, exclude)
+            }
+            _ => {
+                validate_references_value(&parsed, &mut own_errors);
+                (
+                    specs("files", base_path, &parsed, &mut own_errors),
+                    specs("include", base_path, &parsed, &mut own_errors),
+                    specs("exclude", base_path, &parsed, &mut own_errors),
+                )
+            }
+        };
         for property in config_root_object(&parsed)
             .into_iter()
             .flat_map(|root| config_object_properties(&parsed, root))
@@ -2997,7 +3152,10 @@ impl ParseContext<'_> {
         };
         Ok(Some(ParsedConfigNode {
             source,
-            raw: config_raw_projection(raw),
+            raw: match json_object {
+                Some(object @ Value::Object(_)) => object,
+                _ => config_raw_projection(raw),
+            },
             raw_property_names,
             options: own_options,
             files,
@@ -3012,6 +3170,7 @@ impl ParseContext<'_> {
             compile_on_save,
             unsupported_root_scopes,
             reference_errors,
+            json_object_errors,
             extended_sources,
             extended_source_files,
         }))
@@ -4453,8 +4612,12 @@ fn derive_file_names<'j0, 'j1>(
     base_path: impl Into<JsStr<'j0>>,
     config_file_name: impl Into<JsStr<'j1>>,
     discovery_options: &ConfigDiscoveryOptions,
+    // A JSON object config's `include` and `exclude` errors (tsgo
+    // `getPropFromRaw`), reported after the empty `files` check.
+    json_object_spec_errors: Option<&mut Vec<Diagnostic>>,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<DerivedFileNames, ConfigParseError> {
+    let json_object = json_object_spec_errors.is_some();
     let base_path = base_path.into();
     let config_file_name = config_file_name.into();
     let case_sensitive = host.use_case_sensitive_file_names();
@@ -4487,6 +4650,9 @@ fn derive_file_names<'j0, 'j1>(
         None => Vec::new(),
     };
     report_empty_files(config, config_file_name, errors);
+    if let Some(spec_errors) = json_object_spec_errors {
+        errors.append(spec_errors);
+    }
     let include = validate_config_specs(
         &include, /* disallow_trailing_recursion */ true, errors,
     );
@@ -4620,6 +4786,7 @@ fn derive_file_names<'j0, 'j1>(
         config_file_name,
         &file_names,
         exclude_values.as_deref(),
+        json_object,
         errors,
     );
     Ok(DerivedFileNames {
@@ -4720,6 +4887,7 @@ fn report_no_input_files<'j0>(
     config_file_name: impl Into<JsStr<'j0>>,
     file_names: &[JsString],
     effective_excludes: Option<&[JsString]>,
+    json_object: bool,
     errors: &mut Vec<Diagnostic>,
 ) {
     let config_file_name = config_file_name.into();
@@ -4733,15 +4901,25 @@ fn report_no_input_files<'j0>(
         return;
     }
 
+    // A JSON object's arrays are as given (tsgo `getPropFromRaw`); a
+    // source file's lose their nulls in its conversion.
+    let as_read = |value: &Value| {
+        if json_object {
+            value.clone()
+        } else {
+            without_json_nulls(value)
+        }
+    };
+    let present = |value: &&Value| value.is_array() && (json_object || !is_nil_json_array(value));
     let include = raw
         .get("include")
-        .filter(|value| value.is_array() && !is_nil_json_array(value))
-        .map(without_json_nulls)
+        .filter(present)
+        .map(as_read)
         .unwrap_or_else(|| Value::Array(vec![Value::String("**/*".into())]));
     let exclude = raw
         .get("exclude")
-        .filter(|value| value.is_array() && !is_nil_json_array(value))
-        .map(without_json_nulls)
+        .filter(present)
+        .map(as_read)
         .unwrap_or_else(|| {
             Value::Array(
                 effective_excludes
