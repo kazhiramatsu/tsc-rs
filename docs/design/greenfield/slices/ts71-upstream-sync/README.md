@@ -363,3 +363,6 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 - **結果**（release build、`2125d3b00`。checker・compiler・host・program の crate に触れたので）：full の conformance
   （`--workers 2 --check`、484 s）は 0 regressions で、S6b の report と全ての field で同じ。並列対照（`--checkers 4`、468 s）は
   記録済みの順序の 4 構成だけ、suites（`--check`）は 0 regressions・上がったもの無し（731 baselines、mismatch は既知の 24）。
+- **hosted と merge**：PR #748 の最初の hosted run 38133455905 は rust が落ちた（CLI の API contract が #64681 で除いた
+  `rootFiles`・`compilerOptions` を見ていた。test だけを `parsedCommandLine` に直した `1d48d30bd`）。再実行の hosted run
+  38134907152（rust 11m57s、conformance 16m30s、gates pass、head `1d48d30bd`）、merge commit `24ad76b09`。
