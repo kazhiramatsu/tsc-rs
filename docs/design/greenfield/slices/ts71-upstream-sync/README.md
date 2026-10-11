@@ -81,3 +81,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   `removeFile:noop`、tsgo の `internal/api/callbackfs.go`）を付けて起動し、tsc-rs の `--api` はどちらも受け付けずに終わる（flag
   だけを wrapper で除いても callback の名前で終わる）。API の slice（最後の S）で直す。main（`19dadef8` の client）では sync
   310/327・async 318/335 だった。
+- **hosted と merge**：PR #740 の hosted run 38101672593（rust 8m30s、conformance (TypeScript 7.1) 16m4s、gates pass）。
+  merge commit `6b62f735d`（2026-10-11）。
