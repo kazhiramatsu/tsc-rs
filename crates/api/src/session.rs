@@ -441,6 +441,14 @@ impl Session {
                         "moduleSpecifier must be a StringLiteralLike node",
                     ));
                 }
+                // tsgo Program.GetResolvedModuleFromModuleSpecifier: a source
+                // phase import resolves no module.
+                let syntax = file.document.source();
+                if syntax.arena.node(specifier).parent.is_some_and(|parent| {
+                    tsc_syntax::utilities::is_source_phase_import(&syntax.arena, parent)
+                }) {
+                    return Ok(json(&None::<ResolvedModuleResponse>));
+                }
                 let file = match &params.source_file {
                     Some(source_file) => self.required_source_file(&program, source_file)?,
                     None => file,

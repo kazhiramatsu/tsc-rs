@@ -206,6 +206,36 @@ fn import_declaration() {
     assert_eq!(identifier_text(&tree, specifier.name), "bar");
 }
 
+/// tsgo's decoder (decoder_generated.go): the clause's phase index 2 is
+/// `defer` and 3 is `source` (#63915).
+#[test]
+fn import_clause_phases() {
+    let tree = decode(
+        "/test.ts",
+        "import defer * as a from \"a\";\nimport source b from \"b\";\nimport c from \"c\";",
+    );
+    let phases: Vec<_> = (0..3)
+        .map(|index| {
+            let NodeData::ImportDeclaration(import) = &statement(&tree, index).data else {
+                panic!("an import declaration");
+            };
+            let NodeData::ImportClause(clause) = &node(&tree, import.import_clause.unwrap()).data
+            else {
+                panic!("an import clause");
+            };
+            clause.phase_modifier
+        })
+        .collect();
+    assert_eq!(
+        phases,
+        vec![
+            Some(SyntaxKind::DeferKeyword),
+            Some(SyntaxKind::SourceKeyword),
+            None
+        ]
+    );
+}
+
 #[test]
 fn if_statement() {
     let tree = decode("/test.ts", "if (true) { } else { }");

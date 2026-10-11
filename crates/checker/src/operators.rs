@@ -3052,9 +3052,10 @@ impl<'a> CheckerState<'a> {
             return self.check_new_target_meta_property(node);
         }
         // checkMetaProperty returns errorType after the grammar check
-        // for both the valid call-form and invalid bare import.defer;
-        // it must not fall through to import.meta's module diagnostic.
-        if self.meta_property_name_text(node).as_deref() == Some("defer") {
+        // for both the valid call-form and invalid bare `import.defer` or
+        // `import.source`; it must not fall through to import.meta's
+        // module diagnostic.
+        if self.is_import_phase_meta_property(node) {
             return Ok(self.tables.intrinsics.error);
         }
         self.check_import_meta_property(node)
@@ -3103,6 +3104,14 @@ impl<'a> CheckerState<'a> {
         source.text()[start..].starts_with("new")
     }
 
+    /// tsgo `ast.IsImportPhaseMetaProperty`.
+    pub(crate) fn is_import_phase_meta_property(&self, node: NodeId) -> bool {
+        tsc_syntax::utilities::is_import_phase_meta_property(
+            &self.binder.source_of_node(node).arena,
+            node,
+        )
+    }
+
     fn meta_property_name_text(&self, node: NodeId) -> Option<String> {
         match self.data_of(node) {
             NodeData::MetaProperty(data) => data
@@ -3140,7 +3149,7 @@ impl<'a> CheckerState<'a> {
             let is_callee = self.parent_of(node).is_some_and(|p| {
                 matches!(self.data_of(p), NodeData::CallExpression(data) if data.expression == Some(node))
             });
-            if name_text == "defer" {
+            if self.is_import_phase_meta_property(node) {
                 if !is_callee {
                     // grammarErrorAtPos(node, node.end, 0, `_0_expected`, "(")
                     let source = self.binder.source_of_node(node);

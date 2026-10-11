@@ -341,6 +341,214 @@ fn import_clause_stores_phase_modifier_and_derives_is_type_only() {
     );
 }
 
+fn parse_ts(text: &str) -> SourceFile {
+    parse_source_file(
+        "a.ts".into(),
+        text.to_owned(),
+        ParseOptions::default(),
+        None,
+    )
+}
+
+fn only_import_clause(
+    source: &SourceFile,
+) -> (
+    &crate::nodes::ImportDeclarationData,
+    &crate::nodes::ImportClauseData,
+) {
+    let [declaration] = nodes_of_kind(source, SyntaxKind::ImportDeclaration)[..] else {
+        panic!("one import declaration");
+    };
+    let NodeData::ImportDeclaration(declaration) = &source.arena.node(declaration).data else {
+        unreachable!()
+    };
+    let clause = declaration.import_clause.expect("an import clause");
+    let NodeData::ImportClause(clause) = &source.arena.node(clause).data else {
+        unreachable!()
+    };
+    (declaration, clause)
+}
+
+fn identifier_text(source: &SourceFile, id: NodeId) -> String {
+    match &source.arena.node(id).data {
+        NodeData::Identifier(data) => data.escaped_text.to_string(),
+        _ => panic!("an identifier"),
+    }
+}
+
+/// tsgo TestParseStaticSourcePhaseImport (parser_test.go, #63915): the
+/// phase is read from the token's source text, so an escaped `source` or
+/// `defer` is an ordinary default binding.
+#[test]
+fn static_source_phase_imports_follow_tsgo() {
+    for (text, phase, binding, has_attributes) in [
+        (
+            "import source a from \"./a.wasm\";",
+            Some(SyntaxKind::SourceKeyword),
+            "a",
+            false,
+        ),
+        (
+            "import source a from \"./a.wasm\" with { type: \"webassembly\" };",
+            Some(SyntaxKind::SourceKeyword),
+            "a",
+            true,
+        ),
+        (
+            "import source from from \"./module.js\";",
+            Some(SyntaxKind::SourceKeyword),
+            "from",
+            false,
+        ),
+        ("import source from \"./module.js\";", None, "source", false),
+        (
+            "import source, { value } from \"./module.js\";",
+            None,
+            "source",
+            false,
+        ),
+        (
+            "import s\\u006furce from \"./module.js\";",
+            None,
+            "source",
+            false,
+        ),
+        (
+            "import d\\u0065fer from \"./module.js\";",
+            None,
+            "defer",
+            false,
+        ),
+    ] {
+        let source = parse_ts(text);
+        assert!(source.parse_diagnostics.is_empty(), "{text}");
+        let (declaration, clause) = only_import_clause(&source);
+        assert_eq!(clause.phase_modifier, phase, "{text}");
+        assert_eq!(
+            identifier_text(&source, clause.name.expect(text)),
+            binding,
+            "{text}"
+        );
+        assert_eq!(declaration.attributes.is_some(), has_attributes, "{text}");
+    }
+}
+
+/// tsgo TestParseSourceAsImportEqualsBinding.
+#[test]
+fn source_is_an_import_equals_binding_before_equals() {
+    let source = parse_ts("import source = require(\"./module.js\");");
+    assert!(source.parse_diagnostics.is_empty());
+    let [declaration] = nodes_of_kind(&source, SyntaxKind::ImportEqualsDeclaration)[..] else {
+        panic!("one import-equals declaration");
+    };
+    let NodeData::ImportEqualsDeclaration(declaration) = &source.arena.node(declaration).data
+    else {
+        unreachable!()
+    };
+    assert_eq!(
+        identifier_text(&source, declaration.name.expect("a name")),
+        "source"
+    );
+}
+
+/// tsgo TestParseInvalidStaticSourcePhaseImports, and #64640's deferred
+/// import without bindings: the clause keeps its phase for the checker's
+/// grammar errors.
+#[test]
+fn invalid_phase_imports_keep_their_clause() {
+    for (text, phase, has_name, has_named_bindings) in [
+        (
+            "import source \"./a.js\";",
+            SyntaxKind::SourceKeyword,
+            false,
+            false,
+        ),
+        (
+            "import source * as a from \"./a.js\";",
+            SyntaxKind::SourceKeyword,
+            false,
+            true,
+        ),
+        (
+            "import source { a } from \"./a.js\";",
+            SyntaxKind::SourceKeyword,
+            false,
+            true,
+        ),
+        (
+            "import source a, { b } from \"./a.js\";",
+            SyntaxKind::SourceKeyword,
+            true,
+            true,
+        ),
+        (
+            "import defer \"./a.js\";",
+            SyntaxKind::DeferKeyword,
+            false,
+            false,
+        ),
+    ] {
+        let source = parse_ts(text);
+        assert!(source.parse_diagnostics.is_empty(), "{text}");
+        let (_, clause) = only_import_clause(&source);
+        assert_eq!(clause.phase_modifier, Some(phase), "{text}");
+        assert_eq!(clause.name.is_some(), has_name, "{text}");
+        assert_eq!(
+            clause.named_bindings.is_some(),
+            has_named_bindings,
+            "{text}"
+        );
+    }
+}
+
+/// tsgo TestParseDynamicSourcePhaseImport and TestParseEscapedDynamicImportPhase:
+/// `import.source(...)` is an import call; an escaped phase name reports
+/// TS1260 and stays an import call.
+#[test]
+fn dynamic_phase_imports_follow_tsgo() {
+    for (text, phase, escape_errors) in [
+        (
+            "import.source(\"./a.wasm\", { with: { type: \"webassembly\" } });",
+            "source",
+            0,
+        ),
+        ("import.d\\u0065fer(\"./a.js\");", "defer", 1),
+        ("import.s\\u006furce(\"./a.wasm\");", "source", 1),
+    ] {
+        let source = parse_ts(text);
+        let codes: Vec<u32> = source.parse_diagnostics.iter().map(|d| d.code()).collect();
+        assert_eq!(codes, vec![1260; escape_errors], "{text}");
+        let [call] = nodes_of_kind(&source, SyntaxKind::CallExpression)[..] else {
+            panic!("one call");
+        };
+        assert!(
+            crate::utilities::is_import_call(&source.arena, call),
+            "{text}"
+        );
+        let NodeData::CallExpression(call) = &source.arena.node(call).data else {
+            unreachable!()
+        };
+        let NodeData::MetaProperty(meta) = &source.arena.node(call.expression.unwrap()).data else {
+            panic!("a meta-property callee");
+        };
+        assert_eq!(meta.keyword_token, SyntaxKind::ImportKeyword);
+        assert_eq!(
+            identifier_text(&source, meta.name.unwrap()),
+            phase,
+            "{text}"
+        );
+        let flags = NodeFlags::from_bits(source.arena.node(source.root).flags);
+        assert!(
+            flags.intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT),
+            "{text}"
+        );
+        assert!(
+            !flags.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META),
+            "{text}"
+        );
+    }
+}
+
 /// tsc getTemplateLiteralRawText (30644): every template fragment
 /// stores the raw source slice alongside the cooked text — escapes
 /// stay escaped, CRLF stays CRLF.

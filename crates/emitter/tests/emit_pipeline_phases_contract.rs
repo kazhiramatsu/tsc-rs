@@ -1,4 +1,7 @@
 //! Successful callback order on all current printer pipeline entry paths.
+//!
+//! The fixtures' recorded kinds are tsc-rs's SyntaxKind values: TypeScript
+//! 6.0.3's from 167 on are one higher since SourceKeyword (tsgo #63915).
 use std::{cell::RefCell, rc::Rc};
 use tsc_emitter::{
     base64_encode, create_printer, transform_nodes, EmitHint, NewLineKind, PrintRequest,

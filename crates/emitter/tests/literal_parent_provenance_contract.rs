@@ -1,4 +1,7 @@
 //! Exact literal spelling for positioned, cloned and unparented input trees.
+//!
+//! The fixtures' recorded kinds are tsc-rs's SyntaxKind values: TypeScript
+//! 6.0.3's from 167 on are one higher since SourceKeyword (tsgo #63915).
 use serde_json::{json, Value};
 use tsc_emitter::{
     base64_encode, create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterOptions,

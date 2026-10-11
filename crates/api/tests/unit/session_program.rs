@@ -374,6 +374,67 @@ fn node_handles_name_a_files_encoded_nodes() {
     );
 }
 
+/// tsgo Program.GetResolvedModuleFromModuleSpecifier (#63915): a source
+/// phase import resolves no module, even when an ordinary import of the
+/// same specifier does.
+#[test]
+fn a_source_phase_import_specifier_resolves_no_module() {
+    let (session, _) = session(&[
+        (
+            "/app/tsconfig.json",
+            r#"{ "compilerOptions": { "module": "esnext", "moduleResolution": "bundler", "types": [] }, "include": ["src"] }"#,
+        ),
+        (
+            "/app/src/index.ts",
+            "import source s from \"./dep.js\";\nimport { d } from \"./dep.js\";\nexport { s, d };\n",
+        ),
+        ("/app/src/dep.ts", "export const d = 1;\n"),
+    ]);
+    let response = call(
+        &session,
+        "createSnapshot",
+        json!({ "openProjects": ["/app/tsconfig.json"] }),
+    )
+    .unwrap();
+    let (snapshot, project) = (
+        response["snapshot"].clone(),
+        response["projects"][0]["id"].clone(),
+    );
+    let (_, program) = session
+        .program(
+            serde_json::from_value(snapshot.clone()).unwrap(),
+            project.as_str().unwrap(),
+        )
+        .unwrap();
+    let file = session.source_file(&program, "src/index.ts").unwrap();
+    let source = file.document.source();
+    let table = build_node_index_table(source);
+    let specifiers: Vec<_> = (0..table.nodes().len())
+        .filter(|&index| {
+            table.nodes()[index]
+                .is_some_and(|node| literal_text(source, node).as_deref() == Some("./dep.js"))
+        })
+        .collect();
+    let resolved = |index: usize| {
+        call(
+            &session,
+            "getResolvedModuleFromModuleSpecifier",
+            json!({
+                "snapshot": snapshot,
+                "project": project,
+                "moduleSpecifier": format!("{index}.11./app/src/index.ts"),
+            }),
+        )
+        .unwrap()
+    };
+    assert_eq!(specifiers.len(), 2);
+    assert_eq!(resolved(specifiers[0]), Value::Null);
+    assert_eq!(
+        resolved(specifiers[1])["resolvedFileName"],
+        "/app/src/dep.ts"
+    );
+}
+
 #[test]
 fn a_missing_project_or_file_is_a_client_error() {
     let (session, snapshot, project) = app();

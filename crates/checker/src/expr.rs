@@ -656,30 +656,23 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc isImportCall (14150): CallExpression whose expression is the
-    /// `import` keyword — or (6.0.3) the `import.defer` meta-property
-    /// (keywordToken `import`, name `defer`; the leading source token
-    /// disambiguates from `new.target` — no keywordToken slot).
-    /// tsc-port: isImportCall @6.0.3
-    /// tsc-hash: 74cfad37d8ed5b905210a6398b89c2c9f89f42600024f1749a0c92ab8c6c11f1
-    /// tsc-span: _tsc.js:14150-14154
+    /// tsgo `ast.IsImportCall`: `import(...)`, `import.defer(...)` or
+    /// `import.source(...)`.
     pub(crate) fn is_import_call(&self, node: NodeId) -> bool {
-        let NodeData::CallExpression(data) = self.data_of(node) else {
-            return false;
-        };
-        let Some(expression) = data.expression else {
-            return false;
-        };
-        match self.kind_of(expression) {
-            SyntaxKind::ImportKeyword => true,
-            SyntaxKind::MetaProperty => {
-                !self.meta_property_is_new(expression)
-                    && matches!(self.data_of(expression), NodeData::MetaProperty(meta)
-                        if meta.name.and_then(|name| self.identifier_text_of(name))
-                            == Some("defer"))
-            }
-            _ => false,
-        }
+        tsc_syntax::utilities::is_import_call(&self.binder.source_of_node(node).arena, node)
+    }
+
+    /// tsgo `ast.IsSourcePhaseImport`.
+    pub(crate) fn is_source_phase_import(&self, node: NodeId) -> bool {
+        tsc_syntax::utilities::is_source_phase_import(&self.binder.source_of_node(node).arena, node)
+    }
+
+    /// tsgo `ast.IsSourcePhaseImportCall`.
+    pub(crate) fn is_source_phase_import_call(&self, node: NodeId) -> bool {
+        tsc_syntax::utilities::is_source_phase_import_call(
+            &self.binder.source_of_node(node).arena,
+            node,
+        )
     }
 
     /// tsc-port: checkParenthesizedExpression @6.0.3

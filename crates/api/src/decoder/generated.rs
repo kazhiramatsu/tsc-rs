@@ -175,6 +175,7 @@ pub(crate) fn port_kind(kind: u32) -> Option<SyntaxKind> {
         164 => SyntaxKind::OverrideKeyword,
         165 => SyntaxKind::OfKeyword,
         166 => SyntaxKind::DeferKeyword,
+        167 => SyntaxKind::SourceKeyword,
         168 => SyntaxKind::QualifiedName,
         169 => SyntaxKind::ComputedPropertyName,
         170 => SyntaxKind::TypeParameter,

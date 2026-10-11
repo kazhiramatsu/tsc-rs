@@ -7,18 +7,12 @@ use tsc_emitter::{
 use tsc_syntax::{nodes::*, parse_source_file, NodeData, SyntaxKind};
 
 fn typescript_kind_name(kind: SyntaxKind) -> String {
-    // typescript.js:5828-5831 assigns these reverse-enum names twice.
-    // Native kind identity is already the same301/302; match its observable
-    // final alias spelling without changing any factory or printer state.
+    // typescript.js:5828-5831 assigns these reverse-enum names twice: the
+    // observed names of ImportAttributes and ImportAttribute are their final
+    // aliases.
     match kind {
-        SyntaxKind::ImportAttributes => {
-            assert_eq!(kind as u16, 301);
-            "AssertClause".into()
-        }
-        SyntaxKind::ImportAttribute => {
-            assert_eq!(kind as u16, 302);
-            "AssertEntry".into()
-        }
+        SyntaxKind::ImportAttributes => "AssertClause".into(),
+        SyntaxKind::ImportAttribute => "AssertEntry".into(),
         _ => format!("{kind:?}"),
     }
 }

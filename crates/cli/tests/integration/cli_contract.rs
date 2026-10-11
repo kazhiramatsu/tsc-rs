@@ -21791,6 +21791,39 @@ fn the_api_server_rejects_unknown_flags_like_tsgo() {
 }
 
 #[test]
+fn source_phase_imports_follow_tsgo() {
+    // A source phase import resolves no module (tsgo #63915), so a missing
+    // package under nodenext is no error; the declaration keeps the phase
+    // and `import.source(...)` is a Promise of AbstractModuleSource. The
+    // module specifier's trailing comment precedes the attributes, and the
+    // meta-property's keyword and dot keep their comments. The expected
+    // bytes are tsgo's for the same files.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("index.mts"),
+        "import source a from \"missing\" /*f*/ with { type: \"webassembly\" };\nexport { a };\nexport const b = import /*i*/ . /*j*/ source /*k*/ (\"./x.wasm\");\n",
+    )
+    .expect("write source");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"module":"nodenext","target":"esnext","declaration":true,"types":[],"outDir":"out"},"files":["index.mts"]}"#,
+    )
+    .expect("write config");
+
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/index.mjs")).expect("read emitted output"),
+        "import source a from \"missing\" /*f*/ with { type: \"webassembly\" };\nexport { a };\nexport const b = import /*i*/. /*j*/source /*k*/(\"./x.wasm\");\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/index.d.mts")).expect("read declaration output"),
+        "import source a from \"missing\" with { type: \"webassembly\" };\nexport { a };\nexport declare const b: Promise<AbstractModuleSource>;\n"
+    );
+}
+
+#[test]
 fn tagged_template_comments_follow_tsgo() {
     // A tagged template's tag keeps its trailing comment and the template
     // its leading ones, as tsgo emits them. The expected bytes are tsgo's
