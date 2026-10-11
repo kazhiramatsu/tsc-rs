@@ -2072,6 +2072,10 @@ pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
             data.object_assignment_initializer == Some(node)
         }
         NodeData::SatisfiesExpression(data) => data.expression == Some(node),
+        // tsgo (#64482): the name of a function or class expression is a
+        // declaration name, not an expression.
+        NodeData::FunctionExpression(data) => data.name != Some(node),
+        NodeData::ClassExpression(data) => data.name != Some(node),
         _ => is_expression_node(source, parent),
     }
 }

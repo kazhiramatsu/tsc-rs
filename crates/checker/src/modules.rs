@@ -1519,7 +1519,11 @@ impl<'a> CheckerState<'a> {
                     NodeData::PropertyAccessExpression(_) | NodeData::QualifiedName(_)
                 )
             }) {
-                if self.is_part_of_type_node(current) {
+                // tsgo (#64636): names in an import type's qualifier are the
+                // imported module's exports, not this file's imports.
+                if self.is_part_of_type_node(current)
+                    || self.is_import_type_qualifier_part(current).is_some()
+                {
                     return Ok(());
                 }
                 top = self.parent_of(current);
@@ -1673,9 +1677,6 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(computed_name) = computed_name {
             let owner = self.parent_of(computed_name);
-            if owner.is_some_and(|owner| self.kind_of(owner) == SyntaxKind::EnumMember) {
-                return false;
-            }
             // isInvalidComputedPropertyName: `[a in b]` in a type literal, a
             // class or an interface, outside an accessor.
             let container = owner.and_then(|owner| self.parent_of(owner));
@@ -4422,8 +4423,12 @@ impl<'a> CheckerState<'a> {
         let Some(specifier) = specifier else {
             return Ok(None);
         };
-        let Some(module_symbol) =
-            self.resolve_external_module_name_worker(specifier, specifier, None, false, false)?
+        // tsgo (#64479): emit and type printing ask after the check reported
+        // any resolution error, so the query adds no diagnostic.
+        let Some(module_symbol) = self.resolve_external_module_name_worker(
+            specifier, specifier, None, /*ignore_errors*/ true,
+            /*is_for_augmentation*/ false,
+        )?
         else {
             return Ok(None);
         };

@@ -3723,7 +3723,7 @@ fn type_display_truncation_state_is_sticky_across_alias_arguments() {
         "Type 'number' is not assignable to type \
              'Defaultize<{ property0: number; property1: number; property2: number; \
              property3: number; property4: number; property5: number; property6: number; \
-             property7: number; property8: number; property9: number; }, { ...; }>'."
+             property7: number; property8: number; property9: number; }, ...>'."
     );
     let options = CompilerOptions {
         no_error_truncation: Some(true),

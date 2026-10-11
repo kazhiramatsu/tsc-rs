@@ -957,7 +957,7 @@ impl CheckerState<'_> {
 
     /// tsgo `isImportTypeQualifierPart` (checker/utilities.go:1174-1186): the
     /// import type whose qualifier this entity name is part of.
-    fn is_import_type_qualifier_part(&self, node: NodeId) -> Option<NodeId> {
+    pub(crate) fn is_import_type_qualifier_part(&self, node: NodeId) -> Option<NodeId> {
         let mut node = node;
         let mut parent = self.parent_of(node)?;
         while self.kind_of(parent) == SyntaxKind::QualifiedName {

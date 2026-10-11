@@ -21824,6 +21824,40 @@ fn source_phase_imports_follow_tsgo() {
 }
 
 #[test]
+fn using_hint_and_enum_computed_names_follow_tsgo() {
+    // tsgo #64584: a `using` initializer that `await using` accepts gets a
+    // hint; #64674: an enum member's computed name is checked like any
+    // expression (2304 besides the 1164 grammar error). The expected bytes
+    // are tsgo's for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        "declare const asyncDisposable: AsyncDisposable;\nusing resource = asyncDisposable;\nenum E { [missing] = 1 }\nexport {};\n",
+    )
+    .expect("write source");
+
+    let output = run(
+        &tree,
+        &[
+            "--ignoreConfig",
+            "--target",
+            "esnext",
+            "--module",
+            "esnext",
+            "--noEmit",
+            "--pretty",
+            "false",
+            "main.ts",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "main.ts(2,18): error TS2741: Property '[Symbol.dispose]' is missing in type 'AsyncDisposable' but required in type 'Disposable'.\n  This initializer has a '[Symbol.asyncDispose]()' method. Did you mean to use 'await using'?\nmain.ts(3,10): error TS1164: Computed property names are not allowed in enums.\nmain.ts(3,11): error TS2304: Cannot find name 'missing'.\n"
+    );
+}
+
+#[test]
 fn tagged_template_comments_follow_tsgo() {
     // A tagged template's tag keeps its trailing comment and the template
     // its leading ones, as tsgo emits them. The expected bytes are tsgo's

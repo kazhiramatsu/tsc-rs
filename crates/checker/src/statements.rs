@@ -442,12 +442,39 @@ impl<'a> CheckerState<'a> {
                                 node,
                                 /*report_errors*/ false,
                             )?;
-                            self.check_type_assignable_to(
+                            let (related, diagnostic) = self.capture_type_assignable_to_diagnostic(
                                 widened,
                                 optional_disposable,
-                                Some(initializer),
+                                initializer,
                                 &diagnostics::The_initializer_of_a_using_declaration_must_be_either_an_object_with_a_Symbol_dispose_method_or_be_null_or_undefined,
                             )?;
+                            if let Some(mut diagnostic) = diagnostic.filter(|_| !related) {
+                                // tsgo (#64584): an initializer `await using`
+                                // accepts gets a hint.
+                                let async_disposable = self.get_global_async_disposable_type(
+                                    /*report_errors*/ true,
+                                )?;
+                                let members = [
+                                    async_disposable,
+                                    self.tables.intrinsics.null,
+                                    self.tables.intrinsics.undefined,
+                                ];
+                                let optional_async_disposable = self.get_union_type_ex(
+                                    &members,
+                                    tsc_types::UnionReduction::Literal,
+                                )?;
+                                if async_disposable != self.empty_object_type
+                                    && self
+                                        .is_type_assignable_to(widened, optional_async_disposable)?
+                                {
+                                    diagnostic.message.next_present = true;
+                                    diagnostic.message.next.push(tsc_diagnostics::MessageChain::new(
+                                        &diagnostics::This_initializer_has_a_Symbol_asyncDispose_method_Did_you_mean_to_use_await_using,
+                                        &[],
+                                    ));
+                                }
+                                self.push_error_diagnostic(diagnostic);
+                            }
                         }
                     }
                 }

@@ -1530,11 +1530,14 @@ impl<'a> CheckerState<'a> {
             let instantiated_constraint =
                 self.instantiate_type(constraint, Some(non_fixing_mapper))?;
             // tsgo (checker/inference.go:1381): a recursive resolution of
-            // a call takes the inference without the constraint check.
+            // a call takes the inference without the constraint check, except
+            // a pure return type inference (#64530), whose result can become
+            // the type of the enclosing declaration.
             let no_constraint_checks = self
                 .inference_context(context)
                 .flags
-                .intersects(InferenceFlags::NO_CONSTRAINT_CHECKS);
+                .intersects(InferenceFlags::NO_CONSTRAINT_CHECKS)
+                && self.inference_info(inference).priority != Some(InferencePriority::RETURN_TYPE);
             if let Some(t) = inferred_type.filter(|_| !no_constraint_checks) {
                 let constraint_with_this =
                     self.get_type_with_this_argument(instantiated_constraint, Some(t), false)?;

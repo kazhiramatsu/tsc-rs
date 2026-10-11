@@ -1587,9 +1587,20 @@ impl<'a> CheckerState<'a> {
                     .all(|&declaration| self.is_deprecated_declaration(declaration))
     }
 
+    /// tsgo `ast.GetJSDocDeprecatedTag`: the `@deprecated` tag of a
+    /// declaration's own JSDoc (a variable's sits on its statement, so it
+    /// has none).
     fn jsdoc_deprecated_tag_of_declarations(&self, declarations: &[NodeId]) -> Option<NodeId> {
         declarations.iter().find_map(|&declaration| {
-            self.first_jsdoc_tag(declaration, SyntaxKind::JSDocDeprecatedTag)
+            self.direct_jsdoc_documents(declaration)
+                .into_iter()
+                .find_map(|document| match self.data_of(document) {
+                    NodeData::JSDoc(data) => self
+                        .nodes_of(data.tags)
+                        .into_iter()
+                        .find(|&tag| self.kind_of(tag) == SyntaxKind::JSDocDeprecatedTag),
+                    _ => None,
+                })
         })
     }
 
@@ -2574,22 +2585,22 @@ impl<'a> CheckerState<'a> {
                 declaration,
             )
             .intersects(ModifierFlags::STATIC);
-            if strict_property_initialization
-                && node_is_access
-                && receiver_is_this
-                && is_property_without_initializer
-                && !is_static
-            {
-                let flow_container = self.get_control_flow_container(node);
-                let source = self.binder.source_of_node(declaration);
-                let is_ambient =
-                    node_util::node_flags(source, declaration).intersects(NodeFlags::AMBIENT);
-                if let Some(flow_container) = flow_container {
-                    if self.kind_of(flow_container) == SyntaxKind::Constructor
-                        && self.parent_of(flow_container) == self.parent_of(declaration)
-                        && !is_ambient
-                    {
-                        assume_uninitialized = true;
+            // tsgo (#64523): a `this` access under strictPropertyInitialization
+            // never takes the assignment-declaration branch, so an inherited
+            // field reassigned in JavaScript is not uninitialized.
+            if strict_property_initialization && node_is_access && receiver_is_this {
+                if is_property_without_initializer && !is_static {
+                    let flow_container = self.get_control_flow_container(node);
+                    let source = self.binder.source_of_node(declaration);
+                    let is_ambient =
+                        node_util::node_flags(source, declaration).intersects(NodeFlags::AMBIENT);
+                    if let Some(flow_container) = flow_container {
+                        if self.kind_of(flow_container) == SyntaxKind::Constructor
+                            && self.parent_of(flow_container) == self.parent_of(declaration)
+                            && !is_ambient
+                        {
+                            assume_uninitialized = true;
+                        }
                     }
                 }
             } else if let NodeData::BinaryExpression(data) = self.data_of(declaration) {
