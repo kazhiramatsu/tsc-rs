@@ -21761,11 +21761,13 @@ fn the_api_server_answers_over_message_pack() {
     assert_eq!(snapshot["snapshot"], 1);
     let project = &snapshot["projects"][0];
     assert_eq!(project["configFileName"], format!("{root}/tsconfig.json"));
+    // #64681 dropped the deprecated `rootFiles` and `compilerOptions`.
     assert_eq!(
-        project["rootFiles"],
+        project["parsedCommandLine"]["fileNames"],
         serde_json::json!([format!("{root}/a.ts")])
     );
-    assert_eq!(project["compilerOptions"]["strict"], true);
+    assert_eq!(project["parsedCommandLine"]["options"]["strict"], true);
+    assert_eq!(project.get("rootFiles"), None);
     let default: serde_json::Value = serde_json::from_str(&responses[2].1).unwrap();
     assert_eq!(default["id"], project["id"]);
     assert_eq!(
