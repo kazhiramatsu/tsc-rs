@@ -464,3 +464,25 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   既知の 24 のまま。
 - **hosted と merge**：PR #751 の hosted run 38153886121（rust 12m34s、conformance 18m6s、gates pass、head `3c5d59c04`）、merge
   commit `c9652328f`。
+
+## 追従の後：実プロジェクトの残り（2026-10-12）
+
+- **`koa-router`**：error の表示（`typeToString`）で、配列と tuple も deferred な reference と同じく `visitAndTransformType` を
+  通す（tsgo #64556、nodebuilderimpl.go:3545-3546）。長さの予算を越えたら `...` に省き、配列と tuple は素の reference で循環を
+  見る。reference の腕を `type_reference_to_string_node` に移して検査で包んだ。`...middleware: IMiddleware<...>[]` は tsgo の
+  `...middleware: ...` に。
+- **TS2835**：tsgo の `getSuggestedImportExtension` は host（`Program.FileExists`）に、拡張子の無い相対の ESM import がどの
+  file か（program に無くても）を問う。checker には host が無いので、program の load が node16／nodenext で解決できなかった
+  そのような import ごとに tsgo の拡張子の順で host に問い、最初にある file を記録する
+  （`PreparedProgram::import_extension_files`）。checker は module の provider（`has_import_extension_file`）で読む。host の
+  error は無いと答える（`FileExists` と同じ）。拡張子の無い相対の判定は tsgo の `PathIsRelative`（絶対 path は TS2834 でなく
+  TS2307／TS2882）。
+- **test**：tsgo の byte の CLI contract 2 つ（program の外の file、`.mts`、`jsx: preserve` の `.tsx`、`.json`、末尾の
+  separator、program の中の file、絶対 path／切り詰めた object の最後の配列の property）。前の code では両方落ちる。
+- **結果**（release build、head `39b1bc67c`）：full の conformance（`--workers 2 --check`、488 s）は 0 regressions で、#751 の
+  report と全ての field（error と emit の digest も）で同じ。並列対照は記録済みの順序の 4 構成だけ、suites（`--check`）は
+  0 regressions・既知の 24。DefinitelyTyped（`tsgo --singleThreaded` と checker 1、1 job・`nice -n 20`）は **9,067／9,067
+  一致**（1,193 s）。
+- **hosted と merge**：PR #752 の hosted run 38157007125（rust 12m3s、conformance 15m51s、gates pass、head `39b1bc67c`）、merge
+  commit `237d566d8`。
+- 次は TS7 が除いたものを除く（[計画](../ts71-removed-features/README.md)）。
