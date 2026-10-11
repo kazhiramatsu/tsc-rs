@@ -4776,8 +4776,10 @@ impl<'a> CheckerState<'a> {
         // hasExtension predicate accepts any dot in the basename, not
         // only extensions understood by the TypeScript resolver.
         let module_resolution_kind = self.options.emit_module_resolution_kind();
+        // tsgo `isExtensionlessRelativePathImport` (checker.go:15738):
+        // `PathIsRelative`, so an absolute path is not one.
         if matches!(module_resolution_kind, 3 | 99)
-            && Self::is_external_module_name_relative(module_reference)
+            && crate::node_builder::specifier::path_is_relative(module_reference)
             && !Self::has_extension(module_reference)
             && self.resolution_mode_for_usage(location) == ModuleResolutionMode::EsNext
         {
@@ -7905,11 +7907,16 @@ impl<'a> CheckerState<'a> {
             (".jsx", ".jsx"),
             (".json", ".json"),
         ];
+        // tsgo asks the host (`Program.FileExists`): a program file, or one
+        // the program's load found for an import it could not resolve.
         table
             .iter()
             .find(|(actual, _)| {
                 let probed = crate::concat_js(&[&(candidate), &(actual)]);
                 self.host_file_paths.contains(&probed)
+                    || self
+                        .authoritative_module_provider
+                        .is_some_and(|provider| provider.has_import_extension_file(probed.as_js()))
             })
             .map(|&(_, import_extension)| import_extension)
     }

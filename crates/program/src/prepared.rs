@@ -1729,6 +1729,8 @@ pub struct PreparedProgram {
     /// The deduplicated package copies the load dropped (see
     /// [`PreparedProgram::package_redirect_files`]).
     package_redirect_files: Vec<PackageRedirectFile>,
+    /// See [`PreparedProgram::import_extension_files`].
+    import_extension_files: Vec<JsString>,
     resolutions: ResolutionTable,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     diagnostics: PreparationDiagnostics,
@@ -1873,17 +1875,28 @@ impl PreparedProgram {
         &self.library_files
     }
 
-    /// Every package.json the load's resolvers looked for, each once, in
-    /// canonical-path order: tsgo's package.json info cache entries, which
-    /// an incremental program's build info records as `packageJsons` (the
-    /// found ones, by real path) and `missingPackageJsons` (the ones under
-    /// `node_modules` it did not find).
     /// The deduplicated package copies the load dropped, in collect order
     /// (tsgo `redirectFilesByPath`).
     pub fn package_redirect_files(&self) -> &[PackageRedirectFile] {
         &self.package_redirect_files
     }
 
+    /// The files the host has for the extension an extensionless relative
+    /// ESM import lacks: for each such import the load could not resolve
+    /// under `node16`/`nodenext`, the first of `<import>.mts`, `.ts`,
+    /// `.cts`, `.mjs`, `.js`, `.cjs`, `.tsx`, `.jsx`, `.json` that exists.
+    /// tsgo's checker asks the host for them (`getSuggestedImportExtension`,
+    /// `Program.FileExists`) to suggest the extension (TS2835); the file
+    /// need not be in the program.
+    pub fn import_extension_files(&self) -> &[JsString] {
+        &self.import_extension_files
+    }
+
+    /// Every package.json the load's resolvers looked for, each once, in
+    /// canonical-path order: tsgo's package.json info cache entries, which
+    /// an incremental program's build info records as `packageJsons` (the
+    /// found ones, by real path) and `missingPackageJsons` (the ones under
+    /// `node_modules` it did not find).
     pub fn package_json_probes(&self) -> &[crate::PackageJsonProbe] {
         &self.package_json_probes
     }
@@ -1961,6 +1974,7 @@ pub struct PreparedProgramBuilder {
     resolution_trace: Vec<String>,
     build_info_emit_blocked: bool,
     package_redirect_files: Vec<PackageRedirectFile>,
+    import_extension_files: Vec<JsString>,
     text_by_canonical: rustc_hash::FxHashMap<CanonicalPath, Arc<str>>,
     resolutions: ResolutionTable,
     dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
@@ -1993,6 +2007,13 @@ impl PreparedProgramBuilder {
     /// [`PreparedProgram::package_redirect_files`]).
     pub fn with_package_redirect_files(mut self, files: Vec<PackageRedirectFile>) -> Self {
         self.package_redirect_files = files;
+        self
+    }
+
+    /// Record the files the host has for unresolved extensionless imports
+    /// (see [`PreparedProgram::import_extension_files`]).
+    pub fn with_import_extension_files(mut self, files: Vec<JsString>) -> Self {
+        self.import_extension_files = files;
         self
     }
 
@@ -2033,6 +2054,7 @@ impl PreparedProgramBuilder {
             resolution_trace: Vec::new(),
             build_info_emit_blocked: false,
             package_redirect_files: Vec::new(),
+            import_extension_files: Vec::new(),
             text_by_canonical: rustc_hash::FxHashMap::default(),
             resolutions: ResolutionTable::default(),
             dependency_symlink_resolutions: Vec::new(),
@@ -2549,6 +2571,7 @@ impl PreparedProgramBuilder {
             resolution_trace: self.resolution_trace,
             build_info_emit_blocked: self.build_info_emit_blocked,
             package_redirect_files: self.package_redirect_files,
+            import_extension_files: self.import_extension_files,
             resolutions: self.resolutions,
             dependency_symlink_resolutions: self.dependency_symlink_resolutions,
             diagnostics: self.diagnostics,

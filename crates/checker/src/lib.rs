@@ -560,6 +560,15 @@ pub trait AuthoritativeModuleProvider: Sync {
     fn tracing(&self) -> Option<Arc<Tracing>> {
         None
     }
+
+    /// tsgo `Program.FileExists` as `getSuggestedImportExtension` asks it:
+    /// whether the program's host has `path`, a file an unresolved
+    /// extensionless relative ESM import could mean (the program records
+    /// them as it loads, `PreparedProgram::import_extension_files`).
+    /// Providers without a Program report none.
+    fn has_import_extension_file(&self, _path: JsStr<'_>) -> bool {
+        false
+    }
 }
 
 /// Fail-closed authoritative execution error. The checker records only the

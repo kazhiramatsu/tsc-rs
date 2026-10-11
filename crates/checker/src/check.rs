@@ -6562,283 +6562,30 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
         {
-            // tsgo visitAndTransformType (#63969): a deferred reference.
-            if self.links.ty(ty).deferred_node.is_some() && self.display_check_truncation_length() {
+            // tsgo typeToTypeNode (#63969, #64556): a deferred reference, an
+            // array and a tuple go through visitAndTransformType, which
+            // elides them once truncating; an array or a tuple is a cycle by
+            // its plain reference (a deferred and a regular reference are
+            // one), and its nesting is not bounded by a symbol.
+            let is_array_or_tuple = self.is_array_type(ty)? || self.tables.is_tuple_type(ty);
+            if (is_array_or_tuple || self.links.ty(ty).deferred_node.is_some())
+                && self.display_check_truncation_length()
+            {
                 return Ok(self.display_truncation_type_node());
             }
+            if !is_array_or_tuple {
+                return self.type_reference_to_string_node(ty, fully_qualified);
+            }
             let target = self.tables.reference_target(ty);
-            // typeReferenceToTypeNode's tuple arm (51948-51978),
-            // checked before the symbol head: tuple targets are the
-            // symbol-less references, and the tuple objectFlags test
-            // is disjoint from the global-Array sugar identity test,
-            // so running it first is unobservable against tsc's
-            // dispatch order.
-            if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
-                let element_flags = data.element_flags.clone();
-                let labels = data.labeled_element_declarations.clone();
-                let readonly = data.readonly;
-                // getTypeReferenceArity: length(target.typeParameters).
-                let arity = data.type_parameters.len();
-                let raw_arguments = self.get_type_arguments(ty)?;
-                // 51949: removeMissingType on every OPTIONAL element —
-                // the eOPT missing marker never prints.
-                let mut arguments = Vec::with_capacity(raw_arguments.len());
-                for (i, &argument) in raw_arguments.iter().enumerate() {
-                    let optional = element_flags
-                        .get(i)
-                        .is_some_and(|flags| flags.intersects(ElementFlags::OPTIONAL));
-                    arguments.push(self.remove_missing_type(argument, optional));
-                }
-                // 51950-51952: an empty argument list (and the arity-0
-                // slice, whose mapToTypeNodes returns undefined) falls
-                // through to the empty-tuple tail; typeToString always
-                // runs under IgnoreErrors ⊇ AllowEmptyTuple (50722),
-                // so the error-display slice prints `[]` there.
-                let argument_count = arguments.len().min(arity);
-                let tuple_nodes = self.map_to_type_string_nodes(
-                    &arguments[..argument_count],
-                    fully_qualified,
-                    /*is_bare_list*/ false,
-                )?;
-                let mut rendered = Vec::with_capacity(tuple_nodes.len());
-                for (i, (text, kind)) in tuple_nodes.into_iter().enumerate() {
-                    let flags = element_flags[i];
-                    let label = labels
-                        .as_ref()
-                        .and_then(|labels| labels.get(i).copied())
-                        .flatten();
-                    rendered.push(match label {
-                        // 51959-51964 createNamedTupleMember: `...`
-                        // for Variable elements, `?` for Optional, the
-                        // Rest element type wrapped as an array. The
-                        // member type itself never parenthesizes
-                        // (factory 22247-22256 applies no rule).
-                        Some(label) => {
-                            let name = self.tuple_element_label(NodeId::new(label))?;
-                            let dot_dot_dot = if flags.intersects(ElementFlags::VARIABLE) {
-                                "..."
-                            } else {
-                                ""
-                            };
-                            let question = if flags.intersects(ElementFlags::OPTIONAL) {
-                                "?"
-                            } else {
-                                ""
-                            };
-                            let member = if flags.intersects(ElementFlags::REST) {
-                                array_type_node_text(text, kind)
-                            } else {
-                                text
-                            };
-                            crate::concat_js(&[
-                                &(dot_dot_dot),
-                                &(name),
-                                &(question),
-                                &": ",
-                                &(member),
-                            ])
-                        }
-                        // 51966: RestTypeNode (`...T[]` for Rest,
-                        // `...T` for Variadic — createRestTypeNode
-                        // applies no parenthesizer) ‖ OptionalTypeNode
-                        // (`T?`, postfix-parenthesized) ‖ the bare
-                        // element.
-                        None => {
-                            if flags.intersects(ElementFlags::VARIABLE) {
-                                let member = if flags.intersects(ElementFlags::REST) {
-                                    array_type_node_text(text, kind)
-                                } else {
-                                    text
-                                };
-                                crate::concat_js(&[&"...", &(member)])
-                            } else if flags.intersects(ElementFlags::OPTIONAL) {
-                                let member = if optional_type_operand_needs_parens(kind) {
-                                    crate::concat_js(&[&"(", &(text), &")"])
-                                } else {
-                                    text
-                                };
-                                crate::concat_js(&[&(member), &"?"])
-                            } else {
-                                text
-                            }
-                        }
-                    });
-                }
-                // SingleLine TupleTypeNode emission `[a, b]`;
-                // 51970/51975 wrap readonly targets in the readonly
-                // TypeOperator (a tuple operand never parenthesizes,
-                // 20570-20576).
-                let tuple = if rendered.is_empty() {
-                    "[]".into()
-                } else {
-                    crate::concat_js(&[&"[", &(crate::join_js_texts(&rendered, ", ")), &"]"])
-                };
-                return Ok(if readonly {
-                    (
-                        crate::concat_js(&[&"readonly ", &(tuple)]),
-                        SliceTypeNodeKind::TypeOperator,
-                    )
-                } else {
-                    (tuple, SliceTypeNodeKind::Tuple)
-                });
-            }
-            let symbol = self
-                .tables
-                .type_of(target)
-                .symbol
-                .expect("non-tuple reference targets carry a generic symbol");
             let arguments = self.get_type_arguments(ty)?;
-            // typeReferenceToTypeNode's array sugar: references to the
-            // global Array/ReadonlyArray print as element sugar (the
-            // identity probe is against the target globals, before the
-            // ordinary symbol head. Member-resolution can append the
-            // reference's `this` argument, so only the first semantic
-            // type argument is consumed here — tsc does not require
-            // `typeArguments.length === 1`.
-            let array_name_kind = match self.binder.symbol(symbol).escaped_name.as_str() {
-                Some("Array") => Some(false),
-                Some("ReadonlyArray") => Some(true),
-                _ => None,
-            };
-            let array_kind = match array_name_kind {
-                Some(false)
-                    if self.get_global_type_symbol("Array", /*report_errors*/ false)?
-                        == Some(symbol) =>
-                {
-                    Some(false)
-                }
-                Some(true)
-                    if self.get_global_type_symbol(
-                        "ReadonlyArray",
-                        /*report_errors*/ false,
-                    )? == Some(symbol) =>
-                {
-                    Some(true)
-                }
-                _ => None,
-            };
-            if let (Some(readonly), Some(&element_type)) = (array_kind, arguments.first()) {
-                let (element, kind) = self.type_to_string_node(element_type, fully_qualified)?;
-                // 51945-51947: ArrayTypeNode (postfix-parenthesized
-                // element) + the readonly TypeOperator for
-                // ReadonlyArray (an array operand never parenthesizes,
-                // 20570-20576).
-                let array = array_type_node_text(element, kind);
-                return Ok(if readonly {
-                    (
-                        crate::concat_js(&[&"readonly ", &(array)]),
-                        SliceTypeNodeKind::TypeOperator,
-                    )
-                } else {
-                    (array, SliceTypeNodeKind::Array)
-                });
+            let identity = self.tables.create_type_reference(target, &arguments);
+            if self.display_visited_types.contains(&identity) {
+                return Ok(self.reverse_mapped_elision_placeholder());
             }
-            let (type_parameters, outer_type_parameter_count) =
-                match &self.tables.type_of(target).data {
-                    TypeData::GenericType {
-                        type_parameters,
-                        outer_type_parameter_count,
-                        ..
-                    } => (type_parameters.to_vec(), *outer_type_parameter_count),
-                    _ => {
-                        unreachable!("reference targets are GenericType or symbol-less TupleTarget")
-                    }
-                };
-            let mut outer_reference: Option<JsString> = None;
-            let mut argument_start = 0;
-            while argument_start < outer_type_parameter_count {
-                // TypeScript 6.0.3 passes this absent JSDoc-template
-                // parent into lookupSymbolChainWorker and crashes.
-                // Preserve that oracle behavior as typed control flow:
-                // do not invent a class parent or a non-tsc display
-                // face.
-                let Some(parent) = self
-                    .parent_symbol_of_type_parameter_display(type_parameters[argument_start])
-                    .filter(|_| arguments.len() >= outer_type_parameter_count)
-                else {
-                    return Err(CheckAbort::OracleCrash(
-                        OracleCrashKind::OuterJsdocTemplateReferenceDisplay,
-                    ));
-                };
-                let group_start = argument_start;
-                argument_start += 1;
-                while argument_start < outer_type_parameter_count
-                    && self.parent_symbol_of_type_parameter_display(type_parameters[argument_start])
-                        == Some(parent)
-                {
-                    argument_start += 1;
-                }
-                let argument_group = &arguments[group_start..argument_start];
-                if argument_group
-                    .iter()
-                    .copied()
-                    .ne(type_parameters[group_start..argument_start].iter().copied())
-                {
-                    // tsgo maps the group's arguments, but appendReferenceToType
-                    // keeps only the qualifiers of each group and the last
-                    // reference's own arguments (nodebuilderimpl.go:272-323:
-                    // "nested type args are silently elided").
-                    self.map_to_type_string_nodes(
-                        argument_group,
-                        fully_qualified,
-                        /*is_bare_list*/ false,
-                    )?;
-                    let parent_name = self.type_reference_symbol_name(parent, fully_qualified)?;
-                    outer_reference = Some(match outer_reference {
-                        Some(root) => crate::concat_js(&[&(root), &".", &(parent_name)]),
-                        None => parent_name,
-                    });
-                }
-            }
-            let mut type_parameter_count = type_parameters.len().min(arguments.len());
-            // 52009-52033: only the four iterable protocol types omit
-            // a trailing run of arguments identical to their declared
-            // defaults. Stop at the first absent/non-identical default;
-            // Generator and every other generic are non-firing
-            // siblings even when their parameter defaults are equal.
-            if self.should_elide_iterable_default_arguments(ty, type_parameter_count)? {
-                while type_parameter_count > outer_type_parameter_count {
-                    let argument = arguments[type_parameter_count - 1];
-                    let parameter = type_parameters[type_parameter_count - 1];
-                    let Some(default_type) = self.get_default_from_type_parameter(parameter)?
-                    else {
-                        break;
-                    };
-                    if !self.is_type_identical_to(argument, default_type)? {
-                        break;
-                    }
-                    type_parameter_count -= 1;
-                }
-            }
-            let argument_end = type_parameter_count.min(arguments.len());
-            let argument_start = outer_type_parameter_count.min(argument_end);
-            let rendered = self
-                .map_to_type_string_nodes(
-                    &arguments[argument_start..argument_end],
-                    fully_qualified,
-                    /*is_bare_list*/ false,
-                )?
-                .into_iter()
-                .map(|(text, _)| text)
-                .collect::<Vec<_>>();
-            let name = self.type_reference_symbol_name(symbol, fully_qualified)?;
-            let reference = if rendered.is_empty() {
-                name
-            } else {
-                crate::concat_js(&[
-                    &(name),
-                    &"<",
-                    &(crate::join_js_texts(&rendered, ", ")),
-                    &">",
-                ])
-            };
-            return Ok((
-                match outer_reference {
-                    Some(root) => crate::concat_js(&[&(root), &".", &(reference)]),
-                    None => reference,
-                },
-                SliceTypeNodeKind::Reference,
-            ));
+            self.display_visited_types.insert(identity);
+            let result = self.type_reference_to_string_node(ty, fully_qualified);
+            self.display_visited_types.remove(&identity);
+            return result;
         }
         if flags.intersects(TypeFlags::OBJECT)
             && self
@@ -7009,6 +6756,282 @@ impl<'a> CheckerState<'a> {
             return self.type_to_string_node(data.base_type, fully_qualified);
         }
         unreachable!("typeToTypeNodeHelper exhausted every TypeFlags/TypeData arm")
+    }
+
+    /// The display of a type reference: tsgo's arrayOrTupleTypeToNode (a
+    /// tuple, the global Array and ReadonlyArray sugar) and
+    /// typeReferenceToTypeNode (a generic reference with its outer type
+    /// arguments).
+    fn type_reference_to_string_node(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
+        let target = self.tables.reference_target(ty);
+        // typeReferenceToTypeNode's tuple arm (51948-51978),
+        // checked before the symbol head: tuple targets are the
+        // symbol-less references, and the tuple objectFlags test
+        // is disjoint from the global-Array sugar identity test,
+        // so running it first is unobservable against tsc's
+        // dispatch order.
+        if let TypeData::TupleTarget(data) = &self.tables.type_of(target).data {
+            let element_flags = data.element_flags.clone();
+            let labels = data.labeled_element_declarations.clone();
+            let readonly = data.readonly;
+            // getTypeReferenceArity: length(target.typeParameters).
+            let arity = data.type_parameters.len();
+            let raw_arguments = self.get_type_arguments(ty)?;
+            // 51949: removeMissingType on every OPTIONAL element —
+            // the eOPT missing marker never prints.
+            let mut arguments = Vec::with_capacity(raw_arguments.len());
+            for (i, &argument) in raw_arguments.iter().enumerate() {
+                let optional = element_flags
+                    .get(i)
+                    .is_some_and(|flags| flags.intersects(ElementFlags::OPTIONAL));
+                arguments.push(self.remove_missing_type(argument, optional));
+            }
+            // 51950-51952: an empty argument list (and the arity-0
+            // slice, whose mapToTypeNodes returns undefined) falls
+            // through to the empty-tuple tail; typeToString always
+            // runs under IgnoreErrors ⊇ AllowEmptyTuple (50722),
+            // so the error-display slice prints `[]` there.
+            let argument_count = arguments.len().min(arity);
+            let tuple_nodes = self.map_to_type_string_nodes(
+                &arguments[..argument_count],
+                fully_qualified,
+                /*is_bare_list*/ false,
+            )?;
+            let mut rendered = Vec::with_capacity(tuple_nodes.len());
+            for (i, (text, kind)) in tuple_nodes.into_iter().enumerate() {
+                let flags = element_flags[i];
+                let label = labels
+                    .as_ref()
+                    .and_then(|labels| labels.get(i).copied())
+                    .flatten();
+                rendered.push(match label {
+                    // 51959-51964 createNamedTupleMember: `...`
+                    // for Variable elements, `?` for Optional, the
+                    // Rest element type wrapped as an array. The
+                    // member type itself never parenthesizes
+                    // (factory 22247-22256 applies no rule).
+                    Some(label) => {
+                        let name = self.tuple_element_label(NodeId::new(label))?;
+                        let dot_dot_dot = if flags.intersects(ElementFlags::VARIABLE) {
+                            "..."
+                        } else {
+                            ""
+                        };
+                        let question = if flags.intersects(ElementFlags::OPTIONAL) {
+                            "?"
+                        } else {
+                            ""
+                        };
+                        let member = if flags.intersects(ElementFlags::REST) {
+                            array_type_node_text(text, kind)
+                        } else {
+                            text
+                        };
+                        crate::concat_js(&[&(dot_dot_dot), &(name), &(question), &": ", &(member)])
+                    }
+                    // 51966: RestTypeNode (`...T[]` for Rest,
+                    // `...T` for Variadic — createRestTypeNode
+                    // applies no parenthesizer) ‖ OptionalTypeNode
+                    // (`T?`, postfix-parenthesized) ‖ the bare
+                    // element.
+                    None => {
+                        if flags.intersects(ElementFlags::VARIABLE) {
+                            let member = if flags.intersects(ElementFlags::REST) {
+                                array_type_node_text(text, kind)
+                            } else {
+                                text
+                            };
+                            crate::concat_js(&[&"...", &(member)])
+                        } else if flags.intersects(ElementFlags::OPTIONAL) {
+                            let member = if optional_type_operand_needs_parens(kind) {
+                                crate::concat_js(&[&"(", &(text), &")"])
+                            } else {
+                                text
+                            };
+                            crate::concat_js(&[&(member), &"?"])
+                        } else {
+                            text
+                        }
+                    }
+                });
+            }
+            // SingleLine TupleTypeNode emission `[a, b]`;
+            // 51970/51975 wrap readonly targets in the readonly
+            // TypeOperator (a tuple operand never parenthesizes,
+            // 20570-20576).
+            let tuple = if rendered.is_empty() {
+                "[]".into()
+            } else {
+                crate::concat_js(&[&"[", &(crate::join_js_texts(&rendered, ", ")), &"]"])
+            };
+            return Ok(if readonly {
+                (
+                    crate::concat_js(&[&"readonly ", &(tuple)]),
+                    SliceTypeNodeKind::TypeOperator,
+                )
+            } else {
+                (tuple, SliceTypeNodeKind::Tuple)
+            });
+        }
+        let symbol = self
+            .tables
+            .type_of(target)
+            .symbol
+            .expect("non-tuple reference targets carry a generic symbol");
+        let arguments = self.get_type_arguments(ty)?;
+        // typeReferenceToTypeNode's array sugar: references to the
+        // global Array/ReadonlyArray print as element sugar (the
+        // identity probe is against the target globals, before the
+        // ordinary symbol head. Member-resolution can append the
+        // reference's `this` argument, so only the first semantic
+        // type argument is consumed here — tsc does not require
+        // `typeArguments.length === 1`.
+        let array_name_kind = match self.binder.symbol(symbol).escaped_name.as_str() {
+            Some("Array") => Some(false),
+            Some("ReadonlyArray") => Some(true),
+            _ => None,
+        };
+        let array_kind = match array_name_kind {
+            Some(false)
+                if self.get_global_type_symbol("Array", /*report_errors*/ false)?
+                    == Some(symbol) =>
+            {
+                Some(false)
+            }
+            Some(true)
+                if self
+                    .get_global_type_symbol("ReadonlyArray", /*report_errors*/ false)?
+                    == Some(symbol) =>
+            {
+                Some(true)
+            }
+            _ => None,
+        };
+        if let (Some(readonly), Some(&element_type)) = (array_kind, arguments.first()) {
+            let (element, kind) = self.type_to_string_node(element_type, fully_qualified)?;
+            // 51945-51947: ArrayTypeNode (postfix-parenthesized
+            // element) + the readonly TypeOperator for
+            // ReadonlyArray (an array operand never parenthesizes,
+            // 20570-20576).
+            let array = array_type_node_text(element, kind);
+            return Ok(if readonly {
+                (
+                    crate::concat_js(&[&"readonly ", &(array)]),
+                    SliceTypeNodeKind::TypeOperator,
+                )
+            } else {
+                (array, SliceTypeNodeKind::Array)
+            });
+        }
+        let (type_parameters, outer_type_parameter_count) = match &self.tables.type_of(target).data
+        {
+            TypeData::GenericType {
+                type_parameters,
+                outer_type_parameter_count,
+                ..
+            } => (type_parameters.to_vec(), *outer_type_parameter_count),
+            _ => {
+                unreachable!("reference targets are GenericType or symbol-less TupleTarget")
+            }
+        };
+        let mut outer_reference: Option<JsString> = None;
+        let mut argument_start = 0;
+        while argument_start < outer_type_parameter_count {
+            // TypeScript 6.0.3 passes this absent JSDoc-template
+            // parent into lookupSymbolChainWorker and crashes.
+            // Preserve that oracle behavior as typed control flow:
+            // do not invent a class parent or a non-tsc display
+            // face.
+            let Some(parent) = self
+                .parent_symbol_of_type_parameter_display(type_parameters[argument_start])
+                .filter(|_| arguments.len() >= outer_type_parameter_count)
+            else {
+                return Err(CheckAbort::OracleCrash(
+                    OracleCrashKind::OuterJsdocTemplateReferenceDisplay,
+                ));
+            };
+            let group_start = argument_start;
+            argument_start += 1;
+            while argument_start < outer_type_parameter_count
+                && self.parent_symbol_of_type_parameter_display(type_parameters[argument_start])
+                    == Some(parent)
+            {
+                argument_start += 1;
+            }
+            let argument_group = &arguments[group_start..argument_start];
+            if argument_group
+                .iter()
+                .copied()
+                .ne(type_parameters[group_start..argument_start].iter().copied())
+            {
+                // tsgo maps the group's arguments, but appendReferenceToType
+                // keeps only the qualifiers of each group and the last
+                // reference's own arguments (nodebuilderimpl.go:272-323:
+                // "nested type args are silently elided").
+                self.map_to_type_string_nodes(
+                    argument_group,
+                    fully_qualified,
+                    /*is_bare_list*/ false,
+                )?;
+                let parent_name = self.type_reference_symbol_name(parent, fully_qualified)?;
+                outer_reference = Some(match outer_reference {
+                    Some(root) => crate::concat_js(&[&(root), &".", &(parent_name)]),
+                    None => parent_name,
+                });
+            }
+        }
+        let mut type_parameter_count = type_parameters.len().min(arguments.len());
+        // 52009-52033: only the four iterable protocol types omit
+        // a trailing run of arguments identical to their declared
+        // defaults. Stop at the first absent/non-identical default;
+        // Generator and every other generic are non-firing
+        // siblings even when their parameter defaults are equal.
+        if self.should_elide_iterable_default_arguments(ty, type_parameter_count)? {
+            while type_parameter_count > outer_type_parameter_count {
+                let argument = arguments[type_parameter_count - 1];
+                let parameter = type_parameters[type_parameter_count - 1];
+                let Some(default_type) = self.get_default_from_type_parameter(parameter)? else {
+                    break;
+                };
+                if !self.is_type_identical_to(argument, default_type)? {
+                    break;
+                }
+                type_parameter_count -= 1;
+            }
+        }
+        let argument_end = type_parameter_count.min(arguments.len());
+        let argument_start = outer_type_parameter_count.min(argument_end);
+        let rendered = self
+            .map_to_type_string_nodes(
+                &arguments[argument_start..argument_end],
+                fully_qualified,
+                /*is_bare_list*/ false,
+            )?
+            .into_iter()
+            .map(|(text, _)| text)
+            .collect::<Vec<_>>();
+        let name = self.type_reference_symbol_name(symbol, fully_qualified)?;
+        let reference = if rendered.is_empty() {
+            name
+        } else {
+            crate::concat_js(&[
+                &(name),
+                &"<",
+                &(crate::join_js_texts(&rendered, ", ")),
+                &">",
+            ])
+        };
+        Ok((
+            match outer_reference {
+                Some(root) => crate::concat_js(&[&(root), &".", &(reference)]),
+                None => reference,
+            },
+            SliceTypeNodeKind::Reference,
+        ))
     }
 
     /// tsc-port: createMappedTypeNodeFromType @6.0.3

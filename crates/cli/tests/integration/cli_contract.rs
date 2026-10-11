@@ -21856,6 +21856,76 @@ fn using_hint_and_enum_computed_names_follow_tsgo() {
 }
 
 #[test]
+fn import_extension_suggestions_ask_the_host_like_tsgo() {
+    // tsgo getSuggestedImportExtension asks the host (`Program.FileExists`),
+    // in its extension order, which file an extensionless relative ESM
+    // import means, whether or not the program has it; a trailing separator
+    // gets no suggestion, and an absolute path is not a relative import
+    // (`PathIsRelative`). The expected bytes are tsgo's for the same files
+    // and arguments.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("dir")).expect("create dir");
+    let absolute = tree.path("a").display().to_string();
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{ "compilerOptions": { "module": "nodenext", "jsx": "preserve", "noEmit": true }, "files": ["main.mts", "inprog.ts"] }"#,
+    )
+    .expect("write tsconfig.json");
+    fs::write(
+        tree.path("main.mts"),
+        format!("import \"./a\";\nimport \"./b\";\nimport \"./c\";\nimport \"./dir/\";\nimport \"./inprog\";\nimport \"./none\";\nimport \"{absolute}\";\n"),
+    )
+    .expect("write main.mts");
+    for (name, text) in [
+        ("a.mts", "export {};\n"),
+        ("a.ts", "export {};\n"),
+        ("b.tsx", "export {};\n"),
+        ("c.json", "{}\n"),
+        ("dir/index.ts", "export {};\n"),
+        ("inprog.ts", "export {};\n"),
+    ] {
+        fs::write(tree.path(name), text).expect("write source");
+    }
+
+    let output = run(&tree, &["-p", "tsconfig.json", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    let relative = "Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'.";
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            "main.mts(1,8): error TS2835: {relative} Did you mean './a.mjs'?\n\
+             main.mts(2,8): error TS2835: {relative} Did you mean './b.jsx'?\n\
+             main.mts(3,8): error TS2835: {relative} Did you mean './c.json'?\n\
+             main.mts(4,8): error TS2834: {relative} Consider adding an extension to the import path.\n\
+             main.mts(5,8): error TS2835: {relative} Did you mean './inprog.js'?\n\
+             main.mts(6,8): error TS2834: {relative} Consider adding an extension to the import path.\n\
+             main.mts(7,8): error TS2882: Cannot find module or type declarations for side-effect import of '{absolute}'.\n"
+        )
+    );
+}
+
+#[test]
+fn truncated_types_elide_arrays_like_tsgo() {
+    // tsgo #64556: an array or a tuple goes through visitAndTransformType,
+    // which elides it once the printed type is past its length budget; the
+    // last property of a truncated object is still printed. The expected
+    // bytes are tsgo's for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        "declare const x: { aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: string; bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: string; cccccccccccccccccccccccccccccc: string; dddddddddddddddddddddddddddddd: string; eeeeeeeeeeeeeeeeeeeeeeeeeeee: string; ffffffffffffffffffffffff: string; last: string[] };\nconst n: number = x;\nexport {};\n",
+    )
+    .expect("write source");
+
+    let output = run(&tree, &["--noEmit", "--pretty", "false", "main.ts"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "main.ts(2,7): error TS2322: Type '{ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: string; bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: string; cccccccccccccccccccccccccccccc: string; dddddddddddddddddddddddddddddd: string; eeeeeeeeeeeeeeeeeeeeeeeeeeee: string; ffffffffffffffffffffffff: string; last: ...; }' is not assignable to type 'number'.\n"
+    );
+}
+
+#[test]
 fn declaration_maps_of_default_exports_and_inline_maps_follow_tsgo() {
     // tsgo #64460: the declaration emit of `export default` (an identifier, or
     // an expression behind `_default`) maps the export assignment to the

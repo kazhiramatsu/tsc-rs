@@ -1921,6 +1921,8 @@ struct CompleteGraph {
     package_redirect_files: Vec<(ProgramPath, usize, usize, Vec<SourceInclusionReason>)>,
     /// The `--traceResolution` lines, in replay order.
     resolution_trace: Vec<String>,
+    /// See `PreparedProgram::import_extension_files`.
+    import_extension_files: Vec<JsString>,
     /// A referenced project writes this program's build info (TS6377).
     build_info_emit_blocked: bool,
 }
@@ -2000,6 +2002,9 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// filesparser.go:440-445: per collected task, its type reference
     /// resolutions then its module resolutions).
     resolution_trace: Vec<String>,
+    /// The files the host has for the extension an unresolved relative
+    /// ESM import lacks (see `PreparedProgram::import_extension_files`).
+    import_extension_files: Vec<JsString>,
     /// The automatic type directive resolutions, in name order.
     automatic_type_resolution_indices: Vec<usize>,
     /// The `--traceResolution` lines of the library replacement lookups by
@@ -2081,6 +2086,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             pre_resolved_hits: 0,
             pre_resolved_types: BTreeMap::new(),
             resolution_trace: Vec::new(),
+            import_extension_files: Vec::new(),
             automatic_type_resolution_indices: Vec::new(),
             library_resolution_traces: BTreeMap::new(),
             directory_resolutions: rustc_hash::FxHashMap::default(),
@@ -3485,6 +3491,44 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         })
     }
 
+    /// tsgo `getSuggestedImportExtension` (checker.go:15736-15750,
+    /// 15847-15869): for an extensionless relative ESM import under
+    /// `node16`/`nodenext` that did not resolve, the checker asks the host
+    /// which file the import could mean, by extension in this order. The
+    /// checker has no host here, so the load asks for it and records the
+    /// first file that exists.
+    fn record_import_extension_file(&mut self, containing_file: &JsString, key: &ResolutionKey) {
+        let specifier = key.specifier();
+        // node16 (3) or nodenext (99); `tspath.HasExtension` is a dot in the
+        // base name.
+        if key.mode() != ResolutionMode::EsNext
+            || !matches!(self.compiler_options.emit_module_resolution_kind(), 3 | 99)
+            || !crate::option_validation::path_is_relative(specifier)
+            || crate::js_path::base_file_name(specifier).contains(".")
+            || specifier.ends_with("/")
+            || specifier.ends_with("\\")
+        {
+            return;
+        }
+        let base = crate::js_path::normalized_absolute_path(
+            specifier,
+            crate::js_path::directory_name(containing_file.as_js()).as_js(),
+        );
+        for extension in [
+            ".mts", ".ts", ".cts", ".mjs", ".js", ".cjs", ".tsx", ".jsx", ".json",
+        ] {
+            let mut candidate = base.clone();
+            candidate.push_js(extension.into());
+            // `FileExists` answers false when the host cannot tell.
+            if self.host.file_exists_js(candidate.as_js()).unwrap_or(false) {
+                if !self.import_extension_files.contains(&candidate) {
+                    self.import_extension_files.push(candidate);
+                }
+                break;
+            }
+        }
+    }
+
     /// tsgo addAutomaticTypeDirectiveTasks: the last root task; its
     /// subtasks are the automatic type directives' targets.
     fn load_automatic_type_directives(&mut self) -> Result<(), ProgramLoadError> {
@@ -3944,6 +3988,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             package_json_probes,
             package_redirect_files,
             resolution_trace: self.resolution_trace,
+            import_extension_files: self.import_extension_files,
             build_info_emit_blocked,
         })
     }
@@ -5756,6 +5801,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 ResolutionOutcome::NotFound => None,
             };
             let Some((target, extension, external, has_original_path, package_id)) = target else {
+                let key = self.module_resolutions[index].key.clone();
+                self.record_import_extension_file(&containing_file, &key);
                 continue;
             };
             if let Some(reason) = resolution_diagnostic_unloaded_reason(
@@ -6352,6 +6399,7 @@ fn publish_program(
     }
     builder = builder.with_package_json_probes(package_json_probes.into_values().collect());
     builder = builder.with_resolution_trace(staged.resolution_trace.clone());
+    builder = builder.with_import_extension_files(staged.import_extension_files.clone());
     builder = builder.with_build_info_emit_blocked(staged.build_info_emit_blocked);
     let config_file = program_options.config_file().cloned();
     let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();

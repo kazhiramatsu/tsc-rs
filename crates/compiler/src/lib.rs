@@ -1029,6 +1029,13 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
         Some(tsc_program::discover_symlink_facts(self.prepared()))
     }
 
+    fn has_import_extension_file(&self, path: JsStr<'_>) -> bool {
+        self.prepared()
+            .import_extension_files()
+            .iter()
+            .any(|file| file.as_js() == path)
+    }
+
     fn is_project_reference_source(&self, file_name: JsStr<'_>) -> bool {
         self.prepared()
             .project_reference_output_of_source(file_name)
