@@ -800,6 +800,7 @@ compiler/classSideInheritance2	full	js	full	full	full	full
 compiler/classSideInheritance3	full	js	full	full	full	full
 compiler/classStaticInitializersUsePropertiesBeforeDeclaration	full	js	full	full	full	full
 compiler/classStaticPropertyAccess(target=es2015)	full	js	full	full	full	full
+compiler/classStaticPropertyNoSpuriousCircularityError1	full	js	full	full	full	full
 compiler/classStaticPropertyTypeGuard(target=es2015)	full	js	full	full	full	full
 compiler/classTypeParametersInStatics	full	js	full	full	full	full
 compiler/classUpdateTests	full	js	full	full	full	full
@@ -1966,6 +1967,7 @@ compiler/deprecatedCompilerOptions3	full	js	full	full	full	full
 compiler/deprecatedCompilerOptions4	full	js	full	full	full	full
 compiler/deprecatedCompilerOptions5	full	js	full	full	full	full
 compiler/deprecatedCompilerOptions6	full	js	full	full	full	full
+compiler/deprecatedReferenceInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/derivedClassConstructorWithExplicitReturns01(target=es2015)	full	js	full	full	full	full
 compiler/derivedClassOverridesPrivateFunction1	full	js	full	full	full	full
 compiler/derivedClasses	full	js	full	full	full	full
@@ -2805,7 +2807,9 @@ compiler/fixingTypeParametersRepeatedly1	full	js	full	full	full	full
 compiler/fixingTypeParametersRepeatedly2	full	js	full	full	full	full
 compiler/fixingTypeParametersRepeatedly3	full	js	full	full	full	full
 compiler/flakyDiagnosticsJsClassPropertyInitializedToUndefined(noemit=false,strictnullchecks=false)	full	js	full	full	full	full
+compiler/flakyDiagnosticsJsClassPropertyInitializedToUndefined(noemit=false,strictnullchecks=true)	full	js	full	full	full	full
 compiler/flakyDiagnosticsJsClassPropertyInitializedToUndefined(noemit=true,strictnullchecks=false)	full	js	full	full	full	full
+compiler/flakyDiagnosticsJsClassPropertyInitializedToUndefined(noemit=true,strictnullchecks=true)	full	js	full	full	full	full
 compiler/flatArrayNoExcessiveStackDepth	full	js	full	full	full	full
 compiler/flowAfterFinally1	full	js	full	full	full	full
 compiler/flowControlTypeGuardThenSwitch	full	js	full	full	full	full
@@ -3215,7 +3219,7 @@ compiler/higherOrderMappedIndexLookupInference	full	js	full	full	full	full
 compiler/homomorphicMappedTypeIntersectionAssignability	full	js	full	full	full	full
 compiler/homomorphicMappedTypeNesting	full	js	full	full	full	full
 compiler/homomorphicMappedTypeWithNonHomomorphicInstantiationSpreadable1	full	js	full	full	full	full
-compiler/hugeDeclarationOutputGetsTruncatedWithError	full	js	none	full	full	full
+compiler/hugeDeclarationOutputGetsTruncatedWithError	full	js	full	full	full	full
 compiler/i3	full	js	full	full	full	full
 compiler/icomparable	full	js	full	full	full	full
 compiler/idInProp	full	js	full	full	full	full
@@ -3324,7 +3328,7 @@ compiler/importDeclarationUsedAsTypeQuery	full	js	full	full	full	full
 compiler/importDeferCallCommonJS	full	js	full	full	full	full
 compiler/importElisionEnum	full	js	full	full	full	full
 compiler/importElisionExportNonExportAndDefault	full	js	full	full	full	full
-compiler/importElisionTypeofImportTypeQualifier	full	none	full	full	full	full
+compiler/importElisionTypeofImportTypeQualifier	full	js	full	full	full	full
 compiler/importEqualsError45874	full	js	full	full	full	full
 compiler/importExportInternalComments	full	js	full	full	full	full
 compiler/importHelpers(target=es2015)	full	js	full	full	full	full
@@ -3397,7 +3401,7 @@ compiler/importedAliasesInTypePositions	full	js	full	full	full	full
 compiler/importedEnumMemberMergedWithExportedAliasIsError	full	js	full	full	full	full
 compiler/importedModuleAddToGlobal	full	js	full	full	full	full
 compiler/importedModuleClassNameClash	full	js	full	full	full	full
-compiler/importedValueInEnumComputedNameNoFlake	full	none	full	full	full	full
+compiler/importedValueInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/importsInAmbientModules1	full	js	full	full	full	full
 compiler/importsInAmbientModules2	full	js	full	full	full	full
 compiler/importsInAmbientModules3	full	js	full	full	full	full
@@ -3410,6 +3414,7 @@ compiler/inKeywordTypeguard(strict=true)	full	js	full	full	full	full
 compiler/inOperator	full	js	full	full	full	full
 compiler/inOperatorWithFunction	full	js	full	full	full	full
 compiler/inOperatorWithGeneric	full	js	full	full	full	full
+compiler/incompatibleAssignmentInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/incompatibleAssignmentOfIdenticallyNamedTypes	full	js	none	full	full	full
 compiler/incompatibleExports1	full	js	full	full	full	full
 compiler/incompatibleExports2	full	js	full	full	full	full
@@ -4285,6 +4290,7 @@ compiler/localAliasExportAssignment	full	js	full	full	full	full
 compiler/localClassesInLoop	full	js	full	full	full	full
 compiler/localClassesInLoop_ES6	full	js	full	full	full	full
 compiler/localImportNameVsGlobalName	full	js	full	full	full	full
+compiler/localReferenceInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/localRequireFunction	full	js	full	full	full	full
 compiler/localTypeParameterInferencePriority	full	js	full	full	full	full
 compiler/localVariablesReturnedFromCatchBlocks	full	js	full	full	full	full
@@ -4412,8 +4418,10 @@ compiler/missingDomElement_UsingDomLib	full	js	full	full	full	full
 compiler/missingDomElements	full	js	full	full	full	full
 compiler/missingFunctionImplementation	full	js	full	full	full	full
 compiler/missingFunctionImplementation2	full	js	full	full	full	full
+compiler/missingIdentifierInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/missingImportAfterModuleImport	full	js	full	full	full	full
 compiler/missingMemberErrorHasShortPath	full	js	full	full	full	full
+compiler/missingModuleInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/missingPropertiesOfClassExpression	full	js	full	full	full	full
 compiler/missingRequiredDeclare.d	full	js	full	full	full	full
 compiler/missingReturnStatement	full	js	full	full	full	full
@@ -4423,6 +4431,7 @@ compiler/missingSemicolonInModuleSpecifier	full	js	full	full	full	full
 compiler/missingTypeArguments1	full	js	full	full	full	full
 compiler/missingTypeArguments2	full	js	full	full	full	full
 compiler/missingTypeArguments3	full	js	full	full	full	full
+compiler/misspelledIdentifierInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/misspelledJsDocTypedefTags	full	js	full	full	full	full
 compiler/misspelledNewMetaProperty	full	js	full	full	full	full
 compiler/mixedExports	full	js	full	full	full	full
@@ -4773,7 +4782,7 @@ compiler/nestedObjectRest	full	js	full	full	full	full
 compiler/nestedRecursiveArraysOrObjectsError01	full	js	full	full	full	full
 compiler/nestedRecursiveLambda	full	js	full	full	full	full
 compiler/nestedSelf	full	js	full	full	full	full
-compiler/nestedSpreadsAndWidening	full	js	none	full	full	full
+compiler/nestedSpreadsAndWidening	full	js	full	full	full	full
 compiler/nestedSuperCallEmit(target=es2015)	full	js	none	none	full	full
 compiler/nestedThisContainer	full	js	full	full	full	full
 compiler/nestedTypeVariableInfersLiteral	full	js	full	full	full	full
@@ -4835,6 +4844,12 @@ compiler/noEmitOnError	full	js	full	full	full	full
 compiler/noErrorTruncation	full	js	full	full	full	full
 compiler/noErrorsInCallback	full	js	full	full	full	full
 compiler/noExcessiveStackDepthError	full	js	full	full	full	full
+compiler/noFlakyDiagnosticsExpressionNameShadowedInBody1	full	js	full	full	full	full
+compiler/noFlakyDiagnosticsTypeofImportTypeQualifier1	full	js	full	full	full	full
+compiler/noFlakyDiagnosticsTypeofImportTypeQualifier2	full	js	full	full	full	full
+compiler/noFlakyDiagnosticsUntypedModule1	full	js	full	full	full	full
+compiler/noFlakyDiagnosticsUntypedModule2	full	js	full	full	full	full
+compiler/noFlakyDiagnosticsUntypedModule3	full	js	full	full	full	full
 compiler/noImplicitAnyAndPrivateMembersWithoutTypeAnnotations	full	js	full	full	full	full
 compiler/noImplicitAnyDestructuringInPrivateMethod	full	js	full	full	full	full
 compiler/noImplicitAnyDestructuringParameterDeclaration	full	js	full	full	full	full
@@ -5548,6 +5563,7 @@ compiler/recursiveTypeComparison2	full	js	full	full	full	full
 compiler/recursiveTypeIdentity	full	js	full	full	full	full
 compiler/recursiveTypeInference	full	js	full	full	full	full
 compiler/recursiveTypeInference2	full	js	none	full	full	full
+compiler/recursiveTypeInferenceReturnTypeConstraint	full	js	full	full	full	full
 compiler/recursiveTypeParameterConstraintReferenceLacksTypeArgs	full	js	full	full	full	full
 compiler/recursiveTypeParameterReferenceError1	full	js	full	full	full	full
 compiler/recursiveTypeParameterReferenceError2	full	js	full	full	full	full
@@ -5560,6 +5576,7 @@ compiler/redeclarationOfVarWithGenericType	full	js	full	full	full	full
 compiler/redeclareParameterInCatchBlock	full	js	full	full	full	full
 compiler/redefineArray	full	js	full	full	full	full
 compiler/reducibleIndexedAccessTypes	full	js	full	full	full	full
+compiler/redundantDeclareInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/reexportDefaultIsCallable	full	js	full	full	full	full
 compiler/reexportMissingDefault	full	js	full	full	full	full
 compiler/reexportMissingDefault1	full	js	full	full	full	full
@@ -6011,6 +6028,7 @@ compiler/strictSubtypeAndNarrowing	full	js	full	full	full	full
 compiler/strictTypeofUnionNarrowing	full	js	full	full	full	full
 compiler/stringHasStringValuedNumericIndexer	full	js	full	full	full	full
 compiler/stringIncludes	full	js	full	full	full	full
+compiler/stringIncrementInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/stringIndexerAndConstructor	full	js	full	full	full	full
 compiler/stringIndexerAndConstructor1	full	js	full	full	full	full
 compiler/stringIndexerAssignments1	full	js	full	full	full	full
@@ -6226,6 +6244,7 @@ compiler/thisIndexOnExistingReadonlyFieldIsNotNever	full	js	full	full	full	full
 compiler/thisKeyword	full	js	full	full	full	full
 compiler/thisPredicateInObjectLiteral	full	js	full	full	full	full
 compiler/thisPropertyAssignmentTyping	full	js	full	full	full	full
+compiler/thisPropertyAssignmentUsedBeforeAssignedJs1	full	js	full	full	full	full
 compiler/thisReferencedInFunctionInsideArrowFunction1	full	js	full	full	full	full
 compiler/thisShadowingErrorSpans	full	js	full	full	full	full
 compiler/thisTypeAsConstraint	full	js	full	full	full	full
@@ -6562,7 +6581,7 @@ compiler/unicodeSpellingSuggestions	full	js	full	full	full	full
 compiler/unicodeStringLiteral	full	js	full	full	full	full
 compiler/unicodeSurrogatesInStringLiterals	full	js	full	full	full	full
 compiler/unionCallMixedTypeParameterPresence	full	js	full	full	full	full
-compiler/unionElementErrorTruncation	category	js	full	full	full	full
+compiler/unionElementErrorTruncation	full	js	full	full	full	full
 compiler/unionErrorMessageOnMatchingDiscriminant	full	js	full	full	full	full
 compiler/unionExcessPropertyCheckNoApparentPropTypeMismatchErrors	full	js	full	full	full	full
 compiler/unionExcessPropsWithPartialMember	full	js	full	full	full	full
@@ -6636,6 +6655,7 @@ compiler/unusedClassesinNamespace2	full	js	full	full	full	full
 compiler/unusedClassesinNamespace3	full	js	full	full	full	full
 compiler/unusedClassesinNamespace4	full	js	full	full	full	full
 compiler/unusedClassesinNamespace5	full	js	full	full	full	full
+compiler/unusedCommaOperandInEnumComputedNameNoFlake	full	js	full	full	full	full
 compiler/unusedDestructuring	full	js	full	full	full	full
 compiler/unusedDestructuringParameters	full	js	full	full	full	full
 compiler/unusedFunctionsinNamespaces1	full	js	full	full	full	full
@@ -6795,7 +6815,7 @@ compiler/useDefineForClassFieldsFlagDefault(target=esnext)	full	js	full	full	ful
 compiler/useStrictLikePrologueString01(target=es2015)	full	js	full	full	full	full
 compiler/useUnknownInCatchVariables01	full	js	full	full	full	full
 compiler/usedImportNotElidedInJs	full	js	none	none	full	full
-compiler/usingAsyncDisposable	text	js	full	full	full	full
+compiler/usingAsyncDisposable	full	js	full	full	full	full
 compiler/usingDeclarationWithNewline	full	js	full	full	full	full
 compiler/usingDeclarationsHoistedExportOrder	full	js	none	none	full	full
 compiler/usingDeclarationsNestedRest	full	none	full	full	none	full
@@ -11132,6 +11152,7 @@ conformance/parserComputedPropertyName12	full	js	full	full	full	full
 conformance/parserComputedPropertyName13	full	js	full	full	full	full
 conformance/parserComputedPropertyName14	full	js	full	full	full	full
 conformance/parserComputedPropertyName15	full	js	full	full	full	full
+conformance/parserComputedPropertyName16	full	js	full	full	full	full
 conformance/parserComputedPropertyName17	full	js	full	full	full	full
 conformance/parserComputedPropertyName18	full	js	full	full	full	full
 conformance/parserComputedPropertyName19	full	js	full	full	full	full
@@ -11142,13 +11163,16 @@ conformance/parserComputedPropertyName22	full	js	full	full	full	full
 conformance/parserComputedPropertyName23	full	js	full	full	full	full
 conformance/parserComputedPropertyName24	full	js	full	full	full	full
 conformance/parserComputedPropertyName25	full	js	full	full	full	full
+conformance/parserComputedPropertyName26	full	js	full	full	full	full
 conformance/parserComputedPropertyName27	full	js	full	full	full	full
 conformance/parserComputedPropertyName28	full	js	full	full	full	full
 conformance/parserComputedPropertyName29	full	js	full	full	full	full
 conformance/parserComputedPropertyName3	full	js	full	full	full	full
+conformance/parserComputedPropertyName30	full	js	full	full	full	full
 conformance/parserComputedPropertyName31	full	js	full	full	full	full
 conformance/parserComputedPropertyName32	full	js	full	full	full	full
 conformance/parserComputedPropertyName33	full	js	full	full	full	full
+conformance/parserComputedPropertyName34	full	js	full	full	full	full
 conformance/parserComputedPropertyName35	full	js	full	full	full	full
 conformance/parserComputedPropertyName36	full	js	full	full	full	full
 conformance/parserComputedPropertyName37	full	js	full	full	full	full
@@ -11195,6 +11219,7 @@ conformance/parserES5ComputedPropertyName2(target=es2015)	full	js	full	full	full
 conformance/parserES5ComputedPropertyName3(target=es2015)	full	js	full	full	full	full
 conformance/parserES5ComputedPropertyName4(target=es2015)	full	js	full	full	full	full
 conformance/parserES5ComputedPropertyName5(target=es2015)	full	js	full	full	full	full
+conformance/parserES5ComputedPropertyName6(target=es2015)	full	js	full	full	full	full
 conformance/parserES5ComputedPropertyName7(target=es2015)	full	js	full	full	full	full
 conformance/parserES5ComputedPropertyName8(target=es2015)	full	js	full	full	full	full
 conformance/parserES5ComputedPropertyName9(target=es2015)	full	js	full	full	full	full
