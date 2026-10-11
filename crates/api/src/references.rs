@@ -160,13 +160,7 @@ fn for_each_dynamic_import_or_require_call(file: &SourceFile, mut found: impl Fn
                     && callee.is_some_and(|callee| {
                         matches!(&callee.data, NodeData::Identifier(identifier) if identifier.escaped_text == "require")
                     });
-                let import = callee.is_some_and(|callee| {
-                    callee.kind == SyntaxKind::ImportKeyword
-                        || matches!(&callee.data, NodeData::MetaProperty(meta)
-                            if meta.keyword_token == SyntaxKind::ImportKeyword
-                                && meta.name.is_some_and(|name| matches!(&file.arena.node(name).data,
-                                    NodeData::Identifier(identifier) if identifier.escaped_text == "defer")))
-                });
+                let import = tsc_syntax::utilities::is_import_call(&file.arena, node_id);
                 if let Some(&argument) = arguments.first() {
                     let literal = matches!(
                         file.arena.node(argument).kind,

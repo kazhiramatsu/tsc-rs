@@ -1,3 +1,6 @@
+// The recorded kinds are tsc-rs's SyntaxKind values: TypeScript 6.0.3's from
+// 167 on are one higher since SourceKeyword (tsgo #63915).
+
 use serde_json::{json, Value};
 use tsc_syntax::{
     for_each_child, JSDocParsingMode, LanguageVariant, NodeId, ParseOptions, ParseRecoveryAction,

@@ -3,6 +3,7 @@ use std::ops::Range;
 use std::sync::Arc;
 use tsc_diagnostics::{JsStr, JsString, PositionIndex};
 
+use tsc_syntax::utilities::{is_import_call, is_source_phase_import, is_source_phase_import_call};
 use tsc_syntax::{
     for_each_child, parse_source_file_from_snapshot, skip_trivia, JSDocParsingMode,
     LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
@@ -637,7 +638,11 @@ fn plan_module_requests_worker(
             }
             NodeData::CallExpression(call) => {
                 let callee = call.expression;
-                if callee.is_some_and(|callee| is_import_call_callee(&parsed, callee)) {
+                // tsgo resolves no source phase import
+                // (fileloader.go resolveImportsAndModuleAugmentations).
+                if is_import_call(&parsed.arena, node_id)
+                    && !is_source_phase_import_call(&parsed.arena, node_id)
+                {
                     if !expanded {
                         return Err(unsupported_at(
                             source,
@@ -1034,6 +1039,9 @@ fn collect_static_module_reference_statements(
     for &node_id in statements {
         let node = parsed.arena.node(node_id);
         match &node.data {
+            NodeData::ImportDeclaration(_) if is_source_phase_import(&parsed.arena, node_id) => {
+                continue;
+            }
             NodeData::ImportDeclaration(import) => {
                 if let Some(module_specifier) = import.module_specifier {
                     let module_specifier = parsed.arena.node(module_specifier);
@@ -1334,6 +1342,7 @@ fn collect_unpreprocessed_module_requests(
         .unwrap_or_default();
     for &statement in statements {
         match &parsed.arena.node(statement).data {
+            NodeData::ImportDeclaration(_) if is_source_phase_import(&parsed.arena, statement) => {}
             NodeData::ImportDeclaration(import) => {
                 let Some(specifier) = import.module_specifier else {
                     continue;
@@ -1587,23 +1596,6 @@ fn dynamic_import_mode(
             source,
             format!("file emit module kind {other} has no owned dynamic-import resolution mode"),
         )),
-    }
-}
-
-/// tsc `isImportCall`: both `import(...)` and the TS 6 deferred form
-/// `import.defer(...)` publish the first literal argument as a dynamic module
-/// request. `keyword_token` keeps this structural, so `new.defer(...)` and an
-/// arbitrary `object.defer(...)` cannot be mistaken for an import call.
-fn is_import_call_callee(source: &SourceFile, callee: NodeId) -> bool {
-    match &source.arena.node(callee).data {
-        NodeData::Token if source.arena.node(callee).kind == SyntaxKind::ImportKeyword => true,
-        NodeData::MetaProperty(meta) if meta.keyword_token == SyntaxKind::ImportKeyword => {
-            meta.name.is_some_and(|name| {
-                matches!(&source.arena.node(name).data,
-                NodeData::Identifier(identifier) if identifier.escaped_text == "defer")
-            })
-        }
-        _ => false,
     }
 }
 

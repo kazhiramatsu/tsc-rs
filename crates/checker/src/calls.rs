@@ -6524,6 +6524,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        if self.is_source_phase_import_call(node) {
+            let module_source = self.get_global_abstract_module_source_type()?;
+            return self.create_promise_return_type(node, module_source);
+        }
         // tsgo checkImportCallExpression (checker.go:8477-8487): the module's
         // `export=` is left unresolved and the interop wrap happens here.
         // getTypeWithSyntheticDefaultOnly is mode machinery (None at the
@@ -6575,11 +6579,27 @@ impl<'a> CheckerState<'a> {
             unreachable!("import calls are call expressions");
         };
         let expression = data.expression;
+        let question_dot_token = data.question_dot_token;
         let type_arguments = data.type_arguments;
         let arguments = data.arguments;
-        let is_defer = expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::MetaProperty);
-        if is_defer {
-            // ModuleKind.ESNext = 99, ModuleKind.Preserve = 200.
+        let arena = &self.binder.source_of_node(node).arena;
+        let is_source = expression
+            .is_some_and(|e| tsc_syntax::utilities::is_import_source_meta_property(arena, e));
+        let is_defer = expression
+            .is_some_and(|e| tsc_syntax::utilities::is_import_defer_meta_property(arena, e));
+        if is_source {
+            // tsgo ModuleKind.SupportsSourcePhaseImports: ESNext = 99,
+            // NodeNext = 199, Preserve = 200.
+            if !matches!(module_kind, 99 | 199 | 200) {
+                return self.grammar_error_on_node(
+                    node,
+                    &diagnostics::Source_phase_imports_are_only_supported_when_the_module_option_is_set_to_esnext_nodenext_or_preserve,
+                    &[],
+                );
+            }
+        } else if is_defer {
+            // tsgo ModuleKind.SupportsDeferredImports: ESNext = 99,
+            // Preserve = 200.
             if module_kind != 99 && module_kind != 200 {
                 return self.grammar_error_on_node(
                     node,
@@ -6594,6 +6614,15 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Dynamic_imports_are_only_supported_when_the_module_flag_is_set_to_es2020_es2022_esnext_commonjs_amd_system_umd_node16_node18_node20_or_nodenext,
                 &[],
             );
+        }
+        if is_source {
+            if let Some(question_dot_token) = question_dot_token {
+                return self.grammar_error_on_node(
+                    question_dot_token,
+                    &diagnostics::Optional_chaining_cannot_be_used_with_import_source,
+                    &[],
+                );
+            }
         }
         if type_arguments.is_some() {
             return self.grammar_error_on_node(

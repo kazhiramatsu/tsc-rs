@@ -83,3 +83,47 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   310/327・async 318/335 だった。
 - **hosted と merge**：PR #740 の hosted run 38101672593（rust 8m30s、conformance (TypeScript 7.1) 16m4s、gates pass）。
   merge commit `6b62f735d`（2026-10-11）。
+
+## S1 import の phase（2026-10-11）
+
+- **slice の分け方**：S0 の状態で新しく違う 97 stem（errors 83・emit 65・types 54・symbols 34・sourcemap 11・trace 1・harness
+  error 4）は、全て本家の 29 commit の baseline に対応する（標準 library による違いは無い：新しい library は S0 で埋め込み済み）。
+  S1 import の phase（#63915・#64640・#64243）、S2 checker、S3 declaration emit、S4 emit、S5 program と build、S6 API と
+  client の順に直す。計画の「標準 library と message」は S0 で済んだ。
+- **source phase import**（#63915）：
+  - syntax：文脈キーワード `source`（DeferKeyword の次の SourceKeyword。以降の kind は 1 つずれる。kind.rs・keywords.rs・
+    tokens.rs は生成の道具が 6.0.3 の profile と共に無くなった（b27eb13bb）ので手で直し、見出しを直した）。import の phase は
+    token の原文で決め（escape した `source`・`defer` は binding）、`import source x from` を読み、binding の無い phase は空の
+    clause を残し、文の始まりで `source` を `defer` と同じに扱い、escape した `import.defer`・`import.source` の名前に TS1260 を
+    出す。
+  - tsgo の ast の helper（IsImportCall・IsImportPhaseMetaProperty・IsImportDeferMetaProperty・IsImportSourceMetaProperty・
+    IsSourcePhaseImport・IsSourcePhaseImportCall）を `tsc_syntax::utilities` に一つ置き、checker・program・emitter の前処理・API
+    の各自の `defer` の判定をこれに替えた。
+  - program：source phase の import は module の request を作らない（tsgo は解決しない）。
+  - checker：AbstractModuleSource（memo する global）、source import の target（その型の変数、alias ごとに一度作る）、
+    `import.source()` はその Promise、source phase の specifier は module を解決しない、`import.source()` の usage の mode は
+    ESNext、clause と call の grammar error、tsgo の plain JS の error の一覧、source import では package の target の fallback を
+    しない（nodenext の CLI が止まっていた）。
+  - emit：printer は `source` の phase を出し、meta-property の keyword と dot は comment つきの token（tsgo emitMetaProperty）、
+    `import.source()` は相対 import の拡張子の書き換えと dynamic import の fact に入る（CommonJS は `import()` だけを require に
+    する）。
+  - API：clause の phase の index 3（encoder と decoder）、kind の表の生成、file の import call、source phase の specifier の
+    resolved module は null（getResolvedModuleFromModuleSpecifier）。
+- **#64640**：deferred import は namespace の binding が要る（18117）。**#64243**：import attributes の型の property は string
+  literal だけ（template は不可）。
+- **tsgo emitModuleSpecifier**：import と export の宣言の module specifier の後ろの comment は `with` の前に出る（importSource8
+  で分かった。port は attributes のある全ての宣言で落としていた）。
+- **test**（tsgo の答えで pin）：tsgo の parser_test.go の case、CLI の contract（nodenext で無い package の source import と二つの
+  comment）、tsgo が encode した encoder の fixture（phases.ts）、decoder の phase の index、session の source specifier の
+  resolved module。TypeScript 6.0.3 から記録した contract の fixture は kind の数を持つので、167 以上を 1 上げた（各 test に記す）。
+  list format の test は AssertClause・AssertEntry の alias に 6.0.3 の数を pin しない。
+- **結果**（release build、`7afacbd0c`）：full の conformance（`--workers 2 --check`、595 s）は 0 regressions、34 構成が受け入れの
+  tier を上回る。errors full 13,475 → 13,509（mismatch 80 → 46）、emit mismatch 65 → 39、types mismatch 143 → 112、symbols
+  mismatch 83 → 56、sourcemap 11・trace 1・harness error 19 は変わらない。S0 の report と構成ごとに比べると errors +34・emit
+  +26・types +31・symbols +27 で、下がった列は無い。上がった stem は slice の 23 の対象（`importSource1`〜`21`、
+  `importDeferInvalidDefault`、`importAttributeType1`）だけ。
+- **並列対照**（`--checkers 4`、582 s、`scripts/conformance_ts71_compare.py`）：15,317 構成が一致、違う 22 構成は、記録済みの
+  順序の 4 構成と、S0 で新しく入った本家の test の 18 構成：flaky な診断を捕まえる test 17（`noFlakyDiagnostics*` 6、
+  `*EnumComputedNameNoFlake` 9、`flakyDiagnosticsJsClassPropertyInitializedToUndefined`、`importElisionTypeofImportTypeQualifier`。
+  順序に依らない診断にする修正は S2 の commit）と、partition で crash が変わる `declarationEmitUnserializableTypes`（S3）。
+  18 構成の入力は S1 が触れた構文（phase の import、meta-property、import attributes）を含まず、1 checker の結果も S0 と同じ。

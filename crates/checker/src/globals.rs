@@ -113,6 +113,9 @@ pub(crate) struct GlobalTypeMemos {
     import_meta: Option<TypeId>,
     /// deferredGlobalImportAttributesType (60727).
     import_attributes: Option<TypeId>,
+    /// tsgo getGlobalAbstractModuleSourceType — a memoized resolver, so a
+    /// miss memoizes too.
+    abstract_module_source: Option<TypeId>,
     /// deferredGlobalIterableType (60820).
     iterable: Option<TypeId>,
     /// The §4 iteration-protocol resolver globals (60777-60881) — all
@@ -791,6 +794,19 @@ impl<'a> CheckerState<'a> {
         let result = resolved.unwrap_or(self.empty_object_type);
         self.global_type_memos.import_meta = Some(result);
         Ok(result)
+    }
+
+    /// tsgo getGlobalAbstractModuleSourceType: `getGlobalTypeResolver(
+    /// "AbstractModuleSource", 0, true)` (checker.go NewChecker).
+    pub(crate) fn get_global_abstract_module_source_type(&mut self) -> CheckResult<TypeId> {
+        if let Some(cached) = self.global_type_memos.abstract_module_source {
+            return Ok(cached);
+        }
+        let resolved = self
+            .get_global_type("AbstractModuleSource", 0, /*report_errors*/ true)?
+            .unwrap_or(self.empty_object_type);
+        self.global_type_memos.abstract_module_source = Some(resolved);
+        Ok(resolved)
     }
 
     /// tsc-port: getGlobalImportAttributesType @6.0.3

@@ -395,7 +395,7 @@ impl CheckerState<'_> {
                 }
                 Ok(None)
             }
-            // `import.defer` has no symbol, and checkMetaPropertyKeyword is
+            // `import.defer` and `import.source` have no symbol, and checkMetaPropertyKeyword is
             // a stub (the error type) for the other meta properties.
             SyntaxKind::ImportKeyword | SyntaxKind::NewKeyword => Ok(None),
             SyntaxKind::InstanceOfKeyword => {

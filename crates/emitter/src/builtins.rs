@@ -4480,6 +4480,33 @@ fn push_binding_name_texts(
     }
 }
 
+/// tsgo `ast.IsImportCall`'s callee: `import`, `import.defer` or
+/// `import.source`.
+fn is_import_call_callee(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    callee: NodeId,
+) -> bool {
+    let Some(callee) = arena
+        .node_ref(source, callee)
+        .and_then(|callee| arena.node(callee).ok())
+    else {
+        return false;
+    };
+    match &callee.data {
+        NodeData::MetaProperty(meta) => {
+            meta.keyword_token == SyntaxKind::ImportKeyword
+                && meta
+                    .name
+                    .and_then(|name| arena.node_ref(source, name))
+                    .and_then(|name| arena.node(name).ok())
+                    .is_some_and(|name| matches!(&name.data, NodeData::Identifier(identifier)
+                        if identifier.escaped_text == "defer" || identifier.escaped_text == "source"))
+        }
+        _ => callee.kind == SyntaxKind::ImportKeyword,
+    }
+}
+
 fn source_contains_dynamic_import(
     arena: &TransformArena,
     root: TransformNode,
@@ -4509,12 +4536,7 @@ fn source_contains_dynamic_import(
         if let NodeData::CallExpression(data) = &record.data {
             if data
                 .expression
-                .and_then(|id| arena.node_ref(root.source(), id))
-                .is_some_and(|expression| {
-                    arena
-                        .node(expression)
-                        .is_ok_and(|expression| expression.kind == SyntaxKind::ImportKeyword)
-                })
+                .is_some_and(|callee| is_import_call_callee(arena, root.source(), callee))
             {
                 return Ok(true);
             }
@@ -19200,13 +19222,11 @@ fn local_contextual_target_flags(
             } else {
                 TransformFlags::NONE
             };
-            // createCallExpression (nodeFactory.ts): `import(...)` carries
+            // tsgo CallExpression.computeSubtreeFacts: an import call carries
             // ContainsDynamicImport; transformModule gates its visitor on it.
             let is_dynamic_import = data
                 .expression
-                .and_then(|callee| arena.node_ref(source, callee))
-                .and_then(|callee| arena.node(callee).ok())
-                .is_some_and(|callee| callee.kind == SyntaxKind::ImportKeyword);
+                .is_some_and(|callee| is_import_call_callee(arena, source, callee));
             if is_dynamic_import {
                 flags |= TransformFlags::CONTAINS_DYNAMIC_IMPORT;
             }

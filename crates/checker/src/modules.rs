@@ -2628,6 +2628,14 @@ impl<'a> CheckerState<'a> {
         let file_index = match file_index {
             Some(file_index) => file_index,
             None => {
+                // tsgo resolves no module for a source phase import, so
+                // it has no target file.
+                if self
+                    .parent_of(usage)
+                    .is_some_and(|parent| self.is_source_phase_import(parent))
+                {
+                    return Ok(false);
+                }
                 // Ordinary node_modules resolution deliberately stays
                 // Suppressed, so package `exports` targets do not have
                 // a module symbol. checkImportDeclaration still needs
@@ -2661,8 +2669,32 @@ impl<'a> CheckerState<'a> {
         Ok(file_name.ends_with(".json") || file_name.ends_with(".d.json.ts"))
     }
 
-    /// tsgo-port: getTargetOfImportClause @7.1 (checker.go:14756-14762).
+    /// tsgo-port: getTargetOfImportClause @7.1 (checker.go:14767-14789).
     fn get_target_of_import_clause(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
+        if matches!(self.data_of(node), NodeData::ImportClause(clause)
+            if clause.phase_modifier == Some(SyntaxKind::SourceKeyword))
+        {
+            // A source phase import binds the module's source object: a
+            // variable of type AbstractModuleSource, made once per alias.
+            let Some(alias) = self.node_symbol(node) else {
+                return Ok(None);
+            };
+            if let Some(Some(target)) = *self.links.symbol_cold().immediate_target.get(alias) {
+                return Ok(Some(target));
+            }
+            let alias_symbol = self.binder.symbol(alias);
+            let (name, declarations) =
+                (alias_symbol.escaped_name, alias_symbol.declarations.clone());
+            let symbol = self
+                .binder
+                .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
+            self.binder.symbol_mut(symbol).declarations = declarations;
+            let module_source = self.get_global_abstract_module_source_type()?;
+            self.links
+                .set_fresh_symbol_type(symbol, LinkSlot::Resolved(module_source));
+            self.links.set_symbol_immediate_target(alias, Some(symbol));
+            return Ok(Some(symbol));
+        }
         let module_specifier = self
             .parent_of(node)
             .and_then(|parent| match self.data_of(parent) {
@@ -3986,6 +4018,13 @@ impl<'a> CheckerState<'a> {
             NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
             _ => return Ok(None),
         };
+        // tsgo: a source phase import resolves no module.
+        if self
+            .parent_of(module_reference_expression)
+            .is_some_and(|parent| self.is_source_phase_import(parent))
+        {
+            return Ok(None);
+        }
         let error_node = if !ignore_errors {
             Some(module_reference_expression)
         } else {
@@ -4095,13 +4134,11 @@ impl<'a> CheckerState<'a> {
                     &["resolution-mode"],
                 );
             }
+            // tsgo (#64243): a string literal, not a no-substitution template.
             let is_string_literal_type = match self.data_of(type_node) {
-                NodeData::LiteralType(data) => data.literal.is_some_and(|literal| {
-                    matches!(
-                        self.kind_of(literal),
-                        SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
-                    )
-                }),
+                NodeData::LiteralType(data) => data
+                    .literal
+                    .is_some_and(|literal| self.kind_of(literal) == SyntaxKind::StringLiteral),
                 _ => false,
             };
             if !is_string_literal_type {
@@ -7286,7 +7323,12 @@ impl<'a> CheckerState<'a> {
         if self.has_ancestor_kind(location, SyntaxKind::ImportEqualsDeclaration) {
             return ModuleResolutionMode::CommonJs;
         }
-        if self.has_import_call_ancestor(location) {
+        if let Some(call) = self.import_call_ancestor(location) {
+            // tsgo getEmitSyntaxForUsageLocationWorker: a source phase import
+            // call is ESNext.
+            if self.is_source_phase_import_call(call) {
+                return ModuleResolutionMode::EsNext;
+            }
             let module_kind = file_options.emit_module_kind;
             if (100..=199).contains(&module_kind) || module_kind == 200 {
                 return ModuleResolutionMode::EsNext;
@@ -7699,14 +7741,18 @@ impl<'a> CheckerState<'a> {
     }
 
     fn has_import_call_ancestor(&self, location: NodeId) -> bool {
+        self.import_call_ancestor(location).is_some()
+    }
+
+    fn import_call_ancestor(&self, location: NodeId) -> Option<NodeId> {
         let mut current = Some(location);
         while let Some(node) = current {
             if self.is_import_call(node) {
-                return true;
+                return Some(node);
             }
             current = self.parent_of(node);
         }
-        false
+        None
     }
 
     fn has_ancestor_kind(&self, location: NodeId, kind: SyntaxKind) -> bool {
@@ -10275,19 +10321,70 @@ impl<'a> CheckerState<'a> {
                     &[],
                 ));
             }
-            if named_bindings
-                .is_some_and(|bindings| self.kind_of(bindings) == SyntaxKind::NamedImports)
-            {
+            let Some(named_bindings) = named_bindings else {
+                return Ok(self.grammar_error_on_node_js(
+                    node,
+                    &diagnostics::A_deferred_import_must_specify_a_namespace_binding,
+                    &[],
+                ));
+            };
+            if self.kind_of(named_bindings) == SyntaxKind::NamedImports {
                 return Ok(self.grammar_error_on_node_js(
                     node,
                     &diagnostics::Named_imports_are_not_allowed_in_a_deferred_import,
                     &[],
                 ));
             }
+            // tsgo ModuleKind.SupportsDeferredImports: ESNext or Preserve.
             if !matches!(self.options.emit_module_kind(), 99 | 200) {
                 return Ok(self.grammar_error_on_node_js(
                     node,
                     &diagnostics::Deferred_imports_are_only_supported_when_the_module_flag_is_set_to_esnext_or_preserve,
+                    &[],
+                ));
+            }
+        } else if phase_modifier == Some(SyntaxKind::SourceKeyword) {
+            if named_bindings.is_some() {
+                return Ok(self.grammar_error_on_node_js(
+                    node,
+                    &diagnostics::Named_and_namespace_imports_are_not_allowed_in_a_source_phase_import,
+                    &[],
+                ));
+            }
+            if name.is_none() {
+                return Ok(self.grammar_error_on_node_js(
+                    node,
+                    &diagnostics::A_source_phase_import_must_specify_a_local_binding,
+                    &[],
+                ));
+            }
+            // tsgo ModuleKind.SupportsSourcePhaseImports: ESNext, NodeNext or
+            // Preserve.
+            if !matches!(self.options.emit_module_kind(), 99 | 199 | 200) {
+                return Ok(self.grammar_error_on_node_js(
+                    node,
+                    &diagnostics::Source_phase_imports_are_only_supported_when_the_module_option_is_set_to_esnext_nodenext_or_preserve,
+                    &[],
+                ));
+            }
+            // getEmitSyntaxForModuleSpecifierExpression: a string literal
+            // specifier's emit syntax.
+            let specifier = self
+                .parent_of(node)
+                .and_then(|parent| match self.data_of(parent) {
+                    NodeData::ImportDeclaration(data) => data.module_specifier,
+                    _ => None,
+                });
+            if specifier.is_some_and(|specifier| {
+                matches!(
+                    self.kind_of(specifier),
+                    SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+                ) && self.emit_syntax_for_declaration_specifier(specifier)
+                    == Some(ModuleResolutionMode::CommonJs)
+            }) {
+                return Ok(self.grammar_error_on_node_js(
+                    node,
+                    &diagnostics::Source_phase_imports_are_not_allowed_on_statements_that_compile_to_CommonJS_require_calls,
                     &[],
                 ));
             }

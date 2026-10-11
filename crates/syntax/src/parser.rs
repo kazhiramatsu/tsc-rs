@@ -2462,7 +2462,8 @@ impl<'text> Parser<'text> {
             | SyntaxKind::NamespaceKeyword
             | SyntaxKind::TypeKeyword
             | SyntaxKind::GlobalKeyword
-            | SyntaxKind::DeferKeyword => true,
+            | SyntaxKind::DeferKeyword
+            | SyntaxKind::SourceKeyword => true,
             SyntaxKind::AccessorKeyword
             | SyntaxKind::PublicKeyword
             | SyntaxKind::PrivateKeyword
@@ -3286,6 +3287,7 @@ impl<'text> Parser<'text> {
     ) -> NodeId {
         self.parse_expected(SyntaxKind::ImportKeyword, None);
         let after_import_pos = self.scanner.full_start_pos();
+        let phase_modifier_candidate = self.current_import_phase_modifier();
         let mut identifier = if self.is_identifier() {
             Some(self.parse_identifier())
         } else {
@@ -3306,14 +3308,11 @@ impl<'text> Parser<'text> {
             } else {
                 None
             };
-        } else if self.identifier_text_is(identifier, "defer")
-            && (if self.token() == SyntaxKind::FromKeyword {
-                !self.look_ahead(|parser| parser.next_token_is_string_literal())
-            } else {
-                self.token() != SyntaxKind::CommaToken && self.token() != SyntaxKind::EqualsToken
-            })
+        } else if identifier.is_some()
+            && phase_modifier_candidate.is_some()
+            && self.should_parse_import_phase_modifier()
         {
-            phase_modifier = Some(SyntaxKind::DeferKeyword);
+            phase_modifier = phase_modifier_candidate;
             identifier = if self.is_identifier() {
                 Some(self.parse_identifier())
             } else {
@@ -3321,8 +3320,11 @@ impl<'text> Parser<'text> {
             };
         }
         if let Some(identifier) = identifier {
-            if !self.token_after_imported_identifier_definitely_produces_import_declaration()
-                && phase_modifier != Some(SyntaxKind::DeferKeyword)
+            if self.token_after_imported_identifier_allows_import_equals_declaration()
+                && !matches!(
+                    phase_modifier,
+                    Some(SyntaxKind::DeferKeyword | SyntaxKind::SourceKeyword)
+                )
             {
                 return self.parse_import_equals_declaration(
                     pos,
@@ -3367,8 +3369,29 @@ impl<'text> Parser<'text> {
         )
     }
 
-    fn token_after_imported_identifier_definitely_produces_import_declaration(&self) -> bool {
-        matches!(
+    /// tsc shouldParseImportPhaseModifier.
+    fn should_parse_import_phase_modifier(&mut self) -> bool {
+        match self.token() {
+            SyntaxKind::CommaToken | SyntaxKind::EqualsToken => false,
+            SyntaxKind::FromKeyword => {
+                !self.look_ahead(|parser| parser.next_token_is_string_literal())
+            }
+            _ => true,
+        }
+    }
+
+    /// tsc currentImportPhaseModifier: by the token's source text, so an
+    /// escaped `defer` or `source` is no phase.
+    fn current_import_phase_modifier(&self) -> Option<SyntaxKind> {
+        match self.scanner.token_text() {
+            "defer" => Some(SyntaxKind::DeferKeyword),
+            "source" => Some(SyntaxKind::SourceKeyword),
+            _ => None,
+        }
+    }
+
+    fn token_after_imported_identifier_allows_import_equals_declaration(&self) -> bool {
+        !matches!(
             self.token(),
             SyntaxKind::CommaToken | SyntaxKind::FromKeyword
         )
@@ -3399,6 +3422,19 @@ impl<'text> Parser<'text> {
             );
             self.parse_expected(SyntaxKind::FromKeyword, None);
             Some(import_clause)
+        } else if matches!(
+            phase_modifier,
+            Some(SyntaxKind::DeferKeyword | SyntaxKind::SourceKeyword)
+        ) {
+            Some(self.finish_node_data(
+                NodeData::ImportClause(ImportClauseData {
+                    is_type_only: false,
+                    phase_modifier,
+                    name: None,
+                    named_bindings: None,
+                }),
+                pos,
+            ))
         } else {
             None
         }
@@ -6136,7 +6172,7 @@ impl<'text> Parser<'text> {
             } else if self.look_ahead(|parser| parser.next_token_is_dot()) {
                 self.next_token();
                 self.next_token();
-                let name = self.parse_identifier_name(None);
+                let name = self.parse_import_meta_property_name();
                 let meta = self.finish_node_data(
                     NodeData::MetaProperty(MetaPropertyData {
                         keyword_token: SyntaxKind::ImportKeyword,
@@ -6144,10 +6180,10 @@ impl<'text> Parser<'text> {
                     }),
                     pos,
                 );
-                // tsc: `import.defer(...)`/`import.defer<...>` is a
-                // deferred dynamic import; every other name is
+                // tsc: `import.defer(...)`/`import.source(...)` (or with
+                // `<`) is a phase dynamic import; every other name is
                 // import.meta territory.
-                if self.identifier_text_is(Some(name), "defer") {
+                if crate::utilities::is_import_phase_meta_property(&self.arena, meta) {
                     if matches!(
                         self.token(),
                         SyntaxKind::OpenParenToken | SyntaxKind::LessThanToken
@@ -6171,6 +6207,18 @@ impl<'text> Parser<'text> {
 
     fn next_token_is_dot(&mut self) -> bool {
         self.next_token() == SyntaxKind::DotToken
+    }
+
+    /// tsc parseImportMetaPropertyName.
+    fn parse_import_meta_property_name(&mut self) -> NodeId {
+        if matches!(
+            self.token(),
+            SyntaxKind::DeferKeyword | SyntaxKind::SourceKeyword
+        ) && self.current_import_phase_modifier().is_none()
+        {
+            self.parse_error_at_current_token(&gen::Keywords_cannot_contain_escape_characters, &[]);
+        }
+        self.parse_identifier_name(None)
     }
 
     fn parse_member_expression_or_higher(&mut self) -> NodeId {
@@ -9303,7 +9351,8 @@ impl<'text> Parser<'text> {
                 // to the declaration reading (tsc isDeclaration).
                 SyntaxKind::InterfaceKeyword
                 | SyntaxKind::TypeKeyword
-                | SyntaxKind::DeferKeyword => {
+                | SyntaxKind::DeferKeyword
+                | SyntaxKind::SourceKeyword => {
                     return self.next_token_is_identifier_on_same_line();
                 }
                 SyntaxKind::ModuleKeyword | SyntaxKind::NamespaceKeyword => {
@@ -9342,6 +9391,7 @@ impl<'text> Parser<'text> {
                     return matches!(
                         self.token(),
                         SyntaxKind::DeferKeyword
+                            | SyntaxKind::SourceKeyword
                             | SyntaxKind::StringLiteral
                             | SyntaxKind::AsteriskToken
                             | SyntaxKind::OpenBraceToken

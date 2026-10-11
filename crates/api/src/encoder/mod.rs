@@ -836,6 +836,8 @@ fn common_data(node: &Node) -> u32 {
                 1
             } else if d.phase_modifier == Some(SyntaxKind::DeferKeyword) {
                 2
+            } else if d.phase_modifier == Some(SyntaxKind::SourceKeyword) {
+                3
             } else {
                 0
             };
@@ -977,29 +979,33 @@ impl Tree<'_> {
                 // `(` or `<` (a call or an instantiation).
                 NodeData::Token => node.kind == SyntaxKind::ImportKeyword,
                 NodeData::ImportType(_) => true,
-                // `import.defer(...)`.
+                // `import.defer(...)` or `import.source(...)`.
                 NodeData::CallExpression(call) => call.expression.is_some_and(|callee| {
-                    matches!(&self.node(callee).data, NodeData::MetaProperty(meta)
-                        if meta.keyword_token == SyntaxKind::ImportKeyword
-                            && meta.name.is_some_and(|name| matches!(&self.node(name).data,
-                                NodeData::Identifier(identifier) if identifier.escaped_text == "defer")))
+                    tsc_syntax::utilities::is_import_phase_meta_property(self.arena, callee)
                 }),
                 _ => false,
             };
-            dynamic && (self.javascript || !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC) || {
-                let mut current = node.parent;
-                let host = loop {
-                    let Some(id) = current else { break None };
-                    let ancestor = self.node(id);
-                    if ancestor.kind == SyntaxKind::JSDoc {
-                        break ancestor.parent;
-                    }
-                    current = ancestor.parent;
-                };
-                host.and_then(|host| self.node(host).js_doc).is_some_and(|js_doc| {
-                    self.js_doc_texts_have_tag(js_doc, &["see", "link", "linkcode", "linkplain"])
-                })
-            })
+            dynamic
+                && (self.javascript
+                    || !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
+                    || {
+                        let mut current = node.parent;
+                        let host = loop {
+                            let Some(id) = current else { break None };
+                            let ancestor = self.node(id);
+                            if ancestor.kind == SyntaxKind::JSDoc {
+                                break ancestor.parent;
+                            }
+                            current = ancestor.parent;
+                        };
+                        host.and_then(|host| self.node(host).js_doc)
+                            .is_some_and(|js_doc| {
+                                self.js_doc_texts_have_tag(
+                                    js_doc,
+                                    &["see", "link", "linkcode", "linkplain"],
+                                )
+                            })
+                    })
         })
     }
 }

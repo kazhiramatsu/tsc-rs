@@ -17,6 +17,7 @@ mod regex_unicode;
 mod relocate;
 pub mod scanner;
 pub mod tokens;
+pub mod utilities;
 
 use std::sync::Arc;
 

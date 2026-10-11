@@ -537,6 +537,7 @@ pub(crate) fn tsgo_kind(kind: SyntaxKind) -> Option<u32> {
         SyntaxKind::OverrideKeyword => 164,
         SyntaxKind::OfKeyword => 165,
         SyntaxKind::DeferKeyword => 166,
+        SyntaxKind::SourceKeyword => 167,
         SyntaxKind::QualifiedName => 168,
         SyntaxKind::ComputedPropertyName => 169,
         SyntaxKind::TypeParameter => 170,

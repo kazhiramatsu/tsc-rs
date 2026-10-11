@@ -621,6 +621,7 @@ impl<'a> Decoder<'a> {
             NodeData::ImportClause(clause) => match common {
                 1 => clause.is_type_only = true,
                 2 => clause.phase_modifier = Some(SyntaxKind::DeferKeyword),
+                3 => clause.phase_modifier = Some(SyntaxKind::SourceKeyword),
                 _ => {}
             },
             NodeData::ImportSpecifier(specifier) => specifier.is_type_only = common & 1 != 0,

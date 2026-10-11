@@ -1,5 +1,8 @@
 //! Failure order and continuation of the printer pipeline.
 //!
+//! The fixtures' recorded kinds are tsc-rs's SyntaxKind values: TypeScript
+//! 6.0.3's from 167 on are one higher since SourceKeyword (tsgo #63915).
+//!
 //! Replays `fixtures/printer-failure-hooks.json`, recorded from the fixed
 //! TypeScript printer by `scripts/observe-printer-failures.mjs`: every case is a
 //! sequence of print operations against ONE shared printer (plus fresh
@@ -896,12 +899,12 @@ fn rust_only_typed_errors_keep_the_printer_usable() {
     assert_eq!(
         phases,
         [
-            "substitute:308",
-            "before:308",
-            "substitute:245",
-            "before:245",
-            "after:245",
-            "after:308"
+            "substitute:309",
+            "before:309",
+            "substitute:246",
+            "before:246",
+            "after:246",
+            "after:309"
         ]
     );
 

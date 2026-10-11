@@ -1,3 +1,6 @@
+// The recorded kinds are tsc-rs's SyntaxKind values: TypeScript 6.0.3's from
+// 167 on are one higher since SourceKeyword (tsgo #63915).
+
 use tsc_binder::bind_source_file;
 use tsc_syntax::{for_each_child, NodeId, ParseOptions, SourceFile};
 use tsc_types::{CompilerOptions, JsString, ScriptTarget};

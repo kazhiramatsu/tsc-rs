@@ -52,7 +52,14 @@ impl ImportCallRewrites {
             let require = javascript
                 && arguments.len() == 1
                 && matches!(&callee.data, NodeData::Identifier(name) if name.escaped_text == "require");
-            if !require && callee.kind != SyntaxKind::ImportKeyword {
+            // tsgo IsImportCall: `import(...)`, `import.defer(...)` or
+            // `import.source(...)`.
+            if !require
+                && callee.kind != SyntaxKind::ImportKeyword
+                && !call.expression.is_some_and(|callee| {
+                    tsc_syntax::utilities::is_import_phase_meta_property(&source.arena, callee)
+                })
+            {
                 continue;
             }
             let literal = match &arena.node(*first)?.data {

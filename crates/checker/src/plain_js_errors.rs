@@ -105,4 +105,12 @@ static PLAIN_JS_ERRORS: &[&tsc_diagnostics::DiagnosticMessage] = &[
     &diagnostics::await_using_statements_are_only_allowed_within_async_functions_and_at_the_top_levels_of_modules,
     &diagnostics::Private_field_0_must_be_declared_in_an_enclosing_class,
     &diagnostics::This_condition_will_always_return_0_since_JavaScript_compares_objects_by_reference_not_value,
+    // tsgo additions (#63915 source phase imports, #64640 deferred imports).
+    &diagnostics::A_deferred_import_must_specify_a_namespace_binding,
+    &diagnostics::A_source_phase_import_must_specify_a_local_binding,
+    &diagnostics::Named_and_namespace_imports_are_not_allowed_in_a_source_phase_import,
+    &diagnostics::Optional_chaining_cannot_be_used_with_import_source,
+    &diagnostics::Source_phase_imports_are_not_allowed_on_statements_that_compile_to_CommonJS_require_calls,
+    &diagnostics::Source_phase_imports_are_only_supported_when_the_module_option_is_set_to_esnext_nodenext_or_preserve,
+    &diagnostics::_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_defer_or_source,
 ];

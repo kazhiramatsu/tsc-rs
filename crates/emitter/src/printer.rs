@@ -4375,6 +4375,9 @@ impl Printer {
                         .arena()
                         .node_ref(node.source(), attributes_id)
                         .ok_or(PrinterError::UnknownStatement(attributes_id.index()))?;
+                    // tsgo emitModuleSpecifier: the specifier's trailing
+                    // comments precede the attributes.
+                    self.emit_trailing_comments_for_node(transformation, module, writer)?;
                     writer.write_space(" ");
                     self.emit_leading_comments_for_node(transformation, attributes, writer)?;
                     self.emit_node_id_with_context(
@@ -4415,7 +4418,10 @@ impl Printer {
                     )?);
                     writer.write_space(" ");
                 } else if let Some(phase_modifier) = data.phase_modifier {
-                    if phase_modifier != SyntaxKind::DeferKeyword {
+                    if !matches!(
+                        phase_modifier,
+                        SyntaxKind::DeferKeyword | SyntaxKind::SourceKeyword
+                    ) {
                         return Err(PrinterError::UnsupportedTransformedSyntax {
                             node,
                             kind: record.kind,
@@ -4727,6 +4733,11 @@ impl Printer {
                         .arena()
                         .node_ref(node.source(), attributes_id)
                         .ok_or(PrinterError::UnknownStatement(attributes_id.index()))?;
+                    // tsgo emitModuleSpecifier: the specifier's trailing
+                    // comments precede the attributes.
+                    if let Some(module) = semicolon_owner {
+                        self.emit_trailing_comments_for_node(transformation, module, writer)?;
+                    }
                     writer.write_space(" ");
                     self.emit_leading_comments_for_node(transformation, attributes, writer)?;
                     self.emit_node_id_with_context(
@@ -9127,9 +9138,8 @@ impl Printer {
         }
     }
 
-    /// tsc-port: emitMetaProperty @6.0.3
-    /// tsc-hash: ccda2152b0b958533ee97a36457267d71d70e27d4358766024d5c56a80f69096
-    /// tsc-span: _tsc.js:118570-118574
+    /// tsgo emitMetaProperty (printer.go): the keyword and the dot are
+    /// tokens with their comments, then the name.
     fn emit_meta_property(
         &mut self,
         transformation: &mut TransformationResult<'_>,
@@ -9138,29 +9148,51 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let spelling = match data.keyword_token {
-            SyntaxKind::NewKeyword => "new",
-            SyntaxKind::ImportKeyword => "import",
-            _ => {
-                return Err(PrinterError::UnsupportedTransformedSyntax {
-                    node,
-                    kind: SyntaxKind::MetaProperty,
-                });
-            }
-        };
-        // tsgo writes the keyword through emitToken, which maps only braces
-        // (printer.go:822-830, 3015-3021).
-        writer.write_punctuation(spelling);
-        writer.write_punctuation(".");
-        if let Some(name) = data.name {
+        if !matches!(
+            data.keyword_token,
+            SyntaxKind::NewKeyword | SyntaxKind::ImportKeyword
+        ) {
+            return Err(PrinterError::UnsupportedTransformedSyntax {
+                node,
+                kind: SyntaxKind::MetaProperty,
+            });
+        }
+        let keyword = self.emit_token_with_comments(
+            transformation,
+            node,
+            FixedToken::punctuation(data.keyword_token),
+            self.original_node_start_cursor(transformation, node)?,
+            false,
+            writer,
+        )?;
+        let dot = self.emit_token_with_comments(
+            transformation,
+            node,
+            FixedToken::punctuation(SyntaxKind::DotToken),
+            keyword,
+            false,
+            writer,
+        )?;
+        if let Some(name_id) = data.name {
             let name = transformation
                 .arena()
-                .node_ref(node.source(), name)
-                .ok_or(PrinterError::UnknownStatement(name.index()))?;
-            self.emit_node_with_hint(
+                .node_ref(node.source(), name_id)
+                .ok_or(PrinterError::UnknownStatement(name_id.index()))?;
+            let token_owned_prefix =
+                self.token_owned_child_prefix(transformation, dot, Some(name))?;
+            let container_owned_prefix =
+                self.parent_comment_container_owned_prefix(transformation, node, name)?;
+            self.emit_leading_comments_for_node_worker(
                 transformation,
                 name,
-                EmitHint::Unspecified,
+                LeadingCommentContext::Normal,
+                Self::furthest_comment_resume(token_owned_prefix, container_owned_prefix)?,
+                writer,
+            )?;
+            self.emit_identifier_name_with_context(
+                transformation,
+                node.source(),
+                name_id,
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;

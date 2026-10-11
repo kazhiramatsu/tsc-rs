@@ -134,21 +134,10 @@ fn is_string_literal_like(source: &SourceFile, node: NodeId) -> bool {
     )
 }
 
-/// tsgo `IsImportCall`: `import(...)` or `import.defer(...)`.
+/// tsgo `IsImportCall`'s callee: `import`, `import.defer` or `import.source`.
 fn is_import_callee(source: &SourceFile, callee: NodeId) -> bool {
-    let node = source.arena.node(callee);
-    match &node.data {
-        NodeData::MetaProperty(meta) => {
-            meta.keyword_token == SyntaxKind::ImportKeyword
-                && meta.name.is_some_and(|name| {
-                    matches!(
-                        &source.arena.node(name).data,
-                        NodeData::Identifier(identifier) if identifier.escaped_text == "defer"
-                    )
-                })
-        }
-        _ => node.kind == SyntaxKind::ImportKeyword,
-    }
+    source.arena.node(callee).kind == SyntaxKind::ImportKeyword
+        || tsc_syntax::utilities::is_import_phase_meta_property(&source.arena, callee)
 }
 
 fn collect_module_references(source: &SourceFile, javascript: bool) -> ModuleReferences {
