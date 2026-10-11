@@ -431,3 +431,36 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   trace・`.js.map` も mismatch 0、`.types` 85／`.symbols` 49（追従前からの残り）、harness error 15（content mapper）。suites
   は 731 のうち既知の 24（ES5 を残す 14、content mapper 8、generateTrace の型 id 2）が違う。API の client は sync 336／356、
   async 345／365（残りは LS 16、`formatNodeForInsertion` 3、`createSourceFile` の parse の共有 1）。
+
+## 追従の後：`.types`／`.symbols` の残り（2026-10-12）
+
+- 追従の後も tsgo `aa8149273` と違った `.types` 85／`.symbols` 49 構成（112 case）を全て一致させた。errors・emit・source map・
+  trace・`.js.map` は一致のまま。直した所（それぞれ既存の経路を tsgo のものに）：
+  - binder と parser：tsgo が reparse する `@overload` の宣言（tag の名前で、host の前に host の symbol へ）と、点のある
+    `@typedef`／`@callback` の namespace（host の文の前でその場で bind）。object literal の method は全ての value を除く。
+    reparse した overload の名前は host のもの、JSDoc の型の text は行頭の `*` を除く（`normalizeJSDocTypeSourceText`）。
+    文字列の import specifier の名前は literal にかかる空の identifier。
+  - checker：symbol の chain（`isPropertyOrMethodDeclarationSymbol`、class／interface の型の member、alias の解決先の exports
+    を raw の exports と別に）、`canUsePropertyAccess` は名前全体を code point で、`globalThis` への merge は globals に、
+    型の heritage の内側の名前は error 型、15 箇所を `isErrorType` に、`fillMissingTypeArguments` は短い list を全て埋め
+    `f<>` は既定値で instantiate、push／pop の失敗は全ての型引数を `errorType` に、tuple の中間の slice の推論、auto 型は
+    `noImplicitAny` の時だけ、JS の `@type` の signature・host 自身の `@overload`・`@this` の parameter の宣言、JSX の
+    intrinsic の tag の symbol、`isEmptyAnonymousObjectType` は OR、CommonJS の exports は readonly でない、合成した
+    `IndexInfo` は宣言なし、単一 signature の instantiation の key を分ける。
+  - node builder：`CompositeSymbolIdentity` での深さ、enum member の内部名は U+FFFD、readonly の配列、parameter の scope を
+    型 parameter の名前付けの前に、reparse した overload の型 parameter、JSDoc の `@param`／`@property` は注釈あり、
+    `reuseTypeNode` は tsc の `canReuseTypeNode` を通さない、JSDoc の `Object<K, V>` を書き換えない（tsgo は未移植のまま
+    （nodecopy.go:533）で `Record<K, V>` と書く）、`typesAreSameReference` は alias を型引数ごと比べる（tsgo は `*TypeAlias`
+    を比べるので `Partial<A> | Partial<B>` を完全修飾で書き直し、長さの予算がそこで切れる）、module specifier は directory の
+    symlink だけ。
+  - runner：重複を除いた package の file は redirect 先の file として walk し、同じ名前の unit はそれぞれの行を持つ。
+- **test**：tail の 21 case（errors・emit・`.types`・`.symbols` が tsgo の baseline と byte で一致）を runner の test に、
+  `typesAreSameReference` の alias の同一性、`canUsePropertyAccess` の astral な名前（tsgo の declaration emit は
+  `[A.𐐀.s]`。tsc 6.0 の UTF-16 の最初の単位の test を置き換え）。
+- **結果**（release build、head `3c5d59c04`）：full の conformance（`--workers 2 --check`、494 s）は 0 regressions、113 構成が
+  上がった。errors 13,562 Full・mismatch 0、emit・source map・trace・`.js.map` mismatch 0、**`.types` 12,864 Full・mismatch 0、
+  `.symbols` 12,864 Full・mismatch 0**、harness error 15（content mapper）。並列対照（`--checkers 4`）は記録済みの順序の 4 構成
+  だけ。ratchet は `--update`（485 s）で 113 行（`.types` none → full 85、`.symbols` 49）。suites（`--check`）は 0 regressions、
+  既知の 24 のまま。
+- **hosted と merge**：PR #751 の hosted run 38153886121（rust 12m34s、conformance 18m6s、gates pass、head `3c5d59c04`）、merge
+  commit `c9652328f`。
