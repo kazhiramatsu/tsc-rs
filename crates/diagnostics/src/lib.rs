@@ -439,6 +439,23 @@ pub fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> Ordering {
     })
 }
 
+/// tsgo `DiagnosticsCollection` (ast/diagnostic.go:269-387): `Add` keeps one
+/// of the diagnostics that are equal (`EqualDiagnostics`, related information
+/// included) and `GetDiagnostics` returns them sorted by `CompareDiagnostics`.
+/// Equal diagnostics compare equal, so after the sort they are neighbours.
+pub fn sort_and_dedupe_equal_diagnostics(diagnostics: &mut DiagnosticList) {
+    diagnostics.sort_by(compare_diagnostics);
+    diagnostics.dedup_by(|right, left| {
+        diagnostics_equal(left, right)
+            && left.related.len() == right.related.len()
+            && left
+                .related
+                .iter()
+                .zip(&right.related)
+                .all(|(left, right)| compare_related_info(left, right) == Ordering::Equal)
+    });
+}
+
 pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
     diagnostics.sort_by(compare_diagnostics);
     // tsgo compactAndMergeRelatedInfos (compiler/program.go:1657-1688): a

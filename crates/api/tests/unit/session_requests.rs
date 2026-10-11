@@ -264,8 +264,9 @@ fn a_command_line_parses_as_tsgo_parses_it() {
         ])),
         r#"{"fileNames":["a.ts","b.ts"],"options":{"lib":["lib.es2020.d.ts","lib.dom.d.ts"],"strict":true,"target":7},"raw":{"strict":true,"target":7,"lib":["lib.es2020.d.ts","lib.dom.d.ts"]},"errors":[]}"#
     );
-    // The command's own options are compiler options too; the raw values
-    // are as written, a watch option's enum numbered as TypeScript's.
+    // The command's own options are compiler options too, with their raw
+    // values as written. tsgo (#64457) has no watch options: each is unknown
+    // and its value a file name.
     assert_eq!(
         parse(json!([
             "-p",
@@ -276,7 +277,7 @@ fn a_command_line_parses_as_tsgo_parses_it() {
             "--excludeDirectories",
             "a,b"
         ])),
-        r#"{"fileNames":[],"options":{"project":"/proj","watch":true},"raw":{"project":"proj","watch":true,"watchFile":4,"excludeDirectories":["a","b"]},"errors":[]}"#
+        r#"{"fileNames":["useFsEvents","a,b"],"options":{"project":"/proj","watch":true},"raw":{"project":"proj","watch":true},"errors":[{"pos":-1,"end":-1,"code":5023,"category":1,"text":"Unknown compiler option '--watchFile'."},{"pos":-1,"end":-1,"code":5023,"category":1,"text":"Unknown compiler option '--excludeDirectories'."}]}"#
     );
     assert_eq!(
         parse(json!(["@args.txt", "--declaration"])),

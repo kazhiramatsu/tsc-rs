@@ -201,7 +201,7 @@ fn observe(case: &Value) -> Value {
             Ok(plan) => {
                 let mut converted = options(plan.options());
                 converted["configFilePath"] = json!(config_path);
-                json!({"calls":host.calls.borrow().clone(),"raw":scalar_json(&plan.raw()),"options":converted,"watch_options":scalar_json(&plan.watch_options()),"type_acquisition":scalar_json(&plan.type_acquisition()),"compile_on_save":plan.compile_on_save_enabled(),"file_names":scalar_json(&plan.file_names()),"extended_source_files":scalar_json(&plan.extended_source_files()),"root_parse_diagnostics":plan.root_parse_diagnostics().iter().map(diagnostic).collect::<Vec<_>>(),"parsed_errors":plan.errors().iter().map(diagnostic).collect::<Vec<_>>(),"config_diagnostics":plan.diagnostics().map(diagnostic).collect::<Vec<_>>()})
+                json!({"calls":host.calls.borrow().clone(),"raw":scalar_json(&plan.raw()),"options":converted,"type_acquisition":scalar_json(&plan.type_acquisition()),"compile_on_save":plan.compile_on_save_enabled(),"file_names":scalar_json(&plan.file_names()),"extended_source_files":scalar_json(&plan.extended_source_files()),"root_parse_diagnostics":plan.root_parse_diagnostics().iter().map(diagnostic).collect::<Vec<_>>(),"parsed_errors":plan.errors().iter().map(diagnostic).collect::<Vec<_>>(),"config_diagnostics":plan.diagnostics().map(diagnostic).collect::<Vec<_>>()})
             }
             Err(error) => match error.host_error() {
                 Some(e) => {

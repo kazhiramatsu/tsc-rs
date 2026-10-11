@@ -40,7 +40,7 @@ pub(super) struct TestConfig {
     pub(super) all_file_list: &'static [(&'static str, &'static str)],
 }
 
-/// `TestCommandLineParseResult` (commandlineparser_test.go:28-82): name and arguments.
+/// `TestCommandLineParseResult` (commandlineparser_test.go:28-71): name and arguments.
 pub(super) const PARSE_COMMAND_LINE: &[(&str, &[&str])] = &[
     (
         "Parse single option of library flag",
@@ -138,48 +138,15 @@ pub(super) const PARSE_COMMAND_LINE: &[(&str, &[&str])] = &[
         "allows tsconfig only option to be set to null",
         &["--composite", "null", "-tsBuildInfoFile", "null", "0.ts"],
     ),
-    ("parse --watchFile", &["--watchFile", "UseFsEvents", "0.ts"]),
-    (
-        "parse --watchDirectory",
-        &["--watchDirectory", "FixedPollingInterval", "0.ts"],
-    ),
-    (
-        "parse --fallbackPolling",
-        &["--fallbackPolling", "PriorityInterval", "0.ts"],
-    ),
-    (
-        "parse --synchronousWatchDirectory",
-        &["--synchronousWatchDirectory", "0.ts"],
-    ),
-    (
-        "errors on missing argument to --fallbackPolling",
-        &["0.ts", "--fallbackPolling"],
-    ),
-    (
-        "parse --excludeDirectories",
-        &["--excludeDirectories", "**/temp", "0.ts"],
-    ),
-    (
-        "errors on invalid excludeDirectories",
-        &["--excludeDirectories", "**/../*", "0.ts"],
-    ),
-    (
-        "parse --excludeFiles",
-        &["--excludeFiles", "**/temp/*.ts", "0.ts"],
-    ),
-    (
-        "errors on invalid excludeFiles",
-        &["--excludeFiles", "**/../*", "0.ts"],
-    ),
 ];
 
-/// `TestParseCommandLineVerifyNull`'s first scenario (commandlineparser_test.go:200).
+/// `TestParseCommandLineVerifyNull`'s first scenario (commandlineparser_test.go:214).
 pub(super) const PARSE_COMMAND_LINE_FALSE: (&str, &[&str]) = (
     "allows setting option type boolean to false",
     &["--composite", "false", "0.ts"],
 );
 
-/// `TestParseCommandLineVerifyNull`'s `verifyNullSubScenarios` (commandlineparser_test.go:202-221).
+/// `TestParseCommandLineVerifyNull`'s `verifyNullSubScenarios` (commandlineparser_test.go:216-235).
 pub(super) const VERIFY_NULL: &[VerifyNull] = &[
     VerifyNull {
         sub_scenario: "option of type boolean",
@@ -214,7 +181,7 @@ pub(super) const VERIFY_NULL: &[VerifyNull] = &[
 ];
 
 /// `TestParseBuildCommandLine`'s scenarios, then its `extraScenarios`
-/// (commandlineparser_test.go:543-566, 572-578).
+/// (commandlineparser_test.go:520-535, 541-547).
 pub(super) const PARSE_BUILD_OPTIONS: &[(&str, &[&str])] = &[
     ("parse build without any options ", &[]),
     ("Parse multiple options", &["--verbose", "--force", "tests"]),
@@ -266,35 +233,6 @@ pub(super) const PARSE_BUILD_OPTIONS: &[(&str, &[&str])] = &[
         "--watch and --dry together is invalid",
         &["--watch", "--dry"],
     ),
-    (
-        "parse --watchFile",
-        &["--watchFile", "UseFsEvents", "--verbose"],
-    ),
-    (
-        "parse --watchDirectory",
-        &["--watchDirectory", "FixedPollingInterval", "--verbose"],
-    ),
-    (
-        "parse --fallbackPolling",
-        &["--fallbackPolling", "PriorityInterval", "--verbose"],
-    ),
-    (
-        "parse --synchronousWatchDirectory",
-        &["--synchronousWatchDirectory", "--verbose"],
-    ),
-    (
-        "errors on missing argument",
-        &["--verbose", "--fallbackPolling"],
-    ),
-    (
-        "errors on invalid excludeDirectories",
-        &["--excludeDirectories", "**/../*"],
-    ),
-    ("parse --excludeFiles", &["--excludeFiles", "**/temp/*.ts"]),
-    (
-        "errors on invalid excludeFiles",
-        &["--excludeFiles", "**/../*"],
-    ),
     ("parse --builders", &["--builders", "2"]),
     (
         "--singleThreaded and --builders together",
@@ -309,6 +247,19 @@ pub(super) const PARSE_BUILD_OPTIONS: &[(&str, &[&str])] = &[
         "reports error when --builders is invalid type",
         &["--builders", "invalid"],
     ),
+];
+
+/// `TestRemovedWatchOptions`' options (commandlineparser_test.go:78-101): each
+/// passed as `--watch --<option>` to the command line and the build command
+/// line, whose errors the baseline lists.
+pub(super) const REMOVED_WATCH_OPTIONS: &[&str] = &[
+    "watchInterval",
+    "watchFile",
+    "watchDirectory",
+    "fallbackPolling",
+    "synchronousWatchDirectory",
+    "excludeDirectories",
+    "excludeFiles",
 ];
 
 /// `parseConfigFileTextToJsonTests` (tsconfigparsing_test.go:39-127).
@@ -388,7 +339,7 @@ pub(super) const JSON_PARSE: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// `parseJsonConfigFileTests` (tsconfigparsing_test.go:165-781, with the configs of 783-816).
+/// `parseJsonConfigFileTests` (tsconfigparsing_test.go:165-792, with the configs of 794-827).
 pub(super) const PARSE_JSON_CONFIG: &[ParseJsonConfigCase] = &[
     ParseJsonConfigCase {
         title: "ignore dotted files and folders",
@@ -451,6 +402,18 @@ pub(super) const PARSE_JSON_CONFIG: &[ParseJsonConfigCase] = &[
         }],
     },
     ParseJsonConfigCase {
+        title: "handles empty file name in files list",
+        include_compiler_options: false,
+        input: &[TestConfig {
+            json_text: r#"{
+                "files": [""]
+            }"#,
+            config_file_name: "/apath/tsconfig.json",
+            base_path: "/apath",
+            all_file_list: &[("/apath/a.ts", "")],
+        }],
+    },
+    ParseJsonConfigCase {
         title: "generates errors for empty files list when no references are provided",
         include_compiler_options: false,
         input: &[TestConfig {
@@ -482,7 +445,7 @@ pub(super) const PARSE_JSON_CONFIG: &[ParseJsonConfigCase] = &[
                 "include": []
             }"#,
             config_file_name: "/apath/tsconfig.json",
-            base_path: "tests/cases/unittests",
+            base_path: "/tests/cases/unittests",
             all_file_list: &[("/apath/a.ts", "")],
         }],
     },
@@ -1129,7 +1092,7 @@ export {}"#,
     },
 ];
 
-/// `TestParseTypeAcquisition`'s cases (tsconfigparsing_test.go:1558-1626): title,
+/// `TestParseTypeAcquisition`'s cases (tsconfigparsing_test.go:1566-1636): title,
 /// config file name and config text.
 pub(super) const TYPE_ACQUISITION: &[(&str, &str, &str)] = &[
     (

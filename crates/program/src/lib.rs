@@ -154,8 +154,9 @@ pub use json::{package_json_property, read_package_json_object_from_snapshot};
 pub use json_value::{append_json_quoted, JsonObject, JsonValue};
 pub use library::LibraryCatalog;
 pub use loader::{
-    load_emitting_program, load_emitting_program_js, load_no_lib_program, load_program,
-    load_program_js, LibraryRootReason, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
+    load_emitting_program, load_emitting_program_js, load_emitting_program_with_root_reasons,
+    load_no_lib_program, load_program, load_program_js, load_program_with_root_reasons,
+    LibraryRootReason, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
     ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation, RootFileReason,
     SourceInclusionReason, PARALLEL_READ_AHEAD_MIN_ROOTS,
 };

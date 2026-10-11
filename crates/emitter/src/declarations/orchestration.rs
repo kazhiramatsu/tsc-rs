@@ -178,7 +178,11 @@ pub(crate) fn emit_declaration_unit(
         &DeclarationCustomTransformers::none(),
     )?;
     let mut result = transform_nodes(arena, vec![transform_root], transformers, false)?;
-    let diagnostics = result.diagnostics().to_vec();
+    // tsgo emitFiles adds the declaration diagnostics to the emitter's
+    // DiagnosticsCollection (compiler/emitter.go:241), which keeps one of the
+    // equal ones; the written file's diagnostics are its sorted list.
+    let mut diagnostics = result.diagnostics().to_vec();
+    tsc_diagnostics::sort_and_dedupe_equal_diagnostics(&mut diagnostics);
     let diagnostics_blocked = !diagnostics.is_empty();
     let path_blocked = !diagnostics_blocked && preflight.is_emit_blocked(host, declaration_path);
     let decl_blocked = diagnostics_blocked || path_blocked || options.no_emit == Some(true);

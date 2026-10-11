@@ -291,8 +291,8 @@ mod tests {
 
     #[test]
     fn every_table_row_is_a_case() {
-        // 7 jsonParse titles, 32 tables × 2 apis, 8 type acquisition cases × 2.
-        assert_eq!(cases().len(), 7 + 32 * 2 + 8 * 2);
+        // 7 jsonParse titles, 33 tables × 2 apis, 8 type acquisition cases × 2.
+        assert_eq!(cases().len(), 7 + 33 * 2 + 8 * 2);
     }
 
     #[test]

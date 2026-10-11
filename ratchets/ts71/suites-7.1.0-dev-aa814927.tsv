@@ -46,8 +46,8 @@ config/tsconfigParsing/generates errors when files is not string with json api.j
 config/tsconfigParsing/generates errors when files is not string with jsonSourceFile api.js	full
 config/tsconfigParsing/generates errors when include is not string with json api.js	full
 config/tsconfigParsing/generates errors when include is not string with jsonSourceFile api.js	full
-config/tsconfigParsing/handles empty file name in files list with json api.js	none
-config/tsconfigParsing/handles empty file name in files list with jsonSourceFile api.js	none
+config/tsconfigParsing/handles empty file name in files list with json api.js	full
+config/tsconfigParsing/handles empty file name in files list with jsonSourceFile api.js	full
 config/tsconfigParsing/handles empty types array with json api.js	full
 config/tsconfigParsing/handles empty types array with jsonSourceFile api.js	full
 config/tsconfigParsing/handles escaped characters in strings correctly jsonParse.js	full
@@ -158,7 +158,7 @@ tsbuild/declarationEmit/reports-dts-generation-errors.js	full
 tsbuild/declarationEmit/when-declaration-file-is-referenced-through-triple-slash-but-uses-no-references.js	full
 tsbuild/declarationEmit/when-declaration-file-is-referenced-through-triple-slash.js	full
 tsbuild/declarationEmit/when-declaration-file-used-inferred-type-from-referenced-project.js	full
-tsbuild/declarationEmit/when-ts-file-is-referenced-through-triple-slash-from-another-project.js	none
+tsbuild/declarationEmit/when-ts-file-is-referenced-through-triple-slash-from-another-project.js	full
 tsbuild/declarationEmitForReferencedProjectTypesSubpath/declaration-emit-names-referenced-project-type-via-types-subpath.js	full
 tsbuild/demo/in-bad-ref-branch-reports-the-error-about-files-not-in-rootDir-at-the-import-location.js	none
 tsbuild/demo/in-circular-branch-reports-the-error-about-it-by-stopping-build.js	full
@@ -513,7 +513,7 @@ tsc/incremental/react-jsx-emit-mode-with-no-backing-types-found-doesnt-crash-und
 tsc/incremental/react-jsx-emit-mode-with-no-backing-types-found-doesnt-crash.js	full
 tsc/incremental/recursive-mapped-type-after-comment-only-edit.js	full
 tsc/incremental/recursive-readonly-mapped-type-after-comment-only-edit.js	full
-tsc/incremental/recursive-tagged-tuple-after-incremental-edits.js	none
+tsc/incremental/recursive-tagged-tuple-after-incremental-edits.js	full
 tsc/incremental/serializing-composite-project.js	full
 tsc/incremental/serializing-error-chain.js	full
 tsc/incremental/tsbuildinfo-has-error.js	full
@@ -583,7 +583,7 @@ tsc/projectReferences/errors-when-the-file-list-is-not-exhaustive.js	full
 tsc/projectReferences/errors-when-the-referenced-project-doesnt-exist.js	full
 tsc/projectReferences/errors-when-the-referenced-project-doesnt-have-composite.js	full
 tsc/projectReferences/importing-const-enum-from-referenced-project-with-preserveConstEnums-and-verbatimModuleSyntax.js	full
-tsc/projectReferences/incremental-nested-triple-slash-reference-to-composite-project-source.js	none
+tsc/projectReferences/incremental-nested-triple-slash-reference-to-composite-project-source.js	full
 tsc/projectReferences/issues-a-nice-error-when-the-input-file-is-missing-when-module-reference-is-not-relative.js	full
 tsc/projectReferences/issues-a-nice-error-when-the-input-file-is-missing.js	full
 tsc/projectReferences/redirects-to-the-output-dts-file.js	full
@@ -600,11 +600,11 @@ tsc/projectReferences/when-project-references-have-invalid-fields.js	full
 tsc/showConfig/Default-initialized-TSConfig.js	full
 tsc/showConfig/Show-TSConfig-with-advanced-options.js	full
 tsc/showConfig/Show-TSConfig-with-boolean-value-compiler-options.js	full
-tsc/showConfig/Show-TSConfig-with-command-line-file-listing-flags-false.js	none
-tsc/showConfig/Show-TSConfig-with-command-line-file-listing-flags-true.js	none
+tsc/showConfig/Show-TSConfig-with-command-line-file-listing-flags-false.js	full
+tsc/showConfig/Show-TSConfig-with-command-line-file-listing-flags-true.js	full
 tsc/showConfig/Show-TSConfig-with-compileOnSave-and-more.js	full
-tsc/showConfig/Show-TSConfig-with-configured-file-listing-flags-false.js	none
-tsc/showConfig/Show-TSConfig-with-configured-file-listing-flags-true.js	none
+tsc/showConfig/Show-TSConfig-with-configured-file-listing-flags-false.js	full
+tsc/showConfig/Show-TSConfig-with-configured-file-listing-flags-true.js	full
 tsc/showConfig/Show-TSConfig-with-enum-value-compiler-options.js	full
 tsc/showConfig/Show-TSConfig-with-exclude-and-outDir.js	full
 tsc/showConfig/Show-TSConfig-with-exclude.js	full
@@ -620,8 +620,8 @@ tsc/showConfig/Show-TSConfig-with-references.js	full
 tsc/showConfig/Show-TSConfig-with-transitively-implied-options.js	full
 tsc/typeAcquisition/parse-tsconfig-with-typeAcquisition.js	full
 tscWatch/commandLine/Initialized-TSConfig-with---watch.js	full
-tscWatch/commandLine/Reject-removed-watch-interval-option-without-tsconfig.json.js	none
-tscWatch/commandLine/Reject-removed-watch-interval-option.js	none
+tscWatch/commandLine/Reject-removed-watch-interval-option-without-tsconfig.json.js	full
+tscWatch/commandLine/Reject-removed-watch-interval-option.js	full
 tscWatch/commandLineWatch/watch-detects-at-types-package-installed-later.js	full
 tscWatch/commandLineWatch/watch-detects-change-in-symlinked-node_modules-file.js	full
 tscWatch/commandLineWatch/watch-detects-error-across-global-script-files-when-global-decl-removed.js	full
@@ -671,15 +671,7 @@ tsoptions/commandLineParsing/parseBuildOptions/Parse multiple flags with input p
 tsoptions/commandLineParsing/parseBuildOptions/Parse multiple flags with input projects in the middle.js	full
 tsoptions/commandLineParsing/parseBuildOptions/Parse multiple options.js	full
 tsoptions/commandLineParsing/parseBuildOptions/Parse option with invalid option.js	full
-tsoptions/commandLineParsing/parseBuildOptions/errors on invalid excludeDirectories.js	none
-tsoptions/commandLineParsing/parseBuildOptions/errors on invalid excludeFiles.js	none
-tsoptions/commandLineParsing/parseBuildOptions/errors on missing argument.js	none
 tsoptions/commandLineParsing/parseBuildOptions/parse --builders.js	full
-tsoptions/commandLineParsing/parseBuildOptions/parse --excludeFiles.js	none
-tsoptions/commandLineParsing/parseBuildOptions/parse --fallbackPolling.js	none
-tsoptions/commandLineParsing/parseBuildOptions/parse --synchronousWatchDirectory.js	none
-tsoptions/commandLineParsing/parseBuildOptions/parse --watchDirectory.js	none
-tsoptions/commandLineParsing/parseBuildOptions/parse --watchFile.js	none
 tsoptions/commandLineParsing/parseBuildOptions/parse build with --incremental.js	full
 tsoptions/commandLineParsing/parseBuildOptions/parse build with --locale en-us.js	full
 tsoptions/commandLineParsing/parseBuildOptions/parse build with --tsBuildInfoFile.js	full
@@ -711,9 +703,6 @@ tsoptions/commandLineParsing/parseCommandLine/Parse non boolean argument after b
 tsoptions/commandLineParsing/parseCommandLine/Parse single option of library flag.js	full
 tsoptions/commandLineParsing/parseCommandLine/allows setting option type boolean to false.js	full
 tsoptions/commandLineParsing/parseCommandLine/allows tsconfig only option to be set to null.js	full
-tsoptions/commandLineParsing/parseCommandLine/errors on invalid excludeDirectories.js	none
-tsoptions/commandLineParsing/parseCommandLine/errors on invalid excludeFiles.js	none
-tsoptions/commandLineParsing/parseCommandLine/errors on missing argument to --fallbackPolling.js	none
 tsoptions/commandLineParsing/parseCommandLine/option of type boolean allows setting it to null.js	full
 tsoptions/commandLineParsing/parseCommandLine/option of type boolean errors if its followed by another option.js	full
 tsoptions/commandLineParsing/parseCommandLine/option of type boolean errors if its last option.js	full
@@ -733,18 +722,12 @@ tsoptions/commandLineParsing/parseCommandLine/option of type string allows setti
 tsoptions/commandLineParsing/parseCommandLine/option of type string errors if its followed by another option.js	full
 tsoptions/commandLineParsing/parseCommandLine/option of type string errors if its last option.js	full
 tsoptions/commandLineParsing/parseCommandLine/option of type string errors if non null value is passed.js	full
-tsoptions/commandLineParsing/parseCommandLine/parse --excludeDirectories.js	none
-tsoptions/commandLineParsing/parseCommandLine/parse --excludeFiles.js	none
-tsoptions/commandLineParsing/parseCommandLine/parse --fallbackPolling.js	none
 tsoptions/commandLineParsing/parseCommandLine/parse --incremental.js	full
-tsoptions/commandLineParsing/parseCommandLine/parse --synchronousWatchDirectory.js	none
 tsoptions/commandLineParsing/parseCommandLine/parse --tsBuildInfoFile.js	full
-tsoptions/commandLineParsing/parseCommandLine/parse --watchDirectory.js	none
-tsoptions/commandLineParsing/parseCommandLine/parse --watchFile.js	none
-tsoptions/removedWatchOptions/excludeDirectories.js	none
-tsoptions/removedWatchOptions/excludeFiles.js	none
-tsoptions/removedWatchOptions/fallbackPolling.js	none
-tsoptions/removedWatchOptions/synchronousWatchDirectory.js	none
-tsoptions/removedWatchOptions/watchDirectory.js	none
-tsoptions/removedWatchOptions/watchFile.js	none
-tsoptions/removedWatchOptions/watchInterval.js	none
+tsoptions/removedWatchOptions/excludeDirectories.js	full
+tsoptions/removedWatchOptions/excludeFiles.js	full
+tsoptions/removedWatchOptions/fallbackPolling.js	full
+tsoptions/removedWatchOptions/synchronousWatchDirectory.js	full
+tsoptions/removedWatchOptions/watchDirectory.js	full
+tsoptions/removedWatchOptions/watchFile.js	full
+tsoptions/removedWatchOptions/watchInterval.js	full

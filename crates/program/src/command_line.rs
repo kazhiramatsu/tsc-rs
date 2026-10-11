@@ -20,7 +20,7 @@ use crate::config_options::{
     compiler_option_declaration_ignore_case, is_common_with_build, named_value_in,
     option_min_value, option_spelling_suggestion, CompilerOptionDeclaration,
     CompilerOptionListElementKind, CompilerOptionValueKind, BUILD_OPTION_DECLARATIONS,
-    COMPILER_OPTION_DECLARATIONS, WATCH_OPTION_DECLARATIONS,
+    COMPILER_OPTION_DECLARATIONS,
 };
 use crate::js_path::normalized_config_value_path;
 use crate::json_value::JsonValue as Value;
@@ -105,7 +105,6 @@ enum Mode {
 enum Group {
     Compiler,
     Build,
-    Watch,
 }
 
 #[derive(Clone, Copy)]
@@ -288,7 +287,8 @@ impl<'a> Parser<'a> {
     }
 
     /// The option an argument names in this mode (tsgo
-    /// `GetOptionDeclarationFromName` with short names), or a watch option.
+    /// `GetOptionDeclarationFromName` with short names). tsgo (#64457) has no
+    /// watch options: `--watchFile` and the others are unknown.
     fn lookup(&self, name: &str) -> Option<OptionRef> {
         let lower = name.to_ascii_lowercase();
         let (declarations, short_names): (&[&'static CompilerOptionDeclaration], &[(&str, &str)]) =
@@ -326,16 +326,7 @@ impl<'a> Parser<'a> {
                 })
             }
         };
-        found.or_else(|| {
-            WATCH_OPTION_DECLARATIONS
-                .iter()
-                .chain(WATCH_INTERVAL.iter())
-                .rfind(|declaration| declaration.name().eq_ignore_ascii_case(&lower))
-                .map(|declaration| OptionRef {
-                    declaration,
-                    group: Group::Watch,
-                })
-        })
+        found
     }
 
     /// tsgo `parseStrings`.
@@ -476,14 +467,10 @@ impl<'a> Parser<'a> {
 
     /// The type-mismatch diagnostic of the mode (tsgo
     /// `OptionTypeMismatchDiagnostic`): TS6044 for the compile command line,
-    /// TS5073 for the build command line, TS5080 for a watch option.
+    /// TS5073 for the build command line.
     fn type_mismatch(&self, option: OptionRef, type_name: &str) -> Diagnostic {
         let name = option.declaration.name().to_owned();
         match (option.group, self.mode) {
-            (Group::Watch, _) => fileless(
-                &gen::Watch_option_0_requires_a_value_of_type_1,
-                &[name, type_name.to_owned()],
-            ),
             (_, Mode::Build) => fileless(
                 &gen::Build_option_0_requires_a_value_of_type_1,
                 &[name, type_name.to_owned()],
@@ -727,10 +714,6 @@ const BUILD_SHORT_NAMES: &[(&str, &str)] = &[
     ("f", "force"),
 ];
 
-/// tsgo's `watchInterval` (not a config watch option).
-static WATCH_INTERVAL: [CompilerOptionDeclaration; 1] =
-    [crate::config_options::watch_interval_declaration()];
-
 static BUILD_MODE_DECLARATIONS: std::sync::OnceLock<Vec<CompilerOptionDeclaration>> =
     std::sync::OnceLock::new();
 
@@ -849,12 +832,7 @@ pub fn command_line_compiler_options<'a>(
 pub fn command_line_raw(options: &[(String, Value)]) -> Value {
     let mut raw = crate::json_value::JsonObject::new();
     for (name, value) in options {
-        let declaration = compiler_option_declaration(name.as_str()).or_else(|| {
-            WATCH_OPTION_DECLARATIONS
-                .iter()
-                .chain(WATCH_INTERVAL.iter())
-                .find(|declaration| declaration.name() == name.as_str())
-        });
+        let declaration = compiler_option_declaration(name.as_str());
         let converted = match declaration.map(|declaration| declaration.value_kind()) {
             Some(CompilerOptionValueKind::Named(values)) => value
                 .as_js()
@@ -981,25 +959,32 @@ mod tests {
         assert_eq!(parsed.file_names, ["0.ts"]);
     }
 
-    // tsgo's commandLineParsing baseline `parseCommandLine/errors on invalid
-    // excludeDirectories`: validateJsonOptionValue passes the spec message
-    // without its argument.
+    // tsgo's tsoptions/removedWatchOptions baselines (#64457): the watch
+    // options are unknown to both command lines.
     #[test]
-    fn invalid_watch_file_specs_keep_the_message_placeholder() {
-        let parsed = parse(&["--excludeDirectories", "**/../*", "0.ts"]);
-        assert_eq!(
-            parsed.options,
-            [("excludeDirectories".to_owned(), Value::Array(Vec::new()))]
-        );
-        assert_eq!(
-            messages(&parsed.errors),
-            [(
-                5065,
-                "File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '{0}'."
-                    .to_owned()
-            )]
-        );
-        assert_eq!(parsed.file_names, ["0.ts"]);
+    fn removed_watch_options_are_unknown_like_tsgo() {
+        for option in [
+            "watchInterval",
+            "watchFile",
+            "watchDirectory",
+            "fallbackPolling",
+            "synchronousWatchDirectory",
+            "excludeDirectories",
+            "excludeFiles",
+        ] {
+            let argument = format!("--{option}");
+            let parsed = parse(&["--watch", &argument]);
+            assert_eq!(parsed.options, [("watch".to_owned(), Value::Bool(true))]);
+            assert_eq!(
+                messages(&parsed.errors),
+                [(5023, format!("Unknown compiler option '--{option}'."))]
+            );
+            let build = parse_build(&["--watch", &argument]);
+            assert_eq!(
+                messages(&build.errors),
+                [(5072, format!("Unknown build option '--{option}'."))]
+            );
+        }
     }
 
     // tsgo 7.1.0-dev-aa814927, `tsgo -p . <args>` (scratchpad p36g/probe).

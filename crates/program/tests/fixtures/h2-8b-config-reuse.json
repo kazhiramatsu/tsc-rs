@@ -2,10 +2,10 @@
   "version": 2,
   "slice": "H2.8b-CFG1e",
   "typescript": "7.1.0-dev-aa814927",
-  "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
+  "source_commit": "aa8149273b23401f0a79a5f0384c42de51888693",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe()",
-    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show. Re-recorded on 2026-10-09 (ts71-suites P4-5b) for the cases whose configuration diagnostics TypeScript 7.1 reports differently, after the tsgo binary of the vendored commit printed the same diagnostics as the port for each case's files: tsgo's parse validates the JSON value (TS1327, TS1328, TS1136 are parse diagnostics), the conversion reports at a node's whole range and drops null array elements, `watchOptions` is not a tsconfig root option (nothing in it is diagnosed), an array is not an object option's value, and an extended config with parse diagnostics is not applied."
+    "verification": "The TypeScript 6.0.3 observations of this slice (vendor/typescript-6.0.3/lib/_tsc.js at tag v0.1.0), re-recorded on 2026-10-08 (ts71-suites P4-5) where TypeScript 7.1 differs and nowhere else: the type acquisition defaults (tsgo getDefaultTypeAcquisition, tsoptions/tsconfigparsing.go:941-947: `enable` for a jsconfig.json and nothing for a tsconfig.json, where 6.0.3 had enable/include/exclude) and the TS5065 text of a watch option's file specification (validateJsonOptionValue, tsconfigparsing.go:387-391, passes no argument, so the text keeps '{0}'), as tsgo's tsconfigParsing and commandLineParsing baselines at the vendored commit show. Re-recorded on 2026-10-09 (ts71-suites P4-5b) for the cases whose configuration diagnostics TypeScript 7.1 reports differently, after the tsgo binary of the vendored commit printed the same diagnostics as the port for each case's files: tsgo's parse validates the JSON value (TS1327, TS1328, TS1136 are parse diagnostics), the conversion reports at a node's whole range and drops null array elements, `watchOptions` is not a tsconfig root option (nothing in it is diagnosed), an array is not an object option's value, and an extended config with parse diagnostics is not applied. Re-recorded on 2026-10-11 (microsoft/TypeScript aa8149273 sync, S5): tsgo has no watch options (#64457), so the records no longer probe them."
   },
   "inputs": {
     "path": "crates/program/tests/fixtures/h2-8b-config-reuse-inputs.json",
@@ -49,9 +49,6 @@
           "options": {
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
-          },
-          "watch_options": {
-            "watchFile": 4
           },
           "type_acquisition": {},
           "compile_on_save": false,
@@ -118,9 +115,6 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -171,7 +165,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -258,7 +251,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -382,9 +374,6 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -424,8 +413,38 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
+          "type_acquisition": {},
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        },
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": false,
+            "configFilePath": "/project/tsconfig.json"
           },
           "type_acquisition": {},
           "compile_on_save": false,
@@ -460,41 +479,6 @@
             "strict": false,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
-          "type_acquisition": {},
-          "compile_on_save": false,
-          "file_names": [
-            "/project/main.ts"
-          ],
-          "extended_source_files": [
-            "/project/base.json"
-          ],
-          "root_parse_diagnostics": [],
-          "parsed_errors": [],
-          "config_diagnostics": []
-        },
-        {
-          "calls": [
-            {
-              "operation": "fileExists",
-              "path": "/project/base.json"
-            },
-            {
-              "operation": "readFile",
-              "path": "/project/base.json"
-            }
-          ],
-          "raw": {
-            "files": [
-              "main.ts"
-            ],
-            "extends": "./base.json"
-          },
-          "options": {
-            "strict": false,
-            "configFilePath": "/project/tsconfig.json"
-          },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -540,7 +524,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -610,7 +593,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -697,7 +679,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -781,9 +762,6 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -845,9 +823,6 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -894,7 +869,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -959,7 +933,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1079,9 +1052,6 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1120,9 +1090,6 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1151,9 +1118,6 @@
           "options": {
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
-          },
-          "watch_options": {
-            "watchFile": 4
           },
           "type_acquisition": {},
           "compile_on_save": false,
@@ -1188,7 +1152,6 @@
             "strict": false,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1234,7 +1197,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1300,7 +1262,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1383,7 +1344,6 @@
           "options": {
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": null,
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1470,9 +1430,6 @@
           "options": {
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
-          },
-          "watch_options": {
-            "watchFile": 4
           },
           "type_acquisition": {},
           "compile_on_save": false,
@@ -1583,9 +1540,6 @@
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1644,9 +1598,6 @@
             "strict": true,
             "configFilePath": "C:/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1685,9 +1636,6 @@
             "strict": true,
             "configFilePath": "//server/share/project/tsconfig.json"
           },
-          "watch_options": {
-            "watchFile": 4
-          },
           "type_acquisition": {},
           "compile_on_save": false,
           "file_names": [
@@ -1725,9 +1673,6 @@
           "options": {
             "strict": true,
             "configFilePath": "https://example.test/project/tsconfig.json"
-          },
-          "watch_options": {
-            "watchFile": 4
           },
           "type_acquisition": {},
           "compile_on_save": false,
@@ -1786,9 +1731,6 @@
           "options": {
             "strict": true,
             "configFilePath": "/project/tsconfig.json"
-          },
-          "watch_options": {
-            "watchFile": 4
           },
           "type_acquisition": {},
           "compile_on_save": false,
