@@ -267,3 +267,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
   tsbuild 182 → 183、tsc 211 → 217、tscWatch 40 → 42、tsoptions の `removedWatchOptions` 7）。`--update` で記録し、消えた
   watch option の 17 baseline は ratchet から落ちた（748 → 731）。suites に残る違いは前からの範囲の 24（tsbuild 10、
   tsbuildWatch 2、tsc 12。ES5 の意図した差、content mapper など）。
+- **hosted と merge**：PR #745 の hosted run 38122507114（rust 11m53s、conformance 14m8s、gates pass、head `770404b2d`）、merge commit
+  `e1b66157e`。
