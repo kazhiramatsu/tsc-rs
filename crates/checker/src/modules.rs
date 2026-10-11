@@ -260,7 +260,6 @@ pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
 pub(crate) const EMIT_HELPER_METADATA: u32 = 1 << 4;
 pub(crate) const EMIT_HELPER_PARAM: u32 = 1 << 5;
 pub(crate) const EMIT_HELPER_AWAITER: u32 = 1 << 6;
-pub(crate) const EMIT_HELPER_GENERATOR: u32 = 1 << 7;
 pub(crate) const EMIT_HELPER_VALUES: u32 = 1 << 8;
 /// `AsyncGeneratorIncludes = Await | AsyncGenerator`.
 pub(crate) const EMIT_HELPER_ASYNC_GENERATOR_INCLUDES: u32 = (1 << 11) | (1 << 12);
@@ -305,190 +304,6 @@ impl<'a> CheckerState<'a> {
         };
         Ok(!is_property_name
             && self.emit_get_referenced_value_symbol(node, false)? == Some(self.arguments_symbol))
-    }
-
-    /// tsc-port: isBindingCapturedByNode @6.0.3
-    /// tsc-hash: 6ff90ead49d8c21caf3673c95c4339e57c9f6150202f1dbbba891811ffd87d97
-    /// tsc-span: _tsc.js:72291-72294
-    pub(crate) fn emit_is_binding_captured_by_node(
-        &mut self,
-        node: NodeId,
-        declaration: NodeId,
-    ) -> CheckResult<bool> {
-        let symbol = self.get_symbol_of_declaration(declaration)?;
-        Ok(self
-            .links
-            .node_cold()
-            .captured_block_scope_bindings
-            .get(node)
-            .contains(&symbol))
-    }
-
-    /// tsc-port: getReferencedDeclarationWithCollidingName @6.0.3
-    /// tsc-hash: a6396c5d63bc50e0a7cb74b8f8ea1b2b61bfea76998504d8ea2b3841512ed825
-    /// tsc-span: _tsc.js:87959-87970
-    ///
-    /// Upstream's isGeneratedIdentifier/getParseTreeNode gates collapse to
-    /// the identifier-kind check: the resolver-node bridge only admits
-    /// parse-tree nodes of the checked program.
-    pub(crate) fn emit_get_referenced_declaration_with_colliding_name(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<Option<NodeId>> {
-        if self.kind_of(node) != SyntaxKind::Identifier {
-            return Ok(None);
-        }
-        let Some(symbol) = self.emit_get_referenced_value_symbol(node, false)? else {
-            return Ok(None);
-        };
-        if self.is_symbol_of_declaration_with_colliding_name(symbol)? {
-            return Ok(self.binder.symbol(symbol).value_declaration);
-        }
-        Ok(None)
-    }
-
-    /// tsc-port: isDeclarationWithCollidingName @6.0.3
-    /// tsc-hash: 8b1c8ccb5ccb8f04b7b9fa92a23a9bde90689e8d71b39f845f924a6fe1e29516
-    /// tsc-span: _tsc.js:87971-87980
-    pub(crate) fn emit_is_declaration_with_colliding_name(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult<bool> {
-        if !node_util::is_declaration(self.binder.source_of_node(node), node) {
-            return Ok(false);
-        }
-        let symbol = self.get_symbol_of_declaration(node)?;
-        self.is_symbol_of_declaration_with_colliding_name(symbol)
-    }
-
-    /// tsc-port: isSymbolOfDeclarationWithCollidingName @6.0.3
-    /// tsc-hash: d5871166e0edf8a220b25c2e5330a38e23d5834240d3b48afe2f572d35ca1689
-    /// tsc-span: _tsc.js:87921-87958
-    ///
-    /// The memo mirrors tsc exactly: it is written only when the enclosing
-    /// container has locals (or the symbol is a destructured catch-binding
-    /// element); otherwise the slot stays vacant and the query re-derives,
-    /// reading as false.
-    fn is_symbol_of_declaration_with_colliding_name(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult<bool> {
-        if !self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(tsc_types::SymbolFlags::BLOCK_SCOPED)
-        {
-            return Ok(false);
-        }
-        let Some(value_declaration) = self.binder.symbol(symbol).value_declaration else {
-            return Ok(false);
-        };
-        if self.kind_of(value_declaration) == SyntaxKind::SourceFile {
-            return Ok(false);
-        }
-        if self
-            .links
-            .symbol_cold()
-            .is_declaration_with_colliding_name
-            .get(symbol)
-            .is_none()
-        {
-            let Some(container) = self.get_enclosing_block_scope_container(value_declaration)
-            else {
-                return Ok(false);
-            };
-            if self.is_statement_with_locals(container)
-                || self.is_symbol_of_destructured_element_of_catch_binding(symbol)
-            {
-                let name = self.binder.symbol(symbol).escaped_name;
-                let colliding = if self
-                    .resolve_name(
-                        self.parent_of(container),
-                        name,
-                        tsc_types::SymbolFlags::VALUE,
-                        None,
-                        false,
-                        false,
-                    )?
-                    .is_some()
-                {
-                    true
-                } else if self
-                    .links
-                    .read_node(value_declaration, |links| links.check_flags)
-                    .intersects(tsc_types::NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING)
-                {
-                    let is_declared_in_loop = self
-                        .links
-                        .read_node(value_declaration, |links| links.check_flags)
-                        .intersects(tsc_types::NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP);
-                    let in_loop_initializer = self.is_iteration_statement(container, false);
-                    let in_loop_body_block = self.kind_of(container) == SyntaxKind::Block
-                        && self
-                            .parent_of(container)
-                            .is_some_and(|parent| self.is_iteration_statement(parent, false));
-                    !self.is_block_scoped_container_top_level(container)
-                        && (!is_declared_in_loop || !in_loop_initializer && !in_loop_body_block)
-                } else {
-                    false
-                };
-                self.links
-                    .set_symbol_is_declaration_with_colliding_name(symbol, colliding);
-            }
-        }
-        Ok(self
-            .links
-            .symbol_cold()
-            .is_declaration_with_colliding_name
-            .get(symbol)
-            .unwrap_or(false))
-    }
-
-    /// tsc-port: isSymbolOfDestructuredElementOfCatchBinding @6.0.3
-    /// tsc-hash: 5c5fad1dfe12f066c0758cf112869433df17d57521565fad93c3bcd8fb03926d
-    /// tsc-span: _tsc.js:87918-87920
-    fn is_symbol_of_destructured_element_of_catch_binding(&self, symbol: SymbolId) -> bool {
-        let Some(value_declaration) = self.binder.symbol(symbol).value_declaration else {
-            return false;
-        };
-        if self.kind_of(value_declaration) != SyntaxKind::BindingElement {
-            return false;
-        }
-        let Some(walked) = node_util::walk_up_binding_elements_and_patterns(
-            self.binder.source_of_node(value_declaration),
-            value_declaration,
-        ) else {
-            return false;
-        };
-        self.parent_of(walked)
-            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
-    }
-
-    /// tsc-port: isStatementWithLocals @6.0.3
-    /// tsc-hash: 7bd8b44876032a541a6d872ede41daac386335713777922b6b084f4173fe91f7
-    /// tsc-span: _tsc.js:12879-12889
-    fn is_statement_with_locals(&self, node: NodeId) -> bool {
-        matches!(
-            self.kind_of(node),
-            SyntaxKind::Block
-                | SyntaxKind::CaseBlock
-                | SyntaxKind::ForStatement
-                | SyntaxKind::ForInStatement
-                | SyntaxKind::ForOfStatement
-        )
-    }
-
-    /// tsc-port: isBlockScopedContainerTopLevel @6.0.3
-    /// tsc-hash: 702ff6bd411771b491cb193dfe955195fe83e11a8c4237d41275ca0aa92c6fed
-    /// tsc-span: _tsc.js:13731-13733
-    fn is_block_scoped_container_top_level(&self, node: NodeId) -> bool {
-        matches!(
-            self.kind_of(node),
-            SyntaxKind::SourceFile
-                | SyntaxKind::ModuleDeclaration
-                | SyntaxKind::ClassStaticBlockDeclaration
-        ) || node_util::is_function_like_kind(self.kind_of(node))
     }
 
     // ================================================================
@@ -1564,11 +1379,6 @@ impl<'a> CheckerState<'a> {
         if matches!(self.data_of(location), NodeData::ExportSpecifier(_)) {
             return self.mark_export_specifier_alias_referenced(location);
         }
-        if node_util::is_function_like_declaration_kind(self.kind_of(location))
-            || self.kind_of(location) == SyntaxKind::MethodSignature
-        {
-            self.mark_async_function_alias_referenced(location)?;
-        }
         if self.options.emit_decorator_metadata != Some(true) {
             return Ok(());
         }
@@ -1794,60 +1604,6 @@ impl<'a> CheckerState<'a> {
             self.get_property_of_type_ex(apparent, &name, false)?
         };
         self.mark_property_alias_referenced(location, left, prop, left_type)
-    }
-
-    /// `markLinkedReferences(location, ReferenceHint.AsyncFunction)`
-    /// (_tsc.js:71662-71679): the front-door guards (verbatimModuleSyntax,
-    /// ambient locations) followed by the async-function marker.
-    /// tsc-port: createTypeChecker.markLinkedReferences @6.0.3
-    /// tsc-hash: 5bfb1b06d6bbd776c9ef32b5d1aa3e0720db62113276dc9abe99b2a9a0558522
-    /// tsc-span: _tsc.js:71662-71668
-    /// Reference scope: front-door guards.
-    /// tsc-port: createTypeChecker.markLinkedReferences @6.0.3
-    /// tsc-hash: 808d14cedeff78d9fa5481de6203b976b60c89d4ecbb6b9b0a74cd59748e0780
-    /// tsc-span: _tsc.js:71678-71679
-    /// Reference scope: AsyncFunction arm; reject whole 71662-71732 (other hint arms not
-    /// mirrored).
-    pub(crate) fn mark_linked_references_async_function(
-        &mut self,
-        location: NodeId,
-    ) -> CheckResult<()> {
-        if self.options.verbatim_module_syntax == Some(true) {
-            return Ok(());
-        }
-        if self
-            .binder
-            .flags_of(location)
-            .intersects(tsc_types::NodeFlags::AMBIENT)
-            && !matches!(
-                self.kind_of(location),
-                SyntaxKind::PropertySignature | SyntaxKind::PropertyDeclaration
-            )
-        {
-            return Ok(());
-        }
-        self.mark_async_function_alias_referenced(location)
-    }
-
-    /// tsc-port: markAsyncFunctionAliasReferenced @6.0.3
-    /// tsc-hash: a9ab88c572baf7efb5904eb94595de4c3316c636d7b18b0c3218c54e6c38d08e
-    /// tsc-span: _tsc.js:71828-71835
-    fn mark_async_function_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
-        if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {
-            return Ok(());
-        }
-        const FUNCTION_FLAGS_ASYNC: u32 = 2;
-        if self.get_function_flags(location) & FUNCTION_FLAGS_ASYNC == 0 {
-            return Ok(());
-        }
-        // markTypeNodeAsReferenced(returnTypeNode) (71954-71958)
-        let Some(return_type) = self.effective_return_type_node(location) else {
-            return Ok(());
-        };
-        let Some(entity_name) = self.get_entity_name_from_type_node(return_type) else {
-            return Ok(());
-        };
-        self.mark_entity_name_or_entity_expression_as_reference(entity_name, false)
     }
 
     /// tsc-port: markImportEqualsAliasReferenced @6.0.3

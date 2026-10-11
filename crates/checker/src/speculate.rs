@@ -176,8 +176,6 @@ pub struct SpeculationCheckpoint {
     /// item.
     partially_checked_ranges: Vec<(usize, usize)>,
     elaborated_satisfies_expressions: HashSet<NodeId>,
-    potential_this_collisions: usize,
-    potential_new_target_collisions: usize,
     potential_weak_map_set_collisions: usize,
     potential_reflect_collisions: usize,
     potential_unused_renamed_binding_elements_in_types: usize,
@@ -402,8 +400,6 @@ impl CheckerState<'_> {
                 .map(|(&file, ranges)| (file, ranges.len()))
                 .collect(),
             elaborated_satisfies_expressions: self.elaborated_satisfies_expressions.clone(),
-            potential_this_collisions: self.potential_this_collisions.len(),
-            potential_new_target_collisions: self.potential_new_target_collisions.len(),
             potential_weak_map_set_collisions: self.potential_weak_map_set_collisions.len(),
             potential_reflect_collisions: self.potential_reflect_collisions.len(),
             potential_unused_renamed_binding_elements_in_types: self
@@ -673,10 +669,6 @@ impl CheckerState<'_> {
         );
         self.elaborated_satisfies_expressions =
             std::mem::take(&mut checkpoint.elaborated_satisfies_expressions);
-        self.potential_this_collisions
-            .truncate(checkpoint.potential_this_collisions);
-        self.potential_new_target_collisions
-            .truncate(checkpoint.potential_new_target_collisions);
         self.potential_weak_map_set_collisions
             .truncate(checkpoint.potential_weak_map_set_collisions);
         self.potential_reflect_collisions

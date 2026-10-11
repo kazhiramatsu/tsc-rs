@@ -1801,12 +1801,6 @@ impl<'a> CheckerState<'a> {
                     crate::modules::EMIT_HELPER_ASYNC_DELEGATOR_INCLUDES,
                 )?;
             }
-            if !is_async
-                && target < tsc_types::ScriptTarget::ES2015
-                && self.options.downlevel_iteration == Some(true)
-            {
-                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
-            }
         }
         let mut return_type = self.get_return_type_from_annotation(func)?;
         if let Some(current) = return_type {
@@ -2176,11 +2170,6 @@ impl<'a> CheckerState<'a> {
             {
                 self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_AWAITER)?;
             }
-            if function_flags & async_generator != 0
-                && language_version < tsc_types::ScriptTarget::ES2015
-            {
-                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_GENERATOR)?;
-            }
         }
         let (parameters, type_node) = match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => (data.parameters, data.r#type),
@@ -2229,7 +2218,6 @@ impl<'a> CheckerState<'a> {
         if return_type_node.is_some() {
             self.check_source_element(return_type_node);
         }
-        self.check_collision_with_arguments_in_generated_code(node);
         let return_type_error_location = return_type_node;
         let function_flags = self.get_function_flags(node);
         if self
@@ -2294,71 +2282,13 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc-port: checkCollisionWithArgumentsInGeneratedCode @6.0.3
-    /// tsc-hash: 2a65d820227a75f185de001f3818cd4a5b17061d5288875c90b314b5a89e8b16
-    /// tsc-span: _tsc.js:83229-83238
-    ///
-    /// Dead at target >= ES2015; LIVE for the ES5 fixture matrix. The
-    /// row is errorSkippedOn("noEmit").
-    fn check_collision_with_arguments_in_generated_code(&mut self, node: NodeId) {
-        if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {
-            return;
-        }
-        let source = self.binder.source_of_node(node);
-        let parameters = match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => data.parameters,
-            NodeData::FunctionExpression(data) => data.parameters,
-            NodeData::ArrowFunction(data) => data.parameters,
-            NodeData::MethodDeclaration(data) => data.parameters,
-            NodeData::Constructor(data) => data.parameters,
-            NodeData::GetAccessor(data) => data.parameters,
-            NodeData::SetAccessor(data) => data.parameters,
-            _ => None,
-        };
-        let parameter_nodes = self.nodes_of(parameters);
-        let has_rest = parameter_nodes.iter().any(|&parameter| {
-            matches!(
-                self.data_of(parameter),
-                NodeData::Parameter(data) if data.dot_dot_dot_token.is_some()
-            )
-        });
-        if !has_rest
-            || NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
-            || node_util::body_of(source, node).is_none()
-        {
-            return;
-        }
-        for parameter in parameter_nodes {
-            let name = match self.data_of(parameter) {
-                NodeData::Parameter(data) => data.name,
-                _ => None,
-            };
-            let Some(name) = name else { continue };
-            if self.kind_of(name) == SyntaxKind::Identifier
-                && self.identifier_text_of(name) == Some("arguments")
-            {
-                // tsc reports on the whole parameter node
-                // (`errorSkippedOn("noEmit", p, ...)`, _tsc.js:83234-83236),
-                // not the name identifier.
-                self.error_skipped_on_no_emit(
-                    Some(parameter),
-                    &diagnostics::Duplicate_identifier_arguments_Compiler_uses_arguments_to_initialize_rest_parameters,
-                    &[],
-                );
-            }
-        }
-    }
-
     /// tsc-port: checkAsyncFunctionReturnType @6.0.3
     /// tsc-hash: 284148376bf3f6e79a983118a7b503673819d16045bbc500d5ada6a482e2b2aa
     /// tsc-span: _tsc.js:82498-82579
     ///
     /// `return_type_error_location` differs for a JSDoc `@type`
     /// reference whose resolved call signature supplies the actual
-    /// return annotation. The ES5 branch marks the promise-constructor
-    /// alias referenced here (`markLinkedReferences(node, AsyncFunction)`,
-    /// _tsc.js:82513) so import elision keeps the constructor's import; the
-    /// emit-time walk only covers unchecked files.
+    /// return annotation. tsgo has no ES5 branch (checker.go:2829-2842).
     ///
     /// tsc-port: errorInfo @6.0.3
     /// tsc-hash: e1a24fabcf6804fad35da3af2931050959472a63a0d8f5715af1d0db02aaa664
@@ -2371,151 +2301,22 @@ impl<'a> CheckerState<'a> {
         return_type_error_location: NodeId,
     ) -> CheckResult<()> {
         let return_type = self.get_type_from_type_node(return_type_node)?;
-        if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {
-            if self.tables.is_error_type(return_type) {
-                return Ok(());
-            }
-            let global_promise_type = self.get_global_promise_type(/*report_errors*/ true)?;
-            if let Some(global_promise_type) = global_promise_type {
-                if !self.is_reference_to_type(return_type, global_promise_type) {
-                    let awaited = self.get_awaited_type_no_alias(return_type, None)?;
-                    let display =
-                        self.type_to_string(awaited.unwrap_or(self.tables.intrinsics.void))?;
-                    self.report_error_for_invalid_async_return_type(
-                        return_type_node,
-                        return_type_error_location,
-                        &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type_Did_you_mean_to_write_Promise_0,
-                        &display,
-                    );
-                    return Ok(());
-                }
-            }
-        } else {
-            self.mark_linked_references_async_function(node)?;
-            if self.tables.is_error_type(return_type) {
-                return Ok(());
-            }
-            let promise_constructor_name = self.get_entity_name_from_type_node(return_type_node);
-            let Some(promise_constructor_name) = promise_constructor_name else {
-                let display = self.type_to_string(return_type)?;
+        if self.tables.is_error_type(return_type) {
+            return Ok(());
+        }
+        let global_promise_type = self.get_global_promise_type(/*report_errors*/ true)?;
+        if let Some(global_promise_type) = global_promise_type {
+            if !self.is_reference_to_type(return_type, global_promise_type) {
+                let awaited = self.get_awaited_type_no_alias(return_type, None)?;
+                let display =
+                    self.type_to_string(awaited.unwrap_or(self.tables.intrinsics.void))?;
                 self.report_error_for_invalid_async_return_type(
                     return_type_node,
                     return_type_error_location,
-                    &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                    &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type_Did_you_mean_to_write_Promise_0,
                     &display,
                 );
                 return Ok(());
-            };
-            let promise_constructor_symbol = self.resolve_entity_name(
-                promise_constructor_name,
-                SymbolFlags::VALUE,
-                /*ignore_errors*/ true,
-                None,
-            )?;
-            let promise_constructor_type = match promise_constructor_symbol {
-                Some(symbol) => self.get_type_of_symbol(symbol)?,
-                None => self.tables.intrinsics.error,
-            };
-            let entity_text = node_util::declaration_name_to_string(
-                self.binder.source_of_node(promise_constructor_name),
-                Some(promise_constructor_name),
-            );
-            if self.tables.is_error_type(promise_constructor_type) {
-                let is_plain_promise = self.kind_of(promise_constructor_name)
-                    == SyntaxKind::Identifier
-                    && self.identifier_text_of(promise_constructor_name) == Some("Promise")
-                    && {
-                        let target = self.tables.reference_target(return_type);
-                        self.get_global_promise_type(/*report_errors*/ false)? == Some(target)
-                    };
-                if is_plain_promise {
-                    self.error_at(
-                        Some(return_type_error_location),
-                        &diagnostics::An_async_function_or_method_in_ES5_requires_the_Promise_constructor_Make_sure_you_have_a_declaration_for_the_Promise_constructor_or_include_ES2015_in_your_lib_option,
-                        &[],
-                    );
-                } else {
-                    self.report_error_for_invalid_async_return_type(
-                        return_type_node,
-                        return_type_error_location,
-                        &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
-                        &entity_text,
-                    );
-                }
-                return Ok(());
-            }
-            let global_promise_constructor_like =
-                self.get_global_promise_constructor_like_type(/*report_errors*/ true)?;
-            if global_promise_constructor_like == self.empty_object_type {
-                self.report_error_for_invalid_async_return_type(
-                    return_type_node,
-                    return_type_error_location,
-                    &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
-                    &entity_text,
-                );
-                return Ok(());
-            }
-            let assignable = self
-                .is_type_assignable_to(promise_constructor_type, global_promise_constructor_like)?;
-            if !assignable {
-                let containing = (return_type_node != return_type_error_location).then(|| {
-                    MessageChain::new(
-                        &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type,
-                        &[],
-                    )
-                });
-                if let Some(output) = self.relation_error_output_with_context(
-                    promise_constructor_type,
-                    global_promise_constructor_like,
-                    crate::relate::RelationKind::Assignable,
-                    Some(
-                        &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
-                    ),
-                    containing,
-                )? {
-                    let mut diagnostic = self.create_error(
-                        Some(return_type_error_location),
-                        &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
-                        &[&entity_text],
-                    );
-                    diagnostic.message = output.message;
-                    diagnostic.related = output.related;
-                    self.push_error_diagnostic(diagnostic);
-                } else {
-                    self.error_at(
-                        Some(return_type_error_location),
-                        &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
-                        &[&entity_text],
-                    );
-                }
-                return Ok(());
-            }
-            // The locals collision row (82559-82563).
-            let root_name = self.get_first_identifier(promise_constructor_name);
-            let root_text = self
-                .identifier_text_of(root_name)
-                .map(str::to_owned)
-                .unwrap_or_default();
-            let colliding = self
-                .binder
-                .locals_of(node)
-                .and_then(|locals| locals.get(root_text.as_str()).copied());
-            if let Some(colliding) = colliding {
-                let colliding = self.get_merged_symbol(colliding);
-                if self
-                    .binder
-                    .symbol(colliding)
-                    .flags
-                    .intersects(SymbolFlags::VALUE)
-                {
-                    let value_declaration = self.binder.symbol(colliding).value_declaration;
-                    self.error_at(
-                        value_declaration,
-                        &diagnostics::Duplicate_identifier_0_Compiler_uses_declaration_1_to_support_async_functions,
-                        &[&root_text, &entity_text],
-                    );
-                    return Ok(());
-                }
             }
         }
         self.check_awaited_type(
@@ -2550,24 +2351,6 @@ impl<'a> CheckerState<'a> {
         let related = self.related_info_for_node_js(return_type_node, message, &[type_name]);
         self.diagnostics
             .update(diagnostic, |diagnostic| diagnostic.related.push(related));
-    }
-
-    /// getEntityNameFromTypeNode (14623-14635).
-    /// tsc-port: getEntityNameFromTypeNode @6.0.3
-    /// tsc-hash: 18fbb4d47813f69cb1fc135ef8805253c782b926f276b3cd78f327f8c1c1efa1
-    /// tsc-span: _tsc.js:14623-14635
-    pub(crate) fn get_entity_name_from_type_node(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::TypeReference(data) => data.type_name,
-            NodeData::ExpressionWithTypeArguments(data) => data
-                .expression
-                .filter(|&expression| self.is_entity_name_expression(expression)),
-            _ => matches!(
-                self.kind_of(node),
-                SyntaxKind::Identifier | SyntaxKind::QualifiedName
-            )
-            .then_some(node),
-        }
     }
 
     /// getFirstIdentifier (the leftmost name of an entity chain).
@@ -3010,24 +2793,6 @@ impl<'a> CheckerState<'a> {
                     tsc_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS,
                 );
                 lexical_scope = self.get_enclosing_block_scope_container(scope);
-            }
-            if self
-                .parent_of(node)
-                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ClassExpression)
-            {
-                let class_expression = self.parent_of(node).expect("class expression parent");
-                if let Some(iteration) = self.get_enclosing_iteration_statement(class_expression) {
-                    self.links.or_node_check_flags(
-                        self.speculation_depth,
-                        name,
-                        NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP,
-                    );
-                    self.links.or_node_check_flags(
-                        self.speculation_depth,
-                        iteration,
-                        NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING,
-                    );
-                }
             }
         }
     }
@@ -4581,15 +4346,6 @@ impl<'a> CheckerState<'a> {
             parent_kind,
             Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
         ) {
-            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-                && self.kind_of(name) == SyntaxKind::PrivateIdentifier
-            {
-                return Ok(self.grammar_error_on_node(
-                    name,
-                    &diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
-                    &[],
-                ));
-            }
             if NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT) {
                 return self.check_grammar_for_invalid_dynamic_name(
                     name,
@@ -4704,24 +4460,6 @@ impl<'a> CheckerState<'a> {
                 return Ok(true);
             }
             let source = self.binder.source_of_node(node);
-            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
-                if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
-                    return Ok(self.grammar_error_on_node(
-                        name,
-                        &diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
-                        &[],
-                    ));
-                }
-                if node_util::is_auto_accessor_property_declaration(source, node)
-                    && !NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
-                {
-                    return Ok(self.grammar_error_on_node(
-                        name,
-                        &diagnostics::Properties_with_the_accessor_modifier_are_only_available_when_targeting_ECMAScript_2015_and_higher,
-                        &[],
-                    ));
-                }
-            }
             if node_util::is_auto_accessor_property_declaration(source, node)
                 && self.check_grammar_for_invalid_question_mark(
                     question_token,
@@ -4847,27 +4585,15 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(accessor);
         let has_abstract =
             node_util::has_syntactic_modifier(source, accessor, tsc_types::ModifierFlags::ABSTRACT);
-        if !ambient && !in_type_container {
-            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-                && self.kind_of(name) == SyntaxKind::PrivateIdentifier
-            {
-                let reported = self.grammar_error_on_node(
-                    name,
-                    &diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
-                    &[],
-                );
-                return Ok(reported);
-            }
-            if body.is_none() && !has_abstract {
-                let end = source.arena.node(accessor).end;
-                return Ok(self.grammar_error_at_pos(
-                    accessor,
-                    end.saturating_sub(1),
-                    1,
-                    &diagnostics::_0_expected,
-                    &["{"],
-                ));
-            }
+        if !ambient && !in_type_container && body.is_none() && !has_abstract {
+            let end = source.arena.node(accessor).end;
+            return Ok(self.grammar_error_at_pos(
+                accessor,
+                end.saturating_sub(1),
+                1,
+                &diagnostics::_0_expected,
+                &["{"],
+            ));
         }
         if let Some(body) = body {
             if has_abstract {

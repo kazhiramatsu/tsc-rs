@@ -2127,8 +2127,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkArrayLiteralAssignment @6.0.3
     /// tsc-hash: dd986f2465f4953c7dcc207c5ee398ca69a859a73dc40a9e9d9bbbc4d16d20df
     /// tsc-span: _tsc.js:79667-79682
-    ///
-    /// Downlevel iteration requests the Read helper below ES2015.
     fn check_array_literal_assignment(
         &mut self,
         node: NodeId,
@@ -2139,11 +2137,6 @@ impl<'a> CheckerState<'a> {
             NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
             _ => unreachable!("kind/data agree"),
         };
-        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-            && self.options.downlevel_iteration == Some(true)
-        {
-            self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_READ)?;
-        }
         let undefined_type = self.tables.intrinsics.undefined;
         let possibly_out_of_bounds_type = self.check_iterated_type_or_element_type(
             IterationUse::from_bits(

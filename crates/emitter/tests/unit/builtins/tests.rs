@@ -252,7 +252,6 @@ use crate::{
 struct EnumBindingResolver {
     declarations_by_name: BTreeMap<NodeId, NodeId>,
     enum_member_values: BTreeMap<NodeId, EmitEnumMemberValue>,
-    loop_scoped_private_names: BTreeSet<NodeId>,
 }
 
 struct ExportedVariableResolver {
@@ -1085,7 +1084,6 @@ impl EnumBindingResolver {
         Self {
             declarations_by_name,
             enum_member_values: BTreeMap::new(),
-            loop_scoped_private_names: BTreeSet::new(),
         }
     }
 
@@ -1098,21 +1096,6 @@ impl EnumBindingResolver {
                 false,
             ),
         );
-        self
-    }
-
-    fn with_loop_scoped_private_names(mut self, source: &tsc_syntax::SourceFile) -> Self {
-        let mut stack = vec![source.root];
-        while let Some(id) = stack.pop() {
-            let node = source.arena.node(id);
-            if matches!(&node.data, NodeData::PrivateIdentifier(_)) {
-                self.loop_scoped_private_names.insert(id);
-            }
-            for_each_child(&source.arena, node, |child| {
-                stack.push(child);
-                false
-            });
-        }
         self
     }
 }
@@ -1160,13 +1143,10 @@ impl EmitResolver for EnumBindingResolver {
 
     fn has_node_check_flag(
         &self,
-        node: EmitResolverNode,
-        flag: u32,
+        _node: EmitResolverNode,
+        _flag: u32,
     ) -> Result<bool, EmitResolverError> {
-        Ok(
-            flag == NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32
-                && self.loop_scoped_private_names.contains(&node.node()),
-        )
+        Ok(false)
     }
 
     fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
@@ -1979,7 +1959,9 @@ fn private_storage_captured_by_a_loop_class_expression_is_declared_in_the_loop_b
         "}\n",
     );
     let parsed = parse_source_file("loop-private.ts", source_text, Default::default(), None);
-    let resolver = EnumBindingResolver::new(&parsed).with_loop_scoped_private_names(&parsed);
+    // The class fields transform places the storage from the syntax alone;
+    // tsgo's checker publishes no loop-binding flags.
+    let resolver = EnumBindingResolver::new(&parsed);
     let output = transform_and_print_parsed_es2015_class_fields(&parsed, &resolver);
 
     let loop_start = output.find("for (").expect("loop output");

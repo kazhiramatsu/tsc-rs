@@ -678,10 +678,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
-                SyntaxKind::ArrowFunction
-                    if self.options.emit_script_target() >= ScriptTarget::ES2015 => {}
-                SyntaxKind::ArrowFunction
-                | SyntaxKind::MethodDeclaration
+                SyntaxKind::MethodDeclaration
                 | SyntaxKind::Constructor
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
@@ -977,27 +974,23 @@ impl<'a> CheckerState<'a> {
         if !(decl_node.pos >= body_node.pos && decl_node.end <= body_node.end) {
             return false;
         }
-        if self.options.emit_script_target() >= ScriptTarget::ES2015 {
-            // requiresScopeChange: any parameter whose emit needs a
-            // scope change keeps the parameter scope. The worker walks
-            // parameter names + initializers for downlevel constructs;
-            // at target >= ES2015 the only sub-ES2015 constructs are
-            // optional chains/nullish (ES2020) and static class fields
-            // — recurse per tsc.
-            let parameters = self.parameters_of(location);
-            let requires_change = parameters.iter().any(|&parameter| {
-                let NodeData::Parameter(data) = self.data_of(parameter) else {
-                    return false;
-                };
-                data.name
+        // requiresScopeChange (tsgo binder/nameresolver.go:354-377): any
+        // parameter whose emit needs a scope change keeps the parameter
+        // scope. The worker walks parameter names and initializers for the
+        // downlevel constructs (optional chains and nullish before ES2020,
+        // static class fields).
+        let parameters = self.parameters_of(location);
+        let requires_change = parameters.iter().any(|&parameter| {
+            let NodeData::Parameter(data) = self.data_of(parameter) else {
+                return false;
+            };
+            data.name
+                .is_some_and(|n| self.requires_scope_change_worker(n))
+                || data
+                    .initializer
                     .is_some_and(|n| self.requires_scope_change_worker(n))
-                    || data
-                        .initializer
-                        .is_some_and(|n| self.requires_scope_change_worker(n))
-            });
-            return !requires_change;
-        }
-        false
+        });
+        !requires_change
     }
 
     fn requires_scope_change_worker(&self, node: NodeId) -> bool {

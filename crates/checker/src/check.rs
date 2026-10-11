@@ -197,10 +197,8 @@ impl<'a> CheckerState<'a> {
             )
         });
         self.check_grammar_source_file(root);
-        // 87010-87014: the five per-file accumulators clear at worker
-        // entry (the PartiallyTypeChecked restore stays elided).
-        self.potential_this_collisions.clear();
-        self.potential_new_target_collisions.clear();
+        // 87010-87014: the per-file accumulators clear at worker entry
+        // (the PartiallyTypeChecked restore stays elided).
         self.potential_weak_map_set_collisions.clear();
         self.potential_reflect_collisions.clear();
         self.potential_unused_renamed_binding_elements_in_types
@@ -256,16 +254,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // 87042-87058: the four collision drains IN ORDER; each clears
-        // its vector like tsc's clear() tail.
-        let this_collisions = std::mem::take(&mut self.potential_this_collisions);
-        for node in this_collisions {
-            self.check_if_this_is_captured_in_enclosing_scope(node);
-        }
-        let new_target_collisions = std::mem::take(&mut self.potential_new_target_collisions);
-        for node in new_target_collisions {
-            self.check_if_new_target_is_captured_in_enclosing_scope(node);
-        }
+        // 87042-87058: the collision drains IN ORDER (tsgo has no
+        // this/newTarget capture checks); each clears its vector like tsc's
+        // clear() tail.
         let weak_map_set_collisions = std::mem::take(&mut self.potential_weak_map_set_collisions);
         for node in weak_map_set_collisions {
             self.check_weak_map_set_collision(node);
@@ -405,14 +396,7 @@ impl<'a> CheckerState<'a> {
         );
         const CHILD_IDENTIFIER_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
             NodeCheckFlags::CAPTURE_ARGUMENTS.bits()
-                | NodeCheckFlags::CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING.bits()
-                | NodeCheckFlags::NEEDS_LOOP_OUT_PARAMETER.bits()
                 | NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits(),
-        );
-        const BLOCK_SCOPE_GROUP: NodeCheckFlags = NodeCheckFlags::from_bits(
-            NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING.bits()
-                | NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits()
-                | NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING.bits(),
         );
         if flag.intersects(SUPER_GROUP) {
             self.calculate_single_super_expression(node)?;
@@ -427,24 +411,6 @@ impl<'a> CheckerState<'a> {
             }
         } else if flag.intersects(NodeCheckFlags::CONSTRUCTOR_REFERENCE) {
             self.calculate_single_identifier(node)?;
-        } else if flag.intersects(BLOCK_SCOPE_GROUP) {
-            // checkContainingBlockScopeBindingUses: walk the enclosing block
-            // scope of the declaration name (or the node itself).
-            let is_declaration_name = self
-                .parent_of(node)
-                .and_then(|parent| self.name_of_node(parent))
-                .is_some_and(|name| name == node);
-            let start = if is_declaration_name {
-                self.parent_of(node).unwrap_or(node)
-            } else {
-                node
-            };
-            let Some(scope) = self.get_enclosing_block_scope_container(start) else {
-                return Ok(());
-            };
-            for descendant in self.descendants_until_calculated(scope, flag, BLOCK_SCOPE_GROUP) {
-                self.calculate_single_block_scope_binding(descendant)?;
-            }
         } else {
             unreachable!("Unhandled node check flag calculation: {:?}", flag);
         }
@@ -506,13 +472,6 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(());
         }
-        self.links.or_calculated_flags(
-            node,
-            NodeCheckFlags::from_bits(
-                NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits()
-                    | NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING.bits(),
-            ),
-        );
         let source = self.binder.source_of_node(node);
         let parent = self.parent_of(node);
         let is_expression_or_shorthand_name = node_util::is_expression_node(source, node)
@@ -542,33 +501,6 @@ impl<'a> CheckerState<'a> {
             if symbol != self.unknown_symbol {
                 self.check_identifier_calculate_node_check_flags(node, symbol)?;
             }
-        }
-        Ok(())
-    }
-
-    /// checkSingleBlockScopeBinding (88221-88229).
-    fn calculate_single_block_scope_binding(&mut self, node: NodeId) -> CheckResult<()> {
-        self.calculate_single_identifier(node)?;
-        if self.kind_of(node) == SyntaxKind::ComputedPropertyName {
-            self.check_computed_property_name(node)?;
-        }
-        if self.kind_of(node) == SyntaxKind::PrivateIdentifier
-            && self.parent_of(node).is_some_and(|parent| {
-                matches!(
-                    self.kind_of(parent),
-                    SyntaxKind::PropertyDeclaration
-                        | SyntaxKind::MethodDeclaration
-                        | SyntaxKind::GetAccessor
-                        | SyntaxKind::SetAccessor
-                        | SyntaxKind::Constructor
-                        | SyntaxKind::ClassStaticBlockDeclaration
-                        | SyntaxKind::IndexSignature
-                        | SyntaxKind::SemicolonClassElement
-                )
-            })
-        {
-            let parent = self.parent_of(node).expect("class element parent");
-            self.set_node_links_for_private_identifier_scope(parent);
         }
         Ok(())
     }

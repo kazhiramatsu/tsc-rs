@@ -231,12 +231,6 @@ impl<'a> CheckerState<'a> {
         // Step 6: request a downlevel iterator helper, then check pattern elements.
         let name_is_pattern = node_util::is_binding_pattern(self.binder.source_of_node(name), name);
         if name_is_pattern {
-            if self.kind_of(name) == SyntaxKind::ArrayBindingPattern
-                && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-                && self.options.downlevel_iteration == Some(true)
-            {
-                self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_READ)?;
-            }
             for element in self.binding_pattern_elements(name) {
                 self.check_source_element(Some(element));
             }
@@ -1482,8 +1476,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8e1a4a58e52e623f7f78f69a5cb6d784585246de232bb50d40e8c25d93f629ae
     /// tsc-span: _tsc.js:83303-83314
     ///
-    /// languageVersion is the mapped @target — live for the ES5/
-    /// ES2015/ES2016 fixture band.
+    /// Live below ES2017 (tsgo checker.go:10791).
     fn check_collision_with_global_promise_in_generated_code(
         &mut self,
         node: NodeId,
@@ -1581,7 +1574,6 @@ impl<'a> CheckerState<'a> {
     ) {
         let target = self.options.emit_script_target();
         if name.is_some()
-            && target >= tsc_types::ScriptTarget::ES2015
             && target <= tsc_types::ScriptTarget::ES2021
             && self.need_collision_check_for_identifier(
                 node,
@@ -1716,77 +1708,6 @@ impl<'a> CheckerState<'a> {
             Some(crate::modules::ModuleResolutionMode::CommonJs) => 1,
             Some(crate::modules::ModuleResolutionMode::EsNext) => 99,
             Some(crate::modules::ModuleResolutionMode::Unknown) | None => module_kind,
-        }
-    }
-
-    /// tsc-port: checkIfThisIsCapturedInEnclosingScope @6.0.3
-    /// tsc-hash: a0778475684c83db348bd50b2c16d14e346dfcfaa6406d40bfd9cb831a6bf8ab
-    /// tsc-span: _tsc.js:83260-83273
-    ///
-    /// The CaptureThis pusher is a downlevel-emit path (checkThis
-    /// Expression at target<ES2015) — no pusher exists yet, the drain
-    /// runs empty-gated (§0 note).
-    pub(crate) fn check_if_this_is_captured_in_enclosing_scope(&mut self, node: NodeId) {
-        let mut current = Some(node);
-        while let Some(candidate) = current {
-            if self
-                .links
-                .read_node(candidate, |links| links.check_flags)
-                .intersects(tsc_types::NodeCheckFlags::CAPTURE_THIS)
-            {
-                let is_declaration = self.kind_of(node) != SyntaxKind::Identifier;
-                if is_declaration {
-                    let name = self.name_of_node(node);
-                    self.error_at(
-                        name.or(Some(node)),
-                        &diagnostics::Duplicate_identifier_this_Compiler_uses_variable_declaration_this_to_capture_this_reference,
-                        &[],
-                    );
-                } else {
-                    self.error_at(
-                        Some(node),
-                        &diagnostics::Expression_resolves_to_variable_declaration_this_that_compiler_uses_to_capture_this_reference,
-                        &[],
-                    );
-                }
-                return;
-            }
-            current = self.parent_of(candidate);
-        }
-    }
-
-    /// tsc-port: checkIfNewTargetIsCapturedInEnclosingScope @6.0.3
-    /// tsc-hash: 091969b9deafea358ca65dafeda11096ed7d035c773af41e4e2c9f090d6052fa
-    /// tsc-span: _tsc.js:83274-83287
-    ///
-    /// CaptureNewTarget pusher: downlevel-emit path — drain runs
-    /// empty-gated (§0 note).
-    pub(crate) fn check_if_new_target_is_captured_in_enclosing_scope(&mut self, node: NodeId) {
-        let mut current = Some(node);
-        while let Some(candidate) = current {
-            if self
-                .links
-                .read_node(candidate, |links| links.check_flags)
-                .intersects(tsc_types::NodeCheckFlags::CAPTURE_NEW_TARGET)
-            {
-                let is_declaration = self.kind_of(node) != SyntaxKind::Identifier;
-                if is_declaration {
-                    let name = self.name_of_node(node);
-                    self.error_at(
-                        name.or(Some(node)),
-                        &diagnostics::Duplicate_identifier_newTarget_Compiler_uses_variable_declaration_newTarget_to_capture_new_target_meta_property_reference,
-                        &[],
-                    );
-                } else {
-                    self.error_at(
-                        Some(node),
-                        &diagnostics::Expression_resolves_to_variable_declaration_newTarget_that_compiler_uses_to_capture_new_target_meta_property_reference,
-                        &[],
-                    );
-                }
-                return;
-            }
-            current = self.parent_of(candidate);
         }
     }
 
@@ -2176,10 +2097,6 @@ impl<'a> CheckerState<'a> {
                     )?;
                 }
             }
-        } else if self.options.downlevel_iteration == Some(true)
-            && self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
-        {
-            self.check_external_emit_helpers(node, crate::modules::EMIT_HELPER_VALUES)?;
         }
         if let Some(initializer) = initializer {
             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {

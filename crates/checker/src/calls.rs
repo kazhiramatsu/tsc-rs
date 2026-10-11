@@ -6323,9 +6323,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkTaggedTemplateExpression @6.0.3
     /// tsc-hash: bf84590375623f25ebdfe8448c801b669b4a508fc18eb3541399e48c96cb7230
     /// tsc-span: _tsc.js:77854-77862
-    ///
-    /// ES5 tagged templates require the external MakeTemplateObject helper
-    /// before call-signature resolution is checked.
     pub(crate) fn check_tagged_template_expression(
         &mut self,
         node: NodeId,
@@ -6337,12 +6334,6 @@ impl<'a> CheckerState<'a> {
         let type_arguments = data.type_arguments;
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(node, type_arguments);
-        }
-        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
-            self.check_external_emit_helpers(
-                node,
-                crate::modules::EMIT_HELPER_MAKE_TEMPLATE_OBJECT,
-            )?;
         }
         let signature = self.get_resolved_signature(node, check_mode)?;
         self.check_deprecated_signature(signature, node)?;

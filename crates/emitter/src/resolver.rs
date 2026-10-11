@@ -476,12 +476,10 @@ pub enum EmitResolverMethod {
     GetConstantValue,
     GetEnumMemberValue,
     GetReferencedExportContainer,
-    GetExternalModuleFileFromDeclaration,
     GetReferencedImportDeclaration,
     GetReferencedImportDeclarationAtLocation,
     GetJsxFactoryImportDeclaration,
     GetJsxFactoryExportContainer,
-    GetReferencedDeclarationWithCollidingName,
     GetReferencedValueDeclaration,
     GetReferencedValueDeclarations,
     GetReferencedMemberValueDeclaration,
@@ -498,8 +496,6 @@ pub enum EmitResolverMethod {
     GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
     IsArgumentsLocalBinding,
-    IsBindingCapturedByNode,
-    IsDeclarationWithCollidingName,
     IsExternalOrCommonJsModule,
     IsCommonJsModule,
     IsInstantiatedModule,
@@ -562,16 +558,12 @@ impl EmitResolverMethod {
             Self::GetConstantValue => "getConstantValue",
             Self::GetEnumMemberValue => "getEnumMemberValue",
             Self::GetReferencedExportContainer => "getReferencedExportContainer",
-            Self::GetExternalModuleFileFromDeclaration => "getExternalModuleFileFromDeclaration",
             Self::GetReferencedImportDeclaration => "getReferencedImportDeclaration",
             Self::GetReferencedImportDeclarationAtLocation => {
                 "getReferencedImportDeclarationAtLocation"
             }
             Self::GetJsxFactoryImportDeclaration => "getJsxFactoryImportDeclaration",
             Self::GetJsxFactoryExportContainer => "getJsxFactoryExportContainer",
-            Self::GetReferencedDeclarationWithCollidingName => {
-                "getReferencedDeclarationWithCollidingName"
-            }
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::GetReferencedValueDeclarations => "getReferencedValueDeclarations",
             Self::GetReferencedMemberValueDeclaration => "getReferencedMemberValueDeclaration",
@@ -590,8 +582,6 @@ impl EmitResolverMethod {
             Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsArgumentsLocalBinding => "isArgumentsLocalBinding",
-            Self::IsBindingCapturedByNode => "isBindingCapturedByNode",
-            Self::IsDeclarationWithCollidingName => "isDeclarationWithCollidingName",
             Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
             Self::IsCommonJsModule => "isCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
@@ -879,19 +869,6 @@ pub trait EmitResolver {
         ))
     }
 
-    /// tsc-port: getExternalModuleFileFromDeclaration @6.0.3
-    /// tsc-hash: b1d92eecc4c854409d14d155534bda3b0cc44c709b9f3f2eeb970f1a233861a0
-    /// tsc-span: _tsc.js:88719-88731
-    fn get_external_module_file_from_declaration(
-        &self,
-        node: EmitResolverNode,
-    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
-        Err(unavailable(
-            EmitResolverMethod::GetExternalModuleFileFromDeclaration,
-            node,
-        ))
-    }
-
     fn get_referenced_import_declaration(
         &self,
         node: EmitResolverNode,
@@ -1106,50 +1083,6 @@ pub trait EmitResolver {
     ) -> Result<bool, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::IsThisPropertyAssignmentDeclarationRedundant,
-            node,
-        ))
-    }
-
-    /// The declaration an identifier references, when that declaration is a
-    /// block-scoped binding whose name collides during ES2015 down-level
-    /// emission. The ES2015 transformer substitutes such references with the
-    /// declaration's generated name.
-    fn get_referenced_declaration_with_colliding_name(
-        &self,
-        node: EmitResolverNode,
-    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
-        Err(unavailable(
-            EmitResolverMethod::GetReferencedDeclarationWithCollidingName,
-            node,
-        ))
-    }
-
-    /// Whether a declaration is a block-scoped binding whose name collides
-    /// during ES2015 down-level emission (an outer value binding with the
-    /// same spelling, or a captured loop binding that must be renamed when
-    /// its loop body is converted).
-    fn is_declaration_with_colliding_name(
-        &self,
-        node: EmitResolverNode,
-    ) -> Result<bool, EmitResolverError> {
-        Err(unavailable(
-            EmitResolverMethod::IsDeclarationWithCollidingName,
-            node,
-        ))
-    }
-
-    /// Whether `node` (a for-statement part) captured the block-scoped
-    /// binding introduced by `declaration` into a function. Loop conversion
-    /// consults this to decide which loop parts ride the synthesized loop
-    /// body function.
-    fn is_binding_captured_by_node(
-        &self,
-        node: EmitResolverNode,
-        declaration: EmitResolverNode,
-    ) -> Result<bool, EmitResolverError> {
-        let _ = declaration;
-        Err(unavailable(
-            EmitResolverMethod::IsBindingCapturedByNode,
             node,
         ))
     }

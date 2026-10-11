@@ -5813,14 +5813,12 @@ impl LibBundle {
 
 /// The per-lib-set bundle cache. Indexed by the ordered (name, text
 /// fingerprint) list plus the projection of CompilerOptions onto the parser
-/// target and binder's three option observables — the only option fields a
-/// cached bundle can expose. Parsing reads `emit_script_target()` for
+/// target and the binder's one option observable — the only option fields
+/// a cached bundle can expose. Parsing reads `emit_script_target()` for
 /// scanner classification and SourceFile.language_version. The binder
-/// reads that same computed target (declare.rs language_version,
-/// bind.rs ES2015 gate),
-/// `always_strict_effective()` (bind.rs use-strict prologue) and
-/// `no_fallthrough_cases_in_switch == Some(true)` (bindCaseBlock), and
-/// `Binder.options` is read nowhere outside the binder crate. Keying
+/// reads only `no_fallthrough_cases_in_switch == Some(true)`
+/// (bindCaseBlock), and `Binder.options` is read nowhere outside the
+/// binder crate. Keying
 /// the full struct rebuilt+leaked one identical bundle per matrix
 /// option combination (~11.5 GB peak over the conformance corpus);
 /// the projection restores the per-lib-set bound. A new `options.`
@@ -5839,7 +5837,6 @@ fn lib_bundle_options(options: &CompilerOptions) -> CompilerOptions {
     // projection.
     CompilerOptions {
         target: Some(options.emit_script_target().bits()),
-        always_strict: Some(options.always_strict_effective()),
         no_fallthrough_cases_in_switch: Some(options.no_fallthrough_cases_in_switch == Some(true)),
         ..CompilerOptions::default()
     }

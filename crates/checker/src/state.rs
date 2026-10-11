@@ -661,11 +661,7 @@ pub struct CheckerState<'a> {
     // worker tail. Deliberately ABSENT from UnwindSnapshot: they are
     // per-FILE accumulators that legitimately grow across elements
     // (same class as widening_contexts), not transient per-element
-    // stacks. The this/newTarget vectors exist per §0 but their
-    // CaptureThis/CaptureNewTarget pushers are downlevel-emit paths —
-    // drains stay empty until a pusher lands (ledger).
-    pub(crate) potential_this_collisions: Vec<NodeId>,
-    pub(crate) potential_new_target_collisions: Vec<NodeId>,
+    // stacks.
     pub(crate) potential_weak_map_set_collisions: Vec<NodeId>,
     pub(crate) potential_reflect_collisions: Vec<NodeId>,
     /// tsgo `deferredDiagnosticCallbacks` (checker/checker.go:904,
@@ -1593,8 +1589,6 @@ impl<'a> CheckerState<'a> {
             line_profile: crate::line_profile::LineProfiler::new(),
             profile_ops: [0; crate::line_profile::OPS],
             deferred_nodes: rustc_hash::FxHashMap::default(),
-            potential_this_collisions: Vec::new(),
-            potential_new_target_collisions: Vec::new(),
             potential_weak_map_set_collisions: Vec::new(),
             potential_reflect_collisions: Vec::new(),
             deferred_diagnostics: Vec::new(),

@@ -962,12 +962,14 @@ fn lib_bundle_key_projects_to_bind_observables() {
     );
 
     // Bind-inert options reuse the bundle: the checker consumes
-    // them per program, never through the cached prefix.
+    // them per program, never through the cached prefix. The binder tracks
+    // no strict mode (tsgo's binder has none), so alwaysStrict is inert.
     let inert = CompilerOptions {
         strict_null_checks: Some(false),
         jsx: Some(2),
         no_emit: Some(true),
         module_resolution: Some(100),
+        always_strict: Some(false),
         ..base.clone()
     };
     assert!(std::ptr::eq(shared, lib_bundle(&libs, &inert)));
@@ -991,11 +993,6 @@ fn lib_bundle_key_projects_to_bind_observables() {
         es5_bundle.documents[0].source().language_version,
         ScriptTarget::ES5
     );
-    let loose = CompilerOptions {
-        always_strict: Some(false),
-        ..base.clone()
-    };
-    assert!(!std::ptr::eq(shared, lib_bundle(&libs, &loose)));
     let fallthrough = CompilerOptions {
         no_fallthrough_cases_in_switch: Some(true),
         ..base.clone()
@@ -1052,6 +1049,7 @@ fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
     let bind_inert = CompilerOptions {
         strict_null_checks: Some(true),
         no_emit: Some(true),
+        always_strict: Some(false),
         ..base.clone()
     };
     assert!(harness_lib_bundle_options_key(&base) == harness_lib_bundle_options_key(&bind_inert));
@@ -1060,7 +1058,7 @@ fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
         .is_some());
 
     let bind_observable = CompilerOptions {
-        always_strict: Some(false),
+        no_fallthrough_cases_in_switch: Some(true),
         ..base.clone()
     };
     assert!(
