@@ -11,7 +11,7 @@
 //! Checker transient symbols use the tagged high half of `SymbolId`.
 
 use rustc_hash::FxHashMap as HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
 use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
@@ -24,12 +24,30 @@ use tsc_types::{
 #[derive(Clone, Debug)]
 pub struct ParsedDocument {
     pub source: Arc<SourceFile>,
+    /// tsgo `ast.GetNodeId` of the source file: the parse's identity, shared
+    /// by every snapshot that reuses it.
+    id: u64,
+}
+
+static NEXT_DOCUMENT_ID: AtomicU64 = AtomicU64::new(1);
+
+/// A new parse identity (tsgo's node id counter): never zero, never reused.
+pub fn next_document_id() -> u64 {
+    NEXT_DOCUMENT_ID.fetch_add(1, Ordering::Relaxed)
 }
 
 impl ParsedDocument {
     /// tsrs-native: constructs an immutable parsed-document handle.
     pub fn new(source: Arc<SourceFile>) -> Self {
-        Self { source }
+        Self {
+            source,
+            id: next_document_id(),
+        }
+    }
+
+    /// The parse's identity (tsgo's source file node id).
+    pub fn id(&self) -> u64 {
+        self.id
     }
 }
 

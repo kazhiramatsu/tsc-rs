@@ -75,6 +75,19 @@ pub const HEADER_OFFSET_SOURCE_FILE_LEASE: usize = 52;
 pub const HEADER_OFFSET_BINDER_DATA: usize = 60;
 pub const HEADER_SIZE: usize = 64;
 
+/// tsgo `SetSourceFileID`: the source file's node id, which the client checks
+/// remote references against.
+pub fn set_source_file_id(data: &mut [u8], id: u64) {
+    data[HEADER_OFFSET_SOURCE_FILE_ID..HEADER_OFFSET_SOURCE_FILE_ID + 8]
+        .copy_from_slice(&id.to_le_bytes());
+}
+
+/// tsgo `SetSourceFileLease`.
+pub fn set_source_file_lease(data: &mut [u8], lease: u64) {
+    data[HEADER_OFFSET_SOURCE_FILE_LEASE..HEADER_OFFSET_SOURCE_FILE_LEASE + 8]
+        .copy_from_slice(&lease.to_le_bytes());
+}
+
 /// An absent structured-data entry or string index.
 pub const NO_STRUCTURED_DATA: u32 = u32::MAX;
 

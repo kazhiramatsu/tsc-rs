@@ -36,6 +36,10 @@ pub struct ServerOptions {
     /// Whether each request's processing time is collected for
     /// `getServerTiming`.
     pub collect_timing: bool,
+    /// tsgo `UseCaseSensitiveFileNames`: the file system's case sensitivity
+    /// over the OS's (`--useCaseSensitiveFileNames`, which the command line
+    /// always sets).
+    pub use_case_sensitive_file_names: Option<bool>,
 }
 
 /// tsgo `StdioServer.Run`: serves one client until its input ends.
@@ -44,16 +48,22 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
         .map_err(|error| format!("{error:?}"))?
         .use_case_sensitive_file_names();
     let bundled = BundledFs::new(OsFs::new(case_sensitive));
-    // tsgo wraps the file system with the client's callbacks when asked.
-    let (fs, callback_fs): (Arc<dyn FileSystem>, _) = if options.callbacks.is_empty() {
-        (Arc::new(bundled), None)
-    } else {
-        let callback_fs = Arc::new(CallbackFs::new(bundled, &options.callbacks)?);
-        (
-            Arc::clone(&callback_fs) as Arc<dyn FileSystem>,
-            Some(callback_fs),
-        )
-    };
+    // tsgo wraps the file system when callbacks or a case sensitivity are
+    // asked for.
+    let (fs, callback_fs): (Arc<dyn FileSystem>, _) =
+        if options.callbacks.is_empty() && options.use_case_sensitive_file_names.is_none() {
+            (Arc::new(bundled), None)
+        } else {
+            let callback_fs = Arc::new(CallbackFs::new(
+                bundled,
+                &options.callbacks,
+                options.use_case_sensitive_file_names,
+            )?);
+            (
+                Arc::clone(&callback_fs) as Arc<dyn FileSystem>,
+                Some(callback_fs),
+            )
+        };
     let session = Arc::new(Session::new(
         SessionOptions {
             current_directory: options.current_directory.clone(),
@@ -131,14 +141,19 @@ pub fn run_api(arguments: &[String]) -> i32 {
     let default_directory = std::env::current_dir()
         .map(|directory| directory.to_string_lossy().replace('\\', "/"))
         .unwrap_or_default();
-    let options = match parse_api_flags(arguments, &default_directory) {
+    // tsgo's flag defaults to the OS file system's case sensitivity.
+    let default_case_sensitive = FsCompilerHost::from_process()
+        .map(|host| host.use_case_sensitive_file_names())
+        .unwrap_or(true);
+    let options = match parse_api_flags(arguments, &default_directory, default_case_sensitive) {
         Ok(options) => options,
         Err(message) => {
             let mut stderr = io::stderr().lock();
             if let Some(message) = message {
                 let _ = writeln!(stderr, "{message}");
             }
-            let _ = stderr.write_all(api_usage(&default_directory).as_bytes());
+            let _ =
+                stderr.write_all(api_usage(&default_directory, default_case_sensitive).as_bytes());
             return 2;
         }
     };
@@ -162,7 +177,7 @@ const API_FLAGS: &[(&str, &str, &str)] = &[
     (
         "callbacks",
         "string",
-        "comma-separated list of FS callbacks to enable (readFile,fileExists,directoryExists,getAccessibleEntries,realpath)",
+        "comma-separated list of FS callbacks and defaults to enable",
     ),
     ("cwd", "string", "current working directory"),
     (
@@ -180,6 +195,11 @@ const API_FLAGS: &[(&str, &str, &str)] = &[
         "",
         "collect per-request server processing time, folded into the client's timing snapshot",
     ),
+    (
+        "useCaseSensitiveFileNames",
+        "",
+        "treat filesystem paths as case-sensitive",
+    ),
 ];
 
 /// tsgo `parseAPIFlags` with Go's `flag` package: `-name` or `--name`, a
@@ -189,9 +209,11 @@ const API_FLAGS: &[(&str, &str, &str)] = &[
 pub fn parse_api_flags(
     arguments: &[String],
     default_directory: &str,
+    default_case_sensitive: bool,
 ) -> Result<ServerOptions, Option<String>> {
     let mut options = ServerOptions {
         current_directory: default_directory.to_owned(),
+        use_case_sensitive_file_names: Some(default_case_sensitive),
         ..ServerOptions::default()
     };
     let mut callbacks = String::new();
@@ -229,6 +251,9 @@ pub fn parse_api_flags(
             match name {
                 "async" => options.async_protocol = enabled,
                 "timing" => options.collect_timing = enabled,
+                "useCaseSensitiveFileNames" => {
+                    options.use_case_sensitive_file_names = Some(enabled);
+                }
                 // Content mappers (external code) are not ported.
                 _ => {}
             }
@@ -262,8 +287,9 @@ fn parse_go_bool(value: &str) -> Option<bool> {
     }
 }
 
-/// Go's `FlagSet.PrintDefaults` under `Usage of api:`.
-fn api_usage(default_directory: &str) -> String {
+/// Go's `FlagSet.PrintDefaults` under `Usage of api:`: a default other than
+/// the zero value is printed.
+fn api_usage(default_directory: &str, default_case_sensitive: bool) -> String {
     let mut usage = "Usage of api:\n".to_owned();
     for (name, kind, text) in API_FLAGS {
         usage.push_str("  -");
@@ -276,6 +302,9 @@ fn api_usage(default_directory: &str) -> String {
         usage.push_str(text);
         if *name == "cwd" && !default_directory.is_empty() {
             usage.push_str(&format!(" (default {default_directory:?})"));
+        }
+        if *name == "useCaseSensitiveFileNames" && default_case_sensitive {
+            usage.push_str(" (default true)");
         }
         usage.push('\n');
     }
