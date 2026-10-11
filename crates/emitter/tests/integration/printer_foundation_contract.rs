@@ -1,7 +1,6 @@
 use tsc_emitter::{
-    create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterError, PrinterOptions,
-    SourceFileTextMode, StandaloneWriter, TransformArena, TransformBundle, TransformRoot,
-    UnsupportedEmitFeature,
+    create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode,
+    StandaloneWriter, TransformArena, TransformRoot,
 };
 use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
 
@@ -664,16 +663,6 @@ fn recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
             .unwrap()
             .text(),
         text
-    );
-    assert_eq!(
-        printer.print(
-            &mut result,
-            PrintRequest::Bundle(TransformBundle::new(vec![source])),
-            None
-        ),
-        Err(PrinterError::Unsupported(
-            UnsupportedEmitFeature::BundleRoot
-        ))
     );
     assert_eq!(
         printer

@@ -97,17 +97,12 @@ impl Transformer for ClassFieldsTransformer<'_> {
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
         if self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields {
-            if let TransformRoot::SourceFile(source) = root {
-                let transformed = context.arena().root(source)?;
-                finalize_generated_binding_names(context, source, transformed)?;
-            }
+            let TransformRoot::SourceFile(source) = root;
+            let transformed = context.arena().root(source)?;
+            finalize_generated_binding_names(context, source, transformed)?;
             return Ok(root);
         }
-        let TransformRoot::SourceFile(source) = root else {
-            return Err(TransformError::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let TransformRoot::SourceFile(source) = root;
         // Earlier transforms synthesize class elements whose local flags are
         // distributed across their completed child tree. Reclassify that tree
         // at this pass boundary so static lexical `this`/`super` ownership is

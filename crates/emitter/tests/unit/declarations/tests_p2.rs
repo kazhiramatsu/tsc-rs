@@ -201,10 +201,7 @@ fn preserved_reference_is_synthesized_with_relative_target_and_sentinel_range() 
         false,
     )
     .expect("declaration transform");
-    let root = match result.roots().first().expect("transformed root") {
-        TransformRoot::SourceFile(root) => *root,
-        TransformRoot::Bundle(_) => panic!("bundle root"),
-    };
+    let TransformRoot::SourceFile(root) = *result.roots().first().expect("transformed root");
     let references = &result
         .arena()
         .source(root)

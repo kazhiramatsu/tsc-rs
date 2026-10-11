@@ -107,12 +107,6 @@ impl GeneratedBindingScopes {
         self.generated_names.extend(names);
     }
 
-    /// The `generatedNames` set at the end of this print, handed to the next
-    /// bundle source.
-    pub(super) fn generated_names(&self) -> &BTreeSet<String> {
-        &self.generated_names
-    }
-
     /// Seeds the root scope's `reservedNames` with the scoped names a failed
     /// print generated at its root (`reserveNameInNestedScopes`): visible to
     /// the root and every nested scope.

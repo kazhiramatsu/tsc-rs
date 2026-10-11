@@ -311,11 +311,7 @@ pub fn print_script_units_with_recording_for_harness(
     );
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
-        let EmitRoot::SourceFile(source_id) = unit.root() else {
-            return Err(EmitFailure::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let EmitRoot::SourceFile(source_id) = unit.root();
         let Some(javascript_path) = unit.paths().javascript_path() else {
             continue;
         };
@@ -720,10 +716,7 @@ pub(crate) fn mount_emit_root(
         // map's repeated rehashing (2% of the emit profile).
         arena.reserve_metadata(node_count / 4);
     }
-    Ok(match root {
-        EmitRoot::SourceFile(_) => TransformRoot::SourceFile(sources[0]),
-        EmitRoot::Bundle(_) => TransformRoot::Bundle(crate::TransformBundle::new(sources)),
-    })
+    Ok(TransformRoot::SourceFile(sources[0]))
 }
 
 pub(crate) fn transformed_source_paths(
@@ -731,11 +724,8 @@ pub(crate) fn transformed_source_paths(
     root: &TransformRoot,
     host: &dyn EmitHost,
 ) -> Result<Vec<JsString>, EmitFailure> {
-    let sources = match root {
-        TransformRoot::SourceFile(source) => std::slice::from_ref(source),
-        TransformRoot::Bundle(bundle) => bundle.sources(),
-    };
-    sources
+    let TransformRoot::SourceFile(source) = root;
+    std::slice::from_ref(source)
         .iter()
         .map(|&source| {
             let source_id = result.arena().source(source)?.program_source().ok_or(
@@ -1019,24 +1009,14 @@ pub fn emit_planned_units_with_kinds(
             declaration_map_path: None,
             emit_skipped: false,
         };
-        let source_id = *unit
-            .root()
-            .source_files()
-            .first()
-            .ok_or(EmitFailure::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ))
-            .map_err(attach)?;
+        let EmitRoot::SourceFile(source_id) = *unit.root();
         let source = host
             .source_file(source_id)
             .ok_or(EmitFailure::Contract(
                 EmitContractViolation::PlannedSourceMissing(source_id),
             ))
             .map_err(attach)?;
-        let source_path = match unit.root() {
-            EmitRoot::SourceFile(_) => Some(source.path()),
-            EmitRoot::Bundle(_) => None,
-        };
+        let source_path = Some(source.path());
         // tsgo `emitter.emit`: a span per source file, around its outputs.
         let _unit_span = host.tracing().map(|tracing| {
             tracing.begin(
@@ -1045,7 +1025,6 @@ pub fn emit_planned_units_with_kinds(
                 TraceArgs::new().with("path", source.path().to_string_lossy().into_owned()),
             )
         });
-        let mut parsed_emit_metadata = None;
         let mut javascript_printed = false;
         // A member the request leaves out is neither printed nor listed.
         let javascript_path = unit
@@ -1089,19 +1068,16 @@ pub fn emit_planned_units_with_kinds(
                     source_path,
                     javascript_path,
                     javascript_map_path.as_ref(),
-                    declaration_path.is_some(),
                     &mut emission,
-                    &mut parsed_emit_metadata,
                 )
                 .map_err(attach)?;
                 javascript_printed = true;
             }
         }
 
-        // Bundle callbacks precede the declaration transform. Ordinary source
-        // outputs retain the existing whole-Program failure boundary: a later
+        // Source outputs retain the whole-Program failure boundary: a later
         // unsupported source must fail before any artifact reaches the sink.
-        if eager_source_roots || matches!(unit.root(), EmitRoot::Bundle(_)) {
+        if eager_source_roots {
             if let Some(sink) = sink.as_deref_mut() {
                 emission.written_paths.extend(write_artifacts(
                     std::mem::take(&mut emission.artifacts),
@@ -1132,7 +1108,6 @@ pub fn emit_planned_units_with_kinds(
                 declaration_path,
                 unit.paths().declaration_map_path(),
                 false,
-                parsed_emit_metadata.as_ref(),
             )
             .map_err(attach)?;
             emission.emit_skipped |= declaration.decl_blocked;
@@ -1153,7 +1128,7 @@ pub fn emit_planned_units_with_kinds(
         // the emit skipped: the run reports its diagnostics with outputs
         // generated (exit 2), where tsc 6.0's emitDeclarationFileOrBundle
         // marked it skipped (exit 1).
-        if eager_source_roots || matches!(unit.root(), EmitRoot::Bundle(_)) {
+        if eager_source_roots {
             if let Some(sink) = sink.as_deref_mut() {
                 emission.written_paths.extend(write_artifacts(
                     std::mem::take(&mut emission.artifacts),
@@ -1201,9 +1176,7 @@ fn emit_javascript_unit(
     source_path: Option<JsStr<'_>>,
     javascript_path: JsStr<'_>,
     javascript_map_path: Option<&JsString>,
-    declaration_planned: bool,
     emission: &mut UnitEmission,
-    parsed_emit_metadata: &mut Option<crate::ParsedEmitMetadata>,
 ) -> Result<(), EmitFailure> {
     let _ = preflight;
     let mut arena = TransformArena::new();
@@ -1248,10 +1221,8 @@ fn emit_javascript_unit(
         }
     };
     let source_files = transformed_source_paths(&transformation, &transformed_root, host)?;
-    let print_request = match &transformed_root {
-        TransformRoot::SourceFile(source) => PrintRequest::SourceFile(*source),
-        TransformRoot::Bundle(bundle) => PrintRequest::Bundle(bundle.clone()),
-    };
+    let TransformRoot::SourceFile(root_source) = &transformed_root;
+    let print_request = PrintRequest::SourceFile(*root_source);
     let transform_diagnostics = transformation.diagnostics().to_vec();
     // tsc-port: shouldEmitSourceMaps @6.0.3
     // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
@@ -1278,12 +1249,6 @@ fn emit_javascript_unit(
         recording_inputs,
         &ResolverGlobalNameOracle(resolver),
     )?;
-    // TS transformNodes.dispose clears annotated parse nodes for a
-    // SourceFile root. A Bundle root has no parse SourceFile and
-    // retains its children's metadata for declaration emission.
-    if declaration_planned && matches!(transformed_root, TransformRoot::Bundle(_)) {
-        *parsed_emit_metadata = Some(transformation.arena().snapshot_parsed_emit_metadata(host)?);
-    }
     transformation.dispose();
     // Dropping a large source's emit copy (its nodes, their identifier texts,
     // the transforms' additions) takes milliseconds on the tail of the run;
@@ -1539,9 +1504,9 @@ impl ForcedDeclarationEmitter {
             .units()
             .iter()
             .enumerate()
-            .filter_map(|(index, unit)| match unit.root() {
-                EmitRoot::SourceFile(source) => Some((source.index(), index)),
-                EmitRoot::Bundle(_) => None,
+            .map(|(index, unit)| {
+                let EmitRoot::SourceFile(source) = unit.root();
+                (source.index(), index)
             })
             .collect();
         Ok(Self {
@@ -1580,7 +1545,6 @@ impl ForcedDeclarationEmitter {
             path,
             unit.paths().declaration_map_path(),
             true,
-            None,
         )?;
         Ok(declaration.artifact.map(|artifact| {
             let source_map_url_position = match artifact.metadata() {
@@ -1635,7 +1599,6 @@ pub fn emit_forced_declarations(
             path,
             unit.paths().declaration_map_path(),
             true,
-            None,
         )?;
         // tsgo emitDeclarationFile: a forced emit is not blocked by its
         // diagnostics, the blocked paths or `noEmit`, nor marked skipped.

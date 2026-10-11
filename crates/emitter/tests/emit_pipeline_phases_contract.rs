@@ -5,9 +5,8 @@
 use std::{cell::RefCell, rc::Rc};
 use tsc_emitter::{
     base64_encode, create_printer, transform_nodes, EmitHint, NewLineKind, PrintRequest,
-    PrinterOptions, SourceFileTextMode, StandaloneWriter, TransformArena, TransformBundle,
-    TransformError, TransformNode, TransformNodeArray, TransformRoot, TransformationContext,
-    Transformer,
+    PrinterOptions, SourceFileTextMode, StandaloneWriter, TransformArena, TransformError,
+    TransformNode, TransformNodeArray, TransformRoot, TransformationContext, Transformer,
 };
 use tsc_syntax::{parse_json_text, parse_source_file, NodeData, SyntaxKind};
 
@@ -88,15 +87,8 @@ fn emit_pipeline_phases_matches_typescript() {
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 8);
-    let bundle_artifact: serde_json::Value =
-        serde_json::from_slice(include_bytes!("fixtures/emit-pipeline-bundle.json")).unwrap();
-    assert_eq!(bundle_artifact["typescript"], "6.0.3");
-    assert_eq!(bundle_artifact["route"], "direct-factory-and-printer");
-    assert_eq!(bundle_artifact["repetitions"], 2);
-    let bundle_cases = bundle_artifact["cases"].as_array().unwrap();
-    assert_eq!(bundle_cases.len(), 2);
     let mut failures = Vec::new();
-    for case in cases.iter().chain(bundle_cases) {
+    for case in cases {
         let id = case["case_id"].as_str().unwrap();
         for repetition in 0..2 {
             let outcome = std::panic::catch_unwind(|| {
@@ -132,11 +124,7 @@ fn emit_pipeline_phases_matches_typescript() {
                 };
                 let mut transformation = transform_nodes(
                     arena,
-                    vec![if route == "bundle" {
-                        TransformRoot::Bundle(TransformBundle::new(vec![source]))
-                    } else {
-                        TransformRoot::SourceFile(source)
-                    }],
+                    vec![TransformRoot::SourceFile(source)],
                     vec![Box::new(hooks)],
                     false,
                 )
@@ -151,11 +139,6 @@ fn emit_pipeline_phases_matches_typescript() {
                         node,
                         writer: StandaloneWriter::MultiLine,
                     }
-                } else if route == "bundle" {
-                    let TransformRoot::Bundle(bundle) = transformation.roots()[0].clone() else {
-                        panic!("bundle root")
-                    };
-                    PrintRequest::Bundle(bundle)
                 } else {
                     PrintRequest::SourceFile(source)
                 };

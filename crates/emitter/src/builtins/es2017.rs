@@ -142,11 +142,7 @@ impl Transformer for Es2017Transformer<'_> {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Err(TransformError::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            ));
-        };
+        let TransformRoot::SourceFile(source) = root;
         if context.arena().source(source)?.syntax().is_declaration_file {
             return Ok(root);
         }

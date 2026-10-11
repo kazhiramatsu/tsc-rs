@@ -2,12 +2,11 @@ use std::path::{Path, PathBuf};
 
 use tsc_emitter::{
     emit_files, get_source_files_to_emit, preflight_emit, validate_emit_options,
-    DeclarationPathResolver, EmitBundle, EmitContractViolation, EmitDiagnosticGate, EmitFailure,
-    EmitHost, EmitIoError, EmitIoOperation, EmitMode, EmitOutputPaths, EmitOutputPlan,
-    EmitOutputUnit, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
-    EmitRoot, EmitSelection, EmitSource, EmitWriteDisposition, JavascriptOmission,
-    MemoryOutputSink, OutputSink, PlanDeclarationPaths, UnavailableEmitResolver,
-    UnsupportedEmitFeature,
+    DeclarationPathResolver, EmitContractViolation, EmitDiagnosticGate, EmitFailure, EmitHost,
+    EmitIoError, EmitIoOperation, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit,
+    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitRoot, EmitSelection,
+    EmitSource, EmitWriteDisposition, JavascriptOmission, MemoryOutputSink, OutputSink,
+    PlanDeclarationPaths, UnavailableEmitResolver, UnsupportedEmitFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, SourceFile};
@@ -124,22 +123,6 @@ fn unsupported_plan_shapes_are_typed_and_rejected() {
         Err(EmitFailure::Unsupported(
             UnsupportedEmitFeature::TargetedSelection
         ))
-    );
-
-    let bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::Bundle(EmitBundle::new(vec![source(1), source(2)])),
-        javascript(),
-        EmitMode::Script,
-    )]);
-    assert_eq!(bundle.validate_supported_shape(), Ok(()));
-    let empty_bundle = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(
-        EmitRoot::Bundle(EmitBundle::new(vec![])),
-        javascript(),
-        EmitMode::Script,
-    )]);
-    assert_eq!(
-        empty_bundle.validate_supported_shape(),
-        Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot))
     );
 
     let declaration_only = EmitOutputPlan::whole_program(vec![EmitOutputUnit::new(

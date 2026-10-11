@@ -394,11 +394,8 @@ pub(crate) fn transform_top_level_declaration(
                         .arena()
                         .node(body)
                         .is_ok_and(|node| node.kind == SyntaxKind::ModuleBlock)
-                }) && super::bundle::is_external_module_augmentation(
-                    transformer,
-                    context,
-                    input,
-                )? {
+                }) && is_external_module_augmentation(transformer, context, input)?
+                {
                     rewrite_module_specifier(transformer, context, input, Some(name))?.ok_or_else(
                         || DeclarationTransformer::contract("module augmentation name is required"),
                     )?
@@ -747,14 +744,7 @@ pub(crate) fn transform_and_replace_late_painted_statements(
                 });
             }
             let previous_needs_declare = transformer.state()?.needs_declare;
-            transformer.state_mut()?.needs_declare = is_source_file_parent(context, input)?
-                && !(transformer.state()?.is_bundled_emit
-                    && context
-                        .arena()
-                        .source(input.source())?
-                        .syntax()
-                        .external_module_indicator
-                        .is_some());
+            transformer.state_mut()?.needs_declare = is_source_file_parent(context, input)?;
             let result = transform_top_level_declaration(transformer, context, input)?;
             transformer.state_mut()?.needs_declare = previous_needs_declare;
             transformer
@@ -1905,29 +1895,6 @@ pub(crate) fn rewrite_module_specifier(
             .state_mut()?
             .result_has_external_module_indicator = true;
     }
-    if transformer.state()?.is_bundled_emit {
-        let text = match &context.arena().node(input)?.data {
-            NodeData::StringLiteral(data) => Some(data.text.clone()),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
-            _ => None,
-        };
-        if let Some(text) = text {
-            if let Some(name) = super::bundle::external_module_name_from_declaration(
-                transformer,
-                context,
-                parent,
-                text.as_js(),
-            )? {
-                if !name.is_empty() {
-                    return Ok(Some(context.factory()?.create_string_literal(
-                        input.source(),
-                        name,
-                        false,
-                    )?));
-                }
-            }
-        }
-    }
     Ok(Some(input))
 }
 
@@ -2617,5 +2584,64 @@ fn heritage_clause_data(
             expected: SyntaxKind::HeritageClause,
             actual: context.arena().node(node)?.kind,
         }),
+    }
+}
+
+/// tsc-port: isExternalModuleAugmentation @6.0.3
+/// tsc-hash: b15f91bccd94d548f2b407ea34fdba17881ea41961748847b29b64f8edb264b6
+/// tsc-span: _tsc.js:13737-13739
+/// tsc-port: isModuleAugmentationExternal @6.0.3
+/// tsc-hash: aaba1aaac0a2bbde6e1923580f5a67a0d947ee79784eba560143f321455d79ec
+/// tsc-span: _tsc.js:13740-13748
+/// @6.0.3 (_tsc.js:13737-13749).
+fn is_external_module_augmentation(
+    transformer: &DeclarationTransformer<'_>,
+    context: &TransformationContext,
+    node: crate::TransformNode,
+) -> Result<bool, TransformError> {
+    fn ambient(
+        context: &TransformationContext,
+        node: crate::TransformNode,
+    ) -> Result<bool, TransformError> {
+        let record = context.arena().node(node)?;
+        let NodeData::ModuleDeclaration(data) = &record.data else {
+            return Ok(false);
+        };
+        Ok(
+            NodeFlags::from_bits(record.flags).contains(NodeFlags::GLOBAL_AUGMENTATION)
+                || data.name.is_some_and(|name| {
+                    context
+                        .arena()
+                        .node(crate::TransformNode::new(node.source(), name))
+                        .is_ok_and(|name| name.kind == SyntaxKind::StringLiteral)
+                }),
+        )
+    }
+    if !ambient(context, node)? {
+        return Ok(false);
+    }
+    let Some(parent) = transformer.parent(context, node)? else {
+        return Ok(false);
+    };
+    let source_is_external = context
+        .arena()
+        .source(node.source())?
+        .syntax()
+        .external_module_indicator
+        .is_some();
+    match context.arena().node(parent)?.kind {
+        SyntaxKind::SourceFile => Ok(source_is_external),
+        SyntaxKind::ModuleBlock => {
+            let Some(module) = transformer.parent(context, parent)? else {
+                return Ok(false);
+            };
+            let Some(source) = transformer.parent(context, module)? else {
+                return Ok(false);
+            };
+            Ok(ambient(context, module)?
+                && context.arena().node(source)?.kind == SyntaxKind::SourceFile
+                && !source_is_external)
+        }
+        _ => Ok(false),
     }
 }

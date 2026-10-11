@@ -27,20 +27,6 @@ pub(crate) fn map_options(options: &CompilerOptions) -> CompilerOptions {
     }
 }
 
-/// A Bundle has no single source file for mapRoot directory nesting.
-pub fn declaration_bundle_map_recording_inputs_for(
-    lane: &MapLaneInputs,
-    options: &CompilerOptions,
-    declaration_path: JsStr<'_>,
-) -> SourceMapRecordingInputs {
-    crate::execute::source_map_recording_inputs_for_output(
-        lane,
-        &map_options(options),
-        declaration_path,
-        None,
-    )
-}
-
 pub fn declaration_map_recording_inputs_for(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
@@ -81,32 +67,6 @@ pub fn finish_declaration_map(
         map_path,
         Some(source_path),
         &[source_path.to_owned()],
-        printed,
-        diagnostics,
-        new_line,
-    )
-}
-
-/// Callback sourceFiles are the entire emitted Bundle source list, including
-/// sources which record no mappings. They are independent of generator sources.
-#[allow(clippy::too_many_arguments)]
-pub fn finish_declaration_bundle_map(
-    lane: &MapLaneInputs,
-    options: &CompilerOptions,
-    declaration_path: JsStr<'_>,
-    map_path: JsStr<'_>,
-    source_files: &[JsString],
-    printed: &PrintedText,
-    diagnostics: Vec<Diagnostic>,
-    new_line: NewLineKind,
-) -> Result<DeclarationMapEmit, EmitFailure> {
-    finish_declaration_map_for_output(
-        lane,
-        options,
-        declaration_path,
-        map_path,
-        None,
-        source_files,
         printed,
         diagnostics,
         new_line,

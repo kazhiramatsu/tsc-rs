@@ -5,7 +5,6 @@
 //! (crate-internal reach; runs in the lib test target).
 
 use serde_json::Value;
-use tsc_diagnostics::JsStr;
 
 use super::{SourceMapGenerator, SourceMappingFields};
 
@@ -112,150 +111,6 @@ fn map_url_rejects_unpaired_units_without_losing_the_original_value() {
     }
 }
 
-/// Replay TS mapping positions to isolate bundle path/options and URL workers.
-/// These are helper facets; the Bundle printer owns position/registration tests.
-#[test]
-fn h2_7e_bundle_declaration_map_path_lanes_match_typescript() {
-    let fixture: Value = serde_json::from_slice(include_bytes!(
-        "../../fixtures/bundle-declaration-map-paths.json"
-    ))
-    .unwrap();
-    assert_eq!(fixture["repetitions"], 2);
-    assert_eq!(fixture["cases"].as_array().unwrap().len(), 10);
-    for case in fixture["cases"].as_array().unwrap() {
-        let id = case["case_id"].as_str().unwrap();
-        let raw_options = &case["options"];
-        let options = tsc_types::CompilerOptions {
-            declaration_map: raw_options["declarationMap"].as_bool(),
-            source_map: raw_options["sourceMap"].as_bool(),
-            inline_source_map: raw_options["inlineSourceMap"].as_bool(),
-            inline_sources: raw_options["inlineSources"].as_bool(),
-            source_root: raw_options["sourceRoot"]
-                .as_str()
-                .map(tsc_diagnostics::JsString::from),
-            map_root: raw_options["mapRoot"]
-                .as_str()
-                .map(tsc_diagnostics::JsString::from),
-            ..Default::default()
-        };
-        let observed = &case["typescript_observation"];
-        let writes = observed["writes"].as_array().unwrap();
-        let map_path = JsStr::from(writes[0]["path"].as_str().unwrap());
-        let declaration_path = JsStr::from(writes[1]["path"].as_str().unwrap());
-        let map = &observed["emit_result"]["source_maps"][0];
-        let frozen = map["source_map_json"].as_str().unwrap();
-        let parsed: Value = serde_json::from_str(frozen).unwrap();
-        let lane = crate::MapLaneInputs {
-            common_source_directory: observed["common_source_directory"].as_str().unwrap().into(),
-            current_directory: case["current_directory"].as_str().unwrap().into(),
-            use_case_sensitive_source_keys: case["use_case_sensitive_file_names"]
-                .as_bool()
-                .unwrap(),
-        };
-        for _ in 0..2 {
-            let inputs = crate::declaration_bundle_map_recording_inputs_for(
-                &lane,
-                &options,
-                declaration_path,
-            );
-            assert!(
-                !inputs.inline_sources,
-                "declaration options omit inlineSources"
-            );
-            let mut generator = SourceMapGenerator::new(
-                &inputs.file,
-                &inputs.source_root,
-                &inputs.sources_directory_path,
-                &inputs.current_directory,
-                inputs.use_case_sensitive_source_keys,
-            );
-            for source in map["input_source_file_names"].as_array().unwrap() {
-                generator.add_source(source.as_str().unwrap());
-            }
-            for segment in decode_mappings(parsed["mappings"].as_str().unwrap()) {
-                generator.add_mapping(
-                    segment.generated_line,
-                    segment.generated_character,
-                    segment
-                        .source
-                        .map(
-                            |(source_index, source_line, source_character)| SourceMappingFields {
-                                source_index,
-                                source_line,
-                                source_character,
-                            },
-                        ),
-                    segment.name,
-                );
-            }
-            // tsgo (#64544) omits an empty sourceRoot
-            // (`json:"sourceRoot,omitzero"`); the frozen 6.0.3 observation
-            // keeps it.
-            assert_eq!(
-                generator.to_json_string(),
-                frozen.replace("\"sourceRoot\":\"\",", ""),
-                "{id}: complete path-lane map replay"
-            );
-            let url = crate::execute::source_mapping_url_for_output(
-                &lane,
-                &crate::declaration_map::map_options(&options),
-                frozen,
-                declaration_path,
-                Some(map_path),
-                None,
-            )
-            .unwrap();
-            let text = String::from_utf8(decode_base64(
-                writes[1]["callback_utf8_base64"].as_str().unwrap(),
-            ))
-            .unwrap();
-            let utf16 = text.encode_utf16().collect::<Vec<_>>();
-            let position = writes[1]["data_source_map_url_pos"].as_u64().unwrap() as usize;
-            let comment = String::from_utf16(&utf16[position..]).unwrap();
-            assert_eq!(
-                Some(url.as_str()),
-                comment.strip_prefix("//# sourceMappingURL="),
-                "{id}: Bundle URL"
-            );
-        }
-    }
-}
-
-/// RFC 4648 standard-alphabet decoder (the comment-scope witness suite's
-/// local-decoder precedent; a workspace dependency is not worth twenty
-/// lines).
-fn decode_base64(text: &str) -> Vec<u8> {
-    fn value(byte: u8) -> u32 {
-        match byte {
-            b'A'..=b'Z' => u32::from(byte - b'A'),
-            b'a'..=b'z' => u32::from(byte - b'a') + 26,
-            b'0'..=b'9' => u32::from(byte - b'0') + 52,
-            b'+' => 62,
-            b'/' => 63,
-            other => panic!("unexpected base64 byte {other}"),
-        }
-    }
-    let bytes: Vec<u8> = text.bytes().filter(|&byte| byte != b'=').collect();
-    let mut out = Vec::with_capacity(bytes.len() * 3 / 4 + 3);
-    for chunk in bytes.chunks(4) {
-        let mut accumulator = 0u32;
-        for &byte in chunk {
-            accumulator = (accumulator << 6) | value(byte);
-        }
-        accumulator <<= 6 * (4 - chunk.len());
-        let emitted = match chunk.len() {
-            4 => 3,
-            3 => 2,
-            2 => 1,
-            other => panic!("dangling base64 chunk of {other}"),
-        };
-        for index in 0..emitted {
-            out.push(((accumulator >> (16 - 8 * index)) & 0xff) as u8);
-        }
-    }
-    out
-}
-
 /// Test-only VLQ/mappings decoder — the round-trip instrument. The
 /// production module deliberately carries no decoder (h2-6a.md §4.2).
 #[derive(Clone, Copy, Debug)]
@@ -263,7 +118,6 @@ struct Segment {
     generated_line: u32,
     generated_character: u32,
     source: Option<(u32, u32, u32)>,
-    name: Option<u32>,
 }
 
 fn decode_vlq(bytes: &[u8], cursor: &mut usize) -> i64 {
@@ -301,7 +155,6 @@ fn decode_mappings(mappings: &str) -> Vec<Segment> {
     let mut source_index = 0i64;
     let mut source_line = 0i64;
     let mut source_character = 0i64;
-    let mut name_index = 0i64;
     let mut cursor = 0usize;
     while cursor < bytes.len() {
         match bytes[cursor] {
@@ -314,7 +167,6 @@ fn decode_mappings(mappings: &str) -> Vec<Segment> {
             _ => {
                 generated_character += decode_vlq(bytes, &mut cursor);
                 let mut source = None;
-                let mut name = None;
                 if cursor < bytes.len() && bytes[cursor] != b',' && bytes[cursor] != b';' {
                     source_index += decode_vlq(bytes, &mut cursor);
                     source_line += decode_vlq(bytes, &mut cursor);
@@ -324,9 +176,9 @@ fn decode_mappings(mappings: &str) -> Vec<Segment> {
                         u32::try_from(source_line).expect("source line"),
                         u32::try_from(source_character).expect("source character"),
                     ));
+                    // A name index is read past; no test compares names.
                     if cursor < bytes.len() && bytes[cursor] != b',' && bytes[cursor] != b';' {
-                        name_index += decode_vlq(bytes, &mut cursor);
-                        name = Some(u32::try_from(name_index).expect("name index"));
+                        decode_vlq(bytes, &mut cursor);
                     }
                 }
                 segments.push(Segment {
@@ -334,7 +186,6 @@ fn decode_mappings(mappings: &str) -> Vec<Segment> {
                     generated_character: u32::try_from(generated_character)
                         .expect("generated character"),
                     source,
-                    name,
                 });
             }
         }

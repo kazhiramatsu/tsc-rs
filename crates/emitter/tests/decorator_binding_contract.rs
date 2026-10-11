@@ -36,8 +36,8 @@ use tsc_emitter::{
     EmitEnumMemberValue, EmitExportContainerMode, EmitHint, EmitResolver, EmitResolverError,
     EmitResolverMethod, EmitResolverNode, GeneratedIdentifierFlags, GlobalNameOracle, NewLineKind,
     PrintRequest, PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter,
-    TransformArena, TransformBundle, TransformError, TransformNode, TransformNodeArray,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
+    TransformArena, TransformError, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -305,9 +305,7 @@ impl Transformer for StatementInjector {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Ok(root);
-        };
+        let TransformRoot::SourceFile(source) = root;
         let file = context.arena().root(source)?;
         let NodeData::SourceFile(data) = context.arena().node(file)?.data.clone() else {
             panic!("source file root");
@@ -332,59 +330,6 @@ impl Transformer for StatementInjector {
             flags,
         )?;
         context.arena_mut()?.replace_root(source, updated)?;
-        Ok(root)
-    }
-}
-
-/// Replaces the root statements of each bundle source: the observer's
-/// per-file `factory.updateSourceFile(file, statements)` over `ts.transform`
-/// of two source files.
-struct BundleStatementInjector {
-    per_source: Vec<(TransformSourceId, Vec<TransformNode>)>,
-}
-
-impl Transformer for BundleStatementInjector {
-    fn name(&self) -> &'static str {
-        "decorator-binding-bundle-statement-injector"
-    }
-
-    fn transform_root(
-        &mut self,
-        context: &mut TransformationContext,
-        root: TransformRoot,
-    ) -> Result<TransformRoot, TransformError> {
-        // A bundle root reaches a transformer once per member source
-        // (`TransformRoot::SourceFile`); the bundle arm is kept for a
-        // transformer chain that hands the bundle itself.
-        let sources = match &root {
-            TransformRoot::SourceFile(source) => vec![*source],
-            TransformRoot::Bundle(bundle) => bundle.sources().to_vec(),
-        };
-        for source in sources {
-            let Some((_, statements)) = self.per_source.iter().find(|(id, _)| *id == source) else {
-                continue;
-            };
-            let file = context.arena().root(source)?;
-            let NodeData::SourceFile(data) = context.arena().node(file)?.data.clone() else {
-                panic!("source file root");
-            };
-            let mut flags = context.arena().transform_flags(file);
-            for statement in statements {
-                flags |= context.arena().transform_flags(*statement);
-            }
-            let array = context
-                .factory()?
-                .create_node_array(source, statements.clone())?;
-            let updated = context.factory()?.update_node(
-                file,
-                NodeData::SourceFile(SourceFileData {
-                    statements: Some(array.array()),
-                    end_of_file_token: data.end_of_file_token,
-                }),
-                flags,
-            )?;
-            context.arena_mut()?.replace_root(source, updated)?;
-        }
         Ok(root)
     }
 }
@@ -882,53 +827,6 @@ fn observe_scope_control(case: &Value) -> Value {
         );
         return json!({"results": results});
     }
-    if op == "bundle-fault" {
-        // Two transformed sources in one bundle: the hook throws after the
-        // first source's statement, before the second source's worker names
-        // anything.
-        let parsed = parse_source_file(
-            "second.ts",
-            LIFECYCLE_SOURCE.replace('x', "y"),
-            Default::default(),
-            None,
-        );
-        let second = arena.add_source(&parsed, Some(SourceFileId::from_raw(1)));
-        let b1 = binding(&mut arena);
-        let b2 = binding_in(&mut arena, second);
-        let next = binding(&mut arena);
-        let mut result = transform_nodes(
-            arena,
-            vec![TransformRoot::Bundle(TransformBundle::new(vec![
-                source, second,
-            ]))],
-            vec![
-                Box::new(BundleStatementInjector {
-                    per_source: vec![(source, vec![b1]), (second, vec![b2])],
-                }),
-                Box::new(FailingHooks {
-                    target: b1,
-                    fault: Rc::clone(&fault),
-                }),
-            ],
-            false,
-        )
-        .expect("transform");
-        let mut shared = create_printer(printer_options());
-        *fault.borrow_mut() = Some("after".to_owned());
-        let faulted = shared.print(
-            &mut result,
-            PrintRequest::Bundle(TransformBundle::new(vec![source, second])),
-            None,
-        );
-        assert_fault(&case["case_id"], &faulted);
-        record(0, printed(faulted));
-        record(1, printed(shared.print(&mut result, request(next), None)));
-        record(
-            2,
-            printed(create_printer(printer_options()).print(&mut result, request(next), None)),
-        );
-        return json!({"results": results});
-    }
     assert_eq!(op, "file-after-failure");
     let u1 = binding(&mut arena);
     let u2 = binding(&mut arena);
@@ -972,7 +870,7 @@ fn observe_lifecycle(case: &Value) -> Value {
     let kind = case["kind"].as_str().expect("kind");
     let base = case["base"].as_str();
     let op = case["op"].as_str().expect("op");
-    if matches!(op, "scope-fault" | "file-after-failure" | "bundle-fault") {
+    if matches!(op, "scope-fault" | "file-after-failure") {
         return observe_scope_control(case);
     }
     if matches!(
@@ -1161,10 +1059,10 @@ fn decorator_binding_direct_controls_match_typescript() {
         "frozen fixture is complete"
     );
     let cases = artifact["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 146);
+    assert_eq!(cases.len(), 141);
     assert_eq!(
         artifact["groups"],
-        json!({"synthetic": 48, "global": 22, "lifecycle": 76})
+        json!({"synthetic": 48, "global": 22, "lifecycle": 71})
     );
     let carry_edges: Value =
         serde_json::from_slice(include_bytes!("fixtures/decorator-binding-carry-edge.json"))

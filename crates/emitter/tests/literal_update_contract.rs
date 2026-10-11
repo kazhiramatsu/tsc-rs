@@ -623,9 +623,7 @@ impl Transformer for Updater {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Ok(root);
-        };
+        let TransformRoot::SourceFile(source) = root;
         let root_node = context.arena().root(source)?;
         let NodeData::SourceFile(file) = context.arena().node(root_node)?.data.clone() else {
             unreachable!("source file root");

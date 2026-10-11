@@ -4,9 +4,6 @@ use std::sync::Arc;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
-mod parsed_metadata;
-pub use parsed_metadata::ParsedEmitMetadata;
-
 use tsc_program::SourceFileId;
 use tsc_syntax::nodes::*;
 use tsc_syntax::FileReference;
@@ -260,10 +257,6 @@ pub struct TransformArena {
     sources: Vec<TransformSource>,
     // Transform flags live inline on the detached node/array records of each
     // emit source (tsc's Node.transformFlags); no side table.
-    // `metadata` is iterated by `snapshot_parsed_emit_metadata`
-    // (parsed_metadata.rs), which sorts the entries it visits, so the hash
-    // table keeps that snapshot's encounter order while the per-node reads
-    // of every printed node stay O(1).
     metadata: FxHashMap<TransformNode, EmitMetadata>,
     literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
     next_generated_binding_id: u64,

@@ -6,8 +6,8 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    EmitFlags, EmitResolver, EmitResolverError, NodeFactory, SourceFileId, SourcePositionError,
-    TransformArena, TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
+    EmitFlags, EmitResolver, EmitResolverError, NodeFactory, SourcePositionError, TransformArena,
+    TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
 
 /// TypeScript's semantic child visitor has no operator for a missing
@@ -337,61 +337,8 @@ impl UnsupportedTransformFeature {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TransformBundle {
-    sources: Box<[TransformSourceId]>,
-    synthetic_file_references: Option<Vec<tsc_syntax::FileReference>>,
-    synthetic_type_references: Option<Vec<tsc_syntax::TypeReferenceDirective>>,
-    synthetic_lib_references: Option<Vec<tsc_syntax::FileReference>>,
-}
-
-impl TransformBundle {
-    pub fn new(sources: Vec<TransformSourceId>) -> Self {
-        Self {
-            sources: sources.into_boxed_slice(),
-            synthetic_file_references: None,
-            synthetic_type_references: None,
-            synthetic_lib_references: None,
-        }
-    }
-
-    pub fn sources(&self) -> &[TransformSourceId] {
-        &self.sources
-    }
-
-    pub fn synthetic_file_references(&self) -> Option<&[tsc_syntax::FileReference]> {
-        self.synthetic_file_references.as_deref()
-    }
-
-    pub fn synthetic_type_references(&self) -> Option<&[tsc_syntax::TypeReferenceDirective]> {
-        self.synthetic_type_references.as_deref()
-    }
-
-    pub fn synthetic_lib_references(&self) -> Option<&[tsc_syntax::FileReference]> {
-        self.synthetic_lib_references.as_deref()
-    }
-
-    pub(crate) fn with_sources(mut self, sources: Vec<TransformSourceId>) -> Self {
-        self.sources = sources.into_boxed_slice();
-        self
-    }
-
-    pub(crate) fn with_synthetic_references(
-        mut self,
-        files: Vec<tsc_syntax::FileReference>,
-        types: Vec<tsc_syntax::TypeReferenceDirective>,
-        libs: Vec<tsc_syntax::FileReference>,
-    ) -> Self {
-        self.synthetic_file_references = Some(files);
-        self.synthetic_type_references = Some(types);
-        self.synthetic_lib_references = Some(libs);
-        self
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TransformRoot {
     SourceFile(TransformSourceId),
-    Bundle(TransformBundle),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1029,22 +976,6 @@ pub trait Transformer {
         Ok(root)
     }
 
-    /// Internal `chainBundle` equivalent (_tsc.js:92747-92755). Each
-    /// transformer visits the entire source sequence before the next pass.
-    /// Declaration transformation overrides this visitor because its bundle
-    /// has shared references and external-module declaration wrappers.
-    fn transform_bundle(
-        &mut self,
-        context: &mut TransformationContext,
-        bundle: TransformBundle,
-    ) -> Result<TransformBundle, TransformError> {
-        let mut sources = Vec::with_capacity(bundle.sources().len());
-        for source in bundle.sources() {
-            sources.push(transform_source_with_helpers(self, context, *source)?);
-        }
-        Ok(bundle.with_sources(sources))
-    }
-
     fn substitute_node(
         &mut self,
         _context: &mut TransformationContext,
@@ -1128,16 +1059,6 @@ impl TransformationResult<'_> {
     ) -> Result<(), TransformError> {
         self.context
             .finalize_generated_binding_names_for_print(root, global_name_oracle, carried)
-    }
-
-    pub(crate) fn finalize_bundle_generated_names_for_print(
-        &mut self,
-        sources: &[TransformSourceId],
-        global_name_oracle: Option<&dyn GlobalNameOracle>,
-        carried: Option<&CarriedGeneratedNames>,
-    ) -> Result<(), TransformError> {
-        self.context
-            .finalize_bundle_generated_binding_names_for_print(sources, global_name_oracle, carried)
     }
 
     /// The generated identifiers that `emitSourceFileWorker` names before
@@ -1257,14 +1178,7 @@ fn transform_source_with_helpers<T: Transformer + ?Sized>(
         .unwrap_or_default();
     let result = transformer.transform_root(context, TransformRoot::SourceFile(source));
     let helpers = std::mem::take(&mut context.emit_helpers);
-    let transformed_source = match result? {
-        TransformRoot::SourceFile(source) => source,
-        TransformRoot::Bundle(_) => {
-            return Err(TransformError::Unsupported(
-                UnsupportedEmitFeature::BundleRoot,
-            ));
-        }
-    };
+    let TransformRoot::SourceFile(transformed_source) = result?;
     context
         .source_emit_helpers
         .insert(transformed_source, helpers);
@@ -1289,34 +1203,16 @@ pub fn transform_nodes<'transformers>(
 
         let mut transformed = Vec::with_capacity(roots.len());
         for mut root in roots {
-            let should_transform = match &root {
-                TransformRoot::SourceFile(source) => {
-                    let syntax = context.arena.source(*source)?.syntax();
-                    allow_declaration_files || !syntax.is_declaration_file
-                }
-                // Upstream applies the declaration-file gate only to a
-                // SourceFile root. A bundle visitor owns its member policy.
-                TransformRoot::Bundle(bundle) => {
-                    for source in bundle.sources() {
-                        context.arena.source(*source)?;
-                    }
-                    true
-                }
-            };
-            if should_transform {
+            let TransformRoot::SourceFile(source) = root;
+            let syntax = context.arena.source(source)?.syntax();
+            if allow_declaration_files || !syntax.is_declaration_file {
                 for transformer in &mut transformers {
-                    root = match root {
-                        TransformRoot::SourceFile(source) => {
-                            TransformRoot::SourceFile(transform_source_with_helpers(
-                                transformer.as_mut(),
-                                &mut context,
-                                source,
-                            )?)
-                        }
-                        TransformRoot::Bundle(bundle) => TransformRoot::Bundle(
-                            transformer.transform_bundle(&mut context, bundle)?,
-                        ),
-                    };
+                    let TransformRoot::SourceFile(source) = root;
+                    root = TransformRoot::SourceFile(transform_source_with_helpers(
+                        transformer.as_mut(),
+                        &mut context,
+                        source,
+                    )?);
                 }
             }
             transformed.push(root);
@@ -1397,9 +1293,6 @@ pub enum TransformError {
         parent: TransformNode,
     },
     MissingProgramSource(TransformNode),
-    ParsedEmitMetadataSourceMismatch(SourceFileId),
-    ParsedEmitMetadataNotPortable(TransformNode),
-    ParsedEmitMetadataRestoreConflict(TransformNode),
     ResolverNodeNotInParseTree(TransformNode),
     InvalidSourceRange {
         node: TransformNode,
@@ -1433,18 +1326,6 @@ pub enum TransformError {
 impl fmt::Display for TransformError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ParsedEmitMetadataSourceMismatch(source) => write!(
-                formatter,
-                "parsed emit metadata requires the same original Program source {source:?}"
-            ),
-            Self::ParsedEmitMetadataNotPortable(node) => write!(
-                formatter,
-                "parsed emit metadata at {node:?} requires an unsupported cross-arena identity"
-            ),
-            Self::ParsedEmitMetadataRestoreConflict(node) => write!(
-                formatter,
-                "parsed emit metadata target {node:?} already has emit metadata"
-            ),
             Self::UnknownSource(source) => {
                 write!(formatter, "unknown transform source {}", source.raw())
             }

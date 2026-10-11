@@ -10,7 +10,6 @@ use crate::{PrinterError, TransformError};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnsupportedEmitFeature {
     TargetedSelection,
-    BundleRoot,
     CustomTransformers,
     IsolatedDeclarations,
     JavaScriptMap,
@@ -25,7 +24,6 @@ impl UnsupportedEmitFeature {
     pub const fn name(self) -> &'static str {
         match self {
             Self::TargetedSelection => "targeted source-file selection",
-            Self::BundleRoot => "bundle root",
             Self::CustomTransformers => "custom declaration transformers",
             Self::IsolatedDeclarations => "isolated declarations",
             Self::JavaScriptMap => "JavaScript source map",

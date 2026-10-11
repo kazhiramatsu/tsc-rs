@@ -309,9 +309,7 @@ impl Transformer for Injector {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        let TransformRoot::SourceFile(source) = root else {
-            return Ok(root);
-        };
+        let TransformRoot::SourceFile(source) = root;
         let shape = self.shape.clone();
         Site { context, source }.inject(&shape);
         Ok(root)

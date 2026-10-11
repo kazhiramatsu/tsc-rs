@@ -25,11 +25,9 @@ impl PlanDeclarationPaths {
             .plan()
             .units()
             .iter()
-            .filter_map(|unit| {
-                let EmitRoot::SourceFile(source) = unit.root() else {
-                    return None;
-                };
-                Some((*source, unit.paths().clone()))
+            .map(|unit| {
+                let EmitRoot::SourceFile(source) = unit.root();
+                (*source, unit.paths().clone())
             })
             .collect();
         let reference_paths = host
@@ -89,11 +87,6 @@ impl PlanDeclarationPaths {
 }
 
 impl DeclarationPathResolver for PlanDeclarationPaths {
-    /// TypeScript 7 has no `outFile` bundle (TS5102).
-    fn bundle_declaration_file_path(&self) -> Option<JsString> {
-        None
-    }
-
     fn declaration_file_path(&self, source: SourceFileId) -> Option<JsString> {
         self.root_declaration_paths
             .get(&source)
