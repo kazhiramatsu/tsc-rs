@@ -983,7 +983,7 @@ fn jsdoc_typedef_duplicate_type_preserves_explicit_type_sibling() {
 fn jsdoc_callback_overload_and_nested_property_report_8039() {
     let fixture = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/jsdoc/templateInsideCallback.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/jsdoc/templateInsideCallback.ts"
     ));
     let text = fixture
         .split_once("// @filename: templateInsideCallback.js\n")
@@ -1037,7 +1037,7 @@ fn jsdoc_callback_overload_and_nested_property_report_8039() {
 fn jsdoc_invalid_template_preserves_frozen_overload_sibling() {
     let fixture = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/jsdoc/overloadTag2.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/jsdoc/overloadTag2.ts"
     ));
     let text = fixture
         .split_once("// @filename: overloadTag2.js\n")

@@ -103,8 +103,8 @@ fn signatures_of_types_and_their_parts() {
     let over = signatures_of(&session, &base, "over(x: any", 0);
     assert_eq!(over.len(), 2);
     assert_eq!(over[0]["flags"], 0);
-    assert_eq!(over[0]["declaration"], "3.263./src/main.ts");
-    assert_eq!(over[1]["declaration"], "12.263./src/main.ts");
+    assert_eq!(over[0]["declaration"], "3.264./src/main.ts");
+    assert_eq!(over[1]["declaration"], "12.264./src/main.ts");
     let returns: Vec<String> = over
         .iter()
         .map(|signature| {
@@ -167,7 +167,7 @@ fn signatures_of_types_and_their_parts() {
     assert_eq!(generic["typeParameters"][0], parameters[0]["id"]);
     let shape = &signatures_of(&session, &base, "Shape {", 1)[0];
     assert_eq!(shape["flags"], 12);
-    assert_eq!(shape["declaration"], "137.177./src/main.ts");
+    assert_eq!(shape["declaration"], "137.178./src/main.ts");
     assert_eq!(
         names(&ask(
             "getParametersOfSignature",
@@ -191,7 +191,7 @@ fn signatures_of_types_and_their_parts() {
         json!({ "objectId": asserts["id"] }),
     );
     assert_eq!(this["name"], "this");
-    assert_eq!(this["declarations"], json!(["92.170./src/main.ts"]));
+    assert_eq!(this["declarations"], json!(["92.171./src/main.ts"]));
     assert_eq!(asserts["thisParameter"], this["id"]);
 }
 
@@ -275,17 +275,17 @@ fn resolved_and_declaration_signatures() {
         ask(&session, &base, method, json!({ "location": location }))
     };
     // `over("a")` resolves to the first overload.
-    let resolved = node("getResolvedSignature", "202.214./src/main.ts");
-    assert_eq!(resolved["declaration"], "3.263./src/main.ts");
+    let resolved = node("getResolvedSignature", "202.215./src/main.ts");
+    assert_eq!(resolved["declaration"], "3.264./src/main.ts");
     let first = &signatures_of(&session, &base, "over(x: any", 0)[0];
     assert_eq!(resolved["id"], first["id"]);
     // An import call is untyped: the any signature, which has no declaration.
-    let untyped = node("getResolvedSignature", "207.214./src/main.ts");
+    let untyped = node("getResolvedSignature", "207.215./src/main.ts");
     assert_eq!(untyped["flags"], 0);
     assert!(untyped.get("declaration").is_none() && untyped.get("parameters").is_none());
     // An index signature's declaration has a signature too.
-    let index = node("getSignatureFromDeclaration", "170.182./src/main.ts");
-    assert_eq!(index["declaration"], "170.182./src/main.ts");
+    let index = node("getSignatureFromDeclaration", "170.183./src/main.ts");
+    assert_eq!(index["declaration"], "170.183./src/main.ts");
     let parameters = ask(
         &session,
         &base,
@@ -300,7 +300,7 @@ fn resolved_and_declaration_signatures() {
         json!({ "objectId": index["id"] }),
     );
     assert_eq!(type_text(&session, &base, &returns), "number");
-    let constructor = node("getSignatureFromDeclaration", "137.177./src/main.ts");
+    let constructor = node("getSignatureFromDeclaration", "137.178./src/main.ts");
     assert_eq!(constructor["flags"], 12);
     // Other nodes panic as tsgo's do.
     let batch_error = |method: &str, location: &str| {
@@ -320,7 +320,7 @@ fn resolved_and_declaration_signatures() {
         "panic: runtime error: invalid memory address or nil pointer dereference"
     );
     assert_eq!(
-        batch_error("getResolvedSignature", "193.261./src/main.ts"),
+        batch_error("getResolvedSignature", "193.262./src/main.ts"),
         "panic: Unhandled case in resolveSignature"
     );
 }
@@ -338,15 +338,15 @@ fn names_resolve_at_nodes_and_positions() {
     };
     assert_eq!(
         at_inner("inner", VALUE),
-        Some((json!("inner"), json!("193.261./src/main.ts")))
+        Some((json!("inner"), json!("193.262./src/main.ts")))
     );
     assert_eq!(
         at_inner("param", VALUE),
-        Some((json!("param"), json!("185.170./src/main.ts")))
+        Some((json!("param"), json!("185.171./src/main.ts")))
     );
     assert_eq!(
         at_inner("local", VALUE),
-        Some((json!("local"), json!("179.261./src/main.ts")))
+        Some((json!("local"), json!("179.262./src/main.ts")))
     );
     assert!(at_inner("Array", TYPE).is_some());
     assert_eq!(at_inner("missing", VALUE), None);
@@ -363,7 +363,7 @@ fn names_resolve_at_nodes_and_positions() {
     assert!(at("local", paren).is_some());
     assert_eq!(
         at("param", paren + 1),
-        Some((json!("param"), json!("185.170./src/main.ts")))
+        Some((json!("param"), json!("185.171./src/main.ts")))
     );
     // Without a location only the globals are in scope.
     let global = |name: &str, exclude: bool| {
@@ -472,17 +472,17 @@ fn node_builder_results_are_tsgos_encodings() {
     let generic = type_of(&session, &base, "generic<", false);
     assert_eq!(
         data("typeToTypeNode", json!({ "type": generic["id"] })),
-        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAGAAAABoAAAAaAAAAGgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAYAAAAGAAAABwAAAAcAAAAIAAAAVHZhbHVlVFQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAuQAAAP//////////AAAAAAAAAAAHAAAAEAAAAP///////////////wYAAAABAAAAAQAAAAAAAACpAAAA//////////8AAAAAAgAAAAYAAAAQAAAATwAAAP//////////BQAAAAMAAAAAAABAEAAAAJcAAAD//////////wAAAAADAAAAAAAAAAAAAAD///////////////8LAAAAAQAAAAEAAAAAAAAAqgAAAP//////////AAAAAAYAAAAUAAAAEAAAAE8AAAD//////////wkAAAAHAAAAAgAAQAAAAAC4AAAA//////////8AAAAABwAAAAEAAAAQAAAATwAAAP//////////AAAAAAkAAAAEAABAEAAAALgAAAD//////////wAAAAABAAAAAQAAABAAAABPAAAA//////////8AAAAACwAAAAYAAEAQAAAA"
+        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAGAAAABoAAAAaAAAAGgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAYAAAAGAAAABwAAAAcAAAAIAAAAVHZhbHVlVFQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAugAAAP//////////AAAAAAAAAAAHAAAAEAAAAP///////////////wYAAAABAAAAAQAAAAAAAACqAAAA//////////8AAAAAAgAAAAYAAAAQAAAATwAAAP//////////BQAAAAMAAAAAAABAEAAAAJcAAAD//////////wAAAAADAAAAAAAAAAAAAAD///////////////8LAAAAAQAAAAEAAAAAAAAAqwAAAP//////////AAAAAAYAAAAUAAAAEAAAAE8AAAD//////////wkAAAAHAAAAAgAAQAAAAAC5AAAA//////////8AAAAABwAAAAEAAAAQAAAATwAAAP//////////AAAAAAkAAAAEAABAEAAAALkAAAD//////////wAAAAABAAAAAQAAABAAAABPAAAA//////////8AAAAACwAAAAYAAEAQAAAA"
     );
     // `(a: string, b?: number | undefined) => string`, without truncation.
     let arrow = type_of(&session, &base, "arrow =", false);
     assert_eq!(
         data("typeToTypeNode", json!({ "type": arrow["id"], "flags": 1 })),
-        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFAAAABSAAAAUgAAAFIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAIAAABhYgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC5AAAA//////////8AAAAAAAAAAAYAAAAQAAAA////////////////DQAAAAEAAAACAAAAAAAAAKoAAAD//////////wYAAAACAAAAFAAAABAAAABPAAAA//////////8FAAAAAwAAAAAAAEAAAAAAmgAAAP//////////AAAAAAMAAAAAAAAAEAAAAKoAAAD//////////wAAAAACAAAAHAAAABAAAABPAAAA//////////8IAAAABgAAAAIAAEAAAAAAOQAAAP//////////CQAAAAYAAAAAAAAAEAAAAMEAAAD//////////wAAAAAGAAAAAQAAABAAAAD///////////////8AAAAACQAAAAIAAAAAAAAAlgAAAP//////////DAAAAAoAAAAAAAAAEAAAAJ0AAAD//////////wAAAAAKAAAAAAAAABAAAACaAAAA//////////8AAAAAAQAAAAAAAAAQAAAA"
+        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFAAAABSAAAAUgAAAFIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAIAAABhYgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC6AAAA//////////8AAAAAAAAAAAYAAAAQAAAA////////////////DQAAAAEAAAACAAAAAAAAAKsAAAD//////////wYAAAACAAAAFAAAABAAAABPAAAA//////////8FAAAAAwAAAAAAAEAAAAAAmgAAAP//////////AAAAAAMAAAAAAAAAEAAAAKsAAAD//////////wAAAAACAAAAHAAAABAAAABPAAAA//////////8IAAAABgAAAAIAAEAAAAAAOQAAAP//////////CQAAAAYAAAAAAAAAEAAAAMIAAAD//////////wAAAAAGAAAAAQAAABAAAAD///////////////8AAAAACQAAAAIAAAAAAAAAlgAAAP//////////DAAAAAoAAAAAAAAAEAAAAJ0AAAD//////////wAAAAAKAAAAAAAAABAAAACaAAAA//////////8AAAAAAQAAAAAAAAAQAAAA"
     );
     // A class's declared type is its name.
     let fluent = type_of(&session, &base, "Fluent {", true);
-    let fluent_node = "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAEgAAABOAAAATgAAAE4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAARmx1ZW50AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALgAAAD//////////wAAAAAAAAAAAQAAABAAAABPAAAA//////////8AAAAAAQAAAAAAAEAQAAAA";
+    let fluent_node = "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAEgAAABOAAAATgAAAE4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAARmx1ZW50AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALkAAAD//////////wAAAAAAAAAAAQAAABAAAABPAAAA//////////8AAAAAAQAAAAAAAEAQAAAA";
     assert_eq!(
         data("typeToTypeNode", json!({ "type": fluent["id"] })),
         fluent_node
@@ -492,18 +492,18 @@ fn node_builder_results_are_tsgos_encodings() {
     assert_eq!(
         data(
             "signatureToSignatureDeclaration",
-            json!({ "signature": over["id"], "kind": 220 })
+            json!({ "signature": over["id"], "kind": 221 })
         ),
-        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAEgAAABJAAAASQAAAEkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADcAAAA//////////8AAAAAAAAAACwAAAAQAAAA////////////////BgAAAAEAAAABAAAAAAAAAKoAAAD//////////wAAAAACAAAAFAAAABAAAABPAAAA//////////8FAAAAAwAAAAAAAEAAAAAAmgAAAP//////////AAAAAAMAAAAAAAAAEAAAAJoAAAD//////////wcAAAABAAAAAAAAABAAAADyAAAA//////////8AAAAAAQAAAAEAAAAQAAAA////////////////AAAAAAcAAAAAAAAAAAAAAA=="
+        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAEgAAABJAAAASQAAAEkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADdAAAA//////////8AAAAAAAAAACwAAAAQAAAA////////////////BgAAAAEAAAABAAAAAAAAAKsAAAD//////////wAAAAACAAAAFAAAABAAAABPAAAA//////////8FAAAAAwAAAAAAAEAAAAAAmgAAAP//////////AAAAAAMAAAAAAAAAEAAAAJoAAAD//////////wcAAAABAAAAAAAAABAAAADzAAAA//////////8AAAAAAQAAAAEAAAAQAAAA////////////////AAAAAAcAAAAAAAAAAAAAAA=="
     );
     // A method signature with an empty name and a rest parameter.
     let rest = &signatures_of(&session, &base, "rest(", 0)[0];
     assert_eq!(
         data(
             "signatureToSignatureDeclaration",
-            json!({ "signature": rest["id"], "kind": 174 })
+            json!({ "signature": rest["id"], "kind": 175 })
         ),
-        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFgAAABdAAAAXQAAAF0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAABAAAABQAAAGFtb3JlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK4AAAD//////////wAAAAAAAAAAMgAAABAAAABPAAAA//////////8DAAAAAQAAAAAAAEAQAAAA////////////////DAAAAAEAAAACAAAAAAAAAKoAAAD//////////wcAAAADAAAAFAAAABAAAABPAAAA//////////8GAAAABAAAAAIAAEAAAAAAlgAAAP//////////AAAAAAQAAAAAAAAAEAAAAKoAAAD//////////wAAAAADAAAAFgAAABAAAAAZAAAA//////////8JAAAABwAAAAAAAAAQAAAATwAAAP//////////CgAAAAcAAAAEAABAAAAAAL0AAAD//////////wAAAAAHAAAAAQAAABAAAACaAAAA//////////8AAAAACgAAAAAAAAAQAAAAcwAAAP//////////AAAAAAEAAAAAAAAAEAAAAA=="
+        "AAAACQAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFgAAABdAAAAXQAAAF0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAABAAAABQAAAGFtb3JlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK8AAAD//////////wAAAAAAAAAAMgAAABAAAABPAAAA//////////8DAAAAAQAAAAAAAEAQAAAA////////////////DAAAAAEAAAACAAAAAAAAAKsAAAD//////////wcAAAADAAAAFAAAABAAAABPAAAA//////////8GAAAABAAAAAIAAEAAAAAAlgAAAP//////////AAAAAAQAAAAAAAAAEAAAAKsAAAD//////////wAAAAADAAAAFgAAABAAAAAZAAAA//////////8JAAAABwAAAAAAAAAQAAAATwAAAP//////////CgAAAAcAAAAEAABAAAAAAL4AAAD//////////wAAAAAHAAAAAQAAABAAAACaAAAA//////////8AAAAACgAAAAAAAAAQAAAAcwAAAP//////////AAAAAAEAAAAAAAAAEAAAAA=="
     );
     // A kind tsgo's helper does not handle panics, as tsgo's API answers.
     let batch = ask(

@@ -132,7 +132,7 @@ the [type-check example](crates/compiler/examples/type_check.rs):
 ```sh
 cargo run --locked --manifest-path crates/compiler/Cargo.toml --example type_check -- \
   examples/type-check/tsconfig.json \
-  vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs
+  vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs
 ```
 
 Guide: [docs/rust-api.md](docs/rust-api.md).

@@ -259,7 +259,7 @@ fn checked_js_module_overload_tags_participate_in_implementation_compatibility()
 fn checked_js_global_script_does_not_check_jsdoc_overloads_as_local_symbol_overloads() {
     let fixture = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/jsdoc/templateInsideCallback.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/jsdoc/templateInsideCallback.ts"
     ));
     let text = fixture
         .split_once("// @filename: templateInsideCallback.js\n")

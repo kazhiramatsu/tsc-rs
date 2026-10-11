@@ -1,6 +1,6 @@
 use super::*;
 
-const PROFILE: &str = "7.1.0-dev-19dadef8";
+const PROFILE: &str = "7.1.0-dev-aa814927";
 
 fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")

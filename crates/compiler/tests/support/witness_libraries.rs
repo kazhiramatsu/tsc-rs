@@ -7,7 +7,7 @@ pub(crate) fn files() -> &'static [(String, Vec<u8>)] {
     static FILES: OnceLock<Vec<(String, Vec<u8>)>> = OnceLock::new();
     FILES.get_or_init(|| {
         let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs",
+            "../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs",
         );
         let mut files = Vec::new();
         for entry in std::fs::read_dir(directory).expect("vendored TypeScript libraries") {

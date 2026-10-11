@@ -307,7 +307,7 @@ def update_ratchet(path, results):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--profile", default="7.1.0-dev-19dadef8")
+    parser.add_argument("--profile", default="7.1.0-dev-aa814927")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--timeout", type=float, default=120.0)
     parser.add_argument("--max-rss-mib", type=int, default=3072)

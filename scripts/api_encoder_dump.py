@@ -32,7 +32,7 @@ import typescript7  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "scripts/api_encoder_dump/main.go"
 FIXTURES = ROOT / "crates/api/tests/fixtures/tsgo"
-DEFAULT_PROFILE = "7.1.0-dev-19dadef8"
+DEFAULT_PROFILE = "7.1.0-dev-aa814927"
 HEX_LINE = 32
 
 

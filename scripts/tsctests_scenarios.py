@@ -29,7 +29,7 @@ import typescript7  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OVERLAY = ROOT / "scripts/tsctests_dump/tsrs_dump_test.go"
-DEFAULT_PROFILE = "7.1.0-dev-19dadef8"
+DEFAULT_PROFILE = "7.1.0-dev-aa814927"
 # The tests that run scenarios (tscInput.run), watch mode included; the
 # watcher race tests drive a watcher directly and write no baseline.
 RUN = ("^(TestTsc|TestBuild|TestShowConfig|TestForceConsistentCasingInFileNames|TestGenerateTrace"

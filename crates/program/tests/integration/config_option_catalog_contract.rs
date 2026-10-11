@@ -178,7 +178,7 @@ fn structured_metadata_and_the_shared_lib_map_match_typescript_7_1() {
     }
 
     let libraries = TYPESCRIPT_7_1_LIBRARIES;
-    assert_eq!(libraries.len(), 115);
+    assert_eq!(libraries.len(), 116);
     assert_eq!(
         (libraries[0].name(), libraries[0].value()),
         ("es5", "lib.es5.d.ts")
@@ -188,7 +188,7 @@ fn structured_metadata_and_the_shared_lib_map_match_typescript_7_1() {
         ("es6", "lib.es2015.d.ts")
     );
     assert_eq!(
-        (libraries[114].name(), libraries[114].value()),
+        (libraries[115].name(), libraries[115].value()),
         ("decorators.legacy", "lib.decorators.legacy.d.ts")
     );
     let lib = compiler_option_declaration("lib")

@@ -12,7 +12,7 @@ mod gen;
 
 pub(crate) use gen::{
     deprecated_keys, elements, enum_map, BUILD_OPTION, COMMON_OPTIONS_WITH_BUILD,
-    COMPILER_OPTION_FIELDS, OPTIONS_FOR_BUILD, OPTIONS_FOR_COMPILER, OPTIONS_FOR_WATCH,
+    COMPILER_OPTION_FIELDS, OPTIONS_FOR_BUILD, OPTIONS_FOR_COMPILER,
 };
 
 /// tsgo `CommandLineOptionKind`.

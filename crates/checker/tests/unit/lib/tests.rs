@@ -3100,7 +3100,7 @@ fn discriminated_destructuring_sibling_still_narrows() {
 fn full_lib_bundle(target_libs: &[&str]) -> Vec<InputFile> {
     let base = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs/"
     );
     target_libs
         .iter()
@@ -3273,7 +3273,7 @@ fn async_iteration_fixture_reports_no_spurious_2322() {
     };
     let text = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/controlFlow/controlFlowIterationErrorsAsync.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/controlFlow/controlFlowIterationErrorsAsync.ts"
     ))
     .expect("fixture")
     .lines()
@@ -6679,7 +6679,7 @@ fn skip_lib_check_preserves_syntax_errors_and_skips_semantic_errors() {
 fn es5_lib() -> InputFile {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs/lib.es5.d.ts"
     );
     InputFile::new(
         "lib.es5.d.ts".to_owned(),
@@ -6837,7 +6837,7 @@ fn check_program_includes_parse_diagnostics() {
 fn merged_lib_interface_type_parameters_unify() {
     let vendor = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs/"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs/"
     );
     let lib = |name: &str| {
         InputFile::new(

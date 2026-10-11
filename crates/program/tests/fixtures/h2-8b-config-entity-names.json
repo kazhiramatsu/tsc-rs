@@ -1,7 +1,7 @@
 {
   "version": 2,
   "slice": "H2.8b-CFG1g",
-  "typescript": "7.1.0-dev-19dadef8",
+  "typescript": "7.1.0-dev-aa814927",
   "source_commit": "19dadef8888ba5b27d8b9f622480745cf623e020",
   "source": {
     "observer": "tsc-rs parse_config_root_plan, recorded by the fixture test's observe() (the removed-option rows follow tsgo program.go verifyCompilerOptions \"Removed in TS7\" at the vendored commit)",

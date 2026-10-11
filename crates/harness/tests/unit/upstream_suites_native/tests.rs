@@ -167,7 +167,7 @@ fn an_unsupported_option_inherited_through_extends_skips_the_configuration() {
 fn the_tsconfig_unit_of_the_package_id_case_is_found() {
     let content = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/compiler/moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts"
+        "/../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/compiler/moduleResolutionPackageIdWithRelativeAndAbsolutePath.ts"
     ))
     .unwrap();
     let (units, _) = compiler::make_units_from_test(&content, "x.ts").unwrap();

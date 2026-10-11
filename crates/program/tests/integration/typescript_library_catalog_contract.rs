@@ -22,10 +22,10 @@ fn generous_library_limits() -> ProgramLoadLimits {
 fn vendored_typescript_7_1_library_closures_match_the_pinned_catalog() {
     let host = FsCompilerHost::from_process().expect("construct filesystem compiler host");
     let catalog = LibraryCatalog::typescript_7_1(workspace_path(
-        "vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs",
+        "vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs",
     ));
     let root = workspace_path(
-        "vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/testdata/tests/cases/conformance/interfaces/declarationMerging/mergeTwoInterfaces.ts",
+        "vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/testdata/tests/cases/conformance/interfaces/declarationMerging/mergeTwoInterfaces.ts",
     );
     let profiles = [
         (

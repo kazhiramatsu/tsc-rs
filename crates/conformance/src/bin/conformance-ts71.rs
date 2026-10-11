@@ -21,7 +21,7 @@ use tsc_conformance::ts71::{list, report_path, run, run_worker, summarize, RunOp
 
 fn main() {
     let mut options = RunOptions {
-        profile: "7.1.0-dev-19dadef8".to_owned(),
+        profile: "7.1.0-dev-aa814927".to_owned(),
         filter: None,
         case: None,
         threads: std::thread::available_parallelism().map_or(2, |n| n.get().min(8)),

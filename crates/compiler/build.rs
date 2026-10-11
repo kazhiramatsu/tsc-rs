@@ -3,11 +3,11 @@ use std::fs;
 use std::path::PathBuf;
 
 /// TypeScript 7.1's embedded standard libraries (`tsc/internal/bundled/libs`
-/// at the vendored native profile): 112 catalog files plus the compatibility
+/// at the vendored native profile): 115 catalog files plus the compatibility
 /// `lib.d.ts` entry.
 const LIBRARY_DIRECTORY: &str =
-    "../../vendor/typescript-native/7.1.0-dev-19dadef8/upstream/tsc/internal/bundled/libs";
-const EXPECTED_LIBRARY_FILES: usize = 113;
+    "../../vendor/typescript-native/7.1.0-dev-aa814927/upstream/tsc/internal/bundled/libs";
+const EXPECTED_LIBRARY_FILES: usize = 116;
 
 fn main() {
     let manifest_directory = PathBuf::from(
