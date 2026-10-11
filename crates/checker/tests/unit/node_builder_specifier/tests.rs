@@ -310,6 +310,10 @@ fn reuses_existing_parse_tree_specifier_when_reason_and_modes_match() {
 
         assert_eq!(specifier, "chosen-package/subpath");
 
+        // tsgo getSpecifierForModuleSymbol takes the enclosing declaration's
+        // mode from Program.GetModeForUsageLocation, which the checker
+        // answers: the host's mode at the import's index does not change it,
+        // so the existing specifier is still reused.
         host.index_modes.insert(0, EmitResolutionMode::EsNext);
         let declaration_mode_specifier = get_specifier_for_module_symbol(
             state,
@@ -322,7 +326,7 @@ fn reuses_existing_parse_tree_specifier_when_reason_and_modes_match() {
         )
         .expect("enclosing-declaration resolution mode")
         .specifier;
-        assert_eq!(declaration_mode_specifier, "./target.js");
+        assert_eq!(declaration_mode_specifier, "chosen-package/subpath");
     });
 }
 

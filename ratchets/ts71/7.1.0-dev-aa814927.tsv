@@ -687,7 +687,7 @@ compiler/circularlyConstrainedMappedTypeContainingConditionalNoInfiniteInstantia
 compiler/circularlyReferentialInterfaceAccessNoCrash	full	js	full	full	full	full
 compiler/circularlySimplifyingConditionalTypesNoCrash	full	js	full	full	full	full
 compiler/cjsExportClassExpressionNameConflict	full	js	full	full	full	full
-compiler/cjsExportGenericTypes	full	js	none	full	full	full
+compiler/cjsExportGenericTypes	full	js	full	full	full	full
 compiler/cjsExportNamedClassExpressionNoAssignment	full	js	full	full	full	full
 compiler/cjsExportsDuplication	full	js	full	full	full	full
 compiler/cjsObjectDefinePropertyPrivateModuleDeclarationEmit	full	js	full	full	full	full
@@ -706,6 +706,7 @@ compiler/classDeclarationShouldBeOutOfScopeInComputedNames	full	js	full	full	ful
 compiler/classDeclaredBeforeClassFactory	full	js	full	full	full	full
 compiler/classExpressionAssignment	full	js	full	full	full	full
 compiler/classExpressionExtendingAbstractClass	full	js	full	full	full	full
+compiler/classExpressionInClassStaticDeclarations	full	js	full	full	full	full
 compiler/classExpressionNames	full	js	full	full	full	full
 compiler/classExpressionPropertyModifiers	full	js	none	none	full	full
 compiler/classExpressionTest1	full	js	full	full	full	full
@@ -1522,6 +1523,7 @@ compiler/declFileTypeAnnotationVisibilityErrorTypeLiteral(target=es2015)	full	js
 compiler/declFileTypeAnnotationVisibilityErrorVariableDeclaration(target=es2015)	full	js	full	full	full	full
 compiler/declFileTypeofClass	full	js	full	full	full	full
 compiler/declFileTypeofEnum	full	js	full	full	full	full
+compiler/declFileTypeofFunction	full	js	full	full	full	full
 compiler/declFileTypeofInAnonymousType	full	js	full	full	full	full
 compiler/declFileTypeofModule	full	js	full	full	full	full
 compiler/declFileWithClassNameConflictingWithClassReferredByExtendsClause	full	js	full	full	full	full
@@ -1539,7 +1541,7 @@ compiler/declarationEmitAliasExportStar	full	js	full	full	full	full
 compiler/declarationEmitAliasFromIndirectFile	full	js	full	full	full	full
 compiler/declarationEmitAliasInlineing	full	js	full	full	full	full
 compiler/declarationEmitAliasesOfArrowsWillingToUseTypeof	full	js	full	full	full	full
-compiler/declarationEmitAlternativeContainingModules	full	js	none	full	full	full
+compiler/declarationEmitAlternativeContainingModules	full	js	full	full	full	full
 compiler/declarationEmitAnyComputedPropertyInClass	full	js	full	full	full	full
 compiler/declarationEmitArrayTypesFromGenericArrayUsage	full	js	full	full	full	full
 compiler/declarationEmitArrowFunctionNoRenaming	full	js	full	full	full	full
@@ -1598,7 +1600,12 @@ compiler/declarationEmitDefaultExport5	full	js	full	full	full	full
 compiler/declarationEmitDefaultExport6	full	js	full	full	full	full
 compiler/declarationEmitDefaultExport7	full	js	full	full	full	full
 compiler/declarationEmitDefaultExport8	full	js	full	full	full	full
+compiler/declarationEmitDefaultExportArrowFunctionPrivateName	full	js	full	full	full	full
+compiler/declarationEmitDefaultExportFunctionExpressionPrivateName	full	js	full	full	full	full
 compiler/declarationEmitDefaultExportWithStaticAssignment	full	js	full	full	full	full
+compiler/declarationEmitDefaultImportPrivateClass(module=commonjs)	full	js	full	full	full	full
+compiler/declarationEmitDefaultImportPrivateClass(module=nodenext)	full	js	full	full	full	full
+compiler/declarationEmitDefaultImportPrivateClass(module=preserve)	full	js	full	full	full	full
 compiler/declarationEmitDestructuring1	full	js	full	full	full	full
 compiler/declarationEmitDestructuring2	full	js	full	full	full	full
 compiler/declarationEmitDestructuring3	full	js	full	full	full	full
@@ -1636,6 +1643,9 @@ compiler/declarationEmitExpandoWithGenericConstraint	full	js	full	full	full	full
 compiler/declarationEmitExportAliasVisibiilityMarking	full	js	full	full	full	full
 compiler/declarationEmitExportAssignedNamespaceNoTripleSlashTypesReference	full	js	full	full	full	full
 compiler/declarationEmitExportAssignment(target=es2015)	full	js	full	full	full	full
+compiler/declarationEmitExportAssignmentWithTypeExports(module=commonjs)	full	js	full	full	full	full
+compiler/declarationEmitExportAssignmentWithTypeExports(module=nodenext)	full	js	full	full	full	full
+compiler/declarationEmitExportAssignmentWithTypeExports(module=preserve)	full	js	full	full	full	full
 compiler/declarationEmitExportDeclaration(target=es2015)	full	js	full	full	full	full
 compiler/declarationEmitExportValueSymbolWithTsIgnore	full	js	full	full	full	full
 compiler/declarationEmitExpressionInExtends	full	js	full	full	full	full
@@ -1672,6 +1682,7 @@ compiler/declarationEmitInferredObjectLiteralWithThis	full	js	full	full	full	ful
 compiler/declarationEmitInferredTypeAlias1	full	js	full	full	full	full
 compiler/declarationEmitInferredTypeAlias2	full	js	full	full	full	full
 compiler/declarationEmitInferredTypeAlias3	full	js	full	full	full	full
+compiler/declarationEmitInferredTypeAlias4	full	js	full	full	full	full
 compiler/declarationEmitInferredTypeAlias5	full	js	full	full	full	full
 compiler/declarationEmitInferredTypeAlias6	full	js	full	full	full	full
 compiler/declarationEmitInferredTypeAlias7	full	js	full	full	full	full
@@ -1693,7 +1704,7 @@ compiler/declarationEmitLambdaWithMissingTypeParameterNoCrash	full	js	full	full	
 compiler/declarationEmitLateBoundAssignments	full	js	full	full	full	full
 compiler/declarationEmitLateBoundAssignments2	full	js	full	full	full	full
 compiler/declarationEmitLateBoundJSAssignments	full	js	full	full	full	full
-compiler/declarationEmitLateExpandoAliasAddsExports	full	none	full	full	full	full
+compiler/declarationEmitLateExpandoAliasAddsExports	full	js	full	full	full	full
 compiler/declarationEmitLateVisibleExpandoFunction	full	js	full	full	full	full
 compiler/declarationEmitLocalClassDeclarationMixin	full	js	full	full	full	full
 compiler/declarationEmitLocalClassHasRequiredDeclare	full	js	full	full	full	full
@@ -1703,9 +1714,9 @@ compiler/declarationEmitMappedTypePreservesTypeParameterConstraint	full	js	full	
 compiler/declarationEmitMappedTypePropertyFromNumericStringKey	full	js	full	full	full	full
 compiler/declarationEmitMappedTypeTemplateTypeofSymbol	full	js	full	full	full	full
 compiler/declarationEmitMergedAliasWithConst	full	js	full	full	full	full
-compiler/declarationEmitMergedExportAlias(module=commonjs)	full	none	none	full	full	full
-compiler/declarationEmitMergedExportAlias(module=nodenext)	full	none	none	full	full	full
-compiler/declarationEmitMergedExportAlias(module=preserve)	full	none	none	full	full	full
+compiler/declarationEmitMergedExportAlias(module=commonjs)	full	js	full	full	full	full
+compiler/declarationEmitMergedExportAlias(module=nodenext)	full	js	full	full	full	full
+compiler/declarationEmitMergedExportAlias(module=preserve)	full	js	full	full	full	full
 compiler/declarationEmitMethodDeclaration	full	js	full	full	full	full
 compiler/declarationEmitMethodShadowsClassTypeParameter	full	js	full	full	full	full
 compiler/declarationEmitMixinPrivateProtected	full	js	full	full	full	full
@@ -1722,7 +1733,7 @@ compiler/declarationEmitNestedExpandoPropsRegression	full	js	full	full	full	full
 compiler/declarationEmitNestedGenerics	full	js	full	full	full	full
 compiler/declarationEmitNoCrashOnCommentCopiedFromOtherFile	full	js	full	full	full	full
 compiler/declarationEmitNoCrashOnCrossFileNode	full	js	full	full	full	full
-compiler/declarationEmitNoInvalidCommentReuse1	full	js	none	full	full	full
+compiler/declarationEmitNoInvalidCommentReuse1	full	js	full	full	full	full
 compiler/declarationEmitNoInvalidCommentReuse2	full	js	full	full	full	full
 compiler/declarationEmitNoInvalidCommentReuse3	full	js	full	full	full	full
 compiler/declarationEmitNoNonRequiredParens	full	js	full	full	full	full
@@ -1782,6 +1793,7 @@ compiler/declarationEmitShadowing	full	js	full	full	full	full
 compiler/declarationEmitShadowingInferNotRenamed	full	js	full	full	full	full
 compiler/declarationEmitSimpleComputedNames1	full	js	full	full	full	full
 compiler/declarationEmitSpreadStringlyKeyedEnum	full	js	full	full	full	full
+compiler/declarationEmitStaticMethodNonIdentifierNames	full	js	full	full	full	full
 compiler/declarationEmitStringEnumUsedInNonlocalSpread	full	js	full	full	full	full
 compiler/declarationEmitStringNamedPropertyConsistency	full	js	full	full	full	full
 compiler/declarationEmitStripInternalExpandoFunction	full	js	full	full	full	full
@@ -1795,9 +1807,9 @@ compiler/declarationEmitTopLevelNodeFromCrossFile2	full	js	full	full	full	full
 compiler/declarationEmitTransitiveImportOfHtmlDeclarationItem	full	js	full	full	full	full
 compiler/declarationEmitTripleSlashReferenceAmbientModule	full	js	none	none	full	full
 compiler/declarationEmitTupleRestSignatureLeadingVariadic	full	js	full	full	full	full
-compiler/declarationEmitTwoMergedExportAliases(module=commonjs)	full	none	none	none	full	full
-compiler/declarationEmitTwoMergedExportAliases(module=nodenext)	full	none	none	none	full	full
-compiler/declarationEmitTwoMergedExportAliases(module=preserve)	full	none	none	none	full	full
+compiler/declarationEmitTwoMergedExportAliases(module=commonjs)	full	js	full	full	full	full
+compiler/declarationEmitTwoMergedExportAliases(module=nodenext)	full	js	full	full	full	full
+compiler/declarationEmitTwoMergedExportAliases(module=preserve)	full	js	full	full	full	full
 compiler/declarationEmitTypeAliasTypeParameterExtendingUnknownSymbol	full	js	full	full	full	full
 compiler/declarationEmitTypeAliasWithTypeParameters1	full	js	full	full	full	full
 compiler/declarationEmitTypeAliasWithTypeParameters2	full	js	full	full	full	full
@@ -1817,6 +1829,7 @@ compiler/declarationEmitUnknownImport(target=es2015)	full	js	full	full	full	full
 compiler/declarationEmitUnknownImport2(target=es2015)	full	js	full	full	full	full
 compiler/declarationEmitUnnessesaryTypeReferenceNotAdded(target=es2015)	full	js	full	full	full	full
 compiler/declarationEmitUnsafeImportSymbolName	full	js	full	full	full	full
+compiler/declarationEmitUnserializableTypes	full	js	full	full	full	full
 compiler/declarationEmitUsingAlternativeContainingModules1	full	js	full	full	full	full
 compiler/declarationEmitUsingAlternativeContainingModules2	full	js	full	full	full	full
 compiler/declarationEmitUsingTypeAlias1	full	js	full	full	full	full
@@ -1851,6 +1864,7 @@ compiler/declarationsForFileShadowingGlobalNoError	full	js	full	full	full	full
 compiler/declarationsForIndirectTypeAliasReference	full	js	full	full	full	full
 compiler/declarationsForInferredTypeFromOtherFile	full	js	full	full	full	full
 compiler/declarationsIndirectGeneratedAliasReference	full	js	full	full	full	full
+compiler/declarationsWithRecursiveInternalTypesProduceUniqueTypeParams	full	js	full	full	full	full
 compiler/declareAlreadySeen	full	js	full	full	full	full
 compiler/declareClassInterfaceImplementation	full	js	full	full	full	full
 compiler/declareDottedExtend	full	js	full	full	full	full
@@ -2200,6 +2214,7 @@ compiler/emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES6	f
 compiler/emitBOM	full	js	full	full	full	full
 compiler/emitCapturingThisInTupleDestructuring1	full	js	full	full	full	full
 compiler/emitCapturingThisInTupleDestructuring2	full	js	full	full	full	full
+compiler/emitClassExpressionInDeclarationFile	full	js	full	full	full	full
 compiler/emitClassExpressionInDeclarationFile2	full	js	full	full	full	full
 compiler/emitClassMergedWithConstNamespaceNotElided	full	js	full	full	full	full
 compiler/emitCommentsOnlyFile	full	js	full	full	full	full
@@ -2605,8 +2620,8 @@ compiler/exportAssignmentInternalModule	full	js	full	full	full	full
 compiler/exportAssignmentMembersVisibleInAugmentation	full	js	full	full	full	full
 compiler/exportAssignmentMerging1	full	js	full	full	full	full
 compiler/exportAssignmentMerging10	full	js	full	full	full	full
-compiler/exportAssignmentMerging2	full	js	none	none	full	full
-compiler/exportAssignmentMerging3	full	js	none	none	full	full
+compiler/exportAssignmentMerging2	full	js	full	full	full	full
+compiler/exportAssignmentMerging3	full	js	full	full	full	full
 compiler/exportAssignmentMerging4	full	js	full	full	full	full
 compiler/exportAssignmentMerging5	full	js	full	full	full	full
 compiler/exportAssignmentMerging6	full	js	full	full	full	full
@@ -2882,6 +2897,7 @@ compiler/functionExpandoPropertyDeclaration	full	js	full	full	full	full
 compiler/functionExpressionAndLambdaMatchesFunction	full	js	full	full	full	full
 compiler/functionExpressionInWithBlock	full	js	full	full	full	full
 compiler/functionExpressionNames	full	js	none	full	full	full
+compiler/functionExpressionReturningItself	full	js	full	full	full	full
 compiler/functionExpressionShadowedByParams	full	js	full	full	full	full
 compiler/functionExpressionWithResolutionOfTypeNamedArguments01	full	js	full	full	full	full
 compiler/functionExpressionWithResolutionOfTypeOfSameName01	full	js	full	full	full	full
@@ -4826,7 +4842,7 @@ compiler/noCollisionThisExpressionAndLocalVarInProperty	full	js	full	full	full	f
 compiler/noCollisionThisExpressionAndVarInGlobal	full	js	full	full	full	full
 compiler/noCollisionThisExpressionInFunctionAndVarInGlobal	full	js	full	full	full	full
 compiler/noConstraintInReturnType1	full	js	full	full	full	full
-compiler/noCrashOnImportShadowing	full	js	none	full	full	full
+compiler/noCrashOnImportShadowing	full	js	full	full	full	full
 compiler/noCrashOnMixin	full	js	full	full	full	full
 compiler/noCrashOnMixin2	full	js	full	full	full	full
 compiler/noCrashOnMixin2_promoted	full	js	full	full	full	full
@@ -4889,6 +4905,7 @@ compiler/noImplicitReturnsWithProtectedBlocks2	full	js	full	full	full	full
 compiler/noImplicitReturnsWithProtectedBlocks3	full	js	full	full	full	full
 compiler/noImplicitReturnsWithoutReturnExpression	full	js	full	full	full	full
 compiler/noImplicitSymbolToString	full	js	full	full	full	full
+compiler/noImplicitThisBigThis	full	js	full	full	full	full
 compiler/noImplicitThisFunctions	full	js	full	full	full	full
 compiler/noInferCommonPropertyCheck1	full	js	full	full	full	full
 compiler/noInferUnionExcessPropertyCheck1	full	js	full	full	full	full
@@ -5466,7 +5483,7 @@ compiler/reachabilityChecksIgnored_promoted	full	js	full	full	full	full
 compiler/reachabilityChecksNoCrash1	full	js	full	full	full	full
 compiler/reactDefaultPropsInferenceSuccess	full	js	full	full	full	full
 compiler/reactHOCSpreadprops	full	js	full	full	full	full
-compiler/reactImportDropped	full	js	none	full	full	full
+compiler/reactImportDropped	full	js	full	full	full	full
 compiler/reactImportUnusedInNewJSXEmit(jsx=react-jsx)	full	js	full	full	full	full
 compiler/reactImportUnusedInNewJSXEmit(jsx=react-jsxdev)	full	js	full	full	full	full
 compiler/reactJsxReactResolvedNodeNext	full	js	full	full	full	full
@@ -5516,6 +5533,7 @@ compiler/recursiveConditionalCrash4	full	js	full	full	full	full
 compiler/recursiveConditionalEvaluationNonInfinite	full	js	full	full	full	full
 compiler/recursiveConditionalTypes	full	js	full	full	full	full
 compiler/recursiveConditionalTypes2	full	js	full	full	full	full
+compiler/recursiveContainerDeclarationSerialization	full	js	full	full	full	full
 compiler/recursiveExcessPropertyChecks	full	js	full	full	full	full
 compiler/recursiveExportAssignmentAndFindAliasedType1	full	js	full	full	full	full
 compiler/recursiveExportAssignmentAndFindAliasedType2	full	js	full	full	full	full
@@ -5562,7 +5580,7 @@ compiler/recursiveTypeComparison	full	js	full	full	full	full
 compiler/recursiveTypeComparison2	full	js	full	full	full	full
 compiler/recursiveTypeIdentity	full	js	full	full	full	full
 compiler/recursiveTypeInference	full	js	full	full	full	full
-compiler/recursiveTypeInference2	full	js	none	full	full	full
+compiler/recursiveTypeInference2	full	js	full	full	full	full
 compiler/recursiveTypeInferenceReturnTypeConstraint	full	js	full	full	full	full
 compiler/recursiveTypeParameterConstraintReferenceLacksTypeArgs	full	js	full	full	full	full
 compiler/recursiveTypeParameterReferenceError1	full	js	full	full	full	full
@@ -5713,6 +5731,7 @@ compiler/reuseInnerModuleMember	full	js	full	full	full	full
 compiler/reuseTypeAnnotationImportTypeInGlobalThisTypeArgument	full	js	none	none	full	full
 compiler/reverseInferenceInContextualInstantiation	full	js	full	full	full	full
 compiler/reverseMappedContravariantInference	full	js	full	full	full	full
+compiler/reverseMappedDeclarationSerialization	full	js	full	full	full	full
 compiler/reverseMappedIntersectionInference1	full	js	full	full	full	full
 compiler/reverseMappedIntersectionInference2	full	js	full	full	full	full
 compiler/reverseMappedPartiallyInferableTypes	full	js	full	full	full	full
@@ -7970,6 +7989,7 @@ conformance/commonJSAliasedExport	full	js	full	full	full	full
 conformance/commonJSImportAsPrimaryExpression	full	js	full	full	full	full
 conformance/commonJSImportClassTypeReference	full	js	full	full	full	full
 conformance/commonJSImportExportedClassExpression	full	js	full	full	full	full
+conformance/commonJSImportNestedClassTypeReference	full	js	full	full	full	full
 conformance/commonJSImportNotAsPrimaryExpression	full	js	full	full	full	full
 conformance/commonJSReexport	full	js	full	full	full	full
 conformance/commonJsImportBindingElementNarrowType	full	js	full	full	full	full
@@ -9086,7 +9106,7 @@ conformance/exportSpecifiers	full	js	full	full	full	full
 conformance/exportSpecifiers_js	full	js	full	full	full	full
 conformance/exportSpellingSuggestion	full	js	full	full	full	full
 conformance/exportStar(target=es2015)	full	js	full	full	full	full
-conformance/exportTypeMergedWithExportStarAsNamespace	full	js	none	none	full	full
+conformance/exportTypeMergedWithExportStarAsNamespace	full	js	full	full	full	full
 conformance/exportedAliasedEnumTag	full	js	full	full	full	full
 conformance/exportedEnumTypeAndValue	full	js	full	full	full	full
 conformance/exportsAndImports1	full	js	full	full	full	full
@@ -9489,7 +9509,7 @@ conformance/importDeferNamespace(module=nodenext)	full	js	full	full	full	full
 conformance/importDeferNamespace(module=preserve)	full	js	full	full	full	full
 conformance/importDeferTypeConflict1	full	js	full	full	full	full
 conformance/importDeferTypeConflict2	full	js	full	full	full	full
-conformance/importElisionConstEnumMerge1	full	js	none	full	full	full
+conformance/importElisionConstEnumMerge1	full	js	full	full	full	full
 conformance/importEmptyFromModuleNotExisted	full	js	full	full	full	full
 conformance/importEquals1	full	js	full	full	full	full
 conformance/importEquals2	full	js	full	full	full	full
@@ -12891,7 +12911,7 @@ conformance/twoMergedInterfacesWithDifferingOverloads2	full	js	full	full	full	fu
 conformance/typeAliases	full	js	full	full	full	full
 conformance/typeAliasesDoNotMerge	full	js	full	full	full	full
 conformance/typeAliasesForObjectTypes	full	js	full	full	full	full
-conformance/typeAndNamespaceExportMerge	full	js	none	none	full	full
+conformance/typeAndNamespaceExportMerge	full	js	full	full	full	full
 conformance/typeArgumentInference	full	js	full	full	full	full
 conformance/typeArgumentInferenceConstructSignatures	full	js	full	full	full	full
 conformance/typeArgumentInferenceErrors	full	js	full	full	full	full
@@ -13502,6 +13522,7 @@ conformance/variadicTuples1	full	js	full	full	full	full
 conformance/variadicTuples2	full	js	full	full	full	full
 conformance/variadicTuples3	full	js	full	full	full	full
 conformance/variance	full	js	full	full	full	full
+conformance/varianceAnnotations	full	js	full	full	full	full
 conformance/varianceAnnotationsWithCircularlyReferencesError	full	js	full	full	full	full
 conformance/verbatimModuleSyntaxAmbientConstEnum	full	js	none	none	full	full
 conformance/verbatimModuleSyntaxConstEnum	full	js	full	full	full	full

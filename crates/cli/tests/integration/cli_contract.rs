@@ -1632,8 +1632,9 @@ fn javascript_expandos_follow_tsgo() {
     // variable host becomes a new function declaration (without the
     // variable's JSDoc), a `@type` on an assignment types its member, a class
     // host keeps its class with a namespace after it, a generator keeps its
-    // `*`, and a script's hosts are global. The expected bytes are tsgo's for
-    // the same project.
+    // `*`, and a script's hosts are global; once a namespace gets an export
+    // declaration, its earlier members are exported too (#64545). The
+    // expected bytes are tsgo's for the same project.
     let tree = TempTree::new();
     fs::write(
         tree.path("module.js"),
@@ -1688,7 +1689,7 @@ fn javascript_expandos_follow_tsgo() {
         concat!(
             "export declare function format(value: number): string;\n",
             "export declare namespace format {\n",
-            "    var width: number;\n",
+            "    export var width: number;\n",
             "    export { undefined as label };\n",
             "    export { format as self };\n",
             "}\n",
@@ -6583,12 +6584,12 @@ fn declaration_alias_chains_try_the_earlier_declared_parent_like_tsgo() {
 }
 
 #[test]
-fn declaration_cached_type_copy_drops_the_elided_comment_like_tsgo() {
-    // A hit of the serialized type cache hands out DeepCloneNode's copy, and
-    // the clone hook copies an emit node without its synthetic comments
-    // (emitNode.copyFrom, printer/emitcontext.go:562-574): the second use of
-    // the cached literal writes its elided placeholders as plain `any`. tsc
-    // 6.0 merged the comments into the clone. The expected bytes are tsgo's.
+fn a_cyclic_class_expression_type_is_reported_like_tsgo() {
+    // tsgo (#64461) reports a cyclic structure met during declaration emit
+    // (createCyclicStructurePlaceholder), so a class expression whose
+    // members name the class is TS5088 and the declaration file is not
+    // written; before, the cycle was an elided placeholder. The expected
+    // bytes are tsgo's.
     let tree = TempTree::new();
     fs::write(
         tree.path("a.ts"),
@@ -6606,23 +6607,12 @@ fn declaration_cached_type_copy_drops_the_elided_comment_like_tsgo() {
     )
     .expect("write tsconfig.json");
     let output = run(&tree, &["--pretty", "false"]);
-    assert_eq!(output.status.code(), Some(0));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.status.code(), Some(1));
     assert_eq!(
-        fs::read_to_string(tree.path("out/a.d.ts")).expect("read out/a.d.ts"),
-        concat!(
-            "export declare var circularReference: {\n",
-            "    new (): {\n",
-            "        tags(c: /*elided*/ any): /*elided*/ any;\n",
-            "    };\n",
-            "    getTags(c: {\n",
-            "        tags(c: /*elided*/ any): /*elided*/ any;\n",
-            "    }): {\n",
-            "        tags(c: any): any;\n",
-            "    };\n",
-            "};\n",
-        )
+        String::from_utf8_lossy(&output.stdout),
+        "a.ts(1,12): error TS5088: The inferred type of 'circularReference' references a type with a cyclic structure which cannot be trivially serialized. A type annotation is necessary.\n"
     );
+    assert!(!tree.path("out/a.d.ts").exists());
 }
 
 #[test]

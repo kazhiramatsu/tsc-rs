@@ -180,7 +180,7 @@ tsbuild/extends/when-building-project-uses-reference-and-both-extend-config-with
 tsbuild/extends/when-building-solution-with-projects-extends-config-with-include.js	full
 tsbuild/fileDelete/deleted-file-without-composite.js	full
 tsbuild/fileDelete/detects-deleted-file.js	full
-tsbuild/incremental/reverse-mapped-declaration-consumption.js	none
+tsbuild/incremental/reverse-mapped-declaration-consumption.js	full
 tsbuild/inferredTypeFromMonorepoReference/inferred-type-from-referenced-project-that-references-another-project-in-monorepo.js	full
 tsbuild/inferredTypeFromTransitiveModule/inferred-type-from-transitive-module-with-isolatedModules.js	none
 tsbuild/inferredTypeFromTransitiveModule/inferred-type-from-transitive-module.js	none

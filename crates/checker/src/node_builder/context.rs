@@ -60,6 +60,9 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) bundled: bool,
     pub(crate) truncating: bool,
     pub(crate) reverse_mapped_stack: Option<Vec<SymbolId>>,
+    /// tsgo symbolDepth under a reverse mapped type's mapped declaration
+    /// (#64558), keyed by that declaration's raw node id.
+    pub(crate) reverse_mapped_depth: HashMap<u32, u32>,
     pub(crate) must_create_type_parameter_symbol_list: bool,
     pub(crate) type_parameter_symbol_list: Option<HashSet<SymbolId>>,
     pub(crate) must_create_type_parameters_names_lookups: bool,
@@ -160,7 +163,9 @@ impl NodeBuilderContext<'_> {
 
 /// The `serializedTypes` key: (enclosing declaration, its fake scope Block,
 /// type, NodeBuilderFlags bits, InternalNodeBuilderFlags bits).
-pub(crate) type SerializedTypeNodeKey = (NodeId, u32, TypeId, u32, u32);
+/// tsgo CompositeTypeCacheIdentity (with #64556's infer type parameters)
+/// under the enclosing declaration and fake scope.
+pub(crate) type SerializedTypeNodeKey = (NodeId, u32, TypeId, u32, u32, Vec<TypeId>);
 
 /// A `serializedTypes` entry: the built node plus the side effects a cache
 /// hit replays.
@@ -238,6 +243,7 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         bundled,
         truncating: false,
         reverse_mapped_stack: None,
+        reverse_mapped_depth: HashMap::default(),
         must_create_type_parameter_symbol_list: true,
         type_parameter_symbol_list: None,
         must_create_type_parameters_names_lookups: true,

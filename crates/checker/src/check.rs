@@ -5585,6 +5585,7 @@ impl<'a> CheckerState<'a> {
         no_type_reduction: bool,
     ) -> CheckResult<JsString> {
         let saved_visited = std::mem::take(&mut self.display_visited_types);
+        let saved_symbol_depth = std::mem::take(&mut self.display_symbol_depth);
         let saved_infer_type_parameters = std::mem::take(&mut self.display_infer_type_parameters);
         let saved_approximate_length = std::mem::replace(&mut self.display_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
@@ -5603,6 +5604,7 @@ impl<'a> CheckerState<'a> {
             .type_to_string_ex(ty, fully_qualified)
             .map(|text| truncate_type_string(text, self.options.no_error_truncation == Some(true)));
         self.display_visited_types = saved_visited;
+        self.display_symbol_depth = saved_symbol_depth;
         self.display_infer_type_parameters = saved_infer_type_parameters;
         self.display_approximate_length = saved_approximate_length;
         self.display_max_truncation_length = saved_max_truncation_length;
@@ -7287,12 +7289,31 @@ impl<'a> CheckerState<'a> {
         }
         // tsgo visitAndTransformType (#63969): once truncating, a type
         // with a symbol elides before its structure is built.
-        if self.tables.type_of(ty).symbol.is_some() && self.display_check_truncation_length() {
+        let symbol = self.tables.type_of(ty).symbol;
+        if symbol.is_some() && self.display_check_truncation_length() {
             return Ok(self.display_truncation_type_node());
+        }
+        // tsgo visitAndTransformType's symbol depth: a symbol nested more
+        // than ten deep elides, and (#64461) truncates the rest.
+        let depth = symbol.map(|symbol| {
+            (
+                symbol,
+                self.display_symbol_depth.get(&symbol).copied().unwrap_or(0),
+            )
+        });
+        if depth.is_some_and(|(_, old)| old > 10) {
+            self.display_truncating = true;
+            return Ok(self.display_truncation_type_node());
+        }
+        if let Some((symbol, old)) = depth {
+            self.display_symbol_depth.insert(symbol, old + 1);
         }
         self.display_visited_types.insert(ty);
         let result = self.type_node_from_object_type(ty, fully_qualified);
         self.display_visited_types.remove(&ty);
+        if let Some((symbol, old)) = depth {
+            self.display_symbol_depth.insert(symbol, old);
+        }
         result
     }
 
@@ -8211,9 +8232,10 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// isAccessible (50325-50330): identity (raw or merged) against
-    /// the alias-resolved view, the external-module rejection, then
-    /// qualifiability.
+    /// tsgo isAccessible (symbolaccessibility.go): the symbol is like the
+    /// table entry or its alias resolution (raw or merged), or like a
+    /// symbol along the resolution's own alias chain (#64573); then the
+    /// external-module rejection and qualifiability.
     fn symbol_chain_is_accessible(
         &mut self,
         symbol: SymbolId,
@@ -8226,8 +8248,32 @@ impl<'a> CheckerState<'a> {
         let Some(entry) = entry else {
             return Ok(false);
         };
-        let respect = resolved.unwrap_or(entry);
-        if symbol != respect && self.get_merged_symbol(symbol) != self.get_merged_symbol(respect) {
+        let merged = self.get_merged_symbol(symbol);
+        let mut like_symbols = resolved == Some(symbol)
+            || entry == symbol
+            || resolved.is_some_and(|resolved| self.get_merged_symbol(resolved) == merged)
+            || self.get_merged_symbol(entry) == merged;
+        if !like_symbols {
+            if let Some(mut alias) = resolved.filter(|&resolved| {
+                self.symbol_flags(resolved)
+                    .intersects(tsc_types::SymbolFlags::ALIAS)
+            }) {
+                let mut seen = std::collections::HashSet::new();
+                while self
+                    .symbol_flags(alias)
+                    .intersects(tsc_types::SymbolFlags::ALIAS)
+                    && seen.insert(alias)
+                {
+                    alias = self.resolve_alias(alias)?;
+                    alias = self.get_merged_symbol(alias);
+                    if alias == merged {
+                        like_symbols = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if !like_symbols {
             return Ok(false);
         }
         if self.symbol_has_external_module_declaration(entry) {
@@ -9329,30 +9375,28 @@ impl<'a> CheckerState<'a> {
                 return true;
             }
         }
-        const DEPTH: usize = 3;
-        if self.display_reverse_mapped_stack.len() < DEPTH {
+        // tsgo's condition (3): any of the last entries (indexes 0 through
+        // the inspection depth) from the property's own mapped type (tsc 6.0
+        // required each of the last three).
+        const MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH: usize = 3;
+        if self.display_reverse_mapped_stack.len() < MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH {
             return false;
         }
-        let mapped_type = self
-            .links
-            .symbol_cold()
-            .mapped_type
-            .get(property)
-            .expect("reverse-mapped properties carry mappedType");
-        let mapped_symbol = self.tables.type_of(mapped_type).symbol;
+        let mapped_symbol = |symbol: SymbolId| {
+            self.links
+                .symbol_cold()
+                .mapped_type
+                .get(symbol)
+                .and_then(|ty| self.tables.type_of(ty).symbol)
+        };
+        let Some(property_mapped_symbol) = mapped_symbol(property) else {
+            return false;
+        };
         self.display_reverse_mapped_stack
             .iter()
             .rev()
-            .take(DEPTH)
-            .all(|&stacked| {
-                let mapped = self
-                    .links
-                    .symbol_cold()
-                    .mapped_type
-                    .get(stacked)
-                    .expect("reverse-mapped properties carry mappedType");
-                self.tables.type_of(mapped).symbol == mapped_symbol
-            })
+            .take(MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH + 1)
+            .any(|&stacked| mapped_symbol(stacked) == Some(property_mapped_symbol))
     }
 
     /// tsc-port: addPropertyToElementList @6.0.3
@@ -9606,6 +9650,7 @@ impl<'a> CheckerState<'a> {
         kind: SliceSignatureKind,
     ) -> CheckResult<JsString> {
         let saved_visited = std::mem::take(&mut self.display_visited_types);
+        let saved_symbol_depth = std::mem::take(&mut self.display_symbol_depth);
         let saved_infer_type_parameters = std::mem::take(&mut self.display_infer_type_parameters);
         let saved_approximate_length = std::mem::replace(&mut self.display_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
@@ -9623,6 +9668,7 @@ impl<'a> CheckerState<'a> {
         let result =
             self.signature_to_string(signature, kind, None, /*fully_qualified*/ false);
         self.display_visited_types = saved_visited;
+        self.display_symbol_depth = saved_symbol_depth;
         self.display_infer_type_parameters = saved_infer_type_parameters;
         self.display_approximate_length = saved_approximate_length;
         self.display_max_truncation_length = saved_max_truncation_length;

@@ -156,3 +156,35 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 - ratchet は `--update` で 13,537 構成（新しい 25、上げた 6）。suites（`--check`）は 0 regressions で数は S1 と同じ。
 - **hosted と merge**：PR #742 の hosted run 38110517433（rust 9m56s、conformance (TypeScript 7.1) 12m52s、gates pass）。
   merge commit `da383c9e7`（2026-10-11）。
+
+## S3 declaration emit（2026-10-11）
+
+- **本家の 7 commit**（違う 29 stem、うち 3 は crash）：#64573（isAccessible：表の entry とその alias の解決に、raw と merged の
+  両方で比べて似ているか、解決の alias の鎖に沿って似ているか。11）、#64461（createCyclicStructurePlaceholder は循環ごとに循環の
+  構造を報告し、symbol の深さの上限は残りを truncate する。11、うち 1 は crash）、#64556（array と tuple は普通の reference の
+  identity で visitAndTransformType を通り、visited な型はそこで循環、cache の key に infer の型 parameter。2、うち 1 は crash）、
+  #63989（default export の accessibility の診断と error の fallback は、export する式がなる class／function の宣言も覆う。2、
+  診断の文脈が無いと報告していた）、#64558（reverse mapped の placeholder は表示だけ、declaration emit では全体を visit し、
+  mapped の宣言で深さ 100 まで。1）、#64469（下記。1）、#64545（alias のような expando の export は namespace の前の member も
+  export する。1）。
+- #64469 の index は速さの変更で、container は port の走査と同じ。test に要ったのは、囲む file の import の検索が、場所に対する
+  resolveExternalModule の mode（周りの import call・import／export 宣言・import-equals の module specifier）を使うこと：宣言する
+  module が re-export する module より前に残る。
+- **新しい test で分かった tsgo との違い**：shouldUsePlaceholderForProperty の条件 (3) は最後の 4 つのどれかが property の mapped
+  型から（tsc 6.0 は最後の 3 つ全て。node builder と表示の道の両方）。instantiation expression の型は `typeof` の node を試す間
+  visited にし、fallback は循環の placeholder で止まる（`.types` の writer が `declarationEmitUnserializableTypes` で 1 GiB の
+  stack を使い切っていた。`.types` の writer は node builder を使う）。getSpecifierForModuleSymbol の mode は囲む宣言の module
+  specifier から checker で取る（GetModeForUsageLocation。preserve の re-export は `.js` の末尾）。表示の道にも
+  visitAndTransformType の symbol の深さの上限。
+- **test**：JavaScript の expando の contract は tsgo の export された前の member に、cached copy の contract は循環する class 式の
+  TS5088（宣言 file は書かない）に、specifier の reuse の unit test は host から囲む宣言の mode を与えないように替えた。
+- **結果**（release build、`a5138c1eb`）：full の conformance（`--workers 2 --check`、485 s）は 0 regressions、39 構成が受け入れの
+  tier を上回る。errors full 13,536 → 13,557（mismatch 21 → 4、text 1）、emit mismatch 37 → 13、types mismatch 104 → 85、
+  symbols mismatch 56 → 49、sourcemap 11・trace 1、harness error 19 → 15（全て content mapper）。S2 の report と構成ごとに比べると
+  errors +21・emit +28・types +23・symbols +11・sourcemap +4・trace +4（前の harness error 4 が比べられるようになった）で、
+  下がった列は無い。上がった stem は slice の 29 の対象と types の 2（`declarationEmitNoInvalidCommentReuse1`、
+  `reactImportDropped`）。
+- **並列対照**（`--checkers 4`、`scripts/conformance_ts71_compare.py`）：15,335 構成が一致、違うのは記録済みの順序の 4 構成だけ
+  （partition で変わる crash は直った）。
+- ratchet は `--update` で 13,558 構成（新しい 21、上げた 18）。suites（`--check`）は 0 regressions、1 つ上がった
+  （`tsbuild/incremental/reverse-mapped-declaration-consumption`。#64558）ので `--update` で記録した（tsbuild 152 → 153）。
