@@ -3618,7 +3618,8 @@ fn path_is_absolute<'p>(path: impl Into<JsStr<'p>>) -> bool {
         .is_empty()
 }
 
-fn path_is_relative<'p>(path: impl Into<JsStr<'p>>) -> bool {
+/// tspath `PathIsRelative`: `.`, `..`, or a `./` or `../` prefix.
+pub(crate) fn path_is_relative<'p>(path: impl Into<JsStr<'p>>) -> bool {
     let path = path.into();
     matches!(path.as_str(), Some("." | ".."))
         || ["./", "../", ".\\", "..\\"]
