@@ -7,12 +7,14 @@
 
 use std::sync::Arc;
 
-use tsc_diagnostics::JsString;
+use tsc_diagnostics::{JsStr, JsString};
 
 use crate::config::{
     ConfigOption, ConfigTypedObjectProperty, ConfigTypedObjectShape, ConfigTypedOptionValue,
 };
-use crate::config_options::{named_value_in, CompilerOptionValueKind};
+use crate::config_options::{
+    named_value_in, CompilerOptionListElementKind, CompilerOptionValueKind,
+};
 use crate::{
     ConfigOptionBag, ConfigOptionValueState, ConfigRootPlan, ConfigTypedJsonValue,
     ConfigTypedListElement, ConfigTypedObjectValue, JsonValue,
@@ -522,27 +524,7 @@ pub fn compiler_options_bag(
             (FieldKind::String, Value::String(text)) => (!text.is_empty())
                 .then(|| ConfigTypedOptionValue::Json(JsonValue::String(text.as_str().into()))),
             (FieldKind::Enum, Value::Number(number)) if number.as_i64().is_some() => {
-                let spelling = number
-                    .as_i64()
-                    .and_then(|number| enum_spelling(field, number));
-                let converted = spelling.and_then(|spelling| {
-                    match crate::config_options::compiler_option_declaration(*field)?.value_kind() {
-                        CompilerOptionValueKind::Named(values) => named_value_in(values, spelling),
-                        _ => None,
-                    }
-                });
-                match (spelling, converted) {
-                    (Some(spelling), Some(converted)) => {
-                        bag.insert(ConfigOption {
-                            name: (*field).into(),
-                            value: JsonValue::String(spelling.into()),
-                            base_path: JsString::default(),
-                        });
-                        Some(ConfigTypedOptionValue::Json(JsonValue::from(converted)))
-                    }
-                    _ => (number.as_i64() != Some(0))
-                        .then(|| ConfigTypedOptionValue::Json(JsonValue::Number(number.clone()))),
-                }
+                api_enum_value(&mut bag, field, number.as_i64().unwrap_or_default())
             }
             (FieldKind::Int, Value::Number(number)) if number.as_i64().is_some() => Some(
                 ConfigTypedOptionValue::Json(JsonValue::Number(number.clone())),
@@ -591,6 +573,182 @@ pub fn compiler_options_bag(
         }
     }
     Ok(bag)
+}
+
+/// An option enum's tsgo number as the config converter stores it: by its
+/// name beside the converted value, or the number when tsgo's has no name;
+/// zero leaves the option unset.
+fn api_enum_value(
+    bag: &mut ConfigOptionBag,
+    field: &str,
+    number: i64,
+) -> Option<ConfigTypedOptionValue> {
+    let spelling = enum_spelling(field, number);
+    let converted = spelling.and_then(|spelling| {
+        match crate::config_options::compiler_option_declaration(field)?.value_kind() {
+            CompilerOptionValueKind::Named(values) => named_value_in(values, spelling),
+            _ => None,
+        }
+    });
+    match (spelling, converted) {
+        (Some(spelling), Some(converted)) => {
+            bag.insert(ConfigOption {
+                name: field.into(),
+                value: JsonValue::String(spelling.into()),
+                base_path: JsString::default(),
+            });
+            Some(ConfigTypedOptionValue::Json(JsonValue::from(converted)))
+        }
+        _ => (number != 0).then(|| ConfigTypedOptionValue::Json(JsonValue::Number(number.into()))),
+    }
+}
+
+/// tsgo `RawCompilerOptions.Finalize` (tsoptions/rawcompileroptions.go):
+/// the API's raw options as the program's. A declared option counts by its
+/// exact name (besides it only `configFilePath`, `allowNonTsExtensions` and
+/// `suppressOutputPathCheck`); a rooted path is resolved against
+/// `base_path`, `${configDir}` substituted; and a value is read as
+/// `ParseCompilerOptions` reads it: `null` leaves an option unset, a
+/// tristate is `true` or else `false`, a string, number or list element of
+/// another JSON type is dropped (a number truncated), and a plugin keeps
+/// its name. An option enum that is not a number is an error (tsgo panics).
+pub fn raw_compiler_options_bag(
+    options: &serde_json::Map<String, serde_json::Value>,
+    base_path: &str,
+) -> Result<ConfigOptionBag, String> {
+    use serde_json::Value;
+
+    let base_path = JsStr::from_str(base_path);
+    let resolve = |path: &str| {
+        let path = JsStr::from_str(path);
+        crate::js_path::normalized_config_dir_value_path(path, base_path)
+            .unwrap_or_else(|| crate::js_path::normalized_absolute_path(path, base_path))
+    };
+    let mut bag = ConfigOptionBag::default();
+    for (key, value) in options {
+        let declaration = crate::config_options::compiler_option_declaration(key);
+        let known = match declaration {
+            Some(declaration) => declaration.name() == key,
+            None => matches!(
+                key.as_str(),
+                "configFilePath" | "allowNonTsExtensions" | "suppressOutputPathCheck"
+            ),
+        };
+        let Some(&(field, kind)) = COMPILER_OPTIONS_FIELDS
+            .iter()
+            .find(|(field, _)| known && *field == key)
+        else {
+            continue;
+        };
+        let rooted = key == "configFilePath"
+            || declaration.is_some_and(|declaration| {
+                declaration.is_file_path()
+                    || matches!(
+                        declaration.value_kind(),
+                        CompilerOptionValueKind::List(list)
+                            if list.element_kind() == CompilerOptionListElementKind::FilePath
+                    )
+            });
+        let text = |value: &str| -> JsonValue {
+            if rooted {
+                JsonValue::String(resolve(value))
+            } else {
+                JsonValue::String(value.into())
+            }
+        };
+        let strings = |values: &[Value]| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(text)
+                .collect::<Vec<_>>()
+        };
+        let typed = match (kind, value) {
+            (_, Value::Null) => None,
+            (FieldKind::Tristate, value) => Some(ConfigTypedOptionValue::Json(JsonValue::Bool(
+                *value == Value::Bool(true),
+            ))),
+            (FieldKind::String, Value::String(value)) if !value.is_empty() => {
+                Some(ConfigTypedOptionValue::Json(text(value)))
+            }
+            (FieldKind::Enum, Value::Number(number)) => {
+                let number = number
+                    .as_i64()
+                    .or_else(|| number.as_f64().map(|number| number as i64))
+                    .unwrap_or_default();
+                api_enum_value(&mut bag, field, number)
+            }
+            (FieldKind::Enum, value) => {
+                return Err(format!(
+                    "interface conversion: interface {{}} is {}, not float64",
+                    go_dynamic_type(value)
+                ))
+            }
+            (FieldKind::Int, Value::Number(number)) => number
+                .as_i64()
+                .or_else(|| number.as_f64().map(|number| number as i64))
+                .map(|number| ConfigTypedOptionValue::Json(JsonValue::Number(number.into()))),
+            (FieldKind::StringList, Value::Array(values)) => Some(ConfigTypedOptionValue::List(
+                strings(values)
+                    .into_iter()
+                    .map(ConfigTypedListElement::Value)
+                    .collect(),
+            )),
+            (FieldKind::Paths, Value::Object(paths)) => {
+                let properties = paths
+                    .iter()
+                    .map(|(key, value)| {
+                        let values = match value {
+                            Value::Array(values) => strings(values),
+                            _ => Vec::new(),
+                        };
+                        ConfigTypedObjectProperty::new(
+                            key.as_str().into(),
+                            Some(ConfigTypedJsonValue::Array(
+                                values.into_iter().map(ConfigTypedJsonValue::Json).collect(),
+                            )),
+                        )
+                    })
+                    .collect();
+                Some(ConfigTypedOptionValue::Object(Arc::new(
+                    ConfigTypedObjectValue::new(ConfigTypedObjectShape::Object, properties, true),
+                )))
+            }
+            (FieldKind::Plugins, Value::Array(plugins)) => Some(ConfigTypedOptionValue::List(
+                plugins
+                    .iter()
+                    .map(|plugin| {
+                        let name = plugin
+                            .get("name")
+                            .and_then(Value::as_str)
+                            .filter(|name| plugin.is_object() && !name.is_empty());
+                        let mut import = serde_json::Map::new();
+                        if let Some(name) = name {
+                            import.insert("name".to_owned(), Value::String(name.to_owned()));
+                        }
+                        ConfigTypedListElement::Value(JsonValue::from(Value::Object(import)))
+                    })
+                    .collect(),
+            )),
+            _ => None,
+        };
+        if let Some(typed) = typed {
+            bag.insert_typed(field, Some(typed));
+        }
+    }
+    Ok(bag)
+}
+
+/// Go's dynamic type of a decoded JSON value (`any`).
+fn go_dynamic_type(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "nil",
+        serde_json::Value::Bool(_) => "bool",
+        serde_json::Value::Number(_) => "float64",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "[]interface {}",
+        serde_json::Value::Object(_) => "*collections.OrderedMap[string,interface {}]",
+    }
 }
 
 /// Go's name of a JSON value's kind (`jsontext.Kind`).

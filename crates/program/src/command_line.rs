@@ -897,6 +897,18 @@ pub fn command_line_program_inputs(
                 .collect::<Result<Vec<_>, _>>()?,
         );
     }
+    // Only the API's options carry `paths` here (it is a tsconfig option);
+    // without a declaring config they resolve from the current directory.
+    if let Some(mappings) = crate::config::path_mappings(bag) {
+        program_options = program_options.with_paths(mappings);
+    }
+    // tsgo `CompilerOptions.ConfigFilePath`, which only the API's options
+    // set here: the program's config path (its directory is the default
+    // root, for instance).
+    if let Some(path) = crate::config::config_option_string(bag, "configFilePath") {
+        program_options =
+            program_options.with_config_file_path(config_program_path(&path, case_sensitive)?);
+    }
     Ok((compiler_options, program_options))
 }
 

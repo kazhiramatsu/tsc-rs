@@ -489,6 +489,7 @@ pub struct ResolvedModule {
     original_path: Option<ProgramPath>,
     is_external_library_import: bool,
     resolved_using_ts_extension: bool,
+    is_custom_resolution: bool,
     package_id: Option<PackageId>,
 }
 
@@ -500,6 +501,7 @@ impl ResolvedModule {
             original_path: None,
             is_external_library_import: false,
             resolved_using_ts_extension: false,
+            is_custom_resolution: false,
             package_id: None,
         }
     }
@@ -531,6 +533,13 @@ impl ResolvedModule {
         self
     }
 
+    /// tsgo `ResolvedModule.IsCustomResolution`: a resolution the API
+    /// supplied (static or by callback).
+    pub fn with_custom_resolution(mut self, value: bool) -> Self {
+        self.is_custom_resolution = value;
+        self
+    }
+
     pub fn target(&self) -> &ResolvedModuleTarget {
         &self.target
     }
@@ -549,6 +558,10 @@ impl ResolvedModule {
 
     pub const fn resolved_using_ts_extension(&self) -> bool {
         self.resolved_using_ts_extension
+    }
+
+    pub const fn is_custom_resolution(&self) -> bool {
+        self.is_custom_resolution
     }
 
     pub fn package_id(&self) -> Option<&PackageId> {

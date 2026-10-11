@@ -275,6 +275,14 @@ pub fn parse_api_flags(
     if !callbacks.is_empty() {
         options.callbacks = callbacks.split(',').map(str::to_owned).collect();
     }
+    // tsgo `tspath.ToRootedDirectoryPath(flags.cwd, system.cwd)`: normalized,
+    // without a trailing separator.
+    options.current_directory = tsc_program::get_normalized_absolute_path(
+        tsc_diagnostics::JsStr::from_str(&options.current_directory),
+        tsc_diagnostics::JsStr::from_str(default_directory),
+    )
+    .to_string_lossy()
+    .into_owned();
     Ok(options)
 }
 

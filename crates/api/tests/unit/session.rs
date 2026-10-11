@@ -235,6 +235,77 @@ fn each_created_snapshot_starts_from_nothing() {
 }
 
 #[test]
+fn a_programs_raw_options_are_finalized_against_the_directory() {
+    // #64159's `RawCompilerOptions.Finalize`, pinned to tsgo aa8149273's
+    // response: rooted paths resolved against the server's directory
+    // (`${configDir}` too), an unknown option dropped, a tristate that is
+    // not `true` false, and `paths` resolved without a config.
+    let (session, _) = session_in(
+        "/work",
+        &[
+            (
+                "/src/index.ts",
+                r#"import { value } from "ba"; export { value };"#,
+            ),
+            ("/src/first.ts", "export const value = 1;"),
+            ("/src/fallback.ts", "export const value = 2;"),
+        ],
+    );
+    let response = call(
+        &session,
+        "createSnapshot",
+        json!({ "createPrograms": [{
+            "rootFiles": ["/src/index.ts"],
+            "compilerOptions": {
+                "noLib": true, "allowNonTsExtensions": true, "outDir": "dist",
+                "paths": { "*a": ["/src/first.ts"], "*": ["/src/fallback.ts"] },
+                "rootDirs": ["src", "generated"], "suppressOutputPathCheck": true,
+                "tsBuildInfoFile": "cache/build.tsbuildinfo",
+                "declarationDir": "${configDir}/types", "typeRoots": ["./types", "/abs/types"],
+                "configFilePath": "conf/tsconfig.json", "unknownOption": "x", "noImplicitAny": "yes",
+            },
+        }] }),
+    )
+    .unwrap();
+    assert_eq!(
+        response["projects"][0],
+        json!({
+            "id": "/dev/null/synthetic/1", "currentDirectory": "/work", "dirty": false,
+            "parsedCommandLine": {
+                "fileNames": ["/src/index.ts"],
+                "options": {
+                    "allowNonTsExtensions": true, "declarationDir": "/work/types",
+                    "noImplicitAny": false, "noLib": true, "outDir": "/work/dist",
+                    "paths": { "*a": ["/src/first.ts"], "*": ["/src/fallback.ts"] },
+                    "rootDirs": ["/work/src", "/work/generated"], "suppressOutputPathCheck": true,
+                    "tsBuildInfoFile": "/work/cache/build.tsbuildinfo",
+                    "typeRoots": ["/work/types", "/abs/types"],
+                    "configFilePath": "/work/conf/tsconfig.json",
+                },
+                "errors": [],
+            },
+        })
+    );
+    let project = json!({ "snapshot": response["snapshot"], "project": "/dev/null/synthetic/1" });
+    // `ba` matches `*a` first; the config file path puts the root under
+    // `/work/conf`.
+    assert_eq!(
+        call(&session, "getSourceFileNames", project.clone()).unwrap(),
+        json!(["/src/first.ts", "/src/index.ts"])
+    );
+    let mut params = project;
+    params["files"] = json!(["/src/index.ts"]);
+    let diagnostics = call(&session, "getSemanticDiagnostics", params).unwrap();
+    assert_eq!(
+        (diagnostics[0]["code"].clone(), diagnostics[0]["text"].clone()),
+        (
+            json!(6059),
+            json!("File '/src/first.ts' is not under 'rootDir' '/work/conf'. 'rootDir' is expected to contain all source files.")
+        )
+    );
+}
+
+#[test]
 fn created_programs_are_reported_in_order() {
     // TestCreateSnapshotCreatesPrograms.
     let a = "/home/projects/p/a.ts";
@@ -258,11 +329,12 @@ fn created_programs_are_reported_in_order() {
         json!(["/dev/null/synthetic/1", "/dev/null/synthetic/2"])
     );
     let projects = &response["projects"];
-    assert_eq!(projects[0]["configFileName"], "");
-    assert_eq!(projects[1]["configFileName"], "");
-    assert_eq!(projects[0]["rootFiles"], json!([a, b]));
-    assert_eq!(projects[0]["compilerOptions"]["strict"], true);
-    assert_eq!(projects[1]["rootFiles"], json!([b]));
+    // A synthetic program has no config file name (`omitzero`).
+    assert_eq!(projects[0].get("configFileName"), None);
+    assert_eq!(projects[1].get("configFileName"), None);
+    assert_eq!(projects[0]["parsedCommandLine"]["fileNames"], json!([a, b]));
+    assert_eq!(projects[0]["parsedCommandLine"]["options"]["strict"], true);
+    assert_eq!(projects[1]["parsedCommandLine"]["fileNames"], json!([b]));
     let snapshot = session.snapshot(1).unwrap();
     assert_eq!(snapshot.created_programs().len(), 2);
     for id in ids(&response) {
@@ -336,11 +408,11 @@ fn a_synthetic_program_is_configured_again() {
     .unwrap();
     assert_eq!(reconfigured["projects"][0]["id"], program);
     assert_eq!(
-        reconfigured["projects"][0]["rootFiles"],
+        reconfigured["projects"][0]["parsedCommandLine"]["fileNames"],
         json!(["/home/projects/p/b.ts"])
     );
     assert_eq!(
-        reconfigured["projects"][0]["compilerOptions"]["strict"],
+        reconfigured["projects"][0]["parsedCommandLine"]["options"]["strict"],
         true
     );
 }
@@ -538,7 +610,9 @@ fn a_configured_project_reports_its_parsed_config() {
         command_line["options"],
         json!({ "strict": true, "configFilePath": "/p/tsconfig.json" })
     );
-    assert_eq!(command_line["options"], project["compilerOptions"]);
+    // #64681 dropped the deprecated `rootFiles` and `compilerOptions`.
+    assert_eq!(project.get("rootFiles"), None);
+    assert_eq!(project.get("compilerOptions"), None);
     assert_eq!(command_line["compileOnSave"], false);
     assert_eq!(command_line.get("typeAcquisition"), None);
     assert_eq!(
@@ -605,9 +679,11 @@ fn a_file_no_project_has_has_no_default_project() {
 #[test]
 fn initialize_reports_the_file_system_and_directory() {
     let (session, _) = session_in("/work", &[]);
+    // #64159: tsgo's `tspath.CaseSensitivity`, 0 for a case-insensitive
+    // file system.
     assert_eq!(
         call(&session, "initialize", Value::Null).unwrap(),
-        json!({ "useCaseSensitiveFileNames": false, "currentDirectory": "/work" })
+        json!({ "caseSensitivity": 0, "currentDirectory": "/work" })
     );
 }
 
@@ -699,7 +775,7 @@ fn a_config_matches_a_listing_in_its_order() {
     )
     .unwrap();
     assert_eq!(
-        response["projects"][0]["rootFiles"],
+        response["projects"][0]["parsedCommandLine"]["fileNames"],
         json!(["/src/index.ts", "/src/foo.ts"])
     );
 }

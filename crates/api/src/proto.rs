@@ -249,6 +249,32 @@ impl<'de> Deserialize<'de> for CompilerOptionsParam {
     }
 }
 
+/// tsgo `tsoptions.RawCompilerOptions`: the options as the client wrote
+/// them, finalized against the server's directory (`finalize`).
+#[derive(Clone, Debug, Default)]
+pub struct RawCompilerOptionsParam(pub serde_json::Map<String, serde_json::Value>);
+
+impl RawCompilerOptionsParam {
+    /// tsgo `RawCompilerOptions.Finalize`; an option enum that is not a
+    /// number panics as tsgo's does.
+    pub fn finalize(&self, base_path: &str) -> ConfigOptionBag {
+        tsc_program::go_json::raw_compiler_options_bag(&self.0, base_path)
+            .unwrap_or_else(|message| panic!("{message}"))
+    }
+}
+
+impl<'de> Deserialize<'de> for RawCompilerOptionsParam {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        match serde_json::Value::deserialize(deserializer)? {
+            serde_json::Value::Null => Ok(Self::default()),
+            serde_json::Value::Object(options) => Ok(Self(options)),
+            _ => Err(de::Error::custom(
+                "cannot unmarshal non-object JSON value into RawCompilerOptions",
+            )),
+        }
+    }
+}
+
 /// tsgo `core.ProjectReference`.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -285,7 +311,7 @@ pub struct CreateSnapshotProgramParams {
     #[serde(default, deserialize_with = "nullable")]
     pub root_files: Vec<DocumentIdentifier>,
     #[serde(default)]
-    pub compiler_options: CompilerOptionsParam,
+    pub compiler_options: RawCompilerOptionsParam,
     #[serde(default)]
     pub options: Option<CreateProgramOptions>,
 }
@@ -299,7 +325,7 @@ pub struct ReconfigureSnapshotProgramParams {
     #[serde(default, deserialize_with = "nullable")]
     pub root_files: Vec<DocumentIdentifier>,
     #[serde(default)]
-    pub compiler_options: CompilerOptionsParam,
+    pub compiler_options: RawCompilerOptionsParam,
     #[serde(default)]
     pub options: Option<CreateProgramOptions>,
 }
@@ -391,7 +417,8 @@ pub struct BatchRequestsParams {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeResponse {
-    pub use_case_sensitive_file_names: bool,
+    /// tsgo `tspath.CaseSensitivity`: 0 insensitive, 1 sensitive.
+    pub case_sensitivity: u8,
     pub current_directory: String,
 }
 
@@ -481,12 +508,11 @@ pub struct ConfigFileResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectResponse {
     pub id: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub config_file_name: String,
     pub current_directory: String,
     pub dirty: bool,
     pub parsed_command_line: ConfigFileResponse,
-    pub root_files: Vec<String>,
-    pub compiler_options: Box<RawValue>,
 }
 
 /// tsgo `DiagnosticPositionResponse`.
@@ -1033,7 +1059,7 @@ pub struct ReleaseSourceFileParams {
 #[serde(rename_all = "camelCase")]
 pub struct TranspileOptions {
     #[serde(default)]
-    pub compiler_options: CompilerOptionsParam,
+    pub compiler_options: RawCompilerOptionsParam,
     #[serde(default, deserialize_with = "nullable")]
     pub file_name: String,
     #[serde(default, deserialize_with = "nullable")]

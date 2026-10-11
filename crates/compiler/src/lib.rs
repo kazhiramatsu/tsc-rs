@@ -1320,6 +1320,7 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
                 target_token: AuthoritativeSourceToken(source.raw()),
                 resolved_file_name: resolved_file.display().to_owned(),
                 resolved_using_ts_extension: module.resolved_using_ts_extension(),
+                is_custom_resolution: module.is_custom_resolution(),
                 is_tsx: matches!(
                     module.extension(),
                     ModuleExtension::Tsx | ModuleExtension::Jsx

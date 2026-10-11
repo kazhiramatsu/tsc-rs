@@ -251,7 +251,7 @@ impl Session {
                 self.handle_release(&params).map(|()| json(&true))
             }
             "initialize" => Ok(json(&InitializeResponse {
-                use_case_sensitive_file_names: self.host.case_sensitive(),
+                case_sensitivity: u8::from(self.host.case_sensitive()),
                 current_directory: self.current_directory().to_owned(),
             })),
             "createSnapshot" => {
@@ -303,6 +303,10 @@ impl Session {
                     "CreateSourceFileFromFileParams",
                     params,
                 )?;
+                // tsgo `resolveCreateSourceFileName` before the read.
+                if params.file_name.is_empty() {
+                    return Err(client_error("fileName must not be empty"));
+                }
                 let file_name = self.host.absolute_file_name(&params.file_name);
                 let text = self
                     .read_file_text(&file_name)
@@ -1016,7 +1020,7 @@ impl Session {
         declaration: bool,
     ) -> Result<TranspileOutputResponse, String> {
         let (compiler_options, _) = command_line_program_inputs(
-            &options.compiler_options.0,
+            &options.compiler_options.finalize(self.current_directory()),
             JsStr::from_str(self.current_directory()),
             self.host.case_sensitive(),
         )
@@ -1805,7 +1809,7 @@ impl Session {
             };
             request.create_programs.push(self.create_program_request(
                 &program.root_files,
-                &program.compiler_options.0,
+                &program.compiler_options.finalize(self.current_directory()),
                 program.options.as_ref(),
             )?);
         }
@@ -1828,7 +1832,7 @@ impl Session {
                     program_id,
                     program: self.create_program_request(
                         &program.root_files,
-                        &program.compiler_options.0,
+                        &program.compiler_options.finalize(self.current_directory()),
                         program.options.as_ref(),
                     )?,
                 });
@@ -2516,8 +2520,6 @@ fn project_response(snapshot: &Snapshot, project: &Project) -> ProjectResponse {
         },
         current_directory: project.current_directory().to_owned(),
         dirty: project.is_dirty(),
-        root_files: parsed_command_line.file_names.clone(),
-        compiler_options: parsed_command_line.options.clone(),
         parsed_command_line,
     }
 }

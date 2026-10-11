@@ -121,11 +121,7 @@ fn convert(metadata: &fs::Metadata) -> Metadata {
     } else {
         FileType::File
     };
-    Metadata::new(
-        file_type,
-        metadata.len(),
-        metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH),
-    )
+    Metadata::new(file_type, metadata.len(), metadata.modified().ok())
 }
 
 /// tsgo `osvfs.writeFileWithFlag`: open, then write; a failure is Go's

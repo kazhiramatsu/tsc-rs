@@ -48,6 +48,9 @@ pub struct HostResolvedModule {
     original_path: Option<ProgramPath>,
     is_external_library_import: bool,
     resolved_using_ts_extension: bool,
+    /// tsgo `ResolvedModule.IsCustomResolution`: the API's static or
+    /// callback resolution, not the resolver's look at the disk.
+    is_custom_resolution: bool,
     package_id: Option<PackageId>,
     alternate_result: Option<ProgramPath>,
     package_metadata: Option<Arc<PackageMetadata>>,
@@ -105,7 +108,8 @@ impl HostResolvedModule {
 
         let mut resolved = ResolvedModule::new(target, self.extension)
             .with_external_library_import(self.is_external_library_import)
-            .with_resolved_using_ts_extension(self.resolved_using_ts_extension);
+            .with_resolved_using_ts_extension(self.resolved_using_ts_extension)
+            .with_custom_resolution(self.is_custom_resolution);
         if let Some(original_path) = self.original_path {
             resolved = resolved.with_original_path(original_path);
         }
@@ -139,6 +143,7 @@ impl HostResolvedModule {
             original_path,
             is_external_library_import,
             resolved_using_ts_extension: false,
+            is_custom_resolution: true,
             package_id,
             alternate_result: None,
             package_metadata: None,
@@ -6431,6 +6436,7 @@ impl<'a> ModuleResolver<'a> {
             original_path,
             is_external_library_import: context.is_external_library_import,
             resolved_using_ts_extension: context.resolved_using_ts_extension,
+            is_custom_resolution: false,
             package_id,
             alternate_result: None,
             package_metadata: package.map(|package| Arc::clone(&package.metadata)),

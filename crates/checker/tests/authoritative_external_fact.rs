@@ -36,6 +36,7 @@ impl AuthoritativeModuleProvider for Provider {
                 target_token: AuthoritativeSourceToken(1),
                 resolved_file_name: "/node_modules/pkg/index.js".to_owned().into(),
                 resolved_using_ts_extension: false,
+                is_custom_resolution: false,
                 is_tsx: false,
                 is_arbitrary_extension: false,
                 is_external_library_import: self.is_external_library_import,

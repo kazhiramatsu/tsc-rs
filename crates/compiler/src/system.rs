@@ -6,7 +6,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime};
 
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::vfs::{DirEntry, FileSystem, FileType, Metadata, OsFs, VfsCompilerHost};
@@ -291,15 +291,12 @@ impl<F: FileSystem> FileSystem for BundledFs<F> {
     }
 
     fn metadata(&self, path: &str) -> io::Result<Metadata> {
+        // tsgo `bundled.fileInfo.ModTime`: zero.
         if let Some(bytes) = Self::library(path) {
-            return Ok(Metadata::new(
-                FileType::File,
-                bytes.len() as u64,
-                UNIX_EPOCH,
-            ));
+            return Ok(Metadata::new(FileType::File, bytes.len() as u64, None));
         }
         if Self::is_library_directory(path) {
-            return Ok(Metadata::new(FileType::Directory, 0, UNIX_EPOCH));
+            return Ok(Metadata::new(FileType::Directory, 0, None));
         }
         if Self::is_bundled(path) {
             return Err(io::Error::from(io::ErrorKind::NotFound));

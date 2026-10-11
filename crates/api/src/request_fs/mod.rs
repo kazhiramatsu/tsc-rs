@@ -10,7 +10,7 @@ pub(crate) mod paths;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::io;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 use serde::Deserialize;
 use tsc_host::vfs::{DirEntry, Entries, FileSystem, FileType, Metadata};
@@ -687,20 +687,21 @@ impl FileSystem for RequestFileSystem {
                 return Ok(metadata);
             }
             if self.base.is_dir(&lookup.path) {
-                return Ok(Metadata::new(FileType::Directory, 0, UNIX_EPOCH));
+                return Ok(Metadata::new(FileType::Directory, 0, None));
             }
             if self.base.is_file(&lookup.path) {
-                return Ok(Metadata::new(FileType::File, 0, UNIX_EPOCH));
+                return Ok(Metadata::new(FileType::File, 0, None));
             }
             return Err(io::Error::from(io::ErrorKind::NotFound));
         }
         match lookup.info {
+            // tsgo `requestFile.ModTime`: zero.
             Some(Info::File(file)) => Ok(Metadata::new(
                 FileType::File,
                 file.content.len() as u64,
-                UNIX_EPOCH,
+                None,
             )),
-            Some(Info::Directory) => Ok(Metadata::new(FileType::Directory, 0, UNIX_EPOCH)),
+            Some(Info::Directory) => Ok(Metadata::new(FileType::Directory, 0, None)),
             None => Err(io::Error::from(io::ErrorKind::NotFound)),
         }
     }

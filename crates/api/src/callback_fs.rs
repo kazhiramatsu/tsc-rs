@@ -150,17 +150,13 @@ impl<F: FileSystem> CallbackFs<F> {
     }
 
     /// tsgo `fakeStatForPath`: a directory or a file the existence checks
-    /// find, with default metadata.
+    /// find, with default metadata (no size, Go's zero time).
     fn fake_stat_for_path(&self, path: &str) -> io::Result<Metadata> {
         if self.is_dir(path) {
-            return Ok(Metadata::new(
-                FileType::Directory,
-                0,
-                SystemTime::UNIX_EPOCH,
-            ));
+            return Ok(Metadata::new(FileType::Directory, 0, None));
         }
         if self.is_file(path) {
-            return Ok(Metadata::new(FileType::File, 0, SystemTime::UNIX_EPOCH));
+            return Ok(Metadata::new(FileType::File, 0, None));
         }
         Err(io::Error::from(io::ErrorKind::NotFound))
     }
@@ -263,7 +259,7 @@ impl<F: FileSystem> FileSystem for CallbackFs<F> {
                     Ok(Metadata::new(
                         node_file_type(stat.mode),
                         u64::try_from(stat.size).unwrap_or(0),
-                        modified,
+                        Some(modified),
                     ))
                 }
                 "missing" => Err(io::Error::from(io::ErrorKind::NotFound)),

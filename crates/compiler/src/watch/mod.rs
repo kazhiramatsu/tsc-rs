@@ -544,7 +544,7 @@ impl<'a> Watcher<'a> {
             .fs()
             .metadata(path)
             .ok()
-            .map(|metadata| metadata.modified())
+            .and_then(|metadata| metadata.modified())
     }
 
     fn directory_exists(&self, path: &str) -> bool {

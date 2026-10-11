@@ -50,6 +50,21 @@ fn the_flags_take_go_forms() {
     );
     // Parsing stops at the first argument that is not a flag.
     assert!(parse(&["--async=0", "file.ts", "--nope"]).is_ok_and(|options| !options.async_protocol));
+    // tsgo `tspath.ToRootedDirectoryPath(flags.cwd, system.cwd)`: the
+    // directory normalized against the process's, without a trailing
+    // separator.
+    for (cwd, expected) in [
+        ("/work/", "/work"),
+        ("/work/./sub/../", "/work"),
+        ("sub", "/default/sub"),
+        ("/", "/"),
+    ] {
+        assert_eq!(
+            parse(&["--cwd", cwd]).unwrap().current_directory,
+            expected,
+            "{cwd}"
+        );
+    }
 }
 
 #[test]

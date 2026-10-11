@@ -476,7 +476,7 @@ fn a_missing_project_or_file_is_a_client_error() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|project| project["configFileName"] == "")
+        .find(|project| project.get("configFileName").is_none())
         .unwrap()["id"]
         .clone();
     assert_eq!(
