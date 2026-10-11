@@ -413,3 +413,5 @@ vendoring の commit（`19dadef8`、2026-09-29）から本家の TypeScript（mi
 - **結果**（release build、`d24f817ab`。program の config の parser に触れたので）：full の conformance（`--workers 2 --check`、
   489 s）は 0 regressions で、S6d の report と全ての field で同じ。suites（`--check`）は 0 regressions・上がったもの無し
   （config 89／89 は json api を object の経路にしても全て一致）。checker は変わらないので並列対照は無し。
+- **hosted と merge**：PR #750 の hosted run 38137235257（rust 10m5s、conformance 16m15s、gates pass、head `6d5028d5b`）、merge commit
+  `f99e90fa4`。
