@@ -9,35 +9,6 @@
   "parser_executions": 54,
   "cases": [
     {
-      "case_id": "utf16-literals/adjacent-probes/es5/declaration-const-initializer",
-      "source": "export const x = \"\\u{D800}\";\nexport const y = `\\u{DC00}`;\n",
-      "target": 1,
-      "source_sha256": "bc3586cda3a27457b8d8d59f249369cc929df8593376fe786dd3d3799ed3f00c",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 16,
-            "end": 27,
-            "value_utf16": [
-              55296
-            ],
-            "raw_text": null
-          },
-          {
-            "kind": 15,
-            "pos": 45,
-            "end": 56,
-            "value_utf16": [
-              56320
-            ],
-            "raw_text": "\\u{DC00}"
-          }
-        ],
-        "diagnostics": []
-      }
-    },
-    {
       "case_id": "utf16-literals/adjacent-probes/es2015/declaration-const-initializer",
       "source": "export const x = \"\\u{D800}\";\nexport const y = `\\u{DC00}`;\n",
       "target": 2,
@@ -67,35 +38,6 @@
       }
     },
     {
-      "case_id": "utf16-literals/adjacent-probes/es5/declaration-object-literal-names",
-      "source": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\n",
-      "target": 1,
-      "source_sha256": "be36ba7e2c22315e9cd0aab0db2cf355d42faa1f6450fc7ed3cf7b7a56700cf1",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 18,
-            "end": 29,
-            "value_utf16": [
-              55296
-            ],
-            "raw_text": null
-          },
-          {
-            "kind": 11,
-            "pos": 35,
-            "end": 45,
-            "value_utf16": [
-              56320
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": []
-      }
-    },
-    {
       "case_id": "utf16-literals/adjacent-probes/es2015/declaration-object-literal-names",
       "source": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\n",
       "target": 2,
@@ -115,53 +57,6 @@
             "kind": 11,
             "pos": 35,
             "end": 45,
-            "value_utf16": [
-              56320
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": []
-      }
-    },
-    {
-      "case_id": "utf16-literals/adjacent-probes/es5/class-member-name-collision",
-      "source": "export class C {\n    static \"\\u{D800}\" = 1;\n    static [\"\\u{DC00}\"] = 2;\n    [\"\\u{D800}\"]() { return 1; }\n    \"\\u{DC00}\"() { return 2; }\n}\n",
-      "target": 1,
-      "source_sha256": "bfd8764bbd2b554330f00db0d24be746676313519347dc1690d1029b79b2dfca",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 27,
-            "end": 38,
-            "value_utf16": [
-              55296
-            ],
-            "raw_text": null
-          },
-          {
-            "kind": 11,
-            "pos": 56,
-            "end": 66,
-            "value_utf16": [
-              56320
-            ],
-            "raw_text": null
-          },
-          {
-            "kind": 11,
-            "pos": 78,
-            "end": 88,
-            "value_utf16": [
-              55296
-            ],
-            "raw_text": null
-          },
-          {
-            "kind": 11,
-            "pos": 105,
-            "end": 120,
             "value_utf16": [
               56320
             ],
@@ -219,44 +114,6 @@
       }
     },
     {
-      "case_id": "utf16-literals/adjacent-probes/es5/object-literal-name-collision",
-      "source": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\nexport const p = { \"\\u{D800}\": 3 };\n",
-      "target": 1,
-      "source_sha256": "87fd3354a930f87206faed5c90d3689fd55f259c417200b2a3aeae3473547fe1",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 18,
-            "end": 29,
-            "value_utf16": [
-              55296
-            ],
-            "raw_text": null
-          },
-          {
-            "kind": 11,
-            "pos": 35,
-            "end": 45,
-            "value_utf16": [
-              56320
-            ],
-            "raw_text": null
-          },
-          {
-            "kind": 11,
-            "pos": 71,
-            "end": 82,
-            "value_utf16": [
-              55296
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": []
-      }
-    },
-    {
       "case_id": "utf16-literals/adjacent-probes/es2015/object-literal-name-collision",
       "source": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\nexport const p = { \"\\u{D800}\": 3 };\n",
       "target": 2,
@@ -292,97 +149,6 @@
           }
         ],
         "diagnostics": []
-      }
-    },
-    {
-      "case_id": "utf16-literals/adjacent-probes/es5/octal-escape",
-      "source": "export const x = \"\\1\\u{D800}\";\n",
-      "target": 1,
-      "source_sha256": "37cca61a66cac3c55e451c42f6a2dbc6382243fde5fbbf697416d07d5e38f1ba",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 16,
-            "end": 29,
-            "value_utf16": [
-              1,
-              55296
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": [
-          {
-            "code": 1487,
-            "start": 18,
-            "length": 2,
-            "message_utf16": [
-              79,
-              99,
-              116,
-              97,
-              108,
-              32,
-              101,
-              115,
-              99,
-              97,
-              112,
-              101,
-              32,
-              115,
-              101,
-              113,
-              117,
-              101,
-              110,
-              99,
-              101,
-              115,
-              32,
-              97,
-              114,
-              101,
-              32,
-              110,
-              111,
-              116,
-              32,
-              97,
-              108,
-              108,
-              111,
-              119,
-              101,
-              100,
-              46,
-              32,
-              85,
-              115,
-              101,
-              32,
-              116,
-              104,
-              101,
-              32,
-              115,
-              121,
-              110,
-              116,
-              97,
-              120,
-              32,
-              39,
-              92,
-              120,
-              48,
-              49,
-              39,
-              46
-            ]
-          }
-        ]
       }
     },
     {
@@ -477,71 +243,6 @@
       }
     },
     {
-      "case_id": "utf16-literals/adjacent-probes/es5/decimal-escape-8",
-      "source": "export const x = \"\\8\\u{D800}\";\n",
-      "target": 1,
-      "source_sha256": "f639b594349c9070f874b0ef027217b16f29bfd3ee4e005ce307d7596b2fd939",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 16,
-            "end": 29,
-            "value_utf16": [
-              56,
-              55296
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": [
-          {
-            "code": 1488,
-            "start": 18,
-            "length": 2,
-            "message_utf16": [
-              69,
-              115,
-              99,
-              97,
-              112,
-              101,
-              32,
-              115,
-              101,
-              113,
-              117,
-              101,
-              110,
-              99,
-              101,
-              32,
-              39,
-              92,
-              56,
-              39,
-              32,
-              105,
-              115,
-              32,
-              110,
-              111,
-              116,
-              32,
-              97,
-              108,
-              108,
-              111,
-              119,
-              101,
-              100,
-              46
-            ]
-          }
-        ]
-      }
-    },
-    {
       "case_id": "utf16-literals/adjacent-probes/es2015/decimal-escape-8",
       "source": "export const x = \"\\8\\u{D800}\";\n",
       "target": 2,
@@ -607,64 +308,6 @@
       }
     },
     {
-      "case_id": "utf16-literals/adjacent-probes/es5/malformed-hex-escape",
-      "source": "export const x = \"\\u{D800}\\xZ\";\n",
-      "target": 1,
-      "source_sha256": "0c329fb740ac4a71b1a3ea01df2b151d43b6e7583619eb3a3f48359e191eb0ab",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 16,
-            "end": 30,
-            "value_utf16": [
-              55296,
-              92,
-              120,
-              90
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": [
-          {
-            "code": 1125,
-            "start": 28,
-            "length": 0,
-            "message_utf16": [
-              72,
-              101,
-              120,
-              97,
-              100,
-              101,
-              99,
-              105,
-              109,
-              97,
-              108,
-              32,
-              100,
-              105,
-              103,
-              105,
-              116,
-              32,
-              101,
-              120,
-              112,
-              101,
-              99,
-              116,
-              101,
-              100,
-              46
-            ]
-          }
-        ]
-      }
-    },
-    {
       "case_id": "utf16-literals/adjacent-probes/es2015/malformed-hex-escape",
       "source": "export const x = \"\\u{D800}\\xZ\";\n",
       "target": 2,
@@ -716,77 +359,6 @@
               116,
               101,
               100,
-              46
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "case_id": "utf16-literals/adjacent-probes/es5/unterminated-extended-escape-control",
-      "source": "export const x = \"\\u{D800\";\n",
-      "target": 1,
-      "source_sha256": "314eaeb342bc24c16044d4f3036ffec858266805ff77b5aca6d525ec2f1b83e0",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 16,
-            "end": 26,
-            "value_utf16": [
-              92,
-              117,
-              123,
-              68,
-              56,
-              48,
-              48
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": [
-          {
-            "code": 1199,
-            "start": 25,
-            "length": 0,
-            "message_utf16": [
-              85,
-              110,
-              116,
-              101,
-              114,
-              109,
-              105,
-              110,
-              97,
-              116,
-              101,
-              100,
-              32,
-              85,
-              110,
-              105,
-              99,
-              111,
-              100,
-              101,
-              32,
-              101,
-              115,
-              99,
-              97,
-              112,
-              101,
-              32,
-              115,
-              101,
-              113,
-              117,
-              101,
-              110,
-              99,
-              101,
               46
             ]
           }
@@ -857,120 +429,6 @@
               101,
               110,
               99,
-              101,
-              46
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "case_id": "utf16-literals/adjacent-probes/es5/out-of-range-extended-escape",
-      "source": "export const x = \"\\u{110000}\\u{D800}\";\n",
-      "target": 1,
-      "source_sha256": "566569e7853e9429c77e1aaca80bf8cbc6a644d916e71187ce52ed54b81f9f52",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 16,
-            "end": 37,
-            "value_utf16": [
-              92,
-              117,
-              123,
-              49,
-              49,
-              48,
-              48,
-              48,
-              48,
-              125,
-              55296
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": [
-          {
-            "code": 1198,
-            "start": 21,
-            "length": 6,
-            "message_utf16": [
-              65,
-              110,
-              32,
-              101,
-              120,
-              116,
-              101,
-              110,
-              100,
-              101,
-              100,
-              32,
-              85,
-              110,
-              105,
-              99,
-              111,
-              100,
-              101,
-              32,
-              101,
-              115,
-              99,
-              97,
-              112,
-              101,
-              32,
-              118,
-              97,
-              108,
-              117,
-              101,
-              32,
-              109,
-              117,
-              115,
-              116,
-              32,
-              98,
-              101,
-              32,
-              98,
-              101,
-              116,
-              119,
-              101,
-              101,
-              110,
-              32,
-              48,
-              120,
-              48,
-              32,
-              97,
-              110,
-              100,
-              32,
-              48,
-              120,
-              49,
-              48,
-              70,
-              70,
-              70,
-              70,
-              32,
-              105,
-              110,
-              99,
-              108,
-              117,
-              115,
-              105,
-              118,
               101,
               46
             ]
@@ -1093,62 +551,6 @@
       }
     },
     {
-      "case_id": "utf16-literals/adjacent-probes/es5/unterminated-string",
-      "source": "export const x = \"\\u{D800}\n",
-      "target": 1,
-      "source_sha256": "17919195f17f993c68632f5d3c50e6cd9063b970e97197dc33bec0043b33995e",
-      "expected": {
-        "literals": [
-          {
-            "kind": 11,
-            "pos": 16,
-            "end": 26,
-            "value_utf16": [
-              55296
-            ],
-            "raw_text": null
-          }
-        ],
-        "diagnostics": [
-          {
-            "code": 1002,
-            "start": 26,
-            "length": 0,
-            "message_utf16": [
-              85,
-              110,
-              116,
-              101,
-              114,
-              109,
-              105,
-              110,
-              97,
-              116,
-              101,
-              100,
-              32,
-              115,
-              116,
-              114,
-              105,
-              110,
-              103,
-              32,
-              108,
-              105,
-              116,
-              101,
-              114,
-              97,
-              108,
-              46
-            ]
-          }
-        ]
-      }
-    },
-    {
       "case_id": "utf16-literals/adjacent-probes/es2015/unterminated-string",
       "source": "export const x = \"\\u{D800}\n",
       "target": 2,
@@ -1198,97 +600,6 @@
               114,
               97,
               108,
-              46
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "case_id": "utf16-literals/adjacent-probes/es5/template-octal-with-surrogate",
-      "source": "export const x = `\\1\\u{D800}`;\n",
-      "target": 1,
-      "source_sha256": "68db248c6bfc7db2d727f3536227e68d503c8829d552ccb23f1d99d9ec566e34",
-      "expected": {
-        "literals": [
-          {
-            "kind": 15,
-            "pos": 16,
-            "end": 29,
-            "value_utf16": [
-              1,
-              55296
-            ],
-            "raw_text": "\\1\\u{D800}"
-          }
-        ],
-        "diagnostics": [
-          {
-            "code": 1487,
-            "start": 18,
-            "length": 2,
-            "message_utf16": [
-              79,
-              99,
-              116,
-              97,
-              108,
-              32,
-              101,
-              115,
-              99,
-              97,
-              112,
-              101,
-              32,
-              115,
-              101,
-              113,
-              117,
-              101,
-              110,
-              99,
-              101,
-              115,
-              32,
-              97,
-              114,
-              101,
-              32,
-              110,
-              111,
-              116,
-              32,
-              97,
-              108,
-              108,
-              111,
-              119,
-              101,
-              100,
-              46,
-              32,
-              85,
-              115,
-              101,
-              32,
-              116,
-              104,
-              101,
-              32,
-              115,
-              121,
-              110,
-              116,
-              97,
-              120,
-              32,
-              39,
-              92,
-              120,
-              48,
-              49,
-              39,
               46
             ]
           }

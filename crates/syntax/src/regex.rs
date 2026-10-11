@@ -111,7 +111,7 @@ pub fn validate_regular_expression_literal(
     let mut diagnostics = Vec::new();
     let mut flags = 0u16;
     while let Some((code_point, size)) = code_point_at(&text, pos) {
-        if !is_identifier_part_code_point(code_point, target) {
+        if !is_identifier_part_code_point(code_point) {
             break;
         }
         let start = pos;
@@ -489,7 +489,7 @@ impl RegexScanner {
 
     fn scan_pattern_modifiers(&mut self, mut current_flags: u16) -> u16 {
         while let Some((code_point, size)) = self.code_point(self.pos) {
-            if !is_identifier_part_code_point(code_point, self.target) {
+            if !is_identifier_part_code_point(code_point) {
                 break;
             }
             let start = self.pos;
@@ -921,10 +921,10 @@ impl RegexScanner {
     fn scan_identifier(&mut self) -> Option<String> {
         let start = self.pos;
         if let Some((first, size)) = self.code_point(self.pos) {
-            if is_identifier_start_code_point(first, self.target) {
+            if is_identifier_start_code_point(first) {
                 self.pos += size;
                 while let Some((code_point, size)) = self.code_point(self.pos) {
-                    if !is_identifier_part_code_point(code_point, self.target) {
+                    if !is_identifier_part_code_point(code_point) {
                         break;
                     }
                     self.pos += size;
@@ -953,7 +953,7 @@ impl RegexScanner {
         let mut raw_start = self.pos;
         loop {
             if let Some((code_point, size)) = self.code_point(self.pos) {
-                if is_identifier_part_code_point(code_point, self.target) {
+                if is_identifier_part_code_point(code_point) {
                     self.pos += size;
                     continue;
                 }
@@ -978,12 +978,11 @@ impl RegexScanner {
     /// character, or a pair of unbraced `\uHigh\uLow` escapes whose
     /// character is one (tc39/ecma262#1869).
     fn scan_identifier_escape(&mut self, identifier_start: bool) -> Option<char> {
-        let target = self.target;
         let valid = |code_point: u32| {
             if identifier_start {
-                is_identifier_start_code_point(code_point, target)
+                is_identifier_start_code_point(code_point)
             } else {
-                is_identifier_part_code_point(code_point, target)
+                is_identifier_part_code_point(code_point)
             }
         };
         let (escaped, after) = self.peek_unicode_escape(self.pos)?;
@@ -1869,12 +1868,12 @@ fn encode_code_point(value: u32) -> Vec<u16> {
     }
 }
 
-fn is_identifier_start_code_point(code_point: u32, target: ScriptTarget) -> bool {
-    char::from_u32(code_point).is_some_and(|ch| is_identifier_start(ch, target))
+fn is_identifier_start_code_point(code_point: u32) -> bool {
+    char::from_u32(code_point).is_some_and(is_identifier_start)
 }
 
-fn is_identifier_part_code_point(code_point: u32, target: ScriptTarget) -> bool {
-    char::from_u32(code_point).is_some_and(|ch| is_identifier_part(ch, target))
+fn is_identifier_part_code_point(code_point: u32) -> bool {
+    char::from_u32(code_point).is_some_and(is_identifier_part)
 }
 
 /// The ASCII byte of a code unit, for comparisons with punctuators: a wider

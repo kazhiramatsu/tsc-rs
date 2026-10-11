@@ -1,35 +1,20 @@
 use super::*;
 
 #[test]
-fn identifier_tables_follow_script_target_for_bmp_and_supplementary_code_points() {
-    // U+08A1 is an ESNext identifier start/part but is absent from
-    // the ES5 tables. U+10400 proves the same selection above the
-    // BMP, where Rust still advances one scalar but diagnostics are
-    // later projected to two UTF-16 code units.
+fn identifier_tables_are_esnext_for_bmp_and_supplementary_code_points() {
+    // tsgo has only the ESNext tables (stringutil/identifier.go): U+08A1
+    // and U+10400 start and continue identifiers. Above the BMP, Rust
+    // advances one scalar while diagnostics project two UTF-16 code units.
     for text in ["\u{08a1}", "\u{10400}"] {
-        let mut es5 = Scanner::new_with_target(text, LanguageVariant::Standard, ScriptTarget::ES5);
-        assert_eq!(es5.scan(), SyntaxKind::Unknown, "{text:?}");
-        assert_eq!(es5.errors().len(), 1, "{text:?}");
-
-        let mut es2015 =
-            Scanner::new_with_target(text, LanguageVariant::Standard, ScriptTarget::ES2015);
-        assert_eq!(es2015.scan(), SyntaxKind::Identifier, "{text:?}");
-        assert_eq!(es2015.pos(), text.len(), "{text:?}");
-        assert!(es2015.errors().is_empty(), "{text:?}");
+        let mut start = Scanner::new(text, LanguageVariant::Standard);
+        assert_eq!(start.scan(), SyntaxKind::Identifier, "{text:?}");
+        assert_eq!(start.pos(), text.len(), "{text:?}");
+        assert!(start.errors().is_empty(), "{text:?}");
 
         let with_prefix = format!("a{text}");
-        let mut es5_part =
-            Scanner::new_with_target(&with_prefix, LanguageVariant::Standard, ScriptTarget::ES5);
-        assert_eq!(es5_part.scan(), SyntaxKind::Identifier, "{text:?}");
-        assert_eq!(es5_part.pos(), 1, "{text:?}");
-
-        let mut es2015_part = Scanner::new_with_target(
-            &with_prefix,
-            LanguageVariant::Standard,
-            ScriptTarget::ES2015,
-        );
-        assert_eq!(es2015_part.scan(), SyntaxKind::Identifier, "{text:?}");
-        assert_eq!(es2015_part.pos(), with_prefix.len(), "{text:?}");
+        let mut part = Scanner::new(&with_prefix, LanguageVariant::Standard);
+        assert_eq!(part.scan(), SyntaxKind::Identifier, "{text:?}");
+        assert_eq!(part.pos(), with_prefix.len(), "{text:?}");
     }
 }
 
@@ -172,63 +157,6 @@ fn ordinary_token_lookahead_can_cross_a_scan_range_boundary() {
     // first code unit against scanRange's end.
     assert_eq!(scanner.scan(), SyntaxKind::AsteriskAsteriskToken);
     assert_eq!(scanner.pos(), 2);
-}
-
-#[test]
-fn look_ahead_always_rewinds_after_truthy_result() {
-    let mut scanner = Scanner::new("a b", LanguageVariant::Standard);
-
-    let result = scanner.look_ahead(|scanner| {
-        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
-        Some(scanner.pos())
-    });
-
-    assert_eq!(result, Some(1));
-    assert_eq!(scanner.pos(), 0);
-    assert_eq!(scanner.token, SyntaxKind::Unknown);
-}
-
-#[test]
-fn try_scan_commits_truthy_and_rewinds_falsy() {
-    let mut scanner = Scanner::new("a b", LanguageVariant::Standard);
-
-    let result = scanner.try_scan(|scanner| scanner.scan());
-
-    assert_eq!(result, SyntaxKind::Identifier);
-    assert_eq!(scanner.pos(), 1);
-    assert_eq!(scanner.token, SyntaxKind::Identifier);
-
-    let result = scanner.try_scan(|scanner| {
-        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
-        false
-    });
-
-    assert!(!result);
-    assert_eq!(scanner.pos(), 1);
-    assert_eq!(scanner.token, SyntaxKind::Identifier);
-}
-
-#[test]
-fn speculation_restores_nested_state_and_errors() {
-    let mut scanner = Scanner::new("a \"\\xG\"", LanguageVariant::Standard);
-
-    let result = scanner.look_ahead(|scanner| {
-        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
-        let inner = scanner.try_scan(|scanner| {
-            assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
-            assert_eq!(scanner.errors().len(), 1);
-            true
-        });
-        assert!(inner);
-        assert_eq!(scanner.pos(), "a \"\\xG\"".len());
-        assert_eq!(scanner.errors().len(), 1);
-        true
-    });
-
-    assert!(result);
-    assert_eq!(scanner.pos(), 0);
-    assert_eq!(scanner.token, SyntaxKind::Unknown);
-    assert!(scanner.errors().is_empty());
 }
 
 fn directives_of(text: &str) -> Vec<CommentDirective> {

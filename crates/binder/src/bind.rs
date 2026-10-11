@@ -3011,7 +3011,6 @@ impl<'a> BinderWorker<'a> {
                 .flags
                 .intersects(FlowFlags::UNREACHABLE)
                 && i != clauses.len() - 1
-                && self.options.no_fallthrough_cases_in_switch == Some(true)
             {
                 self.node_fallthrough_flow.insert(clause, current);
             }

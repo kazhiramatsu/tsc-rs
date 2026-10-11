@@ -1,6 +1,5 @@
 use serde_json::{json, Value};
 use tsc_syntax::{for_each_child, NodeData, NodeId, ParseOptions, SourceFile};
-use tsc_types::ScriptTarget;
 
 fn fragments(source: &SourceFile, id: NodeId, output: &mut Vec<Value>) {
     let node = source.arena.node(id);
@@ -43,10 +42,7 @@ fn parser_template_flags_match_repeated_typescript_observations() {
         let source = tsc_syntax::parse_source_file(
             "main.ts",
             case["source"].as_str().unwrap(),
-            ParseOptions {
-                script_target: ScriptTarget::from_bits(fixture["target"].as_i64().unwrap() as i32),
-                ..ParseOptions::default()
-            },
+            ParseOptions::default(),
             None,
         );
         let mut values = Vec::new();

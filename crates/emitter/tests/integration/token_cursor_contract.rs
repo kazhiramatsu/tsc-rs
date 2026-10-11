@@ -18,7 +18,6 @@ fn canonical_identity(
         file_name,
         source_text,
         ParseOptions {
-            script_target: ScriptTarget::ES_NEXT,
             language_variant: variant,
             ..ParseOptions::default()
         },
@@ -45,15 +44,7 @@ fn canonical_identity(
 }
 
 fn print_at_target(source_text: &str, target: ScriptTarget) -> String {
-    let parsed = parse_source_file(
-        "target.ts",
-        source_text,
-        ParseOptions {
-            script_target: ScriptTarget::ES_NEXT,
-            ..ParseOptions::default()
-        },
-        None,
-    );
+    let parsed = parse_source_file("target.ts", source_text, ParseOptions::default(), None);
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
     let options = CompilerOptions {

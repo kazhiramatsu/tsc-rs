@@ -81,7 +81,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
             ),
         };
     }
-    let binder = tsc_binder::bind_source_file(&source_file, query.options);
+    let binder = tsc_binder::bind_source_file(&source_file);
     let mut state = CheckerState::new(&source_file, &binder, query.options);
 
     let Some(source_annotation) = find_probe_annotation(&source_file, "__relpin_source") else {

@@ -76,10 +76,7 @@ fn standard_decorator_runtime_names_and_helper_stems_match_typescript() {
         let parsed = parse_source_file(
             "/project/input.ts",
             case["source"].as_str().unwrap(),
-            ParseOptions {
-                script_target: target,
-                ..Default::default()
-            },
+            ParseOptions::default(),
             None,
         );
         assert!(parsed.parse_diagnostics.is_empty(), "{}", case["case_id"]);
@@ -4982,7 +4979,6 @@ fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
             file_name,
             case["text"].as_str().unwrap(),
             ParseOptions {
-                script_target: ScriptTarget::ES2015,
                 javascript_file: file_name.ends_with(".js"),
                 ..Default::default()
             },

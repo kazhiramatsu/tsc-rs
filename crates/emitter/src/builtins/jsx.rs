@@ -2,8 +2,8 @@ use crate::transform::try_visit_transform_children;
 
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::{
-    for_each_child, is_identifier_text_for_target, skip_trivia, NodeArrayId, NodeData,
-    NodeDataChildVisitor, NodeId, SyntaxKind,
+    for_each_child, is_identifier_text, skip_trivia, NodeArrayId, NodeData, NodeDataChildVisitor,
+    NodeId, SyntaxKind,
 };
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
@@ -303,16 +303,16 @@ impl<'context> JsxVisitor<'context> {
         let factory_entity = pragmas
             .factory
             .as_deref()
-            .and_then(|value| parse_entity_name(value, target))
-            .or_else(|| jsx_factory.and_then(|value| parse_entity_name(value, target)))
+            .and_then(parse_entity_name)
+            .or_else(|| jsx_factory.and_then(parse_entity_name))
             .unwrap_or(default_factory);
 
         let mut default_fragment = namespace;
         default_fragment.push("Fragment".into());
         let fragment_entity = match pragmas.fragment_factory.as_deref() {
-            Some(local) => parse_entity_name(local, target).unwrap_or(default_fragment),
+            Some(local) => parse_entity_name(local).unwrap_or(default_fragment),
             None => jsx_fragment_factory
-                .and_then(|value| parse_entity_name(value, target))
+                .and_then(parse_entity_name)
                 .unwrap_or(default_fragment),
         };
 
@@ -1562,10 +1562,7 @@ impl<'context> JsxVisitor<'context> {
         // module transformer to substitute. Keep the typed resolver boundary
         // for valid factory roots, while avoiding an impossible semantic query
         // for recovery-only identifiers.
-        if let Some(first) = first
-            .as_str()
-            .filter(|first| is_identifier_text_for_target(first, self.target))
-        {
+        if let Some(first) = first.as_str().filter(|first| is_identifier_text(first)) {
             let resolver_node = self.resolver_node(reference.0)?;
             let import_declaration = self
                 .resolver
@@ -1837,11 +1834,8 @@ impl NodeDataChildVisitor for JsxVisitor<'_> {
     }
 }
 
-fn parse_entity_name<'a>(
-    value: impl Into<JsStr<'a>>,
-    target: ScriptTarget,
-) -> Option<Vec<JsString>> {
-    tsc_syntax::parse_entity_name_components(value.into(), target)
+fn parse_entity_name<'a>(value: impl Into<JsStr<'a>>) -> Option<Vec<JsString>> {
+    tsc_syntax::parse_entity_name_components(value.into())
         .map(|parts| parts.into_iter().map(JsString::from).collect())
 }
 

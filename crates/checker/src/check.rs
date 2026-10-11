@@ -5812,9 +5812,7 @@ impl<'a> CheckerState<'a> {
             let numeric = name
                 .as_str()
                 .is_some_and(crate::evaluate::is_numeric_literal_name);
-            let identifier = name.as_str().is_some_and(|name| {
-                tsc_syntax::is_identifier_text_for_target(name, self.options.emit_script_target())
-            });
+            let identifier = name.as_str().is_some_and(tsc_syntax::is_identifier_text);
             if !identifier && !numeric {
                 let mut quoted = JsString::from("\"");
                 quoted
@@ -13534,12 +13532,10 @@ impl<'a> CheckerState<'a> {
         };
         match literal {
             Some(EvalValue::Str(value)) => {
-                if let Some(identifier) = value.as_str().filter(|text| {
-                    tsc_syntax::is_identifier_text_for_target(
-                        text,
-                        self.options.emit_script_target(),
-                    )
-                }) {
+                if let Some(identifier) = value
+                    .as_str()
+                    .filter(|text| tsc_syntax::is_identifier_text(text))
+                {
                     Ok(identifier.to_owned().into())
                 } else {
                     Ok(crate::concat_js(&[

@@ -19,7 +19,7 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
         },
         None,
     );
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
     run(&mut state)
 }

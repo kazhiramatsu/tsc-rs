@@ -107,7 +107,7 @@ fn recovered_entity_names_keep_source_text_and_valid_siblings_keep_entity_render
         NodeFlags::OPTIONAL_CHAIN,
     );
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
 
     assert_eq!(

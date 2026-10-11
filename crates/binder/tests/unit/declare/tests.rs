@@ -14,10 +14,9 @@ fn bind_relocation_matches_direct_nonzero_symbols_and_private_serials() {
         "export class Box { #value = 1; copy(other: Box) { return other.#value + this.#value; } }",
     );
     source.relocate_into_identity_domain(&domain).unwrap();
-    let options = tsc_types::CompilerOptions::default();
 
-    let relocated = Binder::bind_in_identity_domain(&source, &options, &domain).unwrap();
-    let mut direct = Binder::with_bases(&source, &options, 10, 13);
+    let relocated = Binder::bind_in_identity_domain(&source, &domain).unwrap();
+    let mut direct = Binder::with_bases(&source, 10, 13);
     direct.bind_source_file();
 
     assert!(relocated.identity_owned_by(&domain));
@@ -168,9 +167,7 @@ fn diag_pins(binder: &Binder<'_>) -> Vec<(u32, u32, u32)> {
 #[test]
 fn function_overloads_merge() {
     let source = parse("function f(a: string): void;\nfunction f(a: number): void {}\n");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(symbols[0], symbols[1]);
     let symbol = binder.symbols.symbol(symbols[0]);
@@ -186,9 +183,7 @@ fn function_overloads_merge() {
 #[test]
 fn namespace_merges_into_function() {
     let source = parse("function f() {}\nnamespace f { export const x = 1; }\n");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(symbols[0], symbols[1]);
     assert!(binder.bind_diagnostics.is_empty());
@@ -197,9 +192,7 @@ fn namespace_merges_into_function() {
 #[test]
 fn interface_merges_into_class() {
     let source = parse("class D {}\ninterface D {}\n");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(symbols[0], symbols[1]);
     let symbol = binder.symbols.symbol(symbols[0]);
@@ -213,9 +206,7 @@ fn interface_merges_into_class() {
 fn block_scoped_redeclaration_reports_2451_and_detaches_fresh_symbol() {
     // Pins from tsc sf.bindDiagnostics on "let x = 1;\nlet x = 2;".
     let source = parse("let x = 1;\nlet x = 2;");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(diag_pins(&binder), [(2451, 4, 1), (2451, 15, 1)]);
     // The fresh conflict symbol is DETACHED: the table keeps the
@@ -230,9 +221,7 @@ fn block_scoped_redeclaration_reports_2451_and_detaches_fresh_symbol() {
 fn triple_let_conflicts_against_the_original_symbol() {
     // Pins from tsc: "let y = 1;\nlet y = 2;\nlet y = 3;".
     let source = parse("let y = 1;\nlet y = 2;\nlet y = 3;");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(
         diag_pins(&binder),
@@ -246,9 +235,7 @@ fn var_then_function_reports_duplicate_identifier() {
     // because bindEachFunctionsFirst binds the function BEFORE the
     // var (stage 3.4); source-order declaration flips it.
     let source = parse("var f: any;\nfunction f() {}");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(diag_pins(&binder), [(2300, 4, 1), (2300, 21, 1)]);
 }
@@ -257,9 +244,7 @@ fn var_then_function_reports_duplicate_identifier() {
 fn enum_cannot_merge_with_class_reports_2567() {
     // Pins from tsc: "class C {}\nenum C {}".
     let source = parse("class C {}\nenum C {}");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(diag_pins(&binder), [(2567, 6, 1), (2567, 16, 1)]);
     // messageNeedsName = false: the 2567 text carries no name.
@@ -274,9 +259,7 @@ fn multiple_default_export_classes_report_2528_with_relateds() {
     // Pins from tsc: "export default class C {}\nexport default class D {}"
     //   2528@(21,1) related 2753@(47,1); 2528@(47,1) related 2752@(21,1).
     let source = parse("export default class C {}\nexport default class D {}");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     let container = binder.symbols.alloc(
         SymbolFlags::NONE,
         crate::escape_leading_underscores("container"),
@@ -306,9 +289,7 @@ fn multiple_export_assignments_report_2528_full_statement_spans() {
     // Pins from tsc: "export default 1;\nexport default 2;"
     //   2528@(0,17) related 2753@(18,17); 2528@(18,17) related 2752@(0,17).
     let source = parse("export default 1;\nexport default 2;");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     let container = binder.symbols.alloc(
         SymbolFlags::NONE,
         crate::escape_leading_underscores("container"),
@@ -329,9 +310,7 @@ fn multiple_export_assignments_report_2528_full_statement_spans() {
 #[test]
 fn escaped_names_key_the_table() {
     let source = parse("let __proto__ = 1;");
-    let options: &'static tsc_types::CompilerOptions =
-        Box::leak(Box::new(tsc_types::CompilerOptions::default()));
-    let mut binder = Binder::new(&source, options);
+    let mut binder = Binder::new(&source);
     declare_all(&mut binder, TableRef::Locals(source.root), None);
     let table = binder.locals.get(&source.root).expect("locals");
     assert!(table.contains_key("___proto__"));
@@ -362,7 +341,6 @@ fn local_bind_with_in_order_relocation_matches_sequential_ephemeral_binding() {
         "class Other { #x = 2; #y = 3; read() { return this.#x + this.#y; } }\nlet other = new Other();\nfunction f(a: number) { let b = a; return b; }\n",
         "export {};\nlet unused = 1;\nnamespace N { export const n = 1; }\n",
     ];
-    let options = tsc_types::CompilerOptions::default();
 
     let sequential_domain = IdentityDomain::ephemeral();
     let sequential_sources: Vec<SourceFile> = texts
@@ -372,9 +350,7 @@ fn local_bind_with_in_order_relocation_matches_sequential_ephemeral_binding() {
         .collect();
     let sequential: Vec<Binder<'_>> = sequential_sources
         .iter()
-        .map(|source| {
-            Binder::bind_in_identity_domain(source, &options, &sequential_domain).unwrap()
-        })
+        .map(|source| Binder::bind_in_identity_domain(source, &sequential_domain).unwrap())
         .collect();
 
     let parallel_domain = IdentityDomain::ephemeral();
@@ -387,7 +363,7 @@ fn local_bind_with_in_order_relocation_matches_sequential_ephemeral_binding() {
         let handles: Vec<_> = parallel_sources
             .iter()
             .rev()
-            .map(|source| scope.spawn(|| Binder::bind_local(source, &options)))
+            .map(|source| scope.spawn(|| Binder::bind_local(source)))
             .collect();
         let mut bound: Vec<Binder<'_>> = handles
             .into_iter()

@@ -20,9 +20,8 @@ fn bound_document_for_snapshot(
     )
     .expect("source identity allocation");
     let source = Arc::new(source);
-    let options = CompilerOptions::default();
-    let worker = BinderWorker::bind_in_identity_domain(&source, &options, domain)
-        .expect("bind identity allocation");
+    let worker =
+        BinderWorker::bind_in_identity_domain(&source, domain).expect("bind identity allocation");
     let data = worker.into_bind_data();
     Arc::new(BoundDocument::new(
         Arc::new(ParsedDocument::new(source)),
@@ -50,13 +49,11 @@ fn routes_parse_order_arenas_without_changing_program_order() {
         },
         None,
     );
-    let options = CompilerOptions::default();
 
-    let mut dependency_binder = Binder::with_bases(&dependency, &options, 1, 9);
+    let mut dependency_binder = Binder::with_bases(&dependency, 1, 9);
     dependency_binder.bind_source_file();
     let mut root_binder = Binder::with_bases(
         &root,
-        &options,
         dependency_binder.next_symbol_id(),
         dependency_binder.symbols.next_id().index() + 7,
     );
@@ -211,10 +208,9 @@ fn owner_hint_preserves_sparse_boundaries_under_shared_queries() {
 fn try_new_rejects_overlap_and_cross_domain_programs() {
     let first = parse_source_file("/first.ts", "let a = 1;", Default::default(), None);
     let second = parse_source_file("/second.ts", "let b = 2;", Default::default(), None);
-    let options = CompilerOptions::default();
-    let mut first_binder = Binder::with_bases(&first, &options, 1, 0);
+    let mut first_binder = Binder::with_bases(&first, 1, 0);
     first_binder.bind_source_file();
-    let mut second_binder = Binder::with_bases(&second, &options, 1, 0);
+    let mut second_binder = Binder::with_bases(&second, 1, 0);
     second_binder.bind_source_file();
     assert!(matches!(
         ProgramBinder::try_new(vec![&first_binder, &second_binder]),
@@ -232,8 +228,8 @@ fn try_new_rejects_overlap_and_cross_domain_programs() {
     second
         .relocate_into_identity_domain(&second_domain)
         .unwrap();
-    let first_binder = Binder::bind_in_identity_domain(&first, &options, &first_domain).unwrap();
-    let second_binder = Binder::bind_in_identity_domain(&second, &options, &second_domain).unwrap();
+    let first_binder = Binder::bind_in_identity_domain(&first, &first_domain).unwrap();
+    let second_binder = Binder::bind_in_identity_domain(&second, &second_domain).unwrap();
     assert!(matches!(
         ProgramBinder::try_new(vec![&first_binder, &second_binder]),
         Err(ProgramIdentityError::IdentityDomainMismatch { file: 1 })
@@ -254,9 +250,8 @@ fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
         .expect("source identity allocation");
     let source = Arc::new(source);
     let options = CompilerOptions::default();
-    let worker: BinderWorker<'_> =
-        BinderWorker::bind_in_identity_domain(&source, &options, &identity_domain)
-            .expect("bind identity allocation");
+    let worker: BinderWorker<'_> = BinderWorker::bind_in_identity_domain(&source, &identity_domain)
+        .expect("bind identity allocation");
     let data = worker.into_bind_data();
     let parsed = Arc::new(ParsedDocument::new(Arc::clone(&source)));
     let document = Arc::new(BoundDocument::new(parsed, data));
@@ -335,9 +330,8 @@ fn ephemeral_store_publishes_only_completed_owned_documents() {
     )
     .expect("source identity allocation");
     let source = Arc::new(source);
-    let options = CompilerOptions::default();
-    let worker = BinderWorker::bind_in_identity_domain(&source, &options, &domain)
-        .expect("bind identity allocation");
+    let worker =
+        BinderWorker::bind_in_identity_domain(&source, &domain).expect("bind identity allocation");
     let mut store = EphemeralDocumentStore::new(domain.clone());
     let document = store
         .publish(Arc::clone(&source), worker.into_bind_data())
@@ -363,11 +357,7 @@ fn registry_shares_a_document_while_a_program_holds_it() {
         TextSnapshot::new(text, DocumentVersion::default()),
         &domain,
     );
-    let address = DocumentAddress::new(
-        &ParseOptions::default(),
-        CompilerOptions::default(),
-        &domain,
-    );
+    let address = DocumentAddress::new(&ParseOptions::default(), &domain);
     registry.insert(address.clone(), &document);
     assert_eq!(registry.len(), 1);
 
@@ -391,7 +381,7 @@ fn registry_shares_a_document_while_a_program_holds_it() {
 }
 
 #[test]
-fn registry_tells_parse_bind_and_domain_addresses_apart() {
+fn registry_tells_parse_and_domain_addresses_apart() {
     let registry = DocumentRegistry::new();
     let domain = registry.identity_domain().clone();
     let text = "export const value = 1;";
@@ -400,35 +390,23 @@ fn registry_tells_parse_bind_and_domain_addresses_apart() {
         TextSnapshot::new(text, DocumentVersion::default()),
         &domain,
     );
-    let address = DocumentAddress::new(
-        &ParseOptions::default(),
-        CompilerOptions::default(),
-        &domain,
-    );
+    let address = DocumentAddress::new(&ParseOptions::default(), &domain);
     registry.insert(address, &document);
 
     let other_parse = ParseOptions {
         javascript_file: true,
         ..ParseOptions::default()
     };
-    let other_bind = CompilerOptions {
-        always_strict: Some(false),
-        ..CompilerOptions::default()
-    };
     for address in [
-        DocumentAddress::new(&other_parse, CompilerOptions::default(), &domain),
-        DocumentAddress::new(&ParseOptions::default(), other_bind, &domain),
-        DocumentAddress::new(
-            &ParseOptions::default(),
-            CompilerOptions::default(),
-            &IdentityDomain::reclaiming(),
-        ),
+        DocumentAddress::new(&other_parse, &domain),
+        DocumentAddress::new(&ParseOptions::default(), &IdentityDomain::reclaiming()),
     ] {
         assert!(registry
             .get("/registry.ts".into(), text, &address)
             .is_none());
     }
-    // Identity bases do not take part in the address.
+    // Identity bases and compiler options do not take part in the address
+    // (parsing and binding read no options, as in tsgo's parse cache key).
     let based = ParseOptions {
         node_id_base: 7,
         node_array_id_base: 3,
@@ -438,7 +416,7 @@ fn registry_tells_parse_bind_and_domain_addresses_apart() {
         .get(
             "/registry.ts".into(),
             text,
-            &DocumentAddress::new(&based, CompilerOptions::default(), &domain)
+            &DocumentAddress::new(&based, &domain)
         )
         .is_some());
 }

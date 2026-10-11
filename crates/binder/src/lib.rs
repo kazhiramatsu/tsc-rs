@@ -10,7 +10,6 @@ pub mod node_util;
 pub mod symbols;
 
 use tsc_syntax::SourceFile;
-use tsc_types::CompilerOptions;
 
 pub use assignment::{
     get_assignment_declaration_kind, get_assignment_declaration_property_access_kind,
@@ -26,11 +25,8 @@ pub use symbols::{
 /// tsc bindSourceFile (42408): runs the binder over one parsed file and
 /// returns it with its symbol tables, node links, flow graph, and bind
 /// diagnostics.
-pub fn bind_source_file<'a>(
-    source_file: &'a SourceFile,
-    options: &'a CompilerOptions,
-) -> Binder<'a> {
-    let mut binder = Binder::new(source_file, options);
+pub fn bind_source_file(source_file: &SourceFile) -> Binder<'_> {
+    let mut binder = Binder::new(source_file);
     binder.bind_source_file();
     binder
 }

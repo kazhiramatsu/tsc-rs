@@ -6,7 +6,7 @@ use tsc_syntax::{
     for_each_child, JSDocParsingMode, LanguageVariant, NodeId, ParseOptions, ParseRecoveryAction,
     SourceFile, SyntaxKind,
 };
-use tsc_types::{NodeFlags, ScriptTarget};
+use tsc_types::NodeFlags;
 
 fn missing_nodes(
     source: &SourceFile,
@@ -54,7 +54,6 @@ fn original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts() 
                 path,
                 file["text"].as_str().unwrap(),
                 ParseOptions {
-                    script_target: ScriptTarget::from_bits(case["target"].as_i64().unwrap() as i32),
                     javascript_file: path.ends_with(".js") || path.ends_with(".jsx"),
                     language_variant: if path.ends_with(".tsx") || path.ends_with(".jsx") {
                         LanguageVariant::Jsx
@@ -126,7 +125,6 @@ fn await_reparse_respects_factory_child_and_name_boundaries() {
             path,
             text,
             ParseOptions {
-                script_target: ScriptTarget::ES_NEXT,
                 language_variant: if path.ends_with(".tsx") {
                     LanguageVariant::Jsx
                 } else {

@@ -437,10 +437,7 @@ fn shared_class_member_array_fails_closed_across_contextual_parent_owners() {
             "export default class<T> { accessor constructor() { } }\n",
             "export default class<U> { accessor constructor() { } }\n",
         ),
-        ParseOptions {
-            script_target: ScriptTarget::ES_NEXT,
-            ..ParseOptions::default()
-        },
+        ParseOptions::default(),
         None,
     );
     let mut arena = TransformArena::new();

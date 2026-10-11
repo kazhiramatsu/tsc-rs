@@ -16,7 +16,6 @@ fn preserved_jsx_erases_type_arguments_without_consuming_the_attribute_boundary(
             "<SFC<number> prop={2} />;\n",
         ),
         ParseOptions {
-            script_target: ScriptTarget::ES_NEXT,
             language_variant: LanguageVariant::Jsx,
             ..ParseOptions::default()
         },

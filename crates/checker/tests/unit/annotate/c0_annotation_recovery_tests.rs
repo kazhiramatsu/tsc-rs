@@ -30,7 +30,7 @@ fn parse(text: &str) -> SourceFile {
 fn declarationless_type_alias_caches_error_while_valid_alias_keeps_its_type() {
     let source = parse("type Live = string;\n");
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
 
     let live = state
@@ -63,7 +63,7 @@ fn declarationless_type_alias_caches_error_while_valid_alias_keeps_its_type() {
 fn unexpected_signature_uses_cached_unknown_signature_beside_a_valid_signature() {
     let source = parse("type Live = (value: string) => number;\n");
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
     let function_type = source
         .arena
@@ -107,7 +107,7 @@ fn missing_late_bindable_argument_is_error_type_beside_a_valid_element_name() {
         NodeFlags::NONE,
     );
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
 
     let live = state
@@ -124,7 +124,7 @@ fn missing_late_bindable_argument_is_error_type_beside_a_valid_element_name() {
 fn malformed_annotation_inputs_resolve_to_error_type_without_unwinding() {
     let source = parse("const live = 1;\n");
     let options = CompilerOptions::default();
-    let binder = bind_source_file(&source, &options);
+    let binder = bind_source_file(&source);
     let mut state = CheckerState::new(&source, &binder, &options);
 
     let declarationless = state.binder.create_symbol(

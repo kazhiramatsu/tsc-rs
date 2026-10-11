@@ -48,7 +48,6 @@ pub enum TableRef {
 /// `SymbolTable`. Construct identity maps with `Default` or `collect`.
 pub struct BinderWorker<'a> {
     pub source: &'a SourceFile,
-    pub options: &'a tsc_types::CompilerOptions,
     /// tsc file.commonJsModuleIndicator.
     pub common_js_module_indicator: Option<NodeId>,
     pub symbols: SymbolArena,
@@ -135,8 +134,9 @@ pub struct BinderWorker<'a> {
 
 /// The completed, checker-consumed half of one bind operation.
 ///
-/// `BinderWorker` is the temporary worker: it borrows the parsed source and
-/// compiler options while it walks containers and builds this record. Once
+/// `BinderWorker` is the temporary worker: it borrows the parsed source
+/// (and, like tsgo's binder, reads no compiler options) while it walks
+/// containers and builds this record. Once
 /// publication succeeds, callers retain only `BindData`; no walk cursor,
 /// borrowed input, or in-flight target is carried into a Program snapshot.
 /// Its numeric identity maps use `FxHashMap`, as in `BinderWorker`.
@@ -295,27 +295,18 @@ impl BindData {
 }
 
 impl<'a> BinderWorker<'a> {
-    pub fn new(source: &'a SourceFile, options: &'a tsc_types::CompilerOptions) -> Self {
-        Self::with_symbol_id_seed(source, options, 1)
+    pub fn new(source: &'a SourceFile) -> Self {
+        Self::with_symbol_id_seed(source, 1)
     }
 
-    pub fn with_symbol_id_seed(
-        source: &'a SourceFile,
-        options: &'a tsc_types::CompilerOptions,
-        next_symbol_id: u32,
-    ) -> Self {
-        Self::with_bases(source, options, next_symbol_id, 0)
+    pub fn with_symbol_id_seed(source: &'a SourceFile, next_symbol_id: u32) -> Self {
+        Self::with_bases(source, next_symbol_id, 0)
     }
 
     /// Program bind (M4 5.0): file N's symbols allocate from
     /// `symbol_base` so SymbolIds are program-unique, mirroring the
     /// parse-side NodeId bases (ParseOptions::node_id_base).
-    pub fn with_bases(
-        source: &'a SourceFile,
-        options: &'a tsc_types::CompilerOptions,
-        next_symbol_id: u32,
-        symbol_base: u32,
-    ) -> Self {
+    pub fn with_bases(source: &'a SourceFile, next_symbol_id: u32, symbol_base: u32) -> Self {
         let mut flow = crate::flow::FlowArena::default();
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
@@ -329,7 +320,6 @@ impl<'a> BinderWorker<'a> {
         let node_count = source.arena.nodes().len();
         Self {
             source,
-            options,
             common_js_module_indicator: None,
             // About one symbol per six nodes: size the arena once instead of
             // growing (and moving every symbol) a dozen times.
@@ -435,8 +425,8 @@ impl<'a> BinderWorker<'a> {
         self.source.text().len()
     }
 
-    pub fn bind_local(source: &'a SourceFile, options: &'a tsc_types::CompilerOptions) -> Self {
-        let mut binder = Self::with_bases(source, options, 1, 0);
+    pub fn bind_local(source: &'a SourceFile) -> Self {
+        let mut binder = Self::with_bases(source, 1, 0);
         binder.bind_source_file();
         binder
     }
@@ -445,13 +435,8 @@ impl<'a> BinderWorker<'a> {
     /// from `symbol_base`, private-name serials from `serial_base`. The
     /// reservations are published afterwards with
     /// [`Self::attach_reserved_leases`], so no identity is rewritten.
-    pub fn bind_reserved(
-        source: &'a SourceFile,
-        options: &'a tsc_types::CompilerOptions,
-        symbol_base: u32,
-        serial_base: u32,
-    ) -> Self {
-        let mut binder = Self::with_bases(source, options, serial_base, symbol_base);
+    pub fn bind_reserved(source: &'a SourceFile, symbol_base: u32, serial_base: u32) -> Self {
+        let mut binder = Self::with_bases(source, serial_base, symbol_base);
         binder.bind_source_file();
         binder
     }
@@ -512,7 +497,6 @@ impl<'a> BinderWorker<'a> {
     /// domains bind locally and relocate only after exact counts are known.
     pub fn bind_in_identity_domain(
         source: &'a SourceFile,
-        options: &'a tsc_types::CompilerOptions,
         domain: &IdentityDomain,
     ) -> Result<Self, IdentityError> {
         if !source.identity_owned_by(domain) {
@@ -529,7 +513,6 @@ impl<'a> BinderWorker<'a> {
                 ])?;
                 let mut binder = Self::with_bases(
                     source,
-                    options,
                     reservation.base(IdentitySpace::PrivateNameSerial)?,
                     reservation.base(IdentitySpace::Symbol)?,
                 );
@@ -543,7 +526,7 @@ impl<'a> BinderWorker<'a> {
                 Ok(binder)
             }
             IdentityAllocationPolicy::Reclaiming => {
-                let mut binder = Self::with_bases(source, options, 1, 0);
+                let mut binder = Self::with_bases(source, 1, 0);
                 binder.bind_source_file();
                 binder.relocate_into_identity_domain(domain)?;
                 Ok(binder)
@@ -1299,7 +1282,6 @@ impl BinderWorker<'_> {
     ) -> Result<(), IdentityError> {
         let Self {
             source: _,
-            options: _,
             common_js_module_indicator: _,
             symbols,
             node_symbol,
@@ -1539,7 +1521,6 @@ impl BinderWorker<'_> {
     pub fn into_bind_data(self) -> BindData {
         let Self {
             source: _,
-            options: _,
             common_js_module_indicator,
             symbols,
             node_symbol,

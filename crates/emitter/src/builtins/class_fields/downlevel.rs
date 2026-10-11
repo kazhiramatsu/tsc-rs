@@ -2591,7 +2591,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             match assigned_class_name.as_ref() {
                 Some(AssignedClassName::Literal(name)) => name
                     .as_str()
-                    .filter(|text| tsc_syntax::is_identifier_text_for_target(text, self.target))
+                    .filter(|text| tsc_syntax::is_identifier_text(text))
                     .map(str::to_owned),
                 _ => None,
             }
@@ -3068,7 +3068,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(data
             .text
             .as_str()
-            .filter(|text| tsc_syntax::is_identifier_text_for_target(text, self.target))
+            .filter(|text| tsc_syntax::is_identifier_text(text))
             .map(str::to_owned))
     }
 

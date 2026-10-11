@@ -305,7 +305,6 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
 pub fn source_files_structurally_equal(left: &SourceFile, right: &SourceFile) -> bool {
     left.file_name == right.file_name
         && left.text() == right.text()
-        && left.language_version == right.language_version
         && left.language_variant == right.language_variant
         && left.is_declaration_file == right.is_declaration_file
         && left.js_doc_parsing_mode == right.js_doc_parsing_mode
@@ -855,8 +854,7 @@ fn has_statements(source: &SourceFile) -> bool {
 
 fn parse_options_match(source: &SourceFile, options: &ParseOptions) -> bool {
     let flags = NodeFlags::from_bits(source.arena.node(source.root).flags);
-    source.language_version == options.script_target
-        && source.language_variant == options.language_variant
+    source.language_variant == options.language_variant
         && source.js_doc_parsing_mode == options.js_doc_parsing_mode
         && flags.contains(NodeFlags::JAVA_SCRIPT_FILE) == options.javascript_file
 }

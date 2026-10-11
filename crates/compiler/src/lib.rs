@@ -1705,7 +1705,6 @@ impl ProgramSession {
         Ok(prepare_authoritative_harness_lib_bundle(
             &inputs.libs,
             &inputs.files,
-            self.prepared.compiler_options(),
         ))
     }
 

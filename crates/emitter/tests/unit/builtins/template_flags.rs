@@ -1,6 +1,5 @@
 use serde_json::{json, Value};
 use tsc_syntax::{for_each_child, NodeData, ParseOptions};
-use tsc_types::ScriptTarget;
 
 use crate::{TransformArena, TransformFlags, TransformNode, TransformSourceId};
 
@@ -37,10 +36,7 @@ fn template_facets_follow_parser_flags_and_survive_factory_copies() {
         let parsed = tsc_syntax::parse_source_file(
             "main.ts",
             case["source"].as_str().unwrap(),
-            ParseOptions {
-                script_target: ScriptTarget::ES2017,
-                ..ParseOptions::default()
-            },
+            ParseOptions::default(),
             None,
         );
         let empty = tsc_syntax::parse_source_file("other.ts", "", Default::default(), None);

@@ -1089,9 +1089,9 @@ fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
         no_unused_locals: Some(true),
         ..CompilerOptions::default()
     };
-    let dependency_worker = BinderWorker::bind_in_identity_domain(&dependency, &options, &domain)
+    let dependency_worker = BinderWorker::bind_in_identity_domain(&dependency, &domain)
         .expect("JSX dependency bind identity allocation");
-    let worker = BinderWorker::bind_in_identity_domain(&source, &options, &domain)
+    let worker = BinderWorker::bind_in_identity_domain(&source, &domain)
         .expect("classic JSX bind identity allocation");
     let dependency_document = Arc::new(BoundDocument::new(
         Arc::new(ParsedDocument::new(Arc::clone(&dependency))),
@@ -1207,9 +1207,9 @@ fn null_jsx_fragment_factory_does_not_retain_the_ordinary_factory_import_or_its_
         no_unused_locals: Some(true),
         ..CompilerOptions::default()
     };
-    let dependency_worker = BinderWorker::bind_in_identity_domain(&dependency, &options, &domain)
+    let dependency_worker = BinderWorker::bind_in_identity_domain(&dependency, &domain)
         .expect("JSX dependency bind identity allocation");
-    let worker = BinderWorker::bind_in_identity_domain(&source, &options, &domain)
+    let worker = BinderWorker::bind_in_identity_domain(&source, &domain)
         .expect("null JSX fragment bind identity allocation");
     let dependency_document = Arc::new(BoundDocument::new(
         Arc::new(ParsedDocument::new(Arc::clone(&dependency))),
@@ -1337,7 +1337,7 @@ fn emit_import_resolution_filters_only_value_bearing_type_only_origins() {
         let documents = sources
             .iter()
             .map(|source| {
-                let worker = BinderWorker::bind_in_identity_domain(source, &options, &domain)
+                let worker = BinderWorker::bind_in_identity_domain(source, &domain)
                     .expect("emit alias bind identity allocation");
                 Arc::new(BoundDocument::new(
                     Arc::new(ParsedDocument::new(Arc::clone(source))),
@@ -1434,7 +1434,7 @@ fn emit_resolver_reanchors_decorator_metadata_imports_to_the_class_scope() {
     let documents = sources
         .iter()
         .map(|source| {
-            let worker = BinderWorker::bind_in_identity_domain(source, &options, &domain)
+            let worker = BinderWorker::bind_in_identity_domain(source, &domain)
                 .expect("decorator metadata bind identity allocation");
             Arc::new(BoundDocument::new(
                 Arc::new(ParsedDocument::new(Arc::clone(source))),
@@ -1530,7 +1530,7 @@ fn import_publication_declaration_references_match_typescript_resolver() {
             let documents = sources
                 .iter()
                 .map(|source| {
-                    let worker = BinderWorker::bind_in_identity_domain(source, &options, &domain)
+                    let worker = BinderWorker::bind_in_identity_domain(source, &domain)
                         .expect("resolver binding identity");
                     Arc::new(BoundDocument::new(
                         Arc::new(ParsedDocument::new(Arc::clone(source))),
@@ -1635,7 +1635,7 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
             .unwrap(),
         );
         assert!(source.parse_diagnostics.is_empty());
-        let worker = BinderWorker::bind_in_identity_domain(&source, &options, &domain).unwrap();
+        let worker = BinderWorker::bind_in_identity_domain(&source, &domain).unwrap();
         expected.push((source.root, common_js, external));
         documents.push(Arc::new(BoundDocument::new(
             Arc::new(ParsedDocument::new(Arc::clone(&source))),

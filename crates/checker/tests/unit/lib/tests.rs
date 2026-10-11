@@ -945,7 +945,7 @@ fn absolute_cwd_backslash_segments_stay_literal_during_dot_resolution() {
 }
 
 #[test]
-fn lib_bundle_key_projects_to_bind_observables() {
+fn lib_bundle_key_reads_no_options() {
     use tsc_types::flags::ScriptTarget;
     // A lib name unique to this test: the cache is process-global.
     let lib = InputFile::new(
@@ -953,51 +953,47 @@ fn lib_bundle_key_projects_to_bind_observables() {
         "declare const bundleKeyProbe: number;\n".to_owned(),
     );
     let libs = [&lib];
-    // An absent target is TypeScript 7.1's default, ES2026.
-    let base = CompilerOptions::default();
-    let shared = lib_bundle(&libs, &base);
-    assert_eq!(
-        shared.documents[0].source().language_version,
-        ScriptTarget::ES2026
-    );
-
-    // Bind-inert options reuse the bundle: the checker consumes
-    // them per program, never through the cached prefix. The binder tracks
-    // no strict mode (tsgo's binder has none), so alwaysStrict is inert.
-    let inert = CompilerOptions {
-        strict_null_checks: Some(false),
-        jsx: Some(2),
-        no_emit: Some(true),
-        module_resolution: Some(100),
-        always_strict: Some(false),
-        ..base.clone()
-    };
-    assert!(std::ptr::eq(shared, lib_bundle(&libs, &inert)));
-
-    // ES3 and an absent target compute the same ES2026
-    // languageVersion (`emit_script_target`) — one bundle.
-    let es3 = CompilerOptions {
-        target: Some(ScriptTarget::ES3.bits()),
-        ..base.clone()
-    };
-    assert!(std::ptr::eq(shared, lib_bundle(&libs, &es3)));
-
-    // Each bind-time observable splits the key.
-    let es5 = CompilerOptions {
-        target: Some(ScriptTarget::ES5.bits()),
-        ..base.clone()
-    };
-    let es5_bundle = lib_bundle(&libs, &es5);
-    assert!(!std::ptr::eq(shared, es5_bundle));
-    assert_eq!(
-        es5_bundle.documents[0].source().language_version,
-        ScriptTarget::ES5
-    );
-    let fallthrough = CompilerOptions {
-        no_fallthrough_cases_in_switch: Some(true),
-        ..base.clone()
-    };
-    assert!(!std::ptr::eq(shared, lib_bundle(&libs, &fallthrough)));
+    let shared = lib_bundle(&libs);
+    // Parsing and binding read no compiler options (tsgo's parse cache keys
+    // a document by its parse options and text), so one bundle serves the
+    // checker options, every target and noFallthroughCasesInSwitch alike.
+    for options in [
+        CompilerOptions {
+            strict_null_checks: Some(false),
+            jsx: Some(2),
+            no_emit: Some(true),
+            module_resolution: Some(100),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            target: Some(ScriptTarget::ES5.bits()),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            target: Some(ScriptTarget::ES_NEXT.bits()),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            no_fallthrough_cases_in_switch: Some(true),
+            ..CompilerOptions::default()
+        },
+    ] {
+        let result = check_program_with_libs_at(
+            &[InputFile::new(
+                "lib.bundle-key-probe.d.ts".to_owned(),
+                lib.text(),
+            )],
+            &[InputFile::new(
+                "/bundle-key.ts".to_owned(),
+                "const value: number = bundleKeyProbe;\n".to_owned(),
+            )],
+            &options,
+            "/",
+        );
+        assert!(result.diagnostics.is_empty(), "{options:?}");
+        assert!(std::ptr::eq(shared, lib_bundle(&libs)));
+    }
 }
 
 #[test]
@@ -1014,11 +1010,9 @@ fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
         first.name.clone(),
         "declare const collisionProbe: number;\n".to_owned(),
     );
-    let options = CompilerOptions::default();
-
-    let first_bundle = lib_bundle_with_fingerprint(&[&first], &options, collide_all_text);
-    let second_bundle = lib_bundle_with_fingerprint(&[&second], &options, collide_all_text);
-    let first_again = lib_bundle_with_fingerprint(&[&first], &options, collide_all_text);
+    let first_bundle = lib_bundle_with_fingerprint(&[&first], collide_all_text);
+    let second_bundle = lib_bundle_with_fingerprint(&[&second], collide_all_text);
+    let first_again = lib_bundle_with_fingerprint(&[&first], collide_all_text);
 
     assert!(!std::ptr::eq(first_bundle, second_bundle));
     assert!(std::ptr::eq(first_bundle, first_again));
@@ -1027,7 +1021,7 @@ fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
 }
 
 #[test]
-fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
+fn prepared_harness_bundle_validates_exact_text() {
     fn assert_handle_traits<T: Copy + Send + Sync + 'static>() {}
 
     assert_handle_traits::<PreparedHarnessLibBundle>();
@@ -1039,53 +1033,29 @@ fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
         original.name.clone(),
         "declare const preparedProbe: number;\n".to_owned(),
     );
-    let base = CompilerOptions::default();
-    let prepared = prepare_harness_lib_bundle(std::slice::from_ref(&original), &base).unwrap();
-    let base_projection = lib_bundle_options(&base);
+    let prepared = prepare_harness_lib_bundle(std::slice::from_ref(&original)).unwrap();
 
-    assert!(prepared.validated(&[&original], &base_projection).is_some());
-    assert!(prepared.validated(&[&changed], &base_projection).is_none());
-
-    let bind_inert = CompilerOptions {
-        strict_null_checks: Some(true),
-        no_emit: Some(true),
-        always_strict: Some(false),
-        ..base.clone()
-    };
-    assert!(harness_lib_bundle_options_key(&base) == harness_lib_bundle_options_key(&bind_inert));
-    assert!(prepared
-        .validated(&[&original], &lib_bundle_options(&bind_inert))
-        .is_some());
-
-    let bind_observable = CompilerOptions {
-        no_fallthrough_cases_in_switch: Some(true),
-        ..base.clone()
-    };
-    assert!(
-        harness_lib_bundle_options_key(&base) != harness_lib_bundle_options_key(&bind_observable)
-    );
-    assert!(prepared
-        .validated(&[&original], &lib_bundle_options(&bind_observable))
-        .is_none());
+    assert!(prepared.validated(&[&original]).is_some());
+    assert!(prepared.validated(&[&changed]).is_none());
 
     let second = InputFile::new(
         "lib.prepared-validation-second.d.ts".to_owned(),
         "declare const preparedSecond: boolean;\n".to_owned(),
     );
     let ordered = [original.clone(), second.clone()];
-    let ordered_prepared = prepare_harness_lib_bundle(&ordered, &base).unwrap();
+    let ordered_prepared = prepare_harness_lib_bundle(&ordered).unwrap();
     assert!(ordered_prepared
-        .validated(&[&ordered[0], &ordered[1]], &base_projection)
+        .validated(&[&ordered[0], &ordered[1]])
         .is_some());
     assert!(ordered_prepared
-        .validated(&[&ordered[1], &ordered[0]], &base_projection)
+        .validated(&[&ordered[1], &ordered[0]])
         .is_none());
     let renamed = InputFile::new(
         "lib.prepared-validation-renamed.d.ts".to_owned(),
         second.text(),
     );
     assert!(ordered_prepared
-        .validated(&[&ordered[0], &renamed], &base_projection)
+        .validated(&[&ordered[0], &renamed])
         .is_none());
 }
 
@@ -1121,7 +1091,7 @@ fn stale_prepared_harness_bundle_falls_back_to_ordinary_exact_bundle() {
         "const value: string = preparedFallbackProbe;\n".to_owned(),
     )];
     let options = CompilerOptions::default();
-    let prepared = prepare_harness_lib_bundle(std::slice::from_ref(&original), &options).unwrap();
+    let prepared = prepare_harness_lib_bundle(std::slice::from_ref(&original)).unwrap();
 
     let ordinary =
         check_program_with_libs_at(std::slice::from_ref(&changed), &files, &options, "/");
@@ -1176,17 +1146,16 @@ fn parallel_cold_lib_bundle_callers_share_one_exact_entry() {
             .map(|index| format!("interface ColdProbe{index} {{ value: number }}\n"))
             .collect::<String>(),
     );
-    let options = CompilerOptions::default();
     let start = std::sync::Barrier::new(3);
 
     let (first, second) = std::thread::scope(|scope| {
         let first = scope.spawn(|| {
             start.wait();
-            lib_bundle(&[&lib], &options)
+            lib_bundle(&[&lib])
         });
         let second = scope.spawn(|| {
             start.wait();
-            lib_bundle(&[&lib], &options)
+            lib_bundle(&[&lib])
         });
         start.wait();
         (
@@ -1431,7 +1400,9 @@ fn authoritative_not_found_facts_reach_the_module_not_found_chain() {
 }
 
 #[test]
-fn program_parser_receives_the_effective_script_target() {
+fn program_parse_reads_no_target_like_tsgo() {
+    // tsgo's parser has only the ESNext identifier tables: `ࢡ` (U+08A1) is a
+    // property name at every target, the removed ES5 included.
     let files = [InputFile::new(
         "a.ts".to_owned(),
         "foo.\u{08a1};\n".to_owned(),
@@ -1451,13 +1422,7 @@ fn program_parser_receives_the_effective_script_target() {
         },
     );
 
-    assert_eq!(
-        es5.syntactic_diagnostics
-            .iter()
-            .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
-            .collect::<Vec<_>>(),
-        vec![(1127, Some(4), Some(1))]
-    );
+    assert!(es5.syntactic_diagnostics.is_empty());
     assert!(es2015.syntactic_diagnostics.is_empty());
 }
 
@@ -6891,7 +6856,7 @@ fn library_related_information_follows_program_membership_across_entry_families(
             ),
         ));
     }
-    if let Some(prepared) = prepare_harness_lib_bundle(&libs, &options) {
+    if let Some(prepared) = prepare_harness_lib_bundle(&libs) {
         observations.push((
             false,
             check_program_with_prepared_harness_libs_at(&libs, &files, &options, "/", prepared),
