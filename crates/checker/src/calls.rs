@@ -2774,15 +2774,6 @@ impl<'a> CheckerState<'a> {
         head: &'static DiagnosticMessage,
         mut containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Diagnostic> {
-        let head = if head.code
-            == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
-            && self.options.exact_optional_property_types.unwrap_or(false)
-            && self.has_exact_optional_unassignable_properties(source, target)?
-        {
-            &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties
-        } else {
-            head
-        };
         if let Some(containing_message_chain) = containing_message_chain.as_mut() {
             if let Ok((_, Some(output))) = self.check_relation_with_shared_message_chain_at(
                 source,
@@ -3515,15 +3506,6 @@ impl<'a> CheckerState<'a> {
         mode: ApplicabilityMode,
         mut containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Vec<ApplicabilityError>> {
-        let head = if head.code
-            == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
-            && self.options.exact_optional_property_types.unwrap_or(false)
-            && self.has_exact_optional_unassignable_properties(source, target)?
-        {
-            &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties
-        } else {
-            head
-        };
         let diagnostic = if let Some(containing_message_chain) = containing_message_chain.as_mut() {
             let (_, output) = self.check_relation_with_shared_message_chain_at(
                 source,

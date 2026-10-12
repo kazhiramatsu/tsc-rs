@@ -31,3 +31,30 @@ fn exact_optional_overload_selection_matches_single_signature_face() {
     );
     assert_eq!(rows, [(2322, 180, 1)]);
 }
+
+#[test]
+fn an_optional_parameter_s_argument_head_names_the_option() {
+    // tsgo 7.1 (tsc-aa814927, strict + exactOptionalPropertyTypes):
+    // `a.ts(4,3): error TS2379`. reportRelationError swaps the argument
+    // head on the reported target, `O` without the optional
+    // parameter's `| undefined` (Astro's `Code.astro`).
+    let options = CompilerOptions {
+        strict: Some(true),
+        exact_optional_property_types: Some(true),
+        ..CompilerOptions::default()
+    };
+    let rows = with_program_state(
+        &[("a.ts", "interface O { meta?: string; a?: string }\ndeclare function f(o?: O): void;\ndeclare const meta: string | undefined;\nf({ meta, a: \"\" });\n")],
+        &options,
+        |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|d| d.file_name.is_some())
+                .map(|d| (d.code(), d.start.unwrap_or(0), d.length.unwrap_or(0)))
+                .collect::<Vec<_>>()
+        },
+    );
+    assert_eq!(rows, [(2379, 117, 15)]);
+}
