@@ -361,6 +361,31 @@ fn clamp(value: i32, low: i32, high: i32) -> i32 {
     low.max(value.min(high))
 }
 
+/// tsgo `ast.MappedDiagnosticDirectivePolicy`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum DirectivePolicy {
+    /// Diagnostics in the virtual range are not reported.
+    #[default]
+    Ignore,
+    /// As `Ignore`, and the directive's own diagnostic is reported when the
+    /// range has none (an unused `@ts-expect-error`).
+    Expect,
+}
+
+/// tsgo `ast.MappedDiagnosticDirective`: a mapper's directive over the
+/// TypeScript diagnostics of a virtual range, with the original range it
+/// came from, the diagnostic an unused `Expect` reports and the mapper's
+/// diagnostic source. Ranges are `(pos, end)` in the compiler's positions.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct MappedDiagnosticDirective {
+    pub original_range: (i32, i32),
+    pub virtual_range: (i32, i32),
+    pub policy: DirectivePolicy,
+    pub unused_code: i32,
+    pub unused_message_text: String,
+    pub source: String,
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/spanmap_tests.rs"]
 mod spanmap_tests;

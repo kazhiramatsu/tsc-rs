@@ -2,61 +2,10 @@
 //! pipes, plus the matching of concurrent calls and a call's time limit.
 
 use super::*;
-use std::collections::VecDeque;
-use std::sync::{Arc, Condvar};
+use std::sync::Arc;
 
+use crate::ipc::pipe::{pipe, PipeReader, PipeWriter};
 use crate::ipc::{jsonrpc, Payload};
-
-#[derive(Default)]
-struct Pipe {
-    state: Mutex<(VecDeque<u8>, bool)>,
-    ready: Condvar,
-}
-
-/// The reading end of an in-memory pipe: blocks until bytes arrive or the
-/// writing end is dropped.
-struct PipeReader(Arc<Pipe>);
-
-/// The writing end; dropping it ends the reader's input.
-struct PipeWriter(Arc<Pipe>);
-
-fn pipe() -> (PipeReader, PipeWriter) {
-    let pipe = Arc::new(Pipe::default());
-    (PipeReader(Arc::clone(&pipe)), PipeWriter(pipe))
-}
-
-impl Read for PipeReader {
-    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
-        let mut state = self.0.state.lock().unwrap();
-        while state.0.is_empty() && !state.1 {
-            state = self.0.ready.wait(state).unwrap();
-        }
-        let count = buffer.len().min(state.0.len());
-        for (slot, byte) in buffer.iter_mut().zip(state.0.drain(..count)) {
-            *slot = byte;
-        }
-        Ok(count)
-    }
-}
-
-impl Write for PipeWriter {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        self.0.state.lock().unwrap().0.extend(bytes);
-        self.0.ready.notify_all();
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
-impl Drop for PipeWriter {
-    fn drop(&mut self) {
-        self.0.state.lock().unwrap().1 = true;
-        self.0.ready.notify_all();
-    }
-}
 
 struct Rejecting;
 

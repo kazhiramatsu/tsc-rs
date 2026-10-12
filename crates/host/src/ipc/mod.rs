@@ -6,6 +6,7 @@ use std::fmt;
 
 mod conn_async;
 pub mod jsonrpc;
+pub mod pipe;
 
 pub use conn_async::{AsyncConn, CallError};
 
