@@ -194,3 +194,50 @@ walk は変換を自分の順で受け取るので、失敗の予算、初期化
 - **次（C4b）**：span map の original→virtual（済、branch 上）、test mapper 6 種（済、branch 上）、vendor に `.contentmapper`
   baseline を加える、conformance runner の `@runExternalCode`・mapper project・`.contentmapper` baseline（ratchet の列）・
   mapped file を除いた errors baseline・types/symbols/js の変換後の text、宣言 emit の細部。
+
+## C4b conformance runner と残りの C4（PR #767）
+
+conformance runner が compiler の case の content mapper を process の中で走らせ（tsgo の compiler runner と同じ）、tsgo の
+`.contentmapper` baseline を書く。case が要る program・emit・診断の振る舞いと合わせて、content mapper の 15 構成が全ての
+baseline（errors、宣言を含む `.js`、`.js.map`、`.sourcemap.txt`、`.types`、`.symbols`、`.contentmapper`）で tsgo と一致する
+（以前は harness error）。
+
+- **runner**：tsgo `contentmappertest` の mapper のうち compiler の case が使うもの（`compiler-test-mapper` と project の
+  lifecycle、Lisp、診断 code の衝突、supplemental の診断・global・module）を process の中の spawner で。LS だけが使うものは
+  language service の作業で。`@runExternalCode` は config の解析に command line の `--runExternalCode` として渡り、config の
+  解析は case の `@link` を見る（tsgo の test case parser は symlink の有る FS を渡す）。compile と宣言の compile が config の
+  content mapper を持ち（tsgo `compileDeclarationFiles` が渡す）、load の後に mapper の host を閉じる。
+- **`.contentmapper` baseline**（tsgo `DoContentMapperBaseline`）：mapped file ごとの元と変換後の text、その file の診断を
+  program の診断 writer（`ProgramDiagnosticWriter`：`WrapASTDiagnostics` の上の `FormatDiagnosticsWithColorAndContext`）で、
+  ANSI の装飾を除いて。errors baseline は mapped file とその診断を除き、残りを tsgo の診断の wrapper と同じく解決する。他の
+  baseline では mapped file の内容を変換後の text に（tsgo の runner の `file.Content = sf.Text()`）、map の baseline は元の
+  text を（`OriginalText()`）。vendor に 15 の `.contentmapper` を加え、ratchet に 9 列目、並列対照の比較にもその列。
+- **compiler**：mapper の拡張子の file の宣言は `.d<拡張子>.ts`（tsgo `ChangeToDeclarationExtension`、最長の拡張子）。mapped
+  file は JavaScript を出さず、宣言を出すときだけ emit の対象（tsgo `sourceFileMayBeEmitted`）。canonical の宣言は
+  supplemental の宣言を参照する（tsgo `SupplementalReferencesTransformer`）。宣言 map は mapped file の位置を元の正確な位置に、
+  元の名前で記録し、正確な位置の無いところは生成側だけの mapping（tsgo `MapSourcePosition` と
+  `VirtualToOriginalPositionExact`）。mapper の拡張子の import は最長の mapper の拡張子を外す（tsgo `SplitExtension`。
+  `./component.y.z` が `component.d.y.z.ts` に）。alias の segment の仮想名の引数は元の名前で表示（tsgo `displayMessageArgs`）、
+  合成の code の「不要」の診断は落とす（tsgo `filterAndSortDiagnostics`。checker の変更）、transform の結果の `null` の list は
+  空。`tsc_diagnostics::spanmap` に元から仮想への射影と `VirtualToOriginalPositionExact`。
+- **README**：content mapper の節（`contentMappers` と `--runExternalCode`、宣言、実プロジェクト、未対応）、`--runExternalCode`
+  の行、追従する commit（`aa814927`）、conformance の数、API server の未実装の更新、`.types`/`.symbols` の制限を削除。
+- **test**：spanmap（tsgo の射影と正確な写像、不連続な境界）、protocol（`null` の list）、loader（宣言 file の多段拡張子の
+  import が宣言の対を解決し tsgo の trace、mapped file は宣言のときだけ emit の対象で強制の宣言は残る。規則を外すと失敗）、
+  conformance runner の宣言名（多段拡張子）、vendor の manifest の contract に `.contentmapper`。
+- **結果**（release build、code `323850c7a`、ratchet `8bad12c24`、head `297bcb62e`）：clippy（9 crate）は clean、suites は 0 regressions、
+  full の conformance（`--workers 2 --check`、500 s）は 0 regressions で 13,577 が新しい列で accepted tier を上回り `--update` で記録、
+  #765 の report と比べて 15,324 が同じで違う 15 は content mapper の case（harness error → Full）。並列対照（`--checkers 4`、477 s）
+  は記録済みの 4 構成だけ。test（xtask 以外の全 crate、`--no-fail-fast`）は 4,234 が通り、1 件（vendor の manifest の総数の pin）を
+  `297bcb62e` で直した。実プロジェクトの 4 つは診断・`--explainFiles`・`--listFilesOnly` が tsgo と同じ。`--declaration
+  --declarationMap --emitDeclarationOnly` の宣言と宣言 map は site（144 file、`.astro` から 29）・vitesse（46、`.vue` から 10）・
+  soybean-admin（428、`.vue` から 90）で同じ、starlight は `.astro` からの 90 が同じで、content mapper 以外の 3 つが違う（JavaScript
+  の `@typedef` の宣言の `export {};`、JavaScript の宣言 map 2 つの mapping、同じ位置の TS2883 の順。次の slice）。最後の test・
+  clippy・実プロジェクトは夜間の設定（maintenance の QoS、`nice -n 20`、job 1、test thread 1）。
+- **hosted と merge**：PR #767 の hosted run 38273271121（rust 11m21s、conformance 15m58s、gates pass、head `297bcb62e`）、merge
+  commit `1a5cc6cab`。
+- **残り**：C5（tsbuild の 2、build info の identity、watch の mapper の設定 file、`-b` での mapper）、C6（API）、LS だけの test
+  mapper と元から仮想への射影の利用、pretty の要約の mapped file の行の順（#765 の通り）、CLI の `with_content_mapper_project` の
+  doc comment の位置（`ContentMapperSession` の前に分かれている。C5 で直す）。
+- **次**：starlight の宣言の 3 つ（content mapper の外）を別の PR で、その後 C5a（build info の identity と mapped file の version、
+  `-b` の mapper、identity の変化での作り直し、supplemental の build info の path）、C5b（watch の mapper の manifest と設定 file）。
