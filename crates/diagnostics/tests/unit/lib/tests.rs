@@ -87,7 +87,7 @@ fn surrogate_messages_remain_distinct_through_sort_and_dedupe() {
 }
 
 #[test]
-fn diagnostic_path_and_related_names_keep_units_and_use_utf16_order() {
+fn diagnostic_path_and_related_names_keep_units_and_use_byte_order() {
     let names = [
         vec![0xfffd],
         vec![0xd801],
@@ -116,11 +116,11 @@ fn diagnostic_path_and_related_names_keep_units_and_use_utf16_order() {
             .collect::<Vec<_>>(),
         [
             vec![0xd800],
-            vec![0xd800, 0xdc00],
             vec![0xd801],
             vec![0xdc00],
             vec![0xe000],
-            vec![0xfffd]
+            vec![0xfffd],
+            vec![0xd800, 0xdc00]
         ]
     );
 
@@ -128,7 +128,7 @@ fn diagnostic_path_and_related_names_keep_units_and_use_utf16_order() {
     let mut right = left.clone();
     left.file_name = Some(JsString::from_code_units(&[0xd800, 0xdc00]));
     right.file_name = Some(JsString::from_code_units(&[0xe000]));
-    assert_eq!(compare_diagnostics(&left, &right), Ordering::Less);
+    assert_eq!(compare_diagnostics(&left, &right), Ordering::Greater);
     assert_eq!(left.file_name.cmp(&right.file_name), Ordering::Greater);
     let related = |unit| RelatedInfo {
         file_name: Some(JsString::from_code_units(&[unit])),
@@ -169,20 +169,27 @@ fn sorts_and_deduplicates_adjacent_diagnostics() {
 
 #[test]
 fn diagnostics_that_differ_only_in_their_chains_are_both_kept() {
-    // tsgo's EqualDiagnosticsNoRelatedInfo compares the message chain:
-    // checkInheritedPropertiesAreIdentical reports one TS2320 per property
-    // that is not identical, at one position with one head text.
-    let head = "Interface 'A' cannot simultaneously extend types 'B' and 'C'.";
-    let mut first = diagnostic(Some("a.ts"), Some(3), 2320, head);
-    first.message = first.message.with_next(vec![chain(
-        2319,
-        "Named property 'x' of types 'B' and 'C' are not identical.",
-    )]);
-    let mut second = diagnostic(Some("a.ts"), Some(3), 2320, head);
-    second.message = second.message.with_next(vec![chain(
-        2319,
-        "Named property 'y' of types 'B' and 'C' are not identical.",
-    )]);
+    // tsgo's EqualDiagnosticsNoRelatedInfo compares the message chain (each
+    // entry's code and arguments): checkInheritedPropertiesAreIdentical
+    // reports one TS2320 per property that is not identical, at one position
+    // with one head message.
+    let reported = |property: &str| {
+        Diagnostic::new(
+            Some("a.ts".to_owned()),
+            Some(3),
+            Some(1),
+            MessageChain::new(
+                &gen::Interface_0_cannot_simultaneously_extend_types_1_and_2,
+                &args(&["A", "B", "C"]),
+            )
+            .with_next(vec![MessageChain::new(
+                &gen::Named_property_0_of_types_1_and_2_are_not_identical,
+                &args(&[property, "B", "C"]),
+            )]),
+        )
+    };
+    let first = reported("x");
+    let second = reported("y");
     let same_as_first = first.clone();
 
     let mut diagnostics = vec![second.clone(), first.clone(), same_as_first];
@@ -211,40 +218,37 @@ fn a_did_you_mean_diagnostic_sorts_by_its_own_code_and_text() {
 }
 
 #[test]
-fn present_empty_related_information_sorts_before_absent_and_wins_dedupe() {
+fn present_empty_and_absent_related_information_compare_equal() {
+    // tsgo has no absent list: no related information is none.
     let absent = diagnostic(Some("a.ts"), Some(0), 1005, "';' expected.");
     let mut present_empty = absent.clone();
     present_empty.related_information_present = true;
 
-    assert_eq!(compare_diagnostics(&present_empty, &absent), Ordering::Less);
     assert_eq!(
-        compare_diagnostics(&absent, &present_empty),
-        Ordering::Greater
+        compare_diagnostics(&present_empty, &absent),
+        Ordering::Equal
     );
-
     let mut diagnostics = vec![absent, present_empty];
     sort_and_dedupe_diagnostics(&mut diagnostics);
     assert_eq!(diagnostics.len(), 1);
-    assert!(diagnostics[0].related_information_present);
-    assert!(diagnostics[0].related.is_empty());
+    assert!(!diagnostics[0].related_information_present);
 }
 
 #[test]
-fn diagnostic_sort_uses_javascript_utf16_code_unit_order() {
+fn diagnostic_sort_uses_go_byte_order() {
+    // tsgo compares names and texts with Go's strings.Compare (UTF-8 bytes):
+    // an astral character sorts after a private-use one.
     let astral = "\u{1f600}";
     let private_use = "\u{e000}";
-    assert_eq!(
-        compare_strings_case_sensitive(astral, private_use),
-        Ordering::Less
-    );
 
     let astral_file = diagnostic(Some(astral), Some(0), 1000, "same");
     let private_use_file = diagnostic(Some(private_use), Some(0), 1000, "same");
     assert_eq!(
         compare_diagnostics(&astral_file, &private_use_file),
-        Ordering::Less
+        Ordering::Greater
     );
 
+    // A chain entry orders by its arguments, not its text.
     let mut astral_child = diagnostic(None, None, 1000, "same");
     astral_child.message.next_present = true;
     astral_child.message.next.push(chain(1000, astral));
@@ -256,7 +260,7 @@ fn diagnostic_sort_uses_javascript_utf16_code_unit_order() {
         .push(chain(1000, private_use));
     assert_eq!(
         compare_diagnostics(&astral_child, &private_use_child),
-        Ordering::Less
+        Ordering::Equal
     );
 
     let mut astral_related_file = diagnostic(None, None, 1000, "same");
@@ -275,9 +279,10 @@ fn diagnostic_sort_uses_javascript_utf16_code_unit_order() {
     });
     assert_eq!(
         compare_diagnostics(&astral_related_file, &private_use_related_file),
-        Ordering::Less
+        Ordering::Greater
     );
 
+    // A message without a catalog key is identified by its text.
     let mut astral_related_text = diagnostic(None, None, 1000, "same");
     astral_related_text.related.push(RelatedInfo {
         file_name: None,
@@ -294,27 +299,68 @@ fn diagnostic_sort_uses_javascript_utf16_code_unit_order() {
     });
     assert_eq!(
         compare_diagnostics(&astral_related_text, &private_use_related_text),
-        Ordering::Less
+        Ordering::Greater
     );
 }
 
 #[test]
-fn present_empty_message_chain_sorts_before_absent_and_wins_dedupe() {
+fn present_empty_and_absent_message_chains_compare_equal() {
     let absent = diagnostic(None, None, 1000, "same");
     let mut present_empty = absent.clone();
     present_empty.message.next_present = true;
 
-    assert_eq!(compare_diagnostics(&present_empty, &absent), Ordering::Less);
     assert_eq!(
-        compare_diagnostics(&absent, &present_empty),
-        Ordering::Greater
+        compare_diagnostics(&present_empty, &absent),
+        Ordering::Equal
     );
-
     let mut diagnostics = vec![absent, present_empty];
     sort_and_dedupe_diagnostics(&mut diagnostics);
     assert_eq!(diagnostics.len(), 1);
-    assert!(diagnostics[0].message.next_present);
-    assert!(diagnostics[0].message.next.is_empty());
+    assert!(!diagnostics[0].message.next_present);
+}
+
+#[test]
+fn diagnostics_at_one_location_order_by_key_then_arguments() {
+    // tsgo CompareDiagnostics: the message key and then the arguments, not
+    // the text. TS2883 shows its third argument before its second, so its
+    // text and its arguments order these two the other way round.
+    let reference = |module: &str, name: &str| {
+        let mut diagnostic = Diagnostic::new(
+            Some("main.ts".to_owned()),
+            Some(0),
+            Some(5),
+            MessageChain::new(
+                &gen::The_inferred_type_of_0_cannot_be_named_without_a_reference_to_2_from_1_This_is_likely_not_portable_A_type_annotation_is_necessary,
+                &args(&["value", module, name]),
+            ),
+        );
+        diagnostic.related_information_present = false;
+        diagnostic
+    };
+    let zebra = reference("a/node_modules/m1", "Zebra");
+    let apple = reference("c/node_modules/m2", "Apple");
+    assert_eq!(compare_diagnostics(&zebra, &apple), Ordering::Less);
+    let mut diagnostics = vec![apple.clone(), zebra.clone()];
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    assert_eq!(diagnostics, vec![zebra, apple]);
+}
+
+#[test]
+fn longer_chains_and_more_related_information_sort_first() {
+    let plain = diagnostic(Some("a.ts"), Some(0), 2322, "same");
+    let mut chained = plain.clone();
+    chained.message.next_present = true;
+    chained.message.next.push(chain(2322, "inner"));
+    assert_eq!(compare_diagnostics(&chained, &plain), Ordering::Less);
+
+    let mut related = plain.clone();
+    related.related.push(RelatedInfo {
+        file_name: Some("b.ts".into()),
+        start: Some(0),
+        length: Some(1),
+        message: chain(2728, "declared here"),
+    });
+    assert_eq!(compare_diagnostics(&related, &plain), Ordering::Less);
 }
 
 #[test]

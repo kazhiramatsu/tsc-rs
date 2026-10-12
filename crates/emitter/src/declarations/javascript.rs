@@ -318,13 +318,17 @@ impl DeclarationTransformer<'_> {
                         let modifiers = data
                             .modifiers
                             .and_then(|list| cx.arena().node_array_ref(owner.source(), list));
-                        Some(cx.factory()?.create_type_parameter_declaration(
+                        // tsgo gatherTypeParameters: the reparsed parameter
+                        // takes the written one's range.
+                        let mut factory = cx.factory()?;
+                        let reparsed = factory.create_type_parameter_declaration(
                             owner.source(),
                             modifiers,
                             TransformNode::new(owner.source(), name),
                             constraint,
                             default,
-                        )?)
+                        )?;
+                        Some(factory.set_text_range(reparsed, parameter)?)
                     }
                     _ => match self.visit_declaration_subtree(cx, parameter)? {
                         VisitResult::Node(node) => Some(node),
@@ -618,7 +622,14 @@ impl DeclarationTransformer<'_> {
                     .insert(tag.tag, result);
                 statements.push(tag_node);
             } else {
-                statements.push(self.reparsed_type_alias(cx, source, tag, is_module)?);
+                let alias = self.reparsed_type_alias(cx, source, tag, is_module)?;
+                // tsgo transformAndReplaceLatePaintedStatements: a top-level
+                // statement that is an external module indicator (the alias
+                // a module exports) means the file needs no `export {};`.
+                if super::statements::is_external_module_indicator(cx, alias)? {
+                    self.state_mut()?.result_has_external_module_indicator = true;
+                }
+                statements.push(alias);
             }
         }
         Ok(statements)
@@ -654,7 +665,7 @@ impl DeclarationTransformer<'_> {
                 let NodeData::ModuleDeclaration(module) = &syntax.arena.node(node).data else {
                     break;
                 };
-                namespaces.extend(module.name);
+                namespaces.extend(module.name.map(|name| (node, name)));
                 current = module.body;
             }
             (
@@ -698,6 +709,8 @@ impl DeclarationTransformer<'_> {
         } else {
             None
         };
+        // tsgo finishReparsedNode: a reparsed node takes its tag's range, which
+        // its declaration maps record.
         let mut statement = factory.create_type_alias_declaration(
             source,
             modifiers,
@@ -705,7 +718,8 @@ impl DeclarationTransformer<'_> {
             type_parameters,
             r#type,
         )?;
-        for (index, &namespace) in namespaces.iter().enumerate().rev() {
+        factory.set_text_range(statement, tag_node)?;
+        for (index, &(module, namespace)) in namespaces.iter().enumerate().rev() {
             let flags = if index == 0 {
                 let mut flags = ModifierFlags::AMBIENT;
                 if is_module {
@@ -718,6 +732,8 @@ impl DeclarationTransformer<'_> {
             let modifiers = factory.create_modifiers_from_modifier_flags(source, flags)?;
             let statements = factory.create_node_array(source, vec![statement])?;
             let block = factory.create_module_block(source, statements)?;
+            let module = TransformNode::new(source, module);
+            factory.set_text_range(block, module)?;
             statement = factory.create_module_declaration(
                 source,
                 modifiers,
@@ -726,6 +742,7 @@ impl DeclarationTransformer<'_> {
                 Some(block),
                 tsc_types::NodeFlags::NAMESPACE,
             )?;
+            factory.set_text_range(statement, module)?;
         }
         Ok(statement)
     }
@@ -853,6 +870,8 @@ impl DeclarationTransformer<'_> {
             let property = cx
                 .factory()?
                 .create_property_signature(source, None, name, question, r#type)?;
+            cx.factory()?
+                .set_text_range(property, TransformNode::new(source, tag))?;
             if !comment.is_empty() {
                 cx.arena_mut()?.metadata_mut(property).add_leading_comment(
                     crate::SyntheticComment::new(
@@ -867,11 +886,13 @@ impl DeclarationTransformer<'_> {
         }
         let mut factory = cx.factory()?;
         let members = factory.create_node_array(source, members)?;
-        let literal = factory.create_type_literal_node(source, members)?;
+        let type_literal = factory.create_type_literal_node(source, members)?;
+        factory.set_text_range(type_literal, literal)?;
         if is_array_type {
-            factory.create_array_type_node(source, literal)
+            let array = factory.create_array_type_node(source, type_literal)?;
+            factory.set_text_range(array, literal)
         } else {
-            Ok(literal)
+            Ok(type_literal)
         }
     }
 
@@ -889,7 +910,9 @@ impl DeclarationTransformer<'_> {
             Some(r#type) => r#type,
             None => factory.create_keyword_type_node(source, SyntaxKind::AnyKeyword)?,
         };
-        factory.create_function_type_node(source, None, parameters, return_type)
+        let function_type =
+            factory.create_function_type_node(source, None, parameters, return_type)?;
+        factory.set_text_range(function_type, signature)
     }
 
     /// The parameters and the reused return type of a JSDoc signature as
@@ -973,12 +996,14 @@ impl DeclarationTransformer<'_> {
                 Some(text) => factory.create_identifier(source, text)?,
                 None => TransformNode::new(source, name),
             };
+            let tag = TransformNode::new(source, tag);
             let dot = if rest {
-                Some(factory.create_token(
+                let dot = factory.create_token(
                     source,
                     SyntaxKind::DotDotDotToken,
                     crate::TransformFlags::NONE,
-                )?)
+                )?;
+                Some(factory.set_text_range(dot, tag)?)
             } else {
                 None
             };
@@ -991,11 +1016,9 @@ impl DeclarationTransformer<'_> {
             } else {
                 None
             };
-            declarations.push(
-                factory.create_parameter_declaration(
-                    source, None, dot, name, question, r#type, None,
-                )?,
-            );
+            let declaration = factory
+                .create_parameter_declaration(source, None, dot, name, question, r#type, None)?;
+            declarations.push(factory.set_text_range(declaration, tag)?);
         }
         let return_type = match return_type {
             Some(r#type) => {
@@ -1038,7 +1061,7 @@ impl DeclarationTransformer<'_> {
         tag: ReparsedTag,
     ) -> Result<TransformNode, TransformError> {
         let source = host.source();
-        let (kind, name, written_modifiers, signature, templates) = {
+        let (kind, name, written_modifiers, signature, templates, tag_name) = {
             let syntax = cx.arena().source(source)?.syntax();
             let host_record = syntax.arena.node(host.node());
             let (name, modifiers) = match &host_record.data {
@@ -1055,6 +1078,7 @@ impl DeclarationTransformer<'_> {
             let signature = overload
                 .type_expression
                 .ok_or_else(|| Self::contract("@overload tag has no signature"))?;
+            let tag_name = overload.tag_name;
             // gatherTypeParameters (reparser.go:297-344): none when the
             // comment declares a type alias.
             let comment_declares_alias = match &syntax.arena.node(tag.comment).data {
@@ -1079,6 +1103,7 @@ impl DeclarationTransformer<'_> {
                 modifiers,
                 TransformNode::new(source, signature),
                 templates,
+                tag_name,
             )
         };
         let tag_node = TransformNode::new(source, tag.tag);
@@ -1149,7 +1174,7 @@ impl DeclarationTransformer<'_> {
             Some(r#type) => r#type,
             None => factory.create_keyword_type_node(source, SyntaxKind::AnyKeyword)?,
         };
-        match kind {
+        let overload = match kind {
             SyntaxKind::FunctionDeclaration => factory.create_function_declaration(
                 source,
                 modifiers,
@@ -1159,7 +1184,7 @@ impl DeclarationTransformer<'_> {
                 parameters,
                 Some(return_type),
                 None,
-            ),
+            )?,
             SyntaxKind::MethodDeclaration => factory.create_method_declaration(
                 source,
                 modifiers,
@@ -1173,8 +1198,15 @@ impl DeclarationTransformer<'_> {
                 parameters,
                 Some(return_type),
                 None,
-            ),
-            _ => factory.create_constructor_declaration(source, modifiers, parameters, None),
+            )?,
+            _ => factory.create_constructor_declaration(source, modifiers, parameters, None)?,
+        };
+        // tsgo reparseJSDocSignature: an overload takes its tag name's range.
+        match tag_name {
+            Some(tag_name) => {
+                factory.set_text_range(overload, TransformNode::new(source, tag_name))
+            }
+            None => Ok(overload),
         }
     }
 

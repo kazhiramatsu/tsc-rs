@@ -1061,6 +1061,229 @@ fn javascript_dotted_typedef_names_with_reexported_values_follow_tsgo() {
 }
 
 #[test]
+fn javascript_type_definitions_mark_a_module_like_tsgo() {
+    // A `.mjs` file is a module by its extension. Its `@typedef` becomes an
+    // exported type alias, which marks the declaration file as a module, so
+    // tsgo writes no `export {};` (starlight's `docs/lunaria/freshness.mjs`).
+    // The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("widget.mjs"),
+        concat!(
+            "/**\n",
+            " * @typedef {object} Item\n",
+            " * @property {string} name\n",
+            " */\n",
+            "\n",
+            "class Widget {\n",
+            "    /** @param {Item} item */\n",
+            "    show(item) {\n",
+            "        return item.name;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "void Widget;\n",
+        ),
+    )
+    .expect("write module");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["widget.mjs"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/widget.d.mts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * @typedef {object} Item\n",
+            " * @property {string} name\n",
+            " */\n",
+            "export type Item = {\n",
+            "    name: string;\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
+fn javascript_reparsed_declarations_map_to_their_tags_like_tsgo() {
+    // tsgo's reparser gives the nodes it makes of JSDoc tags the tags' ranges
+    // (finishReparsedNode): a type alias its `@typedef` or `@callback` tag, a
+    // type literal its `@property` tags, a property or parameter its tag, a
+    // dotted name's namespaces the name, a constrained `@template` parameter
+    // the written one and an overload its tag name. The declaration map
+    // records them (starlight's `docs/lunaria/freshness.mjs` and
+    // `packages/markdoc/html.mjs`). The expected bytes are tsgo's for the
+    // same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("lib.js"),
+        concat!(
+            "/**\n",
+            " * @typedef {object} Point\n",
+            " * @property {number} x - the x\n",
+            " * @property {number} y\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @typedef {Object[]} Items\n",
+            " * @property {string} name\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @callback Handler\n",
+            " * @param {string} event\n",
+            " * @param {...number} rest\n",
+            " * @returns {void}\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @typedef {string} NS.Inner.Name\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @template {string} T\n",
+            " * @typedef {{ value: T }} Box\n",
+            " */\n",
+            "\n",
+            "/**\n",
+            " * @overload\n",
+            " * @param {string} a\n",
+            " * @returns {string}\n",
+            " */\n",
+            "/**\n",
+            " * @overload\n",
+            " * @param {number} a\n",
+            " * @returns {number}\n",
+            " */\n",
+            "/**\n",
+            " * @param {string | number} a\n",
+            " */\n",
+            "export function f(a) {\n",
+            "    return a;\n",
+            "}\n",
+        ),
+    )
+    .expect("write lib");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"declaration":true,"declarationMap":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["lib.js"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * @typedef {object} Point\n",
+            " * @property {number} x - the x\n",
+            " * @property {number} y\n",
+            " */\n",
+            "export type Point = {\n",
+            "    /**\n",
+            "     * - the x\n",
+            "     */\n",
+            "    x: number;\n",
+            "    y: number;\n",
+            "};\n",
+            "export type Items = {\n",
+            "    name: string;\n",
+            "}[];\n",
+            "export type Handler = (event: string, ...rest: number) => void;\n",
+            "export declare namespace NS {\n",
+            "    namespace Inner {\n",
+            "        export type Name = string;\n",
+            "    }\n",
+            "}\n",
+            "export type Box<T extends string> = {\n",
+            "    value: T;\n",
+            "};\n",
+            "export declare function f(a: string): string;\n",
+            "export declare function f(a: number): number;\n",
+            "//# sourceMappingURL=lib.d.ts.map",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/lib.d.ts.map")).expect("read declaration map"),
+        r#"{"version":3,"file":"lib.d.ts","sources":["../lib.js"],"names":[],"mappings":"AAAA;;;;GAIG;AAHA,YAAkB,KAAK,GACvB;;;;IAAmB,CAAC,EAAT,MAAM,CACjB;IAAmB,CAAC,EAAT,MAAM,CACnB;CAAA,CAAA;AAGE,YAAoB,KAAK,GACzB;IAAmB,IAAI,EAAZ,MAAM,CACnB;CAAA,EAAA,CAAA;AAGE,YAAU,OAAO,GACjB,CAAgB,KAAK,EAAb,MACR,EAAA,GACA,AADmB,IAAI,EAAZ,MACX,KAAU,IACZ,CAAA;AAGoB,yBAAA,EAAE,CAAF;IAAG,UAAA,KAAK,CAAL;QAArB,YAA2B,IAAI,GAArB,MAAM,CAAe;KAAA;CAAA;AAK/B,YAAwB,GAAG,CADR,CAAC,SAAT,MAAS,IACV;IAAE,KAAK,EAAE,CAAC,CAAA;CAAE,CAAK;AAI1B,wBAYY,CAAC,CAXE,CAAC,EAAT,MACR,GAAU,MAAM,CAFP;AAKR,wBAOY,CAAC,CANE,CAAC,EAAT,MACR,GAAU,MAAM,CAFP"}"#
+    );
+}
+
+#[test]
+fn same_location_diagnostics_order_by_their_arguments_like_tsgo() {
+    // tsgo CompareDiagnostics orders diagnostics at one location by their
+    // message key and then their arguments, not by their text: TS2883's
+    // arguments are the name, the module and the type (`'{2}' from '{1}'`),
+    // so the module orders them (starlight's vitest config). The expected
+    // bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    for (path, text) in [
+        (
+            "node_modules/a/index.d.ts",
+            "import type { Zebra } from \"m1\";\nexport declare function one(): Zebra;\n",
+        ),
+        (
+            "node_modules/a/package.json",
+            r#"{"name":"a","version":"1.0.0","types":"index.d.ts"}"#,
+        ),
+        (
+            "node_modules/a/node_modules/m1/index.d.ts",
+            "export interface Zebra { z: number }\n",
+        ),
+        (
+            "node_modules/a/node_modules/m1/package.json",
+            r#"{"name":"m1","version":"1.0.0","types":"index.d.ts"}"#,
+        ),
+        (
+            "node_modules/c/index.d.ts",
+            "import type { Apple } from \"m2\";\nexport declare function two(): Apple;\n",
+        ),
+        (
+            "node_modules/c/package.json",
+            r#"{"name":"c","version":"1.0.0","types":"index.d.ts"}"#,
+        ),
+        (
+            "node_modules/c/node_modules/m2/index.d.ts",
+            "export interface Apple { a: number }\n",
+        ),
+        (
+            "node_modules/c/node_modules/m2/package.json",
+            r#"{"name":"m2","version":"1.0.0","types":"index.d.ts"}"#,
+        ),
+        (
+            "main.ts",
+            concat!(
+                "import { one } from \"a\";\n",
+                "import { two } from \"c\";\n",
+                "export const value = { first: one(), second: two() };\n",
+            ),
+        ),
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"target":"es2022","module":"esnext","moduleResolution":"bundler","declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["main.ts"]}"#,
+        ),
+    ] {
+        let path = tree.path(path);
+        fs::create_dir_all(path.parent().expect("parent")).expect("create directory");
+        fs::write(path, text).expect("write file");
+    }
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "main.ts(3,14): error TS2883: The inferred type of 'value' cannot be named without a reference to 'Zebra' from 'a/node_modules/m1'. This is likely not portable. A type annotation is necessary.\n",
+            "main.ts(3,14): error TS2883: The inferred type of 'value' cannot be named without a reference to 'Apple' from 'c/node_modules/m2'. This is likely not portable. A type annotation is necessary.\n",
+        )
+    );
+}
+
+#[test]
 fn javascript_import_tags_follow_tsgo() {
     // tsgo's parser turns an `@import` tag into a type-only import before
     // the top-level statement that holds it, a class member's included, and
