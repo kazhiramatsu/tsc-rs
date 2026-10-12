@@ -151,8 +151,8 @@ tsbuild/configFileErrors/missing-config-file.js	full
 tsbuild/configFileErrors/reports-invalid-project-reference-fields.js	full
 tsbuild/configFileErrors/reports-syntax-errors-in-config-file.js	full
 tsbuild/configFileErrors/when-tsconfig-extends-the-missing-file.js	full
-tsbuild/contentMapperIdentity/content-mapper-identity-change-forces-rebuild.js	none
-tsbuild/contentMapperOptionDiagnostics/rebuild-to-report-mapper-option-diagnostics.js	none
+tsbuild/contentMapperIdentity/content-mapper-identity-change-forces-rebuild.js	full
+tsbuild/contentMapperOptionDiagnostics/rebuild-to-report-mapper-option-diagnostics.js	full
 tsbuild/declarationEmit/reports-dts-generation-errors-with-incremental.js	full
 tsbuild/declarationEmit/reports-dts-generation-errors.js	full
 tsbuild/declarationEmit/when-declaration-file-is-referenced-through-triple-slash-but-uses-no-references.js	full

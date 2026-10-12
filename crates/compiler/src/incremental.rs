@@ -399,6 +399,17 @@ pub fn read_old_build_info(
     old_state_of(&info, prepared, default_library_directory)
 }
 
+/// tsgo `ContentMapperIdentities`: the identities of the program's content
+/// mapper project, none without one.
+pub(crate) fn content_mapper_identities(
+    prepared: &PreparedProgram,
+) -> Result<Vec<String>, tsc_program::content_mapper::errors::ProjectFailure> {
+    match prepared.program_options().content_mapper_project() {
+        Some(project) => project.0.identities(),
+        None => Ok(Vec::new()),
+    }
+}
+
 /// The state of a build info a build already read (tsgo
 /// `ReadBuildInfoProgram` with the build's `BuildInfoReader`): `None`
 /// unless the program is incremental and the document is a valid
@@ -414,6 +425,13 @@ pub(crate) fn old_state_of(
     let file_name = build_info_file_name_for(prepared, true)?;
     if !info.is_valid_version() || !info.is_incremental() {
         return None;
+    }
+    // tsgo ReadBuildInfoProgram: when a configured content mapper's identity
+    // changed, the files it produced may be stale, so the old program is not
+    // reused.
+    match content_mapper_identities(prepared) {
+        Ok(identities) if identities == info.content_mapper_identities => {}
+        _ => return None,
     }
     let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
     let directory = directory_of(&file_name.to_string_lossy());
@@ -1167,10 +1185,23 @@ impl<'p> IncrementalDriver<'p> {
         )
     }
 
-    pub(crate) fn build_info(&self, command: CommandDiagnosticFacts) -> Option<BuildInfoDocument> {
+    /// The build info to write, or the failure to read the content mappers'
+    /// identities it records (tsgo emitBuildInfo skips the emit with it).
+    pub(crate) fn build_info(
+        &self,
+        command: CommandDiagnosticFacts,
+    ) -> Option<Result<BuildInfoDocument, Diagnostic>> {
         let mut guard = self.state();
         let state = guard.as_mut()?;
         let outside = self.has_errors_outside_cache(state, command);
+        // tsgo snapshotToBuildInfo: the identities of the program's content
+        // mapper project, read as the build info is made.
+        let identities = content_mapper_identities(self.prepared);
+        if let Ok(identities) = &identities {
+            state
+                .snapshot
+                .set_content_mapper_identities(identities.clone());
+        }
         if self.policy.watch {
             if let Some(file_name) = &self.state_file_name {
                 let info = state.snapshot.to_watch_state(outside);
@@ -1190,11 +1221,16 @@ impl<'p> IncrementalDriver<'p> {
             return None;
         }
         let file_name = self.state_file_name.clone()?;
+        if let Err(failure) = identities {
+            return Some(Err(
+                tsc_program::content_mapper::source::project_diagnostic(&failure),
+            ));
+        }
         let info = state.snapshot.to_build_info(outside)?;
-        Some(BuildInfoDocument {
+        Some(Ok(BuildInfoDocument {
             file_name,
             text: info.to_json(),
-        })
+        }))
     }
 }
 
@@ -1780,11 +1816,18 @@ impl<'p> Assembly<'p> {
     /// tsgo `SourceFileMetaData.ImpliedNodeFormat` as the program stores
     /// it (`loadSourceFileMetaData`): the extension decides; a `.ts`-like
     /// file follows its package scope's `type` only under a Node module
-    /// resolution or inside `node_modules`.
+    /// resolution or inside `node_modules`. A content mapper's output takes
+    /// the extension of its virtual name (tsgo filesParser).
     fn stored_implied_node_format(&self, index: usize) -> u32 {
         let source = &self.prepared.source_files()[index];
         let file_name = source.path().display().to_string_lossy().into_owned();
-        let lower = file_name.to_ascii_lowercase();
+        let lower = match source.content_mapped() {
+            Some(info) => info
+                .virtual_file_name
+                .to_string_lossy()
+                .to_ascii_lowercase(),
+            None => file_name.to_ascii_lowercase(),
+        };
         if lower.ends_with(".d.mts") || lower.ends_with(".mts") || lower.ends_with(".mjs") {
             return 99;
         }
@@ -1949,7 +1992,16 @@ impl<'p> Assembly<'p> {
                         .to_string_lossy()
                         .into_owned(),
                     default_library_name,
-                    version: compute_hash_with_text(source.text(), self.hash_with_text),
+                    // tsgo computeProgramFileChanges: a content-mapped file's
+                    // version covers its original text and its mapper's
+                    // transform identity.
+                    version: match source.content_mapped() {
+                        Some(info) => compute_hash_with_text(
+                            &format!("{}\0{}", info.original_text, info.transform_identity),
+                            self.hash_with_text,
+                        ),
+                        None => compute_hash_with_text(source.text(), self.hash_with_text),
+                    },
                     affects_global_scope: self
                         .file_facts(index)
                         .is_some_and(|facts| facts.affects_global_scope),
@@ -2018,6 +2070,7 @@ impl<'p> Assembly<'p> {
             use_case_sensitive_file_names: prepared.path_context().use_case_sensitive_file_names(),
             package_jsons,
             missing_package_jsons,
+            content_mapper_identities: Vec::new(),
         }
     }
 }

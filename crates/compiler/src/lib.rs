@@ -2382,11 +2382,12 @@ impl ProgramSession {
                         );
                         let emit = emit.with_cached_diagnostics(cached);
                         match driver.build_info(command) {
-                            Some(document) => {
+                            Some(Ok(document)) => {
                                 let _span = trace_build_info(tracing.as_ref());
                                 let failure = recording.write_build_info(&document);
                                 emit.with_build_info(document.file_name, failure)
                             }
+                            Some(Err(diagnostic)) => emit.with_build_info_skipped(diagnostic),
                             None => emit,
                         }
                     } else {
@@ -2482,11 +2483,12 @@ impl ProgramSession {
                         None,
                     );
                     match driver.build_info(command) {
-                        Some(document) => {
+                        Some(Ok(document)) => {
                             let _span = trace_build_info(tracing.as_ref());
                             let failure = recording.write_build_info(&document);
                             emit.with_build_info(document.file_name, failure)
                         }
+                        Some(Err(diagnostic)) => emit.with_build_info_skipped(diagnostic),
                         None => emit,
                     }
                 }
@@ -3182,11 +3184,12 @@ impl ProgramSession {
             );
             let emit = emit.with_cached_diagnostics(cached);
             match driver.build_info(command) {
-                Some(document) => {
+                Some(Ok(document)) => {
                     let _span = trace_build_info(tracing.as_ref());
                     let failure = recording.write_build_info(&document);
                     emit.with_build_info(document.file_name, failure)
                 }
+                Some(Err(diagnostic)) => emit.with_build_info_skipped(diagnostic),
                 None => emit,
             }
         };
@@ -3911,7 +3914,15 @@ impl ProgramSession {
                     sort_and_dedupe_diagnostics(&mut declaration_diagnostics);
                 }
             }
-            driver.build_info(command)
+            match driver.build_info(command)? {
+                Ok(document) => Some(document),
+                Err(diagnostic) => {
+                    // tsgo emitBuildInfo's failure joins the emit's
+                    // diagnostics.
+                    declaration_diagnostics.push(diagnostic);
+                    None
+                }
+            }
         });
         let program_report = self.testing.then(|| driver.program_report()).flatten();
         let watch_state = driver.take_watch_state();

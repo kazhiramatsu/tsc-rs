@@ -636,7 +636,7 @@ impl System for TestSystem {
     fn content_mapper_spawner(
         &self,
     ) -> std::sync::Arc<dyn tsc_program::content_mapper::host::Spawner> {
-        std::sync::Arc::new(tsc_harness::content_mappers::TestSpawner)
+        std::sync::Arc::new(tsc_harness::content_mappers::TestSpawner::default())
     }
 
     fn current_directory(&self) -> &str {
