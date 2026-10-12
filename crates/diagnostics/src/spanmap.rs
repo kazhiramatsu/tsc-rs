@@ -6,10 +6,10 @@
 //! correspond to the original; positions outside every segment are
 //! synthesized. Positions are the compiler's (UTF-16 code units here, UTF-8
 //! bytes in tsgo): the content mapper host normalizes a mapper's positions
-//! before it builds a map. The language-service half of tsgo's package (the
-//! original-to-virtual projections) comes with the language service.
+//! before it builds a map.
 
 use std::fmt;
+use std::sync::OnceLock;
 
 /// tsgo `spanmap.Kind`: how positions inside a segment relate its virtual
 /// span to its original span. A segment keeps the value it was given, so a
@@ -29,6 +29,28 @@ pub const KIND_ALIAS: SegmentKind = 2;
 /// part in. Diagnostics never consult them.
 pub type Features = i32;
 
+pub const FEATURE_HOVER: Features = 1;
+pub const FEATURE_SIGNATURE_HELP: Features = 1 << 1;
+pub const FEATURE_COMPLETION: Features = 1 << 2;
+pub const FEATURE_DEFINITION: Features = 1 << 3;
+pub const FEATURE_TYPE_DEFINITION: Features = 1 << 4;
+pub const FEATURE_IMPLEMENTATION: Features = 1 << 5;
+pub const FEATURE_REFERENCES: Features = 1 << 6;
+pub const FEATURE_DOCUMENT_HIGHLIGHTS: Features = 1 << 7;
+pub const FEATURE_RENAME: Features = 1 << 8;
+pub const FEATURE_CALL_HIERARCHY: Features = 1 << 9;
+pub const FEATURE_CODE_ACTIONS: Features = 1 << 10;
+pub const FEATURE_FORMATTING: Features = 1 << 11;
+pub const FEATURE_INLAY_HINTS: Features = 1 << 12;
+pub const FEATURE_SEMANTIC_TOKENS: Features = 1 << 13;
+pub const FEATURE_FOLDING_RANGES: Features = 1 << 14;
+pub const FEATURE_SELECTION_RANGES: Features = 1 << 15;
+pub const FEATURE_LINKED_EDITING: Features = 1 << 16;
+pub const FEATURE_AUTO_INSERT: Features = 1 << 17;
+pub const FEATURE_DOCUMENT_SYMBOLS: Features = 1 << 18;
+pub const FEATURE_CODE_LENS: Features = 1 << 19;
+/// No feature (`FeatureNone`).
+pub const FEATURES_NONE: Features = 0;
 /// Every feature tsgo defines (`FeatureAll`, 20 flags).
 pub const FEATURES_ALL: Features = (1 << 20) - 1;
 
@@ -71,6 +93,23 @@ pub struct Segment {
     pub original_end: i32,
     pub kind: SegmentKind,
     pub features: Features,
+}
+
+/// tsgo `spanmap.MappedPosition`: a projection of a position and how
+/// faithful it is.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MappedPosition {
+    pub position: i32,
+    pub fidelity: Fidelity,
+}
+
+/// tsgo `spanmap.MappedSpan`: a projection of a range `[pos, end)` and how
+/// faithful it is.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MappedSpan {
+    pub pos: i32,
+    pub end: i32,
+    pub fidelity: Fidelity,
 }
 
 /// tsgo `spanmap.MappingErrorKind`: how a mapper's span map is malformed.
@@ -138,6 +177,33 @@ impl std::error::Error for MappingError {}
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct SpanMap {
     segments: Vec<Segment>,
+    original_index: OriginalIndexCell,
+}
+
+/// The original-text interval index, built on first use (tsgo `origOnce`).
+/// It is derived from the segments: it takes no part in a map's equality,
+/// and a clone builds its own.
+#[derive(Default)]
+struct OriginalIndexCell(OnceLock<OriginalIndex>);
+
+impl Clone for OriginalIndexCell {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl PartialEq for OriginalIndexCell {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for OriginalIndexCell {}
+
+impl fmt::Debug for OriginalIndexCell {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("OriginalIndexCell")
+    }
 }
 
 impl SpanMap {
@@ -146,7 +212,10 @@ impl SpanMap {
     /// segments that are distinct in practice).
     pub fn new(mut segments: Vec<Segment>) -> Self {
         segments.sort_by_key(|segment| segment.virtual_start);
-        Self { segments }
+        Self {
+            segments,
+            original_index: OriginalIndexCell::default(),
+        }
     }
 
     pub fn segments(&self) -> &[Segment] {
@@ -344,6 +413,378 @@ impl SpanMap {
         } else {
             segment.original_end
         }
+    }
+}
+
+/// The language service's half: projections of original positions and
+/// ranges into the virtual text (a content mapper's own directives use them
+/// too).
+impl SpanMap {
+    fn original_index(&self) -> &OriginalIndex {
+        self.original_index
+            .0
+            .get_or_init(|| OriginalIndex::new(&self.segments))
+    }
+
+    /// tsgo `OriginalToVirtualPositions`: every virtual projection of an
+    /// original position whose segment takes part in `feature`, ordered by
+    /// virtual position. Segment ends are inclusive for a point, so a
+    /// position shared by adjacent original spans projects through both. An
+    /// uncovered position, or one whose segments all reject `feature`, has
+    /// none.
+    pub fn original_to_virtual_positions(
+        &self,
+        pos: i32,
+        feature: Features,
+    ) -> Vec<MappedPosition> {
+        let mut results: Vec<MappedPosition> = Vec::new();
+        for group in self
+            .original_index()
+            .segment_groups_at_original_position(pos)
+        {
+            for segment in &group.segments {
+                if !supports_feature(segment, feature) {
+                    continue;
+                }
+                let mapped = if segment.kind == KIND_VERBATIM {
+                    MappedPosition {
+                        position: clamp(
+                            segment.virtual_start + (pos - segment.original_start),
+                            segment.virtual_start,
+                            segment.virtual_end,
+                        ),
+                        fidelity: Fidelity::Exact,
+                    }
+                } else if group.at_end {
+                    MappedPosition {
+                        position: segment.virtual_end,
+                        fidelity: Fidelity::Atom,
+                    }
+                } else {
+                    MappedPosition {
+                        position: segment.virtual_start,
+                        fidelity: Fidelity::Atom,
+                    }
+                };
+                if !results.contains(&mapped) {
+                    results.push(mapped);
+                }
+            }
+        }
+        results.sort_by_key(|mapped| mapped.position);
+        results
+    }
+
+    /// tsgo `OriginalToVirtualSpans`: every `feature` projection of the
+    /// original range `[pos, end)`. A range within segments gives one exact
+    /// or atom result per segment; a range from one group of equal original
+    /// ranges into another gives the smallest virtual range around each
+    /// possible start, approximately. An uncovered or disabled end gives
+    /// none.
+    pub fn original_to_virtual_spans(
+        &self,
+        pos: i32,
+        end: i32,
+        feature: Features,
+    ) -> Vec<MappedSpan> {
+        let start = pos;
+        let end = end.max(start);
+        if start == end {
+            return self
+                .original_to_virtual_positions(start, feature)
+                .into_iter()
+                .map(|position| MappedSpan {
+                    pos: position.position,
+                    end: position.position,
+                    fidelity: position.fidelity,
+                })
+                .collect();
+        }
+        let index = self.original_index();
+        let start_segments = index.segments_at_original_position(start);
+        let end_segments = index.segments_at_original_position(end - 1);
+        if start_segments.is_empty() || end_segments.is_empty() {
+            return Vec::new();
+        }
+        let containing: Vec<Segment> = start_segments
+            .iter()
+            .filter(|segment| end <= segment.original_end)
+            .copied()
+            .collect();
+        if !containing.is_empty() {
+            let mut results =
+                original_to_virtual_spans_in_segments(&containing, start, end, feature);
+            if !results.is_empty() {
+                results.sort_by_key(|mapped| mapped.pos);
+                return results;
+            }
+        }
+        let mut starts = original_start_projections(&start_segments, start, feature);
+        let mut ends = original_end_projections(&end_segments, end, feature);
+        if starts.is_empty() || ends.is_empty() {
+            return Vec::new();
+        }
+        starts.sort_unstable();
+        ends.sort_unstable();
+        let mut results = Vec::with_capacity(starts.len().min(ends.len()));
+        for (position, &virtual_start) in starts.iter().enumerate() {
+            let end_index = ends.partition_point(|&end| end < virtual_start);
+            if end_index == ends.len()
+                || (position + 1 < starts.len() && starts[position + 1] <= ends[end_index])
+            {
+                continue;
+            }
+            results.push(MappedSpan {
+                pos: virtual_start,
+                end: ends[end_index],
+                fidelity: Fidelity::Approximate,
+            });
+        }
+        results
+    }
+
+    /// tsgo `OriginalToVirtualIntersectingSpans`: every `feature` segment's
+    /// intersection with `[pos, end)`, in virtual order; unlike
+    /// [`Self::original_to_virtual_spans`], uncovered ends do not hide the
+    /// covered interior.
+    pub fn original_to_virtual_intersecting_spans(
+        &self,
+        pos: i32,
+        end: i32,
+        feature: Features,
+    ) -> Vec<MappedSpan> {
+        if pos == end {
+            return self.original_to_virtual_spans(pos, end, feature);
+        }
+        self.segments
+            .iter()
+            .filter(|segment| supports_feature(segment, feature))
+            .filter_map(|segment| {
+                let start = pos.max(segment.original_start);
+                let end = end.min(segment.original_end);
+                if start >= end {
+                    return None;
+                }
+                Some(if segment.kind == KIND_VERBATIM {
+                    MappedSpan {
+                        pos: segment.virtual_start + (start - segment.original_start),
+                        end: segment.virtual_start + (end - segment.original_start),
+                        fidelity: Fidelity::Exact,
+                    }
+                } else {
+                    MappedSpan {
+                        pos: segment.virtual_start,
+                        end: segment.virtual_end,
+                        fidelity: Fidelity::Atom,
+                    }
+                })
+            })
+            .collect()
+    }
+}
+
+/// tsgo `originalStartProjections`: the inclusive start of an original range
+/// through each `feature` segment (a verbatim segment keeps the offset, an
+/// atom gives its virtual start).
+fn original_start_projections(segments: &[Segment], start: i32, feature: Features) -> Vec<i32> {
+    segments
+        .iter()
+        .filter(|segment| supports_feature(segment, feature))
+        .map(|segment| {
+            if segment.kind == KIND_VERBATIM {
+                clamp(
+                    segment.virtual_start + (start - segment.original_start),
+                    segment.virtual_start,
+                    segment.virtual_end,
+                )
+            } else {
+                segment.virtual_start
+            }
+        })
+        .collect()
+}
+
+/// tsgo `originalEndProjections`: the exclusive end of an original range
+/// through each `feature` segment holding its last character (a verbatim
+/// segment keeps the offset, an atom gives its virtual end).
+fn original_end_projections(segments: &[Segment], end: i32, feature: Features) -> Vec<i32> {
+    segments
+        .iter()
+        .filter(|segment| supports_feature(segment, feature))
+        .map(|segment| {
+            if segment.kind == KIND_VERBATIM {
+                clamp(
+                    segment.virtual_start + (end - segment.original_start),
+                    segment.virtual_start,
+                    segment.virtual_end,
+                )
+            } else {
+                segment.virtual_end
+            }
+        })
+        .collect()
+}
+
+/// tsgo `originalToVirtualSpansInSegments`: a range each segment contains.
+fn original_to_virtual_spans_in_segments(
+    segments: &[Segment],
+    start: i32,
+    end: i32,
+    feature: Features,
+) -> Vec<MappedSpan> {
+    segments
+        .iter()
+        .filter(|segment| supports_feature(segment, feature))
+        .map(|segment| {
+            if segment.kind == KIND_VERBATIM {
+                let virtual_start = clamp(
+                    segment.virtual_start + (start - segment.original_start),
+                    segment.virtual_start,
+                    segment.virtual_end,
+                );
+                let virtual_end = clamp(
+                    segment.virtual_start + (end - segment.original_start),
+                    virtual_start,
+                    segment.virtual_end,
+                );
+                MappedSpan {
+                    pos: virtual_start,
+                    end: virtual_end,
+                    fidelity: Fidelity::Exact,
+                }
+            } else {
+                MappedSpan {
+                    pos: segment.virtual_start,
+                    end: segment.virtual_end,
+                    fidelity: Fidelity::Atom,
+                }
+            }
+        })
+        .collect()
+}
+
+fn supports_feature(segment: &Segment, feature: Features) -> bool {
+    segment.features & feature != 0
+}
+
+/// tsgo `originalIndex`: the segments in original order and a complete
+/// binary tree over them whose nodes hold the greatest original end below
+/// them, so a point lookup skips every subtree that cannot reach it.
+struct OriginalIndex {
+    segments: Vec<Segment>,
+    leaf_count: usize,
+    max_ends: Vec<i32>,
+}
+
+/// tsgo `segmentGroupAtOriginalPosition`: segments of one original range,
+/// and whether the position is that range's end.
+struct SegmentGroup {
+    segments: Vec<Segment>,
+    at_end: bool,
+}
+
+impl OriginalIndex {
+    fn new(segments: &[Segment]) -> Self {
+        let mut segments = segments.to_vec();
+        segments.sort_by(|left, right| {
+            left.original_start
+                .cmp(&right.original_start)
+                .then(left.original_end.cmp(&right.original_end))
+                .then(left.virtual_start.cmp(&right.virtual_start))
+        });
+        let mut leaf_count = 1;
+        while leaf_count < segments.len() {
+            leaf_count *= 2;
+        }
+        let mut max_ends = vec![0; 2 * leaf_count];
+        for (index, segment) in segments.iter().enumerate() {
+            max_ends[leaf_count + index] = segment.original_end;
+        }
+        for node in (1..leaf_count).rev() {
+            max_ends[node] = max_ends[2 * node].max(max_ends[2 * node + 1]);
+        }
+        Self {
+            segments,
+            leaf_count,
+            max_ends,
+        }
+    }
+
+    /// tsgo `segmentsAtOriginalPosition`: every segment containing `pos`
+    /// (ends exclusive; a segment starting there, even an empty one, is
+    /// contained).
+    fn segments_at_original_position(&self, pos: i32) -> Vec<Segment> {
+        let start = self
+            .segments
+            .partition_point(|segment| segment.original_start < pos);
+        let mut results = Vec::new();
+        self.collect(1, 0, self.leaf_count, start, pos, false, &mut results);
+        let end = self
+            .segments
+            .partition_point(|segment| segment.original_start <= pos);
+        results.extend_from_slice(&self.segments[start..end]);
+        results
+    }
+
+    /// tsgo `collectSegmentsEndingAtOrAfter`: the segments before `limit`
+    /// whose end reaches `pos` (passes it unless `include_end`), in original
+    /// order.
+    #[allow(clippy::too_many_arguments)]
+    fn collect(
+        &self,
+        node: usize,
+        start: usize,
+        end: usize,
+        limit: usize,
+        pos: i32,
+        include_end: bool,
+        results: &mut Vec<Segment>,
+    ) {
+        if start >= limit
+            || self.max_ends[node] < pos
+            || (!include_end && self.max_ends[node] == pos)
+        {
+            return;
+        }
+        if end - start == 1 {
+            results.push(self.segments[start]);
+            return;
+        }
+        let middle = start + (end - start) / 2;
+        self.collect(2 * node, start, middle, limit, pos, include_end, results);
+        self.collect(2 * node + 1, middle, end, limit, pos, include_end, results);
+    }
+
+    /// tsgo `segmentGroupsAtOriginalPosition`: each group of segments with
+    /// one original range containing or touching `pos` (ends included); at a
+    /// shared boundary the segments ending there and those starting there
+    /// are separate groups.
+    fn segment_groups_at_original_position(&self, pos: i32) -> Vec<SegmentGroup> {
+        let limit = self
+            .segments
+            .partition_point(|segment| segment.original_start <= pos);
+        let mut segments = Vec::new();
+        self.collect(1, 0, self.leaf_count, limit, pos, true, &mut segments);
+        let mut groups = Vec::new();
+        let mut start = 0;
+        while start < segments.len() {
+            let mut end = start + 1;
+            while end < segments.len()
+                && segments[start].original_start == segments[end].original_start
+                && segments[start].original_end == segments[end].original_end
+            {
+                end += 1;
+            }
+            let segment = segments[start];
+            if pos <= segment.original_end {
+                groups.push(SegmentGroup {
+                    segments: segments[start..end].to_vec(),
+                    at_end: pos == segment.original_end && pos != segment.original_start,
+                });
+            }
+            start = end;
+        }
+        groups
     }
 }
 

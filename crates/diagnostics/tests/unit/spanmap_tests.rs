@@ -1,5 +1,4 @@
-//! tsgo spanmap_test.go, the virtual-to-original half (the
-//! original-to-virtual projections come with the language service).
+//! tsgo spanmap_test.go.
 
 use super::*;
 
@@ -277,4 +276,314 @@ fn mapping_errors_describe_their_offsets_as_tsgo_does() {
         error(MappingErrorKind::Feature).to_string(),
         "content mapper position mappings have invalid features near original offset 9"
     );
+}
+
+fn featured(
+    virtual_start: i32,
+    virtual_end: i32,
+    original_start: i32,
+    original_end: i32,
+    kind: SegmentKind,
+    features: Features,
+) -> Segment {
+    Segment {
+        features,
+        ..segment(
+            virtual_start,
+            virtual_end,
+            original_start,
+            original_end,
+            kind,
+        )
+    }
+}
+
+fn span(pos: i32, end: i32, fidelity: Fidelity) -> MappedSpan {
+    MappedSpan { pos, end, fidelity }
+}
+
+fn position(position: i32, fidelity: Fidelity) -> MappedPosition {
+    MappedPosition { position, fidelity }
+}
+
+#[test]
+fn original_to_virtual_intersecting_spans_allows_uncovered_endpoints() {
+    let map = SpanMap::new(vec![featured(
+        10,
+        20,
+        100,
+        110,
+        KIND_VERBATIM,
+        FEATURE_SEMANTIC_TOKENS | FEATURE_INLAY_HINTS,
+    )]);
+    for feature in [FEATURE_SEMANTIC_TOKENS, FEATURE_INLAY_HINTS] {
+        assert_eq!(
+            map.original_to_virtual_intersecting_spans(90, 120, feature),
+            [span(10, 20, Fidelity::Exact)]
+        );
+    }
+}
+
+#[test]
+fn original_to_virtual_span_verbatim() {
+    let map = SpanMap::new(vec![segment(0, 10, 100, 110, KIND_VERBATIM)]);
+    assert_eq!(
+        map.original_to_virtual_spans(103, 107, FEATURES_ALL),
+        [span(3, 7, Fidelity::Exact)]
+    );
+}
+
+#[test]
+fn original_to_virtual_span_atom() {
+    let map = SpanMap::new(vec![segment(3, 14, 60, 71, KIND_ATOM)]);
+    assert_eq!(
+        map.original_to_virtual_spans(63, 67, FEATURES_ALL),
+        [span(3, 14, Fidelity::Atom)]
+    );
+}
+
+#[test]
+fn original_to_virtual_span_gap() {
+    let map = SpanMap::new(vec![
+        segment(0, 10, 100, 110, KIND_VERBATIM),
+        segment(20, 30, 200, 210, KIND_VERBATIM),
+    ]);
+    assert!(map
+        .original_to_virtual_spans(150, 160, FEATURES_ALL)
+        .is_empty());
+}
+
+#[test]
+fn original_to_virtual_positions() {
+    let map = SpanMap::new(vec![
+        segment(0, 10, 100, 110, KIND_VERBATIM),
+        segment(20, 30, 200, 210, KIND_ATOM),
+    ]);
+    for (pos, expected) in [
+        (103, Some(position(3, Fidelity::Exact))),
+        (205, Some(position(20, Fidelity::Atom))),
+        (150, None),
+    ] {
+        let positions = map.original_to_virtual_positions(pos, FEATURES_ALL);
+        let spans = map.original_to_virtual_spans(pos, pos, FEATURES_ALL);
+        match expected {
+            None => {
+                assert!(positions.is_empty());
+                assert!(spans.is_empty());
+            }
+            Some(expected) => {
+                assert_eq!(positions, [expected]);
+                assert_eq!(
+                    spans,
+                    [span(
+                        expected.position,
+                        expected.position,
+                        expected.fidelity
+                    )]
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn original_to_virtual_positions_at_endpoint() {
+    let map = SpanMap::new(vec![
+        featured(2, 5, 10, 13, KIND_VERBATIM, FEATURE_COMPLETION),
+        featured(8, 11, 13, 16, KIND_VERBATIM, FEATURE_COMPLETION),
+        featured(20, 23, 30, 35, KIND_ATOM, FEATURE_COMPLETION),
+    ]);
+    assert_eq!(
+        map.original_to_virtual_positions(13, FEATURE_COMPLETION),
+        [position(5, Fidelity::Exact), position(8, Fidelity::Exact)]
+    );
+    assert_eq!(
+        map.original_to_virtual_positions(35, FEATURE_COMPLETION),
+        [position(23, Fidelity::Atom)]
+    );
+    let filtered = SpanMap::new(vec![
+        featured(20, 23, 10, 13, KIND_VERBATIM, FEATURE_HOVER),
+        featured(2, 5, 13, 16, KIND_VERBATIM, FEATURE_COMPLETION),
+    ]);
+    assert_eq!(
+        filtered.original_to_virtual_positions(13, FEATURES_ALL),
+        [position(2, Fidelity::Exact), position(23, Fidelity::Exact)]
+    );
+    assert_eq!(
+        filtered.original_to_virtual_positions(13, FEATURE_COMPLETION),
+        [position(2, Fidelity::Exact)]
+    );
+}
+
+#[test]
+fn original_to_virtual_duplicate_group() {
+    let map = SpanMap::new(vec![
+        featured(0, 3, 10, 13, KIND_VERBATIM, FEATURE_DEFINITION),
+        featured(10, 13, 10, 13, KIND_VERBATIM, FEATURE_HOVER),
+        featured(20, 25, 10, 13, KIND_ATOM, FEATURE_DEFINITION),
+    ]);
+    assert_eq!(
+        map.original_to_virtual_positions(11, FEATURE_HOVER),
+        [position(11, Fidelity::Exact)]
+    );
+    assert_eq!(
+        map.original_to_virtual_positions(11, FEATURE_DEFINITION),
+        [position(1, Fidelity::Exact), position(20, Fidelity::Atom)]
+    );
+    assert_eq!(
+        map.original_to_virtual_spans(10, 13, FEATURE_DEFINITION),
+        [span(0, 3, Fidelity::Exact), span(20, 25, Fidelity::Atom)]
+    );
+}
+
+#[test]
+fn original_to_virtual_overlapping_spans() {
+    let map = SpanMap::new(vec![
+        featured(0, 6, 0, 6, KIND_VERBATIM, FEATURE_HOVER),
+        featured(10, 12, 2, 4, KIND_VERBATIM, FEATURE_HOVER),
+        featured(20, 24, 3, 7, KIND_VERBATIM, FEATURE_HOVER),
+    ]);
+    assert_eq!(
+        map.original_to_virtual_positions(3, FEATURE_HOVER),
+        [
+            position(3, Fidelity::Exact),
+            position(11, Fidelity::Exact),
+            position(20, Fidelity::Exact)
+        ]
+    );
+    assert_eq!(
+        map.original_to_virtual_spans(3, 4, FEATURE_HOVER),
+        [
+            span(3, 4, Fidelity::Exact),
+            span(11, 12, Fidelity::Exact),
+            span(20, 21, Fidelity::Exact)
+        ]
+    );
+}
+
+#[test]
+fn original_to_virtual_position_finds_early_covering_segment() {
+    // A search lands near [90, 95), which does not contain 97: the interval
+    // index still finds the earlier [0, 100) without scanning every segment
+    // that starts before the position.
+    let map = SpanMap::new(vec![
+        featured(0, 100, 0, 100, KIND_VERBATIM, FEATURE_HOVER),
+        featured(100, 105, 80, 85, KIND_VERBATIM, FEATURE_HOVER),
+        featured(105, 110, 90, 95, KIND_VERBATIM, FEATURE_HOVER),
+        featured(110, 113, 100, 103, KIND_VERBATIM, FEATURE_HOVER),
+    ]);
+    assert_eq!(
+        map.original_to_virtual_positions(97, FEATURE_HOVER),
+        [position(97, Fidelity::Exact)]
+    );
+    assert_eq!(
+        map.original_to_virtual_spans(97, 98, FEATURE_HOVER),
+        [span(97, 98, Fidelity::Exact)]
+    );
+    // A point takes both sides of a shared end; a range treats ends as
+    // exclusive and takes the right segment only.
+    assert_eq!(
+        map.original_to_virtual_positions(100, FEATURE_HOVER),
+        [
+            position(100, Fidelity::Exact),
+            position(110, Fidelity::Exact)
+        ]
+    );
+    assert_eq!(
+        map.original_to_virtual_spans(100, 101, FEATURE_HOVER),
+        [span(110, 111, Fidelity::Exact)]
+    );
+}
+
+#[test]
+fn original_to_virtual_overlap_falls_back_from_disabled_container() {
+    let map = SpanMap::new(vec![
+        featured(0, 6, 0, 6, KIND_VERBATIM, FEATURE_DEFINITION),
+        featured(10, 13, 0, 3, KIND_VERBATIM, FEATURE_HOVER),
+        featured(13, 16, 3, 6, KIND_VERBATIM, FEATURE_HOVER),
+    ]);
+    assert_eq!(
+        map.original_to_virtual_spans(1, 5, FEATURE_HOVER),
+        [span(11, 15, Fidelity::Approximate)]
+    );
+}
+
+#[test]
+fn original_to_virtual_cross_group_projections() {
+    let map = SpanMap::new(vec![
+        featured(0, 2, 0, 2, KIND_VERBATIM, FEATURE_HOVER),
+        featured(2, 4, 2, 4, KIND_VERBATIM, FEATURE_HOVER),
+        featured(10, 12, 0, 2, KIND_VERBATIM, FEATURE_HOVER),
+        featured(12, 14, 2, 4, KIND_VERBATIM, FEATURE_HOVER),
+    ]);
+    assert_eq!(
+        map.original_to_virtual_spans(1, 3, FEATURE_HOVER),
+        [
+            span(1, 3, Fidelity::Approximate),
+            span(11, 13, Fidelity::Approximate)
+        ]
+    );
+}
+
+#[test]
+fn original_to_virtual_explicit_zero_features() {
+    let map = SpanMap::new(vec![featured(0, 3, 10, 13, KIND_VERBATIM, FEATURES_NONE)]);
+    assert!(map
+        .original_to_virtual_positions(11, FEATURE_HOVER)
+        .is_empty());
+    assert!(map
+        .original_to_virtual_positions(11, FEATURE_DEFINITION)
+        .is_empty());
+    assert!(map
+        .original_to_virtual_spans(10, 13, FEATURE_HOVER)
+        .is_empty());
+}
+
+#[test]
+fn feature_participation_original() {
+    let map = SpanMap::new(vec![
+        featured(0, 3, 10, 13, KIND_VERBATIM, FEATURE_HOVER),
+        featured(3, 6, 20, 23, KIND_VERBATIM, FEATURE_COMPLETION),
+    ]);
+    assert_eq!(
+        map.original_to_virtual_positions(11, FEATURE_HOVER).len(),
+        1
+    );
+    assert!(map
+        .original_to_virtual_positions(11, FEATURE_COMPLETION)
+        .is_empty());
+    // Diagnostics use the unfiltered geometry.
+    assert_eq!(
+        map.virtual_to_original_span(0, 3),
+        ((10, 13), Fidelity::Exact)
+    );
+}
+
+#[test]
+fn original_to_virtual_span_round_trip() {
+    // Original spans out of the virtual order exercise the original index.
+    let map = SpanMap::new(vec![
+        segment(0, 10, 200, 210, KIND_VERBATIM),
+        segment(10, 20, 100, 110, KIND_VERBATIM),
+    ]);
+    for (pos, end) in [(2, 8), (12, 18)] {
+        let ((original_pos, original_end), fidelity) = map.virtual_to_original_span(pos, end);
+        assert_eq!(fidelity, Fidelity::Exact);
+        assert_eq!(
+            map.original_to_virtual_spans(original_pos, original_end, FEATURES_ALL),
+            [span(pos, end, Fidelity::Exact)]
+        );
+    }
+}
+
+#[test]
+fn a_clone_and_an_equal_map_ignore_the_built_index() {
+    let map = SpanMap::new(vec![segment(0, 10, 100, 110, KIND_VERBATIM)]);
+    let fresh = map.clone();
+    assert_eq!(
+        map.original_to_virtual_positions(103, FEATURES_ALL).len(),
+        1
+    );
+    assert_eq!(map, fresh);
+    assert_eq!(map.clone(), fresh);
 }
