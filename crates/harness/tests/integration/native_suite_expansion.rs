@@ -129,13 +129,11 @@ fn native_expansion_reproduces_the_reference_baseline_configurations() {
     );
 }
 
-/// Every vendored file, with its Git blob id and mode, under `root/path`
-/// (only `*.errors.txt` when the set is filtered; the file itself when the
-/// set vendors one file), sorted by upstream path.
 /// The vendored baseline kinds, longest suffix first so `.js.map` is not
-/// taken for `.js`.
-const BASELINE_SUFFIXES: [&str; 7] = [
+/// taken for `.js` (scripts/vendor_typescript_native.py's list).
+const BASELINE_SUFFIXES: [&str; 8] = [
     ".sourcemap.txt",
+    ".contentmapper",
     ".trace.json",
     ".errors.txt",
     ".symbols",
@@ -150,6 +148,9 @@ fn baseline_kind(name: &str) -> Option<&'static str> {
         .find(|suffix| name.ends_with(suffix))
 }
 
+/// Every vendored file, with its Git blob id and mode, under `root/path`
+/// (only the set's baseline kind when the set is filtered; the file itself
+/// when the set vendors one file), sorted by upstream path.
 fn inventory(upstream: &Path, path: &str, filter: Option<&str>) -> Vec<(String, String, String)> {
     let mut files = Vec::new();
     let mut stack = Vec::new();
