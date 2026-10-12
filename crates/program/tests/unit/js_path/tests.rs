@@ -79,3 +79,29 @@ fn lexical_paths_match_repeated_typescript_values() {
         );
     }
 }
+
+#[test]
+fn relative_segments_are_found_between_separators() {
+    for (path, expected) in [
+        ("a/b", false),
+        ("./a", true),
+        ("a/../b", true),
+        ("a/.", true),
+        ("..", true),
+        (".", true),
+        ("a//b", true),
+        ("a/.b/c", false),
+        ("a/b./c", false),
+        ("a/.../b", false),
+        ("/a/b", false),
+        ("", false),
+        ("é/./x", true),
+        ("é/x", false),
+    ] {
+        assert_eq!(
+            has_relative_segment(JsString::from(path).as_js()),
+            expected,
+            "{path}"
+        );
+    }
+}

@@ -26,7 +26,16 @@ const CHUNKS: usize = 1 << 12;
 /// Lookup shards; a name's shard is chosen by its hash.
 const SHARDS: usize = 64;
 
-type Chunk = Box<[OnceLock<&'static JsString>]>;
+type Chunk = Box<[OnceLock<Name>]>;
+
+/// An interned name: its text and, when the text has no unpaired
+/// surrogate, the same bytes as a `str` (checked once, when interned, so
+/// readers of a name's scalar text do no UTF-8 validation).
+#[derive(Clone, Copy)]
+struct Name {
+    text: &'static JsString,
+    scalar: Option<&'static str>,
+}
 
 struct Interner {
     /// id → text, filled once per id before the id is handed out.
@@ -55,10 +64,24 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
 #[inline]
 #[cfg_attr(feature = "perf-counters", track_caller)]
 pub(crate) fn text(id: u32) -> &'static JsString {
+    name(id).text
+}
+
+/// The text of an interned name as a `str`, unless it has an unpaired
+/// surrogate.
+#[inline]
+#[cfg_attr(feature = "perf-counters", track_caller)]
+pub(crate) fn scalar_text(id: u32) -> Option<&'static str> {
+    name(id).scalar
+}
+
+#[inline]
+#[cfg_attr(feature = "perf-counters", track_caller)]
+fn name(id: u32) -> Name {
     crate::perf::bump(crate::perf::PerfCounter::NamesTextReads);
     crate::perf::name_site(std::panic::Location::caller());
     let id = id as usize;
-    NAMES.chunks[id / CHUNK]
+    *NAMES.chunks[id / CHUNK]
         .get()
         .and_then(|chunk| chunk[id % CHUNK].get())
         .expect("a name id is handed out only after its text is written")
@@ -157,9 +180,13 @@ fn intern_shared(text: JsStr<'_>, hash: u64) -> u32 {
             let chunk = NAMES.chunks[slot / CHUNK]
                 .get_or_init(|| (0..CHUNK).map(|_| OnceLock::new()).collect());
             let stored: &'static JsString = Box::leak(Box::new(text.to_owned()));
-            chunk[slot % CHUNK]
-                .set(stored)
-                .expect("a fresh name id has no text yet");
+            let name = Name {
+                text: stored,
+                scalar: stored.as_str(),
+            };
+            if chunk[slot % CHUNK].set(name).is_err() {
+                unreachable!("a fresh name id has no text yet");
+            }
             NAMES.bytes.fetch_add(bytes.len(), Ordering::Relaxed);
             entry.insert(id);
             id

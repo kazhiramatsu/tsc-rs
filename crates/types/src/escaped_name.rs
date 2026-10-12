@@ -115,7 +115,7 @@ impl EscapedName {
 
     #[cfg_attr(feature = "perf-counters", track_caller)]
     pub fn as_str(&self) -> Option<&'static str> {
-        names::text(self.0).as_str()
+        names::scalar_text(self.0)
     }
 
     /// The text of an identifier's name, which is always UTF-8.
