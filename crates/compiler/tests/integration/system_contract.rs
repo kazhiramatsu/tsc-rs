@@ -3,8 +3,16 @@
 //! way a test or a WebAssembly embedding runs it.
 
 use std::collections::BTreeMap;
+use std::io::Write;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
+
+use tsc_harness::content_mappers::{
+    package_json, ProjectLifecycle, TestSpawner, DYNAMIC_VERBATIM_MAPPER,
+    SUPPLEMENTAL_DIAGNOSTICS_MAPPER, SUPPLEMENTAL_MAPPER, VERBATIM_MAPPER,
+};
+use tsc_program::content_mapper::host::{MapperProcess, ProcessControl, Spawner};
 
 use tsc_compiler::system::{CommandLineTesting, ProgramReport, System};
 use tsc_compiler::watch::{
@@ -27,22 +35,95 @@ struct MemorySystem {
     /// The directories a watch run watches, with their recursion and the
     /// queue their events go to.
     watches: Mutex<Vec<(String, bool, WatchEvents)>>,
+    /// The test content mappers the system starts, when it starts any.
+    spawner: Option<Arc<RecordingSpawner>>,
+}
+
+/// tsgo `recordingContentMapperSpawner`: the harness's in-process mappers,
+/// counting the processes started and closed, and the projects the dynamic
+/// mappers opened and closed (tsgo `ProjectLifecycle`).
+struct RecordingSpawner {
+    inner: TestSpawner,
+    lifecycle: Arc<ProjectLifecycle>,
+    spawns: AtomicUsize,
+    closes: Arc<AtomicUsize>,
+}
+
+impl RecordingSpawner {
+    fn new() -> Self {
+        let lifecycle = Arc::new(ProjectLifecycle::default());
+        Self {
+            inner: TestSpawner::with_project_lifecycle(Arc::clone(&lifecycle)),
+            lifecycle,
+            spawns: AtomicUsize::new(0),
+            closes: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+impl Spawner for RecordingSpawner {
+    fn spawn(
+        &self,
+        command: &[String],
+        dir: &str,
+        stderr: Box<dyn Write + Send>,
+    ) -> Result<MapperProcess, String> {
+        let process = self.inner.spawn(command, dir, stderr)?;
+        self.spawns.fetch_add(1, Ordering::SeqCst);
+        Ok(MapperProcess {
+            stdout: process.stdout,
+            stdin: process.stdin,
+            control: Box::new(RecordingControl {
+                inner: process.control,
+                closes: Arc::clone(&self.closes),
+                closed: AtomicBool::new(false),
+            }),
+        })
+    }
+}
+
+/// A test mapper process whose first close is counted.
+struct RecordingControl {
+    inner: Box<dyn ProcessControl>,
+    closes: Arc<AtomicUsize>,
+    closed: AtomicBool,
+}
+
+impl ProcessControl for RecordingControl {
+    fn close(&self) {
+        if !self.closed.swap(true, Ordering::SeqCst) {
+            self.closes.fetch_add(1, Ordering::SeqCst);
+        }
+        self.inner.close();
+    }
+
+    fn exit_code(&self) -> Option<i32> {
+        self.inner.exit_code()
+    }
 }
 
 impl MemorySystem {
     fn new(files: &[(&str, &str)]) -> Self {
+        Self::from_seeds(
+            files
+                .iter()
+                .map(|(path, text)| (path.to_string(), Seed::file(text)))
+                .collect(),
+            true,
+        )
+    }
+
+    /// A system over the given entries (files and links), its file names
+    /// compared with or without case.
+    fn from_seeds(mut seeds: Vec<(String, Seed)>, case_sensitive: bool) -> Self {
         let clock = Arc::new(SteppingClock::new(
             SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000),
             Duration::from_secs(1),
         ));
-        let mut seeds = files
-            .iter()
-            .map(|(path, text)| (path.to_string(), Seed::file(text)))
-            .collect::<Vec<_>>();
         for name in ["lib.d.ts", "lib.es2026.full.d.ts"] {
             seeds.push((format!("/lib/{name}"), Seed::file(LIBRARY)));
         }
-        let fs = MemFs::from_entries(seeds, true, Arc::clone(&clock) as Arc<dyn Clock>)
+        let fs = MemFs::from_entries(seeds, case_sensitive, Arc::clone(&clock) as Arc<dyn Clock>)
             .expect("valid files");
         Self {
             fs,
@@ -54,7 +135,32 @@ impl MemorySystem {
             output: Mutex::new(String::new()),
             programs: Mutex::new(Vec::new()),
             watches: Mutex::new(Vec::new()),
+            spawner: None,
         }
+    }
+
+    /// The system starts the harness's test content mappers.
+    fn with_content_mappers(mut self) -> Self {
+        self.spawner = Some(Arc::new(RecordingSpawner::new()));
+        self
+    }
+
+    /// The (started, closed) counts of the mapper processes.
+    fn mapper_processes(&self) -> (usize, usize) {
+        let spawner = self.spawner.as_ref().expect("content mappers");
+        (
+            spawner.spawns.load(Ordering::SeqCst),
+            spawner.closes.load(Ordering::SeqCst),
+        )
+    }
+
+    /// The (opened, closed) counts of the dynamic mappers' projects.
+    fn mapper_projects(&self) -> (i32, i32) {
+        let lifecycle = &self.spawner.as_ref().expect("content mappers").lifecycle;
+        (
+            lifecycle.opens.load(Ordering::SeqCst),
+            lifecycle.closes.load(Ordering::SeqCst),
+        )
     }
 
     fn text(&self, path: &str) -> String {
@@ -102,6 +208,13 @@ impl System for MemorySystem {
     fn write_error(&self, text: &str) {
         self.output.lock().unwrap().push_str(text);
     }
+
+    fn content_mapper_spawner(&self) -> Arc<dyn Spawner> {
+        match &self.spawner {
+            Some(spawner) => Arc::clone(spawner) as Arc<dyn Spawner>,
+            None => Arc::new(TestSpawner::default()),
+        }
+    }
 }
 
 impl CommandLineTesting for MemorySystem {
@@ -137,8 +250,16 @@ impl WatchBackend for MemorySystem {
 impl MemorySystem {
     /// Reports a change of `path` to the watch whose directory holds it.
     fn changed(&self, path: &str) {
+        let fold = |text: &str| {
+            if self.fs.case_sensitive() {
+                text.to_owned()
+            } else {
+                text.to_lowercase()
+            }
+        };
         for (directory, recursive, events) in self.watches.lock().unwrap().iter() {
-            let Some(rest) = path.strip_prefix(&format!("{directory}/")) else {
+            let folded = fold(path);
+            let Some(rest) = folded.strip_prefix(&format!("{}/", fold(directory))) else {
                 continue;
             };
             if *recursive || !rest.contains('/') {
@@ -600,3 +721,603 @@ fn the_bundled_file_system_serves_the_embedded_libraries_read_only() {
     fs.write("/b.ts", b"y").unwrap();
     assert_eq!(fs.read("/b.ts").unwrap(), b"y");
 }
+
+const MAPPED_PROJECT: &str = "/home/src/workspaces/project";
+
+#[test]
+fn a_build_starts_its_content_mapper_once_and_closes_it() {
+    // tsgo TestContentMapperBuildLifecycle.
+    let manifest = package_json(VERBATIM_MAPPER);
+    let system = MemorySystem::new(&[
+        (
+            "/home/src/workspaces/project/tsconfig.json",
+            r#"{
+                "compilerOptions": { "composite": true },
+                "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+            }"#,
+        ),
+        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let result = execute_command_line(
+        &system,
+        &args(&["--build", MAPPED_PROJECT, "--runExternalCode"]),
+        Some(&system),
+    );
+    assert!(result.watcher.is_none());
+    assert_eq!(system.mapper_processes(), (1, 1), "{}", system.take_output());
+}
+
+#[test]
+fn a_build_notices_a_supplemental_file_written_to_disk() {
+    // tsgo TestContentMapperBuildDetectsNewPhysicalSupplementalFile: the
+    // build info lists the supplemental output, which is not a missing input
+    // while it is virtual; once a file has its name, the project is built
+    // again and the collision reported.
+    let manifest = package_json(SUPPLEMENTAL_MAPPER);
+    let system = MemorySystem::new(&[
+        (
+            "/home/src/workspaces/project/tsconfig.json",
+            r#"{
+                "compilerOptions": { "incremental": true },
+                "files": ["app.vue"],
+                "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+            }"#,
+        ),
+        (
+            "/home/src/workspaces/project/app.vue",
+            "declare const value: number;",
+        ),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let arguments = args(&[
+        "--build",
+        MAPPED_PROJECT,
+        "--pretty",
+        "false",
+        "--runExternalCode",
+    ]);
+    let result = execute_command_line(&system, &arguments, Some(&system));
+    assert_eq!(result.status, 0, "{}", system.take_output());
+    system.take_output();
+
+    system
+        .fs
+        .write("/home/src/workspaces/project/app.vue.0.ts", b"export {};\n")
+        .unwrap();
+    let result = execute_command_line(&system, &arguments, Some(&system));
+    let output = system.take_output();
+    assert_eq!(result.status, 2, "{output}");
+    assert!(output.contains("TS18069"), "{output}");
+    assert!(output.contains("conflicts with an existing file"), "{output}");
+}
+
+#[test]
+fn a_build_whose_mapper_identity_fails_skips_its_outputs() {
+    // tsgo TestContentMapperBuildIdentityFailureExitStatus: a dynamic
+    // mapper's identity comes from its process; when it cannot start, the
+    // project is out of date and is not built.
+    let manifest = package_json(DYNAMIC_VERBATIM_MAPPER);
+    let system = MemorySystem::new(&[
+        (
+            "/home/src/workspaces/project/tsconfig.json",
+            r#"{
+                "compilerOptions": { "composite": true },
+                "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+            }"#,
+        ),
+        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let arguments = args(&["--build", MAPPED_PROJECT, "--runExternalCode"]);
+    let result = execute_command_line(&system, &arguments, Some(&system));
+    assert_eq!(result.status, 0, "{}", system.take_output());
+
+    system
+        .fs
+        .write(
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            br#"{
+                "name": "mapper",
+                "version": "1.0.0",
+                "typescript": { "contentMapper": { "exec": ["missing-mapper"], "dynamicConfig": true } }
+            }"#,
+        )
+        .unwrap();
+    let result = execute_command_line(&system, &arguments, Some(&system));
+    assert_eq!(result.status, 1, "{}", system.take_output());
+}
+
+#[test]
+fn an_incremental_program_starts_over_when_its_mapper_changes() {
+    // tsgo TestReadBuildInfoProgramContentMapperIdentityMismatch, through
+    // the command line: the build info records the mapper's identity, and
+    // the old program is not reused once the mapper's version changed.
+    let manifest_file = "/home/src/workspaces/project/node_modules/mapper/package.json";
+    let manifest = package_json(VERBATIM_MAPPER);
+    let system = MemorySystem::new(&[
+        (
+            "/home/src/workspaces/project/tsconfig.json",
+            r#"{
+                "compilerOptions": { "incremental": true },
+                "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+            }"#,
+        ),
+        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/index.ts",
+            "export const local = 1;",
+        ),
+        (manifest_file, &manifest),
+    ])
+    .with_content_mappers();
+    let arguments = args(&["-p", MAPPED_PROJECT, "--runExternalCode"]);
+    let run = |expected: SemanticDiagnosticsState, identity: &str| {
+        system.programs.lock().unwrap().clear();
+        assert_eq!(
+            status_of(&system, &arguments, Some(&system)),
+            0,
+            "{}",
+            system.take_output()
+        );
+        let programs = system.programs.lock().unwrap().clone();
+        assert!(
+            programs[0]
+                .files
+                .iter()
+                .all(|file| file.semantic_diagnostics == expected),
+            "{:?}",
+            programs[0].files
+        );
+        let build_info = system.text("/home/src/workspaces/project/tsconfig.tsbuildinfo");
+        assert!(
+            build_info.contains(&format!(r#""contentMapperIdentities":["{identity}:"#)),
+            "{build_info}"
+        );
+    };
+    run(SemanticDiagnosticsState::Refreshed, "mapper@1.0.0");
+    run(SemanticDiagnosticsState::Kept, "mapper@1.0.0");
+    system
+        .fs
+        .write(
+            manifest_file,
+            manifest
+                .replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#)
+                .as_bytes(),
+        )
+        .unwrap();
+    run(SemanticDiagnosticsState::Refreshed, "mapper@2.0.0");
+}
+
+const MAPPED_CONFIG: &str = "/home/src/workspaces/project/tsconfig.json";
+
+/// tsgo TestContentMapperWatchLifecycle: a watch keeps its mapper's process,
+/// replaces it when the configuration names another mapper, closes it when
+/// the configuration has none, and closes what it has when it ends.
+fn check_content_mapper_watch_lifecycle(arguments: &[&str]) {
+    let mapper_a = package_json(VERBATIM_MAPPER);
+    let mapper_b = mapper_a.replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#);
+    let configured = |mapper: &str| {
+        format!(
+            r#"{{
+                "compilerOptions": {{ "composite": true }},
+                "contentMappers": [{{ "package": "{mapper}", "extensions": [".vue"] }}]
+            }}"#
+        )
+    };
+    let system = MemorySystem::new(&[
+        (MAPPED_CONFIG, &configured("mapper-a")),
+        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/node_modules/mapper-a/package.json",
+            &mapper_a,
+        ),
+        (
+            "/home/src/workspaces/project/node_modules/mapper-b/package.json",
+            &mapper_b,
+        ),
+    ])
+    .with_content_mappers();
+    let result = execute_command_line(&system, &args(arguments), Some(&system));
+    let mut watcher = result.watcher.expect("a watch");
+    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+
+    for (config, processes) in [
+        (configured("mapper-b"), (2, 1)),
+        (r#"{ "compilerOptions": { "composite": true } }"#.to_owned(), (2, 2)),
+        (configured("mapper-a"), (3, 2)),
+    ] {
+        system.fs.write(MAPPED_CONFIG, config.as_bytes()).unwrap();
+        system.changed(MAPPED_CONFIG);
+        watcher.do_cycle();
+        assert_eq!(system.mapper_processes(), processes, "{}", system.take_output());
+    }
+    drop(watcher);
+    assert_eq!(system.mapper_processes(), (3, 3));
+}
+
+#[test]
+fn a_watch_starts_replaces_and_closes_its_content_mappers() {
+    check_content_mapper_watch_lifecycle(&[
+        "--watch",
+        "-p",
+        MAPPED_PROJECT,
+        "--runExternalCode",
+    ]);
+}
+
+#[test]
+fn a_build_watch_starts_replaces_and_closes_its_content_mappers() {
+    check_content_mapper_watch_lifecycle(&[
+        "--build",
+        MAPPED_PROJECT,
+        "--watch",
+        "--runExternalCode",
+    ]);
+}
+
+#[test]
+fn supplemental_diagnostics_name_the_original_file() {
+    // tsgo TestContentMapperSupplementalDiagnosticUsesOriginalFileName.
+    let manifest = package_json(SUPPLEMENTAL_DIAGNOSTICS_MAPPER);
+    let system = MemorySystem::new(&[
+        (
+            MAPPED_CONFIG,
+            r#"{
+                "compilerOptions": { "noEmit": true },
+                "contentMappers": [{ "package": "mapper", "extensions": [".astro"] }]
+            }"#,
+        ),
+        (
+            "/home/src/workspaces/project/app.astro",
+            "const value: string = 1;",
+        ),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let result = execute_command_line(
+        &system,
+        &args(&["-p", MAPPED_PROJECT, "--pretty", "false", "--runExternalCode"]),
+        Some(&system),
+    );
+    let output = system.take_output();
+    assert_eq!(result.status, 2, "{output}");
+    assert!(output.contains("app.astro(1,1): error TS2304"), "{output}");
+    assert!(output.contains("app.astro(1,7): error TS2322"), "{output}");
+    assert!(!output.contains("app.astro.0.ts"), "{output}");
+}
+
+#[test]
+fn a_watch_builds_again_when_a_supplemental_name_collides() {
+    // tsgo TestContentMapperSupplementalCollisionWatch: a file with a
+    // supplemental output's name, created and removed again, builds the
+    // project each time (a build of this watch is always a full one).
+    let manifest = package_json(SUPPLEMENTAL_MAPPER);
+    let supplemental = "/home/src/workspaces/project/app.vue.0.ts";
+    let system = MemorySystem::new(&[
+        (
+            MAPPED_CONFIG,
+            r#"{
+                "compilerOptions": { "noLib": true },
+                "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+            }"#,
+        ),
+        (
+            "/home/src/workspaces/project/app.vue",
+            "declare const value: number;",
+        ),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let result = execute_command_line(
+        &system,
+        &args(&["--watch", "-p", MAPPED_PROJECT, "--runExternalCode"]),
+        Some(&system),
+    );
+    let mut watcher = result.watcher.expect("a watch");
+    system.take_output();
+
+    system.fs.write(supplemental, b"export {};\n").unwrap();
+    system.changed(supplemental);
+    watcher.do_cycle();
+    let output = system.take_output();
+    assert!(output.contains("File change detected"), "{output}");
+    assert!(output.contains("TS18069"), "{output}");
+
+    system.fs.remove(supplemental).unwrap();
+    system.changed(supplemental);
+    watcher.do_cycle();
+    let output = system.take_output();
+    assert!(output.contains("File change detected"), "{output}");
+    assert!(!output.contains("TS18069"), "{output}");
+}
+
+/// tsgo TestDynamicContentMapperWatchDependency and its build-watch twin: a
+/// change of the configuration a dynamic mapper watches refreshes its
+/// project (closed and opened again) in the same process and builds again.
+fn check_dynamic_mapper_watch_dependency(arguments: &[&str]) {
+    let manifest = package_json(DYNAMIC_VERBATIM_MAPPER);
+    let mapper_config = "/home/src/workspaces/project/mapper.config.json";
+    let system = MemorySystem::new(&[
+        (
+            MAPPED_CONFIG,
+            r#"{
+                "compilerOptions": { "composite": true },
+                "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+            }"#,
+        ),
+        (mapper_config, r#"{ "version": 1 }"#),
+        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let result = execute_command_line(&system, &args(arguments), Some(&system));
+    let mut watcher = result.watcher.expect("a watch");
+    assert_eq!(system.mapper_projects(), (1, 0), "{}", system.take_output());
+
+    system.fs.write(mapper_config, br#"{ "version": 2 }"#).unwrap();
+    system.changed(mapper_config);
+    watcher.do_cycle();
+    let output = system.take_output();
+    assert!(
+        output.contains("File change detected. Starting incremental compilation..."),
+        "{output}"
+    );
+    assert_eq!(system.mapper_projects(), (2, 1), "{output}");
+    assert_eq!(system.mapper_processes(), (1, 0), "{output}");
+}
+
+#[test]
+fn a_watch_refreshes_a_dynamic_mapper_when_its_configuration_changes() {
+    check_dynamic_mapper_watch_dependency(&[
+        "--watch",
+        "-p",
+        MAPPED_PROJECT,
+        "--runExternalCode",
+    ]);
+}
+
+#[test]
+fn a_build_watch_refreshes_a_dynamic_mapper_when_its_configuration_changes() {
+    check_dynamic_mapper_watch_dependency(&[
+        "--build",
+        MAPPED_PROJECT,
+        "--watch",
+        "--runExternalCode",
+    ]);
+}
+
+#[test]
+fn a_watch_builds_a_mixed_batch_over_the_new_mapped_file() {
+    // tsgo TestContentMapperMixedWatchBatchForcesFullRebuild.
+    let manifest = package_json(VERBATIM_MAPPER);
+    let mapped = "/home/src/workspaces/project/app.vue";
+    let main = "/home/src/workspaces/project/main.ts";
+    let system = MemorySystem::new(&[
+        (
+            MAPPED_CONFIG,
+            r#"{
+                "compilerOptions": { "noLib": true },
+                "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+            }"#,
+        ),
+        (mapped, "export const marker = 1 as const;"),
+        (
+            main,
+            r#"import { marker } from "./app.vue"; const check: 1 = marker;"#,
+        ),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let result = execute_command_line(
+        &system,
+        &args(&[
+            "--watch",
+            "-p",
+            MAPPED_PROJECT,
+            "--pretty",
+            "false",
+            "--runExternalCode",
+        ]),
+        Some(&system),
+    );
+    let mut watcher = result.watcher.expect("a watch");
+    system.take_output();
+    system
+        .fs
+        .write(mapped, b"export const marker = 2 as const;")
+        .unwrap();
+    system
+        .fs
+        .write(
+            main,
+            br#"import { marker } from "./app.vue"; const check: 2 = marker;"#,
+        )
+        .unwrap();
+    system.changed(mapped);
+    system.changed(main);
+    watcher.do_cycle();
+    let output = system.take_output();
+    assert!(
+        !output.contains("Type '1' is not assignable to type '2'"),
+        "{output}"
+    );
+}
+
+/// A composite project whose `.vue` files the `mapper` package maps.
+const COMPOSITE_MAPPED_CONFIG: &str = r#"{
+    "compilerOptions": { "composite": true },
+    "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+}"#;
+
+/// The project of tsgo's symlinked-manifest tests: the mapper package is a
+/// link to a directory outside the project.
+fn linked_mapper_system(
+    config: &str,
+    target: &str,
+    link_target: &str,
+    case_sensitive: bool,
+) -> MemorySystem {
+    MemorySystem::from_seeds(
+        vec![
+            (MAPPED_CONFIG.to_owned(), Seed::file(config)),
+            (
+                "/home/src/workspaces/project/app.vue".to_owned(),
+                Seed::file("export const app = 1;"),
+            ),
+            (
+                "/home/src/workspaces/project/node_modules/mapper".to_owned(),
+                Seed::symlink(link_target),
+            ),
+            (target.to_owned(), Seed::file(package_json(VERBATIM_MAPPER))),
+        ],
+        case_sensitive,
+    )
+    .with_content_mappers()
+}
+
+#[test]
+fn a_build_watch_follows_a_linked_mapper_manifest() {
+    // tsgo TestContentMapperBuildWatchSymlinkedManifestChange.
+    let manifest = "/home/src/workspaces/mapper/package.json";
+    let system = linked_mapper_system(
+        COMPOSITE_MAPPED_CONFIG,
+        manifest,
+        "/home/src/workspaces/mapper",
+        true,
+    );
+    let result = execute_command_line(
+        &system,
+        &args(&["--build", MAPPED_PROJECT, "--watch", "--runExternalCode"]),
+        Some(&system),
+    );
+    let mut watcher = result.watcher.expect("a watch");
+    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+    let updated = package_json(VERBATIM_MAPPER).replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#);
+    system.fs.write(manifest, updated.as_bytes()).unwrap();
+    system.changed(manifest);
+    watcher.do_cycle();
+    assert_eq!(system.mapper_processes(), (2, 1), "{}", system.take_output());
+}
+
+#[test]
+fn a_watch_matches_a_mapper_manifest_change_without_case() {
+    // tsgo TestContentMapperWatchManifestChangeIgnoresCase.
+    let target = "/home/src/workspaces/Mapper/package.json";
+    let event = "/home/src/workspaces/mapper/package.json";
+    let system = linked_mapper_system(
+        r#"{ "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }] }"#,
+        target,
+        "/home/src/workspaces/Mapper",
+        false,
+    );
+    let result = execute_command_line(
+        &system,
+        &args(&["--watch", "-p", MAPPED_PROJECT, "--runExternalCode"]),
+        Some(&system),
+    );
+    let mut watcher = result.watcher.expect("a watch");
+    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+    let updated = package_json(VERBATIM_MAPPER).replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#);
+    system.fs.write(event, updated.as_bytes()).unwrap();
+    system.changed(event);
+    watcher.do_cycle();
+    assert_eq!(system.mapper_processes(), (2, 1), "{}", system.take_output());
+}
+
+#[test]
+fn a_build_watch_reports_a_deleted_mapper_manifest() {
+    // tsgo TestContentMapperBuildWatchSymlinkedManifestDelete.
+    let manifest = "/home/src/workspaces/mapper/package.json";
+    let system = linked_mapper_system(
+        COMPOSITE_MAPPED_CONFIG,
+        manifest,
+        "/home/src/workspaces/mapper",
+        true,
+    );
+    let result = execute_command_line(
+        &system,
+        &args(&["--build", MAPPED_PROJECT, "--watch", "--runExternalCode"]),
+        Some(&system),
+    );
+    let mut watcher = result.watcher.expect("a watch");
+    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+    system.take_output();
+    system.fs.remove(manifest).unwrap();
+    system.changed(manifest);
+    watcher.do_cycle();
+    let output = system.take_output();
+    assert_eq!(system.mapper_processes(), (1, 1), "{output}");
+    assert!(
+        output.contains("The content mapper package 'mapper' could not be resolved."),
+        "{output}"
+    );
+}
+
+#[test]
+fn a_build_watch_shares_a_mapper_process_between_projects() {
+    // tsgo TestContentMapperBuildWatchSharedLifecycle: two projects use one
+    // mapper's process, which closes when the last stops using it.
+    let manifest = package_json(VERBATIM_MAPPER);
+    let mapped = r#"{
+        "compilerOptions": { "composite": true },
+        "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
+    }"#;
+    let system = MemorySystem::new(&[
+        (
+            MAPPED_CONFIG,
+            r#"{ "files": [], "references": [{ "path": "a" }, { "path": "b" }] }"#,
+        ),
+        ("/home/src/workspaces/project/a/tsconfig.json", mapped),
+        ("/home/src/workspaces/project/a/app.vue", "export const a = 1;"),
+        ("/home/src/workspaces/project/b/tsconfig.json", mapped),
+        ("/home/src/workspaces/project/b/app.vue", "export const b = 1;"),
+        (
+            "/home/src/workspaces/project/node_modules/mapper/package.json",
+            &manifest,
+        ),
+    ])
+    .with_content_mappers();
+    let result = execute_command_line(
+        &system,
+        &args(&["--build", MAPPED_PROJECT, "--watch", "--runExternalCode"]),
+        Some(&system),
+    );
+    let mut watcher = result.watcher.expect("a watch");
+    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+    for (project, closes) in [("a", 0), ("b", 1)] {
+        let config = format!("/home/src/workspaces/project/{project}/tsconfig.json");
+        system
+            .fs
+            .write(&config, br#"{ "compilerOptions": { "composite": true } }"#)
+            .unwrap();
+        system.changed(&config);
+        watcher.do_cycle();
+        assert_eq!(system.mapper_processes().1, closes, "{}", system.take_output());
+    }
+}
+

@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tsc_diagnostics::spanmap::{
@@ -46,10 +47,48 @@ pub const SUPPLEMENTAL_GLOBALS_MAPPER: &str = "supplemental-globals-mapper";
 /// tsgo `SupplementalModuleMapper`: a supplemental module with an error.
 pub const SUPPLEMENTAL_MODULE_MAPPER: &str = "supplemental-module-mapper";
 
+/// tsgo `contentmappertest.PackageJSON`: the manifest of the `mapper`
+/// package whose command is the given test mapper.
+pub fn package_json(mapper: &str) -> String {
+    let compiler_options = if mapper == TRANSFORMING_MAPPER {
+        r#", "compilerOptions": ["target", "jsx"]"#
+    } else {
+        ""
+    };
+    let dynamic_config = if mapper == DYNAMIC_VERBATIM_MAPPER {
+        r#", "dynamicConfig": true"#
+    } else {
+        ""
+    };
+    format!(
+        "{{\n\t\"name\": \"mapper\",\n\t\"version\": \"1.0.0\",\n\t\"typescript\": {{ \"contentMapper\": {{ \"exec\": [\"{mapper}\"]{compiler_options}{dynamic_config} }} }}\n}}"
+    )
+}
+
+/// tsgo `ProjectLifecycle`: the project protocol calls the dynamic mappers
+/// of a spawner received.
+#[derive(Debug, Default)]
+pub struct ProjectLifecycle {
+    pub opens: AtomicI32,
+    pub closes: AtomicI32,
+}
+
 /// tsgo `NewSpawner`: each mapper process is its handler served over an
 /// in-memory pipe.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct TestSpawner;
+#[derive(Clone, Debug, Default)]
+pub struct TestSpawner {
+    lifecycle: Option<Arc<ProjectLifecycle>>,
+}
+
+impl TestSpawner {
+    /// tsgo `NewSpawnerWithProjectLifecycle`: the spawner's dynamic mappers
+    /// record their project protocol calls.
+    pub fn with_project_lifecycle(lifecycle: Arc<ProjectLifecycle>) -> Self {
+        Self {
+            lifecycle: Some(lifecycle),
+        }
+    }
+}
 
 impl Spawner for TestSpawner {
     fn spawn(
@@ -58,7 +97,7 @@ impl Spawner for TestSpawner {
         _dir: &str,
         _stderr: Box<dyn Write + Send>,
     ) -> Result<MapperProcess, String> {
-        let (mut handler, lifecycle) = handler_for_mapper(command)?;
+        let (mut handler, lifecycle) = handler_for_mapper(command, self.lifecycle.as_ref())?;
         if command[0] != DYNAMIC_VERBATIM_MAPPER {
             handler = Box::new(StaticProject {
                 inner: handler,
@@ -84,10 +123,13 @@ impl Spawner for TestSpawner {
 
 /// A mapper's handler, and its project lifecycle when it keeps state per
 /// project.
-type MapperHandler = (Box<dyn Handler>, Option<Arc<dyn ProjectLifecycle>>);
+type MapperHandler = (Box<dyn Handler>, Option<Arc<dyn ProjectLifecycleHandler>>);
 
 /// tsgo `handlerForMapper`.
-fn handler_for_mapper(command: &[String]) -> Result<MapperHandler, String> {
+fn handler_for_mapper(
+    command: &[String],
+    lifecycle: Option<&Arc<ProjectLifecycle>>,
+) -> Result<MapperHandler, String> {
     let Some(name) = command.first() else {
         return Err("contentmappertest: empty mapper command".to_owned());
     };
@@ -103,7 +145,9 @@ fn handler_for_mapper(command: &[String]) -> Result<MapperHandler, String> {
         MODULE_VERBATIM_MAPPER => Box::new(Verbatim { extension: ".mts" }),
         FAILING_MAPPER => Box::new(Failing),
         SUPPLEMENTAL_MAPPER => Box::new(Supplemental),
-        DYNAMIC_VERBATIM_MAPPER => Box::new(DynamicVerbatim),
+        DYNAMIC_VERBATIM_MAPPER => Box::new(DynamicVerbatim {
+            lifecycle: lifecycle.cloned(),
+        }),
         SYNTHESIZING_MAPPER => Box::new(Synthesizing),
         LISP_MAPPER => Box::new(Lisp),
         DIAGNOSTIC_CODE_COLLISION_MAPPER => Box::new(DiagnosticCodeCollision),
@@ -121,7 +165,7 @@ fn handler_for_mapper(command: &[String]) -> Result<MapperHandler, String> {
 }
 
 /// tsgo `projectLifecycleHandler`: a mapper that keeps state per project.
-trait ProjectLifecycle: Send + Sync {
+trait ProjectLifecycleHandler: Send + Sync {
     fn open_project(&self, params: &serde_json::Value) -> Result<(), String>;
     fn close_project(&self, params: &serde_json::Value);
 }
@@ -259,12 +303,17 @@ impl Handler for Supplemental {
 /// tsgo `dynamicVerbatimHandler`: its configuration identity is the config
 /// file and the options, it watches `mapper.config.json` beside the config,
 /// and it transforms only in a project.
-struct DynamicVerbatim;
+struct DynamicVerbatim {
+    lifecycle: Option<Arc<ProjectLifecycle>>,
+}
 
 impl Handler for DynamicVerbatim {
     fn handle_request(&self, method: &str, params: &[u8]) -> Result<Payload, String> {
         match method {
             "openProject" => {
+                if let Some(lifecycle) = &self.lifecycle {
+                    lifecycle.opens.fetch_add(1, Ordering::SeqCst);
+                }
                 let params: serde_json::Value =
                     serde_json::from_slice(params).map_err(|error| error.to_string())?;
                 let config_file_name = params
@@ -284,7 +333,12 @@ impl Handler for DynamicVerbatim {
                 }
                 Ok(Payload::Json(result.to_string()))
             }
-            "closeProject" => Ok(Payload::Json("null".to_owned())),
+            "closeProject" => {
+                if let Some(lifecycle) = &self.lifecycle {
+                    lifecycle.closes.fetch_add(1, Ordering::SeqCst);
+                }
+                Ok(Payload::Json("null".to_owned()))
+            }
             "transform" => {
                 let params: serde_json::Value =
                     serde_json::from_slice(params).map_err(|error| error.to_string())?;
@@ -356,7 +410,7 @@ impl Handler for Synthesizing {
 /// told), but for the options the option diagnostics test passes.
 struct StaticProject {
     inner: Box<dyn Handler>,
-    lifecycle: Option<Arc<dyn ProjectLifecycle>>,
+    lifecycle: Option<Arc<dyn ProjectLifecycleHandler>>,
 }
 
 impl Handler for StaticProject {
@@ -486,7 +540,7 @@ impl Transforming {
     }
 }
 
-impl ProjectLifecycle for Transforming {
+impl ProjectLifecycleHandler for Transforming {
     fn open_project(&self, params: &serde_json::Value) -> Result<(), String> {
         let options = match params.get("compilerOptions") {
             None | Some(serde_json::Value::Null) => None,

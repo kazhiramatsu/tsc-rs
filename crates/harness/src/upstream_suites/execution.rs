@@ -407,7 +407,7 @@ fn load_native_program_files(
         .cloned()
         .and_then(|spec| {
             let host = tsc_program::content_mapper::host::Host::new(
-                Arc::new(crate::content_mappers::TestSpawner),
+                Arc::new(crate::content_mappers::TestSpawner::default()),
                 "",
             );
             host.project(spec).map(|project| (host, Arc::new(project)))
