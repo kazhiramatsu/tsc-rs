@@ -4126,6 +4126,17 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let type_root = type_root.into();
         let specifier = specifier.into();
+        // tsgo getCandidateFromTypeRoot, before the type root's existence is
+        // checked: an `@types` root mangles a scoped name (and traces it),
+        // and the name resolves against the root to a normalized path
+        // (resolutionCandidateFromDirectoryPath).
+        let name_for_lookup = if type_root.ends_with("/node_modules/@types") {
+            self.trace_scoped_package(specifier);
+            mangle_scoped_package_name(specifier)
+        } else {
+            specifier.to_owned()
+        };
+        let candidate = resolve_type_root_candidate(type_root, &name_for_lookup)?;
         if !self.host.directory_exists_js(type_root)? {
             trace!(
                 self,
@@ -4134,16 +4145,6 @@ impl<'a> ModuleResolver<'a> {
             );
             return Ok(ResolutionOutcome::NotFound);
         }
-        let name_for_lookup = if type_root.ends_with("/node_modules/@types") {
-            self.trace_scoped_package(specifier);
-            mangle_scoped_package_name(specifier)
-        } else {
-            specifier.to_owned()
-        };
-        // getCandidateFromTypeRoot uses combinePaths rather than
-        // normalizePath. Preserve dot components, duplicate separators, and
-        // rooted child replacement for the host probes in this primary pass.
-        let candidate = combine_paths_spelling(type_root, &name_for_lookup)?;
         let external = path_contains_node_modules(&candidate);
         let context = LegacyResolutionContext {
             is_external_library_import: external,
@@ -4397,120 +4398,126 @@ impl<'a> ModuleResolver<'a> {
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         let directory_spelling = has_node_directory_spelling(specifier);
-        // nodeModuleNameResolverWorker classifies the unnormalized path
-        // components produced by combinePaths. In particular,
-        // `./node_modules/../x` remains an external-library request even
-        // though normalization later produces a lexical path outside
-        // node_modules.
-        let raw_target = combine_paths_spelling(containing_directory, specifier)?;
         let target = preserve_node_directory_spelling(
             normalize_absolute_js_path(specifier, Some(containing_directory), true)?,
             directory_spelling,
         );
-        let external = path_contains_node_modules(&raw_target);
+        let external = path_contains_node_modules(&target);
         let allow_implicit = !self.is_node_esm_mode(mode);
 
-        for &probe_pass in probe_passes {
-            let optional = self.resolve_using_optional_settings(
-                containing_directory,
-                specifier,
-                probe_pass,
-                mode,
-                optional_follow_realpath,
-            )?;
-            if matches!(optional, ResolutionOutcome::Resolved(_)) {
-                return Ok(optional);
-            }
-            trace!(
+        let outcome = 'resolved: {
+            for &probe_pass in probe_passes {
+                let optional = self.resolve_using_optional_settings(
+                    containing_directory,
+                    specifier,
+                    probe_pass,
+                    mode,
+                    optional_follow_realpath,
+                )?;
+                if matches!(optional, ResolutionOutcome::Resolved(_)) {
+                    break 'resolved optional;
+                }
+                trace!(
                 self,
                 gen::Loading_module_as_file_folder_candidate_module_location_0_target_file_types_1,
                 target.as_js(),
                 self.extensions_text(probe_pass).as_str()
             );
-            if !directory_spelling {
-                let parent = js_directory_name(&target);
-                if !self.host.directory_exists_js(JsStr::from(&parent))? {
+                if !directory_spelling {
+                    let parent = js_directory_name(&target);
+                    if !self.host.directory_exists_js(JsStr::from(&parent))? {
+                        trace!(
+                            self,
+                            gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
+                            parent.as_js()
+                        );
+                        continue;
+                    }
+                    let outcome = self.probe_legacy_file(
+                        None,
+                        &target,
+                        probe_pass,
+                        allow_implicit,
+                        LegacyResolutionContext {
+                            is_external_library_import: external,
+                            attach_package_id: false,
+                            resolved_using_ts_extension: is_typescript_family_specifier(&target),
+                            follow_realpath: false,
+                        },
+                    )?;
+                    if let ResolutionOutcome::Resolved(mut module) = outcome {
+                        self.attach_direct_node_package(&mut module)?;
+                        break 'resolved ResolutionOutcome::Resolved(module);
+                    }
+                }
+
+                let target_exists = self.host.directory_exists_js(JsStr::from(&target))?;
+                if !target_exists {
                     trace!(
                         self,
                         gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                        parent.as_js()
+                        target.as_js()
                     );
                     continue;
                 }
-                let outcome = self.probe_legacy_file(
-                    None,
-                    &target,
-                    probe_pass,
-                    allow_implicit,
-                    LegacyResolutionContext {
-                        is_external_library_import: external,
-                        attach_package_id: false,
-                        resolved_using_ts_extension: is_typescript_family_specifier(&target),
-                        follow_realpath: false,
-                    },
-                )?;
-                if let ResolutionOutcome::Resolved(mut module) = outcome {
-                    self.attach_direct_node_package(&mut module)?;
-                    return Ok(ResolutionOutcome::Resolved(module));
+                if !allow_implicit {
+                    continue;
                 }
-            }
-
-            let target_exists = self.host.directory_exists_js(JsStr::from(&target))?;
-            if !target_exists {
-                trace!(
-                    self,
-                    gen::Directory_0_does_not_exist_skipping_all_lookups_in_it,
-                    target.as_js()
-                );
-                continue;
-            }
-            if !allow_implicit {
-                continue;
-            }
-            let package_json = join_normalized(&target, "package.json");
-            if let Some(directory_package) = self.load_package(&package_json)? {
-                let outcome = self.resolve_legacy_package(
-                    &directory_package,
-                    ".",
-                    probe_pass,
-                    mode,
-                    LegacyResolutionContext {
-                        is_external_library_import: external,
-                        attach_package_id: false,
-                        resolved_using_ts_extension: false,
-                        follow_realpath: false,
-                    },
-                    Some(target.as_js()),
-                    /* allow_node_esm_index_fallback */ true,
-                )?;
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok(outcome);
-                }
-            } else {
-                let index_name = if matches!(probe_pass, ExtensionProbePass::JsonConfig) {
-                    "tsconfig"
+                let package_json = join_normalized(&target, "package.json");
+                if let Some(directory_package) = self.load_package(&package_json)? {
+                    let outcome = self.resolve_legacy_package(
+                        &directory_package,
+                        ".",
+                        probe_pass,
+                        mode,
+                        LegacyResolutionContext {
+                            is_external_library_import: external,
+                            attach_package_id: false,
+                            resolved_using_ts_extension: false,
+                            follow_realpath: false,
+                        },
+                        Some(target.as_js()),
+                        /* allow_node_esm_index_fallback */ true,
+                    )?;
+                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                        break 'resolved outcome;
+                    }
                 } else {
-                    "index"
-                };
-                let index = join_normalized(&target, index_name);
-                let outcome = self.probe_legacy_file(
-                    None,
-                    &index,
-                    probe_pass,
-                    /* allow_implicit */ true,
-                    LegacyResolutionContext {
-                        is_external_library_import: external,
-                        attach_package_id: false,
-                        resolved_using_ts_extension: false,
-                        follow_realpath: false,
-                    },
-                )?;
-                if matches!(outcome, ResolutionOutcome::Resolved(_)) {
-                    return Ok(outcome);
+                    let index_name = if matches!(probe_pass, ExtensionProbePass::JsonConfig) {
+                        "tsconfig"
+                    } else {
+                        "index"
+                    };
+                    let index = join_normalized(&target, index_name);
+                    let outcome = self.probe_legacy_file(
+                        None,
+                        &index,
+                        probe_pass,
+                        /* allow_implicit */ true,
+                        LegacyResolutionContext {
+                            is_external_library_import: external,
+                            attach_package_id: false,
+                            resolved_using_ts_extension: false,
+                            follow_realpath: false,
+                        },
+                    )?;
+                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                        break 'resolved outcome;
+                    }
                 }
             }
-        }
-        Ok(ResolutionOutcome::NotFound)
+            ResolutionOutcome::NotFound
+        };
+        // tsgo nodeModuleNameResolverWorker: a relative name's result is an
+        // external library import when its resolved path is in node_modules
+        // (`./node_modules/../x` is not).
+        Ok(match outcome {
+            ResolutionOutcome::Resolved(mut module) => {
+                self.classify_selected_path_external(&mut module)?;
+                ResolutionOutcome::Resolved(module)
+            }
+            ResolutionOutcome::NotFound => ResolutionOutcome::NotFound,
+        })
     }
 
     fn resolve_manifestless_package<'j0>(
@@ -6691,6 +6698,19 @@ fn combine_paths_spelling<'p, 'c>(
         ));
     }
     Ok(crate::js_path::combine_paths(parent, child))
+}
+
+/// tsgo resolutionCandidateFromDirectoryPath: the name resolved against the
+/// type root and normalized; a rooted name replaces the root.
+fn resolve_type_root_candidate<'p, 'c>(
+    type_root: impl Into<JsStr<'p>>,
+    name: impl Into<JsStr<'c>>,
+) -> Result<JsString, ResolutionError> {
+    let combined = combine_paths_spelling(type_root, name)?;
+    Ok(crate::js_path::normalized_absolute_path(
+        combined.as_js(),
+        "".into(),
+    ))
 }
 
 fn validate_paths(
