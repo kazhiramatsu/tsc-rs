@@ -241,3 +241,31 @@ baseline（errors、宣言を含む `.js`、`.js.map`、`.sourcemap.txt`、`.typ
   doc comment の位置（`ContentMapperSession` の前に分かれている。C5 で直す）。
 - **次**：starlight の宣言の 3 つ（content mapper の外）を別の PR で、その後 C5a（build info の identity と mapped file の version、
   `-b` の mapper、identity の変化での作り直し、supplemental の build info の path）、C5b（watch の mapper の manifest と設定 file）。
+
+## starlight の宣言（PR #768）
+
+C4b の実プロジェクトの宣言の比較（#767）で starlight に見つかった、content mapper の外の 3 つを tsgo と同じにした。
+
+- **JavaScript の型定義は module の印**：`docs/lunaria/freshness.mjs` は拡張子で module で、`@typedef` だけを宣言する。tsgo の
+  reparse された型 alias は宣言の変換の top-level の文なので、export されたものが external module の印になり
+  （`transformAndReplaceLatePaintedStatements`、`IsExternalModuleIndicator`）、宣言 file に `export {};` を書かない。
+- **reparse された JSDoc の宣言は tag の範囲**：tsgo の reparser は JSDoc の tag から作る node に tag の範囲を与え
+  （`finishReparsedNode`）、宣言 map がそれを記録する。型 alias は `@typedef`・`@callback` の tag、dotted な名前の namespace は
+  名前、型 literal は JSDoc の型 literal、property と parameter は tag、callback の関数型は signature、overload は tag 名、
+  制約のある `@template` の parameter は書かれたもの。これまでは範囲が無く、`freshness.d.mts.map` と
+  `packages/markdoc/html.d.mts.map` の mapping が欠けていた。
+- **同じ位置の診断は message の key と引数の順**：tsgo `CompareDiagnostics` は file 名と span、code、category、source の後に、
+  key（無ければ text）、引数、chain（長い方が先、各 entry の引数）、related information（多い方が先）で比べ、文字列は UTF-8 の
+  byte 順。これまでは message の text の順（tsc 6.0.3 の規則）で、TS2883 は 3 番目の引数を 2 番目より前に表示するので、型の名前の
+  順になっていた（tsgo は module の順）。等しさも tsgo `EqualDiagnosticsNoRelatedInfo`（key、引数、chain の code と引数）。
+- **test**：tsgo の bytes の CLI contract 3 つ（`@typedef` だけの `.mjs`、reparse の全ての形の宣言と宣言 map、text と引数で順の
+  変わる同じ位置の TS2883 2 つ）。診断の unit test を tsgo の規則に（6.0.3 の期待を置き換え、key → 引数の順、長い chain と多い
+  related information が先）。
+- **結果**（release build、head `87fd5287d`、夜間の設定）：test 4,240 が全て通る、clippy（6 crate）は clean、suites は
+  0 regressions、full の conformance（`--workers 1 --check`、5,226 s）は 0 regressions で C4b の report と 15,339 の構成が全て
+  同じ、並列対照（`--checkers 4`、4,952 s）は記録済みの 4 構成だけ。実プロジェクトの 4 つは診断・`--explainFiles`・
+  `--listFilesOnly`・宣言と宣言 map の 16 の比較が全て tsgo と同じ（starlight は 736 file、`.astro` から 90）。
+- **hosted と merge**：PR #768 の hosted run 38277733560（rust 11m17s、conformance 22m05s、gates pass、head `87fd5287d`）、merge
+  commit `8f97cd0fa`。
+- **次**：C5a（build info の identity と mapped file の version、`-b` の mapper、identity の変化での作り直し、supplemental の
+  build info の path）、C5b（watch の mapper の manifest と設定 file）。
