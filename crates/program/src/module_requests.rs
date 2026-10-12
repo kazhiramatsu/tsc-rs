@@ -138,6 +138,10 @@ pub struct SourceRequestPlan {
     module_request_loads: Vec<bool>,
     /// By request: the spans of its occurrences that load their target.
     module_request_spans: Vec<Vec<(u32, u32)>>,
+    /// The request of each occurrence that loads its target, in tsgo's
+    /// `moduleNames` order (the synthetic imports, the imports, then the
+    /// module augmentations).
+    module_request_occurrences: Vec<u32>,
     module_request_order: Vec<ResolutionKey>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -229,6 +233,13 @@ impl SourceRequestPlan {
         self.module_requests
             .iter()
             .zip(self.module_request_loads.iter().copied())
+    }
+
+    /// The request of each occurrence that loads its target, in tsgo's
+    /// `moduleNames` order: processImportedModules adds a subtask per
+    /// occurrence in this order.
+    pub fn module_request_occurrences(&self) -> &[u32] {
+        &self.module_request_occurrences
     }
 
     /// The module requests in order with whether each loads its target and
@@ -769,7 +780,45 @@ fn plan_module_requests_worker(
         let first_child = stack.len();
         if javascript_file {
             if let Some(js_doc) = node.js_doc {
-                stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+                let comments = parsed.arena.node_array(js_doc).nodes.iter().copied();
+                if node.kind == SyntaxKind::EndOfFileToken {
+                    // tsgo GetNodeAtPosition never enters the end-of-file
+                    // token (a token kind) or its JSDoc: only the statements
+                    // the reparser makes of its `@typedef`, `@callback` and
+                    // `@import` tags are reached, within each tag's range.
+                    // The import types of its other tags (an `@template`
+                    // beside a typedef) are not collected, and the checker
+                    // finds no resolution for them.
+                    for comment in comments {
+                        let NodeData::JSDoc(comment) = &parsed.arena.node(comment).data else {
+                            continue;
+                        };
+                        let tags = comment
+                            .tags
+                            .map(|tags| parsed.arena.node_array(tags).nodes)
+                            .unwrap_or_default();
+                        for &tag in tags {
+                            if matches!(
+                                parsed.arena.node(tag).kind,
+                                SyntaxKind::JSDocTypedefTag
+                                    | SyntaxKind::JSDocCallbackTag
+                                    | SyntaxKind::JSDocImportTag
+                            ) {
+                                stack.push(tag);
+                            } else {
+                                uncollected_import_types(
+                                    &parsed,
+                                    source,
+                                    tag,
+                                    static_mode,
+                                    &mut unpreprocessed_module_requests,
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    stack.extend(comments);
+                }
             }
         }
         for_each_child(&parsed.arena, node, |child| {
@@ -800,6 +849,7 @@ fn plan_module_requests_worker(
     let mut module_requests = Vec::new();
     let mut module_request_loads = Vec::new();
     let mut module_request_spans: Vec<Vec<(u32, u32)>> = Vec::new();
+    let mut module_request_occurrences = Vec::new();
     let mut request_index = rustc_hash::FxHashMap::<ResolutionKey, usize>::default();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
     // import when importHelpers can participate in this source. The checker
@@ -821,7 +871,7 @@ fn plan_module_requests_worker(
     // no source-text literal exists.
     let jsx_runtime_import = jsx_runtime_import_specifier(&parsed, options);
     let has_synthetic_jsx_runtime = jsx_runtime_import.is_some()
-        && (javascript_file || source.path().display().ends_with(".tsx"));
+        && (javascript_file || source.parse_file_name().ends_with(".tsx"));
     let observed_request_occurrence_count = path_references
         .len()
         .saturating_add(type_reference_directives.len())
@@ -834,6 +884,7 @@ fn plan_module_requests_worker(
     if has_synthetic_tslib {
         let key = ResolutionKey::new(source.path().canonical().clone(), "tslib", static_mode);
         request_index.insert(key.clone(), module_requests.len());
+        module_request_occurrences.push(module_requests.len() as u32);
         module_requests.push(key);
         module_request_loads.push(true);
         module_request_spans.push(Vec::new());
@@ -845,6 +896,7 @@ fn plan_module_requests_worker(
             static_mode,
         );
         request_index.insert(key.clone(), module_requests.len());
+        module_request_occurrences.push(module_requests.len() as u32);
         module_requests.push(key);
         module_request_loads.push(true);
         module_request_spans.push(Vec::new());
@@ -885,6 +937,7 @@ fn plan_module_requests_worker(
         };
         if occurrence.loads_source {
             module_request_loads[index] = true;
+            module_request_occurrences.push(index as u32);
             let span_start =
                 skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
             module_request_spans[index].push((
@@ -905,6 +958,7 @@ fn plan_module_requests_worker(
         unpreprocessed_module_requests,
         module_request_loads,
         module_request_spans,
+        module_request_occurrences,
         module_request_order,
         type_reference_directives,
         lib_reference_directives,
@@ -1450,6 +1504,45 @@ fn string_literal_like_text(parsed: &SourceFile, node: NodeId) -> Option<&str> {
         NodeData::StringLiteral(literal) => literal.text.as_str(),
         NodeData::NoSubstitutionTemplateLiteral(literal) => literal.text.as_str(),
         _ => None,
+    }
+}
+
+/// The import types under `root` that tsgo does not collect, as requests
+/// whose lookup finds no resolution (see the end-of-file token's JSDoc in
+/// [`plan_source_requests`]).
+fn uncollected_import_types(
+    parsed: &SourceFile,
+    source: &PreparedSourceFile,
+    root: NodeId,
+    static_mode: ResolutionMode,
+    unpreprocessed_module_requests: &mut BTreeSet<ResolutionKey>,
+) {
+    let mut stack = vec![root];
+    while let Some(node_id) = stack.pop() {
+        if let NodeData::ImportType(import_type) = &parsed.arena.node(node_id).data {
+            let literal = import_type
+                .argument
+                .and_then(|argument| match &parsed.arena.node(argument).data {
+                    NodeData::LiteralType(argument) => argument.literal,
+                    _ => None,
+                })
+                .map(|literal| &parsed.arena.node(literal).data);
+            if let Some(NodeData::StringLiteral(literal)) = literal {
+                let mode = import_type
+                    .attributes
+                    .and_then(|attributes| resolution_mode_override(parsed, attributes))
+                    .unwrap_or(static_mode);
+                unpreprocessed_module_requests.insert(ResolutionKey::new(
+                    source.path().canonical().clone(),
+                    literal.text.clone(),
+                    mode,
+                ));
+            }
+        }
+        for_each_child(&parsed.arena, parsed.arena.node(node_id), |child| {
+            stack.push(child);
+            false
+        });
     }
 }
 

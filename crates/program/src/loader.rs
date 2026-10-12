@@ -1371,7 +1371,17 @@ pub enum SourceInclusionReason {
         /// library.
         implicit: bool,
     },
+    /// The automatic type directives' task, which explains nothing.
     Synthetic,
+    /// An import the loader synthesizes (tsgo `fileIncludeKindImport` of a
+    /// synthetic specifier): `tslib` under `importHelpers`, or the JSX
+    /// runtime. It has no place in its file.
+    SyntheticImport {
+        parent: JsString,
+        specifier: JsString,
+        import_helpers: bool,
+        package_id: Option<JsString>,
+    },
     /// A library root (tsgo `fileIncludeKindLibFile`).
     LibraryRoot(LibraryRootReason),
     /// A `/// <reference lib="..." />` directive (tsgo
@@ -1398,6 +1408,7 @@ impl SourceInclusionReason {
         let text = package_id.map(PackageId::display_text);
         match &mut self {
             Self::Import { package_id, .. }
+            | Self::SyntheticImport { package_id, .. }
             | Self::TypeReference { package_id, .. }
             | Self::AutomaticType { package_id, .. } => *package_id = text,
             Self::Root(_)
@@ -1414,6 +1425,7 @@ impl SourceInclusionReason {
     fn parent_mut(&mut self) -> Option<&mut JsString> {
         match self {
             Self::Import { parent, .. }
+            | Self::SyntheticImport { parent, .. }
             | Self::PathReference { parent, .. }
             | Self::TypeReference { parent, .. }
             | Self::LibraryReference { parent, .. } => Some(parent),
@@ -1524,6 +1536,9 @@ struct StagedSource {
     /// that load a source (none for a synthetic request) and the resolution
     /// the read-ahead computed for them.
     module_requests: Vec<StagedModuleRequest>,
+    /// The request of each occurrence that loads its target, in tsgo's
+    /// `moduleNames` order.
+    module_request_occurrences: Vec<u32>,
     /// The resolved occurrences in tsgo's `moduleNames` order (the imports,
     /// then the module augmentations), kept only when tracing; the synthetic
     /// requests are not here.
@@ -1535,6 +1550,16 @@ struct StagedSource {
 struct StagedModuleRequest {
     request: PlannedModuleRequest,
     pre_resolved: Option<HostModuleResolution>,
+}
+
+/// A resolved module request whose target a file's occurrences load, with
+/// the inclusion reasons of those occurrences left to take.
+struct ImportTarget {
+    target: ProgramPath,
+    external: bool,
+    elide_on_depth: bool,
+    package_id: Option<PackageId>,
+    inclusions: std::vec::IntoIter<SourceInclusionReason>,
 }
 
 impl StagedSource {
@@ -4894,6 +4919,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let module_request_order = plan
             .as_ref()
             .map_or_else(Vec::new, |plan| plan.module_request_order().to_vec());
+        let module_request_occurrences = plan
+            .as_ref()
+            .map_or_else(Vec::new, |plan| plan.module_request_occurrences().to_vec());
         // A resolution the read-ahead computed for a request (by its index
         // when this is its plan, else by key) is the same pure host
         // observation the resolver would make at the request's turn.
@@ -4936,6 +4964,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_reference_directives,
             lib_reference_directives,
             module_requests,
+            module_request_occurrences,
             module_request_order,
             supplemental,
         });
@@ -5810,10 +5839,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let containing_project = self
             .project_for_resolution(&containing_canonical)
             .map(|project| project.canonical().clone());
+        let occurrences = self.sources[source].module_request_occurrences.clone();
+        let mut occurrence_counts = vec![0_u32; request_count];
+        for &request in &occurrences {
+            occurrence_counts[request as usize] += 1;
+        }
         // A source reached under several spellings is planned once per
         // spelling: its requests stay with it, and only the read-ahead's
         // resolution is taken (a later planning finds the key resolved).
-        for request_index in 0..request_count {
+        for (request_index, &occurrence_count) in occurrence_counts.iter().enumerate() {
             let (key, loads_source, pre_resolved) = {
                 let request = &mut self.sources[source].module_requests[request_index];
                 (
@@ -5825,34 +5859,39 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // One inclusion reason per occurrence that loads the target:
             // processImportedModules adds the resolved file once for every
             // import of it (tsgo fileloader.go:928-940), and the file's
-            // explanation then lists each import. A request without a span
-            // is a synthetic import.
+            // explanation then lists each import. An occurrence without a
+            // span is a synthetic import, ahead of the others: `tslib` (tsgo
+            // externalHelpersModuleNameText) or the JSX runtime.
             let staged = &self.sources[source];
             let spans = &staged.module_requests[request_index].request.spans;
-            let inclusions = if spans.is_empty() {
-                vec![SourceInclusionReason::Synthetic]
-            } else {
+            let synthetic = (occurrence_count as usize).saturating_sub(spans.len());
+            let inclusions = {
                 let prepared = &staged.prepared;
                 let positions = prepared.snapshot().positions();
-                spans
-                    .iter()
-                    .map(|&(pos, end)| {
-                        let start_byte = positions
-                            .utf16_to_byte(pos)
-                            .expect("module request starts at a source token boundary");
-                        let end_byte = positions
-                            .utf16_to_byte(end)
-                            .expect("module request ends at a source token boundary");
-                        SourceInclusionReason::Import {
-                            parent: containing_file.clone(),
-                            reference_text: prepared.text()[start_byte as usize..end_byte as usize]
-                                .to_owned(),
-                            pos,
-                            end,
-                            package_id: None,
-                        }
-                    })
-                    .collect::<Vec<_>>()
+                std::iter::repeat_with(|| SourceInclusionReason::SyntheticImport {
+                    parent: containing_file.clone(),
+                    specifier: key.specifier().to_owned(),
+                    import_helpers: key.specifier() == JsStr::from("tslib"),
+                    package_id: None,
+                })
+                .take(synthetic)
+                .chain(spans.iter().map(|&(pos, end)| {
+                    let start_byte = positions
+                        .utf16_to_byte(pos)
+                        .expect("module request starts at a source token boundary");
+                    let end_byte = positions
+                        .utf16_to_byte(end)
+                        .expect("module request ends at a source token boundary");
+                    SourceInclusionReason::Import {
+                        parent: containing_file.clone(),
+                        reference_text: prepared.text()[start_byte as usize..end_byte as usize]
+                            .to_owned(),
+                        pos,
+                        end,
+                        package_id: None,
+                    }
+                }))
+                .collect::<Vec<_>>()
             };
             let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
                 self.module_resolutions[index].loads_source |= loads_source;
@@ -5915,12 +5954,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 self.module_resolution_by_key.insert(key, index);
                 index
             };
-            phase_indices.push((index, inclusions));
+            phase_indices.push((request_index, index, inclusions));
         }
 
         // As with type directives, all requests in this source are resolved
-        // before the first successful target starts its DFS.
-        for (index, inclusions) in phase_indices {
+        // before the first successful target starts its DFS. The targets
+        // to load, by request, become subtasks in occurrence order below.
+        let mut targets: Vec<Option<ImportTarget>> = Vec::new();
+        targets.resize_with(request_count, || None);
+        for (request_index, index, inclusions) in phase_indices {
             let loads_source = self.module_resolutions[index].loads_source;
             let target = match self.module_resolutions[index].host.outcome() {
                 ResolutionOutcome::Resolved(target) => Some((
@@ -5929,20 +5971,36 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     target.is_external_library_import(),
                     target.original_path().is_some(),
                     target.package_id().cloned(),
+                    target.resolved_using_extra_extensions(),
                 )),
                 ResolutionOutcome::NotFound => None,
             };
-            let Some((target, extension, external, has_original_path, package_id)) = target else {
+            let Some((
+                target,
+                extension,
+                external,
+                has_original_path,
+                package_id,
+                resolved_using_extra_extensions,
+            )) = target
+            else {
                 let key = self.module_resolutions[index].key.clone();
                 self.record_import_extension_file(&containing_file, &key);
                 continue;
             };
-            if let Some(reason) = resolution_diagnostic_unloaded_reason(
-                &extension,
-                self.compiler_options,
-                containing_file_is_declaration,
-                loads_source,
-            ) {
+            // tsgo GetResolutionDiagnostic: a file found by a content
+            // mapper's extension needs no option.
+            if let Some(reason) = (!resolved_using_extra_extensions)
+                .then(|| {
+                    resolution_diagnostic_unloaded_reason(
+                        &extension,
+                        self.compiler_options,
+                        containing_file_is_declaration,
+                        loads_source,
+                    )
+                })
+                .flatten()
+            {
                 // createProgram records the successful resolution, but a
                 // getResolutionDiagnostic result prevents findSourceFile.
                 // Retain that distinction as typed graph-admission state so
@@ -6004,18 +6062,20 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                         "a JSON target was resolved while resolveJsonModule is disabled",
                     ));
                 }
-                self.plan_import_subtasks(
-                    task,
-                    &target,
+                targets[request_index] = Some(ImportTarget {
+                    target,
                     external,
                     elide_on_depth,
                     package_id,
-                    inclusions,
-                    tree_depth,
-                );
+                    inclusions: inclusions.into_iter(),
+                });
                 continue;
             }
-            if !is_loadable_typescript_extension(&extension) && !extension.is_javascript() {
+            // A content mapper's file is loaded as its mapper's output.
+            if !is_loadable_typescript_extension(&extension)
+                && !extension.is_javascript()
+                && self.content_mapper_for(&target).is_none()
+            {
                 return Err(ProgramLoadError::unsupported_js(
                     ProgramLoadOperation::ResolveModule,
                     Some(target.display().to_owned()),
@@ -6026,38 +6086,35 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     ),
                 ));
             }
-            self.plan_import_subtasks(
-                task,
-                &target,
+            targets[request_index] = Some(ImportTarget {
+                target,
                 external,
                 elide_on_depth,
                 package_id,
-                inclusions,
-                tree_depth,
-            );
+                inclusions: inclusions.into_iter(),
+            });
         }
-        Ok(())
-    }
-
-    /// One subtask per occurrence of the import (tsgo processImportedModules
-    /// adds the resolved file once per import of it), so the target carries
-    /// one inclusion reason per occurrence.
-    #[allow(clippy::too_many_arguments)]
-    fn plan_import_subtasks(
-        &mut self,
-        task: usize,
-        target: &ProgramPath,
-        external: bool,
-        elide_on_depth: bool,
-        package_id: Option<PackageId>,
-        inclusions: Vec<SourceInclusionReason>,
-        tree_depth: usize,
-    ) {
-        for inclusion in inclusions {
+        // One subtask per occurrence of an import (tsgo
+        // processImportedModules adds the resolved file once per import of
+        // it, in `moduleNames` order), so the target carries one inclusion
+        // reason per occurrence, in the order of the file's imports.
+        for request in occurrences {
+            let Some(target) = targets[request as usize].as_mut() else {
+                continue;
+            };
+            let Some(inclusion) = target.inclusions.next() else {
+                continue;
+            };
+            let (path, external, elide_on_depth, package_id) = (
+                target.target.clone(),
+                target.external,
+                target.elide_on_depth,
+                target.package_id.clone(),
+            );
             let subtask = self.new_task(
-                target.clone(),
+                path,
                 TaskOrigin::Import,
-                DiscoveryReason::dependency(inclusion).with_package_id(package_id.clone()),
+                DiscoveryReason::dependency(inclusion).with_package_id(package_id),
                 SourceClass::Ordinary,
                 external,
                 elide_on_depth,
@@ -6065,6 +6122,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             );
             self.tasks[task].subtasks.push(subtask);
         }
+        Ok(())
     }
 
     fn enforce_limit(
@@ -7991,6 +8049,37 @@ fn source_inclusion_reason_message(
                 &[reference_text.clone().into(), to_file_name(parent.as_js())],
             ),
         }),
+        // tsgo computeReferenceFileDiagnostic: a synthesized specifier's
+        // text is quoted.
+        SourceInclusionReason::SyntheticImport {
+            parent,
+            specifier,
+            import_helpers,
+            package_id,
+        } => {
+            let mut text = JsString::from("\"");
+            text.push_js(specifier.as_js());
+            text.push('"');
+            let parent = to_file_name(parent.as_js());
+            Some(match (import_helpers, package_id) {
+                (true, Some(package_id)) => MessageChain::new_js(
+                    &gen::Imported_via_0_from_file_1_with_packageId_2_to_import_importHelpers_as_specified_in_compilerOptions,
+                    &[text, parent, package_id.clone()],
+                ),
+                (true, None) => MessageChain::new_js(
+                    &gen::Imported_via_0_from_file_1_to_import_importHelpers_as_specified_in_compilerOptions,
+                    &[text, parent],
+                ),
+                (false, Some(package_id)) => MessageChain::new_js(
+                    &gen::Imported_via_0_from_file_1_with_packageId_2_to_import_jsx_and_jsxs_factory_functions,
+                    &[text, parent, package_id.clone()],
+                ),
+                (false, None) => MessageChain::new_js(
+                    &gen::Imported_via_0_from_file_1_to_import_jsx_and_jsxs_factory_functions,
+                    &[text, parent],
+                ),
+            })
+        }
         SourceInclusionReason::PathReference {
             parent, specifier, ..
         } => Some(MessageChain::new_js(

@@ -264,6 +264,54 @@ fn error_summary_follows_tsgo_write_error_summary_text() {
 }
 
 #[test]
+fn a_diagnostic_shown_against_another_text_is_a_file_of_its_own_in_the_summary() {
+    // tsgo ASTDiagnostic.File makes a new file for each diagnostic shown
+    // against a content-mapped file's original text (or a supplemental
+    // output under its canonical name), and getErrorSummary groups by that
+    // file: `Found 3 errors in 3 files.` for three errors in one `.vue`
+    // file, beside the plain diagnostics of the same name grouped as before.
+    let mut files = BTreeMap::new();
+    files.insert("/work/c.vue\u{1}".to_owned(), "<a>\n<b>\n".to_owned());
+    files.insert("/work/c.vue".to_owned(), "x\n".to_owned());
+    let host = FormatDiagnosticsHost::new("/work", &files);
+    let original = rendered_file_name(JsStr::from("/work/c.vue\u{1}"), JsStr::from("/work/c.vue"));
+    let error = |file: &str, start: u32| {
+        Diagnostic::new(
+            Some(file.to_owned()),
+            Some(start),
+            Some(1),
+            chain(1, DiagnosticCategory::Error, "e"),
+        )
+    };
+    let original = original.to_string_lossy().into_owned();
+    // Shown against the file's own text under its name (synthesized code):
+    // the file's own diagnostic.
+    let synthesized = rendered_file_name(JsStr::from("/work/c.vue"), JsStr::from("/work/c.vue"))
+        .to_string_lossy()
+        .into_owned();
+    let summary = write_error_summary_text(
+        &[
+            error(&original, 4),
+            error("/work/c.vue", 0),
+            error(&original, 0),
+            error("/work/c.vue", 1),
+            error(&synthesized, 1),
+        ],
+        &host,
+        "\n",
+    )
+    .unwrap()
+    .to_string_lossy()
+    .into_owned();
+    assert_eq!(
+        summary,
+        format!(
+            "\nFound 5 errors in 3 files.\n\nErrors  Files\n     1  c.vue{GREY}:2{RESET}\n     3  c.vue{GREY}:1{RESET}\n     1  c.vue{GREY}:1{RESET}\n\n"
+        )
+    );
+}
+
+#[test]
 fn cwd_aware_selection_returns_the_retained_input_occurrence() {
     let files = BTreeMap::new();
     let host = FormatDiagnosticsHost::new("/work", &files);

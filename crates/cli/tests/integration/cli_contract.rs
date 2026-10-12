@@ -10768,6 +10768,134 @@ fn a_file_imported_three_times_is_explained_by_each_import_like_tsgo() {
 }
 
 #[test]
+fn synthetic_imports_and_each_import_occurrence_are_explained_like_tsgo() {
+    // tsgo explains a synthesized `tslib` or JSX runtime import by its
+    // quoted specifier and purpose (fileInclude.go
+    // computeReferenceFileDiagnostic), ahead of a written import of the same
+    // module, and adds one subtask per import occurrence in the file's order
+    // (processImportedModules), so `t.ts` is explained by `a.tsx`, then
+    // `p.ts`'s two imports, then `a.tsx`'s second. The command printed no
+    // synthetic reason and grouped one file's occurrences (Astro's mapped
+    // `.astro` files import the JSX runtime). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/react")).expect("create react");
+    fs::create_dir_all(tree.path("node_modules/tslib")).expect("create tslib");
+    for (name, text) in [
+        (
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "jsx": "react-jsx", "importHelpers": true, "module": "esnext", "moduleResolution": "bundler", "types": [], "noEmit": true, "noLib": true }, "files": ["a.tsx", "b.ts"] }"#,
+        ),
+        (
+            "node_modules/react/package.json",
+            r#"{ "name": "react", "version": "18.0.0", "types": "index.d.ts" }"#,
+        ),
+        ("node_modules/react/index.d.ts", "export {};\n"),
+        (
+            "node_modules/react/jsx-runtime.d.ts",
+            "export declare function jsx(...args: any[]): any;\nexport declare function jsxs(...args: any[]): any;\nexport declare namespace JSX { interface IntrinsicElements { [name: string]: any } }\n",
+        ),
+        (
+            "node_modules/tslib/package.json",
+            r#"{ "name": "tslib", "version": "2.6.0", "types": "tslib.d.ts" }"#,
+        ),
+        (
+            "node_modules/tslib/tslib.d.ts",
+            "export declare function __assign(...args: any[]): any;\n",
+        ),
+        (
+            "a.tsx",
+            "import \"tslib\";\nimport { x } from \"./t\";\nimport { y } from \"./p\";\nexport * from \"./t\";\nexport const el = <div>{x}{y}</div>;\n",
+        ),
+        ("b.ts", "export const b = 1;\n"),
+        (
+            "p.ts",
+            "import { x } from \"./t\";\nexport * from \"./t\";\nexport const y = x;\n",
+        ),
+        ("t.ts", "export const x = 1;\n"),
+    ] {
+        fs::write(tree.path(name), text).expect("write a file");
+    }
+    let output = run(&tree, &["--explainFiles", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let explanation: Vec<&str> = stdout
+        .lines()
+        .filter(|line| !line.contains("TS2318"))
+        .collect();
+    assert_eq!(
+        explanation,
+        [
+            "node_modules/tslib/tslib.d.ts",
+            "   Imported via \"tslib\" from file 'a.tsx' with packageId 'tslib/tslib.d.ts@2.6.0' to import 'importHelpers' as specified in compilerOptions",
+            "   Imported via \"tslib\" from file 'a.tsx' with packageId 'tslib/tslib.d.ts@2.6.0'",
+            "   Imported via \"tslib\" from file 't.ts' with packageId 'tslib/tslib.d.ts@2.6.0' to import 'importHelpers' as specified in compilerOptions",
+            "   Imported via \"tslib\" from file 'p.ts' with packageId 'tslib/tslib.d.ts@2.6.0' to import 'importHelpers' as specified in compilerOptions",
+            "   Imported via \"tslib\" from file 'b.ts' with packageId 'tslib/tslib.d.ts@2.6.0' to import 'importHelpers' as specified in compilerOptions",
+            "node_modules/react/jsx-runtime.d.ts",
+            "   Imported via \"react/jsx-runtime\" from file 'a.tsx' with packageId 'react/jsx-runtime.d.ts@18.0.0' to import 'jsx' and 'jsxs' factory functions",
+            "t.ts",
+            "   Imported via \"./t\" from file 'a.tsx'",
+            "   Imported via \"./t\" from file 'p.ts'",
+            "   Imported via \"./t\" from file 'p.ts'",
+            "   Imported via \"./t\" from file 'a.tsx'",
+            "p.ts",
+            "   Imported via \"./p\" from file 'a.tsx'",
+            "a.tsx",
+            "   Part of 'files' list in tsconfig.json",
+            "b.ts",
+            "   Part of 'files' list in tsconfig.json",
+        ]
+    );
+}
+
+#[test]
+fn import_types_in_the_end_of_file_jsdoc_follow_tsgo_s_collection() {
+    // tsgo collects a JavaScript file's import types by GetNodeAtPosition,
+    // which never enters the end-of-file token (a token kind) or its JSDoc:
+    // only the statements the reparser makes of its `@typedef` (and
+    // `@callback`, `@import`) tags are reached, within each tag's range. The
+    // `@template` beside the typedef is not collected, so `./other` is not
+    // in the program and the checker reports it as not found (starlight's
+    // `packages/markdoc/html.mjs`). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    for (name, text) in [
+        (
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "allowJs": true, "checkJs": true, "module": "esnext", "moduleResolution": "bundler", "types": [], "noEmit": true, "lib": ["es5"] }, "files": ["a.mjs"] }"#,
+        ),
+        (
+            "a.mjs",
+            "/** @type {M<'a'>} */\nexport const y = { a: 'a' };\n/**\n * @typedef {import('./types').H<T>} M\n * @template {import('./other').Tag} T\n */\n",
+        ),
+        ("types.d.ts", "export interface H<T> { a: T }\n"),
+        ("other.d.ts", "export type Tag = \"a\";\n"),
+    ] {
+        fs::write(tree.path(name), text).expect("write a file");
+    }
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "a.mjs(5,22): error TS2307: Cannot find module './other' or its corresponding type declarations.\n"
+    );
+    let output = run(&tree, &["--listFilesOnly"]);
+    assert_eq!(output.status.code(), Some(0));
+    let project = compiler_current_directory(&tree);
+    let listed: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| !line.starts_with("bundled:"))
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            format!("{}/types.d.ts", project.display()),
+            format!("{}/a.mjs", project.display()),
+        ]
+    );
+}
+
+#[test]
 fn an_options_diagnostic_closes_the_check_of_the_sources_after_binding_like_tsgo() {
     // tsc's emitFilesAndReportErrors (tsgo compiler/program.go
     // GetDiagnosticsOfAnyProgram) asks for the semantic diagnostics only when

@@ -698,3 +698,65 @@ fn inherited_mappers_are_reported_without_a_location() {
         assert_eq!(file_names, ["/p/src/a.ts"]);
     }
 }
+
+/// The options a mapper's project sees are tsgo's `CompilerOptions` as its
+/// JSON encoder writes them, the command line's `project` among them: the
+/// bytes tsgo sent soybean-admin's Vue mapper (`-p tsconfig.tee.json
+/// --runExternalCode --pretty false`), with its directory as `/p`.
+#[test]
+fn a_mapper_s_project_options_are_tsgo_s_compiler_options() {
+    let config = r#"{
+        "compilerOptions": {
+            "target": "ESNext", "jsx": "preserve", "jsxImportSource": "vue", "lib": ["DOM", "ESNext"],
+            "module": "ESNext", "moduleResolution": "bundler",
+            "paths": { "@/*": ["./src/*"], "~/*": ["./*"] },
+            "resolveJsonModule": true,
+            "types": ["vite/client", "node", "unplugin-icons/types/vue", "naive-ui/volar"],
+            "strict": true, "strictNullChecks": true, "noUnusedLocals": false,
+            "allowSyntheticDefaultImports": true, "esModuleInterop": true,
+            "forceConsistentCasingInFileNames": true, "isolatedModules": true, "skipLibCheck": true
+        },
+        "contentMappers": [{ "package": "vue-mapper", "extensions": [".vue"], "options": { "languageFeatures": false } }]
+    }"#;
+    let host = host(
+        &[
+            ("/p/tsconfig.tee.json", config),
+            (
+                "/p/node_modules/vue-mapper/package.json",
+                r#"{ "name": "vue-mapper", "version": "0.0.1", "typescript": { "contentMapper": { "exec": ["vue-mapper"], "dynamicConfig": true } } }"#,
+            ),
+        ],
+        true,
+    );
+    let options = command_line_option_bag(
+        &[
+            (
+                "project".to_owned(),
+                JsonValue::String("/p/tsconfig.tee.json".into()),
+            ),
+            ("runExternalCode".to_owned(), JsonValue::Bool(true)),
+            ("pretty".to_owned(), JsonValue::Bool(false)),
+        ],
+        JsStr::from("/p"),
+    );
+    let plan = parse_config_root_plan_with_command_line(
+        &CompilerConfigHost::new(&host),
+        ConfigRootPlanRequest {
+            file_name: JsString::from("/p/tsconfig.tee.json"),
+            text: config.to_owned(),
+            base_path: JsString::from("/p"),
+        },
+        &options,
+        &mut ConfigExtendedCache::default(),
+    )
+    .unwrap();
+    let spec = plan
+        .program_options()
+        .content_mapper_spec()
+        .expect("the config has a mapper");
+    assert_eq!(spec.config_file_name, "/p/tsconfig.tee.json");
+    assert_eq!(
+        spec.compiler_options.compact(),
+        r#"{"forceConsistentCasingInFileNames":true,"isolatedModules":true,"jsx":1,"jsxImportSource":"vue","lib":["lib.dom.d.ts","lib.esnext.d.ts"],"module":99,"moduleResolution":100,"noUnusedLocals":false,"paths":{"@/*":["./src/*"],"~/*":["./*"]},"project":"/p/tsconfig.tee.json","resolveJsonModule":true,"skipLibCheck":true,"strict":true,"strictNullChecks":true,"target":99,"types":["vite/client","node","unplugin-icons/types/vue","naive-ui/volar"],"allowSyntheticDefaultImports":true,"esModuleInterop":true,"configFilePath":"/p/tsconfig.tee.json","pathsBasePath":"/p","pretty":false,"runExternalCode":true}"#
+    );
+}

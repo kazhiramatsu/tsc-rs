@@ -350,21 +350,32 @@ pub fn write_error_summary_text(
 ) -> Result<JsString, FormatDiagnosticsError> {
     let mut total = 0usize;
     let mut global = 0usize;
-    let mut files: Vec<(JsString, Vec<&Diagnostic>)> = Vec::new();
+    // By file: the name it is shown with, and whether it is a file of its
+    // own diagnostic.
+    let mut files: Vec<(JsString, bool, Vec<&Diagnostic>)> = Vec::new();
     for diagnostic in diagnostics {
         if diagnostic.category() != crate::DiagnosticCategory::Error {
             continue;
         }
         total += 1;
-        // By the name a file is shown with (a rendered file name's text may
-        // differ between its diagnostics).
         match &diagnostic.file_name {
             None => global += 1,
             Some(file_name) => {
-                let printed = split_rendered_file_name(file_name.as_js()).1;
-                match files.iter_mut().find(|(name, _)| name.as_js() == printed) {
-                    Some((_, errors)) => errors.push(diagnostic),
-                    None => files.push((printed.to_owned(), vec![diagnostic])),
+                // tsgo getErrorSummary groups by the diagnostic's file, and
+                // ASTDiagnostic.File makes a new one for each diagnostic
+                // shown against another text or under another name (a
+                // content-mapped file's original text, a supplemental
+                // output's canonical name): each such diagnostic is a file
+                // of its own. One shown against its file's own text under its
+                // name (in synthesized code) is the file's.
+                let (text, printed) = split_rendered_file_name(file_name.as_js());
+                let own = text != printed;
+                match files
+                    .iter_mut()
+                    .find(|(name, other_own, _)| !own && !*other_own && name.as_js() == printed)
+                {
+                    Some((_, _, errors)) => errors.push(diagnostic),
+                    None => files.push((printed.to_owned(), own, vec![diagnostic])),
                 }
             }
         }
@@ -373,14 +384,15 @@ pub fn write_error_summary_text(
     if total == 0 {
         return Ok(output);
     }
-    // Go orders the file names by their UTF-8 bytes.
-    files.sort_by(|(left, _), (right, _)| {
+    // Go orders the file names by their UTF-8 bytes (files of one name in
+    // its map's order, which varies from run to run; here the diagnostics').
+    files.sort_by(|(left, _, _), (right, _, _)| {
         left.to_string_lossy()
             .as_bytes()
             .cmp(right.to_string_lossy().as_bytes())
     });
     let first_file_name = match files.first() {
-        Some((file_name, errors)) => pretty_path_for_file_error(file_name, errors, sources)?,
+        Some((file_name, _, errors)) => pretty_path_for_file_error(file_name, errors, sources)?,
         None => JsString::new(),
     };
     let catalog = sources.catalog();
@@ -410,7 +422,7 @@ pub fn write_error_summary_text(
         // writeTabularErrorsDisplay
         let max_errors = files
             .iter()
-            .map(|(_, errors)| errors.len())
+            .map(|(_, _, errors)| errors.len())
             .max()
             .unwrap_or(0);
         let header = crate::gen::Errors_Files.template_in(catalog);
@@ -421,7 +433,7 @@ pub fn write_error_summary_text(
         output.push_str(&" ".repeat(header_padding));
         output.push_str(header);
         output.push_str(new_line);
-        for (file_name, errors) in &files {
+        for (file_name, _, errors) in &files {
             output.push_str(&format!("{:>left_padding_goal$}  ", errors.len()));
             output.push_js(pretty_path_for_file_error(file_name, errors, sources)?.as_js());
             output.push_str(new_line);

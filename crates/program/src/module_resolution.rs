@@ -80,6 +80,10 @@ impl HostResolvedModule {
         self.resolved_using_ts_extension
     }
 
+    pub const fn resolved_using_extra_extensions(&self) -> bool {
+        self.resolved_using_extra_extensions
+    }
+
     pub fn package_id(&self) -> Option<&PackageId> {
         self.package_id.as_ref()
     }
@@ -7523,16 +7527,17 @@ pub fn mangle_scoped_package_name<'p>(package_name: impl Into<JsStr<'p>>) -> JsS
     }
 }
 
+/// tsgo loadModuleFromSpecificNodeModulesDirectory: the package directory
+/// of `pkg/` is that of `pkg` (resolutionCandidateFromDirectoryPath drops
+/// the trailing separator), so its file probes, manifest and package id
+/// read the same directory.
 fn package_root_for_request<'p>(
     node_modules: impl Into<JsStr<'p>>,
     request: &PackageRequest<'_>,
 ) -> JsString {
-    retain_request_trailing_separator(
-        join_normalized(
-            node_modules,
-            &crate::js_path::normalize_slashes(request.package_name),
-        ),
-        request.trailing_separator,
+    join_normalized(
+        node_modules,
+        &crate::js_path::normalize_slashes(request.package_name),
     )
 }
 
@@ -7540,22 +7545,12 @@ fn types_package_root_for_request<'p>(
     node_modules_at_types: impl Into<JsStr<'p>>,
     request: &PackageRequest<'_>,
 ) -> JsString {
-    retain_request_trailing_separator(
-        join_normalized(
-            node_modules_at_types,
-            &crate::js_path::normalize_slashes(
-                mangle_scoped_package_name(request.package_name).as_js(),
-            ),
+    join_normalized(
+        node_modules_at_types,
+        &crate::js_path::normalize_slashes(
+            mangle_scoped_package_name(request.package_name).as_js(),
         ),
-        request.trailing_separator,
     )
-}
-
-fn retain_request_trailing_separator(mut path: JsString, trailing_separator: bool) -> JsString {
-    if trailing_separator && !path.ends_with("/") {
-        path.push('/');
-    }
-    path
 }
 
 /// tsc-port: comparePatternKeys @6.0.3

@@ -669,9 +669,9 @@ fn is_bcp47_language_tag(value: &str) -> bool {
 
 /// The options the command consumes before a program exists, and tsgo's
 /// process options (`quiet`, `singleThreaded`, `checkers`, `pprofDir`).
-/// `runExternalCode` stays: the config's content mappers read it.
+/// `runExternalCode` and `project` stay (tsgo CompilerOptions fields): the
+/// config's content mappers read them.
 const COMMAND_ONLY_OPTIONS: &[&str] = &[
-    "project",
     "version",
     "init",
     "help",

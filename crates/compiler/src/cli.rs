@@ -726,7 +726,7 @@ fn execute<'a>(
         let config_clock = system.now();
         let (plan, source_texts) =
             parse_config_file(host, &current_directory, &config_file, &command_line)?;
-        let plan = with_content_mapper_project(system, plan);
+        let (plan, content_mappers) = with_content_mapper_project(system, plan);
         route.config_time = elapsed_since(system, config_clock);
         tsc_types::trace::mark("cli: project config plan", config_started);
         if show_config {
@@ -750,7 +750,7 @@ fn execute<'a>(
             ))));
             return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
         }
-        return execute_config(
+        let output = execute_config(
             host,
             &current_directory,
             &catalog,
@@ -758,6 +758,10 @@ fn execute<'a>(
             source_texts,
             &mut route,
         );
+        if let Some(content_mappers) = content_mappers {
+            content_mappers.close();
+        }
+        return output;
     }
 
     if !files.is_empty() {
@@ -870,7 +874,7 @@ fn execute<'a>(
     let config_clock = system.now();
     let (plan, source_texts) =
         parse_config_file(host, &current_directory, &config_file, &command_line)?;
-    let plan = with_content_mapper_project(system, plan);
+    let (plan, content_mappers) = with_content_mapper_project(system, plan);
     route.config_time = elapsed_since(system, config_clock);
     if show_config {
         return Ok(show_config_of_plan(&plan, case_sensitive));
@@ -893,14 +897,18 @@ fn execute<'a>(
         ))));
         return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
     }
-    execute_config(
+    let output = execute_config(
         host,
         &current_directory,
         &catalog,
         &plan,
         source_texts,
         &mut route,
-    )
+    );
+    if let Some(content_mappers) = content_mappers {
+        content_mappers.close();
+    }
+    output
 }
 
 fn execute_build<'a>(
@@ -2312,9 +2320,28 @@ fn normalize_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
 /// the system's spawner for this run, and every program of the plan uses
 /// the project's view. `TS_CONTENT_MAPPER_DEBUG` logs their protocol to the
 /// error output.
-fn with_content_mapper_project(system: &dyn System, plan: ConfigRootPlan) -> ConfigRootPlan {
+/// The command's content mapper project and its host, closed when the
+/// command is done as tsgo's deferred `Close` calls do (`closeProject` to
+/// each mapper whose project was opened, then the processes torn down).
+/// A watch keeps its project open.
+struct ContentMapperSession {
+    project: Arc<tsc_program::content_mapper::host::ProjectView>,
+    host: tsc_program::content_mapper::host::Host,
+}
+
+impl ContentMapperSession {
+    fn close(self) {
+        let _ = tsc_program::content_mapper::Project::close(&*self.project);
+        self.host.close();
+    }
+}
+
+fn with_content_mapper_project(
+    system: &dyn System,
+    plan: ConfigRootPlan,
+) -> (ConfigRootPlan, Option<ContentMapperSession>) {
     let Some(spec) = plan.program_options().content_mapper_spec().cloned() else {
-        return plan;
+        return (plan, None);
     };
     let logger: Option<tsc_program::content_mapper::host::Logger> = system
         .env_var("TS_CONTENT_MAPPER_DEBUG")
@@ -2330,10 +2357,14 @@ fn with_content_mapper_project(system: &dyn System, plan: ConfigRootPlan) -> Con
         logger,
     );
     match host.project(spec) {
-        Some(project) => plan.with_content_mapper_project(tsc_program::ContentMapperProjectHandle(
-            Arc::new(project),
-        )),
-        None => plan,
+        Some(project) => {
+            let project = Arc::new(project);
+            let plan = plan.with_content_mapper_project(tsc_program::ContentMapperProjectHandle(
+                Arc::clone(&project) as Arc<dyn tsc_program::content_mapper::Project>,
+            ));
+            (plan, Some(ContentMapperSession { project, host }))
+        }
+        None => (plan, None),
     }
 }
 

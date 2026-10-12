@@ -2221,6 +2221,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 &diagnostics::Type_0_is_not_assignable_to_type_1
             });
+        } else if message.is_some_and(|message| {
+            message.code
+                == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
+        }) && self.st.options.exact_optional_property_types == Some(true)
+            && self
+                .st
+                .has_exact_optional_unassignable_properties(source, target)?
+        {
+            // relater.go:4832: the argument head names the option, judged
+            // on the types the report shows (an optional parameter's
+            // `| undefined` already removed).
+            message = Some(&diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties);
         }
         let message = message.expect("relation error has a selected head");
         if self.chain_head_suppresses_relation_head(message, &generalized_source_text, &target_text)

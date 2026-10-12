@@ -7715,3 +7715,92 @@ export function generateObject<Schema, Options extends NoExcessProperties<WithSc
     };
     assert_eq!(codes_of_with_options(source, &options), Vec::<u32>::new());
 }
+
+#[test]
+fn content_mapper_directives_drop_diagnostics_in_their_ranges_and_report_unused_expects() {
+    // tsgo applyContentMapperDiagnosticDirectives (Vue's `@vue-ignore` and
+    // `@vue-expect-error`): a TypeScript diagnostic starting in a virtual
+    // range is dropped and marks the first such directive used; a mapper's
+    // own diagnostic and a diagnostic of another file stay; an unused
+    // `Expect` reports its code and text at its original range under the
+    // mapper's source.
+    use tsc_diagnostics::spanmap::{DirectivePolicy, MappedDiagnosticDirective};
+    let mut source = tsc_syntax::parse_source_file(
+        "/p/a.vue",
+        "let a: number = 'x';\nlet b: number = 'y';\n",
+        tsc_syntax::ParseOptions::default(),
+        None,
+    );
+    let directive =
+        |virtual_range: (i32, i32), original_range: (i32, i32), policy| MappedDiagnosticDirective {
+            original_range,
+            virtual_range,
+            policy,
+            unused_code: 2578,
+            unused_message_text: "Unused '@ts-expect-error' directive.".to_owned(),
+            source: "vue".to_owned(),
+        };
+    source.diagnostic_directives = vec![
+        directive((0, 21), (3, 9), DirectivePolicy::Ignore),
+        directive((21, 30), (40, 52), DirectivePolicy::Expect),
+        directive((30, 42), (60, 70), DirectivePolicy::Expect),
+    ];
+    let error = |file: &str, start: u32| {
+        Diagnostic::new_js(
+            Some(JsString::from(file)),
+            Some(start),
+            Some(1),
+            tsc_diagnostics::MessageChain::new(
+                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                &["string".to_owned(), "number".to_owned()],
+            ),
+        )
+    };
+    let mapper_own = error("/p/a.vue", 4).with_source("vue");
+    let mut diagnostics = vec![
+        error("/p/a.vue", 4),
+        error("/p/a.vue", 25),
+        error("/p/b.ts", 4),
+        mapper_own.clone(),
+    ];
+    apply_content_mapper_diagnostic_directives(&source, &mut diagnostics);
+    let rows: Vec<_> = diagnostics
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|name| name.to_string_lossy().into_owned()),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.code(),
+                diagnostic.source.clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            (Some("/p/b.ts".to_owned()), Some(4), Some(1), 2322, None),
+            (
+                Some("/p/a.vue".to_owned()),
+                Some(4),
+                Some(1),
+                2322,
+                Some("vue".to_owned())
+            ),
+            (
+                Some("/p/a.vue".to_owned()),
+                Some(60),
+                Some(10),
+                2578,
+                Some("vue".to_owned())
+            ),
+        ]
+    );
+    assert_eq!(
+        diagnostics[2].message_text(),
+        "Unused '@ts-expect-error' directive."
+    );
+}
