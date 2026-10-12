@@ -10,6 +10,7 @@
 
 mod error;
 mod filesystem;
+pub mod ipc;
 mod js_path;
 mod memory;
 mod ordering;

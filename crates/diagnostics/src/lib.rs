@@ -6,6 +6,7 @@ pub mod js_string;
 pub mod line_map;
 /// The pretty diagnostic writer and error summary, ported from tsgo.
 pub mod render;
+pub mod spanmap;
 pub mod text;
 
 use std::cmp::Ordering;
