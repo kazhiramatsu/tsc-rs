@@ -156,3 +156,24 @@ C3 だけでは載せられない（mapper の拡張子の file を列挙して�
 - **残り**：C4b（conformance runner の `@runExternalCode` と `.contentmapper` baseline、他の test mapper、診断の directive、
   宣言 emit の細部。conformance の content mapper の 15 は harness error のまま）、C5（build info の identity、tsbuild の 2、
   watch）、C6（API）、mapper の JavaScript 出力の checker 上の JS 判定（file 名で決まる）、CLI の mapper の locale。
+
+## 実プロジェクト（PR #765）
+
+ユーザーの依頼で、content mapper を使う実際の Vue と Astro のプロジェクトを tsgo（`tsc-aa814927`）と比べた
+（`~/dev/real-projects.noindex/content-mapper`、各プロジェクトの設定を `extends` して mapper を足した `tsconfig.cm.json`）。
+
+- **対象**：vinhphm/site（Astro、`@astrojs/ts-content-mapper@0.2.0`、`.astro` 35）、withastro/starlight（Astro の
+  monorepo、2,408 file、`.astro` 99）、antfu-collective/vitesse（Vue、`@chatium/vue-ts-mapper-rs@0.2.5`、`.vue` 10）、
+  soybeanjs/soybean-admin（Vue、`.vue` 90）。診断（plain と pretty）、`--explainFiles`、`--listFilesOnly` が全て tsgo と同じ
+  bytes。違うのは pretty の要約の mapped file の行の順だけ（tsgo は Go の map の順で、実行ごとに変わる）。mapper との通信
+  （包む package で記録）も `openProject` の要求と返事、90 の transform の結果、最後の `closeProject` が tsgo と同じ。
+- **直したもの**：一般の 4 つ（引数の TS2379 の判定を relater の報告に、合成 import の `--explainFiles` の理由と import の
+  出現順の subtask、`pkg/` の package directory、ファイル末尾の JSDoc の import type）と content mapper の 6 つ（mapper の
+  拡張子の解決先の読み込み、仮想名での JSX runtime、診断の directive（C4b から前倒し）、要約での mapped file の数え方、
+  `project` option、command の終わりの project と host の close）。
+- **結果**（head `b12d6e969`）：test 4,212、clippy、suites 0 regressions、full の conformance（491 s）0 regressions で
+  #764 の report と 15,339 の構成が全て同じ、並列対照は記録済みの 4 構成だけ違う。
+- **hosted と merge**：PR #765 の hosted run 38249930905（rust 12m49s、conformance 12m33s、gates pass、head `b12d6e969`）、
+  merge commit `fd74846b0`。
+- **次**：mapped file の変換を並列の read-ahead で（tsgo は parse task の中で変換する。soybean-admin の walk の 106 ms の
+  大半が 90 の順番の変換）、その後 C4b。
