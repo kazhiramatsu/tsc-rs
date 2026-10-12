@@ -586,6 +586,7 @@ version = "0.1.0"
 dependencies = [
  "memchr",
  "rustc-hash",
+ "serde",
  "serde_json",
  "tsc-rs-diagnostics",
  "tsc-rs-host",

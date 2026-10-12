@@ -66,6 +66,7 @@ use tsc_program::{
 
 mod build;
 mod cli;
+pub mod content_mapper_process;
 mod declaration_diagnostics;
 mod help;
 mod incremental;

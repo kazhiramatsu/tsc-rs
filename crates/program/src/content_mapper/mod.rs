@@ -4,7 +4,12 @@
 //!
 //! A mapper is declared in a tsconfig's `contentMappers` ([`Definition`]),
 //! its npm package's package.json says how to run it ([`Manifest`]), and the
-//! two together, once the package is resolved, are a [`Mapper`].
+//! two together, once the package is resolved, are a [`Mapper`]. The
+//! [`host::Host`] runs the mappers (hostimpl.go).
+
+pub mod errors;
+pub mod host;
+pub mod protocol;
 
 /// tsgo `contentmapper.Definition`: a `contentMappers` entry, the package
 /// that implements the mapper and the extensions it registers. Lists and
