@@ -88,3 +88,23 @@
 - **C6 API**：encoder の content mapper の field（`originalText`・`spanMap`・`supplementalSourceFileNames`・
   `canonicalSourceFileName`・`contentMapper`・`virtualFileName`・`diagnosticDirectives`）と server の spawner。
 - 各 slice は今までと同じく full の conformance と suites で 0 regressions、checker に触れたら並列対照。
+
+## C1 土台（PR #762）
+
+- **`tsc_diagnostics::spanmap`**：tsgo `spanmap` の segment・kind・feature・fidelity、仮想と元の text（UTF-16）の上の検査、
+  仮想から元への写像と alias の引き当て。位置は compiler の UTF-16 の code unit（tsgo は UTF-8 の byte。host が mapper の位置を
+  正規化してから map を作る）。segment は mapper が送った値をそのまま持つので、壊れた map は検査に届いて tsgo の error の種類に
+  なる。元から仮想への射影は言語 service だけが使うので、それと一緒に移す。
+- **`tsc_host::ipc`**：JSON-RPC の message と framing を API の crate から移して content mapper と共有する（API は自分の server
+  の接続を持ち、これらを re-export するので道は変わらない）。framing は読む側と書く側に分け、`AsyncConn` は tsgo の
+  `ipc.AsyncConn`：任意の thread からの call を ID で応答に結び、call ごとの時間の限り（mapper の handshake の 5 秒）、閉じた
+  接続の message（`ipc: connection closed` と原因）と相手の error の message（`ipc: remote error [code]: message`）。
+- **`tsc_program::content_mapper`**：`Definition`・`Manifest`・`Mapper` と tsgo の identity・診断の名前・仮想の拡張子・
+  transform identity（identity・mapper の options・宣言された compiler options の xxh3-128、正準の byte 順）。
+- **test**：spanmap_test.go の仮想から元と検査の case（11）と mapping error の message、conn_async_test.go の case と並行の call・
+  時間の限り（7）、transform identity は tsgo の `contentmapper` 自身が計算した値（`aa8149273` の tree に一時の probe を置いて
+  実行し、後で消した）（3）。
+- **結果**（release build、head `53a3393a7`）：full の conformance（482 s）0 regressions で #761 の report と全ての field で同じ、
+  suites 0 regressions、test 4,155、clippy、API の client test（sync 337／356・async 346／365、変わらず）。
+- **hosted と merge**：PR #762 の hosted run 38222612506（rust 8m13s、conformance 19m52s、gates pass、head `53a3393a7`）、merge
+  commit `f053cac8c`。
