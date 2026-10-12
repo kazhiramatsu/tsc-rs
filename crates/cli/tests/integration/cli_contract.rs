@@ -22227,3 +22227,113 @@ fn tagged_template_comments_follow_tsgo() {
         "\"use strict\";\ntag \n// c10\n`x`;\ntag /* c11 */ `y`;\n"
     );
 }
+
+#[test]
+fn deferred_references_in_a_union_order_by_sorted_infer_parameters_like_tsgo() {
+    // tsgo sorts a conditional type's `infer` type parameters with
+    // CompareTypes, by name (checker.go:24332-24341): the true branch's
+    // deferred `Rpc<T, P, ...>` instantiations then order by `Mw`, `P`, `T`,
+    // so the union follows the payloads (string, number, object), not the
+    // tags. The expected bytes are tsgo's (Effect's McpSchema showed it).
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        concat!(
+            "type ApplyServices<A, B> = A | B;\n",
+            "interface Rpc<Tag extends string, Payload, Middleware> { readonly _tag: Tag; payload: Payload; m: Middleware }\n",
+            "type Any = Rpc<string, any, any>;\n",
+            "type AddMiddleware<R extends Any, M> = R extends Rpc<infer T, infer P, infer Mw> ? Rpc<T, P, ApplyServices<Mw, M>> : never;\n",
+            "interface Group<R extends Any> { r: R; middleware<M>(m: M): Group<AddMiddleware<R, M>> }\n",
+            "declare function make<const Rs extends readonly Any[]>(...rs: Rs): Group<Rs[number]>;\n",
+            "declare const v0: Rpc<\"x1\", { y: 1 }, never>;\n",
+            "declare const v1: Rpc<\"x2\", string, never>;\n",
+            "declare const v2: Rpc<\"x3\", number, never>;\n",
+            "export const g = make(v0, v1, v2).middleware(0 as const);\n",
+        ),
+    )
+    .expect("write source");
+    let output = run(
+        &tree,
+        &[
+            "--ignoreConfig",
+            "--declaration",
+            "--emitDeclarationOnly",
+            "--outDir",
+            "out",
+            "--pretty",
+            "false",
+            "main.ts",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read_to_string(tree.path("out/main.d.ts")).expect("read declarations"),
+        concat!(
+            "type ApplyServices<A, B> = A | B;\n",
+            "interface Rpc<Tag extends string, Payload, Middleware> {\n",
+            "    readonly _tag: Tag;\n",
+            "    payload: Payload;\n",
+            "    m: Middleware;\n",
+            "}\n",
+            "type Any = Rpc<string, any, any>;\n",
+            "type AddMiddleware<R extends Any, M> = R extends Rpc<infer T, infer P, infer Mw> ? Rpc<T, P, ApplyServices<Mw, M>> : never;\n",
+            "interface Group<R extends Any> {\n",
+            "    r: R;\n",
+            "    middleware<M>(m: M): Group<AddMiddleware<R, M>>;\n",
+            "}\n",
+            "export declare const g: Group<Rpc<\"x2\", string, 0> | Rpc<\"x3\", number, 0> | Rpc<\"x1\", {\n",
+            "    y: 1;\n",
+            "}, 0>>;\n",
+            "export {};\n",
+        )
+    );
+}
+
+#[test]
+fn a_type_serialized_again_for_a_declaration_maps_nothing_like_tsgo() {
+    // tsgo's emit resolver keeps one node builder for all its requests
+    // (emitresolver.go:65-70), so a type already serialized for an enclosing
+    // declaration comes back as a position-free DeepCloneNode
+    // (nodebuilderimpl.go:3276-3290). The class's members are built before
+    // its `_base` (declarations/transform.go), so the static member maps the
+    // literal's member and `Foo_base` maps nothing. The expected bytes are
+    // tsgo's (Effect's McpServer showed it).
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        concat!(
+            "interface ServiceClass<Self, Key extends string, Shape> { new (_: never): Shape; readonly key: Key; of(self: Shape): Shape }\n",
+            "declare function Service<Self, Shape>(): <const Key extends string>(key: Key) => ServiceClass<Self, Key, Shape>;\n",
+            "export class Foo extends Service<Foo, {\n",
+            "  readonly a: Array<string>\n",
+            "}>()(\"k\") {\n",
+            "  static readonly make = Foo.of({} as any)\n",
+            "}\n",
+        ),
+    )
+    .expect("write source");
+    let output = run(
+        &tree,
+        &[
+            "--ignoreConfig",
+            "--declaration",
+            "--declarationMap",
+            "--emitDeclarationOnly",
+            "--outDir",
+            "out",
+            "--pretty",
+            "false",
+            "main.ts",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        fs::read_to_string(tree.path("out/main.d.ts.map")).expect("read declaration map"),
+        concat!(
+            "{\"version\":3,\"file\":\"main.d.ts\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"",
+            "AAAA,UAAU,YAAY,CAAC,IAAI,EAAE,GAAG,SAAS,MAAM,EAAE,KAAK;IAAI,KAAK,CAAC,EAAE,KAAK,GAAG,KAAK,CAAC;",
+            "IAAC,QAAQ,CAAC,GAAG,EAAE,GAAG,CAAC;IAAC,EAAE,CAAC,IAAI,EAAE,KAAK,GAAG,KAAK,CAAA;CAAE;;;;",
+            "AAE5H,qBAAa,GAAI,SAAQ,QAEhB;IACP,MAAM,CAAC,QAAQ,CAAC,IAAI;oBAFR,KAAK,CAAC,MAAM,CAAC;MAEe;CACzC\"}",
+        )
+    );
+}

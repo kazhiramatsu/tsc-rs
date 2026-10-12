@@ -2578,6 +2578,12 @@ impl<'a> CheckerState<'a> {
                 result.push(self.get_declared_type_of_type_parameter(symbol));
             }
         }
+        // tsgo sorts them with CompareTypes (checker.go:24339), which orders
+        // type parameters by name; the order reaches the instantiation
+        // mappers that order deferred references in a union.
+        let order = crate::type_order::order_ctx!(self);
+        let tables = &self.tables;
+        result.sort_by(|a, b| tsc_types::type_order::compare_types(tables, &order, *a, *b));
         result
     }
 
