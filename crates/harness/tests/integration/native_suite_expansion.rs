@@ -249,13 +249,13 @@ fn native_vendored_inputs_match_the_manifest() {
     }
     // Every set the manifest lists: the compiler and conformance cases and
     // their baselines (`.errors.txt`, `.js`, `.js.map`, `.sourcemap.txt`,
-    // `.types`, `.symbols`, `.trace.json`), the transpile cases and
+    // `.types`, `.symbols`, `.trace.json`, `.contentmapper`), the transpile cases and
     // baselines, the command-line and tsconfig parsing, tsc, tsc -b and
     // watch baselines, the libraries, the message catalogs and option
     // declarations the help, `--init`, `--showConfig` and `--locale` read,
     // the API encoder's baselines and tables, and the token navigation
     // baselines and the file they navigate.
-    assert_eq!(vendored, 59_618);
+    assert_eq!(vendored, 59_633);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()
