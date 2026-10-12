@@ -3030,11 +3030,12 @@ fn parse_program_inputs(
             source_file.module_name = Some(module_name.clone());
         }
         // tsgo ParseResult (and the failure stub): the mapper's diagnostics
-        // are the file's.
+        // and diagnostic directives are the file's.
         if let Some(info) = &file.content_mapped {
             source_file
                 .parse_diagnostics
                 .extend(info.diagnostics.iter().cloned());
+            source_file.diagnostic_directives = info.diagnostic_directives.clone();
         }
         if !file.renamed_dependencies.is_empty() {
             source_file.renamed_dependencies = file.renamed_dependencies.clone();
@@ -5654,8 +5655,70 @@ fn bind_and_check_rows(
             source,
             &used_directive_lines,
         ));
+        apply_content_mapper_diagnostic_directives(source, &mut bind_and_check);
     }
     bind_and_check
+}
+
+/// tsgo applyContentMapperDiagnosticDirectives: the file's TypeScript
+/// diagnostics starting in a directive's virtual range are dropped (the
+/// first such directive is used), and each unused `Expect` directive reports
+/// its own diagnostic at its original range under the mapper's source.
+fn apply_content_mapper_diagnostic_directives(
+    source: &tsc_syntax::SourceFile,
+    diagnostics: &mut DiagnosticList,
+) {
+    let directives = &source.diagnostic_directives;
+    if directives.is_empty() {
+        return;
+    }
+    let mut used = vec![false; directives.len()];
+    diagnostics.retain(|diagnostic| {
+        if diagnostic.file_name.as_ref() != Some(&source.file_name)
+            || diagnostic
+                .source
+                .as_deref()
+                .is_some_and(|source| !source.is_empty())
+        {
+            return true;
+        }
+        let Some(start) = diagnostic.start.map(i64::from) else {
+            return true;
+        };
+        let directive = directives.iter().position(|directive| {
+            start >= i64::from(directive.virtual_range.0)
+                && start < i64::from(directive.virtual_range.1)
+        });
+        match directive {
+            Some(index) => {
+                used[index] = true;
+                false
+            }
+            None => true,
+        }
+    });
+    for (directive, used) in directives.iter().zip(used) {
+        if directive.policy != tsc_diagnostics::spanmap::DirectivePolicy::Expect || used {
+            continue;
+        }
+        let start = u32::try_from(directive.original_range.0).unwrap_or_default();
+        let end = u32::try_from(directive.original_range.1).unwrap_or_default();
+        diagnostics.push(
+            Diagnostic::new_js(
+                Some(source.file_name.clone()),
+                Some(start),
+                Some(end.saturating_sub(start)),
+                tsc_diagnostics::MessageChain::external(
+                    directive.unused_code as u32,
+                    DiagnosticCategory::Error,
+                    directive.unused_message_text.as_str(),
+                ),
+            )
+            .with_reports_unnecessary(None)
+            .with_reports_deprecated(None)
+            .with_source(directive.source.clone()),
+        );
+    }
 }
 
 fn assemble_check_result(

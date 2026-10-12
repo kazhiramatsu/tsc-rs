@@ -162,6 +162,9 @@ pub struct SourceFile {
     /// renames (typescript.js:146101), consulted by tryRenameExternalModule
     /// (_tsc.js:27720). Never produced by parsing.
     pub renamed_dependencies: Vec<(JsString, JsString)>,
+    /// tsgo SourceFile.DiagnosticDirectives: a content mapper's directives
+    /// over the file's diagnostics. Never produced by parsing.
+    pub diagnostic_directives: Vec<tsc_diagnostics::spanmap::MappedDiagnosticDirective>,
     /// Whether leading multiline comments contain a recognized
     /// `@jsxImportSource` pragma.
     pub has_jsx_import_source_pragma: bool,
@@ -223,6 +226,7 @@ impl SourceFile {
             amd_dependencies: Vec::new(),
             module_name: None,
             renamed_dependencies: Vec::new(),
+            diagnostic_directives: Vec::new(),
             has_jsx_import_source_pragma: false,
             jsx_import_source_pragma: None,
             has_jsx_runtime_pragma: false,
