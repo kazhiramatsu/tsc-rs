@@ -22727,3 +22727,99 @@ fn wildcard_types_drop_the_types_field_advice_like_tsgo() {
         )
     );
 }
+
+#[test]
+fn names_with_dot_segments_resolve_to_normalized_paths_like_tsgo() {
+    // tsgo resolves a type root's candidate to a normalized path
+    // (resolutionCandidateFromDirectoryPath), so `../../lib/x` from
+    // `node_modules/@types` is looked up as `lib/x`, as a content mapper's
+    // generated references need. A relative import is an external library
+    // import only when its resolved path is in node_modules, so the file of
+    // `./node_modules/../b` is emitted (TS 6 classified the spelling). The
+    // expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::create_dir_all(tree.path("node_modules/@types/dummy")).expect("create type root");
+    fs::create_dir_all(tree.path("lib/x")).expect("create lib");
+    fs::create_dir_all(tree.path("src/node_modules")).expect("create src");
+    fs::write(
+        tree.path("node_modules/@types/dummy/index.d.ts"),
+        "declare const dummy: number;\n",
+    )
+    .expect("write dummy");
+    fs::write(tree.path("lib/x/index.d.ts"), "declare const x: number;\n").expect("write x");
+    fs::write(
+        tree.path("src/a.ts"),
+        concat!(
+            "/// <reference types=\"../../lib/x\" />\n",
+            "import { b } from \"./node_modules/../b\";\n",
+            "export const a: number = b + x;\n",
+        ),
+    )
+    .expect("write a");
+    fs::write(tree.path("src/b.ts"), "export const b = 1;\n").expect("write b");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"module":"commonjs","rootDir":"src","outDir":"out","types":[]},"files":["src/a.ts"]}"#,
+    )
+    .expect("write config");
+
+    let output = run(&tree, &["-p", ".", "--pretty", "false", "--explainFiles"]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.ends_with(concat!(
+            "lib/x/index.d.ts\n",
+            "   Type library referenced via '../../lib/x' from file 'src/a.ts'\n",
+            "src/b.ts\n",
+            "   Imported via \"./node_modules/../b\" from file 'src/a.ts'\n",
+            "src/a.ts\n",
+            "   Part of 'files' list in tsconfig.json\n",
+        )),
+        "{stdout}"
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/a.js")).expect("read a.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.a = void 0;\n",
+            "/// <reference types=\"../../lib/x\" />\n",
+            "const b_1 = require(\"./node_modules/../b\");\n",
+            "exports.a = b_1.b + x;\n",
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(tree.path("out/b.js")).expect("read b.js"),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.b = void 0;\n",
+            "exports.b = 1;\n",
+        )
+    );
+
+    let output = run(
+        &tree,
+        &[
+            "-p",
+            ".",
+            "--pretty",
+            "false",
+            "--traceResolution",
+            "--noEmit",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(0));
+    let root = compiler_current_directory(&tree);
+    let root = root.to_string_lossy().replace('\\', "/");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in [
+        format!("File '{root}/lib/x/package.json' does not exist."),
+        format!("File '{root}/lib/x/index.d.ts' exists - use it as a name resolution result."),
+        format!(
+            "======== Type reference directive '../../lib/x' was successfully resolved to '{root}/lib/x/index.d.ts', primary: true. ========"
+        ),
+    ] {
+        assert!(stdout.lines().any(|text| text == line), "{line}\n{stdout}");
+    }
+}

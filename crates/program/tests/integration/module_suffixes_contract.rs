@@ -524,9 +524,11 @@ fn relative_node_resolution_attaches_package_facts_from_the_selected_suffix_path
         module.resolved_file().display().scalar_test_path(),
         Path::new("/dep/node_modules/pkg/index.ts")
     );
+    // tsgo classifies a relative name by its resolved path (tsgo itself
+    // panics on a suffix with a separator, so only the rule carries over).
     assert!(
-        !module.is_external_library_import(),
-        "Node relative externality is classified from the request path components"
+        module.is_external_library_import(),
+        "a relative result in node_modules is an external library import"
     );
     let package_id = module
         .package_id()
