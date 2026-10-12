@@ -5112,6 +5112,7 @@ pub(crate) fn bag_compiler_options(
         // boundary so direct programmatic callers retain their fail-closed
         // raw-key contract without making config programs unusable.
         lib: config_option_lib(options),
+        types: config_option_string_list(options, "types"),
         lib_replacement: config_option_bool(options, "libReplacement"),
         jsx: config_option_i32(options, "jsx"),
         // tsgo's internal options: no tsconfig or command line declares

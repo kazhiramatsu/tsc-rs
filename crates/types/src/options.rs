@@ -189,6 +189,9 @@ pub struct CompilerOptions {
     /// strict-family; the catch-clause arm of
     /// getTypeForVariableLikeDeclaration (56055).
     pub use_unknown_in_catch_variables: Option<bool>,
+    /// The `types` option entries (tsgo `CompilerOptions.Types`): the
+    /// checker asks only whether they include `"*"` ([`Self::uses_wildcard_types`]).
+    pub types: Option<Vec<JsString>>,
     /// The RAW `lib` option entries, lowercased (e.g. "es5", "dom") —
     /// containerSeemsToBeEmptyDomElement (75471) only asks whether the
     /// option EXISTS without "dom".
@@ -423,6 +426,15 @@ impl CompilerOptions {
     /// else true. TypeScript 7 orders unions, named members and `typeof`
     /// facts by content unconditionally and ignores the option; tsc-rs keeps
     /// the explicit `false` for the creation order.
+    /// tsgo `UsesWildcardTypes` (core/compileroptions.go:154): `types`
+    /// includes `"*"`, so every `@types` package is included and the "add it
+    /// to the types field" advice does not apply.
+    pub fn uses_wildcard_types(&self) -> bool {
+        self.types
+            .as_ref()
+            .is_some_and(|types| types.iter().any(|entry| entry == "*"))
+    }
+
     pub fn stable_type_ordering_effective(&self) -> bool {
         self.stable_type_ordering.unwrap_or(true)
     }

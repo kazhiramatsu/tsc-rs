@@ -22337,3 +22337,42 @@ fn a_type_serialized_again_for_a_declaration_maps_nothing_like_tsgo() {
         )
     );
 }
+
+#[test]
+fn wildcard_types_drop_the_types_field_advice_like_tsgo() {
+    // tsgo's "install type definitions" diagnostics drop the advice to add
+    // the package to `types` when `types` includes "*" (UsesWildcardTypes,
+    // checker.go:14187-14205 and 15413-15422). The expected bytes are
+    // tsgo's for the same file and arguments.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("main.ts"),
+        "process.exit(0);\n$(\"x\");\ndescribe(\"x\", () => {});\nBun.version;\nimport fs = require(\"fs\");\nexport {};\n",
+    )
+    .expect("write source");
+    let output = run(
+        &tree,
+        &[
+            "--ignoreConfig",
+            "--types",
+            "*",
+            "--noEmit",
+            "--module",
+            "commonjs",
+            "--pretty",
+            "false",
+            "main.ts",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        concat!(
+            "main.ts(1,1): error TS2580: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.\n",
+            "main.ts(2,1): error TS2581: Cannot find name '$'. Do you need to install type definitions for jQuery? Try `npm i --save-dev @types/jquery`.\n",
+            "main.ts(3,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.\n",
+            "main.ts(4,1): error TS2867: Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun`.\n",
+            "main.ts(5,21): error TS2580: Cannot find name 'fs'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.\n",
+        )
+    );
+}

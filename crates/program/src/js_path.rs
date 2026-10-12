@@ -222,17 +222,12 @@ pub fn combine_paths(parent: JsStr<'_>, child: JsStr<'_>) -> JsString {
 }
 
 fn has_relative_segment(path: JsStr<'_>) -> bool {
-    if path.contains("//") {
-        return true;
-    }
-    let mut rest = path;
-    while let Some((segment, after)) = rest.split_once("/") {
-        if segment == "." || segment == ".." {
-            return true;
-        }
-        rest = after;
-    }
-    rest == "." || rest == ".."
+    // `/` is ASCII, so the WTF-8 bytes split where the path's separators are.
+    let bytes = path.as_bytes();
+    bytes.windows(2).any(|pair| pair == b"//")
+        || bytes
+            .split(|&byte| byte == b'/')
+            .any(|segment| segment == b"." || segment == b"..")
 }
 
 fn simple_normalize(path: JsStr<'_>) -> Option<JsString> {

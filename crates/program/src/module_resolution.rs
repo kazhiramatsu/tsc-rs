@@ -6821,8 +6821,10 @@ fn written_extension_to_strip(candidate: JsStr<'_>) -> JsString {
         ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
         ".json",
     ];
+    // An extension is ASCII: once the candidate ends with it, the candidate
+    // has a code unit before it exactly when it has a byte before it.
     for extension in REMOVABLE {
-        if candidate.len_units() > extension.len() && candidate.ends_with(extension) {
+        if candidate.as_bytes().len() > extension.len() && candidate.ends_with(extension) {
             return JsString::from(extension);
         }
     }
@@ -7300,7 +7302,7 @@ fn module_suffix_extension<'a>(path: impl Into<JsStr<'a>>) -> &'static str {
         ".json",
     ]
     .into_iter()
-    .find(|extension| path.len_units() > extension.len() && path.ends_with(extension))
+    .find(|extension| path.as_bytes().len() > extension.len() && path.ends_with(extension))
     .unwrap_or("")
 }
 

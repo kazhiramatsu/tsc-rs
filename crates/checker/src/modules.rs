@@ -5096,21 +5096,23 @@ impl<'a> CheckerState<'a> {
             NodeData::StringLiteral(data) => &data.text,
             _ => return None,
         };
-        if Self::is_node_core_module(text) {
-            Some(&diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_node_and_then_add_node_to_the_types_field_in_your_tsconfig)
-        } else {
+        if !Self::is_node_core_module(text) {
             None
+        } else if self.options.uses_wildcard_types() {
+            // tsgo checker.go:15416-15418.
+            Some(&diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_node)
+        } else {
+            Some(&diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_node_and_then_add_node_to_the_types_field_in_your_tsconfig)
         }
     }
 
     /// tsc-port: nodeCoreModules @6.0.3
     /// tsc-hash: 0e632ec6b143db94f7d3289fd8c884f1e2d5cba30ad853d6cd66d2e6f35149da
     /// tsc-span: _tsc.js:19947-20016
-    fn is_node_core_module(name: impl NameKey) -> bool {
-        let name = name.name();
-        let Some(name) = name.as_str() else {
-            return false;
-        };
+    fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
+        // The names are ASCII, so the text's bytes compare as the names do;
+        // a specifier is not interned just to be looked up.
+        let name = name.into().as_bytes();
         const UNPREFIXED: &[&str] = &[
             "assert",
             "assert/strict",
@@ -5174,11 +5176,13 @@ impl<'a> CheckerState<'a> {
             "node:test",
             "node:test/reporters",
         ];
-        if UNPREFIXED.contains(&name) || EXCLUSIVELY_PREFIXED.contains(&name) {
+        let listed =
+            |names: &[&str], name: &[u8]| names.iter().any(|known| known.as_bytes() == name);
+        if listed(UNPREFIXED, name) || listed(EXCLUSIVELY_PREFIXED, name) {
             return true;
         }
-        name.strip_prefix("node:")
-            .is_some_and(|unprefixed| UNPREFIXED.contains(&unprefixed))
+        name.strip_prefix(b"node:")
+            .is_some_and(|unprefixed| listed(UNPREFIXED, unprefixed))
     }
 
     fn resolve_authoritative_program_module<'n>(

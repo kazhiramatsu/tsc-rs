@@ -2707,21 +2707,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getCannotFindNameDiagnosticForName @6.0.3
     /// tsc-hash: 734be6af4f9e91c907d939e00c3f811d94394f8be1634532f714c456a345cc6e
     /// tsc-span: _tsc.js:69324-69376
-    ///
-    /// usesWildcardTypes(compilerOptions): the `types` option is
-    /// unmodeled and absent in harness programs — the `some(types,
-    /// "*")` test is false, selecting the long-form messages.
     pub(crate) fn cannot_find_name_diagnostic_for_name(
         &self,
         node: NodeId,
     ) -> &'static DiagnosticMessage {
+        let wildcard_types = self.options.uses_wildcard_types();
         let first = self.first_identifier(node);
         let text = self.identifier_text_of(first).unwrap_or_default();
         match text {
             "document" | "console" => &diagnostics::Cannot_find_name_0_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_include_dom,
+            // tsgo drops the "add it to the types field" advice when `types`
+            // includes "*" (checker.go:14187-14205).
+            "$" if wildcard_types => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_jQuery_Try_npm_i_save_dev_types_jquery,
             "$" => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_jQuery_Try_npm_i_save_dev_types_jquery_and_then_add_jquery_to_the_types_field_in_your_tsconfig,
+            "beforeEach" | "describe" | "suite" | "it" | "test" if wildcard_types => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_a_test_runner_Try_npm_i_save_dev_types_jest_or_npm_i_save_dev_types_mocha,
             "beforeEach" | "describe" | "suite" | "it" | "test" => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_a_test_runner_Try_npm_i_save_dev_types_jest_or_npm_i_save_dev_types_mocha_and_then_add_jest_or_mocha_to_the_types_field_in_your_tsconfig,
+            "process" | "require" | "Buffer" | "module" | "NodeJS" if wildcard_types => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_node,
             "process" | "require" | "Buffer" | "module" | "NodeJS" => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_node_Try_npm_i_save_dev_types_node_and_then_add_node_to_the_types_field_in_your_tsconfig,
+            "Bun" if wildcard_types => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_Bun_Try_npm_i_save_dev_types_bun,
             "Bun" => &diagnostics::Cannot_find_name_0_Do_you_need_to_install_type_definitions_for_Bun_Try_npm_i_save_dev_types_bun_and_then_add_bun_to_the_types_field_in_your_tsconfig,
             "Map" | "Set" | "Promise" | "Symbol" | "WeakMap" | "WeakSet" | "Iterator"
             | "AsyncIterator" | "SharedArrayBuffer" | "Atomics" | "AsyncIterable"
