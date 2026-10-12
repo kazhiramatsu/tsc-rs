@@ -82,9 +82,40 @@ scratchpad の `perf/bench.py`（最初に出力の一致（診断・終了 code
 - **hosted と merge**：PR #759 の hosted run 38202308283（rust 11m9s、conformance 21m40s、gates pass、head `46c54cf08`）、merge
   commit `e92da5703`。
 
-## 残る候補（利用者の判断待ち）
+## loader の組み替え 1：一度の並列の read-ahead と program の publish（PR #760）
 
-- **loader の並列化**：VS Code の読み込みだけ（`--listFilesOnly`）で tsc-rs 1.04 s（CPU 3.5 s）、tsgo 0.71 s（CPU 4.8 s）。
+利用者の決定（2026-10-12）：「LSPの前にloaderを修正しましょう。ただ、その結果たいして効果がない、既存テストを通すのが
+難しいレベルでの問題が発生した場合はとりやめます。」「もしくは別のアーキテクチャでより速くなるならそちらを採用しても
+いいです」。
+
+- **一度の並列の pass**：read-ahead は root を worker で parse した後、依存を pipeline で解決していたが、解決と読みの全てが
+  loading thread を通った（VS Code：解決 57k、記録 112k）。今は worker が source を読み・parse し・plan し、module request
+  （含む directory・specifier・mode ごとに 1 つ、全 worker で共有）と type reference directive を自分の resolver で解決し、
+  行き先を自分の deque に積む。手の空いた worker は他の deque から取る（`WorkerBudget::map_spawning`、tsgo の work group の
+  形）。loading thread は pass の終わりに結果をまとめるだけ。walk とその順は変わらない。project reference の redirect、path
+  reference の行き先、library の path、JavaScript の省略は walk と worker で共有（`ReferenceView` ほか）。memory host も
+  任意の thread から解決できると宣言し、read-ahead の contract 14 件が新しい pass を通る。
+- **program の publish**：source を 2 回 clone せずに移し、解決の行き先を path の `BTreeMap` でなく hash で引き、拡張子の
+  比較で path 全体を fold しない。VS Code：publish 145 → 83 ms。
+- **測定**（`main` → PR、中央値、交互）：読み込みだけ VS Code 1,058 → 911 ms（−13.9%）、zod −9.6%、effect −8.4%、
+  typescript −6.9%、next −6.3%、hono −4.5%。全体 VS Code 3,645 → 3,471 ms（−4.7%）、zod −3.3%、effect −1.4%、next −1.6%。
+  CPU 時間は変わらず、context switch は 77% 減。中規模の project は check が大半なので全体の差は小さい（next は 1 つの巨大な
+  file の check、effect は 1 つの shard が 90 ms 長い）。
+- **test**：新しい pass の contract（相対 import、package とその import、type・path reference。逐次の program と同じ、
+  全 source を 1 度だけ読む、全 source が parse 済み）、`map_spawning` の 2 件、拡張子の比較の 1 件。
+- **結果**（release build、head `0b76827af`）：full の conformance（`--workers 2 --check`、491 s）は 0 regressions で #759 の report と
+  全ての field で同じ（runner は worker 1 つで読むので read-ahead は走らない）。suites は 0 regressions、既知の違い 10。test は
+  xtask 以外の全 crate で 4,134、clippy も通る。6 project の一致は 26 が一致、zod の 5 は分割に依るだけ。DefinitelyTyped
+  9,067／9,067、material-ui 38／38、azure-sdk-for-js 2,756／2,756（project reference を含む）。
+- **hosted と merge**：PR #760 の hosted run 38211852845（rust 10m57s、conformance 13m20s、gates pass、head `0b76827af`）、merge
+  commit `9bf127196`。
+- **続き**（branch `perf/ts71-loader-walk`）：plan の request を index で持ち walk が key を clone・hash しない（walk 130 → 87 ms）、
+  config の root reason を spec ごとに分解し直さない（28 → 14 ms）、PreparedProgram の source を hash で引く（publish 72 → 65 ms）。
+  VS Code の読み込みだけは 775 ms 前後で tsgo（777 ms）と並ぶ。
+
+## 残る候補
+
+- **loader の並列化**（上の組み替えで着手）：VS Code の読み込みだけ（`--listFilesOnly`）で tsc-rs 1.04 s（CPU 3.5 s）、tsgo 0.71 s（CPU 4.8 s）。
   段階の計測（`TSRS_PHASE_TRACE`）では、root の read-ahead の parse（10 thread、270〜360 ms）の後、依存の read-ahead（190〜220 ms）
   は調整役の main thread で律速され、root walk（125 ms）・graph finish（42 ms）・program の publish（約 130 ms）は main thread で
   逐次に走る。tsgo の file loader のように worker の task が parse と module 解決をまとめて行う形にすれば VS Code で 0.2〜0.3 s
