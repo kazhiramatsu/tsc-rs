@@ -108,3 +108,24 @@
   suites 0 regressions、test 4,155、clippy、API の client test（sync 337／356・async 346／365、変わらず）。
 - **hosted と merge**：PR #762 の hosted run 38222612506（rust 8m13s、conformance 19m52s、gates pass、head `53a3393a7`）、merge
   commit `f053cac8c`。
+
+## C2 host（PR #763）
+
+- **`content_mapper::errors`**（tsgo host.go）：初期化の失敗の種類と tsgo の message、project の応答の誤り、directive の誤り、
+  file loader が区別する transform の失敗。
+- **`content_mapper::protocol`**：JSON-RPC の method の引数と結果、span map の tuple、transform の結果の decode。mapper は
+  UTF-8 か UTF-16 で数え（`initialize` で選ぶ）、正規化は compiler の UTF-16 の code unit にする（tsgo は UTF-8 の byte）。
+  code point の途中の位置は tsgo と同じく拒む。診断の directive の検査と正規化、supplemental の出力は自分の directive を持つ。
+- **`content_mapper::host`**：mapper の identity ごとに 1 つの process（最初の利用で起動、5 秒以内の初期化、tsgo の
+  NoResponse・ProcessExit・Request と結果の検査）、mapper の project は遅れて開き同じ spec で共有、static と dynamic の
+  identity（xxh3-128、tsgo の `combinedIdentity`）、watched files、option diagnostics、最後の持ち主で process を閉じる lease と
+  acquisition、時間の計測、protocol と stderr の log。
+- **`tsc_compiler::content_mapper_process::NativeSpawner`**：tsgo の `spawnProcess` を `std::process` で（`PATH` にない
+  command は Go の message）。
+- **`tsc_host::ipc::pipe`**：process の中で動かす mapper のための memory の pipe。
+- **test**：host_test.go の case を process の中の mapper で（12）、応答の case を decoder で（8）、本物の `/bin/sh` の mapper と
+  `initialize` 前に終わる process と無い command（3）。
+- **結果**（release build、head `ee84678f9`）：test 4,179、clippy、suites 0 regressions、full の conformance（487 s）0 regressions
+  で #762 の report と 15,339 の構成が全て同じ。checker に触れないので並列対照は無し。
+- **hosted と merge**：PR #763 の hosted run 38226414167（rust 11m47s、conformance 13m28s、gates pass、head `ee84678f9`）、merge
+  commit `097f178bb`。`setLocale`（LSP だけの request）は言語 server と一緒に移す。
