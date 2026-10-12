@@ -9200,8 +9200,12 @@ fn optional_direct_files_preserve_parse_node_module_package_slices() {
     }
 }
 
+/// tsgo resolutionCandidateFromDirectoryPath drops the trailing separator of
+/// `pkg/`, so the package directory and the package id are those of `pkg`
+/// (`buffer/` in cypress's types: tsgo `buffer/index.d.ts@5.7.1`; TypeScript
+/// 6.0 sliced `ndex.d.ts` past the kept separator).
 #[test]
-fn bare_package_trailing_separators_retain_candidate_and_package_id_spelling() {
+fn a_bare_package_s_trailing_separator_names_the_package_directory_like_tsgo() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
         .directory("/work/node_modules/pkg/")
@@ -9233,7 +9237,7 @@ fn bare_package_trailing_separators_retain_candidate_and_package_id_spelling() {
         );
         let package_id = module.package_id().expect("attach package id");
         assert_eq!(package_id.name(), "pkg");
-        assert_eq!(package_id.submodule_name(), "ndex.d.ts");
+        assert_eq!(package_id.submodule_name(), "index.d.ts");
     }
 }
 
