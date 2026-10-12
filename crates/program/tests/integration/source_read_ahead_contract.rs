@@ -866,3 +866,151 @@ fn prepared_source_equality_ignores_the_preparsed_slot_in_every_state() {
     let other = PreparedSourceFile::new(path, "export const a = 2;\n");
     assert_ne!(absent, other);
 }
+
+/// A memory-backed host that reads and resolves from any thread (as the
+/// file system host does) and counts the reads of every path.
+struct CountingHost {
+    inner: MemoryCompilerHost,
+    reads: std::sync::Mutex<BTreeMap<String, usize>>,
+}
+
+impl CountingHost {
+    fn new(inner: MemoryCompilerHost) -> Self {
+        Self {
+            inner,
+            reads: std::sync::Mutex::new(BTreeMap::new()),
+        }
+    }
+
+    fn count(&self, path: &str) {
+        *self
+            .reads
+            .lock()
+            .expect("read counts")
+            .entry(path.to_owned())
+            .or_default() += 1;
+    }
+}
+
+impl tsc_host::ParallelSourceReader for CountingHost {
+    fn read_source_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<Vec<u8>>, HostError> {
+        self.count(path.as_str().expect("scalar test query"));
+        self.inner.read_file_js(path)
+    }
+}
+
+impl CompilerHost for CountingHost {
+    scalar_host_query_bridge!();
+
+    fn current_directory(&self) -> Result<PathBuf, HostError> {
+        self.inner.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.inner.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
+        self.count(&path.to_string_lossy());
+        self.inner.read_file(path)
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.inner.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, HostError> {
+        self.inner.directory_exists(path)
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, HostError> {
+        self.inner.read_directory(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
+        self.inner.realpath(path)
+    }
+
+    fn permits_source_read_ahead(&self) -> bool {
+        true
+    }
+
+    fn parallel_source_reader(&self) -> Option<&(dyn tsc_host::ParallelSourceReader + Sync)> {
+        Some(self)
+    }
+
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
+        Some(self)
+    }
+}
+
+/// Over a host that reads and resolves from any thread, the workers read,
+/// parse and resolve every source the roots lead to (relative imports, a
+/// package and its own imports, type and path reference directives) in one
+/// pass. The program is the sequential one, and every source is read once.
+#[test]
+fn parallel_read_ahead_follows_every_edge_and_loads_the_sequential_program() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/a.ts",
+            b"/// <reference types=\"tlib\" />\n/// <reference path=\"./ref.ts\" />\nimport { b } from \"./b\";\nimport { p } from \"pkg\";\nexport const a = b + p + tlibValue;\n".to_vec(),
+        )
+        .file("/work/b.ts", b"import \"./c\";\nexport const b = 1;\n".to_vec())
+        .file("/work/c.ts", b"export const c = 1;\n".to_vec())
+        .file("/work/ref.ts", b"export const r = 1;\n".to_vec())
+        .file(
+            "/work/z.ts",
+            b"import { p } from \"pkg\";\nimport \"./b\";\nexport const z = p;\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/package.json",
+            b"{\"name\":\"pkg\",\"version\":\"1.0.0\",\"types\":\"index.d.ts\"}".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/index.d.ts",
+            b"import \"./inner\";\nexport declare const p: number;\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/inner.d.ts",
+            b"export declare const inner: number;\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/@types/tlib/index.d.ts",
+            b"declare const tlibValue: number;\n".to_vec(),
+        )
+        .build()
+        .expect("build host");
+    let roots = ["/work/a.ts", "/work/z.ts"];
+    let sequential =
+        load(&host, &roots, compiler_options(), serial_limits()).expect("sequential load succeeds");
+
+    let counting = CountingHost::new(host);
+    let program = load(&counting, &roots, compiler_options(), parallel_limits())
+        .expect("parallel read-ahead load succeeds");
+    assert_eq!(program, sequential);
+    let sources = source_paths(&program);
+    assert_eq!(
+        sources,
+        [
+            "/work/ref.ts",
+            "/work/node_modules/@types/tlib/index.d.ts",
+            "/work/c.ts",
+            "/work/b.ts",
+            "/work/node_modules/pkg/inner.d.ts",
+            "/work/node_modules/pkg/index.d.ts",
+            "/work/a.ts",
+            "/work/z.ts",
+        ]
+    );
+    let reads = counting.reads.lock().expect("read counts").clone();
+    for source in &sources {
+        assert_eq!(reads.get(source), Some(&1), "{source} is read once");
+    }
+    assert!(program
+        .source_files()
+        .iter()
+        .all(|source| source.preparsed_syntax().is_available()));
+}

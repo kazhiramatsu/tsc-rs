@@ -2745,8 +2745,9 @@ impl PreparedProgramBuilder {
                 self.validate_canonical_case(path.canonical())?;
             }
         }
-        for (key, resolution) in &self.resolutions.modules {
-            self.validate_canonical_case(key.source())?;
+        // A module resolution's key source is a prepared source
+        // (`require_resolution_source`), checked above.
+        for resolution in self.resolutions.modules.values() {
             if let Some(alternate_result) = resolution.alternate_result() {
                 self.validate_canonical_case(alternate_result.canonical())?;
             }
@@ -3192,21 +3193,26 @@ fn insert_resolution<K: Eq + Ord + TableKey, T: Eq>(
     value: T,
     operation: PreparationOperation,
 ) -> Result<(), PreparationError> {
-    if let Some(existing) = table.get(&key) {
-        if existing == &value {
-            return Ok(());
+    match table.entry(key) {
+        std::collections::btree_map::Entry::Occupied(existing) => {
+            if existing.get() == &value {
+                return Ok(());
+            }
+            let key = existing.key();
+            Err(PreparationError::new_js(
+                PreparationErrorKind::IdentityConflict,
+                operation,
+                Some(key.canonical_path().as_js()),
+                format!(
+                    "resolution key ({:?}, {:?}) has conflicting outcomes",
+                    key.specifier(),
+                    key.mode()
+                ),
+            ))
         }
-        return Err(PreparationError::new_js(
-            PreparationErrorKind::IdentityConflict,
-            operation,
-            Some(key.canonical_path().as_js()),
-            format!(
-                "resolution key ({:?}, {:?}) has conflicting outcomes",
-                key.specifier(),
-                key.mode()
-            ),
-        ));
+        std::collections::btree_map::Entry::Vacant(entry) => {
+            entry.insert(value);
+            Ok(())
+        }
     }
-    table.insert(key, value);
-    Ok(())
 }
