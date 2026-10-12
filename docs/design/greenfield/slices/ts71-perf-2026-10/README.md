@@ -109,9 +109,30 @@ scratchpad の `perf/bench.py`（最初に出力の一致（診断・終了 code
   9,067／9,067、material-ui 38／38、azure-sdk-for-js 2,756／2,756（project reference を含む）。
 - **hosted と merge**：PR #760 の hosted run 38211852845（rust 10m57s、conformance 13m20s、gates pass、head `0b76827af`）、merge
   commit `9bf127196`。
-- **続き**（branch `perf/ts71-loader-walk`）：plan の request を index で持ち walk が key を clone・hash しない（walk 130 → 87 ms）、
-  config の root reason を spec ごとに分解し直さない（28 → 14 ms）、PreparedProgram の source を hash で引く（publish 72 → 65 ms）。
-  VS Code の読み込みだけは 775 ms 前後で tsgo（777 ms）と並ぶ。
+
+## loader の組み替え 2：walk・config・publish（PR #761）
+
+- **walk**：source の request の plan は読み込めるかを `BTreeSet`、span を `BTreeMap` に request 全体（source の path が先頭）を key
+  にして持ち、受け入れで key を 2 回 clone し、walk はさらに一覧を clone して span と read-ahead の解決のたびに key を hash
+  していた（並列の read-ahead は解決を 112k 件の map に loading thread でまとめていた）。今は plan が request の index で持ち
+  （parse の worker で作る）、受け入れは request をそれぞれの read-ahead の解決（採った plan なら index で、そうでなければ
+  level の形と同じく key で）と一緒に staged source へ移す。綴りの違う 2 つの道で届いた source は綴りごとに plan される
+  ので、request は source に残し、plan は key を clone して read-ahead の解決だけを取る（一度目の plan で request を移した
+  版は 2 つ目の綴りの TS1149 を失い、suites の 2 件（`forceConsistentCasingInFileNames` の大文字小文字の違う複数の場所からの
+  include、大文字小文字を区別しない incremental）が後退した。その場面の loader の test を足した）。
+- **config の root reason**：include の spec ごとに path を分解し直さず（`MatchInput` を一度）、`files` の一覧が無い時は fold
+  しない。VS Code：28 → 14 ms。
+- **`PreparedProgram`**：source を path の hash で引く（`BTreeMap` は引くだけで反復しない）。publish 72 → 65 ms。
+- **測定**（#760 → PR、中央値、交互）：読み込みだけ VS Code 853 → 755 ms（−11.5%）、zod −5.4%、effect −4.3%、next −4.7%、
+  typescript −1.4%、hono −1.2%。全体 VS Code 3,356 → 3,243 ms（−3.4%）、zod −1.8%、effect −0.5%、next −0.3%。#760 と合わせて
+  VS Code の読み込みは 1,058 → 755 ms（−29%）で、tsgo（777 ms）と並ぶ。
+- **結果**（release build、head `f7a28c8ee`）：full の conformance（492 s）は 0 regressions で #760 の report と全ての field で同じ、
+  suites 0 regressions、test 4,135、clippy、6 project 26 一致（zod 5 は分割のみ）、DefinitelyTyped 9,067／9,067、material-ui
+  38／38、azure-sdk-for-js 2,756／2,756。
+- **hosted と merge**：PR #761 の hosted run 38219198981（rust 7m56s、conformance 21m2s、gates pass、head `f7a28c8ee`）、merge
+  commit `97a748a09`。
+- loader の作業はここで区切る。残る候補：graph の finish（VS Code 40 ms、薄く広い）、config の directory の walk（34 ms、listing
+  は 4 thread が最速と記録済み）、name の interner の競合（`RwLock` は差が出ず）、`open` の system call。
 
 ## 残る候補
 
