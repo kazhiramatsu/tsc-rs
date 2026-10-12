@@ -227,6 +227,50 @@ fn a_mapped_file_is_its_virtual_output_with_its_supplemental_outputs_as_subtasks
     );
 }
 
+/// tsgo sourceFileMayBeEmitted: a content mapper's files, supplemental ones
+/// too, are emitted only for their declarations (their runtime output is
+/// the mapper's or its build tool's); a forced declaration emit still
+/// covers them.
+#[test]
+fn mapped_files_are_emitted_only_for_their_declarations() {
+    for (declaration, emitted) in [("false", false), ("true", true)] {
+        let config = format!(
+            r#"{{
+                "compilerOptions": {{ "noLib": true, "types": [], "module": "nodenext", "declaration": {declaration} }},
+                "contentMappers": [{{ "package": "vue", "extensions": [".vue"] }}]
+            }}"#
+        );
+        let (prepared, _) = load_with(
+            &config,
+            &[
+                ("/p/src/Component.vue", "<template />"),
+                ("/p/src/main.ts", "export {};"),
+            ],
+            fake(|_, _| {
+                Ok(output(
+                    "export const a = 1;",
+                    ".ts",
+                    vec![result("export const b = 2;", ".mts")],
+                ))
+            }),
+        );
+        assert_eq!(prepared.source_files().len(), 3);
+        for source in prepared.source_files() {
+            let mapped = source.content_mapped().is_some();
+            let name = source.path().display().to_string_lossy();
+            assert_eq!(
+                source.may_be_emitted(),
+                emitted || !mapped,
+                "declaration {declaration}: {name}"
+            );
+            assert!(
+                source.may_emit_forced_declaration(),
+                "declaration {declaration}: {name}"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_failed_transform_leaves_a_stub_with_its_diagnostic() {
     let (prepared, _) = load(
