@@ -100,6 +100,16 @@ impl PartialEq for DocumentAddress {
     }
 }
 
+/// The identity domain of every shared document: the process cache's library
+/// bundles and the documents of every [`DocumentRegistry`]. tsgo's parse
+/// cache hands a parse to any Program (a pointer belongs to no domain); one
+/// reclaiming domain gives tsc-rs the same reach, so Programs with different
+/// library sets share their sources, as do files a client created.
+pub fn shared_identity_domain() -> &'static IdentityDomain {
+    static DOMAIN: std::sync::OnceLock<IdentityDomain> = std::sync::OnceLock::new();
+    DOMAIN.get_or_init(IdentityDomain::reclaiming)
+}
+
 /// tsgo's parse cache (`project/parsecache.go`): the parsed and bound
 /// sources Programs hold, found again by file name, text and
 /// [`DocumentAddress`], so a Program built again shares the documents of the
@@ -108,8 +118,7 @@ impl PartialEq for DocumentAddress {
 /// follows the Programs' `Arc`s.
 #[derive(Debug)]
 pub struct DocumentRegistry {
-    /// The domain of Programs without libraries (a library bundle has its
-    /// own), so their sources can be shared too.
+    /// [`shared_identity_domain`], the domain of the library bundles too.
     identity_domain: IdentityDomain,
     entries: Mutex<HashMap<(JsString, u64), Vec<RegistryEntry>>>,
 }
@@ -123,12 +132,12 @@ struct RegistryEntry {
 impl DocumentRegistry {
     pub fn new() -> Self {
         Self {
-            identity_domain: IdentityDomain::reclaiming(),
+            identity_domain: shared_identity_domain().clone(),
             entries: Mutex::default(),
         }
     }
 
-    /// The identity domain of Programs without libraries.
+    /// The identity domain of the documents ([`shared_identity_domain`]).
     pub fn identity_domain(&self) -> &IdentityDomain {
         &self.identity_domain
     }

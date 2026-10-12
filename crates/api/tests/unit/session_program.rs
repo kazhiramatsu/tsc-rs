@@ -6,7 +6,10 @@
 use base64::Engine;
 
 use super::*;
-use crate::encoder::{build_node_index_table, HEADER_OFFSET_HASH_LO0, HEADER_OFFSET_PARSE_OPTIONS};
+use crate::encoder::{
+    build_node_index_table, HEADER_OFFSET_HASH_LO0, HEADER_OFFSET_PARSE_OPTIONS,
+    HEADER_OFFSET_SOURCE_FILE_ID,
+};
 
 const APP: &[(&str, &str)] = &[
     ("/app/base.json", r#"{ "compilerOptions": { "strict": true } }"#),
@@ -540,5 +543,91 @@ fn a_host_link_into_node_modules_rebuilds_the_program() {
         )
         .unwrap()["isFromExternalLibrary"],
         true
+    );
+}
+
+/// The parse a source file response names (tsgo's source file id).
+fn parse_id(response: &Value) -> u64 {
+    let data = base64::engine::general_purpose::STANDARD
+        .decode(response["data"].as_str().expect("a source file response"))
+        .unwrap();
+    u64::from_le_bytes(
+        data[HEADER_OFFSET_SOURCE_FILE_ID..HEADER_OFFSET_SOURCE_FILE_ID + 8]
+            .try_into()
+            .unwrap(),
+    )
+}
+
+#[test]
+fn a_created_source_file_is_the_program_file_it_matches() {
+    // tsgo's created files and a Program's files share one parse cache, so
+    // a Program opened after the file was created holds that parse
+    // (api.test.ts "createSourceFile shares identity with a matching program
+    // file"), whatever libraries the Program has.
+    let text = "export declare const element: number;";
+    let (session, _) = session(&[("/component.d.ts", text)]);
+    let created = call(
+        &session,
+        "createSourceFile",
+        json!({ "fileName": "/component.d.ts", "sourceText": text, "options": { "scriptKind": 0 } }),
+    )
+    .unwrap();
+    let snapshot = call(
+        &session,
+        "createSnapshot",
+        json!({ "openFiles": ["/component.d.ts"] }),
+    )
+    .unwrap();
+    let program_file = call(
+        &session,
+        "getSourceFile",
+        json!({
+            "snapshot": snapshot["snapshot"],
+            "project": snapshot["projects"][0]["id"],
+            "file": "/component.d.ts",
+        }),
+    )
+    .unwrap();
+    assert_eq!(parse_id(&program_file), parse_id(&created));
+}
+
+#[test]
+fn projects_with_different_libraries_share_a_files_parse() {
+    // Parsing and binding read no options and every shared document lives
+    // in one identity domain, so two projects whose library sets differ hold
+    // the same parse of a file they both include (tsgo's parse cache key has
+    // no library set).
+    let (session, _) = session(&[
+        (
+            "/a/tsconfig.json",
+            r#"{ "compilerOptions": { "lib": ["es2020"], "types": [] }, "files": ["../shared/util.ts", "main.ts"] }"#,
+        ),
+        ("/a/main.ts", "export {};\n"),
+        (
+            "/b/tsconfig.json",
+            r#"{ "compilerOptions": { "lib": ["esnext", "dom"], "target": "es2017", "types": [] }, "files": ["../shared/util.ts", "main.ts"] }"#,
+        ),
+        ("/b/main.ts", "export {};\n"),
+        ("/shared/util.ts", "export const util = 1;\n"),
+    ]);
+    let snapshot = call(
+        &session,
+        "createSnapshot",
+        json!({ "openProjects": ["/a/tsconfig.json", "/b/tsconfig.json"] }),
+    )
+    .unwrap();
+    let file_of = |project: &Value| {
+        call(
+            &session,
+            "getSourceFile",
+            json!({ "snapshot": snapshot["snapshot"], "project": project, "file": "/shared/util.ts" }),
+        )
+        .unwrap()
+    };
+    let projects = snapshot["projects"].as_array().unwrap();
+    assert_eq!(projects.len(), 2);
+    assert_eq!(
+        parse_id(&file_of(&projects[0]["id"])),
+        parse_id(&file_of(&projects[1]["id"]))
     );
 }
