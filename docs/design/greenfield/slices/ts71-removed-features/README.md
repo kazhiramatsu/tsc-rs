@@ -127,3 +127,20 @@ project で差を出すため）。順は `.types`／`.symbols` の残り（#751
   registry の domain にあるので共有できない。同じ理由で、lib の組が違う project の間でも parse を共有できない。domain を 1 つに
   まとめれば共有できる（checker の node の表は page 単位で確保するので id の範囲が広がっても大きくは増えない見込み）が、program
   をまたぐ id の割り当ての変更なので、性能の計測と合わせて判断する。
+
+## R3b identity domain を 1 つに（2026-10-12、利用者の判断「今すぐ実装する」）
+
+- R3 の残りの差（lib を持つ program は lib の bundle の domain で id を割り当てる）を閉じた：process に 1 つの reclaiming の
+  domain（`program::shared_identity_domain`）が process の cache の lib の bundle と全ての `DocumentRegistry` の document を持つ。
+  lib の組が違う program も parse を共有する。`createSourceFile` は新しい file をその domain で parse・bind し、program が同じ file
+  に（module indicator の option なしで）計算する address で registry に記録するので、後の program がその parse を持つ（tsgo の
+  作った file は zero の `ExternalModuleIndicatorOptions`）。
+- **test**（3 つとも修正前のコードで失敗する）：`createSourceFile` の後に開いた program が作った parse を持つ（client の test
+  「createSourceFile shares identity with a matching program file」）、`lib` の組が違う 2 つの project が共有する file の parse を
+  共有する、lib の bundle と registry が 1 つの domain。
+- **結果**（release build、head `68625b636`）：full の conformance（`--workers 2 --check`、487 s）は 0 regressions で R3 の
+  report と全ての field で同じ。並列対照は記録済みの順序の 4 構成だけ。suites は 0 regressions、既知の違い 10。test 3,254 と
+  clippy は通る。TypeScript の API の client の test は sync 337／356、async 346／365（各 +1、残りは LS 16 と
+  `formatNodeForInsertion` 3）。
+- **hosted と merge**：PR #757 の hosted run 38191306025（rust 11m22s、conformance 13m35s、gates pass、head `68625b636`）、merge
+  commit `2adf688ee`。
