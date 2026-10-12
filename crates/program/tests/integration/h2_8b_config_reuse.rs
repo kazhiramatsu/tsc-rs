@@ -97,6 +97,19 @@ impl ConfigParseHost for Host {
                 && self.files.borrow().contains_key(&self.key(path)),
         )
     }
+    fn directory_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+        let prefix = format!("{}/", self.key(path));
+
+        Ok(
+            !self.call(ConfigHostOperation::DirectoryExists, path, json!({}))?
+                && self
+                    .files
+                    .borrow()
+                    .keys()
+                    .any(|file| file.starts_with(&prefix)),
+        )
+    }
     fn read_file(
         &self,
         path: tsc_diagnostics::JsStr<'_>,

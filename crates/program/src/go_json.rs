@@ -122,16 +122,26 @@ impl GoJson {
     }
 }
 
-/// `strconv.FormatFloat(value, 'f', -1, 64)` for the numbers the tests
-/// write: an integer as is, a fraction in its shortest form.
+/// A number as `encoding/json/v2` writes a `float64` (an integer as is):
+/// the shortest text that reads back, positional from 1e-6 up to 1e21 and
+/// with an exponent (`1e+21`, `1e-7`) outside.
 fn number_text(number: &serde_json::Number) -> String {
     if number.is_i64() || number.is_u64() {
         return number.to_string();
     }
-    match number.as_f64() {
-        Some(value) if value.fract() == 0.0 && value.abs() < 1e15 => format!("{}", value as i64),
-        Some(value) => format!("{value}"),
-        None => number.to_string(),
+    let Some(value) = number.as_f64() else {
+        return number.to_string();
+    };
+    let magnitude = value.abs();
+    if magnitude == 0.0 || (1e-6..1e21).contains(&magnitude) {
+        return format!("{value}");
+    }
+    let text = format!("{value:e}");
+    match text.split_once('e') {
+        Some((mantissa, exponent)) if !exponent.starts_with('-') => {
+            format!("{mantissa}e+{exponent}")
+        }
+        _ => text,
     }
 }
 

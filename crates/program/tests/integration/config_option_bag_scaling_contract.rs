@@ -30,6 +30,11 @@ impl ConfigParseHost for MemoryConfigHost {
         Ok(self.files.contains_key(path))
     }
 
+    fn directory_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let prefix = format!("{}/", path.as_str().expect("scalar config fixture query"));
+        Ok(self.files.keys().any(|file| file.starts_with(&prefix)))
+    }
+
     fn read_file(
         &self,
         path: tsc_diagnostics::JsStr<'_>,

@@ -72,6 +72,13 @@ use crate::project_references::ResolvedProjectReferences;
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
 
+#[path = "config_content_mappers.rs"]
+mod content_mappers;
+
+use crate::content_mapper::host::OptionPathSegment;
+use crate::content_mapper::Mapper;
+use content_mappers::{equal_fold, longest_extension, ContentMapperParse, ContentMapperSyntax};
+
 const TYPESCRIPT_EXTENSIONS: &[&[&str]] = &[
     &[".ts", ".tsx", ".d.ts"],
     &[".cts", ".d.cts"],
@@ -90,6 +97,7 @@ const MAX_CONFIG_EXTENDS_DEPTH: usize = 64;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConfigHostOperation {
     FileExists,
+    DirectoryExists,
     ReadFile,
     ReadDirectory,
     Realpath,
@@ -99,6 +107,7 @@ impl fmt::Display for ConfigHostOperation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::FileExists => "fileExists",
+            Self::DirectoryExists => "directoryExists",
             Self::ReadFile => "readFile",
             Self::ReadDirectory => "readDirectory",
             Self::Realpath => "realpath",
@@ -166,6 +175,10 @@ pub trait ConfigParseHost {
     fn use_case_sensitive_file_names(&self) -> bool;
 
     fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError>;
+
+    /// tsgo `FS().DirectoryExists`: a content mapper's package is found by
+    /// its directory.
+    fn directory_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError>;
 
     fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError>;
 
@@ -995,6 +1008,12 @@ pub struct ConfigRootPlan {
     errors: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
     extended_source_files: Vec<JsString>,
+    /// tsgo `ParsedOptions.ContentMappers`: the config's content mappers,
+    /// each with its package's manifest.
+    content_mappers: Vec<Arc<Mapper>>,
+    /// The config was given as a JSON object (tsgo's `ConfigFile` is nil):
+    /// there is no syntax to point at.
+    json_object: bool,
 }
 
 impl ConfigRootPlan {
@@ -1123,6 +1142,69 @@ impl ConfigRootPlan {
 
     pub fn file_names(&self) -> &[JsString] {
         &self.file_names
+    }
+
+    /// tsgo `ContentMappers`.
+    pub fn content_mappers(&self) -> &[Arc<Mapper>] {
+        &self.content_mappers
+    }
+
+    /// tsgo `ContentMapperExtensions`: every mapper's extensions in order.
+    pub fn content_mapper_extensions(&self) -> impl Iterator<Item = &str> + Clone {
+        self.content_mappers
+            .iter()
+            .flat_map(|mapper| mapper.definition.extensions.iter().flatten())
+            .map(String::as_str)
+    }
+
+    /// tsgo `GetContentMapperForFileName`: the first mapper registering the
+    /// longest of the extensions the file name ends with (in the host's
+    /// case sensitivity).
+    pub fn content_mapper_for_file_name(
+        &self,
+        file_name: JsStr<'_>,
+        case_sensitive: bool,
+    ) -> Option<&Arc<Mapper>> {
+        let extension =
+            longest_extension(file_name, self.content_mapper_extensions(), case_sensitive)?;
+        self.content_mappers.iter().find(|mapper| {
+            mapper
+                .definition
+                .extensions
+                .iter()
+                .flatten()
+                .any(|candidate| {
+                    *candidate == extension
+                        || (!case_sensitive && equal_fold(&extension, candidate))
+                })
+        })
+    }
+
+    /// tsgo `GetContentMapperOptionDiagnosticLocation`: where in the config
+    /// file a mapper's option diagnostic points — the value at `path` inside
+    /// the mapper's `options`, as far as the config has it. Nothing for a
+    /// JSON object config.
+    pub fn content_mapper_option_diagnostic_location(
+        &self,
+        mapper: &Arc<Mapper>,
+        path: &[OptionPathSegment],
+    ) -> Option<ProgramConfigSpan> {
+        if self.json_object {
+            return None;
+        }
+        let source = tsc_syntax::parse_json_text_from_snapshot(
+            &self.source.file_name,
+            Arc::clone(self.source.snapshot()),
+        );
+        let syntax = ContentMapperSyntax {
+            source: Some(&source),
+        };
+        let index = self
+            .content_mappers
+            .iter()
+            .position(|candidate| Arc::ptr_eq(candidate, mapper));
+        let location = syntax.location(syntax.option(index, path))?;
+        Some(ProgramConfigSpan::new(location.start, location.length))
     }
 
     /// Each file name's inclusion reason: its `files` entry, the include
@@ -1659,6 +1741,10 @@ struct ParsedConfigNode {
     inheritable_include: Option<Vec<InheritedSpec>>,
     inheritable_exclude: Option<Vec<InheritedSpec>>,
     references: Option<Value>,
+    /// tsgo `raw["contentMappers"]` after the extends merge: the config's
+    /// own value as written, else the last base's (as its conversion left
+    /// it).
+    content_mappers: Option<Value>,
     type_acquisition: ConfigOptionBag,
     compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
@@ -1747,15 +1833,18 @@ pub fn parse_config_root_plan(
 }
 
 /// tsgo `ParseJsonConfigFileContent`: the root config is a JSON object (the
-/// request's text is its JSON), parsed without a source file. Its `raw` is
-/// the object, and `getPropFromRaw` reads `references`, `files`, `include`
-/// and `exclude` as given: an array of other values than strings (objects
-/// for `references`), nulls included, is reported once and stays present.
+/// request's text is its JSON), parsed without a source file, with the
+/// caller's existing options. Its `raw` is the object, and `getPropFromRaw`
+/// reads `references`, `files`, `include`, `exclude` and `contentMappers`
+/// as given: an array of other values than strings (objects for
+/// `references` and `contentMappers`), nulls included, is reported once and
+/// stays present.
 pub fn parse_config_root_plan_of_json_object(
     host: &dyn ConfigParseHost,
     request: ConfigRootPlanRequest,
+    existing_options: Option<&ConfigOptionBag>,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
-    parse_config_root_plan_inner(host, request, None, None, true)
+    parse_config_root_plan_inner(host, request, None, existing_options, true)
 }
 
 /// Parse with the caller's extended-config cache. The root is always parsed
@@ -1814,7 +1903,7 @@ fn parse_config_root_plan_inner(
         json_object,
     };
     let phase_started = std::time::Instant::now();
-    let mut node = context
+    let mut node = *context
         .parse_node(
             ConfigSourceText::new(request.file_name, request.text),
             &config_file_name,
@@ -1854,10 +1943,34 @@ fn parse_config_root_plan_inner(
     context
         .errors
         .append(&mut json_object_errors.before_files_empty);
+    // The root config's syntax for the content mapper diagnostics (a JSON
+    // object has none), parsed only when there are mappers to point at.
+    let content_mapper_source = (!json_object && node.content_mappers.is_some()).then(|| {
+        tsc_syntax::parse_json_text_from_snapshot(
+            &node.source.file_name,
+            Arc::clone(node.source.snapshot()),
+        )
+    });
+    let content_mapper_parse = ContentMapperParse {
+        host,
+        source: content_mapper_source.as_ref(),
+        json_object,
+        run_external_code: node
+            .options
+            .typed_value("runExternalCode")
+            .and_then(Value::as_bool)
+            == Some(true),
+        containing_file: if config_file_name.is_empty() {
+            combine_paths(config_base.as_js(), "tsconfig.json".into())
+        } else {
+            config_file_name.clone()
+        },
+    };
     let DerivedFileNames {
         file_names,
         include_specs,
         exclude_specs,
+        content_mappers,
     } = derive_file_names(
         host,
         &node,
@@ -1866,6 +1979,13 @@ fn parse_config_root_plan_inner(
         &discovery_options,
         json_object.then_some(&mut json_object_errors.after_files_empty),
         &mut context.errors,
+        |errors| {
+            content_mappers::parse_content_mappers(
+                &content_mapper_parse,
+                node.content_mappers.as_ref(),
+                errors,
+            )
+        },
     )?;
     tsc_types::trace::mark("config: file names", phase_started);
     context.errors.extend(json_object_errors.references_again);
@@ -1945,6 +2065,8 @@ fn parse_config_root_plan_inner(
         root_parse_diagnostics: context.root_parse_diagnostics,
         errors: context.errors,
         option_diagnostics,
+        content_mappers,
+        json_object,
     })
 }
 
@@ -2040,11 +2162,6 @@ fn config_project_references<'j0>(
     Some(result)
 }
 
-/// tsgo `getProjectReferences`' checks of each reference: a missing or
-/// non-string `path` (TS5024), an empty one (TS18051), a non-boolean
-/// `circular` (TS5024), at the property's value or else the element.
-/// tsgo's notifier converts `references` as a list option
-/// (`convertJsonOption`): a value that is neither an array nor nil is TS5024.
 /// Whether `node` is written as an array literal: tsgo converts one none of
 /// whose elements converted to a nil slice, which its type checks still
 /// read as an array.
@@ -2052,23 +2169,47 @@ fn is_array_literal(source: &SourceFile, node: NodeId) -> bool {
     source.arena.node(node).kind == SyntaxKind::ArrayLiteralExpression
 }
 
-fn validate_references_value(source: &SourceFile, errors: &mut Vec<Diagnostic>) {
+/// tsgo's notifier converts `references` and `contentMappers` as lists of
+/// objects (`convertJsonOption`): a value that is neither an array nor nil
+/// is TS5024 (`Array`), and so is each element that is not an object
+/// (`object`). An element is found by its index among the values the
+/// conversion kept, so a dropped null before it shifts the location (tsgo
+/// `convertJsonOptionOfListType`).
+fn validate_object_list_values(source: &SourceFile, errors: &mut Vec<Diagnostic>) {
     for property in config_root_object(source)
         .into_iter()
         .flat_map(|root| config_object_properties(source, root))
-        .filter(|property| property.name == "references")
     {
+        let name = match property.name.as_str() {
+            Some(name @ ("references" | "contentMappers")) => name,
+            _ => continue,
+        };
         let Some(RecoverableJsonValue::Defined(value)) =
             convert_recoverable_json_node_to_value(source, property.initializer)
         else {
             continue;
         };
-        if !value.is_array() && !value.is_null() {
-            errors.push(config_diagnostic(
+        match value {
+            Value::Array(values) => {
+                let elements = config_array_elements(source, property.initializer);
+                for (index, value) in values.iter().enumerate() {
+                    if !value.is_object() {
+                        errors.push(config_diagnostic(
+                            &gen::Compiler_option_0_requires_a_value_of_type_1,
+                            &[name, "object"],
+                            elements
+                                .get(index)
+                                .and_then(|element| config_location(source, *element)),
+                        ));
+                    }
+                }
+            }
+            Value::Null => {}
+            _ => errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
-                &["references", "Array"],
+                &[name, "Array"],
                 config_location(source, property.initializer),
-            ));
+            )),
         }
     }
 }
@@ -2146,6 +2287,9 @@ fn json_object_specs<'j0>(
     None
 }
 
+/// tsgo `getProjectReferences`' checks of each reference: a missing or
+/// non-string `path` (TS5024), an empty one (TS18051), a non-boolean
+/// `circular` (TS5024), at the property's value or else the element.
 fn project_reference_diagnostics(source: &SourceFile, references: &[Value]) -> Vec<Diagnostic> {
     let elements = config_property_initializer(source, "references")
         .map(|array| config_array_elements(source, array))
@@ -2458,6 +2602,9 @@ pub const H0_SUPPORTED_CONFIG_OPTIONS: &[&str] = &[
     "paths",
     "outDir",
     "declarationDir",
+    // The config's content mappers are kept only with it (the config parse
+    // reads it).
+    "runExternalCode",
 ];
 
 /// Source map options a no-emit command retains without an emitter: they
@@ -2744,9 +2891,13 @@ impl ParseContext<'_> {
                 let parsed = parse_config_source(&source)?;
                 entry.read_parse_diagnostics = parsed.parse_diagnostics.to_vec();
                 entry.source = Some(source.clone());
-                entry.node = self
-                    .parse_node_from_source(source, parsed, path, &js_directory_name(path), false)?
-                    .map(Box::new);
+                entry.node = self.parse_node_from_source(
+                    source,
+                    parsed,
+                    path,
+                    &js_directory_name(path),
+                    false,
+                )?;
             }
             Ok(None) => {
                 entry.read_parse_diagnostics.push(config_diagnostic(
@@ -2779,7 +2930,7 @@ impl ParseContext<'_> {
         normalized_file_name: impl Into<JsStr<'j0>>,
         base_path: impl Into<JsStr<'j1>>,
         is_root: bool,
-    ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
+    ) -> Result<Option<Box<ParsedConfigNode>>, ConfigParseError> {
         let normalized_file_name = normalized_file_name.into();
         let base_path = base_path.into();
         let parsed = parse_config_source(&source)?;
@@ -2793,7 +2944,7 @@ impl ParseContext<'_> {
         normalized_file_name: impl Into<JsStr<'j0>>,
         base_path: impl Into<JsStr<'j1>>,
         is_root: bool,
-    ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
+    ) -> Result<Option<Box<ParsedConfigNode>>, ConfigParseError> {
         let normalized_file_name = normalized_file_name.into();
         let base_path = base_path.into();
         if !parsed.parse_diagnostics.is_empty() {
@@ -2854,7 +3005,7 @@ impl ParseContext<'_> {
         normalized_file_name: impl Into<JsStr<'j0>>,
         base_path: impl Into<JsStr<'j1>>,
         is_root: bool,
-    ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
+    ) -> Result<Option<Box<ParsedConfigNode>>, ConfigParseError> {
         let normalized_file_name = normalized_file_name.into();
         let base_path = base_path.into();
         let mut own_errors = config_json_conversion_diagnostics(&parsed);
@@ -2945,7 +3096,7 @@ impl ParseContext<'_> {
                 (files, include, exclude)
             }
             _ => {
-                validate_references_value(&parsed, &mut own_errors);
+                validate_object_list_values(&parsed, &mut own_errors);
                 (
                     specs("files", base_path, &parsed, &mut own_errors),
                     specs("include", base_path, &parsed, &mut own_errors),
@@ -2978,6 +3129,7 @@ impl ParseContext<'_> {
         let mut inherited_include = None;
         let mut inherited_exclude = None;
         let mut inherited_compile_on_save = None;
+        let mut inherited_content_mappers = None;
         let mut extended_sources = Vec::new();
         let mut seen_sources = BTreeSet::new();
         let mut extended_source_files = Vec::new();
@@ -3065,6 +3217,9 @@ impl ParseContext<'_> {
             if extended.compile_on_save.is_some() {
                 inherited_compile_on_save = extended.compile_on_save.clone();
             }
+            if let Some(value) = &extended.content_mappers {
+                inherited_content_mappers = content_mappers::inherited(value);
+            }
         }
         inherited_options.extend_from(&own_options);
         own_options = inherited_options;
@@ -3127,6 +3282,11 @@ impl ParseContext<'_> {
                 raw_property_names.insert("compileOnSave".into());
             }
         }
+        let content_mappers = content_mappers::merged(
+            raw_object,
+            &mut raw_property_names,
+            inherited_content_mappers,
+        );
         let inheritable_files =
             inheritable_specs(raw_object, &raw_property_names, "files", base_path, &parsed);
         let inheritable_include = inheritable_specs(
@@ -3150,7 +3310,9 @@ impl ParseContext<'_> {
             }
             _ => Vec::new(),
         };
-        Ok(Some(ParsedConfigNode {
+        // Boxed where it is built: the extends recursion passes it up through
+        // every level, and its frames stay small.
+        Ok(Some(Box::new(ParsedConfigNode {
             source,
             raw: match json_object {
                 Some(object @ Value::Object(_)) => object,
@@ -3166,6 +3328,7 @@ impl ParseContext<'_> {
             inheritable_include,
             inheritable_exclude,
             references: own_references,
+            content_mappers,
             type_acquisition,
             compile_on_save,
             unsupported_root_scopes,
@@ -3173,7 +3336,7 @@ impl ParseContext<'_> {
             json_object_errors,
             extended_sources,
             extended_source_files,
-        }))
+        })))
     }
 
     fn resolve_extends<'j0>(
@@ -4533,6 +4696,7 @@ fn native_config_query(path: &Path, operation: HostOperation) -> Result<JsStr<'_
 fn config_host_error_for_resolver(error: ConfigHostError) -> HostError {
     let operation = match error.operation() {
         ConfigHostOperation::FileExists => HostOperation::FileExists,
+        ConfigHostOperation::DirectoryExists => HostOperation::DirectoryExists,
         ConfigHostOperation::ReadFile => HostOperation::ReadFile,
         ConfigHostOperation::ReadDirectory => HostOperation::ReadDirectory,
         ConfigHostOperation::Realpath => HostOperation::Realpath,
@@ -4550,6 +4714,7 @@ fn config_error_from_resolution(error: ResolutionError) -> ConfigParseError {
         ResolutionError::Host(error) => {
             let operation = match error.operation() {
                 HostOperation::FileExists => Some(ConfigHostOperation::FileExists),
+                HostOperation::DirectoryExists => Some(ConfigHostOperation::DirectoryExists),
                 HostOperation::ReadFile => Some(ConfigHostOperation::ReadFile),
                 HostOperation::ReadDirectory => Some(ConfigHostOperation::ReadDirectory),
                 HostOperation::Realpath => Some(ConfigHostOperation::Realpath),
@@ -4604,8 +4769,10 @@ struct DerivedFileNames {
     file_names: Vec<JsString>,
     include_specs: Vec<JsString>,
     exclude_specs: Option<Vec<JsString>>,
+    content_mappers: Vec<Arc<Mapper>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn derive_file_names<'j0, 'j1>(
     host: &dyn ConfigParseHost,
     config: &ParsedConfigNode,
@@ -4616,6 +4783,9 @@ fn derive_file_names<'j0, 'j1>(
     // `getPropFromRaw`), reported after the empty `files` check.
     json_object_spec_errors: Option<&mut Vec<Diagnostic>>,
     errors: &mut Vec<Diagnostic>,
+    // tsgo reads the content mappers after the spec checks: their errors
+    // follow those, and their extensions are listed too.
+    content_mappers: impl FnOnce(&mut Vec<Diagnostic>) -> Result<Vec<Arc<Mapper>>, ConfigParseError>,
 ) -> Result<DerivedFileNames, ConfigParseError> {
     let json_object = json_object_spec_errors.is_some();
     let base_path = base_path.into();
@@ -4690,11 +4860,29 @@ fn derive_file_names<'j0, 'j1>(
         None
     };
 
-    let extension_groups = if discovery_options.allow_js {
+    let content_mappers = content_mappers(errors)?;
+    // tsgo `GetSupportedExtensions`: each mapper extension a group of its
+    // own after the built-in ones.
+    let builtin_groups = if discovery_options.allow_js {
         ALL_EXTENSIONS
     } else {
         TYPESCRIPT_EXTENSIONS
     };
+    let mapper_groups = content_mappers
+        .iter()
+        .flat_map(|mapper| mapper.definition.extensions.iter().flatten())
+        .filter(|extension| {
+            !builtin_groups
+                .iter()
+                .any(|group| group.contains(&extension.as_str()))
+        })
+        .map(|extension| [extension.as_str()])
+        .collect::<Vec<_>>();
+    let extension_groups = builtin_groups
+        .iter()
+        .copied()
+        .chain(mapper_groups.iter().map(|group| &group[..]))
+        .collect::<Vec<&[&str]>>();
     let mut flat_extensions = extension_groups
         .iter()
         .flat_map(|group| group.iter().copied())
@@ -4758,7 +4946,7 @@ fn derive_file_names<'j0, 'j1>(
             file.as_js(),
             &literal_keys,
             &wildcard,
-            extension_groups,
+            &extension_groups,
             case_sensitive,
         ) {
             continue;
@@ -4766,7 +4954,7 @@ fn derive_file_names<'j0, 'j1>(
         remove_lower_priority(
             file.as_js(),
             &mut wildcard,
-            extension_groups,
+            &extension_groups,
             case_sensitive,
         );
         let key = file_name_key(file.as_js(), case_sensitive);
@@ -4793,6 +4981,7 @@ fn derive_file_names<'j0, 'j1>(
         file_names,
         include_specs: include_values,
         exclude_specs: exclude_values,
+        content_mappers,
     })
 }
 
@@ -6813,6 +7002,8 @@ impl OrderedFileMap {
     }
 }
 
+/// tsgo `hasFileWithHigherPriorityExtension`: over the extensions of every
+/// group that has the file's, in order.
 fn has_higher_priority(
     file: JsStr<'_>,
     literal: &rustc_hash::FxHashSet<JsString>,
@@ -6820,14 +7011,15 @@ fn has_higher_priority(
     groups: &[&[&str]],
     case_sensitive: bool,
 ) -> bool {
-    let Some(group) = groups.iter().find(|group| {
-        group
-            .iter()
-            .any(|extension| file_extension_is(file, extension))
-    }) else {
-        return false;
-    };
-    for extension in *group {
+    let group = groups
+        .iter()
+        .filter(|group| {
+            group
+                .iter()
+                .any(|extension| file_extension_is(file, extension))
+        })
+        .flat_map(|group| group.iter());
+    for extension in group {
         if file_extension_is(file, extension)
             && (*extension != ".ts" || !file_extension_is(file, ".d.ts"))
         {
@@ -6846,20 +7038,24 @@ fn has_higher_priority(
     false
 }
 
+/// tsgo `removeWildcardFilesWithLowerPriorityExtension`: backwards over the
+/// extensions of every group that has the file's.
 fn remove_lower_priority(
     file: JsStr<'_>,
     wildcard: &mut OrderedFileMap,
     groups: &[&[&str]],
     case_sensitive: bool,
 ) {
-    let Some(group) = groups.iter().find(|group| {
-        group
-            .iter()
-            .any(|extension| file_extension_is(file, extension))
-    }) else {
-        return;
-    };
-    for extension in group.iter().rev() {
+    let group = groups
+        .iter()
+        .rev()
+        .filter(|group| {
+            group
+                .iter()
+                .any(|extension| file_extension_is(file, extension))
+        })
+        .flat_map(|group| group.iter().rev());
+    for extension in group {
         if file_extension_is(file, extension) {
             return;
         }

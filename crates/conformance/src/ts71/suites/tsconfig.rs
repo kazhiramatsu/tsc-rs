@@ -236,6 +236,7 @@ fn parse(
             parse_config_root_plan_of_json_object(
                 &host,
                 request(GoJson::from_json(&object).compact()),
+                None,
             )
         }
     }
