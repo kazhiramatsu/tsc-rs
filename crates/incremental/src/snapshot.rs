@@ -138,6 +138,10 @@ pub struct ProgramState {
     /// deduplicated (tsgo `ensurePackageJsonsForState`).
     pub package_jsons: Vec<String>,
     pub missing_package_jsons: Vec<String>,
+    /// The identities of the program's content mappers (tsgo
+    /// `ContentMapperIdentities` of its project): a build info records them,
+    /// and one whose identities differ is not reused.
+    pub content_mapper_identities: Vec<String>,
 }
 
 /// tsgo `FileInfo` of the current program; an empty signature is none.
@@ -508,6 +512,12 @@ impl Snapshot {
             }
         }
         snapshot
+    }
+
+    /// The identities of the program's content mappers as the build info is
+    /// made (tsgo snapshotToBuildInfo reads them then).
+    pub fn set_content_mapper_identities(&mut self, identities: Vec<String>) {
+        self.program.content_mapper_identities = identities;
     }
 
     pub fn program(&self) -> &ProgramState {
@@ -892,6 +902,7 @@ impl Snapshot {
         let mut info = BuildInfo {
             version: VERSION.to_owned(),
             incremental,
+            content_mapper_identities: program.content_mapper_identities.clone(),
             ..BuildInfo::default()
         };
         if !incremental {
@@ -1765,6 +1776,7 @@ mod tests {
             use_case_sensitive_file_names: true,
             package_jsons: Vec::new(),
             missing_package_jsons: Vec::new(),
+            content_mapper_identities: Vec::new(),
         }
     }
 
@@ -1898,6 +1910,7 @@ mod tests {
             use_case_sensitive_file_names: true,
             package_jsons: Vec::new(),
             missing_package_jsons: Vec::new(),
+            content_mapper_identities: Vec::new(),
         }
     }
 
@@ -2130,6 +2143,7 @@ mod tests {
             use_case_sensitive_file_names: true,
             package_jsons: Vec::new(),
             missing_package_jsons: Vec::new(),
+            content_mapper_identities: Vec::new(),
         }
     }
 

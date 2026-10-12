@@ -24,10 +24,13 @@ mod tracking;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use tsc_diagnostics::{gen, Diagnostic, DiagnosticMessage, JsStr, MessageChain};
-use tsc_program::LibraryCatalog;
+use tsc_program::content_mapper::host::{Host, ProjectView};
+use tsc_program::content_mapper::Project;
+use tsc_program::{ContentMapperProjectHandle, LibraryCatalog};
 
 use crate::cli::{self, CliError, CommandBudgets, WatchTarget};
 use crate::incremental::WatchState;
@@ -149,6 +152,13 @@ pub struct BuildWatcher<'a> {
     pretty: bool,
     locale: Locale,
     budgets: CommandBudgets,
+}
+
+impl Drop for BuildWatcher<'_> {
+    /// The build watch's content mappers close with it.
+    fn drop(&mut self) {
+        self.orchestrator.close_content_mappers();
+    }
 }
 
 impl<'a> BuildWatcher<'a> {
@@ -298,6 +308,24 @@ pub struct Watcher<'a> {
     config_mtimes: BTreeMap<String, Option<SystemTime>>,
     config_modified: bool,
     config_has_errors: bool,
+    /// tsgo `contentMapperHost`: the host of the watch's content mappers,
+    /// made when a configuration first has some.
+    content_mapper_host: Option<Host>,
+    /// tsgo `contentMapperProject`: the current configuration's project.
+    content_mapper_project: Option<Arc<ProjectView>>,
+}
+
+impl Drop for Watcher<'_> {
+    /// The watch's content mappers close with it (tsgo's host closes when its
+    /// context ends).
+    fn drop(&mut self) {
+        if let Some(project) = self.content_mapper_project.take() {
+            let _ = project.close();
+        }
+        if let Some(host) = self.content_mapper_host.take() {
+            host.close();
+        }
+    }
 }
 
 impl<'a> Watcher<'a> {
@@ -336,11 +364,14 @@ impl<'a> Watcher<'a> {
             config_mtimes,
             config_modified: false,
             config_has_errors: false,
+            content_mapper_host: None,
+            content_mapper_project: None,
         }
     }
 
     /// tsgo `Watcher.start`: the first build.
     pub(crate) fn start(&mut self) {
+        self.replace_content_mapper_project();
         self.report_status(&gen::Starting_compilation_in_watch_mode, &[]);
         if self.build().is_err() {
             self.manager.force_overflow();
@@ -363,8 +394,40 @@ impl<'a> Watcher<'a> {
     pub fn do_cycle(&mut self) {
         let events = self.manager.drain_events();
         let has_events = !events.is_empty();
-        if self.recheck_config(false) {
+        // tsgo: a changed manifest of a content mapper package parses the
+        // configuration again.
+        let manifest_changed = self.content_mapper_manifest_changed(&events.changed);
+        if self.recheck_config(manifest_changed) {
             return;
+        }
+        // tsgo: a change of a file the content mappers watch refreshes their
+        // project (a build here is always a full one).
+        if has_events && !events.overflow && !self.config_modified {
+            let watched: BTreeSet<String> = self
+                .content_mapper_watched_files()
+                .iter()
+                .map(|file| self.canonical(file))
+                .collect();
+            if events
+                .changed
+                .keys()
+                .any(|path| watched.contains(&self.canonical(path)))
+            {
+                if let Some(project) = &self.content_mapper_project {
+                    if project.refresh().is_err() {
+                        self.report_diagnostics(&[Diagnostic::new(
+                            None,
+                            None,
+                            None,
+                            MessageChain::new(
+                                &gen::The_content_mapper_process_could_not_be_started_or_initialized,
+                                &[],
+                            ),
+                        )]);
+                        return;
+                    }
+                }
+            }
         }
         // tsgo decides here, too, between its single-file rebuild and a full
         // one; a build here is always the full one (the include patterns
@@ -415,6 +478,9 @@ impl<'a> Watcher<'a> {
         for file in self.target.config_files() {
             tracking.add(&file);
         }
+        for file in self.content_mapper_watched_files() {
+            tracking.add(&file);
+        }
         let result = cli::watch_build(
             self.system,
             self.testing,
@@ -426,6 +492,9 @@ impl<'a> Watcher<'a> {
             &self.catalog,
             &self.target,
             self.state.as_ref(),
+            self.content_mapper_project.as_ref().map(|project| {
+                ContentMapperProjectHandle(Arc::clone(project) as Arc<dyn Project>)
+            }),
         );
         let run = match result {
             Ok(run) => run,
@@ -491,6 +560,7 @@ impl<'a> Watcher<'a> {
         }
         match self.target.reparse(self.system) {
             Ok(changed) => {
+                self.replace_content_mapper_project();
                 if self.config_has_errors {
                     self.config_modified = true;
                 }
@@ -526,6 +596,92 @@ impl<'a> Watcher<'a> {
                 true
             }
         }
+    }
+
+    /// tsgo `replaceContentMapperProject`: the current configuration's
+    /// project, made in the watch's host before the previous one closes, so a
+    /// mapper both use keeps its process.
+    fn replace_content_mapper_project(&mut self) {
+        let spec = self
+            .target
+            .plan()
+            .and_then(|plan| plan.program_options().content_mapper_spec().cloned());
+        let project = match spec {
+            Some(spec) => {
+                let system = self.system;
+                self.content_mapper_host
+                    .get_or_insert_with(|| cli::new_content_mapper_host(system))
+                    .project(spec)
+                    .map(Arc::new)
+            }
+            None => None,
+        };
+        if let Some(previous) = std::mem::replace(&mut self.content_mapper_project, project) {
+            let _ = previous.close();
+        }
+    }
+
+    /// The configuration's content mappers whose manifests a watch follows:
+    /// those of a package (not of an editor's contribution).
+    fn content_mapper_manifests(&self) -> Vec<String> {
+        self.target
+            .plan()
+            .and_then(|plan| plan.program_options().content_mapper_spec())
+            .map(|spec| {
+                spec.mappers
+                    .iter()
+                    .filter(|mapper| {
+                        !mapper.package_directory.is_empty() && mapper.contribution_id.is_empty()
+                    })
+                    .map(|mapper| format!("{}/package.json", mapper.package_directory))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// tsgo `contentMapperManifestChanged`.
+    fn content_mapper_manifest_changed(&self, changed: &BTreeMap<String, WatchEventKind>) -> bool {
+        let manifests = self.content_mapper_manifests();
+        if manifests.is_empty() {
+            return false;
+        }
+        let changed: BTreeSet<String> = changed.keys().map(|path| self.canonical(path)).collect();
+        manifests
+            .iter()
+            .any(|manifest| changed.contains(&self.canonical(manifest)))
+    }
+
+    /// tsgo `contentMapperWatchedFiles`: the manifests of the content mapper
+    /// packages and the files the dynamic mappers watch, sorted.
+    fn content_mapper_watched_files(&self) -> Vec<String> {
+        let mut files = self.content_mapper_manifests();
+        if let Some(project) = &self.content_mapper_project {
+            match project.watched_files() {
+                Ok(dynamic) => files.extend(dynamic),
+                Err(failure) => {
+                    self.report_diagnostics(&[
+                        tsc_program::content_mapper::source::project_diagnostic(&failure),
+                    ]);
+                    return files;
+                }
+            }
+        }
+        files.sort();
+        files.dedup();
+        files
+    }
+
+    /// Writes diagnostics of the watch itself.
+    fn report_diagnostics(&self, diagnostics: &[Diagnostic]) {
+        let text = cli::render_watch_diagnostics(
+            self.system,
+            self.pretty,
+            self.locale,
+            &self.current_directory,
+            diagnostics,
+        )
+        .unwrap_or_default();
+        self.system.write_output(&text);
     }
 
     fn refresh_config_mtimes(&mut self) {

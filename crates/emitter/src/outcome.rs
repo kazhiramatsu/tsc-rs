@@ -119,6 +119,15 @@ impl EmitOutcome {
         self
     }
 
+    /// tsgo `emitBuildInfo` when the build info cannot be made (a content
+    /// mapper's identity could not be read): none is written, and the emit
+    /// is skipped with the failure.
+    pub fn with_build_info_skipped(mut self, diagnostic: Diagnostic) -> Self {
+        self.emit_skipped = true;
+        self.diagnostics.push(diagnostic);
+        self
+    }
+
     /// The build info write that followed this emit (tsgo
     /// `emitBuildInfo`): its file joins the emitted files, or the failure
     /// to write it (TS5033) joins the diagnostics.

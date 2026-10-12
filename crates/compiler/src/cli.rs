@@ -786,7 +786,6 @@ fn execute<'a>(
         let config_clock = system.now();
         let (plan, source_texts) =
             parse_config_file(host, &current_directory, &config_file, &command_line)?;
-        let (plan, content_mappers) = with_content_mapper_project(system, plan);
         route.config_time = elapsed_since(system, config_clock);
         tsc_types::trace::mark("cli: project config plan", config_started);
         if show_config {
@@ -810,6 +809,7 @@ fn execute<'a>(
             ))));
             return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
         }
+        let (plan, content_mappers) = with_content_mapper_project(system, plan);
         let output = execute_config(
             host,
             &current_directory,
@@ -934,7 +934,6 @@ fn execute<'a>(
     let config_clock = system.now();
     let (plan, source_texts) =
         parse_config_file(host, &current_directory, &config_file, &command_line)?;
-    let (plan, content_mappers) = with_content_mapper_project(system, plan);
     route.config_time = elapsed_since(system, config_clock);
     if show_config {
         return Ok(show_config_of_plan(&plan, case_sensitive));
@@ -957,6 +956,7 @@ fn execute<'a>(
         ))));
         return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
     }
+    let (plan, content_mappers) = with_content_mapper_project(system, plan);
     let output = execute_config(
         host,
         &current_directory,
@@ -2427,11 +2427,6 @@ fn normalize_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
     super::normalize_source_slashes(path.into())
 }
 
-/// tsgo `NewContentMapperHost` with `getContentMapperProject`: the config's
-/// content mappers (it has them only under `--runExternalCode`) run through
-/// the system's spawner for this run, and every program of the plan uses
-/// the project's view. `TS_CONTENT_MAPPER_DEBUG` logs their protocol to the
-/// error output.
 /// The command's content mapper project and its host, closed when the
 /// command is done as tsgo's deferred `Close` calls do (`closeProject` to
 /// each mapper whose project was opened, then the processes torn down).
@@ -2450,13 +2445,12 @@ impl ContentMapperSession {
     }
 }
 
-fn with_content_mapper_project(
+/// tsgo `NewContentMapperHost`: the host the content mappers of a command
+/// run in, through the system's spawner. `TS_CONTENT_MAPPER_DEBUG` logs
+/// their protocol to the error output.
+pub(crate) fn new_content_mapper_host(
     system: &dyn System,
-    plan: ConfigRootPlan,
-) -> (ConfigRootPlan, Option<ContentMapperSession>) {
-    let Some(spec) = plan.program_options().content_mapper_spec().cloned() else {
-        return (plan, None);
-    };
+) -> tsc_program::content_mapper::host::Host {
     let logger: Option<tsc_program::content_mapper::host::Logger> = system
         .env_var("TS_CONTENT_MAPPER_DEBUG")
         .filter(|value| !value.is_empty())
@@ -2465,11 +2459,24 @@ fn with_content_mapper_project(
                 Arc::new(|line: &str| eprintln!("{line}"));
             logger
         });
-    let host = tsc_program::content_mapper::host::Host::with_logger(
+    tsc_program::content_mapper::host::Host::with_logger(
         system.content_mapper_spawner(),
         "",
         logger,
-    );
+    )
+}
+
+/// tsgo `getContentMapperProject`: the config's content mappers (it has them
+/// only under `--runExternalCode`) run in a host for this run, and every
+/// program of the plan uses the project's view.
+fn with_content_mapper_project(
+    system: &dyn System,
+    plan: ConfigRootPlan,
+) -> (ConfigRootPlan, Option<ContentMapperSession>) {
+    let Some(spec) = plan.program_options().content_mapper_spec().cloned() else {
+        return (plan, None);
+    };
+    let host = new_content_mapper_host(system);
     match host.project(spec) {
         Some(project) => {
             let project = Arc::new(project);
@@ -2787,6 +2794,7 @@ pub(crate) fn watch_build(
     catalog: &LibraryCatalog,
     target: &WatchTarget,
     state: Option<&WatchState>,
+    content_mapper_project: Option<tsc_program::ContentMapperProjectHandle>,
 ) -> Result<WatchBuild, CliError> {
     let mut output_filesystem =
         SystemEmitFileSystem::new(system.fs(), budgets.worker_budget(system).max_workers() > 1);
@@ -2804,19 +2812,30 @@ pub(crate) fn watch_build(
     let (run, config_file) = match target {
         WatchTarget::Config {
             plan, source_texts, ..
-        } => (
-            run_config(
-                host,
-                current_directory,
-                catalog,
-                plan,
-                (**source_texts).clone(),
-                &mut route,
-                ProjectRunMode::WATCH,
-                OldBuildInfoSource::Watch(state),
-            )?,
-            Some(plan.config_file_name().to_string_lossy().into_owned()),
-        ),
+        } => {
+            // The watch's content mapper project serves this build's program.
+            let with_project;
+            let plan: &ConfigRootPlan = match content_mapper_project {
+                Some(project) => {
+                    with_project = (**plan).clone().with_content_mapper_project(project);
+                    &with_project
+                }
+                None => plan,
+            };
+            (
+                run_config(
+                    host,
+                    current_directory,
+                    catalog,
+                    plan,
+                    (**source_texts).clone(),
+                    &mut route,
+                    ProjectRunMode::WATCH,
+                    OldBuildInfoSource::Watch(state),
+                )?,
+                Some(plan.config_file_name().to_string_lossy().into_owned()),
+            )
+        }
         WatchTarget::Files {
             roots,
             options,

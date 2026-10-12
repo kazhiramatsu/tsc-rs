@@ -18,12 +18,14 @@ use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain};
 use tsc_host::vfs::FileSystem;
 use tsc_host::CompilerHost;
 use tsc_incremental::{compute_hash_with_text, is_default_library_name, BuildInfo};
+use tsc_program::content_mapper::errors::ProjectFailure;
+use tsc_program::content_mapper::host::{Host, ProjectView};
 use tsc_program::{
     build_info_file_name_in_build_mode, canonical_emit_path, command_line_option_bag,
     decode_host_text, output_file_names, parse_build_command_line,
     parse_config_root_plan_with_command_line, resolve_config_file_name_of_project_reference,
     CompilerConfigHost, CompilerOptions, ConfigExtendedCache, ConfigOptionBag, ConfigRootPlan,
-    ConfigRootPlanRequest, LibraryCatalog, ParsedBuildCommandLine,
+    ConfigRootPlanRequest, ContentMapperProjectHandle, LibraryCatalog, ParsedBuildCommandLine,
 };
 
 use crate::cli::{
@@ -71,6 +73,9 @@ impl BuildCommand {
 
 /// tsgo `ExitStatusProjectReferenceCycle_OutputsSkipped`.
 pub(crate) const EXIT_PROJECT_REFERENCE_CYCLE: i32 = 4;
+
+/// tsgo `ExitStatusDiagnosticsPresent_OutputsSkipped`.
+const EXIT_DIAGNOSTICS_PRESENT_OUTPUTS_SKIPPED: i32 = 1;
 
 /// The filesystem the orchestrator reads times from and touches (tsgo
 /// `incremental.Host`: `GetMTime`, `SetMTime`, and `vfs.FS.Remove`).
@@ -261,6 +266,13 @@ struct BuildTask {
     downstream: Vec<usize>,
     /// The package.json files its program looked up (tsgo `packageJsons`).
     package_jsons: Vec<String>,
+    /// tsgo `contentMapperProject`: the content mapper project of its
+    /// config, made once (`contentMapperProjectOnce`).
+    content_mapper_project: Option<Arc<ProjectView>>,
+    content_mapper_project_made: bool,
+    /// tsgo `contentMapperProjectErr`: the failure its project's identities
+    /// met.
+    content_mapper_project_error: Option<ProjectFailure>,
 }
 
 impl BuildTask {
@@ -284,6 +296,9 @@ impl BuildTask {
             dirty: false,
             downstream: Vec::new(),
             package_jsons: Vec::new(),
+            content_mapper_project: None,
+            content_mapper_project_made: false,
+            content_mapper_project_error: None,
         }
     }
 
@@ -345,6 +360,9 @@ pub(crate) struct Orchestrator<'a> {
     sources: DiagnosticSourceMap,
     /// tsgo `graphGenerated`: a later graph reuses the tasks.
     graph_generated: bool,
+    /// tsgo `contentMapperHost`: the host of the build session's content
+    /// mappers, made when a project first needs one.
+    content_mapper_host: Option<Host>,
 }
 
 /// What an orchestrator keeps from one run to the next (tsgo's keeps its
@@ -417,6 +435,7 @@ impl<'a> Orchestrator<'a> {
             config_cache: state.config_cache,
             sources: state.sources,
             graph_generated: state.graph_generated,
+            content_mapper_host: None,
         }
     }
 
@@ -459,6 +478,7 @@ impl<'a> Orchestrator<'a> {
             config_cache: ConfigExtendedCache::default(),
             sources: DiagnosticSourceMap::new(),
             graph_generated: false,
+            content_mapper_host: None,
         }
     }
 
@@ -538,6 +558,14 @@ impl<'a> Orchestrator<'a> {
                     existing
                 }
                 existing => {
+                    // tsgo closes the content mapper project of a task whose
+                    // config changed.
+                    if let Some(project) = existing
+                        .as_ref()
+                        .and_then(|existing| existing.content_mapper_project.as_ref())
+                    {
+                        let _ = tsc_program::content_mapper::Project::close(&**project);
+                    }
                     let plan = self.parse_config(config);
                     let mut task = BuildTask::new(config.clone(), plan, initial);
                     task.build_info = existing.and_then(|existing| existing.build_info);
@@ -672,6 +700,13 @@ impl<'a> Orchestrator<'a> {
         self.errors.clear();
         let projects = self.resolved_project_paths();
         self.create_build_tasks(&projects, &mut old, initial);
+        // tsgo: a task the new graph no longer has closes its content mapper
+        // project.
+        for task in old.values() {
+            if let Some(project) = &task.content_mapper_project {
+                let _ = tsc_program::content_mapper::Project::close(&**project);
+            }
+        }
         let mut completed = BTreeSet::new();
         let mut analyzing = BTreeSet::new();
         let mut stack = Vec::new();
@@ -746,6 +781,47 @@ impl<'a> Orchestrator<'a> {
         self.tasks[task].output.push_str(&line);
     }
 
+    /// tsgo `getContentMapperProject`: the task's content mapper project,
+    /// made once from its config's content mappers in the build's host, or
+    /// the failure its identities met.
+    fn content_mapper_project(
+        &mut self,
+        task: usize,
+    ) -> Result<Option<Arc<ProjectView>>, ProjectFailure> {
+        if !self.tasks[task].content_mapper_project_made {
+            self.tasks[task].content_mapper_project_made = true;
+            let spec = self.tasks[task]
+                .plan
+                .as_ref()
+                .and_then(|plan| plan.program_options().content_mapper_spec().cloned());
+            if let Some(spec) = spec {
+                let system = self.system;
+                let host = self
+                    .content_mapper_host
+                    .get_or_insert_with(|| crate::cli::new_content_mapper_host(system));
+                self.tasks[task].content_mapper_project = host.project(spec).map(Arc::new);
+            }
+        }
+        let task = &self.tasks[task];
+        match &task.content_mapper_project_error {
+            Some(failure) => Err(failure.clone()),
+            None => Ok(task.content_mapper_project.clone()),
+        }
+    }
+
+    /// The build session's content mappers closed when it ends (tsgo's
+    /// deferred `Close` of the host): each project, then the host.
+    pub(crate) fn close_content_mappers(&mut self) {
+        for task in &mut self.tasks {
+            if let Some(project) = task.content_mapper_project.take() {
+                let _ = tsc_program::content_mapper::Project::close(&*project);
+            }
+        }
+        if let Some(host) = self.content_mapper_host.take() {
+            host.close();
+        }
+    }
+
     // ----- the build -------------------------------------------------------
 
     /// tsgo `Orchestrator.Start` (`tsc -b`), or the command line's clean.
@@ -754,7 +830,9 @@ impl<'a> Orchestrator<'a> {
             self.generate_graph();
             return self.clean_command_line();
         }
-        let result = self.start("", false, route)?;
+        let result = self.start("", false, route);
+        self.close_content_mappers();
+        let result = result?;
         let mut stdout = result.stdout;
         if self.pretty {
             stdout.push_str(&render_error_summary(
@@ -1120,12 +1198,31 @@ impl<'a> Orchestrator<'a> {
             let message = MessageChain::new(&gen::Building_project_0, &[self.relative(&config)]);
             self.report_task_status(task, message);
         }
+        // tsgo buildProject: a project whose content mapper project failed
+        // is not built.
+        let content_mapper_project = match self.content_mapper_project(task) {
+            Ok(project) => project,
+            Err(failure) => {
+                let diagnostic = tsc_program::content_mapper::source::project_diagnostic(&failure);
+                self.report_task_diagnostic(task, diagnostic)?;
+                let entry = &mut self.tasks[task];
+                entry.status = Some(UpToDateStatus::new(StatusKind::BuildErrors));
+                entry.exit_status = EXIT_DIAGNOSTICS_PRESENT_OUTPUTS_SKIPPED;
+                return Ok(false);
+            }
+        };
         let (plan, options) = {
             let task = &self.tasks[task];
             let (plan, options) = task
                 .plan_and_options()
                 .expect("a project without a config is never built");
             (plan.clone(), options.clone())
+        };
+        let plan = match content_mapper_project {
+            Some(project) => plan.with_content_mapper_project(ContentMapperProjectHandle(
+                project as Arc<dyn tsc_program::content_mapper::Project>,
+            )),
+            None => plan,
         };
         let old_info = if self.command.force {
             None
@@ -1597,6 +1694,21 @@ impl<'a> Orchestrator<'a> {
                 info.version.clone(),
             );
         }
+        // tsgo: a configured content mapper whose identity changed may have
+        // made stale files.
+        let project = self.content_mapper_project(task);
+        let identities = match &project {
+            Ok(Some(project)) => tsc_program::content_mapper::Project::identities(&**project),
+            _ => Ok(Vec::new()),
+        };
+        if let Err(failure) = &identities {
+            self.tasks[task].content_mapper_project_error = Some(failure.clone());
+        }
+        if project.is_err()
+            || identities.map_or(true, |identities| identities != info.content_mapper_identities)
+        {
+            return UpToDateStatus::with_text(StatusKind::OutOfDateOptions, build_info_path);
+        }
         let no_check = options.no_check == Some(true);
         if info.errors || (!no_check && (info.semantic_errors || info.check_pending)) {
             return UpToDateStatus::with_text(
@@ -1718,6 +1830,13 @@ impl<'a> Orchestrator<'a> {
                 let input = self.absolute(name, &build_info_directory);
                 let input_path = self.to_path(&input);
                 if seen_roots.contains(&input_path) || resolved_roots.contains(&input_path) {
+                    continue;
+                }
+                // A content mapper's supplemental output is virtual: its
+                // missing file is not a missing input.
+                if is_content_mapper_supplemental_build_info_path(&input_path, reader.roots())
+                    && !self.fs.file_exists(&input)
+                {
                     continue;
                 }
                 let Some(input_time) = self.mtime(&input) else {
@@ -2109,13 +2228,59 @@ impl<'a> Orchestrator<'a> {
                 needs_update = true;
                 continue;
             }
+            // tsgo: a changed manifest of one of its content mapper packages
+            // parses the config again.
+            let manifest_changed = plan
+                .program_options()
+                .content_mapper_spec()
+                .is_some_and(|spec| {
+                    spec.mappers.iter().any(|mapper| {
+                        !mapper.package_directory.is_empty()
+                            && mapper.contribution_id.is_empty()
+                            && normalized.contains_key(
+                                &self.to_path(&format!("{}/package.json", mapper.package_directory)),
+                            )
+                    })
+                });
+            if manifest_changed {
+                self.reset_config(task);
+                needs_config_update = true;
+                needs_update = true;
+                continue;
+            }
+            let mut root_changed = false;
+            // tsgo: a file its content mappers watch changed, so their
+            // project refreshes and the project is built again.
+            if let Some(project) = self.tasks[task].content_mapper_project.clone() {
+                match tsc_program::content_mapper::Project::watched_files(&*project) {
+                    Err(failure) => {
+                        self.tasks[task].content_mapper_project_error = Some(failure);
+                        self.tasks[task].reset_status();
+                        needs_update = true;
+                        root_changed = true;
+                    }
+                    Ok(files) => {
+                        if files
+                            .iter()
+                            .any(|file| normalized.contains_key(&self.to_path(file)))
+                        {
+                            self.tasks[task].content_mapper_project_error =
+                                tsc_program::content_mapper::Project::refresh(&*project)
+                                    .err()
+                                    .map(ProjectFailure::Request);
+                            self.tasks[task].reset_status();
+                            needs_update = true;
+                            root_changed = true;
+                        }
+                    }
+                }
+            }
             let roots: BTreeSet<String> = plan
                 .file_names()
                 .iter()
                 .map(|file| self.to_path(&file.to_string_lossy()))
                 .collect();
-            let mut root_changed = false;
-            if roots.iter().any(|root| normalized.contains_key(root)) {
+            if !root_changed && roots.iter().any(|root| normalized.contains_key(root)) {
                 self.tasks[task].reset_status();
                 needs_update = true;
                 root_changed = true;
@@ -2228,10 +2393,11 @@ impl<'a> Orchestrator<'a> {
     }
 
     /// tsgo `computeDesiredWatches` before `ResolveDesiredDirs`.
-    pub(crate) fn desired_watches(&self, set: &mut crate::watch::DirWatchSet) {
+    pub(crate) fn desired_watches(&mut self, set: &mut crate::watch::DirWatchSet) {
         let watchable = |set: &crate::watch::DirWatchSet, directory: &str| {
             !set.covered(directory) && crate::watch::can_watch_directory(directory)
         };
+        let mut content_mapper_failures = Vec::new();
         for &task in &self.order {
             let task_state = &self.tasks[task];
             set.set(&self.realpath(&directory_of(&task_state.config)), false);
@@ -2253,6 +2419,33 @@ impl<'a> Orchestrator<'a> {
                 let directory = directory_of(&absolute);
                 if watchable(set, &directory) {
                     set.set(&directory, false);
+                }
+                // tsgo: the directories of its content mapper packages.
+                if let Some(spec) = plan.program_options().content_mapper_spec() {
+                    for mapper in &spec.mappers {
+                        if mapper.package_directory.is_empty() || !mapper.contribution_id.is_empty()
+                        {
+                            continue;
+                        }
+                        if watchable(set, &mapper.package_directory) {
+                            set.set(&mapper.package_directory, false);
+                        }
+                    }
+                }
+            }
+            // tsgo: the directories of the files its content mappers watch;
+            // a failure to list them is its project's failure.
+            if let Some(project) = &task_state.content_mapper_project {
+                match tsc_program::content_mapper::Project::watched_files(&**project) {
+                    Ok(files) => {
+                        for file in files {
+                            let directory = directory_of(&self.realpath(&file));
+                            if watchable(set, &directory) {
+                                set.set(&directory, false);
+                            }
+                        }
+                    }
+                    Err(failure) => content_mapper_failures.push((task, failure)),
                 }
             }
             if let Some(entry) = &task_state.build_info {
@@ -2285,6 +2478,9 @@ impl<'a> Orchestrator<'a> {
             for package_json in &task_state.package_jsons {
                 add_package_json_watch_dirs(set, package_json);
             }
+        }
+        for (task, failure) in content_mapper_failures {
+            self.tasks[task].content_mapper_project_error = Some(failure);
         }
     }
 }
@@ -2552,6 +2748,31 @@ fn resolved_reference_paths(plan: &ConfigRootPlan) -> Vec<String> {
         .collect()
 }
 
+/// tsgo `isContentMapperSupplementalBuildInfoPath`: `<root>.<n>.<virtual
+/// extension>`, the path of a supplemental output a content mapper made of
+/// a root.
+fn is_content_mapper_supplemental_build_info_path<'r>(
+    input_path: &str,
+    roots: impl IntoIterator<Item = &'r str>,
+) -> bool {
+    roots.into_iter().any(|root| {
+        let Some(suffix) = input_path
+            .strip_prefix(root)
+            .and_then(|rest| rest.strip_prefix('.'))
+        else {
+            return false;
+        };
+        let Some((index, extension)) = suffix.split_once('.') else {
+            return false;
+        };
+        !extension.is_empty()
+            && index.parse::<i64>().is_ok()
+            && tsc_program::content_mapper::is_supported_virtual_extension(&format!(
+                ".{extension}"
+            ))
+    })
+}
+
 fn is_declaration_output(output: &str) -> bool {
     let lower = output.to_ascii_lowercase();
     lower.ends_with(".d.ts") || lower.ends_with(".d.mts") || lower.ends_with(".d.cts")
@@ -2725,6 +2946,32 @@ fn render_error_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn supplemental_build_info_paths_follow_tsgo() {
+        // tsgo TestIsContentMapperSupplementalBuildInfoPath.
+        let roots = ["/src/app.vue", "/src/index.ts"];
+        assert!(is_content_mapper_supplemental_build_info_path(
+            "/src/app.vue.0.ts",
+            roots
+        ));
+        assert!(is_content_mapper_supplemental_build_info_path(
+            "/src/app.vue.12.mts",
+            roots
+        ));
+        assert!(!is_content_mapper_supplemental_build_info_path(
+            "/src/app.vue.ts",
+            roots
+        ));
+        assert!(!is_content_mapper_supplemental_build_info_path(
+            "/src/app.vue.0.txt",
+            roots
+        ));
+        assert!(!is_content_mapper_supplemental_build_info_path(
+            "/src/other.vue.0.ts",
+            roots
+        ));
+    }
 
     #[test]
     fn time_comparisons_treat_none_as_the_zero_time() {
