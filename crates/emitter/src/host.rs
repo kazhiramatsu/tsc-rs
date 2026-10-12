@@ -137,6 +137,12 @@ pub trait EmitHost {
     fn tracing(&self) -> Option<&std::sync::Arc<tsc_types::tracing::Tracing>> {
         None
     }
+    /// The extensions of the program's content mappers (tsgo
+    /// `ContentMapperExtensions`): a file of one is declared as
+    /// `.d<extension>.ts`.
+    fn content_mapper_extensions(&self) -> Vec<String> {
+        Vec::new()
+    }
     fn current_directory(&self) -> JsStr<'_>;
     /// Absolute common source directory; the caller may omit its trailing separator.
     fn common_source_directory(&self) -> JsStr<'_>;

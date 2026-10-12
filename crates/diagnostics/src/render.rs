@@ -758,7 +758,13 @@ fn relative_file_name<'a, 'b>(
     // Reconstruct the cwd-resolved public name before making it relative.
     // All component comparisons retain the original JavaScript units.
     let current_directory = current_directory.into();
-    let file_name = source_file_name(file_name.into(), current_directory);
+    // tsgo ConvertToRelativePath under formatting options without a current
+    // directory (a baseline's): the name as it is.
+    let file_name = file_name.into();
+    if current_directory.is_empty() {
+        return file_name.to_owned();
+    }
+    let file_name = source_file_name(file_name, current_directory);
     let current_directory = absolute_current_directory(current_directory);
     let from = reduced_path(current_directory.as_js());
     let to = reduced_path(file_name.as_js());

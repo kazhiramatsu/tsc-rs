@@ -3036,6 +3036,7 @@ fn parse_program_inputs(
                 .parse_diagnostics
                 .extend(info.diagnostics.iter().cloned());
             source_file.diagnostic_directives = info.diagnostic_directives.clone();
+            source_file.span_map = info.span_map.clone();
         }
         if !file.renamed_dependencies.is_empty() {
             source_file.renamed_dependencies = file.renamed_dependencies.clone();
@@ -5657,7 +5658,37 @@ fn bind_and_check_rows(
         ));
         apply_content_mapper_diagnostic_directives(source, &mut bind_and_check);
     }
+    drop_unnecessary_in_synthesized_code(source, &mut bind_and_check);
     bind_and_check
+}
+
+/// tsgo filterAndSortDiagnostics: a diagnostic reporting something
+/// unnecessary (an unused declaration) in a content mapper's synthesized
+/// code, which has no original counterpart, is not reported.
+fn drop_unnecessary_in_synthesized_code(
+    source: &tsc_syntax::SourceFile,
+    diagnostics: &mut DiagnosticList,
+) {
+    let Some(span_map) = &source.span_map else {
+        return;
+    };
+    diagnostics.retain(|diagnostic| {
+        if diagnostic.reports_unnecessary != Some(true)
+            || diagnostic.file_name.as_ref() != Some(&source.file_name)
+            || diagnostic
+                .source
+                .as_deref()
+                .is_some_and(|source| !source.is_empty())
+        {
+            return true;
+        }
+        let Some(start) = diagnostic.start else {
+            return true;
+        };
+        let end = start.saturating_add(diagnostic.length.unwrap_or(0));
+        let (_, fidelity) = span_map.virtual_to_original_span(start as i32, end as i32);
+        !fidelity.is_none()
+    });
 }
 
 /// tsgo applyContentMapperDiagnosticDirectives: the file's TypeScript

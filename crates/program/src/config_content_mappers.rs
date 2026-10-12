@@ -649,7 +649,7 @@ impl ContentMapperSyntax<'_> {
 /// tsgo `GetContentMapperForFileName`: the first mapper registering the
 /// longest of the mappers' extensions the file name ends with (in the
 /// host's case sensitivity).
-pub(crate) fn content_mapper_for_file_name<'m>(
+pub fn content_mapper_for_file_name<'m>(
     mappers: &'m [Arc<Mapper>],
     file_name: JsStr<'_>,
     case_sensitive: bool,
@@ -673,7 +673,7 @@ pub(crate) fn content_mapper_for_file_name<'m>(
 
 /// tsgo `GetLongestExtensionFromPath`: the longest of `extensions` the file
 /// name ends with (after a `.`), as the file name spells it.
-pub(super) fn longest_extension<'f>(
+pub fn longest_extension<'f>(
     file_name: JsStr<'f>,
     extensions: impl Iterator<Item = &'f str> + Clone,
     case_sensitive: bool,

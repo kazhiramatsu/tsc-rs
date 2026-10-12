@@ -566,6 +566,12 @@ impl NativeProfile {
         self.baseline_path(suite, &format!("{stem}.trace.json"))
     }
 
+    /// The content mapper baseline of one configuration
+    /// (`DoContentMapperBaseline`).
+    pub fn content_mapper_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
+        self.baseline_path(suite, &format!("{stem}.contentmapper"))
+    }
+
     pub fn types_baseline_path(&self, suite: NativeSuite, stem: &str) -> PathBuf {
         self.baseline_path(suite, &format!("{stem}.types"))
     }

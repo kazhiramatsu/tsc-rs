@@ -328,7 +328,7 @@ fn baseline_name(
 ) -> String {
     let name = format!("{}{}", configuration.configured_name, case.extension);
     let extension = if declaration {
-        declaration_emit_extension(&name)
+        declaration_emit_extension(&name, &[])
     } else {
         output_extension(&name, jsx_preserve(configuration)).to_owned()
     };
@@ -365,7 +365,7 @@ fn transpile_baseline(
         let output_file_name = change_extension(
             &unit.name,
             &if declaration {
-                declaration_emit_extension(&unit.name)
+                declaration_emit_extension(&unit.name, &[])
             } else {
                 output_extension(&unit.name, jsx_preserve(configuration)).to_owned()
             },

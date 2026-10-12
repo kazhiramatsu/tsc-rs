@@ -133,8 +133,19 @@ struct TransformResult {
     mappings: Option<Box<RawValue>>,
     #[serde(rename = "diagnosticDirectives")]
     diagnostic_directives: Option<DiagnosticDirectives>,
+    #[serde(deserialize_with = "null_as_empty")]
     diagnostics: Vec<MapperDiagnosticResult>,
+    #[serde(deserialize_with = "null_as_empty")]
     supplemental: Vec<MappedOutput>,
+}
+
+/// A list that Go's decoder also takes from `null` (a nil slice).
+fn null_as_empty<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Option::<Vec<T>>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 /// tsgo `Diagnostic`: an error in original-source positions.
@@ -161,8 +172,12 @@ struct UnusedExpectDirectiveDiagnostic {
 #[derive(Default, Deserialize)]
 #[serde(default)]
 struct DiagnosticDirectives {
-    #[serde(rename = "unusedExpectDirectiveDiagnostics")]
+    #[serde(
+        rename = "unusedExpectDirectiveDiagnostics",
+        deserialize_with = "null_as_empty"
+    )]
     unused_expect_directive_diagnostics: Vec<UnusedExpectDirectiveDiagnostic>,
+    #[serde(deserialize_with = "null_as_empty")]
     directives: Vec<DirectiveTuple>,
 }
 

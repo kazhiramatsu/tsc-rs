@@ -77,7 +77,7 @@ mod content_mappers;
 
 use crate::content_mapper::host::OptionPathSegment;
 use crate::content_mapper::Mapper;
-pub(crate) use content_mappers::content_mapper_for_file_name;
+pub use content_mappers::{content_mapper_for_file_name, longest_extension};
 use content_mappers::{ContentMapperParse, ContentMapperSyntax};
 
 const TYPESCRIPT_EXTENSIONS: &[&[&str]] = &[

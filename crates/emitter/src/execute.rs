@@ -237,7 +237,9 @@ fn validate_request(host: &dyn EmitHost, operation: EmitOperation) -> Result<(),
         }
         // allowNonTsExtensions (transpile routes): any other extension was
         // admitted as a TypeScript-kind root by the Program loader.
-        let is_other_admitted = options.allow_non_ts_extensions == Some(true);
+        let is_other_admitted = options.allow_non_ts_extensions == Some(true)
+            // A content mapper's output, whatever its file's extension.
+            || source.content_mapped();
         if !(is_typescript || is_javascript || is_json || is_other_admitted)
             || crate::builtins::has_ascii_file_suffix(name, ".d.ts")
             || crate::builtins::has_ascii_file_suffix(name, ".d.mts")

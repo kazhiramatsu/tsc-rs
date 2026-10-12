@@ -84,8 +84,8 @@ pub mod watch;
 
 pub use build::{ApiBuildOptions, ApiOrchestrator, BuildStatistics, OrchestratorResult};
 pub use cli::{
-    execute_command_line, run_cli, CliOutput, CommandLineResult, DEFAULT_LOAD_LIMITS,
-    TYPESCRIPT_VERSION as CLI_VERSION,
+    execute_command_line, run_cli, CliOutput, CommandLineResult, ProgramDiagnosticWriter,
+    DEFAULT_LOAD_LIMITS, TYPESCRIPT_VERSION as CLI_VERSION,
 };
 pub use declaration_diagnostics::DeclarationSession;
 pub use live::{EmitOnly, EmitResult, LiveProgram};
@@ -687,6 +687,19 @@ impl EmitHost for PreparedEmitHost<'_> {
         self.prepared.compiler_options()
     }
 
+    fn content_mapper_extensions(&self) -> Vec<String> {
+        self.prepared
+            .program_options()
+            .content_mapper_spec()
+            .map(|spec| {
+                spec.mappers
+                    .iter()
+                    .flat_map(|mapper| mapper.definition.extensions.iter().flatten().cloned())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     fn tracing(&self) -> Option<&Arc<Tracing>> {
         self.tracing.as_ref()
     }
@@ -827,6 +840,10 @@ struct CheckedEmitHost<'host, 'snapshot> {
 impl EmitHost for CheckedEmitHost<'_, '_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn content_mapper_extensions(&self) -> Vec<String> {
+        self.prepared.content_mapper_extensions()
     }
 
     fn tracing(&self) -> Option<&Arc<Tracing>> {

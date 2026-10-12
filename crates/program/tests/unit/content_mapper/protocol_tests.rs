@@ -118,6 +118,27 @@ fn invalid_diagnostic_directives_are_rejected_by_kind() {
 }
 
 #[test]
+fn null_lists_decode_as_empty_ones() {
+    // Go writes a nil slice as `null` (tsgo's test mappers' directives
+    // without unused diagnostics), and its decoder reads `null` as empty.
+    let failure = decode(
+        r#"{"text":"x","extension":".ts","diagnostics":null,"supplemental":null,"diagnosticDirectives":{"unusedExpectDirectiveDiagnostics":null,"directives":[[0,0,0,0,2]]}}"#,
+        "directive\nsource",
+    )
+    .expect_err("an invalid policy");
+    assert_eq!(
+        directive_error(failure).kind,
+        DiagnosticDirectiveErrorKind::InvalidPolicy
+    );
+    let output = decode(
+        r#"{"text":"x","extension":".ts","diagnostics":null,"supplemental":null,"diagnosticDirectives":{"unusedExpectDirectiveDiagnostics":[{"code":2578,"messageText":"m"}],"directives":null}}"#,
+        "x",
+    )
+    .unwrap();
+    assert!(output.supplemental.is_empty() && output.diagnostics.is_empty());
+}
+
+#[test]
 fn supplemental_outputs_decode_with_their_own_directives() {
     let output = decode(
         r#"{"text":"export default 1;","extension":".ts","supplemental":[{"text":"declare const first: string;","extension":".ts","diagnosticDirectives":{"unusedExpectDirectiveDiagnostics":[],"directives":[[0,0,0,7,0]]}},{"text":"declare const second: number;","extension":".mjs"}]}"#,
