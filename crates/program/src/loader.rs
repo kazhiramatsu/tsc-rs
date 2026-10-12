@@ -16,7 +16,7 @@ use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
     is_declaration_file_name, plan_source_requests_retaining_syntax, PlannedLibReferenceDirective,
-    PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
+    PlannedModuleRequest, PlannedPathReference, PlannedTypeReferenceDirective, SourceRequestPlan,
 };
 use crate::module_resolution::PackageJsonProbe;
 use crate::module_resolution::{
@@ -1507,14 +1507,19 @@ struct StagedSource {
     path_references: Vec<PlannedPathReference>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
-    module_requests: Vec<(ResolutionKey, bool)>,
-    /// The spans of the occurrences of each request that load a source, in
-    /// source order; a request without one is synthetic.
-    module_request_spans: rustc_hash::FxHashMap<ResolutionKey, Vec<(u32, u32)>>,
+    /// The module requests in order, with the spans of their occurrences
+    /// that load a source (none for a synthetic request) and the resolution
+    /// the read-ahead computed for them.
+    module_requests: Vec<StagedModuleRequest>,
     /// The resolved occurrences in tsgo's `moduleNames` order (the imports,
     /// then the module augmentations), kept only when tracing; the synthetic
     /// requests are not here.
     module_request_order: Vec<ResolutionKey>,
+}
+
+struct StagedModuleRequest {
+    request: PlannedModuleRequest,
+    pre_resolved: Option<HostModuleResolution>,
 }
 
 impl StagedSource {
@@ -1681,17 +1686,20 @@ struct PrefetchedParse {
     implied_for_emit: Option<ResolutionMode>,
     prepared: PreparedSourceFile,
     plan: Result<SourceRequestPlan, ResolutionError>,
+    /// By module request of the plan: the resolution the parallel
+    /// read-ahead computed (empty when none ran).
+    resolutions: Vec<Option<HostModuleResolution>>,
 }
 
 /// One source of the parallel read-ahead
-/// (`StagedGraph::read_ahead_in_parallel`): its read, the resolutions of its
-/// module requests and type reference directives, and its place in the
-/// eviction order (a root's index; the dependencies after every root).
+/// (`StagedGraph::read_ahead_in_parallel`): its read (with the resolutions
+/// of its module requests), the resolutions of its type reference
+/// directives, and its place in the eviction order (a root's index; the
+/// dependencies after every root).
 struct ReadAheadSource {
     path: ProgramPath,
     order: usize,
     read: PrefetchedRead,
-    resolutions: Vec<(ResolutionKey, HostModuleResolution)>,
     type_resolutions: Vec<(
         TypeReferenceResolutionKey,
         ResolutionOutcome<HostResolvedTypeReferenceDirective>,
@@ -1790,7 +1798,6 @@ impl ParallelReadAhead<'_> {
             path,
             order,
             read,
-            resolutions: Vec::new(),
             type_resolutions: Vec::new(),
         };
         if let Some(resolver) = resolver.as_mut() {
@@ -1828,6 +1835,7 @@ impl ParallelReadAhead<'_> {
         // options on the walk, not with the read-ahead's resolver.
         if self.references.project_for_resolution(canonical).is_none() {
             let directory = crate::js_path::directory_name(containing_file);
+            resolutions.reserve(plan.module_requests().len());
             for (key, loads_source) in plan.module_requests_with_loadability() {
                 let directory_key = (directory.clone(), key.specifier().to_owned(), key.mode());
                 let host = match self.resolutions.get_cloned(&directory_key) {
@@ -1842,6 +1850,7 @@ impl ParallelReadAhead<'_> {
                             key.specifier(),
                             key.mode(),
                         ) else {
+                            resolutions.push(None);
                             continue;
                         };
                         self.resolved.fetch_add(1, Ordering::Relaxed);
@@ -1858,7 +1867,7 @@ impl ParallelReadAhead<'_> {
                         }
                     }
                 }
-                resolutions.push((key.clone(), host));
+                resolutions.push(Some(host));
             }
         }
         let mut type_resolutions = Vec::new();
@@ -1912,8 +1921,13 @@ impl ParallelReadAhead<'_> {
                 }
             }
         }
-        source.resolutions = resolutions;
         source.type_resolutions = type_resolutions;
+        if let PrefetchedRead::Parsed {
+            decoded: Ok(parse), ..
+        } = &mut source.read
+        {
+            parse.resolutions = resolutions;
+        }
     }
 }
 
@@ -2046,6 +2060,7 @@ fn parse_root_ahead(
                     implied_for_emit,
                     prepared: prepared.with_preparsed_syntax(syntax),
                     plan: Ok(plan),
+                    resolutions: Vec::new(),
                 }
             }
             Err(error) => PrefetchedParse {
@@ -2053,6 +2068,7 @@ fn parse_root_ahead(
                 implied_for_emit,
                 prepared,
                 plan: Err(error),
+                resolutions: Vec::new(),
             },
         })
     });
@@ -2440,7 +2456,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 self.reserved_sources += 1;
                 self.reserved_bytes += byte_len;
             }
-            self.pre_resolved.extend(source.resolutions);
             for (key, outcome, trace) in source.type_resolutions {
                 self.pre_resolved_types.insert(key, (outcome, trace));
             }
@@ -2459,10 +2474,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .extend(resolutions.into_entries());
         tsc_types::trace::mark(
             &format!(
-                "load: read-ahead in parallel ({} threads: {read} sources, {} resolutions, {reused} directory reuses, {} pre-resolved)",
+                "load: read-ahead in parallel ({} threads: {read} sources, {} resolutions, {reused} directory reuses)",
                 workers.max_workers(),
                 resolved.into_inner(),
-                self.pre_resolved.len()
             ),
             phase_started,
         );
@@ -4671,23 +4685,40 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             implied_node_format_for_emit(file_name, package_scope.as_ref(), options_for_file);
         // A read-ahead parse is adopted only when its assumptions are the
         // facts computed above; otherwise its decoded text is planned here.
-        let (mut prepared, prefetched_plan) = match decoded {
-            DecodedSource::Text(text) => (PreparedSourceFile::new(path.clone(), text), None),
+        let (mut prepared, prefetched_plan, mut prefetched_resolutions) = match decoded {
+            DecodedSource::Text(text) => (
+                PreparedSourceFile::new(path.clone(), text),
+                None,
+                Vec::new(),
+            ),
             DecodedSource::Parsed(parsed)
                 if parsed.implied == implied
                     && parsed.implied_for_emit == implied_for_emit
                     && parsed.prepared.path().display() == path.display() =>
             {
                 let parsed = *parsed;
-                (parsed.prepared, Some(parsed.plan))
+                (parsed.prepared, Some(parsed.plan), parsed.resolutions)
             }
-            DecodedSource::Parsed(parsed) => (
-                PreparedSourceFile::from_snapshot(
-                    path.clone(),
-                    Arc::clone(parsed.prepared.snapshot()),
-                ),
-                None,
-            ),
+            DecodedSource::Parsed(parsed) => {
+                // Planned again here: the read-ahead's resolutions are the
+                // walk's by key, as the level form's are.
+                let parsed = *parsed;
+                if let Ok(plan) = &parsed.plan {
+                    for (key, host) in plan.module_requests().iter().zip(parsed.resolutions) {
+                        if let Some(host) = host {
+                            self.pre_resolved.insert(key.clone(), host);
+                        }
+                    }
+                }
+                (
+                    PreparedSourceFile::from_snapshot(
+                        path.clone(),
+                        Arc::clone(parsed.prepared.snapshot()),
+                    ),
+                    None,
+                    Vec::new(),
+                )
+            }
         };
         prepared = prepared.with_implied_node_formats(implied, implied_for_emit);
         // The checker reads the project's options too.
@@ -4770,25 +4801,27 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let lib_reference_directives = plan
             .as_ref()
             .map_or_else(Vec::new, |plan| plan.lib_reference_directives().to_vec());
-        let module_requests = plan.as_ref().map_or_else(Vec::new, |plan| {
-            plan.module_requests_with_loadability()
-                .map(|(key, loads_source)| (key.clone(), loads_source))
-                .collect::<Vec<_>>()
-        });
         let module_request_order = plan
             .as_ref()
             .map_or_else(Vec::new, |plan| plan.module_request_order().to_vec());
-        let module_request_spans =
-            plan.as_ref()
-                .map_or_else(rustc_hash::FxHashMap::default, |plan| {
-                    plan.module_requests()
-                        .iter()
-                        .filter_map(|key| {
-                            let spans = plan.module_request_spans(key);
-                            (!spans.is_empty()).then(|| (key.clone(), spans.to_vec()))
-                        })
-                        .collect::<rustc_hash::FxHashMap<_, _>>()
-                });
+        // A resolution the read-ahead computed for a request (by its index
+        // when this is its plan, else by key) is the same pure host
+        // observation the resolver would make at the request's turn.
+        let module_requests = plan.map_or_else(Vec::new, |mut plan| {
+            prefetched_resolutions.resize_with(plan.module_requests().len(), || None);
+            plan.take_module_requests()
+                .into_iter()
+                .zip(prefetched_resolutions)
+                .map(|(request, resolution)| {
+                    let pre_resolved =
+                        resolution.or_else(|| self.pre_resolved.remove(&request.key));
+                    StagedModuleRequest {
+                        request,
+                        pre_resolved,
+                    }
+                })
+                .collect::<Vec<_>>()
+        });
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,
@@ -4813,7 +4846,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_reference_directives,
             lib_reference_directives,
             module_requests,
-            module_request_spans,
             module_request_order,
         });
         // The joint bound over admitted sources and retained read-ahead
@@ -4912,8 +4944,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         // `noLib=true` deliberately performs no host operation for lib
         // directives, although their occurrences were counted above.
-        let requests = self.sources[source].module_requests.clone();
-        self.plan_module_requests(task, source, requests)
+        self.plan_module_requests(task, source)
     }
 
     fn catalog_library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
@@ -5460,14 +5491,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-port: processImportedModules @6.0.3
     /// tsc-hash: 5fb6c5d9e11130467d843f258aeb726b1cbca21cd00923b0f1c7da3097f9cc98
     /// tsc-span: _tsc.js:124595-124635
-    fn plan_module_requests(
-        &mut self,
-        task: usize,
-        source: usize,
-        requests: Vec<(ResolutionKey, bool)>,
-    ) -> Result<(), ProgramLoadError> {
+    fn plan_module_requests(&mut self, task: usize, source: usize) -> Result<(), ProgramLoadError> {
         let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
-        let mut phase_indices = Vec::with_capacity(requests.len());
+        let request_count = self.sources[source].module_requests.len();
+        let mut phase_indices = Vec::with_capacity(request_count);
         let containing_file = self.sources[source].prepared.path().display().to_owned();
         let containing_canonical = self.sources[source].prepared.path().canonical().clone();
         let containing_file_is_declaration = is_declaration_file_name(containing_file.as_js());
@@ -5477,40 +5504,50 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let containing_project = self
             .project_for_resolution(&containing_canonical)
             .map(|project| project.canonical().clone());
-        for (key, loads_source) in requests {
+        // A source reached under several spellings is planned once per
+        // spelling: its requests stay with it, and only the read-ahead's
+        // resolution is taken (a later planning finds the key resolved).
+        for request_index in 0..request_count {
+            let (key, loads_source, pre_resolved) = {
+                let request = &mut self.sources[source].module_requests[request_index];
+                (
+                    request.request.key.clone(),
+                    request.request.loads_source,
+                    request.pre_resolved.take(),
+                )
+            };
             // One inclusion reason per occurrence that loads the target:
             // processImportedModules adds the resolved file once for every
             // import of it (tsgo fileloader.go:928-940), and the file's
             // explanation then lists each import. A request without a span
             // is a synthetic import.
             let staged = &self.sources[source];
-            let inclusions = staged.module_request_spans.get(&key).map_or_else(
-                || vec![SourceInclusionReason::Synthetic],
-                |spans| {
-                    let prepared = &staged.prepared;
-                    let positions = prepared.snapshot().positions();
-                    spans
-                        .iter()
-                        .map(|&(pos, end)| {
-                            let start_byte = positions
-                                .utf16_to_byte(pos)
-                                .expect("module request starts at a source token boundary");
-                            let end_byte = positions
-                                .utf16_to_byte(end)
-                                .expect("module request ends at a source token boundary");
-                            SourceInclusionReason::Import {
-                                parent: containing_file.clone(),
-                                reference_text: prepared.text()
-                                    [start_byte as usize..end_byte as usize]
-                                    .to_owned(),
-                                pos,
-                                end,
-                                package_id: None,
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                },
-            );
+            let spans = &staged.module_requests[request_index].request.spans;
+            let inclusions = if spans.is_empty() {
+                vec![SourceInclusionReason::Synthetic]
+            } else {
+                let prepared = &staged.prepared;
+                let positions = prepared.snapshot().positions();
+                spans
+                    .iter()
+                    .map(|&(pos, end)| {
+                        let start_byte = positions
+                            .utf16_to_byte(pos)
+                            .expect("module request starts at a source token boundary");
+                        let end_byte = positions
+                            .utf16_to_byte(end)
+                            .expect("module request ends at a source token boundary");
+                        SourceInclusionReason::Import {
+                            parent: containing_file.clone(),
+                            reference_text: prepared.text()[start_byte as usize..end_byte as usize]
+                                .to_owned(),
+                            pos,
+                            end,
+                            package_id: None,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            };
             let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
                 self.module_resolutions[index].loads_source |= loads_source;
                 index
@@ -5518,7 +5555,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 // A resolution the read-ahead computed for this exact request
                 // is the same pure host observation the resolver would make
                 // here; it is taken in this request's turn.
-                let host = match self.pre_resolved.remove(&key) {
+                let host = match pre_resolved {
                     Some(host) => {
                         self.pre_resolved_hits += 1;
                         host
@@ -5870,7 +5907,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let synthetic = staged
                 .module_requests
                 .iter()
-                .map(|(key, _)| key)
+                .map(|request| &request.request.key)
                 .filter(|key| !ordered.contains(key));
             let containing_file = staged.prepared.path().display().to_owned();
             // A referenced project's file resolves with its own resolver

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::ops::Range;
 use std::sync::Arc;
 use tsc_diagnostics::{JsStr, JsString, PositionIndex};
@@ -134,14 +134,25 @@ pub struct SourceRequestPlan {
     path_references: Vec<PlannedPathReference>,
     module_requests: Vec<ResolutionKey>,
     unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
-    loadable_module_requests: BTreeSet<ResolutionKey>,
-    module_request_spans: BTreeMap<ResolutionKey, Vec<(u32, u32)>>,
+    /// By request: whether an occurrence of it loads its target.
+    module_request_loads: Vec<bool>,
+    /// By request: the spans of its occurrences that load their target.
+    module_request_spans: Vec<Vec<(u32, u32)>>,
     module_request_order: Vec<ResolutionKey>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
     observed_request_occurrence_count: usize,
     /// The source has the synthesized `tslib` or JSX runtime import.
     synthetic_imports: bool,
+}
+
+/// A module request of a plan, moved out by
+/// [`SourceRequestPlan::take_module_requests`].
+#[derive(Clone, Debug)]
+pub struct PlannedModuleRequest {
+    pub key: ResolutionKey,
+    pub loads_source: bool,
+    pub spans: Vec<(u32, u32)>,
 }
 
 impl SourceRequestPlan {
@@ -153,7 +164,7 @@ impl SourceRequestPlan {
         self.is_external_module == other.is_external_module
             && self.module_requests == other.module_requests
             && self.unpreprocessed_module_requests == other.unpreprocessed_module_requests
-            && self.loadable_module_requests == other.loadable_module_requests
+            && self.module_request_loads == other.module_request_loads
             && self.module_request_order == other.module_request_order
             && self.observed_request_occurrence_count == other.observed_request_occurrence_count
             && self.synthetic_imports == other.synthetic_imports
@@ -217,7 +228,25 @@ impl SourceRequestPlan {
     ) -> impl ExactSizeIterator<Item = (&ResolutionKey, bool)> {
         self.module_requests
             .iter()
-            .map(|key| (key, self.loadable_module_requests.contains(key)))
+            .zip(self.module_request_loads.iter().copied())
+    }
+
+    /// The module requests in order with whether each loads its target and
+    /// the spans of its loading occurrences (see
+    /// [`Self::module_request_spans`]), moved out of the plan.
+    pub fn take_module_requests(&mut self) -> Vec<PlannedModuleRequest> {
+        let keys = std::mem::take(&mut self.module_requests);
+        let loads = std::mem::take(&mut self.module_request_loads);
+        let spans = std::mem::take(&mut self.module_request_spans);
+        keys.into_iter()
+            .zip(loads)
+            .zip(spans)
+            .map(|((key, loads_source), spans)| PlannedModuleRequest {
+                key,
+                loads_source,
+                spans,
+            })
+            .collect()
     }
 
     /// Whether a resolved target participates in program source discovery.
@@ -227,8 +256,9 @@ impl SourceRequestPlan {
     /// confused with a resolution-only request.
     pub fn module_request_loads_source(&self, key: &ResolutionKey) -> Option<bool> {
         self.module_requests
-            .contains(key)
-            .then(|| self.loadable_module_requests.contains(key))
+            .iter()
+            .position(|request| request == key)
+            .map(|index| self.module_request_loads[index])
     }
 
     /// The source spans of the occurrences of a module request that load
@@ -240,9 +270,10 @@ impl SourceRequestPlan {
     /// not load a source (augmentation names, JSDoc import types of a
     /// TypeScript file) have no span here.
     pub fn module_request_spans(&self, key: &ResolutionKey) -> &[(u32, u32)] {
-        self.module_request_spans
-            .get(key)
-            .map_or(&[], Vec::as_slice)
+        self.module_requests
+            .iter()
+            .position(|request| request == key)
+            .map_or(&[], |index| self.module_request_spans[index].as_slice())
     }
 
     /// Every resolved occurrence in tsgo's `moduleNames` order
@@ -759,9 +790,9 @@ fn plan_module_requests_worker(
     dynamic_occurrences.sort_by_key(|occurrence| occurrence.pos);
     augmentation_occurrences.sort_by_key(|occurrence| occurrence.pos);
     let mut module_requests = Vec::new();
-    let mut module_request_spans: BTreeMap<ResolutionKey, Vec<(u32, u32)>> = BTreeMap::new();
-    let mut loadable_module_requests = BTreeSet::new();
-    let mut seen_module_requests = BTreeSet::new();
+    let mut module_request_loads = Vec::new();
+    let mut module_request_spans: Vec<Vec<(u32, u32)>> = Vec::new();
+    let mut request_index = rustc_hash::FxHashMap::<ResolutionKey, usize>::default();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
     // import when importHelpers can participate in this source. The checker
     // later resolves that exact synthetic specifier while validating the
@@ -794,9 +825,10 @@ fn plan_module_requests_worker(
         .saturating_add(usize::from(has_synthetic_jsx_runtime));
     if has_synthetic_tslib {
         let key = ResolutionKey::new(source.path().canonical().clone(), "tslib", static_mode);
-        seen_module_requests.insert(key.clone());
-        loadable_module_requests.insert(key.clone());
+        request_index.insert(key.clone(), module_requests.len());
         module_requests.push(key);
+        module_request_loads.push(true);
+        module_request_spans.push(Vec::new());
     }
     if has_synthetic_jsx_runtime {
         let key = ResolutionKey::new(
@@ -804,9 +836,10 @@ fn plan_module_requests_worker(
             jsx_runtime_import.expect("guarded JSX runtime synthetic import"),
             static_mode,
         );
-        seen_module_requests.insert(key.clone());
-        loadable_module_requests.insert(key.clone());
+        request_index.insert(key.clone(), module_requests.len());
         module_requests.push(key);
+        module_request_loads.push(true);
+        module_request_spans.push(Vec::new());
     }
     // The spans are UTF-16 offsets from the snapshot's position index: one
     // lookup each. Counting the UTF-16 units of the text prefix for every
@@ -831,34 +864,38 @@ fn plan_module_requests_worker(
         .chain(dynamic_occurrences)
         .chain(augmentation_occurrences)
     {
+        let index = match request_index.get(&occurrence.key) {
+            Some(&index) => index,
+            None => {
+                let index = module_requests.len();
+                request_index.insert(occurrence.key.clone(), index);
+                module_requests.push(occurrence.key);
+                module_request_loads.push(false);
+                module_request_spans.push(Vec::new());
+                index
+            }
+        };
         if occurrence.loads_source {
-            loadable_module_requests.insert(occurrence.key.clone());
+            module_request_loads[index] = true;
             let span_start =
                 skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
-            let span = (
+            module_request_spans[index].push((
                 byte_to_utf16_offset(positions, source_text, span_start),
                 byte_to_utf16_offset(positions, source_text, occurrence.end as usize),
-            );
-            module_request_spans
-                .entry(occurrence.key.clone())
-                .or_default()
-                .push(span);
-        }
-        if seen_module_requests.insert(occurrence.key.clone()) {
-            module_requests.push(occurrence.key);
+            ));
         }
     }
     // The source-file resolution cache is keyed by exact specifier and mode.
     // If another preprocessed occurrence owns the same key, checker lookups in
     // an augmentation body observe that ordinary authoritative row.
-    unpreprocessed_module_requests.retain(|key| !seen_module_requests.contains(key));
+    unpreprocessed_module_requests.retain(|key| !request_index.contains_key(key));
 
     let plan = SourceRequestPlan {
         is_external_module: parsed.external_module_indicator.is_some(),
         path_references,
         module_requests,
         unpreprocessed_module_requests,
-        loadable_module_requests,
+        module_request_loads,
         module_request_spans,
         module_request_order,
         type_reference_directives,

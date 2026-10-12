@@ -4995,3 +4995,63 @@ fn implied_formats_follow_tsgo_metadata_outside_node_resolutions() {
         );
     }
 }
+
+/// tsgo's `forceConsistentCasingInFileNames` scenario "when file is
+/// included from multiple places with different casing": a source reached
+/// under two spellings on a case-insensitive host is planned once per
+/// spelling, and the second planning's imports report the casing conflicts
+/// (TS1149, at `src/Struct.d.ts`).
+#[test]
+fn a_source_reached_under_two_spellings_plans_its_requests_for_each() {
+    const IMPORTS: &[u8] = b"import * as xs1 from \"fp-ts/lib/Struct\";\nimport * as xs2 from \"fp-ts/lib/struct\";\nimport * as xs3 from \"./Struct\";\nimport * as xs4 from \"./struct\";\n";
+    let host = MemoryCompilerHost::builder("/project")
+        .case_sensitive(false)
+        .file(
+            "/project/node_modules/fp-ts/lib/struct.d.ts",
+            b"export function foo(): void\n".to_vec(),
+        )
+        .file("/project/src/anotherFile.ts", IMPORTS.to_vec())
+        .file("/project/src/oneMore.ts", IMPORTS.to_vec())
+        .file("/project/src/struct.d.ts", IMPORTS.to_vec())
+        .build()
+        .expect("build case-insensitive host");
+    let program = load_with_options(
+        &host,
+        &[
+            "/project/src/anotherFile.ts",
+            "/project/src/oneMore.ts",
+            "/project/src/struct.d.ts",
+        ],
+        compiler_options(),
+        program_options(),
+        generous_limits(),
+    )
+    .expect("the load succeeds");
+    let casing = program
+        .diagnostics()
+        .program()
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 1149)
+        .map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .and_then(|name| name.as_str())
+                .map(str::to_owned)
+        })
+        .collect::<Vec<_>>();
+    // Each conflict is located at every import of the second spelling
+    // (tsgo renders them as two errors with their related locations).
+    assert_eq!(
+        casing,
+        [
+            "/project/src/Struct.d.ts",
+            "/project/src/anotherFile.ts",
+            "/project/src/oneMore.ts",
+            "/project/src/anotherFile.ts",
+            "/project/src/Struct.d.ts",
+            "/project/src/oneMore.ts",
+        ]
+        .map(|name| Some(name.to_owned()))
+    );
+}
