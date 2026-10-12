@@ -5111,14 +5111,16 @@ impl<'a> ModuleResolver<'a> {
                 if feature == "module-target-extension" =>
             {
                 if extension_pass_includes_declaration(probe_pass) {
-                    arbitrary_probe = arbitrary_declaration_twin(candidate);
+                    arbitrary_probe =
+                        arbitrary_declaration_twin(candidate, self.extra_extension_of(candidate));
                 }
                 None
             }
             Err(error) => return Err(error),
         };
         if base_name(candidate).contains(".") {
-            let extension = written_extension_to_strip(candidate);
+            let extension =
+                written_extension_to_strip(candidate, self.extra_extension_of(candidate));
             trace!(
                 self,
                 gen::File_name_0_has_a_1_extension_stripping_it,
@@ -5233,7 +5235,10 @@ impl<'a> ModuleResolver<'a> {
                     if feature == "module-target-extension" =>
                 {
                     if extension_pass_includes_declaration(probe_pass) {
-                        arbitrary_probe = arbitrary_declaration_twin(candidate);
+                        arbitrary_probe = arbitrary_declaration_twin(
+                            candidate,
+                            self.extra_extension_of(candidate),
+                        );
                     }
                     None
                 }
@@ -5243,7 +5248,8 @@ impl<'a> ModuleResolver<'a> {
             None
         };
         if has_written_extension {
-            let extension = written_extension_to_strip(candidate);
+            let extension =
+                written_extension_to_strip(candidate, self.extra_extension_of(candidate));
             trace!(
                 self,
                 gen::File_name_0_has_a_1_extension_stripping_it,
@@ -6314,14 +6320,15 @@ impl<'a> ModuleResolver<'a> {
                 if feature == "module-target-extension" =>
             {
                 if extension_pass_includes_declaration(context.pass) {
-                    arbitrary_probe = arbitrary_declaration_twin(target);
+                    arbitrary_probe =
+                        arbitrary_declaration_twin(target, self.extra_extension_of(target));
                 }
                 None
             }
             Err(error) => return Err(error),
         };
         if base_name(target).contains(".") {
-            let extension = written_extension_to_strip(target);
+            let extension = written_extension_to_strip(target, self.extra_extension_of(target));
             trace!(
                 self,
                 gen::File_name_0_has_a_1_extension_stripping_it,
@@ -6880,7 +6887,9 @@ fn json_value_type_name(value: &Value) -> &'static str {
 /// The extension tsgo `loadModuleFromFileNoImplicitExtensions` strips: a
 /// supported extension (`tspath.RemoveFileExtension`), else the longest
 /// written one.
-fn written_extension_to_strip(candidate: JsStr<'_>) -> JsString {
+/// tsgo `SplitExtension`'s extension: a known one, else the longest content
+/// mapper extension (`extra`), else the text after the base name's last dot.
+fn written_extension_to_strip(candidate: JsStr<'_>, extra: Option<JsString>) -> JsString {
     const REMOVABLE: [&str; 12] = [
         ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
         ".json",
@@ -6891,6 +6900,9 @@ fn written_extension_to_strip(candidate: JsStr<'_>) -> JsString {
         if candidate.as_bytes().len() > extension.len() && candidate.ends_with(extension) {
             return JsString::from(extension);
         }
+    }
+    if let Some(extra) = extra {
+        return extra;
     }
     match base_name(candidate).rsplit_once(".") {
         Some((_, extension)) => {
@@ -7101,14 +7113,25 @@ fn with_extra_extensions(
     })
 }
 
-fn arbitrary_declaration_twin<'p>(candidate: impl Into<JsStr<'p>>) -> Option<(JsString, JsString)> {
+/// The `.d<extension>.ts` twin of a candidate of an unknown extension: the
+/// longest content mapper extension (`extra`) or the text after the last
+/// dot (tsgo `SplitExtension`, `tryAddingExtensions`).
+fn arbitrary_declaration_twin<'p>(
+    candidate: impl Into<JsStr<'p>>,
+    extra: Option<JsString>,
+) -> Option<(JsString, JsString)> {
     let candidate = candidate.into();
     let file_name = base_name(candidate);
-    let dot = file_name
-        .as_bytes()
-        .iter()
-        .rposition(|byte| *byte == b'.')?;
-    let mut original_extension = file_name.split_at_byte(dot)?.1.to_owned();
+    let mut original_extension = match extra {
+        Some(extra) => extra,
+        None => {
+            let dot = file_name
+                .as_bytes()
+                .iter()
+                .rposition(|byte| *byte == b'.')?;
+            file_name.split_at_byte(dot)?.1.to_owned()
+        }
+    };
     if candidate.ends_with("/") {
         original_extension.push('/');
     }

@@ -30,6 +30,43 @@ fn virtual_to_original_span_verbatim() {
 }
 
 #[test]
+fn virtual_to_original_position_exact() {
+    let map = SpanMap::new(vec![
+        segment(0, 10, 100, 110, KIND_VERBATIM),
+        segment(10, 20, 110, 120, KIND_ATOM),
+        segment(20, 30, 120, 130, KIND_VERBATIM),
+    ]);
+    for (pos, want, exact) in [
+        (5, 105, true),
+        (10, 110, false),
+        (15, 110, false),
+        (20, 120, false),
+        (25, 125, true),
+    ] {
+        assert_eq!(
+            map.virtual_to_original_position_exact(pos),
+            (want, exact),
+            "{pos}"
+        );
+    }
+}
+
+#[test]
+fn virtual_to_original_position_exact_rejects_discontinuous_boundary() {
+    let map = SpanMap::new(vec![
+        Segment {
+            features: 0,
+            ..segment(0, 10, 0, 10, KIND_VERBATIM)
+        },
+        Segment {
+            features: 0,
+            ..segment(10, 20, 100, 110, KIND_VERBATIM)
+        },
+    ]);
+    assert_eq!(map.virtual_to_original_position_exact(10), (100, false));
+}
+
+#[test]
 fn virtual_to_original_span_atom() {
     // Virtual [3,14) ("MyComponent") is an atom of the original [60,71).
     let map = SpanMap::new(vec![segment(3, 14, 60, 71, KIND_ATOM)]);

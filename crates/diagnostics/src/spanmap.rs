@@ -336,6 +336,32 @@ impl SpanMap {
         (segment.original_start, Fidelity::Atom)
     }
 
+    /// tsgo `SpanMap.VirtualToOriginalPositionExact`: the original position
+    /// of a virtual one, and whether it is exact: inside a verbatim segment
+    /// and not where one segment ends that the verbatim one does not
+    /// continue in the original.
+    pub fn virtual_to_original_position_exact(&self, pos: i32) -> (i32, bool) {
+        let (mapped, fidelity) = self.virtual_to_original_position(pos);
+        if fidelity != Fidelity::Exact {
+            return (mapped, false);
+        }
+        let (index, inside) = self.segment_index_at(pos);
+        if !inside || self.segments[index as usize].kind != KIND_VERBATIM {
+            return (mapped, false);
+        }
+        if index > 0 {
+            let segment = &self.segments[index as usize];
+            let previous = &self.segments[index as usize - 1];
+            if previous.virtual_end == pos
+                && (previous.kind != KIND_VERBATIM
+                    || previous.original_end != segment.original_start)
+            {
+                return (mapped, false);
+            }
+        }
+        (mapped, true)
+    }
+
     /// tsgo `SpanMap.AliasForVirtualSpan`: the alias segment that covers the
     /// virtual range `[pos, end)` exactly, if any.
     pub fn alias_for_virtual_span(&self, pos: i32, end: i32) -> Option<Segment> {

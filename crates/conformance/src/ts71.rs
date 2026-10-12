@@ -485,8 +485,6 @@ fn limits() -> ProgramLoadLimits {
 /// Fixture units by their normalized absolute unit path, with their text.
 type Units = Vec<(String, String)>;
 
-/// The fixture units of the plan's groups (`tsConfigFiles`, `toBeCompiled`,
-/// `otherFiles`).
 /// The transformed text of each content-mapped fixture file, by absolute
 /// name: tsgo's compiler runner baselines it in place of the file's own
 /// content (`file.Content = sf.Text()`), which the compiler's positions are
@@ -519,6 +517,8 @@ fn mapped_texts(prepared: &tsc_program::PreparedProgram) -> MappedTexts {
         .collect()
 }
 
+/// The fixture units of the plan's groups (`tsConfigFiles`, `toBeCompiled`,
+/// `otherFiles`), a content-mapped file's with its transformed text.
 fn plan_units(plan: &CompilerExecutionPlan, mapped: &MappedTexts) -> (Units, Units, Units) {
     let (config, roots, others) = match &plan.root_selection {
         CompilerRootSelection::Explicit {
@@ -1841,12 +1841,14 @@ fn run_lane_a(
     let emit_sha256 = sha256_hex(rendered_js.as_deref().unwrap_or_default());
     // createSourceMapPreviewLink finds a map's sources among the Program's
     // files in Program order (`result.Inputs()`, sourcemap_baseline.go:90-100),
-    // where a file another one imports comes first.
+    // where a file another one imports comes first. It and the record show
+    // a content-mapped file's original text (`OriginalText()`).
+    let original_files = baseline_input_files(plan, &MappedTexts::new());
     let program_inputs: Vec<_> = facts
         .source_order
         .iter()
         .filter_map(|path| {
-            files
+            original_files
                 .iter()
                 .find(|(name, _)| absolute(&facts.current_directory, name) == *path)
                 .map(|(_, content)| errors_baseline::InputFile {

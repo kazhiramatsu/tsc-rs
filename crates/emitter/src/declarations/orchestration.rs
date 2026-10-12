@@ -225,7 +225,25 @@ pub(crate) fn emit_declaration_unit(
         options.declaration_map == Some(true) && !source_path.ends_with(".json");
     let map_lane = recording_enabled.then(|| crate::execute::map_lane_inputs(host));
     let recording = map_lane.as_ref().map(|lane| {
-        crate::declaration_map_recording_inputs_for(lane, options, declaration_path, source_path)
+        let mut inputs = crate::declaration_map_recording_inputs_for(
+            lane,
+            options,
+            declaration_path,
+            source_path,
+        );
+        let crate::EmitRoot::SourceFile(declared) = &root;
+        inputs.original_positions = host
+            .content_mapper_original(*declared)
+            .and_then(|original| {
+                let declared = host.source_file(*declared)?.syntax()?;
+                Some(crate::OriginalPositions::new(
+                    declared.file_name.clone(),
+                    original.file_name.to_owned(),
+                    std::sync::Arc::clone(original.text),
+                    original.span_map.clone(),
+                ))
+            });
+        inputs
     });
     let mut printer = create_printer(printer_options);
     let TransformRoot::SourceFile(root_source) = transformed_root;

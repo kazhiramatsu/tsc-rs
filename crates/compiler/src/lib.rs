@@ -687,6 +687,42 @@ impl EmitHost for PreparedEmitHost<'_> {
         self.prepared.compiler_options()
     }
 
+    fn content_mapper_supplemental_files(&self, id: SourceFileId) -> Vec<SourceFileId> {
+        let Some(info) = self
+            .prepared
+            .source_file(id)
+            .and_then(|source| source.content_mapped())
+        else {
+            return Vec::new();
+        };
+        info.supplemental
+            .iter()
+            .filter_map(|name| {
+                self.prepared
+                    .source_files()
+                    .iter()
+                    .find(|source| source.path().display() == name.as_js())
+                    .and_then(|source| self.prepared.source_id(source.path().canonical()))
+            })
+            .collect()
+    }
+
+    fn content_mapper_original(
+        &self,
+        id: SourceFileId,
+    ) -> Option<tsc_emitter::ContentMapperOriginal<'_>> {
+        let source = self.prepared.source_file(id)?;
+        let info = source.content_mapped()?;
+        Some(tsc_emitter::ContentMapperOriginal {
+            file_name: info
+                .canonical
+                .as_ref()
+                .map_or(source.path().display(), |canonical| canonical.as_js()),
+            text: &info.original_text,
+            span_map: info.span_map.as_ref()?,
+        })
+    }
+
     fn content_mapper_extensions(&self) -> Vec<String> {
         self.prepared
             .program_options()
@@ -844,6 +880,17 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
 
     fn content_mapper_extensions(&self) -> Vec<String> {
         self.prepared.content_mapper_extensions()
+    }
+
+    fn content_mapper_supplemental_files(&self, id: SourceFileId) -> Vec<SourceFileId> {
+        self.prepared.content_mapper_supplemental_files(id)
+    }
+
+    fn content_mapper_original(
+        &self,
+        id: SourceFileId,
+    ) -> Option<tsc_emitter::ContentMapperOriginal<'_>> {
+        self.prepared.content_mapper_original(id)
     }
 
     fn tracing(&self) -> Option<&Arc<Tracing>> {

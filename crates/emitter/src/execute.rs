@@ -542,6 +542,7 @@ pub(crate) fn source_map_recording_inputs_for_output(
         current_directory: lane.current_directory.clone(),
         use_case_sensitive_source_keys: lane.use_case_sensitive_source_keys,
         inline_sources: options.inline_sources == Some(true),
+        original_positions: None,
     }
 }
 

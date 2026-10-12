@@ -290,6 +290,40 @@ pub(crate) fn referenced_files(
         copied.file_name = file_name;
         result.push(copied);
     }
+    // tsgo SupplementalReferencesTransformer: a content mapper's canonical
+    // declaration references the declarations of its supplemental outputs
+    // that are emitted, by their path from it as a module specifier.
+    for supplemental in transformer
+        .host
+        .content_mapper_supplemental_files(program_source)
+    {
+        let Some(source) = transformer.host.source_file(supplemental) else {
+            continue;
+        };
+        if !crate::plan::source_file_may_be_emitted(source, transformer.host) {
+            continue;
+        }
+        let Ok(paths) = crate::plan::get_output_paths_for(source, transformer.host) else {
+            continue;
+        };
+        let Some(declaration) = paths.declaration_path() else {
+            continue;
+        };
+        let relative = get_relative_path(output_directory, declaration, transformer.host);
+        let file_name = if relative.as_js().starts_with(".") || relative.as_js().starts_with("/") {
+            relative
+        } else {
+            let mut specifier = JsString::from("./");
+            specifier.push_js(relative.as_js());
+            specifier
+        };
+        result.push(FileReference {
+            file_name,
+            pos: u32::MAX,
+            end: u32::MAX,
+            preserve: false,
+        });
+    }
     Ok(result)
 }
 

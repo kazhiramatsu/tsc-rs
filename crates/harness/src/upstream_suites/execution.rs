@@ -214,7 +214,6 @@ pub fn load_native_compiler_program(
         limits,
         test_library,
         standard_library,
-        true,
     )
 }
 
@@ -251,8 +250,8 @@ pub fn load_native_declaration_program(
         .filter(|(path, _)| !path.ends_with(".json"))
         .map(|(path, _)| PathBuf::from(path))
         .collect();
-    // `CompileFilesEx` without the configuration's tsconfig: no content
-    // mapper project.
+    // `compileDeclarationFiles` passes the configuration's content mappers:
+    // their extensions resolve the declarations' imports.
     load_native_program_files(
         workspace,
         plan,
@@ -262,7 +261,6 @@ pub fn load_native_declaration_program(
         limits,
         test_library,
         standard_library,
-        false,
     )
 }
 
@@ -279,7 +277,6 @@ fn load_native_program_files(
     limits: ProgramLoadLimits,
     test_library: &Path,
     standard_library: &Path,
-    content_mappers: bool,
 ) -> HarnessResult<PreparedProgram> {
     let current_directory = plan.current_directory.as_ref();
     let mut host_builder = MemoryCompilerHost::builder(current_directory)
@@ -407,7 +404,6 @@ fn load_native_program_files(
     // their host is torn down when the compilation is done.
     let content_mappers = program_options
         .content_mapper_spec()
-        .filter(|_| content_mappers)
         .cloned()
         .and_then(|spec| {
             let host = tsc_program::content_mapper::host::Host::new(

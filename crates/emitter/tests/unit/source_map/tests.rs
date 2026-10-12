@@ -467,6 +467,7 @@ fn print_recorded_with_options(
                 current_directory: "/".into(),
                 use_case_sensitive_source_keys: true,
                 inline_sources: false,
+                original_positions: None,
             }),
         )
         .expect("recorded identity print");
