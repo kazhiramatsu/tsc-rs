@@ -66,10 +66,28 @@ scratchpad の `perf/bench.py`（最初に出力の一致（診断・終了 code
 - **hosted と merge**：PR #758 の hosted run 38197536645（rust 8m52s、conformance 13m1s、gates pass、head `24122cc81`）、merge
   commit `d5200ae0a`。
 
-## チューニング
+## チューニング（PR #759）
 
 - VS Code の profile（macOS の `sample`、全 thread）は平ら（1 つで数 % を超える所は無い）。小さな改善（interned name の
-  `str` の検証を一度に、node の core module の判定を interning なしで、path の相対 segment と拡張子の判定を byte で）は合わせて
-  0〜1.6 % で、測れる差はほぼ無い。
-- 大きく効く候補は loader の main thread の逐次の部分（VS Code の読み込みで tsgo より 0.3 s 長い）：module 解決と program の
-  publish を worker の task に移す（tsgo の file loader の形）。構造の変更なので利用者の判断を待つ。
+  `str` の検証を intern の時に一度だけ、node の core module の判定を interning なしで、path の相対 segment と拡張子の判定を byte
+  で）は合わせて 0〜1.6 % で、測れる差はほぼ無い。
+- profile の途中で見つけた一致の違い：`types` に `"*"` があると、tsgo は「install type definitions」の診断から「`types` に
+  足す」の助言を外す（TS2580・TS2581・TS2582・TS2867、`UsesWildcardTypes`、checker.go:14187-14205・15413-15422）。port は
+  常に TS2591・TS2592・TS2593・TS2868 だった。checker の options が `types` を持つ。
+- **test**：`--types *` の CLI contract（tsgo の byte、修正前のコードで失敗）と `has_relative_segment` の unit test。
+- **結果**（release build、head `46c54cf08`）：full の conformance（`--workers 2 --check`、487 s）は 0 regressions で #758 の report
+  と全ての field で同じ。並列対照は記録済みの順序の 4 構成だけ。suites は 0 regressions、既知の違い 10。test は xtask 以外の全
+  crate で 4,130 が通り、clippy も通る。6 project の一致は 26 が一致、zod の 5 は分割に依るだけ。DefinitelyTyped は 9,067／9,067
+  一致（1,171 s）。R2・R3 で消した option の tsgo との並べた比較は 20／20、15／15。
+- **hosted と merge**：PR #759 の hosted run 38202308283（rust 11m9s、conformance 21m40s、gates pass、head `46c54cf08`）、merge
+  commit `e92da5703`。
+
+## 残る候補（利用者の判断待ち）
+
+- **loader の並列化**：VS Code の読み込みだけ（`--listFilesOnly`）で tsc-rs 1.04 s（CPU 3.5 s）、tsgo 0.71 s（CPU 4.8 s）。
+  段階の計測（`TSRS_PHASE_TRACE`）では、root の read-ahead の parse（10 thread、270〜360 ms）の後、依存の read-ahead（190〜220 ms）
+  は調整役の main thread で律速され、root walk（125 ms）・graph finish（42 ms）・program の publish（約 130 ms）は main thread で
+  逐次に走る。tsgo の file loader のように worker の task が parse と module 解決をまとめて行う形にすれば VS Code で 0.2〜0.3 s
+  縮む見込み（比 0.78 → 0.72 前後）。loader の構造の変更で、順序は一致（trace・package.json の lookup の順）に関わるので、
+  利用者の判断を待つ。
+- typescript（src/compiler）は check が `checker.ts` を 1 thread で検査する時間で決まり（tsc-rs 0.27 s、tsgo 0.28 s）、安い改善は無い。
