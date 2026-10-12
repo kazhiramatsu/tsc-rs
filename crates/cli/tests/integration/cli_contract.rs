@@ -1061,6 +1061,54 @@ fn javascript_dotted_typedef_names_with_reexported_values_follow_tsgo() {
 }
 
 #[test]
+fn javascript_type_definitions_mark_a_module_like_tsgo() {
+    // A `.mjs` file is a module by its extension. Its `@typedef` becomes an
+    // exported type alias, which marks the declaration file as a module, so
+    // tsgo writes no `export {};` (starlight's `docs/lunaria/freshness.mjs`).
+    // The expected bytes are tsgo's for the same project.
+    let tree = TempTree::new();
+    fs::write(
+        tree.path("widget.mjs"),
+        concat!(
+            "/**\n",
+            " * @typedef {object} Item\n",
+            " * @property {string} name\n",
+            " */\n",
+            "\n",
+            "class Widget {\n",
+            "    /** @param {Item} item */\n",
+            "    show(item) {\n",
+            "        return item.name;\n",
+            "    }\n",
+            "}\n",
+            "\n",
+            "void Widget;\n",
+        ),
+    )
+    .expect("write module");
+    fs::write(
+        tree.path("tsconfig.json"),
+        r#"{"compilerOptions":{"target":"es2022","allowJs":true,"checkJs":true,"declaration":true,"emitDeclarationOnly":true,"types":[],"outDir":"out"},"files":["widget.mjs"]}"#,
+    )
+    .expect("write config");
+    let output = run(&tree, &["-p", ".", "--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        fs::read_to_string(tree.path("out/widget.d.mts")).expect("read declarations"),
+        concat!(
+            "/**\n",
+            " * @typedef {object} Item\n",
+            " * @property {string} name\n",
+            " */\n",
+            "export type Item = {\n",
+            "    name: string;\n",
+            "};\n",
+        )
+    );
+}
+
+#[test]
 fn javascript_import_tags_follow_tsgo() {
     // tsgo's parser turns an `@import` tag into a type-only import before
     // the top-level statement that holds it, a class member's included, and

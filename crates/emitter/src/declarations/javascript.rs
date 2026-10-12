@@ -618,7 +618,14 @@ impl DeclarationTransformer<'_> {
                     .insert(tag.tag, result);
                 statements.push(tag_node);
             } else {
-                statements.push(self.reparsed_type_alias(cx, source, tag, is_module)?);
+                let alias = self.reparsed_type_alias(cx, source, tag, is_module)?;
+                // tsgo transformAndReplaceLatePaintedStatements: a top-level
+                // statement that is an external module indicator (the alias
+                // a module exports) means the file needs no `export {};`.
+                if super::statements::is_external_module_indicator(cx, alias)? {
+                    self.state_mut()?.result_has_external_module_indicator = true;
+                }
+                statements.push(alias);
             }
         }
         Ok(statements)

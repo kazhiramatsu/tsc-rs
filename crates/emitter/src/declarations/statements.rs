@@ -2018,7 +2018,7 @@ fn needs_scope_marker(
         && !is_ambient_module)
 }
 
-fn is_external_module_indicator(
+pub(super) fn is_external_module_indicator(
     context: &TransformationContext,
     node: TransformNode,
 ) -> Result<bool, TransformError> {
