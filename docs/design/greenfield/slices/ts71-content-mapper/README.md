@@ -129,3 +129,30 @@
   で #762 の report と 15,339 の構成が全て同じ。checker に触れないので並列対照は無し。
 - **hosted と merge**：PR #763 の hosted run 38226414167（rust 11m47s、conformance 13m28s、gates pass、head `ee84678f9`）、merge
   commit `097f178bb`。`setLocale`（LSP だけの request）は言語 server と一緒に移す。
+
+## C3 設定と C4a program・CLI（PR #764）
+
+C3 だけでは載せられない（mapper の拡張子の file を列挙しても読めるのは C4a から。tsc suites の `contentMapperEmit` は、
+`--runExternalCode` が落とされて `.vue` が列挙されなかったため偶然一致していた）ので、2 つを 1 つの PR にした。
+
+- **C3**（`config_content_mappers.rs`）：`contentMappers` の entry（`package`・`extensions`・`options`、`extends` で最後に
+  持つ base から継承）、拡張子の検査（TS18065–18067、Go の `EqualFold`）、`--runExternalCode` が無い時の TS18068、manifest
+  の解決（`ResolvePackageDirectory`：`node_modules`、次に `@types`、symlink は実体）と TS18075–18079、mapper の拡張子ごとの
+  supported extension の group。`runExternalCode` を command line の option に残す。`references` と `contentMappers` の
+  object でない要素の TS5024（`references` の分は以前から抜けていた）。`ConfigParseHost::directory_exists`。
+- **C4a**：`content_mapper::Project` を trait に、`content_mapper::source`（mapped file の情報、`ParseResult`、失敗の stub、
+  file loader の診断）。loader の変換、supplemental の subtask、失敗の予算 5 と初期化の失敗、仮想名での parse と implied
+  format、resolver の `extraExtensions`、mapped file の JS を出さない emit、CLI の spawner と project、tsgo の診断 writer
+  （元の text か仮想の text、合成の code の注記、supplemental は canonical の file として、`TS` の代わりに mapper の source）。
+  `tsc_harness::content_mappers`（tsgo contentmappertest の process の中の mapper 6 種）を suites の test system に。
+- **test**：C3 は tsconfigparsing_test.go と contentmappers_test.go の case、tsgo の binary が出す診断（無効な entry の全種、
+  `--runExternalCode` の有無、ずれた要素、継承）。C4a は fake project での loader（5）、`ParseResult` と診断（5）。
+- **結果**（release build、code `58e0ce4ae` と ratchet `53f19e73d`）：test 4,204、clippy、suites 0 regressions で 6 が
+  accepted tier を上回り `--update`（tsc の content mapper の baseline が none から full、7/7 一致）、full の conformance
+  （502 s）0 regressions で C2 の report と 15,339 の構成が全て同じ、並列対照（`--checkers 4`、482 s）は記録済みの
+  partition 依存の 4 構成だけ違う。
+- **hosted と merge**：PR #764 の hosted run 38238772145（rust 7m13s、conformance 21m2s、gates pass、head `53f19e73d`）、
+  merge commit `7ca1df174`。
+- **残り**：C4b（conformance runner の `@runExternalCode` と `.contentmapper` baseline、他の test mapper、診断の directive、
+  宣言 emit の細部。conformance の content mapper の 15 は harness error のまま）、C5（build info の identity、tsbuild の 2、
+  watch）、C6（API）、mapper の JavaScript 出力の checker 上の JS 判定（file 名で決まる）、CLI の mapper の locale。
