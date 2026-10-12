@@ -125,7 +125,9 @@ tsc-rs follows (October 12, 2026):
 Over all 26 configurations measured (type checks and builds with outputs),
 tsc-rs took 0.58–0.93 of `tsgo`'s time and 0.71–1.10 of its memory. To use
 less memory, lower `--checkers`. Full results, CPU time, content mapper
-projects and method: [docs/performance.md](docs/performance.md).
+projects and method: [docs/performance.md](docs/performance.md). These
+numbers predate the faster program loading of pull requests #760 and #761,
+and will be measured again.
 
 ## API server (experimental)
 
