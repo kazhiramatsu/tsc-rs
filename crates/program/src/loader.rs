@@ -6416,26 +6416,32 @@ fn publish_program(
     }
 
     let mut published_ids = vec![None; staged.sources.len()];
-    let mut source_by_canonical = BTreeMap::<CanonicalPath, SourceFileId>::new();
+    // Hashed, never iterated: every module and type resolution looks its
+    // target up here (VS Code: 112k lookups of long path keys).
+    let mut source_by_canonical = FxHashMap::<CanonicalPath, SourceFileId>::default();
+    let mut staged_sources: Vec<Option<StagedSource>> =
+        staged.sources.into_iter().map(Some).collect();
     let publish_order = staged
         .library_postorder
         .into_iter()
         .chain(staged.ordinary_postorder);
     for source_index in publish_order {
-        let staged_source = &staged.sources[source_index];
+        let staged_source = staged_sources[source_index]
+            .take()
+            .expect("postorder publishes each staged source once");
         let may_be_emitted =
             staged_source.prepared.may_be_emitted() && staged_source.has_non_external_reason;
+        let may_emit_forced_declaration = staged_source.prepared.may_emit_forced_declaration()
+            && staged_source.has_non_external_reason;
         let prepared = staged_source
             .prepared
-            .clone()
             .with_may_be_emitted(may_be_emitted)
-            .with_may_emit_forced_declaration(
-                staged_source.prepared.may_emit_forced_declaration()
-                    && staged_source.has_non_external_reason,
-            )
+            .with_may_emit_forced_declaration(may_emit_forced_declaration)
             .with_found_searching_node_modules(!staged_source.has_non_external_reason)
-            .with_inclusion_reasons(staged_source.inclusion_reasons.clone());
-        let source_id = builder.add_source_file(prepared.clone()).map_err(|error| {
+            .with_inclusion_reasons(staged_source.inclusion_reasons);
+        let canonical = prepared.path().canonical().clone();
+        let package_redirects = prepared.package_redirect_paths().to_vec();
+        let source_id = builder.add_source_file(prepared).map_err(|error| {
             ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
         })?;
         if staged_source.library_priority.is_some() {
@@ -6444,13 +6450,13 @@ fn publish_program(
             })?;
         }
         published_ids[source_index] = Some(source_id);
-        source_by_canonical.insert(prepared.path().canonical().clone(), source_id);
+        source_by_canonical.insert(canonical, source_id);
         for (redirected, output) in &staged.project_reference_redirects {
             if *output == source_index {
                 source_by_canonical.insert(redirected.canonical().clone(), source_id);
             }
         }
-        for redirect in prepared.package_redirect_paths() {
+        for redirect in package_redirects {
             if let Some(previous) =
                 source_by_canonical.insert(redirect.canonical().clone(), source_id)
             {
@@ -6566,7 +6572,7 @@ fn publish_program(
 
 fn bind_module_resolution(
     host: HostModuleResolution,
-    source_by_canonical: &BTreeMap<CanonicalPath, SourceFileId>,
+    source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
     package_map: &BTreeMap<JsString, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
@@ -6641,7 +6647,7 @@ fn bind_module_resolution(
 
 fn bind_type_resolution(
     host: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
-    source_by_canonical: &BTreeMap<CanonicalPath, SourceFileId>,
+    source_by_canonical: &FxHashMap<CanonicalPath, SourceFileId>,
 ) -> Result<TypeReferenceResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host) = host else {
         return Ok(TypeReferenceResolution::not_found());

@@ -253,9 +253,20 @@ impl ModuleExtension {
         if case_sensitive {
             return self.matches_path(path);
         }
+        // An ASCII extension against an ASCII tail of the path: folding
+        // either one only lower-cases ASCII letters, so compare the tail
+        // without folding the whole path.
+        let extension = self.as_js();
+        let (path_bytes, extension_bytes) = (path.as_bytes(), extension.as_bytes());
+        if extension_bytes.is_ascii() && path_bytes.len() >= extension_bytes.len() {
+            let tail = &path_bytes[path_bytes.len() - extension_bytes.len()..];
+            if tail.is_ascii() {
+                return tail.eq_ignore_ascii_case(extension_bytes);
+            }
+        }
         let path = to_file_name_lower_case_js(path);
         path.as_js()
-            .ends_with_js(to_file_name_lower_case_js(self.as_js()).as_js())
+            .ends_with_js(to_file_name_lower_case_js(extension).as_js())
     }
 
     /// Match the resolver's logical extension against the selected physical
