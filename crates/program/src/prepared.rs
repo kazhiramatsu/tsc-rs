@@ -1713,7 +1713,9 @@ pub struct PreparedProgram {
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
     source_files: Vec<PreparedSourceFile>,
-    source_by_canonical: BTreeMap<CanonicalPath, SourceFileId>,
+    /// Hashed, never iterated: every resolution of the program looks its
+    /// source up here.
+    source_by_canonical: rustc_hash::FxHashMap<CanonicalPath, SourceFileId>,
     roots: Vec<PreparedRoot>,
     library_files: Vec<SourceFileId>,
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
@@ -1964,7 +1966,7 @@ pub struct PreparedProgramBuilder {
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
     source_files: Vec<PreparedSourceFile>,
-    source_by_canonical: BTreeMap<CanonicalPath, SourceFileId>,
+    source_by_canonical: rustc_hash::FxHashMap<CanonicalPath, SourceFileId>,
     source_by_realpath: BTreeMap<CanonicalPath, SourceFileId>,
     roots: Vec<PreparedRoot>,
     library_files: Vec<SourceFileId>,
@@ -2044,7 +2046,7 @@ impl PreparedProgramBuilder {
             compiler_options,
             program_options: ProgramOptions::default(),
             source_files: Vec::new(),
-            source_by_canonical: BTreeMap::new(),
+            source_by_canonical: rustc_hash::FxHashMap::default(),
             source_by_realpath: BTreeMap::new(),
             roots: Vec::new(),
             library_files: Vec::new(),
