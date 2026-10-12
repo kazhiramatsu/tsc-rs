@@ -356,6 +356,44 @@ fn an_import_of_a_mapper_s_extension_loads_the_mapped_file() {
     ));
 }
 
+/// tsgo SplitExtension takes the longest mapper extension off an import of
+/// it, so a declaration file's import of a multi-dot extension resolves the
+/// declaration twin (`.d.y.z.ts`) where the mapped file is not there (a
+/// declaration compile).
+#[test]
+fn an_import_of_a_multi_dot_mapper_extension_resolves_its_declaration() {
+    let (prepared, _) = load_with(
+        r#"{
+            "compilerOptions": { "noLib": true, "types": [], "module": "esnext", "moduleResolution": "bundler", "traceResolution": true },
+            "files": ["src/main.d.ts"],
+            "contentMappers": [{ "package": "vue", "extensions": [".y.z"] }]
+        }"#,
+        &[
+            (
+                "/p/src/main.d.ts",
+                "export { component } from \"./component.y.z\";",
+            ),
+            (
+                "/p/src/component.d.y.z.ts",
+                "export declare const component: number;",
+            ),
+        ],
+        fake(|_, _| Ok(output("export default 1;", ".ts", Vec::new()))),
+    );
+    assert_eq!(
+        names(&prepared),
+        ["/p/src/component.d.y.z.ts", "/p/src/main.d.ts"]
+    );
+    assert_eq!(
+        prepared.resolution_trace()[4..7],
+        [
+            "File name '/p/src/component.y.z' has a '.y.z' extension - stripping it.",
+            "File '/p/src/component.y.z' does not exist.",
+            "File '/p/src/component.d.y.z.ts' exists - use it as a name resolution result.",
+        ]
+    );
+}
+
 /// tsgo resolveImportsAndModuleAugmentations adds the JSX runtime import by
 /// the script kind, which a mapped file takes from its virtual name: a
 /// `.tsx` output imports the runtime, explained as tsgo explains a
