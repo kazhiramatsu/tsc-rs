@@ -9,9 +9,9 @@ sharded control (`--checkers <n>`, target/conformance-ts71/<profile>/checkers-<n
 report.json) or a run at another source revision. Every lane-A configuration is
 compared on its outcome, its tier, the digest of tsc-rs's rendered error
 baseline (`rendered_sha256`) and the emit agreement and digest (`emit`,
-`emit_sha256`), and the `.contentmapper` agreement (`content_mapper`): two
-configurations with the same digests produced the same diagnostics in the same
-order and the same output files. The script prints the configurations that
+`emit_sha256`), and the `.contentmapper` agreement (`content_mapper`, when
+both reports have it): two configurations with the same digests produced the
+same diagnostics in the same order and the same output files. The script prints the configurations that
 differ, grouped by how, and exits 1 when any differ.
 """
 
@@ -68,7 +68,8 @@ def main(argv):
         if (left.get("emit"), left.get("emit_sha256")) != (right.get("emit"), right.get("emit_sha256")):
             groups["emit"].append((key, left.get("emit"), right.get("emit")))
             continue
-        if left.get("content_mapper") != right.get("content_mapper"):
+        if ("content_mapper" in left and "content_mapper" in right
+                and left["content_mapper"] != right["content_mapper"]):
             groups["content mapper"].append(
                 (key, left.get("content_mapper"), right.get("content_mapper")))
             continue
