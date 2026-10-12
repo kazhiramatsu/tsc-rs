@@ -14,7 +14,7 @@ use tsc_types::CompilerOptions;
 
 use crate::content_mapper::source::{
     failure_stub, initialization_diagnostic, transform_diagnostic, virtual_sources, VirtualSource,
-    MAX_CONTENT_MAPPER_FAILURES,
+    VirtualSources, MAX_CONTENT_MAPPER_FAILURES,
 };
 use crate::content_mapper::{errors::TransformFailure, host::Request, Mapper};
 use crate::json::{json_object_get, parse_json_object};
@@ -1712,16 +1712,54 @@ enum PrefetchedRead {
         byte_len: usize,
         decoded: Result<Box<PrefetchedParse>, HostTextDecodeError>,
     },
+    /// A content-mapped file transformed on a worker (tsgo transforms a
+    /// mapped file in its parse task), with its output parsed and planned
+    /// when the transform succeeded; the walk applies the mapper's failure
+    /// budget in its own order.
+    Mapped {
+        byte_len: usize,
+        mapped: Result<Box<PrefetchedMapped>, HostTextDecodeError>,
+    },
 }
 
 impl PrefetchedRead {
     /// The payload this entry holds against the joint load budget, if any.
     fn reserved_bytes(&self) -> Option<usize> {
         match self {
-            Self::Parsed { byte_len, .. } => Some(*byte_len),
+            Self::Parsed { byte_len, .. } | Self::Mapped { byte_len, .. } => Some(*byte_len),
             Self::Missing | Self::Failed(_) => None,
         }
     }
+
+    /// The parse whose requests the read-ahead follows.
+    fn parse_mut(&mut self) -> Option<&mut PrefetchedParse> {
+        match self {
+            Self::Parsed {
+                decoded: Ok(parse), ..
+            } => Some(parse),
+            Self::Mapped {
+                mapped: Ok(mapped), ..
+            } => mapped
+                .outcome
+                .as_mut()
+                .ok()
+                .map(|transformed| &mut *transformed.canonical),
+            _ => None,
+        }
+    }
+}
+
+/// A content-mapped file read ahead: its original text and its transform.
+struct PrefetchedMapped {
+    content: String,
+    outcome: Result<PrefetchedTransform, TransformFailure>,
+}
+
+/// A transform's canonical output, parsed and planned (with its
+/// content-mapped information), and its supplemental outputs.
+struct PrefetchedTransform {
+    canonical: Box<PrefetchedParse>,
+    supplemental: Vec<VirtualSource>,
 }
 
 struct PrefetchedParse {
@@ -1758,6 +1796,12 @@ struct ParallelReadAhead<'a> {
     reader: &'a (dyn ParallelSourceReader + Sync),
     options: &'a CompilerOptions,
     program_options: &'a ProgramOptions,
+    /// The configured content mappers and their project, when the files of
+    /// their extensions are transformed here.
+    content_mappers: Option<(
+        &'a crate::content_mapper::host::ProjectSpec,
+        &'a dyn crate::content_mapper::Project,
+    )>,
     library_catalog: Option<&'a LibraryCatalog>,
     library_directory: Option<ProgramPath>,
     references: ReferenceView<'a, dyn CompilerHost + Sync + 'a>,
@@ -1779,8 +1823,21 @@ impl ParallelReadAhead<'_> {
     fn admits(&self, path: &ProgramPath) -> bool {
         path_has_extension(path.display())
             && (is_admitted_source(path.canonical(), self.options)
-                || self.options.allow_non_ts_extensions == Some(true))
+                || self.options.allow_non_ts_extensions == Some(true)
+                || self.mapper_for(path).is_some())
             && !is_json_source(path.canonical())
+    }
+
+    /// The content mapper of `path`'s extension (the walk's
+    /// `content_mapper_for`).
+    fn mapper_for(&self, path: &ProgramPath) -> Option<Arc<Mapper>> {
+        let (spec, _) = self.content_mappers?;
+        crate::config::content_mapper_for_file_name(
+            &spec.mappers,
+            path.display(),
+            self.case_sensitive,
+        )
+        .cloned()
     }
 
     fn queue(&self, path: &ProgramPath, spawned: &mut Vec<(ProgramPath, usize)>) {
@@ -1834,7 +1891,12 @@ impl ParallelReadAhead<'_> {
                     self.stopped.store(true, Ordering::Relaxed);
                     return None;
                 }
-                parse_root_ahead(&path, bytes, self.options, scope.as_ref())
+                match (self.mapper_for(&path), self.content_mappers) {
+                    (Some(mapper), Some((_, project))) => {
+                        self.transform_ahead(resolver, &path, bytes, &mapper, project)
+                    }
+                    _ => parse_root_ahead(&path, bytes, self.options, scope.as_ref()),
+                }
             }
         };
         let mut source = ReadAheadSource {
@@ -1849,6 +1911,81 @@ impl ParallelReadAhead<'_> {
         Some(source)
     }
 
+    /// tsgo `parseContentMappedFile` in a parse task: the file transformed by
+    /// its mapper, the canonical output parsed and planned under its virtual
+    /// name (with the package scope its format needs).
+    fn transform_ahead(
+        &self,
+        resolver: &mut Option<ModuleResolver<'_>>,
+        path: &ProgramPath,
+        bytes: Vec<u8>,
+        mapper: &Arc<Mapper>,
+        project: &dyn crate::content_mapper::Project,
+    ) -> PrefetchedRead {
+        let byte_len = bytes.len();
+        let mapped = decode_host_text(bytes).map(|content| {
+            let outcome = transform_content_mapped(
+                self.references.host,
+                project,
+                path.display(),
+                &content,
+                mapper,
+            )
+            .map(|sources| {
+                let VirtualSources {
+                    canonical,
+                    supplemental,
+                } = sources;
+                let virtual_file_name = canonical.info.virtual_file_name.clone();
+                let scope = if implied_node_format_needs_package_scope(
+                    virtual_file_name.as_js(),
+                    self.options,
+                ) {
+                    resolver
+                        .as_mut()
+                        .and_then(|resolver| resolver.package_scope_for_file(path.display()).ok())
+                        .flatten()
+                } else {
+                    None
+                };
+                let implied =
+                    implied_node_format(virtual_file_name.as_js(), scope.as_ref(), self.options);
+                let implied_for_emit = implied_node_format_for_emit(
+                    virtual_file_name.as_js(),
+                    scope.as_ref(),
+                    self.options,
+                );
+                let prepared = PreparedSourceFile::new(path.clone(), canonical.text)
+                    .with_content_mapped(Arc::new(canonical.info))
+                    .with_implied_node_formats(implied, implied_for_emit);
+                let canonical = Box::new(
+                    match plan_source_requests_retaining_syntax(&prepared, self.options) {
+                        Ok((plan, syntax)) => PrefetchedParse {
+                            implied,
+                            implied_for_emit,
+                            prepared: prepared.with_preparsed_syntax(syntax),
+                            plan: Ok(plan),
+                            resolutions: Vec::new(),
+                        },
+                        Err(error) => PrefetchedParse {
+                            implied,
+                            implied_for_emit,
+                            prepared,
+                            plan: Err(error),
+                            resolutions: Vec::new(),
+                        },
+                    },
+                );
+                PrefetchedTransform {
+                    canonical,
+                    supplemental,
+                }
+            });
+            Box::new(PrefetchedMapped { content, outcome })
+        });
+        PrefetchedRead::Mapped { byte_len, mapped }
+    }
+
     /// `read_ahead_edges` on a worker: resolve the source's module requests
     /// and type reference directives and queue the targets the walk loads.
     fn follow(
@@ -1857,12 +1994,10 @@ impl ParallelReadAhead<'_> {
         source: &mut ReadAheadSource,
         spawned: &mut Vec<(ProgramPath, usize)>,
     ) {
-        let PrefetchedRead::Parsed {
-            decoded: Ok(parse), ..
-        } = &source.read
-        else {
+        let Some(parse) = source.read.parse_mut() else {
             return;
         };
+        let parse = &*parse;
         let Ok(plan) = &parse.plan else {
             return;
         };
@@ -1965,10 +2100,7 @@ impl ParallelReadAhead<'_> {
             }
         }
         source.type_resolutions = type_resolutions;
-        if let PrefetchedRead::Parsed {
-            decoded: Ok(parse), ..
-        } = &mut source.read
-        {
+        if let Some(parse) = source.read.parse_mut() {
             parse.resolutions = resolutions;
         }
     }
@@ -2044,6 +2176,11 @@ enum SourceInput {
     /// A content mapper's supplemental output, transformed with its
     /// canonical file.
     Provided(Box<VirtualSource>),
+    /// A content-mapped file the read-ahead transformed.
+    PrefetchedMapped {
+        byte_len: usize,
+        mapped: Result<Box<PrefetchedMapped>, HostTextDecodeError>,
+    },
 }
 
 enum DecodedSource {
@@ -2051,6 +2188,62 @@ enum DecodedSource {
     Parsed(Box<PrefetchedParse>),
     /// A content mapper's output (tsgo parseContentMappedFile).
     Mapped(Box<VirtualSource>),
+    /// A content mapper's output the read-ahead parsed and planned.
+    MappedParsed(Box<PrefetchedParse>),
+    /// A content-mapped file the read-ahead transformed, before the walk
+    /// applies its mapper's failure budget.
+    PrefetchedMapped(Box<PrefetchedMapped>),
+}
+
+/// A content-mapped file as the walk admits it: its mapper's output to
+/// parse, or that output parsed and planned by the read-ahead.
+enum MappedSource {
+    Virtual(Box<VirtualSource>),
+    Parsed(Box<PrefetchedParse>),
+}
+
+impl From<MappedSource> for DecodedSource {
+    fn from(source: MappedSource) -> Self {
+        match source {
+            MappedSource::Virtual(source) => Self::Mapped(source),
+            MappedSource::Parsed(parsed) => Self::MappedParsed(parsed),
+        }
+    }
+}
+
+/// tsgo `TransformAndParse` with the compiler host's supplemental name
+/// check (`CheckSupplementalFileNameCollisions`), on the walk or on a
+/// read-ahead worker.
+fn transform_content_mapped(
+    host: &dyn CompilerHost,
+    project: &dyn crate::content_mapper::Project,
+    file_name: JsStr<'_>,
+    content: &str,
+    mapper: &Arc<Mapper>,
+) -> Result<VirtualSources, TransformFailure> {
+    let transform_identity = project
+        .identity(mapper)
+        .map_err(TransformFailure::Project)?;
+    let request_file_name = file_name.to_string_lossy();
+    let output = project.transform(
+        mapper,
+        Request {
+            file_name: &request_file_name,
+            content,
+        },
+    )?;
+    let sources = virtual_sources(file_name, content, mapper, &transform_identity, output)?;
+    for supplemental in &sources.supplemental {
+        if host
+            .file_exists_js(supplemental.file_name.as_js())
+            .unwrap_or(false)
+        {
+            return Err(TransformFailure::SupplementalFileCollision(
+                supplemental.file_name.to_string_lossy().into_owned(),
+            ));
+        }
+    }
+    Ok(sources)
 }
 
 /// Decode, snapshot, parse and request-plan one read-ahead root on a worker.
@@ -2437,6 +2630,12 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             reader,
             options,
             program_options,
+            content_mappers: program_options
+                .content_mapper_spec()
+                .zip(program_options.content_mapper_project())
+                .map(|(spec, project)| {
+                    (&**spec, &*project.0 as &dyn crate::content_mapper::Project)
+                }),
             library_catalog: self.library_catalog,
             library_directory: self.library_directory.clone(),
             references: ReferenceView {
@@ -2472,14 +2671,32 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 seeds.push((path.clone(), order));
             }
         }
-        // The largest roots first, as `prefetch_roots` orders them.
+        // The largest roots first, as `prefetch_roots` orders them. A
+        // content mapper's first transform starts its process and opens its
+        // project, which blocks the worker that makes it: one mapped root
+        // goes first to start that while the other roots are read, and the
+        // other mapped roots go last, so the workers do not all wait for it.
         let sizes: Vec<Option<u64>> = seeds
             .iter()
             .map(|(path, _)| self.host.file_size_hint_js(path.display()).ok().flatten())
             .collect();
-        if sizes.iter().any(Option::is_some) {
+        let first_mapped = seeds
+            .iter()
+            .position(|(path, _)| pass.mapper_for(path).is_some());
+        let group = |index: usize| match first_mapped {
+            Some(first) if index == first => 0,
+            Some(_) if pass.mapper_for(&seeds[index].0).is_some() => 2,
+            _ => 1,
+        };
+        if sizes.iter().any(Option::is_some) || first_mapped.is_some() {
             let mut order: Vec<usize> = (0..seeds.len()).collect();
-            order.sort_by_key(|&index| (std::cmp::Reverse(sizes[index].unwrap_or(0)), index));
+            order.sort_by_key(|&index| {
+                (
+                    group(index),
+                    std::cmp::Reverse(sizes[index].unwrap_or(0)),
+                    index,
+                )
+            });
             seeds = order
                 .into_iter()
                 .map(|index| seeds[index].clone())
@@ -2780,7 +2997,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     break;
                 }
                 Some(PrefetchedRead::Missing) => reads.push((path, PrefetchedRead::Missing)),
-                Some(read @ PrefetchedRead::Parsed { .. }) => {
+                Some(read @ (PrefetchedRead::Parsed { .. } | PrefetchedRead::Mapped { .. })) => {
                     let byte_len = read.reserved_bytes().unwrap_or(0);
                     if self
                         .total_source_bytes
@@ -4663,6 +4880,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             Some(Err(PrefetchedRead::Parsed { byte_len, decoded })) => {
                 Ok(Some(SourceInput::Prefetched { byte_len, decoded }))
             }
+            Some(Err(PrefetchedRead::Mapped { byte_len, mapped })) => {
+                Ok(Some(SourceInput::PrefetchedMapped { byte_len, mapped }))
+            }
             None => self
                 .host
                 .read_file_js(path.display())
@@ -4680,7 +4900,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         };
         let byte_len = match &input {
             SourceInput::Fresh(bytes) => bytes.len(),
-            SourceInput::Prefetched { byte_len, .. } => *byte_len,
+            SourceInput::Prefetched { byte_len, .. }
+            | SourceInput::PrefetchedMapped { byte_len, .. } => *byte_len,
             SourceInput::Provided(provided) => provided.text.len(),
         };
 
@@ -4723,6 +4944,9 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             SourceInput::Fresh(bytes) => decode_host_text(bytes).map(DecodedSource::Text),
             SourceInput::Prefetched { decoded, .. } => decoded.map(DecodedSource::Parsed),
             SourceInput::Provided(provided) => Ok(DecodedSource::Mapped(provided)),
+            SourceInput::PrefetchedMapped { mapped, .. } => {
+                mapped.map(DecodedSource::PrefetchedMapped)
+            }
         }
         .map_err(|source| {
             ProgramLoadError::decode_js(
@@ -4735,18 +4959,27 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // its mapper's output.
         let decoded = match self.content_mapper_for(&path) {
             Some(mapper) => match decoded {
-                DecodedSource::Text(text) => DecodedSource::Mapped(Box::new(
-                    self.content_mapped_source(&path, &text, &mapper)?,
-                )),
+                DecodedSource::Text(text) => self
+                    .content_mapped_source(&path, &text, &mapper, None)?
+                    .into(),
                 DecodedSource::Parsed(parsed) => {
                     let text = parsed.prepared.snapshot().text().to_owned();
-                    DecodedSource::Mapped(Box::new(
-                        self.content_mapped_source(&path, &text, &mapper)?,
-                    ))
+                    self.content_mapped_source(&path, &text, &mapper, None)?
+                        .into()
                 }
-                mapped @ DecodedSource::Mapped(_) => mapped,
+                DecodedSource::PrefetchedMapped(mapped) => {
+                    let PrefetchedMapped { content, outcome } = *mapped;
+                    self.content_mapped_source(&path, &content, &mapper, Some(outcome))?
+                        .into()
+                }
+                mapped @ (DecodedSource::Mapped(_) | DecodedSource::MappedParsed(_)) => mapped,
             },
-            None => decoded,
+            // The read-ahead transforms only the files of a mapper's
+            // extension.
+            None => match decoded {
+                DecodedSource::PrefetchedMapped(mapped) => DecodedSource::Text(mapped.content),
+                decoded => decoded,
+            },
         };
         // Package deduplication is decided when the files are collected
         // (`collect_files`), as tsgo's parse tasks load every copy and its
@@ -4777,6 +5010,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // (tsgo filesParser: ImpliedNodeFormat of the VirtualFileName).
         let format_file_name = match &decoded {
             DecodedSource::Mapped(mapped) => mapped.info.virtual_file_name.as_js(),
+            DecodedSource::MappedParsed(parsed) => parsed.prepared.parse_file_name(),
             _ => file_name,
         };
         let implied =
@@ -4805,6 +5039,45 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     None,
                     Vec::new(),
                 )
+            }
+            DecodedSource::MappedParsed(parsed) => {
+                let parsed = *parsed;
+                let info = Arc::clone(
+                    parsed
+                        .prepared
+                        .content_mapped()
+                        .expect("a mapped read-ahead parse has its information"),
+                );
+                for name in &info.supplemental {
+                    supplemental.push(self.program_path(name.as_js())?);
+                }
+                if parsed.implied == implied
+                    && parsed.implied_for_emit == implied_for_emit
+                    && parsed.prepared.path().display() == path.display()
+                {
+                    (parsed.prepared, Some(parsed.plan), parsed.resolutions)
+                } else {
+                    // Planned again here, as an ordinary read-ahead parse is.
+                    if let Ok(plan) = &parsed.plan {
+                        for (key, host) in plan.module_requests().iter().zip(parsed.resolutions) {
+                            if let Some(host) = host {
+                                self.pre_resolved.insert(key.clone(), host);
+                            }
+                        }
+                    }
+                    (
+                        PreparedSourceFile::from_snapshot(
+                            path.clone(),
+                            Arc::clone(parsed.prepared.snapshot()),
+                        )
+                        .with_content_mapped(info),
+                        None,
+                        Vec::new(),
+                    )
+                }
+            }
+            DecodedSource::PrefetchedMapped(_) => {
+                unreachable!("a transformed read-ahead source is resolved above")
             }
             DecodedSource::Parsed(parsed)
                 if parsed.implied == implied
@@ -5059,13 +5332,15 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// output cannot be used. A mapper that failed to initialize is reported
     /// once and not used again; any other failure is reported on the file
     /// and counts toward the mapper's budget, after which it is reported
-    /// once and not used again.
+    /// once and not used again. A transform the read-ahead made is taken in
+    /// this order, so the budget is the walk's.
     fn content_mapped_source(
         &mut self,
         path: &ProgramPath,
         content: &str,
         mapper: &Arc<Mapper>,
-    ) -> Result<VirtualSource, ProgramLoadError> {
+        transformed: Option<Result<PrefetchedTransform, TransformFailure>>,
+    ) -> Result<MappedSource, ProgramLoadError> {
         let file_name = path.display();
         let label = mapper.diagnostic_name().to_owned();
         let key = Arc::as_ptr(mapper) as usize;
@@ -5077,44 +5352,56 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let failures = self.content_mapper_failures.get(&key).copied().unwrap_or(0);
         if self.content_mapper_init_failed.contains(&key) || failures >= MAX_CONTENT_MAPPER_FAILURES
         {
-            return Ok(failure_stub(
+            return Ok(MappedSource::Virtual(Box::new(failure_stub(
                 file_name,
                 content,
                 mapper,
                 &transform_identity,
                 Vec::new(),
-            ));
+            ))));
         }
-        let result = match &project {
+        let result = match (transformed, &project) {
+            (Some(transformed), _) => transformed.map(|transformed| {
+                (
+                    MappedSource::Parsed(transformed.canonical),
+                    transformed.supplemental,
+                )
+            }),
             // tsgo ErrProjectUnavailable.
-            None => Err(TransformFailure::Host(
+            (None, None) => Err(TransformFailure::Host(
                 "content mapper project is unavailable".to_owned(),
             )),
-            Some(project) => {
-                self.transform_content_mapped(project.as_ref(), file_name, content, mapper)
+            (None, Some(project)) => {
+                transform_content_mapped(self.host, project.as_ref(), file_name, content, mapper)
+                    .map(|sources| {
+                        (
+                            MappedSource::Virtual(Box::new(sources.canonical)),
+                            sources.supplemental,
+                        )
+                    })
             }
         };
         match result {
-            Ok(sources) => {
-                for supplemental in sources.supplemental {
+            Ok((canonical, supplemental)) => {
+                for supplemental in supplemental {
                     let supplemental_path = self.program_path(supplemental.file_name.as_js())?;
                     self.provided_sources
                         .insert(supplemental_path.canonical().clone(), supplemental);
                 }
-                Ok(sources.canonical)
+                Ok(canonical)
             }
             Err(TransformFailure::Initialize(error)) => {
                 if self.content_mapper_init_failed.insert(key) {
                     self.content_mapper_diagnostics
                         .push(initialization_diagnostic(&label, &error));
                 }
-                Ok(failure_stub(
+                Ok(MappedSource::Virtual(Box::new(failure_stub(
                     file_name,
                     content,
                     mapper,
                     &transform_identity,
                     Vec::new(),
-                ))
+                ))))
             }
             Err(failure) => {
                 // tsgo recordContentMapperFailure.
@@ -5124,13 +5411,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     self.content_mapper_diagnostics
                         .push(crate::content_mapper::source::disabled_diagnostic(&label));
                 }
-                Ok(failure_stub(
+                Ok(MappedSource::Virtual(Box::new(failure_stub(
                     file_name,
                     content,
                     mapper,
                     &transform_identity,
                     vec![transform_diagnostic(file_name, &label, &failure)],
-                ))
+                ))))
             }
         }
     }
@@ -5159,41 +5446,6 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect()
-    }
-
-    /// tsgo `TransformAndParse` with the compiler host's supplemental name
-    /// check (`CheckSupplementalFileNameCollisions`).
-    fn transform_content_mapped(
-        &self,
-        project: &dyn crate::content_mapper::Project,
-        file_name: JsStr<'_>,
-        content: &str,
-        mapper: &Arc<Mapper>,
-    ) -> Result<crate::content_mapper::source::VirtualSources, TransformFailure> {
-        let transform_identity = project
-            .identity(mapper)
-            .map_err(TransformFailure::Project)?;
-        let request_file_name = file_name.to_string_lossy();
-        let output = project.transform(
-            mapper,
-            Request {
-                file_name: &request_file_name,
-                content,
-            },
-        )?;
-        let sources = virtual_sources(file_name, content, mapper, &transform_identity, output)?;
-        for supplemental in &sources.supplemental {
-            if self
-                .host
-                .file_exists_js(supplemental.file_name.as_js())
-                .unwrap_or(false)
-            {
-                return Err(TransformFailure::SupplementalFileCollision(
-                    supplemental.file_name.to_string_lossy().into_owned(),
-                ));
-            }
-        }
-        Ok(sources)
     }
 
     /// A task of another spelling of a staged path (tsc findSourceFileWorker's

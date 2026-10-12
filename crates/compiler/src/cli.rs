@@ -2331,8 +2331,10 @@ struct ContentMapperSession {
 
 impl ContentMapperSession {
     fn close(self) {
+        let started = std::time::Instant::now();
         let _ = tsc_program::content_mapper::Project::close(&*self.project);
         self.host.close();
+        tsc_types::trace::mark("cli: close content mappers", started);
     }
 }
 

@@ -108,6 +108,15 @@ fn load_with(
     files: &[(&str, &str)],
     project: Option<Arc<FakeProject>>,
 ) -> (PreparedProgram, Option<Arc<FakeProject>>) {
+    load_with_limits(config, files, project, LIMITS)
+}
+
+fn load_with_limits(
+    config: &str,
+    files: &[(&str, &str)],
+    project: Option<Arc<FakeProject>>,
+    limits: ProgramLoadLimits,
+) -> (PreparedProgram, Option<Arc<FakeProject>>) {
     let host = files
         .iter()
         .fold(
@@ -144,7 +153,7 @@ fn load_with(
         &host,
         &plan,
         &LibraryCatalog::typescript_7_1(PathBuf::from("/p/lib")),
-        LIMITS,
+        limits,
     )
     .unwrap();
     (prepared, project)
@@ -386,4 +395,99 @@ fn a_mapped_tsx_output_imports_the_jsx_runtime() {
             package_id: Some(JsString::from("react/jsx-runtime.d.ts@18.0.0")),
         }]
     );
+}
+
+/// The parallel read-ahead transforms a mapped file on a worker (tsgo
+/// transforms in its parse tasks) and the walk takes the result in its own
+/// order: the program is the serial loader's, its failure budget too
+/// (the workers may send transforms the walk then does not use).
+#[test]
+fn transforms_on_the_read_ahead_give_the_serial_program() {
+    type Scenario = (
+        &'static [(&'static str, &'static str)],
+        fn() -> Option<Arc<FakeProject>>,
+    );
+    let scenarios: [Scenario; 4] = [
+        (
+            &[
+                ("/p/src/Component.vue", "<template />"),
+                ("/p/src/main.ts", "import './Component.vue';"),
+            ],
+            || {
+                fake(|_, _| {
+                    Ok(output(
+                        "export const a = 1;",
+                        ".ts",
+                        vec![result("export const b = 2;", ".mts")],
+                    ))
+                })
+            },
+        ),
+        (&[("/p/src/fail.vue", "original")], || {
+            fake(|_, _| Err(TransformFailure::Request("failed".to_owned())))
+        }),
+        (
+            &[
+                ("/p/src/c0.vue", "x"),
+                ("/p/src/c1.vue", "x"),
+                ("/p/src/c2.vue", "x"),
+                ("/p/src/c3.vue", "x"),
+                ("/p/src/c4.vue", "x"),
+                ("/p/src/c5.vue", "x"),
+                ("/p/src/c6.vue", "x"),
+            ],
+            || fake(|_, _| Err(TransformFailure::Request("failed".to_owned()))),
+        ),
+        (&[("/p/src/a.vue", "x"), ("/p/src/b.vue", "y")], || {
+            fake(|_, _| {
+                Err(TransformFailure::Initialize(InitializeError {
+                    kind: InitializeErrorKind::ProcessExit { exit_code: 3 },
+                    mapper_name: "vue-mapper".to_owned(),
+                }))
+            })
+        }),
+    ];
+    let parallel = LIMITS.with_workers(tsc_program::WorkerBudget::new(
+        std::num::NonZeroUsize::new(4).expect("four workers"),
+    ));
+    let view = |prepared: &PreparedProgram| {
+        let files: Vec<_> = prepared
+            .source_files()
+            .iter()
+            .map(|file| {
+                (
+                    file.path().display().to_string_lossy().into_owned(),
+                    file.snapshot().text().to_owned(),
+                    format!("{:?}", file.inclusion_reasons()),
+                    file.content_mapped().map(|info| {
+                        info.diagnostics
+                            .iter()
+                            .map(|diagnostic| {
+                                diagnostic.message_text().to_string_lossy().into_owned()
+                            })
+                            .collect::<Vec<_>>()
+                    }),
+                )
+            })
+            .collect();
+        let program: Vec<_> = prepared
+            .diagnostics()
+            .content_mapper()
+            .iter()
+            .map(|diagnostic| diagnostic.message_text().to_string_lossy().into_owned())
+            .collect();
+        (files, program)
+    };
+    for (index, (files, project)) in scenarios.into_iter().enumerate() {
+        let (serial, serial_project) = load_with_limits(CONFIG, files, project(), LIMITS);
+        let (parallel, parallel_project) = load_with_limits(CONFIG, files, project(), parallel);
+        assert_eq!(view(&parallel), view(&serial), "{files:?}");
+        if index == 2 {
+            // The walk stops transforming after five failures; the workers
+            // transformed every file ahead of it.
+            let calls =
+                |project: Option<Arc<FakeProject>>| project.unwrap().calls.lock().unwrap().len();
+            assert_eq!((calls(serial_project), calls(parallel_project)), (5, 7));
+        }
+    }
 }
