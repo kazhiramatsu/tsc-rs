@@ -5429,17 +5429,24 @@ fn config_root_reasons<'j0, 'j1>(
     Ok(file_names
         .iter()
         .map(|file_name| {
-            let key = file_name_key(file_name.as_js(), case_sensitive);
-            if let Some(spec) = normalized_files.get(&key) {
-                return RootFileReason::FilesList { spec: spec.clone() };
+            if !normalized_files.is_empty() {
+                let key = file_name_key(file_name.as_js(), case_sensitive);
+                if let Some(spec) = normalized_files.get(&key) {
+                    return RootFileReason::FilesList { spec: spec.clone() };
+                }
             }
             // tsgo `getMatchedIncludeSpec`: the first include spec that
             // matches, a JSON file's too (Strada skipped the specs not
-            // ending in `.json` for one).
-            if let Some((_, _, spec)) = include_patterns
-                .iter()
-                .find(|(pattern, _, _)| pattern.matches(file_name))
-            {
+            // ending in `.json` for one). The file's components are taken
+            // apart once for every spec.
+            let input = (!include_patterns.is_empty())
+                .then(|| crate::config_matcher::MatchInput::new(file_name.as_js(), case_sensitive))
+                .flatten();
+            if let Some((_, _, spec)) = input.as_ref().and_then(|input| {
+                include_patterns
+                    .iter()
+                    .find(|(pattern, _, _)| pattern.matches_input(input))
+            }) {
                 return RootFileReason::IncludePattern {
                     spec: spec.clone(),
                     config_file: config_file.clone(),
