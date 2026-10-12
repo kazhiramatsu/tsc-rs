@@ -102,40 +102,50 @@ impl<W: Write> Writer<W> {
     }
 }
 
-/// tsgo `ipc.JSONRPCProtocol`.
-pub struct JsonRpcProtocol<R, W: Write> {
+/// The reading half of tsgo `ipc.JSONRPCProtocol`: the next message.
+pub struct MessageReader<R> {
     reader: Reader<R>,
-    writer: Writer<W>,
 }
 
-impl<R: Read, W: Write> JsonRpcProtocol<R, W> {
-    pub fn new(reader: R, writer: W) -> Self {
+impl<R: Read> MessageReader<R> {
+    pub fn new(reader: R) -> Self {
         Self {
             reader: Reader::new(reader),
-            writer: Writer::new(writer),
         }
     }
-}
 
-impl<R: Read + Send, W: Write + Send> Protocol for JsonRpcProtocol<R, W> {
-    fn read_message(&mut self) -> Result<Option<Message>, Error> {
+    /// The next message; nothing at the end of the input.
+    pub fn read_message(&mut self) -> Result<Option<Message>, Error> {
         match self.reader.read()? {
             Some(data) => parse_message(&data).map(Some),
             None => Ok(None),
         }
     }
+}
 
-    fn write_request(&mut self, id: &Id, method: &str, params: &str) -> Result<(), Error> {
+/// The writing half of tsgo `ipc.JSONRPCProtocol`.
+pub struct MessageWriter<W: Write> {
+    writer: Writer<W>,
+}
+
+impl<W: Write> MessageWriter<W> {
+    pub fn new(writer: W) -> Self {
+        Self {
+            writer: Writer::new(writer),
+        }
+    }
+
+    pub fn write_request(&mut self, id: &Id, method: &str, params: &str) -> Result<(), Error> {
         self.writer
             .write(request_text(Some(id), method, params).as_bytes())
     }
 
-    fn write_notification(&mut self, method: &str, params: &str) -> Result<(), Error> {
+    pub fn write_notification(&mut self, method: &str, params: &str) -> Result<(), Error> {
         self.writer
             .write(request_text(None, method, params).as_bytes())
     }
 
-    fn write_response(&mut self, id: &Id, result: &Payload) -> Result<(), Error> {
+    pub fn write_response(&mut self, id: &Id, result: &Payload) -> Result<(), Error> {
         let result = match result {
             Payload::Json(text) => text.clone(),
             // Go writes a byte slice as base64 text.
@@ -150,7 +160,7 @@ impl<R: Read + Send, W: Write + Send> Protocol for JsonRpcProtocol<R, W> {
         self.writer.write(text.as_bytes())
     }
 
-    fn write_error(&mut self, id: &Id, error: &ResponseError) -> Result<(), Error> {
+    pub fn write_error(&mut self, id: &Id, error: &ResponseError) -> Result<(), Error> {
         let text = format!(
             r#"{{"jsonrpc":"2.0","id":{},"error":{{"code":{},"message":{}}}}}"#,
             id_text(id),
@@ -158,6 +168,43 @@ impl<R: Read + Send, W: Write + Send> Protocol for JsonRpcProtocol<R, W> {
             quote(&error.message)
         );
         self.writer.write(text.as_bytes())
+    }
+}
+
+/// tsgo `ipc.JSONRPCProtocol`.
+pub struct JsonRpcProtocol<R, W: Write> {
+    reader: MessageReader<R>,
+    writer: MessageWriter<W>,
+}
+
+impl<R: Read, W: Write> JsonRpcProtocol<R, W> {
+    pub fn new(reader: R, writer: W) -> Self {
+        Self {
+            reader: MessageReader::new(reader),
+            writer: MessageWriter::new(writer),
+        }
+    }
+}
+
+impl<R: Read + Send, W: Write + Send> Protocol for JsonRpcProtocol<R, W> {
+    fn read_message(&mut self) -> Result<Option<Message>, Error> {
+        self.reader.read_message()
+    }
+
+    fn write_request(&mut self, id: &Id, method: &str, params: &str) -> Result<(), Error> {
+        self.writer.write_request(id, method, params)
+    }
+
+    fn write_notification(&mut self, method: &str, params: &str) -> Result<(), Error> {
+        self.writer.write_notification(method, params)
+    }
+
+    fn write_response(&mut self, id: &Id, result: &Payload) -> Result<(), Error> {
+        self.writer.write_response(id, result)
+    }
+
+    fn write_error(&mut self, id: &Id, error: &ResponseError) -> Result<(), Error> {
+        self.writer.write_error(id, error)
     }
 }
 

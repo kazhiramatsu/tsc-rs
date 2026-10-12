@@ -19,6 +19,8 @@ tsc-diagnostics.workspace = true
 tsc-host.workspace = true
 tsc-syntax.workspace = true
 tsc-types.workspace = true
+# A content mapper's transform identity is tsgo's xxh3-128.
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
 [lints]
 workspace = true

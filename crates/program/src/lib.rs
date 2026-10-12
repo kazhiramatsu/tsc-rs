@@ -89,6 +89,7 @@ mod config;
 mod config_host;
 mod config_matcher;
 mod config_options;
+pub mod content_mapper;
 mod dts_faking_host;
 mod error;
 pub mod go_json;
