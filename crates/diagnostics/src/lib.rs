@@ -447,15 +447,11 @@ impl Diagnostic {
 
 pub type DiagnosticList = Vec<Diagnostic>;
 
+/// tsgo `CompareDiagnostics` (ast/diagnostic.go:482-520), related
+/// information included: more related diagnostics first, then each in turn.
 pub fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    compare_diagnostics_skip_related(left, right).then_with(|| {
-        compare_related_information(
-            left.related_information_present || !left.related.is_empty(),
-            &left.related,
-            right.related_information_present || !right.related.is_empty(),
-            &right.related,
-        )
-    })
+    compare_diagnostics_skip_related(left, right)
+        .then_with(|| compare_related_information(&left.related, &right.related))
 }
 
 /// tsgo `DiagnosticsCollection` (ast/diagnostic.go:269-387): `Add` keeps one
@@ -506,15 +502,17 @@ pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
     *diagnostics = kept;
 }
 
-/// tsgo's CompareDiagnostics (ast/diagnostic.go:482-520) orders by the
-/// file name (`getDiagnosticPath` is `File().FileName()`), where tsc 6.0
-/// used `SourceFile.path`, which was empty for a parsed config file. The
-/// code, the category and the source precede the message text. tsgo has
-/// no canonical diagnostic: a "Did you mean" diagnostic sorts and
-/// deduplicates by its own code and text, not by the plain form tsc 6.0
-/// attached to it (getCanonicalDiagnostic).
+/// tsgo's CompareDiagnostics (ast/diagnostic.go:482-520) without the
+/// related information: the file name (`getDiagnosticPath` is
+/// `File().FileName()`, where tsc 6.0 used `SourceFile.path`, which was empty
+/// for a parsed config file), the span, the code, the category and the
+/// source, then the message's identity (its catalog key, or its text when it
+/// has none), its arguments and the chain below it: longer first, then by
+/// the arguments of each entry. tsgo has no canonical diagnostic: a "Did you
+/// mean" diagnostic sorts and deduplicates by its own message, not by the
+/// plain form tsc 6.0 attached to it (getCanonicalDiagnostic).
 fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    compare_optional_strings_case_sensitive(
+    compare_optional_strings(
         left.file_name.as_ref().map(JsString::as_js),
         right.file_name.as_ref().map(JsString::as_js),
     )
@@ -523,126 +521,89 @@ fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Or
     .then_with(|| left.code().cmp(&right.code()))
     .then_with(|| (left.category() as u8).cmp(&(right.category() as u8)))
     .then_with(|| left.source.cmp(&right.source))
-    .then_with(|| compare_message_text(&left.message, &right.message))
+    .then_with(|| compare_message(&left.message, &right.message))
 }
 
-/// JavaScript relational string comparison is lexicographic over UTF-16
-/// code units. Rust's `str::cmp` instead compares UTF-8 bytes, which differs
-/// when an astral character is compared with a BMP character above its high
-/// surrogate.
-fn compare_strings_case_sensitive<'a, 'b>(
-    left: impl Into<JsStr<'a>>,
-    right: impl Into<JsStr<'b>>,
-) -> Ordering {
-    left.into().cmp_utf16(right.into())
-}
-
-fn compare_optional_strings_case_sensitive(
-    left: Option<JsStr<'_>>,
-    right: Option<JsStr<'_>>,
-) -> Ordering {
-    match (left, right) {
-        (None, None) => Ordering::Equal,
-        (None, Some(_)) => Ordering::Less,
-        (Some(_), None) => Ordering::Greater,
-        (Some(left), Some(right)) => compare_strings_case_sensitive(left, right),
+/// tsgo `getDiagnosticMessageIdentity` (ast/diagnostic.go:419-427): the
+/// catalog key a message was formatted from, else its text.
+fn message_identity(message: &MessageChain) -> &[u8] {
+    match message.key {
+        Some(key) => key.as_bytes(),
+        None => message.text.as_js().as_bytes(),
     }
 }
 
-fn compare_related_information(
-    left_present: bool,
-    left: &[RelatedInfo],
-    right_present: bool,
-    right: &[RelatedInfo],
-) -> Ordering {
-    match (left_present, right_present) {
-        (false, false) => Ordering::Equal,
-        (true, false) => Ordering::Less,
-        (false, true) => Ordering::Greater,
-        (true, true) => right.len().cmp(&left.len()).then_with(|| {
-            left.iter()
-                .zip(right.iter())
-                .map(|(left, right)| compare_related_info(left, right))
-                .find(|ordering| *ordering != Ordering::Equal)
-                .unwrap_or(Ordering::Equal)
-        }),
-    }
+/// Go's `slices.Compare` over the arguments, each compared as Go compares
+/// strings (by their UTF-8 bytes).
+fn compare_arguments(left: &[JsString], right: &[JsString]) -> Ordering {
+    left.iter()
+        .map(|argument| argument.as_js().as_bytes())
+        .cmp(right.iter().map(|argument| argument.as_js().as_bytes()))
+}
+
+/// The identity, the arguments and the chain of a message (the part of
+/// CompareDiagnostics after the source).
+fn compare_message(left: &MessageChain, right: &MessageChain) -> Ordering {
+    message_identity(left)
+        .cmp(message_identity(right))
+        .then_with(|| compare_arguments(&left.args, &right.args))
+        .then_with(|| compare_message_chain_size(&left.next, &right.next))
+        .then_with(|| compare_message_chain_content(&left.next, &right.next))
+}
+
+/// Go's `strings.Compare`, which tsgo's comparisons use: the strings' UTF-8
+/// bytes (a [`JsStr`] is WTF-8, the same order for any valid text). An
+/// absent name sorts first, as tsgo's empty path does.
+fn compare_optional_strings(left: Option<JsStr<'_>>, right: Option<JsStr<'_>>) -> Ordering {
+    left.map(JsStr::as_bytes)
+        .unwrap_or_default()
+        .cmp(right.map(JsStr::as_bytes).unwrap_or_default())
+}
+
+/// tsgo `compareRelatedInfo` (ast/diagnostic.go:466-480): more first, then
+/// each pair by CompareDiagnostics (a related diagnostic has no source and no
+/// related information of its own here).
+fn compare_related_information(left: &[RelatedInfo], right: &[RelatedInfo]) -> Ordering {
+    right.len().cmp(&left.len()).then_with(|| {
+        left.iter()
+            .zip(right.iter())
+            .map(|(left, right)| compare_related_info(left, right))
+            .find(|ordering| *ordering != Ordering::Equal)
+            .unwrap_or(Ordering::Equal)
+    })
 }
 
 fn compare_related_info(left: &RelatedInfo, right: &RelatedInfo) -> Ordering {
-    compare_optional_strings_case_sensitive(
+    compare_optional_strings(
         left.file_name.as_ref().map(JsString::as_js),
         right.file_name.as_ref().map(JsString::as_js),
     )
     .then_with(|| left.start.cmp(&right.start))
     .then_with(|| left.length.cmp(&right.length))
     .then_with(|| left.message.code.cmp(&right.message.code))
-    .then_with(|| compare_message_text(&left.message, &right.message))
+    .then_with(|| (left.message.category as u8).cmp(&(right.message.category as u8)))
+    .then_with(|| compare_message(&left.message, &right.message))
 }
 
-fn compare_message_text(left: &MessageChain, right: &MessageChain) -> Ordering {
-    left.text.cmp_utf16(right.text.as_js()).then_with(|| {
-        compare_message_chain(
-            left.next_present,
-            &left.next,
-            right.next_present,
-            &right.next,
-        )
-    })
-}
-
-fn compare_message_chain(
-    left_present: bool,
-    left: &[MessageChain],
-    right_present: bool,
-    right: &[MessageChain],
-) -> Ordering {
-    match (left_present, right_present) {
-        (false, false) => Ordering::Equal,
-        (false, true) => Ordering::Greater,
-        (true, false) => Ordering::Less,
-        (true, true) => compare_message_chain_size(left, right)
-            .then_with(|| compare_message_chain_content(left, right)),
-    }
-}
-
+/// tsgo `compareMessageChainSize` (ast/diagnostic.go:438-450): the longer
+/// chain first, then the entries' own chains in turn.
 fn compare_message_chain_size(left: &[MessageChain], right: &[MessageChain]) -> Ordering {
     right.len().cmp(&left.len()).then_with(|| {
         left.iter()
             .zip(right.iter())
-            .map(|(left, right)| {
-                compare_message_chain_size_optional(
-                    left.next_present,
-                    &left.next,
-                    right.next_present,
-                    &right.next,
-                )
-            })
+            .map(|(left, right)| compare_message_chain_size(&left.next, &right.next))
             .find(|ordering| *ordering != Ordering::Equal)
             .unwrap_or(Ordering::Equal)
     })
 }
 
-fn compare_message_chain_size_optional(
-    left_present: bool,
-    left: &[MessageChain],
-    right_present: bool,
-    right: &[MessageChain],
-) -> Ordering {
-    match (left_present, right_present) {
-        (false, false) => Ordering::Equal,
-        (false, true) => Ordering::Greater,
-        (true, false) => Ordering::Less,
-        (true, true) => compare_message_chain_size(left, right),
-    }
-}
-
+/// tsgo `compareMessageChainContent` (ast/diagnostic.go:452-464): the
+/// entries' arguments, then their own chains.
 fn compare_message_chain_content(left: &[MessageChain], right: &[MessageChain]) -> Ordering {
     left.iter()
         .zip(right.iter())
         .map(|(left, right)| {
-            left.text
-                .cmp_utf16(right.text.as_js())
+            compare_arguments(&left.args, &right.args)
                 .then_with(|| compare_message_chain_content(&left.next, &right.next))
         })
         .find(|ordering| *ordering != Ordering::Equal)
@@ -650,11 +611,11 @@ fn compare_message_chain_content(left: &[MessageChain], right: &[MessageChain]) 
 }
 
 /// tsgo's EqualDiagnosticsNoRelatedInfo (ast/diagnostic.go:405-417):
-/// file, span, code, category, source, message text and the whole
-/// message chain. Two diagnostics at one location whose chains differ
-/// are both kept: `checkInheritedPropertiesAreIdentical` reports one
-/// TS2320 per property that is not identical. tsc 6.0 compared the head
-/// text only (diagnosticsEqualityComparer) and kept the first.
+/// file, span, code, category, source, the message's identity and
+/// arguments, and the whole message chain. Two diagnostics at one location
+/// whose chains differ are both kept: `checkInheritedPropertiesAreIdentical`
+/// reports one TS2320 per property that is not identical. tsc 6.0 compared
+/// the head text only (diagnosticsEqualityComparer) and kept the first.
 fn diagnostics_equal(left: &Diagnostic, right: &Diagnostic) -> bool {
     left.file_name == right.file_name
         && left.start == right.start
@@ -662,20 +623,20 @@ fn diagnostics_equal(left: &Diagnostic, right: &Diagnostic) -> bool {
         && left.code() == right.code()
         && left.category() == right.category()
         && left.source == right.source
-        && message_chains_equal(&left.message, &right.message)
+        && message_identity(&left.message) == message_identity(&right.message)
+        && left.message.args == right.message.args
+        && message_chains_equal(&left.message.next, &right.message.next)
 }
 
-/// tsgo's equalMessageChain (ast/diagnostic.go:429-436): code, text and
-/// the chain below, recursively.
-fn message_chains_equal(left: &MessageChain, right: &MessageChain) -> bool {
-    left.code == right.code
-        && left.text == right.text
-        && left.next.len() == right.next.len()
-        && left
-            .next
-            .iter()
-            .zip(right.next.iter())
-            .all(|(left, right)| message_chains_equal(left, right))
+/// tsgo's equalMessageChain (ast/diagnostic.go:429-436): each entry's code,
+/// arguments and chain, recursively.
+fn message_chains_equal(left: &[MessageChain], right: &[MessageChain]) -> bool {
+    left.len() == right.len()
+        && left.iter().zip(right.iter()).all(|(left, right)| {
+            left.code == right.code
+                && left.args == right.args
+                && message_chains_equal(&left.next, &right.next)
+        })
 }
 
 #[cfg(test)]
