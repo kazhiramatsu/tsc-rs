@@ -11,7 +11,7 @@
 
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 
 /// The most worker threads one budget ever uses, regardless of the machine.
@@ -309,6 +309,207 @@ impl WorkerBudget {
             })
             .collect()
     }
+
+    /// Run `work` over `seeds` and over every job the work spawns, the way
+    /// tsgo's work group queues a goroutine per parse task and Go's
+    /// scheduler steals them between threads.
+    ///
+    /// Each worker owns a deque. The seeds are dealt round-robin, so each
+    /// deque holds every `workers`-th seed with the first seed at its back;
+    /// a worker takes from the back of its own deque (its first seed first,
+    /// then the newest job it spawned), and a worker whose deque is empty
+    /// takes from the front of another's. `state` builds each worker's state
+    /// once, so it can keep caches warm across that worker's jobs; `work`
+    /// gets it, the job and a vector to push the jobs it spawns into, and
+    /// `finish` turns it into what the worker hands back. Both run on the
+    /// worker's own thread, so the state need not be `Send`. The result is
+    /// every worker's `finish` value with its results, in no particular
+    /// order. With a serial budget everything runs on the calling thread. A
+    /// panic in a job releases the other workers, then propagates as
+    /// [`Self::map_ordered`]'s does.
+    pub fn map_spawning<J, S, T, U>(
+        self,
+        seeds: Vec<J>,
+        state: impl Fn() -> S + Sync,
+        work: impl Fn(&mut S, J, &mut Vec<J>) -> Option<T> + Sync,
+        finish: impl Fn(S) -> U + Sync,
+    ) -> Vec<(U, Vec<T>)>
+    where
+        J: Send,
+        T: Send,
+        U: Send,
+    {
+        if seeds.is_empty() {
+            return Vec::new();
+        }
+        let workers = self.max_workers();
+        if workers < 2 {
+            let mut worker_state = state();
+            let mut results = Vec::new();
+            let mut spawned = Vec::new();
+            let mut stack: Vec<J> = seeds.into_iter().rev().collect();
+            while let Some(job) = stack.pop() {
+                results.extend(work(&mut worker_state, job, &mut spawned));
+                stack.append(&mut spawned);
+            }
+            return vec![(finish(worker_state), results)];
+        }
+        let mut dealt: Vec<VecDeque<J>> = (0..workers).map(|_| VecDeque::new()).collect();
+        let seed_count = seeds.len();
+        for (index, seed) in seeds.into_iter().enumerate() {
+            dealt[index % workers].push_front(seed);
+        }
+        let pool = SpawningPool {
+            deques: dealt.into_iter().map(Mutex::new).collect(),
+            pending: AtomicUsize::new(seed_count),
+            queued: AtomicUsize::new(seed_count),
+            sleeping: AtomicUsize::new(0),
+            aborted: AtomicBool::new(false),
+            sleep: Mutex::new(()),
+            wake: Condvar::new(),
+        };
+        let run = |worker: usize| {
+            let _release = ReleaseOnUnwind(&pool);
+            let mut worker_state = state();
+            let mut results = Vec::new();
+            let mut spawned = Vec::new();
+            loop {
+                if pool.aborted.load(Ordering::SeqCst) {
+                    break;
+                }
+                let Some(job) = pool.take(worker) else {
+                    if pool.pending.load(Ordering::SeqCst) == 0 {
+                        break;
+                    }
+                    pool.wait();
+                    continue;
+                };
+                results.extend(work(&mut worker_state, job, &mut spawned));
+                if !spawned.is_empty() {
+                    pool.push(worker, &mut spawned);
+                }
+                if pool.pending.fetch_sub(1, Ordering::SeqCst) == 1 {
+                    pool.wake_all();
+                }
+            }
+            (finish(worker_state), results)
+        };
+        std::thread::scope(|scope| {
+            let handles = (1..workers)
+                .map(|worker| {
+                    let run = &run;
+                    std::thread::Builder::new()
+                        .name("tsc-rs-worker".to_owned())
+                        .stack_size(WORKER_STACK_BYTES)
+                        .spawn_scoped(scope, move || {
+                            run_thread_start_hook();
+                            run(worker)
+                        })
+                })
+                .collect::<Vec<_>>();
+            // A refused thread is not an error: its deque is stolen from.
+            let mut finished = vec![run(0)];
+            for handle in handles.into_iter().flatten() {
+                match handle.join() {
+                    Ok(worker) => finished.push(worker),
+                    Err(panic) => std::panic::resume_unwind(panic),
+                }
+            }
+            finished
+        })
+    }
+}
+
+/// The shared state of [`WorkerBudget::map_spawning`].
+struct SpawningPool<J> {
+    deques: Vec<Mutex<VecDeque<J>>>,
+    /// Jobs queued or running: zero once the work is done.
+    pending: AtomicUsize,
+    /// Jobs in the deques.
+    queued: AtomicUsize,
+    /// Workers waiting for a job.
+    sleeping: AtomicUsize,
+    aborted: AtomicBool,
+    sleep: Mutex<()>,
+    wake: Condvar,
+}
+
+impl<J> SpawningPool<J> {
+    /// The newest job of `worker`'s deque, else the oldest of another's.
+    fn take(&self, worker: usize) -> Option<J> {
+        if self.queued.load(Ordering::SeqCst) == 0 {
+            return None;
+        }
+        // One deque locked at a time: a worker that held its own while
+        // stealing would deadlock with one stealing from it.
+        let own = self.deques[worker].lock().expect("worker deque").pop_back();
+        let count = self.deques.len();
+        let job = own.or_else(|| {
+            (1..count).find_map(|offset| {
+                let mut deque = self.deques[(worker + offset) % count]
+                    .lock()
+                    .expect("worker deque");
+                deque.pop_front()
+            })
+        })?;
+        self.queued.fetch_sub(1, Ordering::SeqCst);
+        Some(job)
+    }
+
+    /// Queue the jobs a job of `worker` spawned, waking waiting workers.
+    fn push(&self, worker: usize, spawned: &mut Vec<J>) {
+        let count = spawned.len();
+        self.pending.fetch_add(count, Ordering::SeqCst);
+        // Counted before they are visible, so a taker never counts down a
+        // job that is not counted yet.
+        self.queued.fetch_add(count, Ordering::SeqCst);
+        self.deques[worker]
+            .lock()
+            .expect("worker deque")
+            .extend(spawned.drain(..));
+        if self.sleeping.load(Ordering::SeqCst) > 0 {
+            self.wake_all();
+        }
+    }
+
+    /// Wait for a queued job, the end of the work or an abort. A worker
+    /// counts itself as sleeping before it checks for work, and a push
+    /// queues before it checks for sleepers, so a wake-up is never lost;
+    /// the timeout only bounds an unexpected one.
+    fn wait(&self) {
+        let guard = self.sleep.lock().expect("worker sleep");
+        self.sleeping.fetch_add(1, Ordering::SeqCst);
+        if self.queued.load(Ordering::SeqCst) == 0
+            && self.pending.load(Ordering::SeqCst) != 0
+            && !self.aborted.load(Ordering::SeqCst)
+        {
+            let _ = self
+                .wake
+                .wait_timeout(guard, std::time::Duration::from_millis(1))
+                .expect("worker sleep");
+        }
+        self.sleeping.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    fn wake_all(&self) {
+        let _guard = self.sleep.lock().expect("worker sleep");
+        self.wake.notify_all();
+    }
+}
+
+/// Releases the other workers when a job panics, so the scope can join them
+/// and propagate the panic.
+struct ReleaseOnUnwind<'pool, J>(&'pool SpawningPool<J>);
+
+impl<J> Drop for ReleaseOnUnwind<'_, J> {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.0.aborted.store(true, Ordering::SeqCst);
+            if let Ok(_guard) = self.0.sleep.lock() {
+                self.0.wake.notify_all();
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -391,6 +592,71 @@ mod tests {
                 budget.max_workers()
             );
         }
+    }
+
+    /// Every seed and every spawned job runs exactly once, whatever the
+    /// budget, and each worker's state sees only its own jobs.
+    #[test]
+    fn map_spawning_runs_every_seed_and_spawned_job_once() {
+        // Job n spawns 2n+1 and 2n+2 below 4,000: a binary tree over 0..4000
+        // seeded with its first 3 nodes' children's parents.
+        let limit = 4_000usize;
+        for workers in [1, 2, 4, MAX_WORKERS] {
+            let budget = WorkerBudget::new(NonZeroUsize::new(workers).unwrap());
+            let seen: Vec<_> = (0..limit).map(|_| AtomicUsize::new(0)).collect();
+            let finished = budget.map_spawning(
+                vec![0usize],
+                || 0usize,
+                |jobs_here, job, spawned| {
+                    seen[job].fetch_add(1, Ordering::SeqCst);
+                    *jobs_here += 1;
+                    for child in [2 * job + 1, 2 * job + 2] {
+                        if child < limit {
+                            spawned.push(child);
+                        }
+                    }
+                    (job % 3 == 0).then_some(job)
+                },
+                |jobs_here| jobs_here,
+            );
+            assert!(seen.iter().all(|count| count.load(Ordering::SeqCst) == 1));
+            assert_eq!(
+                finished.iter().map(|(jobs, _)| jobs).sum::<usize>(),
+                limit,
+                "workers={workers}"
+            );
+            let mut results: Vec<usize> = finished
+                .into_iter()
+                .flat_map(|(_, results)| results)
+                .collect();
+            results.sort_unstable();
+            assert_eq!(
+                results,
+                (0..limit).filter(|job| job % 3 == 0).collect::<Vec<_>>()
+            );
+        }
+        assert!(WorkerBudget::automatic()
+            .map_spawning(Vec::<usize>::new(), || (), |_, job, _| Some(job), |()| ())
+            .is_empty());
+    }
+
+    #[test]
+    fn map_spawning_propagates_a_job_panic() {
+        let outcome = std::panic::catch_unwind(|| {
+            WorkerBudget::new(NonZeroUsize::new(4).unwrap()).map_spawning(
+                (0..64usize).collect(),
+                || (),
+                |_, job, spawned| {
+                    assert_ne!(job, 70, "job seventy fails");
+                    if job < 32 {
+                        spawned.push(job + 64);
+                    }
+                    Some(job)
+                },
+                |()| (),
+            )
+        });
+        assert!(outcome.is_err());
     }
 
     #[test]

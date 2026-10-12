@@ -210,6 +210,12 @@ impl CompilerHost for MemoryCompilerHost {
     fn parallel_source_reader(&self) -> Option<&(dyn crate::ParallelSourceReader + Sync)> {
         Some(self)
     }
+
+    /// Every query is answered from the same fixed tables, so a resolver on
+    /// any thread observes what the loading thread's would.
+    fn parallel_resolution_host(&self) -> Option<&(dyn CompilerHost + Sync)> {
+        Some(self)
+    }
 }
 
 fn native_query(path: &Path, operation: HostOperation) -> Result<JsString, HostError> {
