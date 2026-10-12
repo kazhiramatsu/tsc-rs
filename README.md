@@ -80,8 +80,10 @@ into TypeScript. List them in `tsconfig.json` and run with
 As with `tsgo`, errors point into the original files, and with
 `declaration` a mapped file gets a declaration file (`Card.d.astro.ts`) but
 no JavaScript. On two Astro and two Vue projects, the output matched
-`tsgo`'s. Not yet: content mappers in `-b` builds and in the API server,
-and `--incremental` and `--watch` do not notice changes to a mapper itself.
+`tsgo`'s. Content mappers also run in `-b` builds and under `--watch`:
+`--incremental` and `-b` build again when a mapper's version or options
+change, and `--watch` restarts a mapper whose package changes. Not yet:
+content mappers in the API server.
 
 ## Compatibility
 
