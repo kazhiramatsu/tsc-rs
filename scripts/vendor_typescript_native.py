@@ -22,6 +22,7 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/baselines/reference/{compiler,conformance}/*.types
   tsc/testdata/baselines/reference/{compiler,conformance}/*.symbols
   tsc/testdata/baselines/reference/{compiler,conformance}/*.trace.json
+  tsc/testdata/baselines/reference/{compiler,conformance}/*.contentmapper
   tsc/testdata/baselines/reference/transpile        every transpile baseline
   tsc/testdata/baselines/reference/tsoptions        every command-line parsing baseline
   tsc/testdata/baselines/reference/config/tsconfigParsing
@@ -104,7 +105,8 @@ BASELINE_DIRS = [
 # emit, the raw source maps, the source-map records and the type and symbol
 # baselines. A kind's suffix must not end another kind's suffix (`.js` is
 # matched before `.js.map` is ruled out by `baseline_kind`).
-BASELINE_SUFFIXES = (".errors.txt", ".js", ".js.map", ".sourcemap.txt", ".types", ".symbols", ".trace.json")
+BASELINE_SUFFIXES = (".errors.txt", ".js", ".js.map", ".sourcemap.txt", ".types", ".symbols", ".trace.json",
+                     ".contentmapper")
 
 
 def baseline_kind(name):
