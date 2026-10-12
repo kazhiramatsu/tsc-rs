@@ -83,6 +83,7 @@ pub fn get_declaration_diagnostics(
         return Ok(Vec::new());
     }
     let mut arena = TransformArena::new();
+    arena.keep_node_builder_cache();
     let transform_source = mount_declaration_program_sources(&mut arena, host, source)?;
     let transformers = get_declaration_transformers(
         host.compiler_options(),
@@ -160,6 +161,7 @@ pub(crate) fn emit_declaration_unit(
         }
     }
     let mut arena = TransformArena::new();
+    arena.keep_node_builder_cache();
     // Other program sources are mounted on first use
     // (`TransformArena::mount_parse_tree_transform_node`).
     let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root, false)?;
@@ -343,6 +345,7 @@ pub fn transform_declaration_unit_for_harness<'t>(
     let options = host.compiler_options();
 
     let mut arena = TransformArena::new();
+    arena.keep_node_builder_cache();
     let transform_source = mount_declaration_program_sources(&mut arena, host, source)?;
     let transformers = get_declaration_transformers(
         options,

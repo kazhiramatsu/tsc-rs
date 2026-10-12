@@ -260,6 +260,27 @@ pub struct TransformArena {
     metadata: FxHashMap<TransformNode, EmitMetadata>,
     literal_properties: FxHashMap<TransformNode, LiteralNodeProperties>,
     next_generated_binding_id: u64,
+    node_builder_cache: NodeBuilderCache,
+}
+
+/// A cache the checker's node builder keeps for the nodes it built in this
+/// arena (tsgo's `serializedTypes` of the emit resolver's one node builder):
+/// it lives exactly as long as the node handles it holds, only an arena that
+/// asked for it keeps one, and a clone starts without one.
+#[derive(Default)]
+struct NodeBuilderCache {
+    kept: bool,
+    cache: Option<Box<dyn std::any::Any + Send + Sync>>,
+}
+
+impl std::fmt::Debug for NodeBuilderCache {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NodeBuilderCache")
+            .field("kept", &self.kept)
+            .field("cache", &self.cache.is_some())
+            .finish()
+    }
 }
 
 static NEXT_TRANSFORM_ARENA_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -272,12 +293,32 @@ impl TransformArena {
             metadata: FxHashMap::default(),
             literal_properties: FxHashMap::default(),
             next_generated_binding_id: 0,
+            node_builder_cache: NodeBuilderCache::default(),
         }
     }
 
     /// The process-unique identity of this arena (see the `id` field).
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    /// Keep the node builder's cache with this arena from now on: the
+    /// arena's emit is one emit resolver's (a declaration emit), and tsgo's
+    /// emit resolver keeps one node builder for all its requests.
+    pub fn keep_node_builder_cache(&mut self) {
+        self.node_builder_cache.kept = true;
+    }
+
+    /// Take the node builder's cache for this arena, if it keeps one.
+    pub fn take_node_builder_cache(&mut self) -> Option<Box<dyn std::any::Any + Send + Sync>> {
+        self.node_builder_cache.cache.take()
+    }
+
+    /// Leave the node builder's cache with this arena when it keeps one.
+    pub fn set_node_builder_cache(&mut self, cache: Box<dyn std::any::Any + Send + Sync>) {
+        if self.node_builder_cache.kept {
+            self.node_builder_cache.cache = Some(cache);
+        }
     }
 }
 
@@ -300,6 +341,7 @@ impl Clone for TransformArena {
             metadata: self.metadata.clone(),
             literal_properties: self.literal_properties.clone(),
             next_generated_binding_id: self.next_generated_binding_id,
+            node_builder_cache: NodeBuilderCache::default(),
         }
     }
 }

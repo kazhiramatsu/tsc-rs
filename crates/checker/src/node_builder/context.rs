@@ -114,11 +114,12 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
 
     /// `NodeBuilderLinks.serializedTypes` (visitAndTransformType,
-    /// checker/nodebuilderimpl.go:3229-3273): the already-built type nodes of
-    /// this request. tsgo makes a node builder, and so these links, for each
-    /// emit resolver request (checker/emitresolver.go:958-1277), so the cache
-    /// never outlives one; tsc 6.0 kept it on the checker's node links.
-    pub(crate) serialized_types: HashMap<SerializedTypeNodeKey, SerializedTypeNodeEntry>,
+    /// checker/nodebuilderimpl.go:3229-3273): the already-built type nodes.
+    /// tsgo's emit resolver keeps one node builder for all its requests
+    /// (`requestNodeBuilder`, checker/emitresolver.go:65-70), so an entry for
+    /// a real enclosing declaration outlives the request that built it; the
+    /// cache travels with the arena its nodes live in (see [`with_context`]).
+    pub(crate) serialized_types: SerializedTypes,
     /// The fake scope Blocks above the enclosing declaration.
     pub(crate) fake_scopes: FakeScopeChain,
     /// The number of fake scope Blocks this request has created.
@@ -183,6 +184,9 @@ impl NodeBuilderContext<'_> {
 /// tsgo CompositeTypeCacheIdentity (with #64556's infer type parameters)
 /// under the enclosing declaration and fake scope.
 pub(crate) type SerializedTypeNodeKey = (NodeId, u32, TypeId, u32, u32, Vec<TypeId>);
+
+/// The `serializedTypes` of the nodes built in one arena.
+pub(crate) type SerializedTypes = HashMap<SerializedTypeNodeKey, SerializedTypeNodeEntry>;
 
 /// A `serializedTypes` entry: the built node plus the side effects a cache
 /// hit replays.
@@ -272,12 +276,14 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         recovery_boundary_had_error: false,
         recovery_boundary_depth: 0,
         recovery_tracked_symbols: None,
-        serialized_types: HashMap::default(),
+        serialized_types: take_serialized_types(arena),
         fake_scopes: FakeScopeChain::default(),
         fake_scope_counter: 0,
     };
 
-    let resulting_node = callback(checker, arena, target, &mut context)?;
+    let resulting_node = callback(checker, arena, target, &mut context);
+    keep_serialized_types(arena, std::mem::take(&mut context.serialized_types));
+    let resulting_node = resulting_node?;
     if context.truncating && context.flags.contains(EmitNodeBuilderFlags::NO_TRUNCATION) {
         context
             .tracker
@@ -287,6 +293,25 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         *out = context.out;
     }
     Ok((!context.encountered_error).then_some(resulting_node))
+}
+
+/// The serialized types an earlier request left with `arena` (tsgo's
+/// `requestNodeBuilder` links, which every emit resolver request shares).
+fn take_serialized_types(arena: &mut TransformArena) -> SerializedTypes {
+    arena
+        .take_node_builder_cache()
+        .and_then(|cache| cache.downcast::<SerializedTypes>().ok())
+        .map(|cache| *cache)
+        .unwrap_or_default()
+}
+
+/// Leave this request's serialized types with `arena` for the next request.
+/// An entry for a fake scope Block is dropped: tsgo creates those Blocks for
+/// each request (checker/nodebuilderscopes.go:92-160), so no later request
+/// can find it.
+fn keep_serialized_types(arena: &mut TransformArena, mut serialized_types: SerializedTypes) {
+    serialized_types.retain(|key, _| key.1 == 0);
+    arena.set_node_builder_cache(Box::new(serialized_types));
 }
 
 /// tsrs-native: explicit one-call adapter for the existing synthetic module-scope overlay.
