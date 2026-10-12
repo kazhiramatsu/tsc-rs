@@ -4944,20 +4944,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         // `noLib=true` deliberately performs no host operation for lib
         // directives, although their occurrences were counted above.
-        // The trace replay reads the requests again after the walk.
-        let requests = if self.compiler_options.trace_resolution == Some(true) {
-            self.sources[source]
-                .module_requests
-                .iter()
-                .map(|request| StagedModuleRequest {
-                    request: request.request.clone(),
-                    pre_resolved: None,
-                })
-                .collect()
-        } else {
-            std::mem::take(&mut self.sources[source].module_requests)
-        };
-        self.plan_module_requests(task, source, requests)
+        self.plan_module_requests(task, source)
     }
 
     fn catalog_library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
@@ -5504,14 +5491,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     /// tsc-port: processImportedModules @6.0.3
     /// tsc-hash: 5fb6c5d9e11130467d843f258aeb726b1cbca21cd00923b0f1c7da3097f9cc98
     /// tsc-span: _tsc.js:124595-124635
-    fn plan_module_requests(
-        &mut self,
-        task: usize,
-        source: usize,
-        requests: Vec<StagedModuleRequest>,
-    ) -> Result<(), ProgramLoadError> {
+    fn plan_module_requests(&mut self, task: usize, source: usize) -> Result<(), ProgramLoadError> {
         let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
-        let mut phase_indices = Vec::with_capacity(requests.len());
+        let request_count = self.sources[source].module_requests.len();
+        let mut phase_indices = Vec::with_capacity(request_count);
         let containing_file = self.sources[source].prepared.path().display().to_owned();
         let containing_canonical = self.sources[source].prepared.path().canonical().clone();
         let containing_file_is_declaration = is_declaration_file_name(containing_file.as_js());
@@ -5521,25 +5504,29 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let containing_project = self
             .project_for_resolution(&containing_canonical)
             .map(|project| project.canonical().clone());
-        for StagedModuleRequest {
-            request:
-                PlannedModuleRequest {
-                    key,
-                    loads_source,
-                    spans,
-                },
-            pre_resolved,
-        } in requests
-        {
+        // A source reached under several spellings is planned once per
+        // spelling: its requests stay with it, and only the read-ahead's
+        // resolution is taken (a later planning finds the key resolved).
+        for request_index in 0..request_count {
+            let (key, loads_source, pre_resolved) = {
+                let request = &mut self.sources[source].module_requests[request_index];
+                (
+                    request.request.key.clone(),
+                    request.request.loads_source,
+                    request.pre_resolved.take(),
+                )
+            };
             // One inclusion reason per occurrence that loads the target:
             // processImportedModules adds the resolved file once for every
             // import of it (tsgo fileloader.go:928-940), and the file's
             // explanation then lists each import. A request without a span
             // is a synthetic import.
+            let staged = &self.sources[source];
+            let spans = &staged.module_requests[request_index].request.spans;
             let inclusions = if spans.is_empty() {
                 vec![SourceInclusionReason::Synthetic]
             } else {
-                let prepared = &self.sources[source].prepared;
+                let prepared = &staged.prepared;
                 let positions = prepared.snapshot().positions();
                 spans
                     .iter()
