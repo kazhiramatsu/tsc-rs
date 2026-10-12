@@ -1222,9 +1222,9 @@ impl<'p> IncrementalDriver<'p> {
         }
         let file_name = self.state_file_name.clone()?;
         if let Err(failure) = identities {
-            return Some(Err(tsc_program::content_mapper::source::project_diagnostic(
-                &failure,
-            )));
+            return Some(Err(
+                tsc_program::content_mapper::source::project_diagnostic(&failure),
+            ));
         }
         let info = state.snapshot.to_build_info(outside)?;
         Some(Ok(BuildInfoDocument {
@@ -1822,7 +1822,10 @@ impl<'p> Assembly<'p> {
         let source = &self.prepared.source_files()[index];
         let file_name = source.path().display().to_string_lossy().into_owned();
         let lower = match source.content_mapped() {
-            Some(info) => info.virtual_file_name.to_string_lossy().to_ascii_lowercase(),
+            Some(info) => info
+                .virtual_file_name
+                .to_string_lossy()
+                .to_ascii_lowercase(),
             None => file_name.to_ascii_lowercase(),
         };
         if lower.ends_with(".d.mts") || lower.ends_with(".mts") || lower.ends_with(".mjs") {

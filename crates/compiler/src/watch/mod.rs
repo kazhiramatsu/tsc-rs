@@ -492,9 +492,9 @@ impl<'a> Watcher<'a> {
             &self.catalog,
             &self.target,
             self.state.as_ref(),
-            self.content_mapper_project.as_ref().map(|project| {
-                ContentMapperProjectHandle(Arc::clone(project) as Arc<dyn Project>)
-            }),
+            self.content_mapper_project
+                .as_ref()
+                .map(|project| ContentMapperProjectHandle(Arc::clone(project) as Arc<dyn Project>)),
         );
         let run = match result {
             Ok(run) => run,

@@ -736,7 +736,10 @@ fn a_build_starts_its_content_mapper_once_and_closes_it() {
                 "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
             }"#,
         ),
-        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/app.vue",
+            "export const app = 1;",
+        ),
         (
             "/home/src/workspaces/project/node_modules/mapper/package.json",
             &manifest,
@@ -749,7 +752,12 @@ fn a_build_starts_its_content_mapper_once_and_closes_it() {
         Some(&system),
     );
     assert!(result.watcher.is_none());
-    assert_eq!(system.mapper_processes(), (1, 1), "{}", system.take_output());
+    assert_eq!(
+        system.mapper_processes(),
+        (1, 1),
+        "{}",
+        system.take_output()
+    );
 }
 
 #[test]
@@ -797,7 +805,10 @@ fn a_build_notices_a_supplemental_file_written_to_disk() {
     let output = system.take_output();
     assert_eq!(result.status, 2, "{output}");
     assert!(output.contains("TS18069"), "{output}");
-    assert!(output.contains("conflicts with an existing file"), "{output}");
+    assert!(
+        output.contains("conflicts with an existing file"),
+        "{output}"
+    );
 }
 
 #[test]
@@ -814,7 +825,10 @@ fn a_build_whose_mapper_identity_fails_skips_its_outputs() {
                 "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
             }"#,
         ),
-        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/app.vue",
+            "export const app = 1;",
+        ),
         (
             "/home/src/workspaces/project/node_modules/mapper/package.json",
             &manifest,
@@ -855,7 +869,10 @@ fn an_incremental_program_starts_over_when_its_mapper_changes() {
                 "contentMappers": [{ "package": "mapper", "extensions": [".vue"] }]
             }"#,
         ),
-        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/app.vue",
+            "export const app = 1;",
+        ),
         (
             "/home/src/workspaces/project/index.ts",
             "export const local = 1;",
@@ -919,7 +936,10 @@ fn check_content_mapper_watch_lifecycle(arguments: &[&str]) {
     };
     let system = MemorySystem::new(&[
         (MAPPED_CONFIG, &configured("mapper-a")),
-        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/app.vue",
+            "export const app = 1;",
+        ),
         (
             "/home/src/workspaces/project/node_modules/mapper-a/package.json",
             &mapper_a,
@@ -932,17 +952,30 @@ fn check_content_mapper_watch_lifecycle(arguments: &[&str]) {
     .with_content_mappers();
     let result = execute_command_line(&system, &args(arguments), Some(&system));
     let mut watcher = result.watcher.expect("a watch");
-    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+    assert_eq!(
+        system.mapper_processes(),
+        (1, 0),
+        "{}",
+        system.take_output()
+    );
 
     for (config, processes) in [
         (configured("mapper-b"), (2, 1)),
-        (r#"{ "compilerOptions": { "composite": true } }"#.to_owned(), (2, 2)),
+        (
+            r#"{ "compilerOptions": { "composite": true } }"#.to_owned(),
+            (2, 2),
+        ),
         (configured("mapper-a"), (3, 2)),
     ] {
         system.fs.write(MAPPED_CONFIG, config.as_bytes()).unwrap();
         system.changed(MAPPED_CONFIG);
         watcher.do_cycle();
-        assert_eq!(system.mapper_processes(), processes, "{}", system.take_output());
+        assert_eq!(
+            system.mapper_processes(),
+            processes,
+            "{}",
+            system.take_output()
+        );
     }
     drop(watcher);
     assert_eq!(system.mapper_processes(), (3, 3));
@@ -950,12 +983,7 @@ fn check_content_mapper_watch_lifecycle(arguments: &[&str]) {
 
 #[test]
 fn a_watch_starts_replaces_and_closes_its_content_mappers() {
-    check_content_mapper_watch_lifecycle(&[
-        "--watch",
-        "-p",
-        MAPPED_PROJECT,
-        "--runExternalCode",
-    ]);
+    check_content_mapper_watch_lifecycle(&["--watch", "-p", MAPPED_PROJECT, "--runExternalCode"]);
 }
 
 #[test]
@@ -992,7 +1020,13 @@ fn supplemental_diagnostics_name_the_original_file() {
     .with_content_mappers();
     let result = execute_command_line(
         &system,
-        &args(&["-p", MAPPED_PROJECT, "--pretty", "false", "--runExternalCode"]),
+        &args(&[
+            "-p",
+            MAPPED_PROJECT,
+            "--pretty",
+            "false",
+            "--runExternalCode",
+        ]),
         Some(&system),
     );
     let output = system.take_output();
@@ -1065,7 +1099,10 @@ fn check_dynamic_mapper_watch_dependency(arguments: &[&str]) {
             }"#,
         ),
         (mapper_config, r#"{ "version": 1 }"#),
-        ("/home/src/workspaces/project/app.vue", "export const app = 1;"),
+        (
+            "/home/src/workspaces/project/app.vue",
+            "export const app = 1;",
+        ),
         (
             "/home/src/workspaces/project/node_modules/mapper/package.json",
             &manifest,
@@ -1076,7 +1113,10 @@ fn check_dynamic_mapper_watch_dependency(arguments: &[&str]) {
     let mut watcher = result.watcher.expect("a watch");
     assert_eq!(system.mapper_projects(), (1, 0), "{}", system.take_output());
 
-    system.fs.write(mapper_config, br#"{ "version": 2 }"#).unwrap();
+    system
+        .fs
+        .write(mapper_config, br#"{ "version": 2 }"#)
+        .unwrap();
     system.changed(mapper_config);
     watcher.do_cycle();
     let output = system.take_output();
@@ -1090,12 +1130,7 @@ fn check_dynamic_mapper_watch_dependency(arguments: &[&str]) {
 
 #[test]
 fn a_watch_refreshes_a_dynamic_mapper_when_its_configuration_changes() {
-    check_dynamic_mapper_watch_dependency(&[
-        "--watch",
-        "-p",
-        MAPPED_PROJECT,
-        "--runExternalCode",
-    ]);
+    check_dynamic_mapper_watch_dependency(&["--watch", "-p", MAPPED_PROJECT, "--runExternalCode"]);
 }
 
 #[test]
@@ -1216,12 +1251,23 @@ fn a_build_watch_follows_a_linked_mapper_manifest() {
         Some(&system),
     );
     let mut watcher = result.watcher.expect("a watch");
-    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
-    let updated = package_json(VERBATIM_MAPPER).replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#);
+    assert_eq!(
+        system.mapper_processes(),
+        (1, 0),
+        "{}",
+        system.take_output()
+    );
+    let updated =
+        package_json(VERBATIM_MAPPER).replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#);
     system.fs.write(manifest, updated.as_bytes()).unwrap();
     system.changed(manifest);
     watcher.do_cycle();
-    assert_eq!(system.mapper_processes(), (2, 1), "{}", system.take_output());
+    assert_eq!(
+        system.mapper_processes(),
+        (2, 1),
+        "{}",
+        system.take_output()
+    );
 }
 
 #[test]
@@ -1241,12 +1287,23 @@ fn a_watch_matches_a_mapper_manifest_change_without_case() {
         Some(&system),
     );
     let mut watcher = result.watcher.expect("a watch");
-    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
-    let updated = package_json(VERBATIM_MAPPER).replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#);
+    assert_eq!(
+        system.mapper_processes(),
+        (1, 0),
+        "{}",
+        system.take_output()
+    );
+    let updated =
+        package_json(VERBATIM_MAPPER).replace(r#""version": "1.0.0""#, r#""version": "2.0.0""#);
     system.fs.write(event, updated.as_bytes()).unwrap();
     system.changed(event);
     watcher.do_cycle();
-    assert_eq!(system.mapper_processes(), (2, 1), "{}", system.take_output());
+    assert_eq!(
+        system.mapper_processes(),
+        (2, 1),
+        "{}",
+        system.take_output()
+    );
 }
 
 #[test]
@@ -1265,7 +1322,12 @@ fn a_build_watch_reports_a_deleted_mapper_manifest() {
         Some(&system),
     );
     let mut watcher = result.watcher.expect("a watch");
-    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+    assert_eq!(
+        system.mapper_processes(),
+        (1, 0),
+        "{}",
+        system.take_output()
+    );
     system.take_output();
     system.fs.remove(manifest).unwrap();
     system.changed(manifest);
@@ -1293,9 +1355,15 @@ fn a_build_watch_shares_a_mapper_process_between_projects() {
             r#"{ "files": [], "references": [{ "path": "a" }, { "path": "b" }] }"#,
         ),
         ("/home/src/workspaces/project/a/tsconfig.json", mapped),
-        ("/home/src/workspaces/project/a/app.vue", "export const a = 1;"),
+        (
+            "/home/src/workspaces/project/a/app.vue",
+            "export const a = 1;",
+        ),
         ("/home/src/workspaces/project/b/tsconfig.json", mapped),
-        ("/home/src/workspaces/project/b/app.vue", "export const b = 1;"),
+        (
+            "/home/src/workspaces/project/b/app.vue",
+            "export const b = 1;",
+        ),
         (
             "/home/src/workspaces/project/node_modules/mapper/package.json",
             &manifest,
@@ -1308,7 +1376,12 @@ fn a_build_watch_shares_a_mapper_process_between_projects() {
         Some(&system),
     );
     let mut watcher = result.watcher.expect("a watch");
-    assert_eq!(system.mapper_processes(), (1, 0), "{}", system.take_output());
+    assert_eq!(
+        system.mapper_processes(),
+        (1, 0),
+        "{}",
+        system.take_output()
+    );
     for (project, closes) in [("a", 0), ("b", 1)] {
         let config = format!("/home/src/workspaces/project/{project}/tsconfig.json");
         system
@@ -1317,7 +1390,11 @@ fn a_build_watch_shares_a_mapper_process_between_projects() {
             .unwrap();
         system.changed(&config);
         watcher.do_cycle();
-        assert_eq!(system.mapper_processes().1, closes, "{}", system.take_output());
+        assert_eq!(
+            system.mapper_processes().1,
+            closes,
+            "{}",
+            system.take_output()
+        );
     }
 }
-

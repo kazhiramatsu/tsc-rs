@@ -1705,7 +1705,9 @@ impl<'a> Orchestrator<'a> {
             self.tasks[task].content_mapper_project_error = Some(failure.clone());
         }
         if project.is_err()
-            || identities.map_or(true, |identities| identities != info.content_mapper_identities)
+            || identities.map_or(true, |identities| {
+                identities != info.content_mapper_identities
+            })
         {
             return UpToDateStatus::with_text(StatusKind::OutOfDateOptions, build_info_path);
         }
@@ -2230,18 +2232,21 @@ impl<'a> Orchestrator<'a> {
             }
             // tsgo: a changed manifest of one of its content mapper packages
             // parses the config again.
-            let manifest_changed = plan
-                .program_options()
-                .content_mapper_spec()
-                .is_some_and(|spec| {
-                    spec.mappers.iter().any(|mapper| {
-                        !mapper.package_directory.is_empty()
-                            && mapper.contribution_id.is_empty()
-                            && normalized.contains_key(
-                                &self.to_path(&format!("{}/package.json", mapper.package_directory)),
-                            )
-                    })
-                });
+            let manifest_changed =
+                plan.program_options()
+                    .content_mapper_spec()
+                    .is_some_and(|spec| {
+                        spec.mappers.iter().any(|mapper| {
+                            !mapper.package_directory.is_empty()
+                                && mapper.contribution_id.is_empty()
+                                && normalized.contains_key(
+                                    &self.to_path(&format!(
+                                        "{}/package.json",
+                                        mapper.package_directory
+                                    )),
+                                )
+                        })
+                    });
             if manifest_changed {
                 self.reset_config(task);
                 needs_config_update = true;
@@ -2767,9 +2772,7 @@ fn is_content_mapper_supplemental_build_info_path<'r>(
         };
         !extension.is_empty()
             && index.parse::<i64>().is_ok()
-            && tsc_program::content_mapper::is_supported_virtual_extension(&format!(
-                ".{extension}"
-            ))
+            && tsc_program::content_mapper::is_supported_virtual_extension(&format!(".{extension}"))
     })
 }
 
