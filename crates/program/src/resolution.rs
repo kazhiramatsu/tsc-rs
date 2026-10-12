@@ -840,3 +840,7 @@ impl fmt::Display for MissingResolutionError {
 }
 
 impl Error for MissingResolutionError {}
+
+#[cfg(test)]
+#[path = "../tests/unit/resolution/extension_case_tests.rs"]
+mod extension_case_tests;
