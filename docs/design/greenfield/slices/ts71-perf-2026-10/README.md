@@ -10,7 +10,10 @@ Apple M5（10 core、32 GB）、macOS 26.5.1。tsgo `7.1.0-dev` `aa8149273` と 
 交互に走らせた中央値（hono・zod 7 回、effect・typescript・next 5 回、vscode 3 回）。variant は各 corpus の
 `tsconfig.bench-{noemit,emit,decl,sourcemap,full}.json`、VS Code は `src/tsconfig.json` + `noEmit`。harness は session の
 scratchpad の `perf/bench.py`（最初に出力の一致（診断・終了 code・出力した file の全 byte）を確かめ、違えば tsgo
-`--singleThreaded` と tsc-rs の checker 1 つで比べ直す）。
+`--singleThreaded` と tsc-rs の checker 1 つで比べ直す）。harness と各回の値はこの directory の `bench.py` と `results.jsonl`
+に残した（path は計測した machine のもの。`results.jsonl` は `bench.py` の最後の変更より前の実行で、zod と effect の fidelity の
+欄は既定の比較の結果だけ。単一 checker での比べ直しは下の「一致」の通り別に行った）。利用者向けの表は
+[docs/performance.md](../../../../performance.md)。
 
 | project | variant | tsc-rs | tsgo | 比 | tsc-rs CPU | tsgo CPU | tsc-rs RSS | tsgo RSS |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

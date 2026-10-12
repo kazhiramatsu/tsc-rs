@@ -1,8 +1,9 @@
-# Performance
+# Performance of the tsc 6.0.3 compatible build
 
 > **Note:** these measurements were taken on October 1, 2026 with the
 > tsc 6.0.3 compatible build of tsc-rs, before the switch to TypeScript 7.1.
-> They will be measured again with the TypeScript 7.1 build.
+> The TypeScript 7.1 build's measurements are in
+> [performance.md](performance.md).
 
 tsc-rs is a native executable that parses, binds and checks a program on
 several threads and writes its output files in parallel. By default it runs
