@@ -165,6 +165,9 @@ pub struct SourceFile {
     /// tsgo SourceFile.DiagnosticDirectives: a content mapper's directives
     /// over the file's diagnostics. Never produced by parsing.
     pub diagnostic_directives: Vec<tsc_diagnostics::spanmap::MappedDiagnosticDirective>,
+    /// tsgo SourceFile.SpanMap: a content mapper's output's map to its
+    /// file's original text. Never produced by parsing.
+    pub span_map: Option<tsc_diagnostics::spanmap::SpanMap>,
     /// Whether leading multiline comments contain a recognized
     /// `@jsxImportSource` pragma.
     pub has_jsx_import_source_pragma: bool,
@@ -227,6 +230,7 @@ impl SourceFile {
             module_name: None,
             renamed_dependencies: Vec::new(),
             diagnostic_directives: Vec::new(),
+            span_map: None,
             has_jsx_import_source_pragma: false,
             jsx_import_source_pragma: None,
             has_jsx_runtime_pragma: false,

@@ -18,11 +18,13 @@ use serde_json::{json, Value};
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost};
 use tsc_program::{
-    load_emitting_program, load_emitting_program_with_root_reasons, load_program,
-    load_program_with_root_reasons, parse_config_root_plan, CompilerOptionNumber, CompilerOptions,
-    ConfigFilePattern, ConfigHostError, ConfigHostOperation, ConfigOptionValueState,
-    ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, ModuleSuffix,
-    PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath, RootFileReason,
+    command_line_option_bag, load_emitting_program, load_emitting_program_with_root_reasons,
+    load_program, load_program_with_root_reasons, parse_config_root_plan,
+    parse_config_root_plan_with_command_line, CompilerOptionNumber, CompilerOptions,
+    ConfigExtendedCache, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
+    ConfigOptionValueState, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
+    ContentMapperProjectHandle, JsonValue, LibraryCatalog, ModuleSuffix, PreparedProgram,
+    ProgramLoadLimits, ProgramOptions, ProgramPath, RootFileReason,
 };
 
 use super::compiler::{
@@ -248,6 +250,8 @@ pub fn load_native_declaration_program(
         .filter(|(path, _)| !path.ends_with(".json"))
         .map(|(path, _)| PathBuf::from(path))
         .collect();
+    // `compileDeclarationFiles` passes the configuration's content mappers:
+    // their extensions resolve the declarations' imports.
     load_native_program_files(
         workspace,
         plan,
@@ -395,6 +399,28 @@ fn load_native_program_files(
     )?;
 
     let (mut compiler_options, program_options) = plan_compiler_options(plan)?;
+    // tsgo CompileFilesEx: a config's content mappers (registered under
+    // `--runExternalCode`) are served in-process by the test mappers, and
+    // their host is torn down when the compilation is done.
+    let content_mappers = program_options
+        .content_mapper_spec()
+        .cloned()
+        .and_then(|spec| {
+            let host = tsc_program::content_mapper::host::Host::new(
+                Arc::new(crate::content_mappers::TestSpawner),
+                "",
+            );
+            host.project(spec).map(|project| (host, Arc::new(project)))
+        });
+    let program_options = match &content_mappers {
+        Some((_, project)) => {
+            program_options
+                .with_content_mapper_project(ContentMapperProjectHandle(
+                    Arc::clone(project) as Arc<dyn tsc_program::content_mapper::Project>
+                ))
+        }
+        None => program_options,
+    };
     // CompilerBaselineRunner normalizes these harness-only defaults
     // after config and directive projection. They are not command-line
     // defaults: in particular, its absent `newLine` becomes CRLF even when
@@ -455,6 +481,10 @@ fn load_native_program_files(
             limits,
         ),
     };
+    if let Some((host, project)) = content_mappers {
+        let _ = tsc_program::content_mapper::Project::close(&*project);
+        host.close();
+    }
     loaded.map_err(|load_error| {
         error(format!(
             "failed to load compiler fixture {:?} ({:?}): {load_error}",
@@ -989,7 +1019,9 @@ fn apply_compiler_setting(
         "deduplicatepackages" => compiler_options.deduplicate_packages = Some(boolean()?),
         "incremental" => compiler_options.incremental = Some(boolean()?),
         "traceresolution" => compiler_options.trace_resolution = Some(boolean()?),
-        "assumechangesonlyaffectdirectdependencies"
+        // Read by the config parse (see `compiler_fixture_from_parts`).
+        "runexternalcode"
+        | "assumechangesonlyaffectdirectdependencies"
         | "disablesizelimit"
         | "out"
         | "pretty"
@@ -1283,19 +1315,45 @@ fn compiler_fixture_from_parts(
                     source.relative_path
                 ))
             })?;
-            let host = CompilerFixtureConfigHost::new(&units);
+            let host = CompilerFixtureConfigHost::new(&units).with_links(
+                links
+                    .iter()
+                    .map(|link| {
+                        Ok((
+                            normalize_compiler_fixture_path(VIRTUAL_SOURCE_ROOT, &link.link_path)?,
+                            normalize_compiler_fixture_path(VIRTUAL_SOURCE_ROOT, &link.target)?,
+                        ))
+                    })
+                    .collect::<HarnessResult<Vec<_>>>()?,
+            );
             // tsgo's test case parser names the config by its normalized
             // absolute path (testrunner/test_case_parser.go:84), which its
             // diagnostics carry and sort by.
             let file_name = normalize_compiler_fixture_path(&current_directory, &unit.name)?;
-            let parsed = parse_config_root_plan(
-                &host,
-                ConfigRootPlanRequest {
-                    file_name: file_name.as_str().into(),
-                    text: text.to_owned(),
-                    base_path: current_directory.as_str().into(),
-                },
-            );
+            let request = ConfigRootPlanRequest {
+                file_name: file_name.as_str().into(),
+                text: text.to_owned(),
+                base_path: current_directory.as_str().into(),
+            };
+            // tsgo's test case parser gives the config parse a top-level
+            // `// @runExternalCode: true` as an existing option (the command
+            // line's), so the config's content mappers register.
+            let run_external_code = settings.iter().any(|setting| {
+                setting.name.eq_ignore_ascii_case("runexternalcode") && setting.value == "true"
+            });
+            let parsed = if run_external_code {
+                parse_config_root_plan_with_command_line(
+                    &host,
+                    request,
+                    &command_line_option_bag(
+                        &[("runExternalCode".to_owned(), JsonValue::Bool(true))],
+                        current_directory.as_str().into(),
+                    ),
+                    &mut ConfigExtendedCache::default(),
+                )
+            } else {
+                parse_config_root_plan(&host, request)
+            };
             let config_host_log = Arc::from(host.into_log()?);
             let config_root_plan = parsed
                 .map_err(|parse_error| {
@@ -1412,6 +1470,10 @@ fn build_compiler_unit(
 /// `/.src` before wildcard matching.
 struct CompilerFixtureConfigHost<'a> {
     units: &'a [CompilerUnitInput],
+    /// The fixture's global `@link`s as normalized (link path, target)
+    /// pairs: tsgo's test case parser gives the config parse a file system
+    /// with them (`NewVFSWithSymlinks`).
+    links: Vec<(String, String)>,
     log: RefCell<Vec<tsc_program::JsonValue>>,
 }
 
@@ -1419,8 +1481,35 @@ impl<'a> CompilerFixtureConfigHost<'a> {
     fn new(units: &'a [CompilerUnitInput]) -> Self {
         Self {
             units,
+            links: Vec::new(),
             log: RefCell::new(Vec::new()),
         }
+    }
+
+    fn with_links(mut self, links: Vec<(String, String)>) -> Self {
+        self.links = links;
+        self
+    }
+
+    /// The path a query reaches through the links (the last link whose
+    /// path contains it).
+    fn through_links(&self, path: JsStr<'_>) -> JsString {
+        let text = path.to_string_lossy();
+        for (link, target) in self.links.iter().rev() {
+            let lower = text.to_lowercase();
+            let link_lower = link.to_lowercase();
+            if lower == link_lower {
+                return JsString::from(target.as_str());
+            }
+            if let Some(rest) = lower
+                .strip_prefix(&link_lower)
+                .filter(|rest| rest.starts_with('/'))
+            {
+                let rest = &text[text.len() - rest.len()..];
+                return JsString::from(format!("{target}{rest}").as_str());
+            }
+        }
+        path.to_owned()
     }
 
     fn into_log(self) -> HarnessResult<Vec<Value>> {
@@ -1440,8 +1529,14 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
         false
     }
 
+    fn realpath(&self, path: JsStr<'_>) -> Result<Option<JsString>, ConfigHostError> {
+        let linked = self.through_links(path);
+        Ok((linked.as_js() != path).then_some(linked))
+    }
+
     fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
-        let key = tsc_host::to_file_name_lower_case_js(path);
+        let linked = self.through_links(path);
+        let key = tsc_host::to_file_name_lower_case_js(linked.as_js());
         let result = self
             .units
             .iter()
@@ -1455,10 +1550,16 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
     }
 
     fn directory_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
-        let mut prefix = tsc_host::to_file_name_lower_case_js(path);
+        let linked = self.through_links(path);
+        let mut prefix = tsc_host::to_file_name_lower_case_js(linked.as_js());
         prefix.push_str("/");
+        // A link's directory exists, and so do the directories it is in.
         let result = self.units.iter().any(|unit| {
             tsc_host::to_file_name_lower_case_js(unit.name.as_ref().into())
+                .as_js()
+                .starts_with_js(prefix.as_js())
+        }) || self.links.iter().any(|(link, _)| {
+            tsc_host::to_file_name_lower_case_js(JsStr::from(link.as_str()))
                 .as_js()
                 .starts_with_js(prefix.as_js())
         });
@@ -1474,7 +1575,8 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
     }
 
     fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError> {
-        let key = tsc_host::to_file_name_lower_case_js(path);
+        let linked = self.through_links(path);
+        let key = tsc_host::to_file_name_lower_case_js(linked.as_js());
         let result = self.units.iter().find_map(|unit| {
             (tsc_host::to_file_name_lower_case_js(unit.name.as_ref().into()) == key)
                 .then(|| unit.content.as_deref().map(str::to_owned))

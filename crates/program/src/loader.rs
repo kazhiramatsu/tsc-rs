@@ -5132,6 +5132,18 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 .with_may_be_emitted(false)
                 .with_may_emit_forced_declaration(true);
         }
+        // tsgo sourceFileMayBeEmitted (compiler/emitter.go:489-493): a
+        // content mapper's file has its runtime output from the mapper or
+        // its build tool, so it is emitted only for its declarations.
+        if prepared.content_mapped().is_some()
+            && self.compiler_options.declaration != Some(true)
+            && self.compiler_options.composite != Some(true)
+        {
+            let forced = prepared.may_emit_forced_declaration();
+            prepared = prepared
+                .with_may_be_emitted(false)
+                .with_may_emit_forced_declaration(forced);
+        }
         // tsgo sourceFileMayBeEmitted: a source of a referenced project (one
         // its output does not replace, such as a JSON file) is that
         // project's to emit.

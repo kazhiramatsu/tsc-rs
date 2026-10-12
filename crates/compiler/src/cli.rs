@@ -127,6 +127,7 @@ impl DiagnosticSourceMap {
     /// canonical file's). The related locations resolve alike.
     pub(crate) fn resolve(&self, diagnostic: &Diagnostic) -> Diagnostic {
         let mut resolved = diagnostic.clone();
+        self.display_alias_arguments(&mut resolved);
         if let (Some(file_name), Some(start)) = (&diagnostic.file_name, diagnostic.start) {
             if let Some((name, start, length, synthesized)) = self.resolve_location(
                 file_name,
@@ -161,6 +162,65 @@ impl DiagnosticSourceMap {
             }
         }
         resolved
+    }
+
+    /// tsgo `Diagnostic.displayMessageArgs`: a compiler diagnostic exactly
+    /// over an alias segment of a content-mapped file names the entity by
+    /// its original text: each argument that is the virtual name is shown as
+    /// the original one.
+    fn display_alias_arguments(&self, diagnostic: &mut Diagnostic) {
+        if diagnostic.source.is_some() {
+            return;
+        }
+        let (Some(file_name), Some(start)) = (&diagnostic.file_name, diagnostic.start) else {
+            return;
+        };
+        let Some(info) = self.content_mapped.get(file_name) else {
+            return;
+        };
+        let Some(span_map) = &info.span_map else {
+            return;
+        };
+        let end = start.saturating_add(diagnostic.length.unwrap_or(0));
+        let Some(segment) = span_map.alias_for_virtual_span(start as i32, end as i32) else {
+            return;
+        };
+        let shown = info.canonical.clone().unwrap_or_else(|| file_name.clone());
+        let slice = |snapshot: Option<&Arc<TextSnapshot>>, from: i32, to: i32| {
+            let snapshot = snapshot?;
+            let positions = snapshot.positions();
+            let from = positions.utf16_to_byte(u32::try_from(from).ok()?)? as usize;
+            let to = positions.utf16_to_byte(u32::try_from(to).ok()?)? as usize;
+            snapshot.text().get(from..to).map(JsString::from)
+        };
+        let (Some(virtual_name), Some(original_name)) = (
+            slice(
+                self.texts.get(file_name),
+                segment.virtual_start,
+                segment.virtual_end,
+            ),
+            slice(
+                self.texts.get(&original_text_key(shown.as_js())),
+                segment.original_start,
+                segment.original_end,
+            ),
+        ) else {
+            return;
+        };
+        if !diagnostic.message.args.contains(&virtual_name) {
+            return;
+        }
+        let Some(message) = tsc_diagnostics::by_code(diagnostic.message.code)
+            .filter(|message| Some(message.key) == diagnostic.message.key)
+        else {
+            return;
+        };
+        for argument in &mut diagnostic.message.args {
+            if *argument == virtual_name {
+                *argument = original_name.clone();
+            }
+        }
+        diagnostic.message.text = message.format_in(None, &diagnostic.message.args);
     }
 
     fn resolve_location(
@@ -1933,6 +1993,58 @@ fn rendered_diagnostics_with_exit(
         &[],
         false,
     )
+}
+
+/// tsgo `diagnosticwriter.FormatDiagnosticsWithColorAndContext` over a
+/// program's diagnostics as `WrapASTDiagnostics` presents them: a
+/// diagnostic of a content-mapped file is shown against the text it belongs
+/// to (`ASTDiagnostic.resolve`). The compiler runner's content mapper
+/// baseline writes them so.
+pub struct ProgramDiagnosticWriter {
+    sources: DiagnosticSourceMap,
+}
+
+impl ProgramDiagnosticWriter {
+    pub fn new(prepared: &tsc_program::PreparedProgram) -> Self {
+        let mut sources = DiagnosticSourceMap::new();
+        for source in prepared.source_files() {
+            sources.insert_source(source);
+        }
+        Self { sources }
+    }
+
+    /// tsgo `ASTDiagnostic`'s location of a diagnostic: in a content-mapped
+    /// file, where it is shown (a rendered file name, `text\0name`, when
+    /// the text it is shown against is not its own file's).
+    pub fn resolve(&self, diagnostic: &Diagnostic) -> Diagnostic {
+        self.sources.resolve(diagnostic)
+    }
+
+    /// The text a (rendered) file name's positions are in.
+    pub fn text(&self, file_name: JsStr<'_>) -> Option<String> {
+        let (text, _) = tsc_diagnostics::split_rendered_file_name(file_name);
+        self.sources
+            .get(&text.to_owned())
+            .map(|snapshot| snapshot.text().to_owned())
+    }
+
+    /// The diagnostics in the given order, each with its context and
+    /// separated by `new_line`, under formatting options without a current
+    /// directory (names as they are).
+    pub fn format_with_color_and_context(
+        &self,
+        diagnostics: &[Diagnostic],
+        new_line: &str,
+    ) -> Result<String, String> {
+        let host = FormatDiagnosticsHost::from_js_snapshots(JsStr::from(""), &self.sources);
+        let resolved: Vec<Diagnostic> = diagnostics
+            .iter()
+            .map(|diagnostic| self.sources.resolve(diagnostic))
+            .collect();
+        tsc_diagnostics::format_diagnostics_with_color_and_context(&resolved, &host, new_line)
+            .map(|text| text.to_string_lossy().into_owned())
+            .map_err(|error| error.to_string())
+    }
 }
 
 /// The diagnostics as the command prints them (sorted, deduplicated, plain

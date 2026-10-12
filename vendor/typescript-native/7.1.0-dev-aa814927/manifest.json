@@ -315,6 +315,13 @@
       "bytes": 336927
     },
     {
+      "path": "tsc/testdata/baselines/reference/compiler",
+      "filter": "*.contentmapper",
+      "blob_inventory_sha256": "96ad1d91d68c953b9382fafb7f828bacc61d0acb9c6052135c95b39ebd4b039a",
+      "files": 15,
+      "bytes": 9075
+    },
+    {
       "path": "tsc/testdata/baselines/reference/conformance",
       "filter": "*.errors.txt",
       "blob_inventory_sha256": "1935c4e2c903c41b7be5cdb5097df73846380fced1fb27327d3fb9bc846eebea",
@@ -362,6 +369,13 @@
       "blob_inventory_sha256": "b80a6c61edc1c7f31d8e032a8dcb7218b8d4d76769b7f03430d25229add3b5b8",
       "files": 76,
       "bytes": 354654
+    },
+    {
+      "path": "tsc/testdata/baselines/reference/conformance",
+      "filter": "*.contentmapper",
+      "blob_inventory_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 0,
+      "bytes": 0
     }
   ],
   "baseline_names": {

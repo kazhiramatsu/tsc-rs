@@ -35,9 +35,9 @@ agrees with its baseline at least on locations, with the deepest tier it
 reached (location < category < text < full) and, in a third column, its emit
 tier: `js` when tsc-rs's JavaScript emit baseline (the `.js` reference, with
 the declaration files) matches byte for byte, `none` otherwise. The fourth to
-eighth columns are the `.types`, `.symbols`, `.sourcemap.txt`, `.trace.json`
-and `.js.map` tiers: `full` when the rendered baseline matches byte for
-byte, `none` otherwise. `--check` fails
+ninth columns are the `.types`, `.symbols`, `.sourcemap.txt`, `.trace.json`,
+`.js.map` and `.contentmapper` tiers: `full` when the rendered baseline
+matches byte for byte, `none` otherwise. `--check` fails
 when a listed configuration of the run is now below any tier; `--update`
 records the run's tiers without lowering any.
 """
@@ -57,11 +57,12 @@ DUMP = None
 TIERS = ("location", "category", "text", "full")
 EMIT_TIERS = ("none", "js")
 # The `.types`, `.symbols` (P4-1), `.sourcemap.txt` (P4-2), `.trace.json`
-# (P4-3) and `.js.map` comparisons: byte agreement or none.
+# (P4-3), `.js.map` and `.contentmapper` (C4b) comparisons: byte agreement or
+# none.
 WALK_TIERS = ("none", "full")
 RATCHET_HEADER = (
     "# TypeScript 7.1 lane-A configurations, the deepest error tier each has reached, its emit tier\n"
-    "# and its .types, .symbols, .sourcemap.txt, .trace.json and .js.map tiers (scripts/conformance_ts71.py --update). A tier is lowered only by a reviewed edit.\n"
+    "# and its .types, .symbols, .sourcemap.txt, .trace.json, .js.map and .contentmapper tiers (scripts/conformance_ts71.py --update). A tier is lowered only by a reviewed edit.\n"
 )
 
 
@@ -198,7 +199,8 @@ def summarize(results):
                "symbols_not_assessed": 0, "sourcemap_full": 0, "sourcemap_mismatch": 0,
                "sourcemap_not_assessed": 0, "trace_full": 0, "trace_mismatch": 0,
                "trace_not_assessed": 0, "map_full": 0, "map_mismatch": 0,
-               "map_not_assessed": 0, "harness_errors": 0, "skipped": 0, "not_run": 0}
+               "map_not_assessed": 0, "content_mapper_full": 0, "content_mapper_mismatch": 0,
+               "content_mapper_not_assessed": 0, "harness_errors": 0, "skipped": 0, "not_run": 0}
     tiers = {"Full": "full", "Text": "text", "Category": "category", "Location": "location",
              "None": "mismatch"}
     for result in results:
@@ -208,7 +210,7 @@ def summarize(results):
             summary[tiers[result["agreement"]]] += 1
             summary[{"Full": "emit_full", "NotAssessed": "emit_not_assessed"}
                     .get(result.get("emit"), "emit_mismatch")] += 1
-            for walk in ("types", "symbols", "sourcemap", "trace", "map"):
+            for walk in ("types", "symbols", "sourcemap", "trace", "map", "content_mapper"):
                 summary[{"Full": f"{walk}_full", "NotAssessed": f"{walk}_not_assessed"}
                         .get(result.get(walk), f"{walk}_mismatch")] += 1
         elif status == "harness-error":
@@ -221,47 +223,50 @@ def summarize(results):
     return summary
 
 
-NO_TIERS = ("none", "none", "none", "none", "none", "none", "none")
+NO_TIERS = ("none", "none", "none", "none", "none", "none", "none", "none")
 
 
 def measured_tiers(results):
     """`suite/stem` -> (error tier, emit tier, types tier, symbols tier,
-    sourcemap tier, trace tier, .js.map tier) of every configuration compared
-    at location or deeper."""
+    sourcemap tier, trace tier, .js.map tier, .contentmapper tier) of every
+    configuration compared at location or deeper."""
     return {f"{result['suite']}/{result['stem']}":
             (result["agreement"].lower(), "js" if result.get("emit") == "Full" else "none",
              "full" if result.get("types") == "Full" else "none",
              "full" if result.get("symbols") == "Full" else "none",
              "full" if result.get("sourcemap") == "Full" else "none",
              "full" if result.get("trace") == "Full" else "none",
-             "full" if result.get("map") == "Full" else "none")
+             "full" if result.get("map") == "Full" else "none",
+             "full" if result.get("content_mapper") == "Full" else "none")
             for result in results
             if result["status"] == "compared" and result["agreement"] != "None"}
 
 
 def read_ratchet(path):
     """`suite/stem` -> (error tier, emit tier, types tier, symbols tier,
-    sourcemap tier, trace tier, .js.map tier); a row without a column (written
-    before that comparison existed) counts as `none` there."""
+    sourcemap tier, trace tier, .js.map tier, .contentmapper tier); a row
+    without a column (written before that comparison existed) counts as
+    `none` there."""
     if not path.exists():
         return {}
     accepted = {}
     for line in path.read_text().splitlines():
         if line and not line.startswith("#"):
             key, tier, *rest = line.split("\t")
-            rest += ["none"] * (6 - len(rest))
-            accepted[key] = (tier, *rest[:6])
+            rest += ["none"] * (7 - len(rest))
+            accepted[key] = (tier, *rest[:7])
     return accepted
 
 
 def tier_ranks():
-    """The rank tables of the seven columns, in column order."""
+    """The rank tables of the eight columns, in column order."""
     return [{tier: index for index, tier in enumerate(tiers)}
             for tiers in (TIERS, EMIT_TIERS, WALK_TIERS, WALK_TIERS, WALK_TIERS, WALK_TIERS,
-                          WALK_TIERS)]
+                          WALK_TIERS, WALK_TIERS)]
 
 
-COLUMN_NAMES = ("", "emit ", "types ", "symbols ", "sourcemap ", "trace ", "js.map ")
+COLUMN_NAMES = ("", "emit ", "types ", "symbols ", "sourcemap ", "trace ", "js.map ",
+                "contentmapper ")
 
 
 def check_ratchet(path, results, filtered):

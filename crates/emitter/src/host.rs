@@ -5,6 +5,17 @@ use tsc_program::{ResolutionMode, SourceFileId};
 use tsc_syntax::{FileReference, SourceFile};
 use tsc_types::CompilerOptions;
 
+/// The original of a content mapper's output (tsgo `OriginalFileName`,
+/// `OriginalText` and `SpanMap`).
+#[derive(Clone, Copy, Debug)]
+pub struct ContentMapperOriginal<'host> {
+    /// The canonical file's name (a supplemental output's original is its
+    /// canonical file's).
+    pub file_name: JsStr<'host>,
+    pub text: &'host std::sync::Arc<str>,
+    pub span_map: &'host tsc_diagnostics::spanmap::SpanMap,
+}
+
 /// Borrowed, read-only facts for one Program source visible to emission.
 ///
 /// The display path is callback-visible while the canonical path is used only
@@ -135,6 +146,22 @@ pub trait EmitHost {
     /// The program's `--generateTrace` session: each unit's emit is a span
     /// of it (tsgo `emitter.tr`).
     fn tracing(&self) -> Option<&std::sync::Arc<tsc_types::tracing::Tracing>> {
+        None
+    }
+    /// The extensions of the program's content mappers (tsgo
+    /// `ContentMapperExtensions`): a file of one is declared as
+    /// `.d<extension>.ts`.
+    fn content_mapper_extensions(&self) -> Vec<String> {
+        Vec::new()
+    }
+    /// A content mapper's canonical output's supplemental outputs (tsgo
+    /// `SupplementalSourceFiles`), in order.
+    fn content_mapper_supplemental_files(&self, _id: SourceFileId) -> Vec<SourceFileId> {
+        Vec::new()
+    }
+    /// The original of a content mapper's output that has a span map: its
+    /// declaration map maps to it.
+    fn content_mapper_original(&self, _id: SourceFileId) -> Option<ContentMapperOriginal<'_>> {
         None
     }
     fn current_directory(&self) -> JsStr<'_>;

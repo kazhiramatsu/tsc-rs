@@ -13,7 +13,9 @@ preserved at tag `v1-final`.
 - [setup.md](setup.md): requirements (the pinned Rust toolchain, Python for
   the conformance scripts), what CI verifies and how to run it locally.
 - [performance.md](performance.md): the measured compile times, memory use
-  and output comparisons on real projects.
+  and output comparisons on real projects against `tsgo` (TypeScript 7.1);
+  [performance-6.0.3.md](performance-6.0.3.md): the earlier measurement of
+  the tsc 6.0.3 compatible build, also against `tsc` 6.0.3.
 - [rust-api.md](rust-api.md): the experimental Rust API, with its examples.
 - [benchmarking.md](benchmarking.md): reproducible CLI comparisons, correctness
   checks, variation across runs, and multi-file tsgo parallelism controls.

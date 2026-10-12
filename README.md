@@ -9,6 +9,8 @@ progress on `main`; see [Compatibility](#compatibility).
 
 - Same `tsconfig.json` and command line as `tsc`: `-p`, `--noEmit`,
   `--watch`, `-b`.
+- Checks `.vue` and `.astro` files through content mappers, as `tsgo` does
+  ([Content mappers](#content-mappers)).
 - Fast and memory-efficient ([Performance](#performance)).
 - No Node.js required.
 
@@ -59,17 +61,38 @@ Every `tsconfig.json` option can also be given on the command line
 | `--diagnostics`, `--generateTrace <dir>` | Statistics, performance trace |
 | `--locale <tag>` | Translated messages (`ja`, `de`, `zh-CN`, …) |
 | `--checkers <n>` | Checker threads (default: one per core, up to 8; also `TSRS_CHECKERS`) |
+| `--runExternalCode` | Run the [content mappers](#content-mappers) of `tsconfig.json` |
 
 Exit status: `0` no errors, `1` errors and nothing written, `2` errors and
 output written, `4` (`-b` only) a cycle of project references.
 
+## Content mappers
+
+TypeScript 7.1 checks other languages' files, such as `.vue` and `.astro`,
+through content mappers: programs from npm packages that turn each file
+into TypeScript. List them in `tsconfig.json` and run with
+`--runExternalCode`, which allows tsc-rs to start them:
+
+```json
+{ "contentMappers": [{ "package": "@astrojs/ts-content-mapper", "extensions": [".astro"] }] }
+```
+
+As with `tsgo`, errors point into the original files, and with
+`declaration` a mapped file gets a declaration file (`Card.d.astro.ts`) but
+no JavaScript. On two Astro and two Vue projects, the output matched
+`tsgo`'s. Not yet: content mappers in `-b` builds and in the API server,
+and `--incremental` and `--watch` do not notice changes to a mapper itself.
+
 ## Compatibility
 
-`main` follows TypeScript 7.1 at commit `19dadef8`, vendored under
+`main` follows TypeScript 7.1 at commit `aa814927`, vendored under
 `vendor/typescript-native/`. This work is in progress; so far:
 
-- **Conformance:** in TypeScript 7.1's own test suite, the diagnostics match
-  in all 13,451 compared configurations and the emitted files in 13,443.
+- **Conformance:** in TypeScript 7.1's own test suite, every compared
+  configuration (13,577 of 15,339; `tsgo`'s runner skips the others)
+  matches `tsgo`'s baselines: diagnostics, emitted files, source maps,
+  module resolution traces, `.types` and `.symbols`, and content mapper
+  output.
 - **Real projects:** `tsc-rs --noEmit` printed the same output as `tsgo` on
   all 9,067 DefinitelyTyped packages, all 2,756 azure-sdk-for-js
   configurations and all 38 material-ui projects (October 2026, one
@@ -86,27 +109,25 @@ tsc 6.0.3 compatibility is complete in release
 
 ## Performance
 
-> **Note:** these numbers were measured with the tsc 6.0.3 compatible build
-> (October 1, 2026), before the switch to TypeScript 7.1. They will be
-> measured again.
-
 Type check (`--noEmit`), median wall-clock time and peak memory on an Apple
-M5 (10 cores, 32 GiB), against `tsgo` 7.1.0-dev and `tsc` 6.0.3:
+M5 (10 cores, 32 GiB), against `tsgo` built from the TypeScript commit
+tsc-rs follows (October 12, 2026):
 
-| Project | tsc-rs | tsgo | tsc |
-| --- | ---: | ---: | ---: |
-| hono | 118 ms, 306 MiB | 161 ms, 326 MiB | 959 ms, 520 MiB |
-| zod | 512 ms, 1,310 MiB | 946 ms, 1,774 MiB | 5,380 ms, 2,069 MiB |
-| Playwright | 355 ms, 754 MiB | 617 ms, 1,041 MiB | 4,424 ms, 1,299 MiB |
-| TypeScript `src/compiler` | 335 ms, 291 MiB | 359 ms, 404 MiB | 2,732 ms, 710 MiB |
-| Next.js `packages/next` | 798 ms, 1,341 MiB | 1,419 ms, 1,710 MiB | 7,949 ms, 2,381 MiB |
-| Effect `packages/effect` | 502 ms, 1,034 MiB | 791 ms, 1,209 MiB | 5,417 ms, 1,657 MiB |
-| VS Code `src` | 3,427 ms, 5,475 MiB | 4,763 ms, 6,236 MiB | 42,891 ms, 7,386 MiB |
+| Project | tsc-rs | tsgo |
+| --- | ---: | ---: |
+| hono | 124 ms, 304 MiB | 150 ms, 276 MiB |
+| zod | 512 ms, 1,323 MiB | 814 ms, 1,606 MiB |
+| TypeScript `src/compiler` | 317 ms, 290 MiB | 343 ms, 379 MiB |
+| Next.js `packages/next` | 715 ms, 1,290 MiB | 1,240 ms, 1,535 MiB |
+| Effect `packages/effect` | 469 ms, 1,016 MiB | 721 ms, 1,091 MiB |
+| VS Code `src` | 3,529 ms, 5,499 MiB | 4,518 ms, 6,369 MiB |
 
-Over all 31 configurations measured (type checks and builds with outputs),
-tsc-rs took 0.54–0.93 of `tsgo`'s time and 0.66–0.94 of its memory. To use
-less memory, lower `--checkers`. Full results and method:
-[docs/performance.md](docs/performance.md).
+Over all 26 configurations measured (type checks and builds with outputs),
+tsc-rs took 0.58–0.93 of `tsgo`'s time and 0.71–1.10 of its memory. To use
+less memory, lower `--checkers`. Full results, CPU time, content mapper
+projects and method: [docs/performance.md](docs/performance.md). These
+numbers predate the faster program loading of pull requests #760 and #761,
+and will be measured again.
 
 ## API server (experimental)
 
@@ -119,8 +140,9 @@ tsc-rs --api --cwd /path/to/workspace   # MessagePack over stdio (--async: JSON-
 
 Implemented: snapshots and projects, config parsing, source files,
 transpilation, module resolution, symbol, type and signature queries, scope
-lookups, type nodes, diagnostics and emit. Not yet: `printNode`, the build
-orchestrator and language-service requests. Details: [design notes](docs/design/greenfield/slices/ts71-api-server/README.md).
+lookups, type nodes, `printNode`, diagnostics, emit and the build
+orchestrator. Not yet: language-service requests and
+`formatNodeForInsertion`. Details: [design notes](docs/design/greenfield/slices/ts71-api-server/README.md).
 
 ## Rust API (experimental)
 
@@ -144,8 +166,6 @@ Guide: [docs/rust-api.md](docs/rust-api.md).
 - `--diagnostics` prints fewer statistics than `tsgo`.
 - Memory grows with the number of checkers.
 - `tsc-rs --api --pipe` does not support Windows named pipes.
-- Some of TypeScript 7.1's `.types` and `.symbols` test baselines still
-  differ.
 
 ## Development
 

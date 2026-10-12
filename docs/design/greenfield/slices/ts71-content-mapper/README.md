@@ -184,7 +184,8 @@ mapped file の変換を並列の read-ahead で行う（tsgo は parse task の
 walk は変換を自分の順で受け取るので、失敗の予算、初期化の失敗、program は直列の loader と同じ（walk が使わない変換を worker が
 送ることはある）。mapped root を 1 つ先頭に、残りを最後に置き、mapper の起動待ちで worker が全部止まらないようにした。
 
-- **計測**（tsgo `tsc-aa814927` と、`-p <config> --runExternalCode --noEmit --pretty false`、warm-up 1 回の後 7 回の中央値）：
+- **計測**（tsgo `tsc-aa814927` と、`-p <config> --runExternalCode --noEmit --pretty false`、warm-up 1 回の後 7 回の中央値。
+  script はこの directory の `timing.py`）：
   site 199 → 175 ms（tsgo 比 0.88）、starlight 450 → 427 ms（0.95）、vitesse 98 → 128 ms（1.31、mapper 無しでも 71 対 92 ms の
   小さい project の固定費）、soybean-admin 234 → 249 ms（1.06）。出力は 4 project とも #765 と同じ。
 - **結果**（head `77a00d651`）：test 4,213、clippy、suites 0 regressions、full の conformance（487 s）0 regressions で #765 の

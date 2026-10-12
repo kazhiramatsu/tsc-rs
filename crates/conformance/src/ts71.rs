@@ -13,6 +13,7 @@
 //! never produces baselines for (`skippedTests`, an unknown directive, the
 //! fatal AMD and `outFile`) is not run.
 
+mod content_mapper_baseline;
 mod emit_baseline;
 mod errors_baseline;
 mod sourcemap_baseline;
@@ -248,7 +249,9 @@ fn baseline_view(
         None => (None, None),
     };
     BaselineDiagnostic {
-        file: Some(remove_test_path_prefixes(&file_name)),
+        file: Some(remove_test_path_prefixes(errors_baseline::printed_name(
+            &file_name,
+        ))),
         line,
         column,
         code,
@@ -425,6 +428,11 @@ pub enum Outcome {
         /// for byte, and why not.
         trace: EmitAgreement,
         trace_detail: Option<String>,
+        /// Whether the `.contentmapper` baseline (each content-mapped
+        /// file's original and transformed text and its diagnostics)
+        /// matches byte for byte, and why not.
+        content_mapper: EmitAgreement,
+        content_mapper_detail: Option<String>,
     },
     /// Lane A, but tsc-rs could not build or check the Program.
     HarnessError { reason: String },
@@ -477,9 +485,41 @@ fn limits() -> ProgramLoadLimits {
 /// Fixture units by their normalized absolute unit path, with their text.
 type Units = Vec<(String, String)>;
 
+/// The transformed text of each content-mapped fixture file, by absolute
+/// name: tsgo's compiler runner baselines it in place of the file's own
+/// content (`file.Content = sf.Text()`), which the compiler's positions are
+/// in.
+type MappedTexts = std::collections::HashMap<String, String>;
+
+fn mapped_texts(prepared: &tsc_program::PreparedProgram) -> MappedTexts {
+    let current_directory = prepared
+        .current_directory()
+        .display()
+        .to_string_lossy()
+        .into_owned();
+    prepared
+        .source_files()
+        .iter()
+        .filter(|source| {
+            source
+                .content_mapped()
+                .is_some_and(|info| info.canonical.is_none())
+        })
+        .map(|source| {
+            (
+                absolute(
+                    &current_directory,
+                    &source.path().display().to_string_lossy(),
+                ),
+                source.snapshot().text().to_owned(),
+            )
+        })
+        .collect()
+}
+
 /// The fixture units of the plan's groups (`tsConfigFiles`, `toBeCompiled`,
-/// `otherFiles`).
-fn plan_units(plan: &CompilerExecutionPlan) -> (Units, Units, Units) {
+/// `otherFiles`), a content-mapped file's with its transformed text.
+fn plan_units(plan: &CompilerExecutionPlan, mapped: &MappedTexts) -> (Units, Units, Units) {
     let (config, roots, others) = match &plan.root_selection {
         CompilerRootSelection::Explicit {
             root_units,
@@ -503,24 +543,36 @@ fn plan_units(plan: &CompilerExecutionPlan) -> (Units, Units, Units) {
                 (absolute(&plan.current_directory, &unit.name), content)
             })
     };
+    let compiled = |id| {
+        unit(id).map(|(name, content)| {
+            let content = mapped.get(&name).cloned().unwrap_or(content);
+            (name, content)
+        })
+    };
     (
         config.iter().filter_map(unit).collect(),
-        roots.iter().filter_map(unit).collect(),
-        others.iter().filter_map(unit).collect(),
+        roots.iter().filter_map(compiled).collect(),
+        others.iter().filter_map(compiled).collect(),
     )
 }
 
 /// The fixture files in the order the native runner passes them to the
 /// error baseline (`tsConfigFiles`, `toBeCompiled`, `otherFiles`).
-fn baseline_input_files(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
-    let (config, roots, others) = plan_units(plan);
+fn baseline_input_files(
+    plan: &CompilerExecutionPlan,
+    mapped: &MappedTexts,
+) -> Vec<(String, String)> {
+    let (config, roots, others) = plan_units(plan, mapped);
     config.into_iter().chain(roots).chain(others).collect()
 }
 
 /// The sources the JavaScript emit baseline lists (`otherFiles`, then
 /// `toBeCompiled`; no config file).
-fn js_baseline_sources(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
-    let (_, roots, others) = plan_units(plan);
+fn js_baseline_sources(
+    plan: &CompilerExecutionPlan,
+    mapped: &MappedTexts,
+) -> Vec<(String, String)> {
+    let (_, roots, others) = plan_units(plan, mapped);
     others.into_iter().chain(roots).collect()
 }
 
@@ -549,6 +601,10 @@ struct EmitFacts {
     source_paths: HashSet<String>,
     /// The same paths in Program order (`program.GetSourceFiles()`).
     source_order: Vec<String>,
+    /// The content-mapped files' paths and the mappers' extensions (tsgo
+    /// `ContentMapperExtensions`, which name their declaration outputs).
+    mapped_paths: HashSet<String>,
+    mapper_extensions: Vec<String>,
 }
 
 impl EmitFacts {
@@ -614,6 +670,31 @@ impl EmitFacts {
                 .to_string_lossy()
                 .into_owned(),
             source_paths: source_order.iter().cloned().collect(),
+            mapped_paths: prepared
+                .source_files()
+                .iter()
+                .filter(|source| {
+                    source
+                        .content_mapped()
+                        .is_some_and(|info| info.canonical.is_none())
+                })
+                .map(|source| {
+                    absolute(
+                        &current_directory,
+                        &source.path().display().to_string_lossy(),
+                    )
+                })
+                .collect(),
+            mapper_extensions: prepared
+                .program_options()
+                .content_mapper_spec()
+                .map(|spec| {
+                    spec.mappers
+                        .iter()
+                        .flat_map(|mapper| mapper.definition.extensions.iter().flatten().cloned())
+                        .collect()
+                })
+                .unwrap_or_default(),
             source_order,
             current_directory,
         }
@@ -867,7 +948,7 @@ fn harness_order(emission: Emission, facts: &EmitFacts) -> Emission {
         dts.take(harness_output_path(
             facts,
             source,
-            &declaration_emit_extension(source),
+            &declaration_emit_extension(source, &facts.mapper_extensions),
         ));
         maps.take(harness_output_path(
             facts,
@@ -942,8 +1023,11 @@ fn harness_output_path(facts: &EmitFacts, source: &str, extension: &str) -> Opti
             .unwrap_or_else(|| facts.current_directory.clone());
         path = format!("{}/{relative}", out_dir.trim_end_matches('/'));
     }
-    if extension == declaration_emit_extension(&path) {
-        return Some(change_to_declaration_extension(&path));
+    if extension == declaration_emit_extension(&path, &facts.mapper_extensions) {
+        return Some(change_to_declaration_extension(
+            &path,
+            &facts.mapper_extensions,
+        ));
     }
     const KNOWN: [&str; 12] = [
         ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
@@ -968,8 +1052,23 @@ fn output_extension(path: &str, jsx_preserve: bool) -> &'static str {
     }
 }
 
-/// `tspath.GetDeclarationEmitExtensionForPath`.
-fn declaration_emit_extension(path: &str) -> String {
+/// The longest content mapper extension the path ends with, matched
+/// case-sensitively (tsgo `LongestExtension`).
+fn mapper_extension(path: &str, mapper_extensions: &[String]) -> Option<String> {
+    tsc_program::longest_extension(
+        tsc_diagnostics::JsStr::from(path),
+        mapper_extensions.iter().map(String::as_str),
+        true,
+    )
+}
+
+/// tsgo's declaration extension of an output path
+/// (`tspath.GetDeclarationEmitExtensionForPath`): a content mapper's
+/// extension is declared as `.d<extension>.ts`.
+fn declaration_emit_extension(path: &str, mapper_extensions: &[String]) -> String {
+    if let Some(extension) = mapper_extension(path, mapper_extensions) {
+        return format!(".d{extension}.ts");
+    }
     if path.ends_with(".mjs") || path.ends_with(".mts") {
         ".d.mts".to_owned()
     } else if path.ends_with(".cjs") || path.ends_with(".cts") {
@@ -1015,7 +1114,11 @@ fn add_dts_file(
     let javascript = [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| path.ends_with(extension));
-    if !facts.source_paths.contains(path) || !(typescript || (javascript && facts.allow_js)) {
+    // A content mapper's file is declared too.
+    let mapped = facts.mapped_paths.contains(path);
+    if !facts.source_paths.contains(path)
+        || !(typescript || (javascript && facts.allow_js) || mapped)
+    {
         return None;
     }
     // findResultCodeFile: the declaration path computed from `outDir` and
@@ -1027,7 +1130,7 @@ fn add_dts_file(
         }
         None => path.clone(),
     };
-    let declaration = change_to_declaration_extension(&source_file_name);
+    let declaration = change_to_declaration_extension(&source_file_name, &facts.mapper_extensions);
     let file = emission
         .dts
         .iter()
@@ -1053,8 +1156,12 @@ fn is_declaration_file_name(path: &str) -> bool {
         || (base.ends_with(".ts") && base.contains(".d."))
 }
 
-/// `outputpaths.ChangeToDeclarationExtension` without content mappers.
-fn change_to_declaration_extension(path: &str) -> String {
+/// tsgo `outputpaths.ChangeToDeclarationExtension`: a file of a content
+/// mapper's extension (the longest) is declared as `.d<extension>.ts`.
+fn change_to_declaration_extension(path: &str, mapper_extensions: &[String]) -> String {
+    if let Some(extension) = mapper_extension(path, mapper_extensions) {
+        return format!("{}.d{extension}.ts", &path[..path.len() - extension.len()]);
+    }
     const EXTENSIONS: [&str; 10] = [
         ".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".json",
     ];
@@ -1082,6 +1189,7 @@ fn change_to_declaration_extension(path: &str) -> String {
 fn declaration_file_errors(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
+    mapped: &MappedTexts,
     facts: &EmitFacts,
     emission: &Emission,
     had_diagnostics: bool,
@@ -1093,7 +1201,7 @@ fn declaration_file_errors(
     if !facts.declaration || had_diagnostics || emission.dts.is_empty() {
         return Ok(String::new());
     }
-    let (config, roots, others) = plan_units(plan);
+    let (config, roots, others) = plan_units(plan, mapped);
     let mut declaration_inputs = Vec::new();
     for unit in &roots {
         if let Some(file) = add_dts_file(unit, facts, emission, &declaration_inputs, &[]) {
@@ -1391,6 +1499,10 @@ fn run_lane_a(
             }
         }
     };
+    let mapped = mapped_texts(&prepared);
+    let mapped_files = content_mapper_baseline::mapped_files(&prepared);
+    let content_mapper_writer =
+        (!mapped_files.is_empty()).then(|| tsc_compiler::ProgramDiagnosticWriter::new(&prepared));
     // The `.trace.json` record (DoModuleResolutionBaseline): the lines the
     // load traced, sanitized as the harness does; none without the option.
     let rendered_trace = (prepared.compiler_options().trace_resolution == Some(true))
@@ -1460,7 +1572,7 @@ fn run_lane_a(
             collection.capture_suggestions,
         );
     }
-    let files = baseline_input_files(plan);
+    let files = baseline_input_files(plan, &mapped);
     // A fixture that mentions `/.lib/` compiles the profile's test library
     // too (the loader mounts it), and the native baseline locates rows and
     // related information in those files (`react18.d.ts:478:9`): their
@@ -1481,7 +1593,7 @@ fn run_lane_a(
     } else {
         Vec::new()
     };
-    let texts: BTreeMap<String, String> = files.iter().cloned().collect();
+    let mut texts: BTreeMap<String, String> = files.iter().cloned().collect();
     let mut indexes = BTreeMap::new();
     // The native harness compiles a configuration twice
     // (`compileFilesWithHost`, harnessutil.go:647-712): the first Program
@@ -1528,6 +1640,67 @@ fn run_lane_a(
         ),
         None => (first_diagnostics, None),
     };
+    // The compilation's diagnostics, the content-mapped files' too (tsgo
+    // `len(c.result.Diagnostics) > 0` for the type and symbol baselines).
+    let compilation_had_diagnostics = !diagnostics.is_empty();
+    // tsgo verifyDiagnostics: the content-mapped files and their
+    // diagnostics are baselined apart (`.contentmapper`), where each renders
+    // against the text it belongs to.
+    let content_mapper_rendered = content_mapper_writer
+        .as_ref()
+        .map(|writer| content_mapper_baseline::render(&mapped_files, diagnostics, writer));
+    let unmapped_diagnostics: Vec<_>;
+    let diagnostics = if mapped.is_empty() {
+        diagnostics
+    } else {
+        unmapped_diagnostics = diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                diagnostic.file_name.as_ref().is_none_or(|name| {
+                    !mapped
+                        .contains_key(&absolute(&plan.current_directory, &name.to_string_lossy()))
+                })
+            })
+            .cloned()
+            .collect();
+        &unmapped_diagnostics
+    };
+    // tsgo's error baseline writes `WrapASTDiagnostics(errors)`: a
+    // diagnostic of a content mapper's output is shown as it resolves (a
+    // supplemental output's under its canonical file's name, with the
+    // synthesized-code note), its positions in the text it is shown against.
+    let resolved_diagnostics: Vec<Diagnostic>;
+    let mut resolved_texts: Vec<(String, String)> = Vec::new();
+    let diagnostics = match &content_mapper_writer {
+        Some(writer) => {
+            resolved_diagnostics = diagnostics
+                .iter()
+                .map(|diagnostic| writer.resolve(diagnostic))
+                .collect();
+            for diagnostic in &resolved_diagnostics {
+                let names = diagnostic.file_name.iter().chain(
+                    diagnostic
+                        .related
+                        .iter()
+                        .filter_map(|related| related.file_name.as_ref()),
+                );
+                for name in names {
+                    let name = name.to_string_lossy().into_owned();
+                    if name.contains('\0')
+                        && !resolved_texts.iter().any(|(known, _)| *known == name)
+                    {
+                        if let Some(text) = writer.text(tsc_diagnostics::JsStr::from(name.as_str()))
+                        {
+                            resolved_texts.push((name, text));
+                        }
+                    }
+                }
+            }
+            texts.extend(resolved_texts.iter().cloned());
+            &resolved_diagnostics
+        }
+        None => diagnostics,
+    };
     let actual: Vec<_> = diagnostics
         .iter()
         .map(|diagnostic| baseline_view(diagnostic, &texts, &mut indexes))
@@ -1542,10 +1715,12 @@ fn run_lane_a(
     let mut agreement = agreement(&expected, &actual);
     let inputs: Vec<_> = files
         .iter()
+        .filter(|(name, _)| !mapped.contains_key(name))
         .map(|(name, content)| errors_baseline::InputFile { name, content })
         .collect();
     let library_inputs: Vec<_> = library
         .iter()
+        .chain(&resolved_texts)
         .map(|(name, content)| errors_baseline::InputFile { name, content })
         .collect();
     let mut rendered = errors_baseline::render(diagnostics, &inputs, &library_inputs, pretty);
@@ -1608,6 +1783,7 @@ fn run_lane_a(
         let extra = declaration_file_errors(
             workspace,
             plan,
+            &mapped,
             facts,
             emission,
             had_diagnostics,
@@ -1636,7 +1812,7 @@ fn run_lane_a(
         }
     }
     let header = format!("tests/cases/{}/{case_path}", suite.name());
-    let sources = js_baseline_sources(plan);
+    let sources = js_baseline_sources(plan, &mapped);
     let source_inputs: Vec<_> = sources
         .iter()
         .map(|(name, content)| errors_baseline::InputFile { name, content })
@@ -1667,12 +1843,14 @@ fn run_lane_a(
     let emit_sha256 = sha256_hex(rendered_js.as_deref().unwrap_or_default());
     // createSourceMapPreviewLink finds a map's sources among the Program's
     // files in Program order (`result.Inputs()`, sourcemap_baseline.go:90-100),
-    // where a file another one imports comes first.
+    // where a file another one imports comes first. It and the record show
+    // a content-mapped file's original text (`OriginalText()`).
+    let original_files = baseline_input_files(plan, &MappedTexts::new());
     let program_inputs: Vec<_> = facts
         .source_order
         .iter()
         .filter_map(|path| {
-            files
+            original_files
                 .iter()
                 .find(|(name, _)| absolute(&facts.current_directory, name) == *path)
                 .map(|(_, content)| errors_baseline::InputFile {
@@ -1744,6 +1922,19 @@ fn run_lane_a(
         .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
     let (trace, trace_detail) =
         emit_agreement(rendered_trace.as_deref(), expected_trace.as_deref(), None);
+    let expected_content_mapper = std::fs::read(profile.content_mapper_baseline_path(suite, stem))
+        .ok()
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+    let (rendered_content_mapper, content_mapper_error) = match content_mapper_rendered {
+        Some(Ok(rendered)) => (rendered, None),
+        Some(Err(error)) => (None, Some(error)),
+        None => (None, None),
+    };
+    let (content_mapper, content_mapper_detail) = emit_agreement(
+        rendered_content_mapper.as_deref(),
+        expected_content_mapper.as_deref(),
+        content_mapper_error.as_deref(),
+    );
     if let Some(directory) = dump {
         if emit == EmitAgreement::None {
             dump_file(
@@ -1777,9 +1968,17 @@ fn run_lane_a(
                 rendered_trace.as_deref().unwrap_or_default(),
             );
         }
+        if content_mapper == EmitAgreement::None {
+            dump_file(
+                directory,
+                suite,
+                &format!("{stem}.contentmapper"),
+                rendered_content_mapper.as_deref().unwrap_or_default(),
+            );
+        }
     }
     // The type and symbol baselines of the walk.
-    let had_error_baseline = !diagnostics.is_empty() || counts.is_some();
+    let had_error_baseline = compilation_had_diagnostics || counts.is_some();
     let walk = if walk_in_second {
         second.walk.take()
     } else {
@@ -1799,7 +1998,7 @@ fn run_lane_a(
         suite,
         stem,
         &header,
-        &js_baseline_sources_in_walk_order(plan),
+        &js_baseline_sources_in_walk_order(plan, &mapped),
         walk,
         had_error_baseline,
         not_assessed,
@@ -1825,18 +2024,23 @@ fn run_lane_a(
         sourcemap_detail,
         trace,
         trace_detail,
+        content_mapper,
+        content_mapper_detail,
     }
 }
 
 /// The units the native runner walks (`allFiles`: `toBeCompiled` then
 /// `otherFiles`, no config file), by absolute name, with their contents.
-fn js_baseline_sources_in_walk_order(plan: &CompilerExecutionPlan) -> Vec<(String, String)> {
-    let (_, roots, others) = plan_units(plan);
+fn js_baseline_sources_in_walk_order(
+    plan: &CompilerExecutionPlan,
+    mapped: &MappedTexts,
+) -> Vec<(String, String)> {
+    let (_, roots, others) = plan_units(plan, mapped);
     roots.into_iter().chain(others).collect()
 }
 
 fn walk_unit_names(plan: &CompilerExecutionPlan) -> Vec<String> {
-    js_baseline_sources_in_walk_order(plan)
+    js_baseline_sources_in_walk_order(plan, &MappedTexts::new())
         .into_iter()
         .map(|(name, _)| name)
         .collect()

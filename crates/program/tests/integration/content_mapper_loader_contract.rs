@@ -227,6 +227,50 @@ fn a_mapped_file_is_its_virtual_output_with_its_supplemental_outputs_as_subtasks
     );
 }
 
+/// tsgo sourceFileMayBeEmitted: a content mapper's files, supplemental ones
+/// too, are emitted only for their declarations (their runtime output is
+/// the mapper's or its build tool's); a forced declaration emit still
+/// covers them.
+#[test]
+fn mapped_files_are_emitted_only_for_their_declarations() {
+    for (declaration, emitted) in [("false", false), ("true", true)] {
+        let config = format!(
+            r#"{{
+                "compilerOptions": {{ "noLib": true, "types": [], "module": "nodenext", "declaration": {declaration} }},
+                "contentMappers": [{{ "package": "vue", "extensions": [".vue"] }}]
+            }}"#
+        );
+        let (prepared, _) = load_with(
+            &config,
+            &[
+                ("/p/src/Component.vue", "<template />"),
+                ("/p/src/main.ts", "export {};"),
+            ],
+            fake(|_, _| {
+                Ok(output(
+                    "export const a = 1;",
+                    ".ts",
+                    vec![result("export const b = 2;", ".mts")],
+                ))
+            }),
+        );
+        assert_eq!(prepared.source_files().len(), 3);
+        for source in prepared.source_files() {
+            let mapped = source.content_mapped().is_some();
+            let name = source.path().display().to_string_lossy();
+            assert_eq!(
+                source.may_be_emitted(),
+                emitted || !mapped,
+                "declaration {declaration}: {name}"
+            );
+            assert!(
+                source.may_emit_forced_declaration(),
+                "declaration {declaration}: {name}"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_failed_transform_leaves_a_stub_with_its_diagnostic() {
     let (prepared, _) = load(
@@ -354,6 +398,44 @@ fn an_import_of_a_mapper_s_extension_loads_the_mapped_file() {
         prepared.source_files()[0].inclusion_reasons(),
         [SourceInclusionReason::Import { .. }]
     ));
+}
+
+/// tsgo SplitExtension takes the longest mapper extension off an import of
+/// it, so a declaration file's import of a multi-dot extension resolves the
+/// declaration twin (`.d.y.z.ts`) where the mapped file is not there (a
+/// declaration compile).
+#[test]
+fn an_import_of_a_multi_dot_mapper_extension_resolves_its_declaration() {
+    let (prepared, _) = load_with(
+        r#"{
+            "compilerOptions": { "noLib": true, "types": [], "module": "esnext", "moduleResolution": "bundler", "traceResolution": true },
+            "files": ["src/main.d.ts"],
+            "contentMappers": [{ "package": "vue", "extensions": [".y.z"] }]
+        }"#,
+        &[
+            (
+                "/p/src/main.d.ts",
+                "export { component } from \"./component.y.z\";",
+            ),
+            (
+                "/p/src/component.d.y.z.ts",
+                "export declare const component: number;",
+            ),
+        ],
+        fake(|_, _| Ok(output("export default 1;", ".ts", Vec::new()))),
+    );
+    assert_eq!(
+        names(&prepared),
+        ["/p/src/component.d.y.z.ts", "/p/src/main.d.ts"]
+    );
+    assert_eq!(
+        prepared.resolution_trace()[4..7],
+        [
+            "File name '/p/src/component.y.z' has a '.y.z' extension - stripping it.",
+            "File '/p/src/component.y.z' does not exist.",
+            "File '/p/src/component.d.y.z.ts' exists - use it as a name resolution result.",
+        ]
+    );
 }
 
 /// tsgo resolveImportsAndModuleAugmentations adds the JSX runtime import by

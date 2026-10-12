@@ -303,7 +303,15 @@ fn display_name(file_name: &str, indexes: &Indexes<'_>) -> String {
     if !indexes.contains_key(file_name) && is_default_library_file(file_name) {
         return base_name(file_name).to_owned();
     }
-    file_name.to_owned()
+    printed_name(file_name).to_owned()
+}
+
+/// The name a resolved diagnostic's file is shown with: a rendered name
+/// (`text\0name`, a content-mapped file's) shows its name.
+pub(super) fn printed_name(file_name: &str) -> &str {
+    file_name
+        .split_once('\0')
+        .map_or(file_name, |(_, printed)| printed)
 }
 
 fn base_name(path: &str) -> &str {

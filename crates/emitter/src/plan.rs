@@ -40,11 +40,13 @@ pub enum EmitMode {
 /// Typed provenance for an intentionally absent JavaScript member.
 ///
 /// The output-shape validator cannot reconstruct compiler options, so the
-/// planner records the one currently admitted reason at the point where
-/// `getOutputPathsFor` omits the JavaScript path.
+/// planner records the reason at the point where `getOutputPathsFor` omits
+/// the JavaScript path.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JavascriptOmission {
     EmitDeclarationOnly,
+    /// A content mapper's output emits declarations only.
+    ContentMapped,
 }
 
 /// Full `getOutputPathsFor` plus build-info slot shape.
@@ -217,9 +219,7 @@ impl EmitOutputPlan {
             if unit.paths.build_info.is_some() {
                 return Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BuildInfo));
             }
-            if unit.paths.javascript.is_none()
-                && unit.javascript_omitted != Some(JavascriptOmission::EmitDeclarationOnly)
-            {
+            if unit.paths.javascript.is_none() && unit.javascript_omitted.is_none() {
                 return Err(EmitFailure::Contract(
                     EmitContractViolation::ScriptOutputMissingJavaScriptPath,
                 ));
@@ -440,11 +440,17 @@ fn get_output_paths_for_with_force(
     force: ForceEmitPaths,
 ) -> Result<EmitOutputPaths, EmitFailure> {
     let options = host.compiler_options();
-    let extension = get_output_extension(
-        source.path(),
-        options.jsx,
-        options.allow_non_ts_extensions == Some(true),
-    )?;
+    // tsgo GetOutputExtension's last arm: a content mapper's file (which
+    // has no JavaScript output) names `.js`.
+    let extension = if source.content_mapped() {
+        "js"
+    } else {
+        get_output_extension(
+            source.path(),
+            options.jsx,
+            options.allow_non_ts_extensions == Some(true),
+        )?
+    };
     let javascript = get_own_emit_output_file_path(source.path(), host, extension);
     let is_json = extension == "json";
     let javascript = ((force.js || !options.emit_declaration_only.unwrap_or(false))
@@ -537,8 +543,18 @@ pub fn preflight_emit(
     let emit_declaration_only = host.compiler_options().emit_declaration_only == Some(true);
     for_each_emitted_file(host, selection, |paths, root| {
         let mut unit = EmitOutputUnit::new(root.clone(), paths.clone(), EmitMode::Script);
-        if emit_declaration_only && paths.javascript_path().is_none() {
-            unit = unit.with_javascript_omitted(JavascriptOmission::EmitDeclarationOnly);
+        if paths.javascript_path().is_none() {
+            if emit_declaration_only {
+                unit = unit.with_javascript_omitted(JavascriptOmission::EmitDeclarationOnly);
+            } else {
+                let EmitRoot::SourceFile(id) = root;
+                if host
+                    .source_file(*id)
+                    .is_some_and(|source| source.content_mapped())
+                {
+                    unit = unit.with_javascript_omitted(JavascriptOmission::ContentMapped);
+                }
+            }
         }
         units.push(unit);
     })?;
@@ -743,6 +759,19 @@ pub(crate) fn declaration_output_path(source_file: JsStr<'_>, host: &dyn EmitHos
             .filter(|directory| !directory.is_empty()))
         .map(|directory| source_file_path_in_new_dir(source_file, host, directory))
         .unwrap_or_else(|| source_file.to_owned());
+    // tsgo ChangeToDeclarationExtension: a file of a content mapper's
+    // extension (the longest, matched case-sensitively) is declared as
+    // `.d<extension>.ts`.
+    let mapper_extensions = host.content_mapper_extensions();
+    if let Some(extension) = tsc_program::longest_extension(
+        relocated.as_js(),
+        mapper_extensions.iter().map(String::as_str),
+        true,
+    ) {
+        if let Some(stem) = relocated.as_js().strip_suffix(extension.as_str()) {
+            return paths::append_suffix(stem, &format!(".d{extension}.ts"));
+        }
+    }
     let lower = relocated.as_js();
     let extension = if has_ascii_file_suffix(lower, ".mts") || has_ascii_file_suffix(lower, ".mjs")
     {

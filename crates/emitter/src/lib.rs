@@ -64,7 +64,7 @@ pub use factory::{
     GeneratedIdentifierFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
     TransformSource, TransformSourceId,
 };
-pub use host::{EmitHost, EmitSource};
+pub use host::{ContentMapperOriginal, EmitHost, EmitSource};
 pub use metadata::{
     CommentRange, CommentSourceRange, EmitConstantValue, EmitEnumMemberValue, EmitFlags,
     EmitMetadata, InternalEmitFlags, JavaScriptNumber, JavaScriptString, LiteralNodeProperties,
@@ -98,7 +98,9 @@ pub use sink::{
     EagerUnitSink, EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink,
     OutputSink, SharedEmitFileSystem, SharedFsOutputSink, SharedOutputSink,
 };
-pub use source_map::{SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields};
+pub use source_map::{
+    OriginalPositions, SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields,
+};
 pub use transform::{
     transform_nodes, DeclarationPrintHandlers, EmitHelper, EmitHint, GlobalNameOracle,
     LexicalEnvironment, LexicalEnvironmentFlags, TransformError, TransformFlags, TransformRoot,

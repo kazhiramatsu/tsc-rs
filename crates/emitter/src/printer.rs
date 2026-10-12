@@ -20370,9 +20370,14 @@ impl Printer {
         };
         let byte = SourceBytePosition::new(raw, mapped_source.positions())?;
         let location = SourceUtf16Location::from_byte(byte, mapped_source.positions())?;
+        let offset = mapped_source
+            .positions()
+            .byte_to_utf16(raw)
+            .unwrap_or_default();
         writer.record_source_map_position_for(
             range.source(),
             mapped_source.file_name.as_js(),
+            offset,
             location.line(),
             location.column(),
         );
@@ -20450,14 +20455,18 @@ impl Printer {
                 let positions = syntax.positions();
                 let eof = SourceBytePosition::new(positions.byte_len(), positions)?;
                 let location = SourceUtf16Location::from_byte(eof, positions)?;
-                let column = match boundary {
-                    MapBoundary::Before => Some(location.column()),
-                    MapBoundary::After => location.column().checked_add(width),
+                let added = match boundary {
+                    MapBoundary::Before => 0,
+                    MapBoundary::After => width,
                 };
-                if let Some(column) = column {
+                if let (Some(column), Some(offset)) = (
+                    location.column().checked_add(added),
+                    positions.utf16_len().checked_add(added),
+                ) {
                     writer.record_source_map_position_for(
                         source,
                         syntax.file_name.as_js(),
+                        offset,
                         location.line(),
                         column,
                     );

@@ -408,6 +408,41 @@ pub struct SourceMapRecordingInputs {
     /// point feeds `set_source_content` iff set (upstream
     /// `setSourceMapSource` 121352-121370). `false` at the H2.6a floor.
     pub inline_sources: bool,
+    /// A content mapper's declaration map maps its file's positions to the
+    /// original.
+    pub original_positions: Option<OriginalPositions>,
+}
+
+/// tsgo's `MapSourcePosition` of a content mapper's declaration map
+/// (compiler/emitter.go): a position in the declared file's transformed
+/// text records at its exact original, under the original's name and
+/// against the original text; one without an exact original records a
+/// generated-only mapping. Other files' positions are not mapped.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OriginalPositions {
+    file_name: JsString,
+    original_file_name: JsString,
+    original: std::sync::Arc<tsc_diagnostics::TextSnapshot>,
+    span_map: tsc_diagnostics::spanmap::SpanMap,
+}
+
+impl OriginalPositions {
+    pub fn new(
+        file_name: JsString,
+        original_file_name: JsString,
+        original_text: std::sync::Arc<str>,
+        span_map: tsc_diagnostics::spanmap::SpanMap,
+    ) -> Self {
+        Self {
+            file_name,
+            original_file_name,
+            original: tsc_diagnostics::TextSnapshot::from_shared_text(
+                original_text,
+                tsc_diagnostics::DocumentVersion::default(),
+            ),
+            span_map,
+        }
+    }
 }
 
 /// Where the current print source stands with the generator: JSON
@@ -438,6 +473,20 @@ pub struct SourceMapRecording {
     current_snapshot: Option<std::sync::Arc<tsc_diagnostics::TextSnapshot>>,
     suppressed_depth: u32,
     inline_sources: bool,
+    original_positions: Option<OriginalPositions>,
+    /// The original's source index, once registered.
+    original_index: Option<u32>,
+    /// Whether the current print source is the file whose positions map to
+    /// the original.
+    current_maps_to_original: bool,
+}
+
+/// Where a recorded position lands.
+enum RecordedSource {
+    /// At the given source index, line and character.
+    Source(u32, u32, u32),
+    /// A generated-only mapping.
+    Generated,
 }
 
 impl SourceMapRecording {
@@ -456,7 +505,70 @@ impl SourceMapRecording {
             current_source: None,
             suppressed_depth: 0,
             inline_sources: inputs.inline_sources,
+            original_positions: inputs.original_positions,
+            original_index: None,
+            current_maps_to_original: false,
         }
+    }
+
+    /// Where a position of the file named `file_name` (a UTF-16 offset of
+    /// its text) records when that file maps to its original; `None` when
+    /// it does not.
+    fn original_position(&mut self, file_name: JsStr<'_>, offset: u32) -> Option<RecordedSource> {
+        let original = self.original_positions.as_ref()?;
+        if original.file_name.as_js() != file_name {
+            return None;
+        }
+        self.mapped_original_position(offset)
+    }
+
+    /// The original position of an offset of the mapped file.
+    fn mapped_original_position(&mut self, offset: u32) -> Option<RecordedSource> {
+        let original = self.original_positions.as_ref()?;
+        let (mapped, exact) = original
+            .span_map
+            .virtual_to_original_position_exact(i32::try_from(offset).ok()?);
+        if !exact {
+            return Some(RecordedSource::Generated);
+        }
+        let location = original
+            .original
+            .positions()
+            .line_and_character_utf16(u32::try_from(mapped).ok()?)?;
+        let index = match self.original_index {
+            Some(index) => index,
+            None => {
+                let file_name = original.original_file_name.clone();
+                let index = self.generator.add_source(file_name.as_js());
+                self.original_index = Some(index);
+                index
+            }
+        };
+        Some(RecordedSource::Source(
+            index,
+            location.line,
+            location.character,
+        ))
+    }
+
+    fn record_at(
+        &mut self,
+        recorded: RecordedSource,
+        generated_line: u32,
+        generated_character: u32,
+    ) {
+        let source = match recorded {
+            RecordedSource::Source(source_index, source_line, source_character) => {
+                Some(SourceMappingFields {
+                    source_index,
+                    source_line,
+                    source_character,
+                })
+            }
+            RecordedSource::Generated => None,
+        };
+        self.generator
+            .add_mapping(generated_line, generated_character, source, None);
     }
 
     fn register(
@@ -515,6 +627,10 @@ impl SourceMapRecording {
         self.current = Some(registered);
         self.current_source = Some(source);
         self.current_snapshot = Some(std::sync::Arc::clone(snapshot));
+        self.current_maps_to_original = self
+            .original_positions
+            .as_ref()
+            .is_some_and(|original| original.file_name.as_js() == file_name);
     }
 
     pub(crate) fn is_current_source(&self, source: crate::TransformSourceId) -> bool {
@@ -553,6 +669,12 @@ impl SourceMapRecording {
                 offset = positions.byte_to_utf16(skipped).unwrap_or(offset);
             }
         }
+        if self.current_maps_to_original {
+            if let Some(recorded) = self.mapped_original_position(offset) {
+                self.record_at(recorded, generated_line, generated_character);
+            }
+            return;
+        }
         let (line, character) = match positions.line_and_character_utf16(offset) {
             Some(location) => (location.line, location.character),
             None => {
@@ -582,6 +704,22 @@ impl SourceMapRecording {
             return;
         }
         let byte = u32::try_from(byte).expect("comment position exceeds u32");
+        if self.current_maps_to_original {
+            let offset = match &self.current_snapshot {
+                Some(snapshot)
+                    if snapshot.text().len() == source.len()
+                        && snapshot.text().as_ptr() == source.as_ptr() =>
+                {
+                    snapshot.positions().byte_to_utf16(byte)
+                }
+                _ => tsc_diagnostics::PositionIndex::new_static(source).byte_to_utf16(byte),
+            };
+            if let Some(recorded) = offset.and_then(|offset| self.mapped_original_position(offset))
+            {
+                self.record_at(recorded, generated_line, generated_character);
+            }
+            return;
+        }
         let location = match &self.current_snapshot {
             Some(snapshot)
                 if snapshot.text().len() == source.len()
@@ -652,10 +790,12 @@ impl SourceMapRecording {
     /// The foreign-source lane: registers on demand (the upstream
     /// save/set/emit/restore collapses to an explicit per-record source
     /// because the printer passes the effective source at every site).
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn record_for_source(
         &mut self,
         source: crate::TransformSourceId,
         file_name: JsStr<'_>,
+        offset: u32,
         source_line: u32,
         source_character: u32,
         generated_line: u32,
@@ -667,6 +807,10 @@ impl SourceMapRecording {
         let RegisteredSource::Indexed(index) = self.register(source, file_name, None) else {
             return;
         };
+        if let Some(recorded) = self.original_position(file_name, offset) {
+            self.record_at(recorded, generated_line, generated_character);
+            return;
+        }
         self.generator.add_mapping(
             generated_line,
             generated_character,

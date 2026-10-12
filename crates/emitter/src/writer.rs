@@ -239,10 +239,12 @@ impl TextWriter {
     }
 
     /// Record a mapping against an explicit (possibly foreign) source.
+    /// `offset` is the position's UTF-16 offset in that source's text.
     pub(crate) fn record_source_map_position_for(
         &mut self,
         source: crate::TransformSourceId,
         file_name: tsc_types::JsStr<'_>,
+        offset: u32,
         source_line: u32,
         source_character: u32,
     ) {
@@ -252,6 +254,7 @@ impl TextWriter {
             recording.record_for_source(
                 source,
                 file_name,
+                offset,
                 source_line,
                 source_character,
                 generated_line,
