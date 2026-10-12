@@ -218,13 +218,36 @@ pub trait PrettyDiagnosticSources {
     }
 }
 
+/// A rendered diagnostic's file may name the text it is shown against and
+/// the name it is shown with apart, as tsgo's diagnostic writer shows a
+/// content-mapped file's diagnostics (over the file's original or virtual
+/// text, under the file's name): the text's key, NUL, the printed name.
+pub fn rendered_file_name(text: JsStr<'_>, printed: JsStr<'_>) -> JsString {
+    let mut name = text.to_owned();
+    name.push('\0');
+    name.push_js(printed);
+    name
+}
+
+/// The text key and the printed name of a rendered file name (see
+/// [`rendered_file_name`]); an ordinary file name is both.
+pub fn split_rendered_file_name(file_name: JsStr<'_>) -> (JsStr<'_>, JsStr<'_>) {
+    file_name.split_once("\0").unwrap_or((file_name, file_name))
+}
+
 impl PrettyDiagnosticSources for FormatDiagnosticsHost<'_> {
     fn location_name(&self, file_name: JsStr<'_>) -> JsString {
-        relative_file_name(file_name, self.current_directory)
+        relative_file_name(
+            split_rendered_file_name(file_name).1,
+            self.current_directory,
+        )
     }
 
     fn summary_name(&self, file_name: JsStr<'_>) -> JsString {
-        relative_file_name(file_name, self.current_directory)
+        relative_file_name(
+            split_rendered_file_name(file_name).1,
+            self.current_directory,
+        )
     }
 
     fn catalog(&self) -> Option<&dyn MessageCatalog> {
@@ -232,7 +255,7 @@ impl PrettyDiagnosticSources for FormatDiagnosticsHost<'_> {
     }
 
     fn text(&self, file_name: JsStr<'_>) -> Option<&str> {
-        self.file_text(file_name)
+        self.file_text(split_rendered_file_name(file_name).0)
     }
 }
 
@@ -271,7 +294,12 @@ pub fn format_diagnostic_with_color_and_context(
     let category_format = category_format(diagnostic.category());
     write_with_style_and_reset(output, diagnostic.category().name(), category_format);
     output.push_str(GREY);
-    output.push_str(&format!(" TS{}: ", diagnostic.code()));
+    // tsgo diagnosticPrefix: a content mapper's diagnostic shows its source.
+    output.push_str(&format!(
+        " {}{}: ",
+        diagnostic.source.as_deref().unwrap_or("TS"),
+        diagnostic.code()
+    ));
     output.push_str(RESET);
     write_flattened_message(output, &diagnostic.message, new_line, sources.catalog());
 
@@ -328,12 +356,17 @@ pub fn write_error_summary_text(
             continue;
         }
         total += 1;
+        // By the name a file is shown with (a rendered file name's text may
+        // differ between its diagnostics).
         match &diagnostic.file_name {
             None => global += 1,
-            Some(file_name) => match files.iter_mut().find(|(name, _)| name == file_name) {
-                Some((_, errors)) => errors.push(diagnostic),
-                None => files.push((file_name.clone(), vec![diagnostic])),
-            },
+            Some(file_name) => {
+                let printed = split_rendered_file_name(file_name.as_js()).1;
+                match files.iter_mut().find(|(name, _)| name.as_js() == printed) {
+                    Some((_, errors)) => errors.push(diagnostic),
+                    None => files.push((printed.to_owned(), vec![diagnostic])),
+                }
+            }
         }
     }
     let mut output = JsString::new();
@@ -405,7 +438,12 @@ fn pretty_path_for_file_error(
     errors: &[&Diagnostic],
     sources: &dyn PrettyDiagnosticSources,
 ) -> Result<JsString, FormatDiagnosticsError> {
-    let text = source_text(file_name.as_js(), sources)?;
+    // The line of the first error, in the text it is shown against.
+    let text_file_name = errors
+        .first()
+        .and_then(|error| error.file_name.as_ref())
+        .unwrap_or(file_name);
+    let text = source_text(text_file_name.as_js(), sources)?;
     let start = errors.first().and_then(|error| error.start).unwrap_or(0);
     let (line, _) = Utf16File::new(text).line_and_character(start)?;
     let mut path = sources.summary_name(file_name.as_js());

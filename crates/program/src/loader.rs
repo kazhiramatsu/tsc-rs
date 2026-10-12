@@ -12,6 +12,11 @@ use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain, RelatedInf
 use tsc_host::{to_file_name_lower_case_js, CompilerHost, HostError, ParallelSourceReader};
 use tsc_types::CompilerOptions;
 
+use crate::content_mapper::source::{
+    failure_stub, initialization_diagnostic, transform_diagnostic, virtual_sources, VirtualSource,
+    MAX_CONTENT_MAPPER_FAILURES,
+};
+use crate::content_mapper::{errors::TransformFailure, host::Request, Mapper};
 use crate::json::{json_object_get, parse_json_object};
 use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
@@ -1375,6 +1380,11 @@ pub enum SourceInclusionReason {
         parent: JsString,
         specifier: JsString,
     },
+    /// A content mapper's supplemental output of a file (tsgo
+    /// `fileIncludeKindContentMapperSupplemental`).
+    ContentMapperSupplemental {
+        canonical: JsString,
+    },
 }
 
 impl SourceInclusionReason {
@@ -1394,7 +1404,8 @@ impl SourceInclusionReason {
             | Self::PathReference { .. }
             | Self::Synthetic
             | Self::LibraryRoot(_)
-            | Self::LibraryReference { .. } => {}
+            | Self::LibraryReference { .. }
+            | Self::ContentMapperSupplemental { .. } => {}
         }
         self
     }
@@ -1406,9 +1417,11 @@ impl SourceInclusionReason {
             | Self::PathReference { parent, .. }
             | Self::TypeReference { parent, .. }
             | Self::LibraryReference { parent, .. } => Some(parent),
-            Self::Root(_) | Self::AutomaticType { .. } | Self::Synthetic | Self::LibraryRoot(_) => {
-                None
-            }
+            Self::Root(_)
+            | Self::AutomaticType { .. }
+            | Self::Synthetic
+            | Self::LibraryRoot(_)
+            | Self::ContentMapperSupplemental { .. } => None,
         }
     }
 }
@@ -1515,6 +1528,8 @@ struct StagedSource {
     /// then the module augmentations), kept only when tracing; the synthetic
     /// requests are not here.
     module_request_order: Vec<ResolutionKey>,
+    /// A content mapper's supplemental outputs of this file.
+    supplemental: Vec<ProgramPath>,
 }
 
 struct StagedModuleRequest {
@@ -1580,6 +1595,9 @@ enum TaskOrigin {
     /// tsgo `parseTask.redirect`: the output declaration file of a source
     /// of a referenced project, loaded in the source's place.
     Redirect,
+    /// A content mapper's supplemental output (tsgo
+    /// `isContentMapperSupplemental`): its file comes with the task.
+    ContentMapperSupplemental,
 }
 
 /// tsgo `parseTask` (compiler/filesparser.go): one arrival at a file
@@ -1998,11 +2016,16 @@ enum SourceInput {
         byte_len: usize,
         decoded: Result<Box<PrefetchedParse>, HostTextDecodeError>,
     },
+    /// A content mapper's supplemental output, transformed with its
+    /// canonical file.
+    Provided(Box<VirtualSource>),
 }
 
 enum DecodedSource {
     Text(String),
     Parsed(Box<PrefetchedParse>),
+    /// A content mapper's output (tsgo parseContentMappedFile).
+    Mapped(Box<VirtualSource>),
 }
 
 /// Decode, snapshot, parse and request-plan one read-ahead root on a worker.
@@ -2107,6 +2130,7 @@ struct CompleteGraph {
     type_resolutions: Vec<StagedTypeResolution>,
     program_diagnostics: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
+    content_mapper_diagnostics: Vec<Diagnostic>,
     project_reference_redirects: Vec<(ProgramPath, usize)>,
     /// The package.json files the read-ahead workers' and the referenced
     /// projects' resolvers probed.
@@ -2225,6 +2249,15 @@ struct StagedGraph<'host, 'options, 'resolver> {
     /// The sources of referenced projects loaded as their outputs: the
     /// source's path and the output's staged source.
     project_reference_redirects: Vec<(ProgramPath, usize)>,
+    /// The content mapper outputs whose tasks have not run (tsgo's
+    /// supplemental parse tasks carry their file).
+    provided_sources: FxHashMap<CanonicalPath, VirtualSource>,
+    /// tsgo fileLoader's content mapper bookkeeping, by mapper: the
+    /// transform failures, the mappers that failed to initialize, and the
+    /// program diagnostics about them.
+    content_mapper_failures: FxHashMap<usize, usize>,
+    content_mapper_init_failed: HashSet<usize>,
+    content_mapper_diagnostics: Vec<Diagnostic>,
 }
 
 /// Immutable and borrowed inputs for one staged graph. Keeping this boundary
@@ -2289,6 +2322,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             project_resolvers: BTreeMap::new(),
             read_ahead_package_json_probes: Vec::new(),
             project_reference_redirects: Vec::new(),
+            provided_sources: FxHashMap::default(),
+            content_mapper_failures: FxHashMap::default(),
+            content_mapper_init_failed: HashSet::default(),
+            content_mapper_diagnostics: Vec::new(),
             reserved_sources: 0,
             reserved_bytes: 0,
         }
@@ -3246,12 +3283,13 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // supported-extension check is skipped entirely under
         // allowNonTsExtensions; the script kind then derives from the name.
         if !is_admitted_source(path.canonical(), self.compiler_options)
+            && self.content_mapper_for(&path).is_none()
             && self.compiler_options.allow_non_ts_extensions != Some(true)
         {
             let diagnostic = unsupported_root_extension_diagnostic(
                 &path,
                 root_spelling,
-                self.compiler_options.allow_js,
+                self.supported_extension_list(),
                 root_reason,
             )?;
             if self
@@ -3906,6 +3944,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             type_resolutions: self.type_resolutions,
             program_diagnostics: self.program_diagnostics,
             option_diagnostics,
+            content_mapper_diagnostics: self.content_mapper_diagnostics,
             project_reference_redirects: self.project_reference_redirects,
             package_json_probes,
             package_redirect_files,
@@ -4514,7 +4553,11 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
     fn report_missing_target(&mut self, task: usize) -> Result<(), ProgramLoadError> {
         let path = self.tasks[task].path.clone();
         match self.tasks[task].origin.clone() {
-            TaskOrigin::Root { .. } | TaskOrigin::Redirect | TaskOrigin::AutomaticTypes => Ok(()),
+            // A supplemental output always comes with its file.
+            TaskOrigin::Root { .. }
+            | TaskOrigin::Redirect
+            | TaskOrigin::AutomaticTypes
+            | TaskOrigin::ContentMapperSupplemental => Ok(()),
             TaskOrigin::LibraryRoot(reason) => {
                 if self
                     .diagnosed_missing_library_roots
@@ -4582,11 +4625,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             return Ok(Some(existing));
         }
         // A retained read-ahead result stands in for the host call it already
-        // made (see `prefetch_roots`); otherwise the host is queried here.
-        let read = match self.take_prefetched(&path) {
-            Some(PrefetchedRead::Failed(error)) => Err(error),
-            Some(PrefetchedRead::Missing) => Ok(None),
-            Some(PrefetchedRead::Parsed { byte_len, decoded }) => {
+        // made (see `prefetch_roots`); otherwise the host is queried here. A
+        // content mapper's supplemental output came with its file.
+        let provided = self.provided_sources.remove(path.canonical());
+        let read = match provided.map_or_else(
+            || self.take_prefetched(&path).map(Err),
+            |provided| Some(Ok(provided)),
+        ) {
+            Some(Ok(provided)) => Ok(Some(SourceInput::Provided(Box::new(provided)))),
+            Some(Err(PrefetchedRead::Failed(error))) => Err(error),
+            Some(Err(PrefetchedRead::Missing)) => Ok(None),
+            Some(Err(PrefetchedRead::Parsed { byte_len, decoded })) => {
                 Ok(Some(SourceInput::Prefetched { byte_len, decoded }))
             }
             None => self
@@ -4607,6 +4656,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let byte_len = match &input {
             SourceInput::Fresh(bytes) => bytes.len(),
             SourceInput::Prefetched { byte_len, .. } => *byte_len,
+            SourceInput::Provided(provided) => provided.text.len(),
         };
 
         self.enforce_limit(
@@ -4647,6 +4697,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let decoded = match input {
             SourceInput::Fresh(bytes) => decode_host_text(bytes).map(DecodedSource::Text),
             SourceInput::Prefetched { decoded, .. } => decoded.map(DecodedSource::Parsed),
+            SourceInput::Provided(provided) => Ok(DecodedSource::Mapped(provided)),
         }
         .map_err(|source| {
             ProgramLoadError::decode_js(
@@ -4655,6 +4706,23 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 source,
             )
         })?;
+        // tsgo parseSourceFile: a file of a content mapper's extension is
+        // its mapper's output.
+        let decoded = match self.content_mapper_for(&path) {
+            Some(mapper) => match decoded {
+                DecodedSource::Text(text) => DecodedSource::Mapped(Box::new(
+                    self.content_mapped_source(&path, &text, &mapper)?,
+                )),
+                DecodedSource::Parsed(parsed) => {
+                    let text = parsed.prepared.snapshot().text().to_owned();
+                    DecodedSource::Mapped(Box::new(
+                        self.content_mapped_source(&path, &text, &mapper)?,
+                    ))
+                }
+                mapped @ DecodedSource::Mapped(_) => mapped,
+            },
+            None => decoded,
+        };
         // Package deduplication is decided when the files are collected
         // (`collect_files`), as tsgo's parse tasks load every copy and its
         // subtasks and the collect walk redirects the later copies. A
@@ -4680,17 +4748,39 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         let project = self.project_for_resolution(path.canonical());
         let options_for_file =
             project.map_or(self.compiler_options, |project| project.compiler_options());
-        let implied = implied_node_format(file_name, package_scope.as_ref(), options_for_file);
-        let implied_for_emit =
-            implied_node_format_for_emit(file_name, package_scope.as_ref(), options_for_file);
+        // A content mapper's output takes its format from its virtual name
+        // (tsgo filesParser: ImpliedNodeFormat of the VirtualFileName).
+        let format_file_name = match &decoded {
+            DecodedSource::Mapped(mapped) => mapped.info.virtual_file_name.as_js(),
+            _ => file_name,
+        };
+        let implied =
+            implied_node_format(format_file_name, package_scope.as_ref(), options_for_file);
+        let implied_for_emit = implied_node_format_for_emit(
+            format_file_name,
+            package_scope.as_ref(),
+            options_for_file,
+        );
         // A read-ahead parse is adopted only when its assumptions are the
         // facts computed above; otherwise its decoded text is planned here.
+        let mut supplemental = Vec::new();
         let (mut prepared, prefetched_plan, mut prefetched_resolutions) = match decoded {
             DecodedSource::Text(text) => (
                 PreparedSourceFile::new(path.clone(), text),
                 None,
                 Vec::new(),
             ),
+            DecodedSource::Mapped(mapped) => {
+                let VirtualSource { text, info, .. } = *mapped;
+                for name in &info.supplemental {
+                    supplemental.push(self.program_path(name.as_js())?);
+                }
+                (
+                    PreparedSourceFile::new(path.clone(), text).with_content_mapped(Arc::new(info)),
+                    None,
+                    Vec::new(),
+                )
+            }
             DecodedSource::Parsed(parsed)
                 if parsed.implied == implied
                     && parsed.implied_for_emit == implied_for_emit
@@ -4847,6 +4937,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             lib_reference_directives,
             module_requests,
             module_request_order,
+            supplemental,
         });
         // The joint bound over admitted sources and retained read-ahead
         // payloads holds after every admission (see prefetch_roots).
@@ -4872,6 +4963,208 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             ));
         }
         Ok(Some(source))
+    }
+
+    /// The config's content mapper for a file of one of its extensions
+    /// (tsgo `ExtensionIsOneOf(contentMapperExtensions)`, then
+    /// `GetContentMapperForFileName`).
+    fn content_mapper_for(&self, path: &ProgramPath) -> Option<Arc<Mapper>> {
+        let spec = self.program_options.content_mapper_spec()?;
+        let file_name = path.display();
+        let registered = spec
+            .mappers
+            .iter()
+            .flat_map(|mapper| mapper.definition.extensions.iter().flatten())
+            .any(|extension| {
+                file_name.as_bytes().len() > extension.len() && file_name.ends_with(extension)
+            });
+        if !registered {
+            return None;
+        }
+        crate::config::content_mapper_for_file_name(
+            &spec.mappers,
+            file_name,
+            self.host.use_case_sensitive_file_names(),
+        )
+        .cloned()
+    }
+
+    /// tsgo's `supportedExtensions` in a diagnostic: the built-in
+    /// extensions, then each content mapper extension of its own.
+    fn supported_extension_list(&self) -> JsString {
+        let mut list = JsString::from(supported_source_extension_list(
+            self.compiler_options.allow_js,
+        ));
+        if let Some(spec) = self.program_options.content_mapper_spec() {
+            let builtin = |extension: &str| {
+                TYPESCRIPT_SOURCE_EXTENSIONS.contains(&extension)
+                    || (self.compiler_options.allow_js
+                        && JAVASCRIPT_SOURCE_EXTENSIONS.contains(&extension))
+            };
+            for extension in spec
+                .mappers
+                .iter()
+                .flat_map(|mapper| mapper.definition.extensions.iter().flatten())
+                .filter(|extension| !builtin(extension))
+            {
+                list.push_str(&format!(", '{extension}'"));
+            }
+        }
+        list
+    }
+
+    /// A content mapper output's program path.
+    fn program_path(&self, file_name: JsStr<'_>) -> Result<ProgramPath, ProgramLoadError> {
+        make_program_path(file_name, self.host.use_case_sensitive_file_names()).map_err(|error| {
+            ProgramLoadError::resolution_js(
+                ProgramLoadOperation::ReadSource,
+                Some(file_name.to_owned()),
+                None,
+                error,
+            )
+        })
+    }
+
+    /// tsgo `parseContentMappedFile`: the file as its mapper's output, its
+    /// supplemental outputs kept for their tasks, or an empty stub when the
+    /// output cannot be used. A mapper that failed to initialize is reported
+    /// once and not used again; any other failure is reported on the file
+    /// and counts toward the mapper's budget, after which it is reported
+    /// once and not used again.
+    fn content_mapped_source(
+        &mut self,
+        path: &ProgramPath,
+        content: &str,
+        mapper: &Arc<Mapper>,
+    ) -> Result<VirtualSource, ProgramLoadError> {
+        let file_name = path.display();
+        let label = mapper.diagnostic_name().to_owned();
+        let key = Arc::as_ptr(mapper) as usize;
+        let project = self
+            .program_options
+            .content_mapper_project()
+            .map(|project| Arc::clone(&project.0));
+        let transform_identity = self.content_mapper_transform_identity(project.as_deref(), mapper);
+        let failures = self.content_mapper_failures.get(&key).copied().unwrap_or(0);
+        if self.content_mapper_init_failed.contains(&key) || failures >= MAX_CONTENT_MAPPER_FAILURES
+        {
+            return Ok(failure_stub(
+                file_name,
+                content,
+                mapper,
+                &transform_identity,
+                Vec::new(),
+            ));
+        }
+        let result = match &project {
+            // tsgo ErrProjectUnavailable.
+            None => Err(TransformFailure::Host(
+                "content mapper project is unavailable".to_owned(),
+            )),
+            Some(project) => {
+                self.transform_content_mapped(project.as_ref(), file_name, content, mapper)
+            }
+        };
+        match result {
+            Ok(sources) => {
+                for supplemental in sources.supplemental {
+                    let supplemental_path = self.program_path(supplemental.file_name.as_js())?;
+                    self.provided_sources
+                        .insert(supplemental_path.canonical().clone(), supplemental);
+                }
+                Ok(sources.canonical)
+            }
+            Err(TransformFailure::Initialize(error)) => {
+                if self.content_mapper_init_failed.insert(key) {
+                    self.content_mapper_diagnostics
+                        .push(initialization_diagnostic(&label, &error));
+                }
+                Ok(failure_stub(
+                    file_name,
+                    content,
+                    mapper,
+                    &transform_identity,
+                    Vec::new(),
+                ))
+            }
+            Err(failure) => {
+                // tsgo recordContentMapperFailure.
+                let failures = self.content_mapper_failures.entry(key).or_insert(0);
+                *failures += 1;
+                if *failures >= MAX_CONTENT_MAPPER_FAILURES {
+                    self.content_mapper_diagnostics
+                        .push(crate::content_mapper::source::disabled_diagnostic(&label));
+                }
+                Ok(failure_stub(
+                    file_name,
+                    content,
+                    mapper,
+                    &transform_identity,
+                    vec![transform_diagnostic(file_name, &label, &failure)],
+                ))
+            }
+        }
+    }
+
+    /// tsgo `getContentMapperTransformIdentity`: the project's identity of the
+    /// mapper, else the hexadecimal transform identity of the mapper alone.
+    fn content_mapper_transform_identity(
+        &self,
+        project: Option<&dyn crate::content_mapper::Project>,
+        mapper: &Arc<Mapper>,
+    ) -> String {
+        if let Some(identity) = project.and_then(|project| project.identity(mapper).ok()) {
+            return identity;
+        }
+        let declared = self
+            .program_options
+            .content_mapper_spec()
+            .map(|spec| {
+                mapper.declared_options_json(|name| {
+                    crate::content_mapper::host::option_json(&spec.compiler_options, name)
+                })
+            })
+            .unwrap_or_else(|| "{}".to_owned());
+        mapper
+            .transform_identity(&declared)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect()
+    }
+
+    /// tsgo `TransformAndParse` with the compiler host's supplemental name
+    /// check (`CheckSupplementalFileNameCollisions`).
+    fn transform_content_mapped(
+        &self,
+        project: &dyn crate::content_mapper::Project,
+        file_name: JsStr<'_>,
+        content: &str,
+        mapper: &Arc<Mapper>,
+    ) -> Result<crate::content_mapper::source::VirtualSources, TransformFailure> {
+        let transform_identity = project
+            .identity(mapper)
+            .map_err(TransformFailure::Project)?;
+        let request_file_name = file_name.to_string_lossy();
+        let output = project.transform(
+            mapper,
+            Request {
+                file_name: &request_file_name,
+                content,
+            },
+        )?;
+        let sources = virtual_sources(file_name, content, mapper, &transform_identity, output)?;
+        for supplemental in &sources.supplemental {
+            if self
+                .host
+                .file_exists_js(supplemental.file_name.as_js())
+                .unwrap_or(false)
+            {
+                return Err(TransformFailure::SupplementalFileCollision(
+                    supplemental.file_name.to_string_lossy().into_owned(),
+                ));
+            }
+        }
+        Ok(sources)
     }
 
     /// A task of another spelling of a staged path (tsc findSourceFileWorker's
@@ -4944,7 +5237,27 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         }
         // `noLib=true` deliberately performs no host operation for lib
         // directives, although their occurrences were counted above.
-        self.plan_module_requests(task, source)
+        self.plan_module_requests(task, source)?;
+        // tsgo parseTask.load: a content mapper's supplemental outputs follow
+        // the imports.
+        let canonical = self.sources[source].prepared.path().display().to_owned();
+        let tree_depth = self.tasks[task].tree_depth.saturating_add(1);
+        let class = self.tasks[task].class;
+        for path in self.sources[source].supplemental.clone() {
+            let subtask = self.new_task(
+                path,
+                TaskOrigin::ContentMapperSupplemental,
+                DiscoveryReason::dependency(SourceInclusionReason::ContentMapperSupplemental {
+                    canonical: canonical.clone(),
+                }),
+                class,
+                false,
+                false,
+                tree_depth,
+            );
+            self.tasks[task].subtasks.push(subtask);
+        }
+        Ok(())
     }
 
     fn catalog_library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
@@ -5200,7 +5513,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             let is_json = is_json_source(target.canonical());
             if !(is_typescript_source(target.canonical())
                 || is_javascript_source(target.canonical()) && self.compiler_options.allow_js
-                || is_json && self.compiler_options.resolve_json_module_effective())
+                || is_json && self.compiler_options.resolve_json_module_effective()
+                || self.content_mapper_for(&target).is_some())
             {
                 let (message, arguments) = if is_javascript_source(target.canonical()) {
                     (
@@ -5210,10 +5524,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                 } else {
                     (
                         &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
-                        vec![
-                            reference_path.clone(),
-                            JsString::from(supported_source_extension_list(self.compiler_options.allow_js)),
-                        ],
+                        vec![reference_path.clone(), self.supported_extension_list()],
                     )
                 };
                 self.program_diagnostics.push(located_diagnostic(
@@ -5337,12 +5648,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             reference.pos(),
             reference.length(),
             &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
-            &[
-                reference_path,
-                JsString::from(supported_source_extension_list(
-                    self.compiler_options.allow_js,
-                )),
-            ],
+            &[reference_path, self.supported_extension_list()],
         )?);
         Ok(())
     }
@@ -6373,6 +6679,12 @@ fn publish_program(
     program_options: ProgramOptions,
 ) -> Result<PreparedProgram, ProgramLoadError> {
     let case_sensitive_file_names = path_context.use_case_sensitive_file_names();
+    // tsgo NewProgram ends with collectContentMapperOptionDiagnostics.
+    staged
+        .program_diagnostics
+        .extend(crate::config::content_mapper_option_diagnostics(
+            &program_options,
+        ));
     let mut builder = match mode {
         PreparedProgramMode::NoEmit => {
             PreparedProgram::builder(path_context, compiler_options.clone())
@@ -6597,11 +6909,14 @@ fn publish_program(
             })?;
     }
 
-    builder.set_diagnostics(PreparationDiagnostics::new(
-        config_diagnostics,
-        staged.option_diagnostics,
-        staged.program_diagnostics,
-    ));
+    builder.set_diagnostics(
+        PreparationDiagnostics::new(
+            config_diagnostics,
+            staged.option_diagnostics,
+            staged.program_diagnostics,
+        )
+        .with_content_mapper(staged.content_mapper_diagnostics),
+    );
     builder.build().map_err(|error| {
         ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
     })
@@ -7058,7 +7373,7 @@ fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
 fn unsupported_root_extension_diagnostic(
     path: &ProgramPath,
     root_spelling: JsStr<'_>,
-    allow_js: bool,
+    supported_extensions: JsString,
     root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
     let javascript = is_javascript_source(path.canonical());
@@ -7071,10 +7386,7 @@ fn unsupported_root_extension_diagnostic(
     } else {
         (
             &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
-            vec![
-                path,
-                JsString::from(supported_source_extension_list(allow_js)),
-            ],
+            vec![path, supported_extensions],
         )
     };
     let root_reason = root_file_reason_message(&root_reason, &same_file_name);
@@ -7654,6 +7966,12 @@ fn source_inclusion_reason_message(
 ) -> Option<MessageChain> {
     match reason {
         SourceInclusionReason::Root(root) => Some(root_file_reason_message(root, to_file_name)),
+        SourceInclusionReason::ContentMapperSupplemental { canonical } => {
+            Some(MessageChain::new_js(
+                &gen::Supplemental_virtual_file_produced_by_the_content_mapper_for_file_0,
+                &[to_file_name(canonical.as_js())],
+            ))
+        }
         SourceInclusionReason::Import {
             parent,
             reference_text,

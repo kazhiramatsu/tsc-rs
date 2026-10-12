@@ -179,6 +179,9 @@ pub(crate) struct CliEmitSessionOutcome {
     pub(crate) options_diagnostics: DiagnosticList,
     pub(crate) global_diagnostics: DiagnosticList,
     pub(crate) semantic_diagnostics: DiagnosticList,
+    /// tsgo `contentMapperDiagnostics`, which emitFilesAndReportErrors
+    /// reports with syntactic errors too.
+    pub(crate) content_mapper_diagnostics: DiagnosticList,
     /// `noEmit && getEmitDeclarations(options)` only: the declaration getter's
     /// rows after a clean semantic pass (emitFilesAndReportErrors,
     /// _tsc.js:129433-129440). Emitting programs leave this empty.
@@ -204,6 +207,12 @@ impl CliEmitSessionOutcome {
         additional_diagnostics: &[Diagnostic],
     ) -> (EmitOutcome, DiagnosticList, NoEmitWorkCounters) {
         let mut diagnostics = self.config_diagnostics;
+        if !self.syntactic_diagnostics.is_empty() {
+            // tsgo: the per-file content mapper failures are syntactic, but
+            // the diagnostic that disables a failing mapper is still
+            // reported.
+            diagnostics.extend(self.content_mapper_diagnostics.iter().cloned());
+        }
         diagnostics.extend(self.syntactic_diagnostics.iter().cloned());
         if self.syntactic_diagnostics.is_empty() {
             let options_are_empty =
@@ -470,6 +479,9 @@ pub struct ProgramDiagnostics {
     options: DiagnosticList,
     global: DiagnosticList,
     semantic: DiagnosticList,
+    /// tsgo `contentMapperDiagnostics` (also among `options`): reported with
+    /// the syntactic rows too.
+    content_mapper: DiagnosticList,
 }
 
 impl ProgramDiagnostics {
@@ -525,6 +537,7 @@ impl ProgramDiagnostics {
             options_diagnostics: self.options,
             global_diagnostics: self.global,
             semantic_diagnostics: self.semantic,
+            content_mapper_diagnostics: self.content_mapper,
             declaration_diagnostics: DiagnosticList::new(),
             work_counters,
             checked_source_files: 0,
@@ -787,7 +800,8 @@ impl EmitHost for PreparedEmitHost<'_> {
                 None,
             )
             .with_may_emit_forced_declaration(source.may_emit_forced_declaration())
-            .with_is_external_module(source.is_external_module()),
+            .with_is_external_module(source.is_external_module())
+            .with_content_mapped(source.content_mapped().is_some()),
         )
     }
 }
@@ -914,7 +928,8 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
                 syntax,
             )
             .with_may_emit_forced_declaration(source.may_emit_forced_declaration())
-            .with_is_external_module(source.is_external_module()),
+            .with_is_external_module(source.is_external_module())
+            .with_content_mapped(source.content_mapped().is_some()),
         )
     }
 }
@@ -1325,7 +1340,10 @@ impl<P: std::borrow::Borrow<PreparedProgram> + Sync> AuthoritativeModuleProvider
                     module.extension(),
                     ModuleExtension::Tsx | ModuleExtension::Jsx
                 ),
-                is_arbitrary_extension: matches!(module.extension(), ModuleExtension::Arbitrary(_)),
+                // tsgo GetResolutionDiagnostic: an import of a content
+                // mapper's extension needs no allowArbitraryExtensions.
+                is_arbitrary_extension: matches!(module.extension(), ModuleExtension::Arbitrary(_))
+                    && !module.resolved_using_extra_extensions(),
                 is_external_library_import: module.is_external_library_import(),
                 package_id: module
                     .package_id()
@@ -1782,6 +1800,8 @@ impl ProgramSession {
                 options_diagnostics: outcome.options_diagnostics,
                 global_diagnostics: outcome.global_diagnostics,
                 semantic_diagnostics: outcome.semantic_diagnostics,
+                // The no-emit pass kept them in its options rows.
+                content_mapper_diagnostics: DiagnosticList::new(),
                 declaration_diagnostics,
                 work_counters: outcome.work_counters,
                 checked_source_files: 0,
@@ -3365,6 +3385,8 @@ impl ProgramSession {
         let mut available_options = self.prepared.diagnostics().options().to_vec();
         available_options.extend(programmatic_option_diagnostics(&self.prepared));
         available_options.extend(program_rows_outside_sources(&self.prepared));
+        // tsgo GetProgramDiagnostics: the content mapper rows.
+        available_options.extend(self.prepared.diagnostics().content_mapper().iter().cloned());
         sort_and_dedupe_diagnostics(&mut available_options);
         available_options
     }
@@ -3895,7 +3917,13 @@ impl ProgramSession {
                     semantic_diagnostics,
                 )
             } else {
-                (Vec::new(), Vec::new(), Vec::new())
+                // tsgo emitFilesAndReportErrors: the content mapper rows are
+                // reported with syntactic errors too.
+                (
+                    self.prepared.diagnostics().content_mapper().to_vec(),
+                    Vec::new(),
+                    Vec::new(),
+                )
             };
 
         // `checked.suggestion_diagnostics` is deliberately dropped here.
@@ -4337,7 +4365,8 @@ fn project_source(
     // checker adopts it only when its own expectation matches.
     let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()))
         .with_preparsed_syntax(source.preparsed_syntax().clone())
-        .with_js_doc_parsing_mode(Some(tsc_program::default_js_doc_parsing_mode()));
+        .with_js_doc_parsing_mode(Some(tsc_program::default_js_doc_parsing_mode()))
+        .with_content_mapped(source.content_mapped().cloned());
     if let Some(facts) = facts {
         input = input
             .with_module_name(facts.module_name.clone())
@@ -4381,6 +4410,8 @@ fn emit_session_diagnostics(
     // The rows located in a source joined its semantic diagnostics in the
     // checker (include-processor diagnostics); the rest are options rows.
     options.extend(program_rows_outside_sources(prepared));
+    // tsgo GetProgramDiagnostics: the content mapper rows.
+    options.extend(preparation.content_mapper().iter().cloned());
     let mut semantic = checked
         .program_semantic_diagnostics
         .as_ref()
@@ -4402,6 +4433,7 @@ fn emit_session_diagnostics(
         syntactic,
         global,
         semantic,
+        content_mapper: preparation.content_mapper().to_vec(),
     }
 }
 

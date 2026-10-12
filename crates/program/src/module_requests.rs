@@ -401,25 +401,33 @@ pub fn source_request_parse_options(
     options: &CompilerOptions,
 ) -> ParseOptions {
     let file_name = source.path().display();
-    let javascript_file = is_javascript_file_name(file_name);
-    let language_variant = if file_name.ends_with(".tsx") || javascript_file {
+    // A content mapper's output is parsed as its virtual file (tsgo
+    // ParseResult: the virtual name's script kind), and a module extension
+    // makes it a module.
+    let parse_file_name = source.parse_file_name();
+    let javascript_file = is_javascript_file_name(parse_file_name);
+    let language_variant = if parse_file_name.ends_with(".tsx") || javascript_file {
         LanguageVariant::Jsx
     } else {
         LanguageVariant::Standard
     };
     let is_declaration_file = is_declaration_file_name(file_name);
     let module_detection = options.emit_module_detection_kind();
-    let force_external_module = !is_declaration_file
+    let module_extension = |name: JsStr<'_>| {
+        [".cjs", ".cts", ".mjs", ".mts"]
+            .iter()
+            .any(|extension| name.ends_with(extension))
+    };
+    let force_external_module = (!is_declaration_file
         && match module_detection {
             3 => true,
             2 => {
-                [".cjs", ".cts", ".mjs", ".mts"]
-                    .iter()
-                    .any(|extension| file_name.ends_with(extension))
+                module_extension(file_name)
                     || source.implied_node_format() == Some(ResolutionMode::EsNext)
             }
             _ => false,
-        };
+        })
+        || (source.content_mapped().is_some() && module_extension(parse_file_name));
     let detect_external_module_from_jsx =
         !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
     ParseOptions {

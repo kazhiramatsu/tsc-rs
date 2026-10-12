@@ -212,6 +212,7 @@ impl LiveProgram {
         let mut options = self.prepared.diagnostics().options().to_vec();
         options.extend(programmatic_option_diagnostics(&self.prepared));
         options.extend(program_rows_outside_sources(&self.prepared));
+        options.extend(self.prepared.diagnostics().content_mapper().iter().cloned());
         if self.prepared.mode() == PreparedProgramMode::Emit {
             options.extend(
                 PreparedEmitHost::new_for_route(

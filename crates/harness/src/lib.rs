@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod content_mappers;
 pub mod upstream_suites;
 
 use std::error::Error;

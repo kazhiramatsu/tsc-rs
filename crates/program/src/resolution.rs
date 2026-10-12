@@ -205,6 +205,18 @@ impl ModuleExtension {
         matches!(self, Self::Js | Self::Jsx | Self::Mjs | Self::Cjs)
     }
 
+    /// A content mapper's extension as a resolution's (tsgo
+    /// `ResolvedUsingExtraExtensions`): the file's own, dotted extension.
+    pub(crate) fn is_valid_extra_extension(&self) -> bool {
+        let Self::Arbitrary(extension) = self else {
+            return false;
+        };
+        extension.starts_with(".")
+            && extension.len_units() > 1
+            && !extension.contains("\\")
+            && !extension.contains("\0")
+    }
+
     pub(crate) fn is_valid(&self) -> bool {
         let Self::Arbitrary(extension) = self else {
             return true;
@@ -500,6 +512,9 @@ pub struct ResolvedModule {
     original_path: Option<ProgramPath>,
     is_external_library_import: bool,
     resolved_using_ts_extension: bool,
+    /// tsgo `ResolvedUsingExtraExtensions`: a fully specified import of a
+    /// content mapper's extension, which needs no other option.
+    resolved_using_extra_extensions: bool,
     is_custom_resolution: bool,
     package_id: Option<PackageId>,
 }
@@ -512,9 +527,19 @@ impl ResolvedModule {
             original_path: None,
             is_external_library_import: false,
             resolved_using_ts_extension: false,
+            resolved_using_extra_extensions: false,
             is_custom_resolution: false,
             package_id: None,
         }
+    }
+
+    pub fn with_resolved_using_extra_extensions(mut self, value: bool) -> Self {
+        self.resolved_using_extra_extensions = value;
+        self
+    }
+
+    pub const fn resolved_using_extra_extensions(&self) -> bool {
+        self.resolved_using_extra_extensions
     }
 
     pub fn with_original_path(mut self, original_path: ProgramPath) -> Self {

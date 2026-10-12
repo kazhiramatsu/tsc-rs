@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// A JSON value in the order tsgo writes it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GoJson {
     Null,
     Bool(bool),

@@ -646,6 +646,31 @@ impl ContentMapperSyntax<'_> {
     }
 }
 
+/// tsgo `GetContentMapperForFileName`: the first mapper registering the
+/// longest of the mappers' extensions the file name ends with (in the
+/// host's case sensitivity).
+pub(crate) fn content_mapper_for_file_name<'m>(
+    mappers: &'m [Arc<Mapper>],
+    file_name: JsStr<'_>,
+    case_sensitive: bool,
+) -> Option<&'m Arc<Mapper>> {
+    let extensions = mappers
+        .iter()
+        .flat_map(|mapper| mapper.definition.extensions.iter().flatten())
+        .map(String::as_str);
+    let extension = longest_extension(file_name, extensions, case_sensitive)?;
+    mappers.iter().find(|mapper| {
+        mapper
+            .definition
+            .extensions
+            .iter()
+            .flatten()
+            .any(|candidate| {
+                *candidate == extension || (!case_sensitive && equal_fold(&extension, candidate))
+            })
+    })
+}
+
 /// tsgo `GetLongestExtensionFromPath`: the longest of `extensions` the file
 /// name ends with (after a `.`), as the file name spells it.
 pub(super) fn longest_extension<'f>(

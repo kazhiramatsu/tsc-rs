@@ -381,6 +381,15 @@ fn select_source_files(
 /// deliberately does not apply outFile's external-module selection filter.
 #[doc(hidden)]
 pub fn source_file_may_be_emitted(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
+    // tsgo sourceFileMayBeEmitted: a content mapper's output is in the emit
+    // set only when it can produce declarations.
+    let options = host.compiler_options();
+    if source.content_mapped()
+        && options.declaration != Some(true)
+        && options.composite != Some(true)
+    {
+        return false;
+    }
     tsc_program::source_file_may_be_emitted_for_options(
         source.path(),
         source.may_be_emitted(),
@@ -442,7 +451,9 @@ fn get_output_paths_for_with_force(
         && !(is_json
             && host.canonical_output_path(source.path())
                 == host.canonical_output_path(javascript.as_js())))
-    .then_some(javascript);
+    .then_some(javascript)
+    // tsgo GetOutputPathsFor: a content mapper's output has no JavaScript.
+    .filter(|_| !source.content_mapped());
 
     let mut paths = match javascript {
         Some(path) => EmitOutputPaths::javascript(path),

@@ -77,7 +77,8 @@ mod content_mappers;
 
 use crate::content_mapper::host::OptionPathSegment;
 use crate::content_mapper::Mapper;
-use content_mappers::{equal_fold, longest_extension, ContentMapperParse, ContentMapperSyntax};
+pub(crate) use content_mappers::content_mapper_for_file_name;
+use content_mappers::{ContentMapperParse, ContentMapperSyntax};
 
 const TYPESCRIPT_EXTENSIONS: &[&[&str]] = &[
     &[".ts", ".tsx", ".d.ts"],
@@ -966,6 +967,57 @@ pub struct ConfigWildcardDirectory {
     pub recursive: bool,
 }
 
+/// tsgo `collectContentMapperOptionDiagnostics`: the content mappers'
+/// diagnostics about their options (from the mapper projects opened so
+/// far), located at the value in the config's `contentMappers` they are
+/// about (tsgo `GetContentMapperOptionDiagnosticLocation`).
+pub(crate) fn content_mapper_option_diagnostics(options: &ProgramOptions) -> Vec<Diagnostic> {
+    let (Some(project), Some(spec)) = (
+        options.content_mapper_project(),
+        options.content_mapper_spec(),
+    ) else {
+        return Vec::new();
+    };
+    let diagnostics = project.0.diagnostics();
+    if diagnostics.is_empty() {
+        return Vec::new();
+    }
+    let config = options.config_file().map(|config| {
+        let file_name = config.diagnostic_file_name().to_owned();
+        let source =
+            tsc_syntax::parse_json_text_from_snapshot(&file_name, Arc::clone(config.snapshot()));
+        (file_name, source)
+    });
+    diagnostics
+        .into_iter()
+        .map(|diagnostic| {
+            let location = config.as_ref().and_then(|(_, source)| {
+                let syntax = ContentMapperSyntax {
+                    source: Some(source),
+                };
+                let index = spec
+                    .mappers
+                    .iter()
+                    .position(|mapper| Arc::ptr_eq(mapper, &diagnostic.mapper));
+                syntax.location(syntax.option(index, &diagnostic.path))
+            });
+            Diagnostic::new_js(
+                location.as_ref().map(|location| location.file_name.clone()),
+                location.as_ref().map(|location| location.start),
+                location.as_ref().map(|location| location.length),
+                MessageChain::external(
+                    diagnostic.code as u32,
+                    tsc_diagnostics::DiagnosticCategory::Error,
+                    diagnostic.message_text.as_str(),
+                ),
+            )
+            .with_reports_unnecessary(None)
+            .with_reports_deprecated(None)
+            .with_source(diagnostic.source)
+        })
+        .collect()
+}
+
 /// Program-owned root-planning projection, not a complete `ParsedCommandLine`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigRootPlan {
@@ -1149,6 +1201,20 @@ impl ConfigRootPlan {
         &self.content_mappers
     }
 
+    /// The plan with its mappers' view of the program (tsgo's compiler host
+    /// `ContentMapperProject`), which every program loaded from it uses.
+    pub fn with_content_mapper_project(
+        mut self,
+        project: crate::prepared::ContentMapperProjectHandle,
+    ) -> Self {
+        self.module_resolution_options.program_options = self
+            .module_resolution_options
+            .program_options
+            .clone()
+            .with_content_mapper_project(project);
+        self
+    }
+
     /// tsgo `ContentMapperExtensions`: every mapper's extensions in order.
     pub fn content_mapper_extensions(&self) -> impl Iterator<Item = &str> + Clone {
         self.content_mappers
@@ -1165,19 +1231,7 @@ impl ConfigRootPlan {
         file_name: JsStr<'_>,
         case_sensitive: bool,
     ) -> Option<&Arc<Mapper>> {
-        let extension =
-            longest_extension(file_name, self.content_mapper_extensions(), case_sensitive)?;
-        self.content_mappers.iter().find(|mapper| {
-            mapper
-                .definition
-                .extensions
-                .iter()
-                .flatten()
-                .any(|candidate| {
-                    *candidate == extension
-                        || (!case_sensitive && equal_fold(&extension, candidate))
-                })
-        })
+        content_mapper_for_file_name(&self.content_mappers, file_name, case_sensitive)
     }
 
     /// tsgo `GetContentMapperOptionDiagnosticLocation`: where in the config
@@ -2039,7 +2093,7 @@ fn parse_config_root_plan_inner(
     module_resolution_options.program_options = module_resolution_options
         .program_options
         .with_config_parsing_diagnostics(config_diagnostics, config_sources);
-    Ok(ConfigRootPlan {
+    let mut plan = ConfigRootPlan {
         config_file_name,
         source: node.source,
         extended_sources: node.extended_sources,
@@ -2067,7 +2121,21 @@ fn parse_config_root_plan_inner(
         option_diagnostics,
         content_mappers,
         json_object,
-    })
+    };
+    if !plan.content_mappers.is_empty() {
+        // tsgo ProjectSpec: what the config's mappers see of the project.
+        let spec = crate::content_mapper::host::ProjectSpec {
+            config_file_name: plan.config_file_name.to_string_lossy().into_owned(),
+            mappers: plan.content_mappers.clone(),
+            compiler_options: Arc::new(crate::go_json::compiler_options_json(&plan)),
+        };
+        plan.module_resolution_options.program_options = plan
+            .module_resolution_options
+            .program_options
+            .clone()
+            .with_content_mapper_spec(Arc::new(spec));
+    }
+    Ok(plan)
 }
 
 /// H0 is a single-project, no-emit driver. Recognized options which would

@@ -233,6 +233,9 @@ pub struct PreparedSourceFile {
     preparsed_syntax: PreparsedSyntax,
     /// The referenced project the file belongs to, when it does.
     project_reference: Option<ProjectReferenceFile>,
+    /// What a content-mapped file (its virtual text is the snapshot) or a
+    /// supplemental output carries (tsgo `ContentMapperSourceFileInfo`).
+    content_mapped: Option<Arc<crate::content_mapper::source::ContentMappedSource>>,
 }
 
 /// The options of a referenced project its files are checked under (tsgo
@@ -344,6 +347,7 @@ impl PreparedSourceFile {
             found_searching_node_modules: false,
             preparsed_syntax: PreparsedSyntax::empty(),
             project_reference: None,
+            content_mapped: None,
         }
     }
 
@@ -451,6 +455,30 @@ impl PreparedSourceFile {
     pub fn with_project_reference(mut self, project_reference: ProjectReferenceFile) -> Self {
         self.project_reference = Some(project_reference);
         self
+    }
+
+    pub fn with_content_mapped(
+        mut self,
+        info: Arc<crate::content_mapper::source::ContentMappedSource>,
+    ) -> Self {
+        self.content_mapped = Some(info);
+        self
+    }
+
+    /// What the file carries as a content mapper's output, when it is one.
+    pub fn content_mapped(
+        &self,
+    ) -> Option<&Arc<crate::content_mapper::source::ContentMappedSource>> {
+        self.content_mapped.as_ref()
+    }
+
+    /// The name the file's text is parsed as: a mapper output's virtual
+    /// name, else its own.
+    pub fn parse_file_name(&self) -> JsStr<'_> {
+        self.content_mapped.as_ref().map_or_else(
+            || self.path.display(),
+            |info| info.virtual_file_name.as_js(),
+        )
     }
 
     /// The referenced project the file belongs to (tsgo
@@ -1371,6 +1399,31 @@ pub struct ProgramOptions {
     /// The module resolution the API supplies for the program (tsgo's
     /// module resolver factory), in front of the program's resolver.
     module_resolution_override: Option<crate::ModuleResolutionOverrideHandle>,
+    /// The config's content mappers with the project configuration they see
+    /// (tsgo `ParsedCommandLine.ContentMappers`), when it has any.
+    content_mapper_spec: Option<Arc<crate::content_mapper::host::ProjectSpec>>,
+    /// The mappers' view of the program (tsgo
+    /// `CompilerHost.ContentMapperProject`), when they may run.
+    content_mapper_project: Option<ContentMapperProjectHandle>,
+}
+
+/// A [`crate::content_mapper::Project`] in a program's options: programs are
+/// the same when they share it.
+#[derive(Clone)]
+pub struct ContentMapperProjectHandle(pub Arc<dyn crate::content_mapper::Project>);
+
+impl PartialEq for ContentMapperProjectHandle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for ContentMapperProjectHandle {}
+
+impl fmt::Debug for ContentMapperProjectHandle {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ContentMapperProjectHandle")
+    }
 }
 
 impl ProgramOptions {
@@ -1410,6 +1463,29 @@ impl ProgramOptions {
     pub fn with_project_reference_sources(mut self, sources: bool) -> Self {
         self.project_reference_sources = sources;
         self
+    }
+
+    pub fn with_content_mapper_spec(
+        mut self,
+        spec: Arc<crate::content_mapper::host::ProjectSpec>,
+    ) -> Self {
+        self.content_mapper_spec = Some(spec);
+        self
+    }
+
+    /// The config's content mappers and the configuration they see.
+    pub fn content_mapper_spec(&self) -> Option<&Arc<crate::content_mapper::host::ProjectSpec>> {
+        self.content_mapper_spec.as_ref()
+    }
+
+    pub fn with_content_mapper_project(mut self, project: ContentMapperProjectHandle) -> Self {
+        self.content_mapper_project = Some(project);
+        self
+    }
+
+    /// The mappers' view of the program, when they may run.
+    pub fn content_mapper_project(&self) -> Option<&ContentMapperProjectHandle> {
+        self.content_mapper_project.as_ref()
     }
 
     /// Whether the program reads the sources of its referenced projects
@@ -1624,6 +1700,10 @@ pub struct PreparationDiagnostics {
     config: DiagnosticList,
     options: DiagnosticList,
     program: DiagnosticList,
+    /// tsgo `contentMapperDiagnostics`: the content mappers that could not
+    /// be initialized or failed too often (reported also when the files
+    /// have syntactic errors).
+    content_mapper: DiagnosticList,
 }
 
 impl PreparationDiagnostics {
@@ -1636,7 +1716,18 @@ impl PreparationDiagnostics {
             config,
             options,
             program,
+            content_mapper: Vec::new(),
         }
+    }
+
+    pub fn with_content_mapper(mut self, diagnostics: Vec<Diagnostic>) -> Self {
+        self.content_mapper = diagnostics;
+        self
+    }
+
+    /// See [`Self::with_content_mapper`].
+    pub fn content_mapper(&self) -> &[Diagnostic] {
+        &self.content_mapper
     }
 
     pub fn config(&self) -> &[Diagnostic] {
@@ -2965,7 +3056,12 @@ impl PreparedProgramBuilder {
         // not a lower-cased canonical key or a differently named physical
         // target.
         let extension_file_name = extension_path.display();
-        if !module.extension().is_valid()
+        let valid_extension = if module.resolved_using_extra_extensions() {
+            module.extension().is_valid_extra_extension()
+        } else {
+            module.extension().is_valid()
+        };
+        if !valid_extension
             || !module
                 .extension()
                 .matches_path_with_case_and_module_suffixes(

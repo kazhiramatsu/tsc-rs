@@ -21,6 +21,8 @@ pub struct EmitSource<'host> {
     implied_node_format_for_emit: Option<ResolutionMode>,
     is_external_module: Option<bool>,
     syntax: Option<&'host SourceFile>,
+    /// A content mapper's output (tsgo `ContentMapper() != ""`).
+    content_mapped: bool,
 }
 
 impl<'host> EmitSource<'host> {
@@ -44,7 +46,19 @@ impl<'host> EmitSource<'host> {
                 None => None,
             },
             syntax,
+            content_mapped: false,
         }
+    }
+
+    pub const fn with_content_mapped(mut self, content_mapped: bool) -> Self {
+        self.content_mapped = content_mapped;
+        self
+    }
+
+    /// Whether the source is a content mapper's output: its runtime output
+    /// is the mapper's (or its build tool's), so it emits declarations only.
+    pub const fn content_mapped(self) -> bool {
+        self.content_mapped
     }
 
     pub const fn id(self) -> SourceFileId {
