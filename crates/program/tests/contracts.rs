@@ -5,6 +5,8 @@ mod utf16_scalar_path;
 
 #[path = "integration/automatic_type_directive_loader_contract.rs"]
 mod automatic_type_directive_loader_contract;
+#[path = "integration/config_content_mappers_contract.rs"]
+mod config_content_mappers_contract;
 #[path = "integration/config_keyword_recovery_contract.rs"]
 mod config_keyword_recovery_contract;
 #[path = "integration/config_option_bag_scaling_contract.rs"]
@@ -21,6 +23,8 @@ mod config_program_loader_contract;
 mod config_root_plan_contract;
 #[path = "integration/config_tsgo_diagnostics_contract.rs"]
 mod config_tsgo_diagnostics_contract;
+#[path = "integration/content_mapper_loader_contract.rs"]
+mod content_mapper_loader_contract;
 #[path = "integration/h2_8b_config_extends.rs"]
 mod h2_8b_config_extends;
 #[path = "integration/host_text_decode_contract.rs"]

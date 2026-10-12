@@ -686,6 +686,7 @@ impl Session {
                 text,
                 base_path: JsString::from(base_path.as_str()),
             },
+            None,
         )
         .map_err(|error| error.to_string())?;
         let mut response = config_file_response(&plan, &|_| None);

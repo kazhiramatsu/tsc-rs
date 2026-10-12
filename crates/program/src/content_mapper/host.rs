@@ -21,7 +21,7 @@ use super::protocol::{
     OpenProjectParams, OpenProjectResult, PositionEncoding, TransformOutput, TransformParams,
     METHOD_CLOSE_PROJECT, METHOD_INITIALIZE, METHOD_OPEN_PROJECT, METHOD_TRANSFORM,
 };
-use super::Mapper;
+use super::{Mapper, Project};
 use crate::go_json::GoJson;
 
 /// tsgo `initializeTimeoutSeconds`.
@@ -66,7 +66,7 @@ pub struct Request<'a> {
 }
 
 /// tsgo `ProjectSpec`: the project configuration a project's mappers see.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ProjectSpec {
     /// The absolute project configuration file, or empty without one.
     pub config_file_name: String,
@@ -337,7 +337,7 @@ impl Host {
     /// tsgo `Project`: a retained view of `spec`. Specs with the same
     /// configuration file name, compiler options and mappers (the same
     /// objects) share their mapper projects. Nothing after [`Self::close`].
-    pub fn project(&self, spec: Arc<ProjectSpec>) -> Option<Project> {
+    pub fn project(&self, spec: Arc<ProjectSpec>) -> Option<ProjectView> {
         let key = spec_key(&spec);
         let mut state = self.lock();
         if state.closed {
@@ -345,7 +345,7 @@ impl Host {
         }
         if let Some(lease) = state.leases.get_mut(&key) {
             lease.refs += 1;
-            return Some(Project::new(self, key));
+            return Some(ProjectView::new(self, key));
         }
         let mut entries = Vec::with_capacity(spec.mappers.len());
         for mapper in &spec.mappers {
@@ -374,7 +374,7 @@ impl Host {
                 refs: 1,
             },
         );
-        Some(Project::new(self, key))
+        Some(ProjectView::new(self, key))
     }
 
     /// tsgo `Acquire`: retains the processes of these mappers (without
@@ -791,7 +791,7 @@ fn spec_key(spec: &ProjectSpec) -> String {
 }
 
 /// The JSON text of one of tsgo's `CompilerOptions` fields, when set.
-fn option_json(options: &GoJson, name: &str) -> Option<String> {
+pub(crate) fn option_json(options: &GoJson, name: &str) -> Option<String> {
     let GoJson::Object(fields) = options else {
         return None;
     };
@@ -834,15 +834,15 @@ fn combined_identity(mapper: &Mapper, config_identity: &str, compiler_options: &
     format!("{identity}:{}", hex(&hash))
 }
 
-/// tsgo `Project` (a retained `projectLease`): released once, on
+/// tsgo `projectView` (a retained `projectLease`): released once, on
 /// [`Project::close`] or when dropped.
-pub struct Project {
+pub struct ProjectView {
     host: Host,
     key: String,
     released: AtomicBool,
 }
 
-impl Project {
+impl ProjectView {
     fn new(host: &Host, key: String) -> Self {
         Self {
             host: host.clone(),
@@ -860,9 +860,29 @@ impl Project {
             .map(|(_, handle)| handle.clone())
     }
 
+    fn entry_identity(&self, state: &mut State, handle: &str) -> Result<String, ProjectFailure> {
+        let Some(entry) = state.projects.get(handle) else {
+            return Ok(String::new());
+        };
+        let mapper = Arc::clone(&entry.mapper);
+        let spec = Arc::clone(&entry.spec);
+        if mapper.manifest.dynamic_config {
+            self.host.open_project_locked(state, handle)?;
+            let config_identity = state.projects[handle].config_identity.clone();
+            return Ok(combined_identity(
+                &mapper,
+                &config_identity,
+                &spec.compiler_options,
+            ));
+        }
+        Ok(static_identity(&mapper, &spec.compiler_options))
+    }
+}
+
+impl Project for ProjectView {
     /// tsgo `Transform`: opens the project in the mapper if needed, then
     /// transforms (outside the host's lock, so transforms run together).
-    pub fn transform(
+    fn transform(
         &self,
         mapper: &Arc<Mapper>,
         request: Request<'_>,
@@ -906,7 +926,7 @@ impl Project {
 
     /// tsgo `Identity`: the mapper's transform identity in this project
     /// (with its dynamic configuration's), or nothing for another mapper.
-    pub fn identity(&self, mapper: &Arc<Mapper>) -> Result<String, ProjectFailure> {
+    fn identity(&self, mapper: &Arc<Mapper>) -> Result<String, ProjectFailure> {
         let mut state = self.host.lock();
         let Some(handle) = self.handle_of(&state, mapper) else {
             return Ok(String::new());
@@ -914,27 +934,9 @@ impl Project {
         self.entry_identity(&mut state, &handle)
     }
 
-    fn entry_identity(&self, state: &mut State, handle: &str) -> Result<String, ProjectFailure> {
-        let Some(entry) = state.projects.get(handle) else {
-            return Ok(String::new());
-        };
-        let mapper = Arc::clone(&entry.mapper);
-        let spec = Arc::clone(&entry.spec);
-        if mapper.manifest.dynamic_config {
-            self.host.open_project_locked(state, handle)?;
-            let config_identity = state.projects[handle].config_identity.clone();
-            return Ok(combined_identity(
-                &mapper,
-                &config_identity,
-                &spec.compiler_options,
-            ));
-        }
-        Ok(static_identity(&mapper, &spec.compiler_options))
-    }
-
     /// tsgo `Identities`: every mapper's transform identity, in the spec's
     /// order.
-    pub fn identities(&self) -> Result<Vec<String>, ProjectFailure> {
+    fn identities(&self) -> Result<Vec<String>, ProjectFailure> {
         let mut state = self.host.lock();
         let Some(lease) = state.leases.get(&self.key) else {
             return Ok(Vec::new());
@@ -961,7 +963,7 @@ impl Project {
 
     /// tsgo `WatchedFiles`: the files dynamic mappers watch, sorted, once
     /// each.
-    pub fn watched_files(&self) -> Result<Vec<String>, ProjectFailure> {
+    fn watched_files(&self) -> Result<Vec<String>, ProjectFailure> {
         let mut state = self.host.lock();
         let Some(lease) = state.leases.get(&self.key) else {
             return Ok(Vec::new());
@@ -988,7 +990,7 @@ impl Project {
 
     /// tsgo `Diagnostics`: the option diagnostics of the mapper projects
     /// opened so far, in the spec's order.
-    pub fn diagnostics(&self) -> Vec<OptionDiagnostic> {
+    fn diagnostics(&self) -> Vec<OptionDiagnostic> {
         let state = self.host.lock();
         let Some(lease) = state.leases.get(&self.key) else {
             return Vec::new();
@@ -1010,7 +1012,7 @@ impl Project {
 
     /// tsgo `Refresh`: closes the opened mapper projects, to be opened again
     /// on their next use.
-    pub fn refresh(&self) -> Result<(), String> {
+    fn refresh(&self) -> Result<(), String> {
         let mut closing = Vec::new();
         {
             let mut state = self.host.lock();
@@ -1051,7 +1053,7 @@ impl Project {
 
     /// tsgo `Close`: releases this view; the last release closes the mapper
     /// projects and drops the processes nothing else retains.
-    pub fn close(&self) -> Result<(), String> {
+    fn close(&self) -> Result<(), String> {
         if self.released.swap(true, Ordering::SeqCst) {
             return Ok(());
         }
@@ -1095,7 +1097,7 @@ impl Project {
     }
 }
 
-impl Drop for Project {
+impl Drop for ProjectView {
     fn drop(&mut self) {
         let _ = self.close();
     }

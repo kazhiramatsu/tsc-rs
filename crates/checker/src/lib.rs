@@ -217,6 +217,10 @@ pub struct InputFile {
     /// parses as before. The slot compares equal in every state, so it never
     /// participates in `InputFile` equality.
     preparsed_syntax: tsc_program::PreparsedSyntax,
+    /// A content mapper's output (tsgo `ContentMapperSourceFileInfo`): the
+    /// text is parsed as its virtual file, and the mapper's diagnostics join
+    /// the file's syntactic ones.
+    content_mapped: Option<Arc<tsc_program::content_mapper::source::ContentMappedSource>>,
 }
 
 impl InputFile {
@@ -231,6 +235,7 @@ impl InputFile {
             renamed_dependencies: Vec::new(),
             js_doc_parsing_mode: None,
             preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
+            content_mapped: None,
         }
     }
 
@@ -248,6 +253,7 @@ impl InputFile {
             renamed_dependencies: Vec::new(),
             js_doc_parsing_mode: None,
             preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
+            content_mapped: None,
         }
     }
 
@@ -257,6 +263,23 @@ impl InputFile {
     pub fn with_preparsed_syntax(mut self, syntax: tsc_program::PreparsedSyntax) -> Self {
         self.preparsed_syntax = syntax;
         self
+    }
+
+    /// The input is a content mapper's output.
+    pub fn with_content_mapped(
+        mut self,
+        info: Option<Arc<tsc_program::content_mapper::source::ContentMappedSource>>,
+    ) -> Self {
+        self.content_mapped = info;
+        self
+    }
+
+    /// The name the text is parsed as: a content mapper output's virtual
+    /// name, else the file's.
+    fn parse_file_name(&self) -> JsStr<'_> {
+        self.content_mapped
+            .as_ref()
+            .map_or_else(|| self.name.as_js(), |info| info.virtual_file_name.as_js())
     }
 
     /// tsc `sourceFile.moduleName = transpileOptions.moduleName`
@@ -303,6 +326,7 @@ impl InputFile {
             renamed_dependencies: Vec::new(),
             js_doc_parsing_mode: None,
             preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
+            content_mapped: None,
         }
     }
 
@@ -2811,6 +2835,7 @@ fn parse_program_inputs(
         // yields syntactic diagnostics. allowNonTsExtensions (transpile
         // routes) admits every root the Program loader accepted.
         if !is_supported_source_file_name(&file.name, options.allow_js)
+            && file.content_mapped.is_none()
             && options.allow_non_ts_extensions != Some(true)
         {
             continue;
@@ -2887,6 +2912,12 @@ fn parse_program_inputs(
                 // owns) uses syntax indicators only.
                 _ => false,
             };
+        // tsgo ParseResult: a content mapper's module output is a module.
+        let force_external_module = force_external_module
+            || (file.content_mapped.is_some()
+                && [".cjs", ".cts", ".mjs", ".mts"]
+                    .iter()
+                    .any(|extension| file.parse_file_name().ends_with(extension)));
         let detect_external_module_from_jsx =
             !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
         // tsc ensureScriptKind: .json programs parse as JSON values.
@@ -2921,9 +2952,11 @@ fn parse_program_inputs(
             pending_sources.push(PendingProgramSource::Ready(source_file));
             continue;
         }
-        // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
-        let javascript_file = is_js_file_name(&file.name);
-        let language_variant = if file.name.ends_with(".tsx") || javascript_file {
+        // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds
+        // (of a content mapper output's virtual name).
+        let parse_file_name = file.parse_file_name();
+        let javascript_file = is_js_file_name(parse_file_name);
+        let language_variant = if parse_file_name.ends_with(".tsx") || javascript_file {
             tsc_syntax::LanguageVariant::Jsx
         } else {
             tsc_syntax::LanguageVariant::Standard
@@ -2940,8 +2973,12 @@ fn parse_program_inputs(
                 .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
         };
         // A source with the API's module name or renamed dependencies
-        // (transpile) is never shared.
-        if file.module_name.is_none() && file.renamed_dependencies.is_empty() {
+        // (transpile) is never shared, nor a content mapper's output (its
+        // mapper's diagnostics join its tree).
+        if file.module_name.is_none()
+            && file.renamed_dependencies.is_empty()
+            && file.content_mapped.is_none()
+        {
             if let Some(source) = share(
                 file.name.as_js(),
                 file.text(),
@@ -2991,6 +3028,13 @@ fn parse_program_inputs(
         let source_file = pending.source_mut();
         if let Some(module_name) = &file.module_name {
             source_file.module_name = Some(module_name.clone());
+        }
+        // tsgo ParseResult (and the failure stub): the mapper's diagnostics
+        // are the file's.
+        if let Some(info) = &file.content_mapped {
+            source_file
+                .parse_diagnostics
+                .extend(info.diagnostics.iter().cloned());
         }
         if !file.renamed_dependencies.is_empty() {
             source_file.renamed_dependencies = file.renamed_dependencies.clone();

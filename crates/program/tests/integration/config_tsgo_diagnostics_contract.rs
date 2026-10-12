@@ -20,6 +20,10 @@ impl ConfigParseHost for ProjectHost {
         Ok(path == "/project/a.ts")
     }
 
+    fn directory_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        Ok(path == "/project")
+    }
+
     fn read_file(
         &self,
         _path: tsc_diagnostics::JsStr<'_>,

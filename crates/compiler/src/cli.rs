@@ -55,7 +55,169 @@ const CONFIG_FILE_NAME: &str = "tsconfig.json";
 /// The version the command reports, tsgo's `core.Version()` at the vendored
 /// profile.
 pub const TYPESCRIPT_VERSION: &str = tsc_types::TYPESCRIPT_VERSION;
-pub(crate) type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
+/// The texts diagnostics are shown against, by file name, with the
+/// content-mapped files among them: tsgo's diagnostic writer resolves their
+/// diagnostics as it writes them ([`Self::resolve`]).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DiagnosticSourceMap {
+    texts: BTreeMap<JsString, Arc<TextSnapshot>>,
+    content_mapped:
+        BTreeMap<JsString, Arc<tsc_program::content_mapper::source::ContentMappedSource>>,
+}
+
+impl std::ops::Deref for DiagnosticSourceMap {
+    type Target = BTreeMap<JsString, Arc<TextSnapshot>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.texts
+    }
+}
+
+impl std::ops::DerefMut for DiagnosticSourceMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.texts
+    }
+}
+
+impl DiagnosticSourceMap {
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    /// Another map's texts and content-mapped files (a build's projects).
+    pub(crate) fn extend_from(&mut self, other: &Self) {
+        self.texts.extend(
+            other
+                .texts
+                .iter()
+                .map(|(name, text)| (name.clone(), Arc::clone(text))),
+        );
+        self.content_mapped.extend(
+            other
+                .content_mapped
+                .iter()
+                .map(|(name, info)| (name.clone(), Arc::clone(info))),
+        );
+    }
+
+    /// A program source's text; a content mapper's output brings its file's
+    /// original text too, under the name it is shown with.
+    pub(crate) fn insert_source(&mut self, source: &tsc_program::PreparedSourceFile) {
+        let name = source.path().display().to_owned();
+        if let Some(info) = source.content_mapped() {
+            let shown = info.canonical.clone().unwrap_or_else(|| name.clone());
+            self.texts
+                .entry(original_text_key(shown.as_js()))
+                .or_insert_with(|| {
+                    TextSnapshot::new(
+                        info.original_text.to_string(),
+                        tsc_diagnostics::DocumentVersion::default(),
+                    )
+                });
+            self.content_mapped.insert(name.clone(), Arc::clone(info));
+        }
+        self.texts.insert(name, Arc::clone(source.snapshot()));
+    }
+
+    /// tsgo `ASTDiagnostic.resolve`: where a diagnostic in a content-mapped
+    /// file is shown. A mapper's own diagnostic is at an original range; a
+    /// compiler diagnostic's virtual range maps to the original, or, in
+    /// synthesized code, stays on the virtual text with a note. Either way
+    /// it is shown under the file's name (a supplemental output's, its
+    /// canonical file's). The related locations resolve alike.
+    pub(crate) fn resolve(&self, diagnostic: &Diagnostic) -> Diagnostic {
+        let mut resolved = diagnostic.clone();
+        if let (Some(file_name), Some(start)) = (&diagnostic.file_name, diagnostic.start) {
+            if let Some((name, start, length, synthesized)) = self.resolve_location(
+                file_name,
+                start,
+                diagnostic.length.unwrap_or(0),
+                diagnostic.source.is_some(),
+            ) {
+                resolved.file_name = Some(name);
+                resolved.start = Some(start);
+                resolved.length = Some(length);
+                if let Some(mapper) = synthesized {
+                    resolved.message.next.push(
+                        MessageChain::new_js(
+                            &gen::This_location_is_in_virtual_code_produced_by_the_content_mapper_0_and_has_no_corresponding_location_in_the_original_file,
+                            &[JsString::from(mapper.as_str())],
+                        )
+                        .without_location(),
+                    );
+                    resolved.message.next_present = true;
+                }
+            }
+        }
+        for related in &mut resolved.related {
+            if let (Some(file_name), Some(start)) = (related.file_name.clone(), related.start) {
+                if let Some((name, start, length, _)) =
+                    self.resolve_location(&file_name, start, related.length.unwrap_or(0), false)
+                {
+                    related.file_name = Some(name);
+                    related.start = Some(start);
+                    related.length = Some(length);
+                }
+            }
+        }
+        resolved
+    }
+
+    fn resolve_location(
+        &self,
+        file_name: &JsString,
+        start: u32,
+        length: u32,
+        own_source: bool,
+    ) -> Option<(JsString, u32, u32, Option<String>)> {
+        let info = self.content_mapped.get(file_name)?;
+        let shown = info.canonical.clone().unwrap_or_else(|| file_name.clone());
+        let original = || {
+            tsc_diagnostics::rendered_file_name(
+                original_text_key(shown.as_js()).as_js(),
+                shown.as_js(),
+            )
+        };
+        if own_source {
+            return Some((original(), start, length, None));
+        }
+        let Some(span_map) = &info.span_map else {
+            return Some((
+                tsc_diagnostics::rendered_file_name(file_name.as_js(), shown.as_js()),
+                start,
+                length,
+                None,
+            ));
+        };
+        let end = start.saturating_add(length);
+        let ((mapped_start, mapped_end), fidelity) =
+            span_map.virtual_to_original_span(start as i32, end as i32);
+        if fidelity == tsc_diagnostics::spanmap::Fidelity::None {
+            return Some((
+                tsc_diagnostics::rendered_file_name(file_name.as_js(), shown.as_js()),
+                start,
+                length,
+                Some(info.content_mapper.clone()),
+            ));
+        }
+        let mapped_start = u32::try_from(mapped_start).unwrap_or_default();
+        let mapped_end = u32::try_from(mapped_end).unwrap_or_default();
+        Some((
+            original(),
+            mapped_start,
+            mapped_end.saturating_sub(mapped_start),
+            None,
+        ))
+    }
+}
+
+/// The key of a content-mapped file's original text (shown under the
+/// file's name).
+fn original_text_key(shown: JsStr<'_>) -> JsString {
+    let mut key = shown.to_owned();
+    key.push('\u{1}');
+    key
+}
 /// The bounds of a program the command builds (and the API server's).
 pub const DEFAULT_LOAD_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
@@ -464,7 +626,7 @@ fn execute<'a>(
         );
         return rendered_diagnostics_with_exit(
             format,
-            &BTreeMap::new(),
+            &DiagnosticSourceMap::new(),
             &[diagnostic],
             EXIT_COMMAND_LINE,
         );
@@ -515,7 +677,7 @@ fn execute<'a>(
             );
             return rendered_diagnostics_with_exit(
                 format,
-                &BTreeMap::new(),
+                &DiagnosticSourceMap::new(),
                 &[diagnostic],
                 EXIT_COMMAND_LINE,
             );
@@ -537,7 +699,7 @@ fn execute<'a>(
                 );
                 return rendered_diagnostics_with_exit(
                     format,
-                    &BTreeMap::new(),
+                    &DiagnosticSourceMap::new(),
                     &[diagnostic],
                     EXIT_COMMAND_LINE,
                 );
@@ -554,7 +716,7 @@ fn execute<'a>(
                 );
                 return rendered_diagnostics_with_exit(
                     format,
-                    &BTreeMap::new(),
+                    &DiagnosticSourceMap::new(),
                     &[diagnostic],
                     EXIT_COMMAND_LINE,
                 );
@@ -564,6 +726,7 @@ fn execute<'a>(
         let config_clock = system.now();
         let (plan, source_texts) =
             parse_config_file(host, &current_directory, &config_file, &command_line)?;
+        let plan = with_content_mapper_project(system, plan);
         route.config_time = elapsed_since(system, config_clock);
         tsc_types::trace::mark("cli: project config plan", config_started);
         if show_config {
@@ -582,7 +745,7 @@ fn execute<'a>(
                     file: config_file,
                     command_line,
                     plan: Box::new(plan),
-                    source_texts,
+                    source_texts: Box::new(source_texts),
                 },
             ))));
             return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
@@ -612,7 +775,7 @@ fn execute<'a>(
             // `fileExists`, but TypeScript does not read or parse it
             // before rejecting explicit roots. Keep this branch free of
             // a second host read and of source-text ownership.
-            let source_texts = BTreeMap::new();
+            let source_texts = DiagnosticSourceMap::new();
             return rendered_diagnostics_with_exit(
                 format,
                 &source_texts,
@@ -695,7 +858,7 @@ fn execute<'a>(
             );
             return rendered_diagnostics_with_exit(
                 route.format(&current_directory),
-                &BTreeMap::new(),
+                &DiagnosticSourceMap::new(),
                 &[diagnostic],
                 EXIT_COMMAND_LINE,
             );
@@ -707,6 +870,7 @@ fn execute<'a>(
     let config_clock = system.now();
     let (plan, source_texts) =
         parse_config_file(host, &current_directory, &config_file, &command_line)?;
+    let plan = with_content_mapper_project(system, plan);
     route.config_time = elapsed_since(system, config_clock);
     if show_config {
         return Ok(show_config_of_plan(&plan, case_sensitive));
@@ -724,7 +888,7 @@ fn execute<'a>(
                 file: config_file,
                 command_line,
                 plan: Box::new(plan),
-                source_texts,
+                source_texts: Box::new(source_texts),
             },
         ))));
         return Ok(CliOutput::new(String::new(), EXIT_SUCCESS));
@@ -943,7 +1107,7 @@ pub(crate) fn run_config_for_build(
     old: Option<&BuildInfo>,
     route: &mut CliRoute<'_>,
 ) -> Result<BuildProjectRun, CliError> {
-    let mut source_texts = BTreeMap::new();
+    let mut source_texts = DiagnosticSourceMap::new();
     source_texts.insert(
         plan.config_file_name().to_owned(),
         Arc::clone(plan.source().snapshot()),
@@ -1039,10 +1203,7 @@ fn run_config(
         }
     };
     for source in prepared.source_files() {
-        source_texts.insert(
-            source.path().display().to_owned(),
-            Arc::clone(source.snapshot()),
-        );
+        source_texts.insert_source(source);
     }
     for source in prepared.auxiliary_files() {
         source_texts.insert(
@@ -1311,12 +1472,9 @@ fn run_explicit_files(
     // tsgo prints the resolution trace while it creates the Program, before
     // any listing or diagnostic.
     let resolution_trace = resolution_trace_text(&prepared, route, true);
-    let mut source_texts = BTreeMap::new();
+    let mut source_texts = DiagnosticSourceMap::new();
     for source in prepared.source_files() {
-        source_texts.insert(
-            source.path().display().to_owned(),
-            Arc::clone(source.snapshot()),
-        );
+        source_texts.insert_source(source);
     }
     let old_build_info = old_state(
         host,
@@ -1743,7 +1901,7 @@ fn reported_diagnostics_with_exit(
     for diagnostic in diagnostics {
         let reported = rendered_diagnostics_with_exit(
             format,
-            &BTreeMap::new(),
+            &DiagnosticSourceMap::new(),
             std::slice::from_ref(diagnostic),
             exit_code,
         )?;
@@ -1806,7 +1964,7 @@ pub(crate) fn render_error_summary_text(
     let summarized: Vec<Diagnostic> = diagnostics
         .iter()
         .filter(|diagnostic| !is_command_line_selection_diagnostic(diagnostic.code()))
-        .cloned()
+        .map(|diagnostic| source_texts.resolve(diagnostic))
         .collect();
     write_error_summary_text(&summarized, &host, "\n")
         .map(|text| text.to_string_lossy().into_owned())
@@ -1849,10 +2007,11 @@ fn rendered_diagnostics_with_exit_work_status_and_summary(
     let text = if format.pretty {
         // tsgo's pretty reporter: each diagnostic with its context, then the
         // error summary (CreateDiagnosticReporter, CreateReportErrorSummary).
+        // tsgo writes each diagnostic resolved, in the order of the program's.
         let selected: Vec<Diagnostic> =
             sort_and_dedupe_diagnostic_indices_with_context(diagnostics, &host)
                 .into_iter()
-                .map(|index| diagnostics[index].clone())
+                .map(|index| source_texts.resolve(&diagnostics[index]))
                 .collect();
         let render =
             |error: tsc_diagnostics::FormatDiagnosticsError| CliError::Render(error.to_string());
@@ -1929,7 +2088,7 @@ fn write_config_file(
         );
         return rendered_diagnostics_with_exit(
             format,
-            &BTreeMap::new(),
+            &DiagnosticSourceMap::new(),
             &[diagnostic],
             EXIT_SUCCESS,
         );
@@ -2002,12 +2161,13 @@ fn format_plain_diagnostics(
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
     let mut output = JsString::new();
     for index in indices {
-        let diagnostic = &diagnostics[index];
-        if let Some(file_name) = diagnostic.file_name.as_ref().map(JsString::as_js) {
+        let diagnostic = &source_texts.resolve(&diagnostics[index]);
+        if let Some(rendered) = diagnostic.file_name.as_ref().map(JsString::as_js) {
+            let (text_file_name, file_name) = tsc_diagnostics::split_rendered_file_name(rendered);
             let snapshot = source_texts
-                .get(file_name.as_bytes())
+                .get(text_file_name.as_bytes())
                 .or_else(|| {
-                    let normalized = normalize_slashes(file_name);
+                    let normalized = normalize_slashes(text_file_name);
                     source_texts
                         .iter()
                         .find(|(candidate, _)| normalize_slashes(*candidate) == normalized)
@@ -2039,7 +2199,10 @@ fn format_plain_diagnostics(
             ));
         }
         output.push_str(diagnostic.category().name());
-        output.push_str(" TS");
+        // tsgo diagnosticPrefix: a content mapper's diagnostic shows its
+        // source.
+        output.push(' ');
+        output.push_str(diagnostic.source.as_deref().unwrap_or("TS"));
         output.push_str(&diagnostic.code().to_string());
         output.push_str(": ");
         append_plain_message(&diagnostic.message, 0, &mut output, catalog);
@@ -2144,6 +2307,36 @@ fn normalize_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
     super::normalize_source_slashes(path.into())
 }
 
+/// tsgo `NewContentMapperHost` with `getContentMapperProject`: the config's
+/// content mappers (it has them only under `--runExternalCode`) run through
+/// the system's spawner for this run, and every program of the plan uses
+/// the project's view. `TS_CONTENT_MAPPER_DEBUG` logs their protocol to the
+/// error output.
+fn with_content_mapper_project(system: &dyn System, plan: ConfigRootPlan) -> ConfigRootPlan {
+    let Some(spec) = plan.program_options().content_mapper_spec().cloned() else {
+        return plan;
+    };
+    let logger: Option<tsc_program::content_mapper::host::Logger> = system
+        .env_var("TS_CONTENT_MAPPER_DEBUG")
+        .filter(|value| !value.is_empty())
+        .map(|_| {
+            let logger: tsc_program::content_mapper::host::Logger =
+                Arc::new(|line: &str| eprintln!("{line}"));
+            logger
+        });
+    let host = tsc_program::content_mapper::host::Host::with_logger(
+        system.content_mapper_spawner(),
+        "",
+        logger,
+    );
+    match host.project(spec) {
+        Some(project) => plan.with_content_mapper_project(tsc_program::ContentMapperProjectHandle(
+            Arc::new(project),
+        )),
+        None => plan,
+    }
+}
+
 /// tsgo names the config by its normalized absolute path
 /// (GetParsedCommandLineOfConfigFile, tsoptions/tsconfigparsing.go:2071), and
 /// diagnostics print it relative to the current directory.
@@ -2185,7 +2378,7 @@ fn parse_config_file(
         &mut ConfigExtendedCache::default(),
     )
     .map_err(config_error)?;
-    let mut source_texts = BTreeMap::new();
+    let mut source_texts = DiagnosticSourceMap::new();
     source_texts.insert(display_file_name, Arc::clone(plan.source().snapshot()));
     Ok((plan, source_texts))
 }
@@ -2284,7 +2477,7 @@ pub(crate) enum WatchTarget {
         file: PathBuf,
         command_line: ConfigOptionBag,
         plan: Box<ConfigRootPlan>,
-        source_texts: DiagnosticSourceMap,
+        source_texts: Box<DiagnosticSourceMap>,
     },
     Files {
         roots: Vec<PathBuf>,
@@ -2420,7 +2613,7 @@ impl WatchTarget {
             || new_plan.include_specs() != plan.include_specs()
             || new_plan.exclude_specs() != plan.exclude_specs();
         **plan = new_plan;
-        *source_texts = new_texts;
+        **source_texts = new_texts;
         Ok(changed)
     }
 }
@@ -2472,7 +2665,7 @@ pub(crate) fn watch_build(
                 current_directory,
                 catalog,
                 plan,
-                source_texts.clone(),
+                (**source_texts).clone(),
                 &mut route,
                 ProjectRunMode::WATCH,
                 OldBuildInfoSource::Watch(state),
@@ -2524,7 +2717,7 @@ pub(crate) fn render_watch_diagnostics(
             pretty,
             locale,
         },
-        &BTreeMap::new(),
+        &DiagnosticSourceMap::new(),
         diagnostics,
         false,
     )

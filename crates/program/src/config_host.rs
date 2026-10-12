@@ -278,6 +278,12 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
             .map_err(|error| self.host_error(ConfigHostOperation::FileExists, path, error))
     }
 
+    fn directory_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
+        self.host
+            .directory_exists_js(path)
+            .map_err(|error| self.host_error(ConfigHostOperation::DirectoryExists, path, error))
+    }
+
     fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError> {
         let Some(bytes) = self
             .host

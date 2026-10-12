@@ -632,6 +632,13 @@ impl System for TestSystem {
         &self.fs
     }
 
+    /// tsgo TestSys.Spawn: the test content mappers, served in-process.
+    fn content_mapper_spawner(
+        &self,
+    ) -> std::sync::Arc<dyn tsc_program::content_mapper::host::Spawner> {
+        std::sync::Arc::new(tsc_harness::content_mappers::TestSpawner)
+    }
+
     fn current_directory(&self) -> &str {
         &self.current_directory
     }

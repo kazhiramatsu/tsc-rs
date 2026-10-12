@@ -1454,6 +1454,25 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
         Ok(result)
     }
 
+    fn directory_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let mut prefix = tsc_host::to_file_name_lower_case_js(path);
+        prefix.push_str("/");
+        let result = self.units.iter().any(|unit| {
+            tsc_host::to_file_name_lower_case_js(unit.name.as_ref().into())
+                .as_js()
+                .starts_with_js(prefix.as_js())
+        });
+        self.log.borrow_mut().push(js_paths::log_entry([
+            (
+                "operation",
+                js_paths::json_string("directory_exists".into()),
+            ),
+            ("path", js_paths::json_string(path)),
+            ("result", tsc_program::JsonValue::Bool(result)),
+        ]));
+        Ok(result)
+    }
+
     fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError> {
         let key = tsc_host::to_file_name_lower_case_js(path);
         let result = self.units.iter().find_map(|unit| {

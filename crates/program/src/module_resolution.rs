@@ -48,6 +48,8 @@ pub struct HostResolvedModule {
     original_path: Option<ProgramPath>,
     is_external_library_import: bool,
     resolved_using_ts_extension: bool,
+    /// tsgo `ResolvedUsingExtraExtensions`.
+    resolved_using_extra_extensions: bool,
     /// tsgo `ResolvedModule.IsCustomResolution`: the API's static or
     /// callback resolution, not the resolver's look at the disk.
     is_custom_resolution: bool,
@@ -109,6 +111,7 @@ impl HostResolvedModule {
         let mut resolved = ResolvedModule::new(target, self.extension)
             .with_external_library_import(self.is_external_library_import)
             .with_resolved_using_ts_extension(self.resolved_using_ts_extension)
+            .with_resolved_using_extra_extensions(self.resolved_using_extra_extensions)
             .with_custom_resolution(self.is_custom_resolution);
         if let Some(original_path) = self.original_path {
             resolved = resolved.with_original_path(original_path);
@@ -143,6 +146,7 @@ impl HostResolvedModule {
             original_path,
             is_external_library_import,
             resolved_using_ts_extension: false,
+            resolved_using_extra_extensions: false,
             is_custom_resolution: true,
             package_id,
             alternate_result: None,
@@ -722,6 +726,9 @@ struct InputResolutionRequest {
 /// fallible and are never translated into ordinary lookup misses.
 pub struct ModuleResolver<'a> {
     host: &'a dyn CompilerHost,
+    /// tsgo `extraExtensions`: the program's content mapper extensions, which
+    /// a fully specified import resolves to as they are.
+    extra_extensions: Vec<String>,
     /// The program's options, or a client resolver's (tsgo's module
     /// resolver factory resolves with them).
     options: std::borrow::Cow<'a, CompilerOptions>,
@@ -834,6 +841,15 @@ impl<'a> ModuleResolver<'a> {
         // Every `tsc -b` project writes a build info, which lists the
         // package.json files by their real paths.
         resolver.record_package_json_realpaths |= program_options.build_mode();
+        // tsgo ResolverOptions.ExtraExtensions: the content mappers'.
+        if let Some(spec) = program_options.content_mapper_spec() {
+            resolver.extra_extensions = spec
+                .mappers
+                .iter()
+                .flat_map(|mapper| mapper.definition.extensions.iter().flatten())
+                .cloned()
+                .collect();
+        }
         resolver.module_resolution_override = module_resolution_override;
         Ok(resolver)
     }
@@ -889,6 +905,7 @@ impl<'a> ModuleResolver<'a> {
             (options.trace_resolution == Some(true)).then(|| std::cell::RefCell::new(Vec::new()));
         Ok(Self {
             host,
+            extra_extensions: Vec::new(),
             options,
             preserve_symlinks,
             path_context: PathContext::new(current_directory, case_sensitive),
@@ -926,6 +943,7 @@ impl<'a> ModuleResolver<'a> {
         let current_directory = path_context.current_directory().display();
         Ok(Self {
             host,
+            extra_extensions: Vec::new(),
             options: std::borrow::Cow::Borrowed(options),
             preserve_symlinks: false,
             type_root_base_directory: current_directory.to_owned(),
@@ -5108,6 +5126,7 @@ impl<'a> ModuleResolver<'a> {
             .as_ref()
             .is_none_or(|(_, probes)| probes.is_empty())
             && arbitrary_probe.is_none()
+            && self.extra_extension_of(candidate).is_none()
         {
             if base_name(candidate).contains(".") {
                 self.host
@@ -5138,6 +5157,19 @@ impl<'a> ModuleResolver<'a> {
                         },
                     );
                 }
+            }
+        }
+        if let Some(extension) = self.extra_extension_of(candidate) {
+            if let Some(resolved_path) = self.try_file(candidate)? {
+                return with_extra_extensions(self.finish_legacy_resolution(
+                    package,
+                    resolved_path.as_js(),
+                    ModuleExtension::Arbitrary(extension),
+                    LegacyResolutionContext {
+                        resolved_using_ts_extension: false,
+                        ..context
+                    },
+                ));
             }
         }
         if let Some((path, extension)) = arbitrary_probe {
@@ -5246,6 +5278,19 @@ impl<'a> ModuleResolver<'a> {
                             },
                         );
                     }
+                }
+            }
+            if let Some(extension) = self.extra_extension_of(candidate) {
+                if let Some(resolved_path) = self.try_file(candidate)? {
+                    return with_extra_extensions(self.finish_legacy_resolution(
+                        package,
+                        resolved_path.as_js(),
+                        ModuleExtension::Arbitrary(extension),
+                        LegacyResolutionContext {
+                            resolved_using_ts_extension: false,
+                            ..context
+                        },
+                    ));
                 }
             }
             if let Some((path, extension)) = arbitrary_probe {
@@ -6284,6 +6329,7 @@ impl<'a> ModuleResolver<'a> {
             .as_ref()
             .is_none_or(|(_, probes)| probes.is_empty())
             && arbitrary_probe.is_none()
+            && self.extra_extension_of(target).is_none()
         {
             if base_name(target).contains(".") {
                 self.host
@@ -6317,6 +6363,19 @@ impl<'a> ModuleResolver<'a> {
                         context.follow_realpath,
                     );
                 }
+            }
+        }
+        if let Some(extension) = self.extra_extension_of(target) {
+            if let Some(resolved_path) = self.try_file(target)? {
+                return with_extra_extensions(self.finish_resolution(
+                    package,
+                    resolved_path.as_js(),
+                    ModuleExtension::Arbitrary(extension),
+                    context.is_external_library_import,
+                    attach_package_id,
+                    false,
+                    context.follow_realpath,
+                ));
             }
         }
         if let Some((candidate, extension)) = arbitrary_probe {
@@ -6436,6 +6495,7 @@ impl<'a> ModuleResolver<'a> {
             original_path,
             is_external_library_import: context.is_external_library_import,
             resolved_using_ts_extension: context.resolved_using_ts_extension,
+            resolved_using_extra_extensions: false,
             is_custom_resolution: false,
             package_id,
             alternate_result: None,
@@ -7007,6 +7067,34 @@ fn package_id_for_legacy_path_from_directory<'d, 'p>(
         Some(peer_dependencies) => package_id.with_peer_dependencies(peer_dependencies.clone()),
         None => package_id,
     }))
+}
+
+/// tsgo `resolvedUsingExtraExtensions`: the resolution of a fully specified
+/// import of a content mapper's extension.
+impl ModuleResolver<'_> {
+    /// tsgo `SplitExtension` with the extra extensions: the longest content
+    /// mapper extension the candidate ends with.
+    fn extra_extension_of(&self, candidate: JsStr<'_>) -> Option<JsString> {
+        self.extra_extensions
+            .iter()
+            .filter(|extension| {
+                candidate.as_bytes().len() > extension.len() && candidate.ends_with(extension)
+            })
+            .max_by_key(|extension| extension.len())
+            .map(|extension| JsString::from(extension.as_str()))
+    }
+}
+
+fn with_extra_extensions(
+    outcome: Result<ResolutionOutcome<HostResolvedModule>, ResolutionError>,
+) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+    outcome.map(|outcome| match outcome {
+        ResolutionOutcome::Resolved(mut module) => {
+            module.resolved_using_extra_extensions = true;
+            ResolutionOutcome::Resolved(module)
+        }
+        outcome => outcome,
+    })
 }
 
 fn arbitrary_declaration_twin<'p>(candidate: impl Into<JsStr<'p>>) -> Option<(JsString, JsString)> {

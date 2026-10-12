@@ -1180,11 +1180,7 @@ impl<'a> Orchestrator<'a> {
                 let _ = self.fs.set_modified_time(output, *time);
             }
         }
-        self.sources.extend(
-            run.sources
-                .iter()
-                .map(|(name, text)| (name.clone(), Arc::clone(text))),
-        );
+        self.sources.extend_from(&run.sources);
         let emitted = run.emitted_files.clone();
         let status_kind = self.tasks[task].status().kind;
         {

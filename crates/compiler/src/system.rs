@@ -5,8 +5,10 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
+
 use std::time::{Duration, Instant, SystemTime};
+use tsc_program::content_mapper::host::{MapperProcess, Spawner};
 
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::vfs::{DirEntry, FileSystem, FileType, Metadata, OsFs, VfsCompilerHost};
@@ -52,6 +54,26 @@ pub trait System: Send + Sync {
     /// A host for one run's program construction over [`System::fs`].
     fn compiler_host(&self) -> Box<dyn CompilerHost + '_> {
         Box::new(VfsCompilerHost::new(self.fs(), self.current_directory()))
+    }
+
+    /// How content mappers run (tsgo `System.Spawn`); a system that cannot
+    /// start processes fails each mapper's start.
+    fn content_mapper_spawner(&self) -> Arc<dyn Spawner> {
+        Arc::new(UnsupportedSpawner)
+    }
+}
+
+/// A system's spawner without processes: every mapper fails to start.
+struct UnsupportedSpawner;
+
+impl Spawner for UnsupportedSpawner {
+    fn spawn(
+        &self,
+        _command: &[String],
+        _dir: &str,
+        _stderr: Box<dyn io::Write + Send>,
+    ) -> Result<MapperProcess, String> {
+        Err("this system cannot start processes".to_owned())
     }
 }
 
@@ -149,6 +171,10 @@ impl NativeSystem {
 impl System for NativeSystem {
     fn fs(&self) -> &dyn FileSystem {
         &self.fs
+    }
+
+    fn content_mapper_spawner(&self) -> Arc<dyn Spawner> {
+        Arc::new(crate::content_mapper_process::NativeSpawner)
     }
 
     fn current_directory(&self) -> &str {

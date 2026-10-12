@@ -18,8 +18,9 @@ pub use line_map::{
 };
 pub use render::{
     format_diagnostic_with_color_and_context, format_diagnostics_with_color_and_context,
-    sort_and_dedupe_diagnostic_indices_with_context, write_error_summary_text,
-    FormatDiagnosticsError, FormatDiagnosticsHost, PrettyDiagnosticSources,
+    rendered_file_name, sort_and_dedupe_diagnostic_indices_with_context, split_rendered_file_name,
+    write_error_summary_text, FormatDiagnosticsError, FormatDiagnosticsHost,
+    PrettyDiagnosticSources,
 };
 pub use text::{
     collapse_byte_changes, collapse_utf16_changes, ByteTextChangeRange, ByteTextSpan,
@@ -296,6 +297,23 @@ impl MessageChain {
             text: format_message_value(message.text, args),
             key: Some(message.key),
             args: args.iter().map(|arg| JsString::from(*arg)).collect(),
+            next_present: false,
+            next: Vec::new(),
+            related: Vec::new(),
+            repopulate: None,
+            without_location: false,
+        }
+    }
+
+    /// tsgo `NewExternalDiagnostic`'s message: text reported by another
+    /// tool (a content mapper) under its own code, not a catalog message.
+    pub fn external(code: u32, category: DiagnosticCategory, text: impl Into<JsString>) -> Self {
+        Self {
+            code,
+            category,
+            text: text.into(),
+            key: None,
+            args: Vec::new(),
             next_present: false,
             next: Vec::new(),
             related: Vec::new(),

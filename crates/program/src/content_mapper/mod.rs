@@ -10,6 +10,38 @@
 pub mod errors;
 pub mod host;
 pub mod protocol;
+pub mod source;
+
+use std::sync::Arc;
+
+use errors::{ProjectFailure, TransformFailure};
+use host::{OptionDiagnostic, Request};
+use protocol::TransformOutput;
+
+/// tsgo `contentmapper.Project`: one program's view of its mappers — what
+/// they are called in it, what they transform its files to, and what they
+/// report about their options. [`host::ProjectView`] is the host's; tests
+/// supply their own.
+pub trait Project: Send + Sync {
+    /// tsgo `Refresh`: the mapper projects are opened again on next use.
+    fn refresh(&self) -> Result<(), String>;
+    /// tsgo `Identities`: every mapper's transform identity, in order.
+    fn identities(&self) -> Result<Vec<String>, ProjectFailure>;
+    /// tsgo `Identity`: a mapper's transform identity in this project.
+    fn identity(&self, mapper: &Arc<Mapper>) -> Result<String, ProjectFailure>;
+    /// tsgo `WatchedFiles`: the files dynamic mappers depend on.
+    fn watched_files(&self) -> Result<Vec<String>, ProjectFailure>;
+    /// tsgo `Diagnostics`: the mappers' diagnostics about their options.
+    fn diagnostics(&self) -> Vec<OptionDiagnostic>;
+    /// tsgo `Transform`: one file's virtual TypeScript.
+    fn transform(
+        &self,
+        mapper: &Arc<Mapper>,
+        request: Request<'_>,
+    ) -> Result<TransformOutput, TransformFailure>;
+    /// tsgo `Close`: the view is released.
+    fn close(&self) -> Result<(), String>;
+}
 
 /// tsgo `contentmapper.Definition`: a `contentMappers` entry, the package
 /// that implements the mapper and the extensions it registers. Lists and

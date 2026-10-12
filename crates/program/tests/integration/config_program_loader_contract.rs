@@ -329,6 +329,20 @@ impl ConfigParseHost for ConfigHostAdapter<'_> {
         })
     }
 
+    fn directory_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
+        self.host
+            .directory_exists(Path::new(path))
+            .map_err(|error| {
+                Self::host_error(
+                    ConfigHostOperation::DirectoryExists,
+                    path,
+                    &error.to_string(),
+                )
+            })
+    }
+
     fn read_file(
         &self,
         path: tsc_diagnostics::JsStr<'_>,

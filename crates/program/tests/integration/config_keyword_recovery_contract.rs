@@ -16,6 +16,10 @@ impl ConfigParseHost for EmptyConfigHost {
         Ok(false)
     }
 
+    fn directory_exists(&self, _path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        Ok(false)
+    }
+
     fn read_file(
         &self,
         _path: tsc_diagnostics::JsStr<'_>,
