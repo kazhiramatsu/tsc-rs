@@ -80,6 +80,10 @@ impl HostResolvedModule {
         self.resolved_using_ts_extension
     }
 
+    pub const fn resolved_using_extra_extensions(&self) -> bool {
+        self.resolved_using_extra_extensions
+    }
+
     pub fn package_id(&self) -> Option<&PackageId> {
         self.package_id.as_ref()
     }

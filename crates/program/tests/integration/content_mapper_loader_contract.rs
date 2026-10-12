@@ -100,12 +100,20 @@ fn load(
     files: &[(&str, &str)],
     project: Option<Arc<FakeProject>>,
 ) -> (PreparedProgram, Option<Arc<FakeProject>>) {
+    load_with(CONFIG, files, project)
+}
+
+fn load_with(
+    config: &str,
+    files: &[(&str, &str)],
+    project: Option<Arc<FakeProject>>,
+) -> (PreparedProgram, Option<Arc<FakeProject>>) {
     let host = files
         .iter()
         .fold(
             MemoryCompilerHost::builder("/p")
                 .case_sensitive(true)
-                .file("/p/tsconfig.json", CONFIG.as_bytes())
+                .file("/p/tsconfig.json", config.as_bytes())
                 .file("/p/node_modules/vue/package.json", PACKAGE.as_bytes()),
             |builder, (path, text)| builder.file(path, text.as_bytes()),
         )
@@ -119,7 +127,7 @@ fn load(
         &CompilerConfigHost::new(&host),
         ConfigRootPlanRequest {
             file_name: JsString::from("/p/tsconfig.json"),
-            text: CONFIG.to_owned(),
+            text: config.to_owned(),
             base_path: JsString::from("/p"),
         },
         &options,
@@ -308,5 +316,74 @@ fn without_a_project_each_file_reports_the_failure_with_the_mapper_s_own_identit
     assert_eq!(
         info.diagnostics[0].message_text(),
         "The content mapper 'vue-mapper' failed to transform this file."
+    );
+}
+
+/// tsgo GetResolutionDiagnostic returns nothing for a file found by a
+/// mapper's extension (`ResolvedUsingExtraExtensions`), so an import of it
+/// loads the mapped file without `allowArbitraryExtensions` (Astro's
+/// `components/index.ts` re-exports its `.astro` components).
+#[test]
+fn an_import_of_a_mapper_s_extension_loads_the_mapped_file() {
+    let (prepared, _) = load_with(
+        r#"{
+            "compilerOptions": { "noLib": true, "types": [], "module": "esnext", "moduleResolution": "bundler" },
+            "files": ["src/main.ts"],
+            "contentMappers": [{ "package": "vue", "extensions": [".vue"] }]
+        }"#,
+        &[
+            (
+                "/p/src/main.ts",
+                "export { default } from \"./Component.vue\";",
+            ),
+            ("/p/src/Component.vue", "<template />"),
+        ],
+        fake(|_, _| Ok(output("export default 1;", ".ts", Vec::new()))),
+    );
+    assert_eq!(names(&prepared), ["/p/src/Component.vue", "/p/src/main.ts"]);
+    assert!(matches!(
+        prepared.source_files()[0].inclusion_reasons(),
+        [SourceInclusionReason::Import { .. }]
+    ));
+}
+
+/// tsgo resolveImportsAndModuleAugmentations adds the JSX runtime import by
+/// the script kind, which a mapped file takes from its virtual name: a
+/// `.tsx` output imports the runtime, explained as tsgo explains a
+/// synthesized import.
+#[test]
+fn a_mapped_tsx_output_imports_the_jsx_runtime() {
+    let (prepared, _) = load_with(
+        r#"{
+            "compilerOptions": { "noLib": true, "types": [], "module": "esnext", "moduleResolution": "bundler", "jsx": "react-jsx" },
+            "files": ["src/App.vue"],
+            "contentMappers": [{ "package": "vue", "extensions": [".vue"] }]
+        }"#,
+        &[
+            ("/p/src/App.vue", "<template><div /></template>"),
+            (
+                "/p/node_modules/react/package.json",
+                r#"{ "name": "react", "version": "18.0.0", "types": "index.d.ts" }"#,
+            ),
+            ("/p/node_modules/react/index.d.ts", "export {};"),
+            (
+                "/p/node_modules/react/jsx-runtime.d.ts",
+                "export declare function jsx(...args: any[]): any;",
+            ),
+        ],
+        fake(|_, _| Ok(output("export const el = <div />;", ".tsx", Vec::new()))),
+    );
+    assert_eq!(
+        names(&prepared),
+        ["/p/node_modules/react/jsx-runtime.d.ts", "/p/src/App.vue"]
+    );
+    assert_eq!(
+        prepared.source_files()[0].inclusion_reasons(),
+        [SourceInclusionReason::SyntheticImport {
+            parent: JsString::from("/p/src/App.vue"),
+            specifier: JsString::from("react/jsx-runtime"),
+            import_helpers: false,
+            package_id: Some(JsString::from("react/jsx-runtime.d.ts@18.0.0")),
+        }]
     );
 }

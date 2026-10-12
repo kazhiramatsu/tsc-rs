@@ -138,6 +138,10 @@ pub struct SourceRequestPlan {
     module_request_loads: Vec<bool>,
     /// By request: the spans of its occurrences that load their target.
     module_request_spans: Vec<Vec<(u32, u32)>>,
+    /// The request of each occurrence that loads its target, in tsgo's
+    /// `moduleNames` order (the synthetic imports, the imports, then the
+    /// module augmentations).
+    module_request_occurrences: Vec<u32>,
     module_request_order: Vec<ResolutionKey>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -229,6 +233,13 @@ impl SourceRequestPlan {
         self.module_requests
             .iter()
             .zip(self.module_request_loads.iter().copied())
+    }
+
+    /// The request of each occurrence that loads its target, in tsgo's
+    /// `moduleNames` order: processImportedModules adds a subtask per
+    /// occurrence in this order.
+    pub fn module_request_occurrences(&self) -> &[u32] {
+        &self.module_request_occurrences
     }
 
     /// The module requests in order with whether each loads its target and
@@ -800,6 +811,7 @@ fn plan_module_requests_worker(
     let mut module_requests = Vec::new();
     let mut module_request_loads = Vec::new();
     let mut module_request_spans: Vec<Vec<(u32, u32)>> = Vec::new();
+    let mut module_request_occurrences = Vec::new();
     let mut request_index = rustc_hash::FxHashMap::<ResolutionKey, usize>::default();
     // tsc collectExternalModuleReferences prepends a synthesized `tslib`
     // import when importHelpers can participate in this source. The checker
@@ -821,7 +833,7 @@ fn plan_module_requests_worker(
     // no source-text literal exists.
     let jsx_runtime_import = jsx_runtime_import_specifier(&parsed, options);
     let has_synthetic_jsx_runtime = jsx_runtime_import.is_some()
-        && (javascript_file || source.path().display().ends_with(".tsx"));
+        && (javascript_file || source.parse_file_name().ends_with(".tsx"));
     let observed_request_occurrence_count = path_references
         .len()
         .saturating_add(type_reference_directives.len())
@@ -834,6 +846,7 @@ fn plan_module_requests_worker(
     if has_synthetic_tslib {
         let key = ResolutionKey::new(source.path().canonical().clone(), "tslib", static_mode);
         request_index.insert(key.clone(), module_requests.len());
+        module_request_occurrences.push(module_requests.len() as u32);
         module_requests.push(key);
         module_request_loads.push(true);
         module_request_spans.push(Vec::new());
@@ -845,6 +858,7 @@ fn plan_module_requests_worker(
             static_mode,
         );
         request_index.insert(key.clone(), module_requests.len());
+        module_request_occurrences.push(module_requests.len() as u32);
         module_requests.push(key);
         module_request_loads.push(true);
         module_request_spans.push(Vec::new());
@@ -885,6 +899,7 @@ fn plan_module_requests_worker(
         };
         if occurrence.loads_source {
             module_request_loads[index] = true;
+            module_request_occurrences.push(index as u32);
             let span_start =
                 skip_trivia(source_text, occurrence.pos as usize).min(occurrence.end as usize);
             module_request_spans[index].push((
@@ -905,6 +920,7 @@ fn plan_module_requests_worker(
         unpreprocessed_module_requests,
         module_request_loads,
         module_request_spans,
+        module_request_occurrences,
         module_request_order,
         type_reference_directives,
         lib_reference_directives,
