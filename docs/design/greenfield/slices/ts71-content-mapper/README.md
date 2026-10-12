@@ -269,3 +269,75 @@ C4b の実プロジェクトの宣言の比較（#767）で starlight に見つ�
   commit `8f97cd0fa`。
 - **次**：C5a（build info の identity と mapped file の version、`-b` の mapper、identity の変化での作り直し、supplemental の
   build info の path）、C5b（watch の mapper の manifest と設定 file）。
+
+## C5 incremental・`tsc -b`・watch（PR #769）
+
+C5a と C5b を一つの PR にした。content mapper が、tsgo が走らせる全ての command の形で走る。
+
+- **incremental**：build info に `contentMapperIdentities`（program の content mapper の project の identity を、build info を
+  作るときに読む。tsgo `snapshotToBuildInfo`）。読めないときは build info を書かず、emit をその失敗で飛ばす（tsgo
+  `emitBuildInfo`。`noEmit` では emit の診断に入る）。mapped file の version は元の text と mapper の transform identity の
+  hash（tsgo `computeProgramFileChanges`）、保存する implied format は仮想名の拡張子と、その名前で探した package の type
+  （tsgo `filesParser`）。identity が今の project と違う古い build info は使わない（tsgo `ReadBuildInfoProgram`）。
+- **`tsc -b`**：`--runExternalCode` のとき build の session に mapper の host を一つ（tsgo `Orchestrator.start`）、task ごとに
+  project を一度作る（`getContentMapperProject`）。build の終わりに project を、次に host を閉じる。project が失敗した task は
+  build せず、tsgo の `BuildErrors` で exit 1。up-to-date の検査では、identity が変わったか読めないとき「compilerOptions の
+  変化」（`OutOfDateOptions`）。build info に載る supplemental の出力は、同じ名前の file が無い間は欠けた入力ではない
+  （`isContentMapperSupplementalBuildInfoPath`）。
+- **watch**：`--watch` は自分の host と今の設定の project を持ち、新しい project を作ってから古いものを閉じる（tsgo
+  `replaceContentMapperProject`。両方が使う mapper の process は残る）。mapper の package の manifest が変わると設定を解析し
+  直し、mapper が watch する file が変わると project を作り直す。`-b --watch` は設定の変わった task と graph から消えた task の
+  project を閉じ、manifest の変化で task の設定を戻し、watch する file の一覧の失敗を project の失敗にする（tsgo
+  `orchestrator.go`）。どちらも終わるときに mapper を閉じる。普通の command は `--watch` と `--showConfig` の分岐の後で mapper
+  の project を作る。
+- **test**：in-memory の System と harness の mapper で、tsgo `contentmapper_watch_test.go` の全て（build の lifecycle、disk に
+  書かれた supplemental（TS18069）、読めない identity、watch と build watch の lifecycle（process (1,0) → (2,1) → (2,2) →
+  (3,2) → (3,3)）、supplemental の診断の元の名前、名前の衝突、dynamic mapper の watch する設定、混在した batch、link の
+  manifest の変化と削除、大文字小文字を区別しない manifest、二つの project の process の共有）。mapper の version が変わる
+  incremental の `-p`（行の作り直し、保持、作り直しと build info の identity）、`TestIsContentMapperSupplementalBuildInfoPath`。
+  harness に tsgo の `ProjectLifecycle`・`NewSpawnerWithProjectLifecycle`・`PackageJSON`。
+- **README**：`-b` と `--watch` の content mapper。未対応は API server の content mapper。
+- **結果**（code `c84685c9b`、`91ddee3cb` は rustfmt だけ、ratchet `077a9bcfd`、夜間の設定）：test 4,256 が全て通る、clippy
+  （6 crate）は clean、suites は 0 regressions で tsbuild 193/193（`contentMapperIdentity` と `contentMapperOptionDiagnostics`
+  が Full になり `--update` で記録）、tsc 227/229（generateTrace の 2 は以前から）。full の conformance（`--workers 1 --check`、
+  5,133 s）は 0 regressions で、#768 の report と 15,339 の構成が全て同じ。checker の変更は無いので並列対照は無し。実プロジェクト
+  の 4 つは診断・`--explainFiles`・`--listFilesOnly`・宣言の 16 の比較が全て tsgo と同じ。incremental の `--noEmit` の build
+  info（1 回目と、それを読む 2 回目）は site と starlight が同じ。vitesse と soybean は出力、mapper の identity、file の version
+  が同じで、`missingPackageJsons` の順だけが違う（soybean は重複が 8）。Vue の mapper の
+  `/// <reference types="../../node_modules/…" />` の package.json の探索で、tsgo は type root からの候補を正規化したパスにし
+  （`resolutionCandidateFromDirectoryPath`）、こちらは TS 6 の `combinePaths` のまま `..` を残していた。resolver の差なので
+  次の PR。Vue の mapper は dynamic config で identity が compiler option を含むので、比べるには両方に同じ
+  `--tsBuildInfoFile` を渡す。
+- **hosted と merge**：PR #769 の hosted run 38319585066（rust 11m33s、conformance 20m13s、gates pass、head `077a9bcfd`）、merge
+  commit `8dff0f4bc`。
+- **残り**：type root の候補の正規化（次の PR）、C6（API。下の計画）、LS だけの test mapper と元から仮想への射影の利用、pretty
+  の要約の mapped file の行の順（#765 の通り）。
+- **次**：type root の候補の正規化、その後 C6。
+
+## C6 の計画（API）
+
+tsgo の API server は `--runExternalCode` のときだけ content mapper を走らせる（`cmd/tsc/api.go` の flag、
+`StdioServerOptions.RunExternalCode` と `ContentMapperSpawner`、project の `SessionOptions.RunExternalCode` と
+`SessionInit.Spawner`）。API の build orchestrator は process を起こさない（`apiBuildSystem.Spawn` が断る）。
+
+- **C6a（API の層）**：
+  - encoder（`recordExtendedData_SourceFile`）が mapped file の欄を書く：`originalText`（text と違うときだけ別の文字列）、
+    `spanMap`（segment ごとに仮想の start と長さ、元の start と長さ、kind、features が全部でなければ features の 5 か 6 の組）、
+    `supplementalSourceFileNames`、`canonicalSourceFileName`、`contentMapper`、`virtualFileName`、`diagnosticDirectives`（元と
+    仮想の start と長さ、policy、unused code の 6 の組）。文字列表への追加の順（text、originalText、fileName、path、…、
+    canonical、contentMapper、virtualFileName）と structured data の順も tsgo と同じにする。
+  - mapped file の symbol は snapshot の持ち物（tsgo `symbolOwnerFile` が mapped file に nil を返す）。
+  - test：tsgo `TestEncodeContentMapperSourceFileMetadata`、`TestContentMappedSymbolsAreSnapshotOwned`。`toAPITextEdits` の元の
+    座標（`TestToAPITextEditsUsesOriginalCoordinates`）は、それを使う import の request が LS の作業なので、その時に。
+- **C6b（project system）**：
+  - `tsc-rs --api --runExternalCode`。session の mapper host は `--runExternalCode` で spawner があるときだけ作る（tsgo
+    `newContentMapperHost`）。
+  - program を作るときに、config に content mapper があれば host から project を作って plan に付ける（tsgo の compiler host の
+    `ContentMapperProject`）。program がどの snapshot からも参照されなくなったら閉じ（tsgo `Snapshot.dispose`）、session を
+    閉じるときに host も閉じる。
+  - API の module resolution は mapper の拡張子を `ExtraExtensions` に入れる（tsgo `module_resolution.go`）。
+  - API の build は mapper の process を起こさない（tsgo `apiBuildSystem.Spawn` の文言）。
+  - test：mapped file を持つ project を API で開き、encode された source file の欄、診断、symbol を確かめる（harness の
+    mapper で）。
+- **LS の作業に回すもの**：client の contribution と inferred project の mapper、watch の mapper の file、`toAPITextEdits`、LS
+  だけの test mapper。
