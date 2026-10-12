@@ -2671,8 +2671,9 @@ pub const H0_SUPPORTED_CONFIG_OPTIONS: &[&str] = &[
     "outDir",
     "declarationDir",
     // The config's content mappers are kept only with it (the config parse
-    // reads it).
+    // reads it), and see the project's config file name among the options.
     "runExternalCode",
+    "project",
 ];
 
 /// Source map options a no-emit command retains without an emitter: they
