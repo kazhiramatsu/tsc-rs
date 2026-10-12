@@ -328,28 +328,39 @@ fn the_js_baseline_appends_the_declaration_errors_and_the_no_check_emit() {
 fn declaration_names_follow_tsgo_outputpaths() {
     // outputpaths.ChangeToDeclarationExtension and tspath.IsDeclarationFileName.
     assert_eq!(
-        change_to_declaration_extension("/.src/out/a.ts"),
+        change_to_declaration_extension("/.src/out/a.ts", &[]),
         "/.src/out/a.d.ts"
     );
     assert_eq!(
-        change_to_declaration_extension("/.src/a.tsx"),
+        change_to_declaration_extension("/.src/a.tsx", &[]),
         "/.src/a.d.ts"
     );
     assert_eq!(
-        change_to_declaration_extension("/.src/a.mts"),
+        change_to_declaration_extension("/.src/a.mts", &[]),
         "/.src/a.d.mts"
     );
     assert_eq!(
-        change_to_declaration_extension("/.src/a.cjs"),
+        change_to_declaration_extension("/.src/a.cjs", &[]),
         "/.src/a.d.cts"
     );
     assert_eq!(
-        change_to_declaration_extension("/.src/a.js"),
+        change_to_declaration_extension("/.src/a.js", &[]),
         "/.src/a.d.ts"
     );
     assert_eq!(
-        change_to_declaration_extension("/.src/a.json"),
+        change_to_declaration_extension("/.src/a.json", &[]),
         "/.src/a.d.json.ts"
+    );
+    // A content mapper's extension, the longest first (the
+    // contentMapperDeclarationEmit case's `component.d.y.z.ts`).
+    let mapper_extensions = [".z".to_owned(), ".y.z".to_owned()];
+    assert_eq!(
+        change_to_declaration_extension("/.src/component.y.z", &mapper_extensions),
+        "/.src/component.d.y.z.ts"
+    );
+    assert_eq!(
+        declaration_emit_extension("/.src/component.y.z", &mapper_extensions),
+        ".d.y.z.ts"
     );
     assert!(is_declaration_file_name("/.src/a.d.ts"));
     assert!(is_declaration_file_name("/.src/a.d.mts"));
@@ -461,6 +472,8 @@ fn outputs_follow_the_native_harness_order() {
         jsx_preserve: false,
         common_source_directory: "/.src/".to_owned(),
         source_paths: HashSet::new(),
+        mapped_paths: HashSet::new(),
+        mapper_extensions: Vec::new(),
         source_order: vec![
             "/.lib/lib.d.ts".to_owned(),
             "/.src/src/thing.ts".to_owned(),
@@ -515,7 +528,7 @@ fn outputs_follow_the_native_harness_order() {
         harness_output_path(
             &preserve,
             "/.src/a.mts",
-            &declaration_emit_extension("/.src/a.mts")
+            &declaration_emit_extension("/.src/a.mts", &[])
         ),
         Some("/.src/a.d.mts".to_owned())
     );

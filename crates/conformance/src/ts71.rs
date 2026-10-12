@@ -1052,9 +1052,8 @@ fn output_extension(path: &str, jsx_preserve: bool) -> &'static str {
     }
 }
 
-/// `tspath.GetDeclarationEmitExtensionForPath`.
-/// tsgo's declaration extension of an output path: a content mapper's
-/// extension (the longest, case-sensitively) is `.d<extension>.ts`.
+/// The longest content mapper extension the path ends with, matched
+/// case-sensitively (tsgo `LongestExtension`).
 fn mapper_extension(path: &str, mapper_extensions: &[String]) -> Option<String> {
     tsc_program::longest_extension(
         tsc_diagnostics::JsStr::from(path),
@@ -1063,6 +1062,9 @@ fn mapper_extension(path: &str, mapper_extensions: &[String]) -> Option<String> 
     )
 }
 
+/// tsgo's declaration extension of an output path
+/// (`tspath.GetDeclarationEmitExtensionForPath`): a content mapper's
+/// extension is declared as `.d<extension>.ts`.
 fn declaration_emit_extension(path: &str, mapper_extensions: &[String]) -> String {
     if let Some(extension) = mapper_extension(path, mapper_extensions) {
         return format!(".d{extension}.ts");
@@ -1154,8 +1156,8 @@ fn is_declaration_file_name(path: &str) -> bool {
         || (base.ends_with(".ts") && base.contains(".d."))
 }
 
-/// `outputpaths.ChangeToDeclarationExtension` without content mappers.
-/// tsgo `ChangeToDeclarationExtension`.
+/// tsgo `outputpaths.ChangeToDeclarationExtension`: a file of a content
+/// mapper's extension (the longest) is declared as `.d<extension>.ts`.
 fn change_to_declaration_extension(path: &str, mapper_extensions: &[String]) -> String {
     if let Some(extension) = mapper_extension(path, mapper_extensions) {
         return format!("{}.d{extension}.ts", &path[..path.len() - extension.len()]);

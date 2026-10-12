@@ -82,11 +82,12 @@ impl Spawner for TestSpawner {
     }
 }
 
-/// tsgo `handlerForMapper`: the mapper's handler, and its project
-/// lifecycle when it keeps state per project.
-fn handler_for_mapper(
-    command: &[String],
-) -> Result<(Box<dyn Handler>, Option<Arc<dyn ProjectLifecycle>>), String> {
+/// A mapper's handler, and its project lifecycle when it keeps state per
+/// project.
+type MapperHandler = (Box<dyn Handler>, Option<Arc<dyn ProjectLifecycle>>);
+
+/// tsgo `handlerForMapper`.
+fn handler_for_mapper(command: &[String]) -> Result<MapperHandler, String> {
     let Some(name) = command.first() else {
         return Err("contentmappertest: empty mapper command".to_owned());
     };
