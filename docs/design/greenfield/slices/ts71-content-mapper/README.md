@@ -177,3 +177,19 @@ C3 だけでは載せられない（mapper の拡張子の file を列挙して�
   merge commit `fd74846b0`。
 - **次**：mapped file の変換を並列の read-ahead で（tsgo は parse task の中で変換する。soybean-admin の walk の 106 ms の
   大半が 90 の順番の変換）、その後 C4b。
+
+## 変換の並列化（PR #766）
+
+mapped file の変換を並列の read-ahead で行う（tsgo は parse task の中で変換するので、project の変換が mapper に同時に送られる）。
+walk は変換を自分の順で受け取るので、失敗の予算、初期化の失敗、program は直列の loader と同じ（walk が使わない変換を worker が
+送ることはある）。mapped root を 1 つ先頭に、残りを最後に置き、mapper の起動待ちで worker が全部止まらないようにした。
+
+- **計測**（tsgo `tsc-aa814927` と、`-p <config> --runExternalCode --noEmit --pretty false`、warm-up 1 回の後 7 回の中央値）：
+  site 199 → 175 ms（tsgo 比 0.88）、starlight 450 → 427 ms（0.95）、vitesse 98 → 128 ms（1.31、mapper 無しでも 71 対 92 ms の
+  小さい project の固定費）、soybean-admin 234 → 249 ms（1.06）。出力は 4 project とも #765 と同じ。
+- **結果**（head `77a00d651`）：test 4,213、clippy、suites 0 regressions、full の conformance（487 s）0 regressions で #765 の
+  report と 15,339 の構成が全て同じ。
+- **hosted と merge**：PR #766 の hosted run 38254782725（rust 7m49s、conformance 21m27s、gates pass）、merge commit `40c217168`。
+- **次（C4b）**：span map の original→virtual（済、branch 上）、test mapper 6 種（済、branch 上）、vendor に `.contentmapper`
+  baseline を加える、conformance runner の `@runExternalCode`・mapper project・`.contentmapper` baseline（ratchet の列）・
+  mapped file を除いた errors baseline・types/symbols/js の変換後の text、宣言 emit の細部。
