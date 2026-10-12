@@ -284,12 +284,18 @@ fn a_diagnostic_shown_against_another_text_is_a_file_of_its_own_in_the_summary()
         )
     };
     let original = original.to_string_lossy().into_owned();
+    // Shown against the file's own text under its name (synthesized code):
+    // the file's own diagnostic.
+    let synthesized = rendered_file_name(JsStr::from("/work/c.vue"), JsStr::from("/work/c.vue"))
+        .to_string_lossy()
+        .into_owned();
     let summary = write_error_summary_text(
         &[
             error(&original, 4),
             error("/work/c.vue", 0),
             error(&original, 0),
             error("/work/c.vue", 1),
+            error(&synthesized, 1),
         ],
         &host,
         "\n",
@@ -300,7 +306,7 @@ fn a_diagnostic_shown_against_another_text_is_a_file_of_its_own_in_the_summary()
     assert_eq!(
         summary,
         format!(
-            "\nFound 4 errors in 3 files.\n\nErrors  Files\n     1  c.vue{GREY}:2{RESET}\n     2  c.vue{GREY}:1{RESET}\n     1  c.vue{GREY}:1{RESET}\n\n"
+            "\nFound 5 errors in 3 files.\n\nErrors  Files\n     1  c.vue{GREY}:2{RESET}\n     3  c.vue{GREY}:1{RESET}\n     1  c.vue{GREY}:1{RESET}\n\n"
         )
     );
 }

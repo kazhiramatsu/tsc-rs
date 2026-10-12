@@ -364,10 +364,12 @@ pub fn write_error_summary_text(
                 // tsgo getErrorSummary groups by the diagnostic's file, and
                 // ASTDiagnostic.File makes a new one for each diagnostic
                 // shown against another text or under another name (a
-                // content-mapped file's): each such diagnostic is a file of
-                // its own.
-                let own = file_name.as_js().split_once("\0").is_some();
-                let printed = split_rendered_file_name(file_name.as_js()).1;
+                // content-mapped file's original text, a supplemental
+                // output's canonical name): each such diagnostic is a file
+                // of its own. One shown against its file's own text under its
+                // name (in synthesized code) is the file's.
+                let (text, printed) = split_rendered_file_name(file_name.as_js());
+                let own = text != printed;
                 match files
                     .iter_mut()
                     .find(|(name, other_own, _)| !own && !*other_own && name.as_js() == printed)

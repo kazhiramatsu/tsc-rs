@@ -5847,7 +5847,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         // A source reached under several spellings is planned once per
         // spelling: its requests stay with it, and only the read-ahead's
         // resolution is taken (a later planning finds the key resolved).
-        for request_index in 0..request_count {
+        for (request_index, &occurrence_count) in occurrence_counts.iter().enumerate() {
             let (key, loads_source, pre_resolved) = {
                 let request = &mut self.sources[source].module_requests[request_index];
                 (
@@ -5864,7 +5864,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             // externalHelpersModuleNameText) or the JSX runtime.
             let staged = &self.sources[source];
             let spans = &staged.module_requests[request_index].request.spans;
-            let synthetic = (occurrence_counts[request_index] as usize).saturating_sub(spans.len());
+            let synthetic = (occurrence_count as usize).saturating_sub(spans.len());
             let inclusions = {
                 let prepared = &staged.prepared;
                 let positions = prepared.snapshot().positions();
