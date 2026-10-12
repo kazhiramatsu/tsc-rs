@@ -5822,7 +5822,9 @@ fn lib_text_fingerprint(text: &str) -> u64 {
 }
 
 fn build_lib_bundle(libs: &[&InputFile]) -> &'static LibBundle {
-    let identity_domain = IdentityDomain::reclaiming();
+    // The process cache's bundles share one domain with every registry's
+    // documents, so a Program shares sources whatever its libraries.
+    let identity_domain = crate::program::shared_identity_domain().clone();
     let (sources, _lib_work) =
         parse_lib_sources(libs, &identity_domain, WorkerBudget::serial(), None);
     let binders = bind_lib_sources(&sources, &identity_domain, WorkerBudget::serial(), None);

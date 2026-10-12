@@ -997,6 +997,30 @@ fn lib_bundle_key_reads_no_options() {
 }
 
 #[test]
+fn library_bundles_and_registries_share_one_identity_domain() {
+    // tsgo's parse cache hands a parse to any Program; tsc-rs's shared
+    // documents all live in one domain, so Programs with different library
+    // sets (and a registry's documents) can share sources.
+    let first = InputFile::new(
+        "lib.shared-domain-first.d.ts".to_owned(),
+        "declare const sharedDomainFirst: number;\n".to_owned(),
+    );
+    let second = InputFile::new(
+        "lib.shared-domain-second.d.ts".to_owned(),
+        "declare const sharedDomainSecond: number;\n".to_owned(),
+    );
+    let first_bundle = lib_bundle(&[&first]);
+    let second_bundle = lib_bundle(&[&second]);
+    assert!(!std::ptr::eq(first_bundle, second_bundle));
+    assert!(first_bundle
+        .identity_domain
+        .same_domain(&second_bundle.identity_domain));
+    assert!(crate::program::DocumentRegistry::new()
+        .identity_domain()
+        .same_domain(&first_bundle.identity_domain));
+}
+
+#[test]
 fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
     fn collide_all_text(_: &str) -> u64 {
         0

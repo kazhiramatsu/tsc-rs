@@ -759,12 +759,25 @@ impl Session {
                 && document.source().text() == source_text
         });
         let document = found.unwrap_or_else(|| {
-            let file = crate::parse_source_file(&file_name, source_text, script_kind);
-            let bind_data = tsc_binder::bind_source_file(&file).into_bind_data();
+            // tsgo's created file and a Program's files share one parse
+            // cache: the parse is allocated in the shared documents' domain
+            // and recorded under the address a Program computes for the same
+            // file, so a later Program shares it.
+            let registry = self.host.documents();
+            let domain = registry.identity_domain();
+            let (file, parse_options) =
+                crate::parse_created_source_file(&file_name, source_text, script_kind, domain);
+            let bind_data = tsc_binder::Binder::bind_in_identity_domain(&file, domain)
+                .expect("created source bind identity allocation failed")
+                .into_bind_data();
             let document = Arc::new(BoundDocument::new(
                 Arc::new(tsc_checker::program::ParsedDocument::new(Arc::new(file))),
                 bind_data,
             ));
+            registry.insert(
+                tsc_checker::program::DocumentAddress::new(&parse_options, domain),
+                &document,
+            );
             // The parse's script kind is the one asked for (tsgo keeps it on
             // the source file); a program's file takes its name's.
             let path = self.host.to_path(&file_name);
