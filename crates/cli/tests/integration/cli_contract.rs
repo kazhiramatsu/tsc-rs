@@ -10849,6 +10849,53 @@ fn synthetic_imports_and_each_import_occurrence_are_explained_like_tsgo() {
 }
 
 #[test]
+fn import_types_in_the_end_of_file_jsdoc_follow_tsgo_s_collection() {
+    // tsgo collects a JavaScript file's import types by GetNodeAtPosition,
+    // which never enters the end-of-file token (a token kind) or its JSDoc:
+    // only the statements the reparser makes of its `@typedef` (and
+    // `@callback`, `@import`) tags are reached, within each tag's range. The
+    // `@template` beside the typedef is not collected, so `./other` is not
+    // in the program and the checker reports it as not found (starlight's
+    // `packages/markdoc/html.mjs`). The expected bytes are tsgo's.
+    let tree = TempTree::new();
+    for (name, text) in [
+        (
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "allowJs": true, "checkJs": true, "module": "esnext", "moduleResolution": "bundler", "types": [], "noEmit": true, "lib": ["es5"] }, "files": ["a.mjs"] }"#,
+        ),
+        (
+            "a.mjs",
+            "/** @type {M<'a'>} */\nexport const y = { a: 'a' };\n/**\n * @typedef {import('./types').H<T>} M\n * @template {import('./other').Tag} T\n */\n",
+        ),
+        ("types.d.ts", "export interface H<T> { a: T }\n"),
+        ("other.d.ts", "export type Tag = \"a\";\n"),
+    ] {
+        fs::write(tree.path(name), text).expect("write a file");
+    }
+    let output = run(&tree, &["--pretty", "false"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "a.mjs(5,22): error TS2307: Cannot find module './other' or its corresponding type declarations.\n"
+    );
+    let output = run(&tree, &["--listFilesOnly"]);
+    assert_eq!(output.status.code(), Some(0));
+    let project = compiler_current_directory(&tree);
+    let listed: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| !line.starts_with("bundled:"))
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            format!("{}/types.d.ts", project.display()),
+            format!("{}/a.mjs", project.display()),
+        ]
+    );
+}
+
+#[test]
 fn an_options_diagnostic_closes_the_check_of_the_sources_after_binding_like_tsgo() {
     // tsc's emitFilesAndReportErrors (tsgo compiler/program.go
     // GetDiagnosticsOfAnyProgram) asks for the semantic diagnostics only when

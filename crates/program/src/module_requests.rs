@@ -780,7 +780,45 @@ fn plan_module_requests_worker(
         let first_child = stack.len();
         if javascript_file {
             if let Some(js_doc) = node.js_doc {
-                stack.extend(parsed.arena.node_array(js_doc).nodes.iter().copied());
+                let comments = parsed.arena.node_array(js_doc).nodes.iter().copied();
+                if node.kind == SyntaxKind::EndOfFileToken {
+                    // tsgo GetNodeAtPosition never enters the end-of-file
+                    // token (a token kind) or its JSDoc: only the statements
+                    // the reparser makes of its `@typedef`, `@callback` and
+                    // `@import` tags are reached, within each tag's range.
+                    // The import types of its other tags (an `@template`
+                    // beside a typedef) are not collected, and the checker
+                    // finds no resolution for them.
+                    for comment in comments {
+                        let NodeData::JSDoc(comment) = &parsed.arena.node(comment).data else {
+                            continue;
+                        };
+                        let tags = comment
+                            .tags
+                            .map(|tags| parsed.arena.node_array(tags).nodes)
+                            .unwrap_or_default();
+                        for &tag in tags {
+                            if matches!(
+                                parsed.arena.node(tag).kind,
+                                SyntaxKind::JSDocTypedefTag
+                                    | SyntaxKind::JSDocCallbackTag
+                                    | SyntaxKind::JSDocImportTag
+                            ) {
+                                stack.push(tag);
+                            } else {
+                                uncollected_import_types(
+                                    &parsed,
+                                    source,
+                                    tag,
+                                    static_mode,
+                                    &mut unpreprocessed_module_requests,
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    stack.extend(comments);
+                }
             }
         }
         for_each_child(&parsed.arena, node, |child| {
@@ -1466,6 +1504,45 @@ fn string_literal_like_text(parsed: &SourceFile, node: NodeId) -> Option<&str> {
         NodeData::StringLiteral(literal) => literal.text.as_str(),
         NodeData::NoSubstitutionTemplateLiteral(literal) => literal.text.as_str(),
         _ => None,
+    }
+}
+
+/// The import types under `root` that tsgo does not collect, as requests
+/// whose lookup finds no resolution (see the end-of-file token's JSDoc in
+/// [`plan_source_requests`]).
+fn uncollected_import_types(
+    parsed: &SourceFile,
+    source: &PreparedSourceFile,
+    root: NodeId,
+    static_mode: ResolutionMode,
+    unpreprocessed_module_requests: &mut BTreeSet<ResolutionKey>,
+) {
+    let mut stack = vec![root];
+    while let Some(node_id) = stack.pop() {
+        if let NodeData::ImportType(import_type) = &parsed.arena.node(node_id).data {
+            let literal = import_type
+                .argument
+                .and_then(|argument| match &parsed.arena.node(argument).data {
+                    NodeData::LiteralType(argument) => argument.literal,
+                    _ => None,
+                })
+                .map(|literal| &parsed.arena.node(literal).data);
+            if let Some(NodeData::StringLiteral(literal)) = literal {
+                let mode = import_type
+                    .attributes
+                    .and_then(|attributes| resolution_mode_override(parsed, attributes))
+                    .unwrap_or(static_mode);
+                unpreprocessed_module_requests.insert(ResolutionKey::new(
+                    source.path().canonical().clone(),
+                    literal.text.clone(),
+                    mode,
+                ));
+            }
+        }
+        for_each_child(&parsed.arena, parsed.arena.node(node_id), |child| {
+            stack.push(child);
+            false
+        });
     }
 }
 
