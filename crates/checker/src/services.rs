@@ -203,6 +203,69 @@ impl CheckerState<'_> {
         None
     }
 
+    /// tsgo `GetAmbientModules`: the ambient modules of the global scope and
+    /// the pattern ambient modules, each once.
+    pub fn get_ambient_modules(&self) -> Vec<SymbolId> {
+        let mut ambient = Vec::new();
+        for (name, &symbol) in self.globals.iter() {
+            if name.starts_with("\"") {
+                ambient.push(symbol);
+            }
+        }
+        for (_, _, symbol) in &self.pattern_ambient_modules {
+            ambient.push(self.get_merged_symbol(*symbol));
+        }
+        ambient.sort_unstable();
+        ambient.dedup();
+        ambient
+    }
+
+    /// tsgo `modulespecifiers.GetAllowedEndingsInPreferredOrder` with no
+    /// old specifier: the endings a module specifier in `importing_file`
+    /// (its root) may have, the preferred first.
+    pub fn get_allowed_endings_in_preferred_order(
+        &self,
+        importing_file: NodeId,
+        ending_preference: crate::ImportModuleSpecifierEndingPreference,
+        syntax_implied_node_format: tsc_emitter::EmitResolutionMode,
+    ) -> Vec<crate::ModuleSpecifierEnding> {
+        use crate::node_builder::specifier::{
+            get_module_specifier_preferences, SpecifierCompilerOptions,
+        };
+        let host = crate::node_builder::chains::BasicModuleSpecifierHost::new(self);
+        let options = SpecifierCompilerOptions::new(self.options);
+        let preferences = get_module_specifier_preferences(
+            self,
+            &crate::ModuleSpecifierUserPreferences {
+                import_module_specifier_preference: crate::ImportModuleSpecifierPreference::NONE,
+                import_module_specifier_ending: ending_preference,
+                auto_import_specifier_exclude_regexes: Vec::new(),
+            },
+            &host,
+            &options,
+            importing_file,
+            None,
+        );
+        preferences.get_allowed_endings_in_preferred_order(
+            self,
+            &host,
+            &options,
+            syntax_implied_node_format,
+        )
+    }
+
+    /// tsgo `module.TryGetJSExtensionForFile`: the JavaScript extension a
+    /// file's output has.
+    pub fn try_get_js_extension_for_file(
+        &self,
+        file_name: tsc_types::JsStr<'_>,
+    ) -> Option<&'static str> {
+        crate::node_builder::specifier::try_get_js_extension_for_file(
+            file_name,
+            &crate::node_builder::specifier::SpecifierCompilerOptions::new(self.options),
+        )
+    }
+
     /// tsgo `GetRootSymbols`: the symbols a synthetic, spread, mapped or
     /// instantiated symbol comes from, the symbol itself when none.
     pub fn get_root_symbols(&mut self, symbol: SymbolId) -> CheckResult<Vec<SymbolId>> {

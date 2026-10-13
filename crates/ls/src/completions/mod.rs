@@ -7,6 +7,7 @@ mod data;
 mod entries;
 mod items;
 mod keywords;
+mod paths;
 mod searches;
 mod strings;
 

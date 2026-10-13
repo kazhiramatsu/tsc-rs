@@ -170,22 +170,50 @@ fn source_file_from_reference(
 /// tsgo `GetSupportedExtensionsWithJsonIfResolveJsonModule(options,
 /// GetSupportedExtensions(options, nil))` (a content mapper's extensions
 /// come with the content mapper's language service).
-fn supported_extensions(options: &tsc_types::CompilerOptions) -> Vec<Vec<&'static str>> {
-    let mut extensions = if options.allow_js {
-        vec![
-            vec![".ts", ".tsx", ".d.ts", ".js", ".jsx"],
-            vec![".cts", ".d.cts", ".cjs"],
-            vec![".mts", ".d.mts", ".mjs"],
+fn supported_extensions(options: &tsc_types::CompilerOptions) -> Vec<Vec<String>> {
+    let mut extensions = supported_extensions_with(options, &[]);
+    if options.resolve_json_module_effective() {
+        extensions.push(vec![".json".to_owned()]);
+    }
+    extensions
+}
+
+/// tsgo `tsoptions.GetSupportedExtensions`: the TypeScript (and with
+/// `allowJs` the JavaScript) extensions, then each extra one that is no
+/// built-in.
+pub(crate) fn supported_extensions_with(
+    options: &tsc_types::CompilerOptions,
+    extra_extensions: &[String],
+) -> Vec<Vec<String>> {
+    let builtins: &[&[&str]] = if options.allow_js {
+        &[
+            &[".ts", ".tsx", ".d.ts", ".js", ".jsx"],
+            &[".cts", ".d.cts", ".cjs"],
+            &[".mts", ".d.mts", ".mjs"],
         ]
     } else {
-        vec![
-            vec![".ts", ".tsx", ".d.ts"],
-            vec![".cts", ".d.cts"],
-            vec![".mts", ".d.mts"],
+        &[
+            &[".ts", ".tsx", ".d.ts"],
+            &[".cts", ".d.cts"],
+            &[".mts", ".d.mts"],
         ]
     };
-    if options.resolve_json_module_effective() {
-        extensions.push(vec![".json"]);
+    let mut extensions = builtins
+        .iter()
+        .map(|group| {
+            group
+                .iter()
+                .map(|&extension| extension.to_owned())
+                .collect()
+        })
+        .collect::<Vec<Vec<String>>>();
+    for extension in extra_extensions {
+        if !builtins
+            .iter()
+            .any(|group| group.contains(&extension.as_str()))
+        {
+            extensions.push(vec![extension.clone()]);
+        }
     }
     extensions
 }
@@ -337,7 +365,7 @@ pub(crate) fn source_file(
 
 /// tsgo `ToPath`: a file name's path, case-folded unless the program's
 /// file names are case sensitive.
-fn path_key(prepared: &PreparedProgram, file_name: &str) -> String {
+pub(crate) fn path_key(prepared: &PreparedProgram, file_name: &str) -> String {
     let absolute = tsc_program::get_normalized_absolute_path(
         JsStr::from_str(file_name),
         prepared.current_directory().display(),

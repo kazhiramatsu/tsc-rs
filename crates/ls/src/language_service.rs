@@ -23,8 +23,28 @@ impl std::fmt::Display for LsError {
 }
 
 /// tsgo `ls.Host`: what the language service reads beyond its program —
-/// the snapshot's files (a declaration's source map and its sources).
-pub trait Host: SourceMapperHost {}
+/// the snapshot's files (a declaration's source map and its sources), and
+/// its file system for module specifier completions only (the host is
+/// otherwise a snapshot in time).
+pub trait Host: SourceMapperHost {
+    /// tsgo `ReadDirectory`: the files below `path` with one of the
+    /// extensions that an include matches and no exclude does, at most
+    /// `depth` directories down.
+    fn read_directory(
+        &self,
+        path: &str,
+        extensions: &[&str],
+        excludes: &[&str],
+        includes: &[&str],
+        depth: Option<usize>,
+    ) -> Vec<String>;
+    /// tsgo `GetDirectories`: the names of the directories in `path`.
+    fn get_directories(&self, path: &str) -> Vec<String>;
+    /// tsgo `DirectoryExists`.
+    fn directory_exists(&self, path: &str) -> bool;
+    /// tsgo `FileExists`.
+    fn file_exists(&self, path: &str) -> bool;
+}
 
 /// tsgo `LanguageService`.
 pub struct LanguageService<'a> {

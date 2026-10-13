@@ -1164,8 +1164,7 @@ impl<'a> ModuleResolver<'a> {
         }
         let kind = self.options.emit_module_resolution_kind();
         let esm_mode = matches!(kind, 3 | 99) && mode == ResolutionMode::EsNext;
-        let conditions = self
-            .resolution_conditions(mode)
+        let conditions = get_conditions(&self.options, mode)
             .iter()
             .map(|condition| format!("'{condition}'"))
             .collect::<Vec<_>>()
@@ -1176,35 +1175,6 @@ impl<'a> ModuleResolver<'a> {
             if esm_mode { "ESM" } else { "CJS" },
             conditions.as_str()
         );
-    }
-
-    /// tsgo `GetConditions`.
-    fn resolution_conditions(&self, mode: ResolutionMode) -> Vec<String> {
-        let kind = self.options.emit_module_resolution_kind();
-        let mode = if mode == ResolutionMode::Unspecified && kind == 100 {
-            ResolutionMode::EsNext
-        } else {
-            mode
-        };
-        let mut conditions = vec![if mode == ResolutionMode::EsNext {
-            "import".to_owned()
-        } else {
-            "require".to_owned()
-        }];
-        if self.options.no_dts_resolution != Some(true) {
-            conditions.push("types".to_owned());
-        }
-        if kind != 100 {
-            conditions.push("node".to_owned());
-        }
-        if let Some(custom) = self.options.custom_conditions.as_ref() {
-            conditions.extend(
-                custom
-                    .iter()
-                    .map(|condition| condition.as_js().to_string_lossy().into_owned()),
-            );
-        }
-        conditions
     }
 
     /// tsgo `extensions.String()` of the pass.
@@ -4072,12 +4042,7 @@ impl<'a> ModuleResolver<'a> {
                 .iter()
                 .map(|root| self.normalized_type_root(root))
                 .collect(),
-            None => Ok(ancestor_directories(&self.type_root_base_directory)
-                .into_iter()
-                .map(|ancestor| {
-                    join_normalized(&join_normalized(&ancestor, "node_modules"), "@types")
-                })
-                .collect()),
+            None => Ok(default_type_roots(&self.type_root_base_directory)),
         }
     }
 
@@ -4857,23 +4822,7 @@ impl<'a> ModuleResolver<'a> {
         let Some(Value::Object(types_versions)) = package.types_versions.as_ref() else {
             return Ok(Search::Continue);
         };
-        // tsgo GetVersionPaths: the first entry (package.json order) whose key
-        // is a range the compiler version satisfies; a key that is not a
-        // range is skipped, and a matching entry whose value is not an object
-        // leaves the package without version paths.
-        let mut selected = None;
-        for (range, paths) in json_object_entries_in_order(types_versions) {
-            let Some(satisfies) = range.as_str().and_then(compiler_version_satisfies) else {
-                continue;
-            };
-            if satisfies {
-                if let Value::Object(paths) = paths {
-                    selected = Some((range, paths));
-                }
-                break;
-            }
-        }
-        let Some((version, paths)) = selected else {
+        let Some((version, paths)) = types_versions_paths(types_versions) else {
             return Ok(Search::Continue);
         };
         trace!(
@@ -7514,6 +7463,55 @@ fn js_json_value_is_truthy(value: &Value) -> bool {
     }
 }
 
+/// tsgo `module.GetConditions`: the conditions of `exports` and `imports`
+/// for a resolution mode.
+pub fn get_conditions(options: &CompilerOptions, mode: ResolutionMode) -> Vec<String> {
+    let kind = options.emit_module_resolution_kind();
+    let mode = if mode == ResolutionMode::Unspecified && kind == 100 {
+        ResolutionMode::EsNext
+    } else {
+        mode
+    };
+    let mut conditions = vec![if mode == ResolutionMode::EsNext {
+        "import".to_owned()
+    } else {
+        "require".to_owned()
+    }];
+    if options.no_dts_resolution != Some(true) {
+        conditions.push("types".to_owned());
+    }
+    if kind != 100 {
+        conditions.push("node".to_owned());
+    }
+    if let Some(custom) = options.custom_conditions.as_ref() {
+        conditions.extend(
+            custom
+                .iter()
+                .map(|condition| condition.as_js().to_string_lossy().into_owned()),
+        );
+    }
+    conditions
+}
+
+/// tsgo `PackageJson.GetVersionPaths`: the first `typesVersions` entry
+/// (package.json order) whose key is a range the compiler version
+/// satisfies, with its paths; a key that is not a range is skipped, and a
+/// matching entry whose value is not an object leaves none.
+pub fn types_versions_paths(types_versions: &Map) -> Option<(JsStr<'_>, &Map)> {
+    for (range, paths) in json_object_entries_in_order(types_versions) {
+        let Some(satisfies) = range.as_str().and_then(compiler_version_satisfies) else {
+            continue;
+        };
+        if satisfies {
+            return match paths {
+                Value::Object(paths) => Some((range, paths)),
+                _ => None,
+            };
+        }
+    }
+    None
+}
+
 /// tsgo `TryParsePatterns` + `MatchPatternOrExact` over `GetPaths`: only the
 /// array-valued keys take part, in package.json order; a key without `*`
 /// matches exactly, a key with one `*` is a pattern (more are ignored), and
@@ -7605,7 +7603,7 @@ fn types_package_root_for_request<'p>(
 /// tsc-port: comparePatternKeys @6.0.3
 /// tsc-hash: fb7ad1b471b8e090c418cfe7c2c9a7aec4c2988b831bb272387a83f1dac8387c
 /// tsc-span: _tsc.js:41587-41598
-fn compare_pattern_keys(left: JsStr<'_>, right: JsStr<'_>) -> Ordering {
+pub fn compare_pattern_keys(left: JsStr<'_>, right: JsStr<'_>) -> Ordering {
     let left_star = left.split_once("*").map(|(prefix, _)| prefix.len_units());
     let right_star = right.split_once("*").map(|(prefix, _)| prefix.len_units());
     let left_base_length = left_star.map_or(left.len_units(), |index| index + 1);
@@ -7665,7 +7663,7 @@ fn replace_all_stars<'t, 'r>(
 
 /// The entries of a package.json object in document order (tsgo's ordered
 /// map; JavaScript's integer-key ordering does not apply).
-fn json_object_entries_in_order(object: &Map) -> impl Iterator<Item = (JsStr<'_>, &Value)> {
+pub fn json_object_entries_in_order(object: &Map) -> impl Iterator<Item = (JsStr<'_>, &Value)> {
     object
         .iter()
         .filter_map(|(key, value)| decode_user_object_key(key).map(|key| (key, value)))
@@ -8004,6 +8002,15 @@ fn is_drive_root<'p>(path: impl Into<JsStr<'p>>) -> bool {
 
 fn js_directory_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
     crate::js_path::directory_name(path.into())
+}
+
+/// tsgo `CompilerOptions.GetEffectiveTypeRoots` without configured roots:
+/// the `node_modules/@types` of the base directory and of each ancestor.
+pub fn default_type_roots<'d>(base_directory: impl Into<JsStr<'d>>) -> Vec<JsString> {
+    ancestor_directories(base_directory)
+        .into_iter()
+        .map(|ancestor| join_normalized(&join_normalized(&ancestor, "node_modules"), "@types"))
+        .collect()
 }
 
 fn ancestor_directories<'d>(directory: impl Into<JsStr<'d>>) -> Vec<JsString> {
