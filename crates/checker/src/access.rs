@@ -979,7 +979,7 @@ impl<'a> CheckerState<'a> {
         self.is_property_accessible(node, is_super, /*is_write*/ false, ty, property)
     }
 
-    pub(crate) fn is_property_accessible(
+    pub fn is_property_accessible(
         &mut self,
         node: NodeId,
         is_super: bool,

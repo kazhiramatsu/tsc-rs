@@ -13,7 +13,9 @@ use tsc_compiler::LiveProgram;
 use tsc_emitter::source_mapper::SourceMapperHost;
 use tsc_host::MemoryCompilerHost;
 use tsc_ls::lsconv::{Converters, LspLineMap};
-use tsc_ls::lsutil::{QuotePreference, UserPreferences};
+use tsc_ls::lsutil::{
+    CompletionPreferences, JsxAttributeCompletionStyle, QuotePreference, UserPreferences,
+};
 use tsc_ls::LanguageService;
 use tsc_lsproto::{
     CompletionContext, CompletionParams, CompletionTriggerKind, DocumentUri, Position,
@@ -91,17 +93,20 @@ fn completion(
         files,
         options,
         UserPreferences::default(),
+        false,
         file,
         position,
         trigger_character,
     )
 }
 
-/// [`completion`] with the user's preferences.
+/// [`completion`] with the user's preferences, for a client that takes
+/// snippets or not.
 fn completion_with(
     files: &[(&str, &str)],
     options: CompilerOptions,
     preferences: UserPreferences,
+    snippets: bool,
     file: &str,
     (line, character): (u32, u32),
     trigger_character: Option<&str>,
@@ -144,6 +149,7 @@ fn completion_with(
     completion.completion_item.commit_characters_support = true;
     completion.completion_item.insert_replace_support = true;
     completion.completion_item.preselect_support = true;
+    completion.completion_item.snippet_support = snippets;
     completion.completion_list.item_defaults =
         vec!["commitCharacters".to_owned(), "editRange".to_owned()];
     let mut service = LanguageService::new(
@@ -316,6 +322,7 @@ fn element_access_quote_preference() {
                 quote_preference: QuotePreference::SINGLE,
                 ..UserPreferences::default()
             },
+            false,
             "/completionForStringLiteral_quotePreference2.ts",
             (3, 2),
             None
@@ -1560,5 +1567,358 @@ fn literals_of_a_type_argument_element() {
         tsgo(
             r#"{"label": "undefined", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInTypeLiteralInTypeParameter21.ts", "position": 140, "name": "undefined"}}"#
         )
+    );
+}
+
+/// TestCompletionListInObjectLiteral7: in an object literal argument, the
+/// parameter type's properties.
+#[test]
+fn object_literal_properties() {
+    let files = [
+        ("/completionListInObjectLiteral7.ts", "type Foo = { foo: boolean };\nfunction f<T>(shape: Foo): any;\nfunction f<T>(shape: () => Foo): any;\nfunction f(arg: any) {\n  return arg;\n}\n\nf({  });\nf(() => ({  }));\nf(() => (({  })));"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInObjectLiteral7.ts",
+            (7, 4),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "foo", "kind": 5, "sortText": "11", "data": {"fileName": "/completionListInObjectLiteral7.ts", "position": 143, "name": "foo"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInObjectLiteral7.ts",
+            (8, 11),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "foo", "kind": 5, "sortText": "11", "data": {"fileName": "/completionListInObjectLiteral7.ts", "position": 159, "name": "foo"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInObjectLiteral7.ts",
+            (9, 12),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "foo", "kind": 5, "sortText": "11", "data": {"fileName": "/completionListInObjectLiteral7.ts", "position": 177, "name": "foo"}}]}"#
+        ),
+    );
+}
+/// TestCompletionListInObjectLiteral8: an optional property sorts after the others
+/// and is labeled with `?`.
+#[test]
+fn optional_object_literal_property() {
+    let files = [
+        ("/completionListInObjectLiteral8.ts", "declare function test<\n  Variants extends Partial<Record<'hover' | 'pressed', string>>,\n>(v: Variants): void\n\ntest({\n  hover: \"\",\n  \n});"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInObjectLiteral8.ts",
+            (6, 2),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "pressed?", "kind": 5, "sortText": "12", "filterText": "pressed", "insertText": "pressed", "data": {"fileName": "/completionListInObjectLiteral8.ts", "position": 132, "name": "pressed"}}]}"#
+        ),
+    );
+}
+/// TestCompletionListInObjectBindingPattern16: a destructured JavaScript
+/// parameter takes its type from its `@param` tag.
+#[test]
+fn binding_pattern_of_a_jsdoc_parameter() {
+    let files = [
+        ("/a.js", "/**\n * @typedef Foo\n * @property {number} a\n * @property {string} b\n */\n\n/**\n * @param {Foo} options\n */\nfunction f({  }) {}"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+            options.check_js = Some(true);
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.js", (9, 13), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "a", "kind": 5, "sortText": "11", "data": {"fileName": "/a.js", "position": 118, "name": "a"}}, {"label": "b", "kind": 5, "sortText": "11", "data": {"fileName": "/a.js", "position": 118, "name": "b"}}]}"#
+        ),
+    );
+}
+/// TestCompletionListForExportEquals2: in named imports, the module's exports and
+/// its `export =` value's properties.
+#[test]
+fn named_imports_of_an_export_equals() {
+    let files = [
+        ("/a.ts", "import {  } from \"foo\";"),
+        ("/node_modules/foo/index.d.ts", "export = Foo;\ninterface Foo { bar: number; }\ndeclare namespace Foo {\n    interface Static {}\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.ts", (0, 9), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "Static", "kind": 8, "sortText": "11", "data": {"fileName": "/a.ts", "position": 9, "name": "Static"}}, {"label": "type", "kind": 14, "sortText": "15", "data": {"fileName": "/a.ts", "position": 9, "name": "type"}}]}"#
+        ),
+    );
+}
+/// TestCompletionsGenericIndexedAccess6: a JSX element's attributes.
+#[test]
+fn jsx_attributes() {
+    let files = [
+        ("/component.tsx", "interface CustomElements {\n  'component-one': {\n      foo?: string;\n  },\n  'component-two': {\n      bar?: string;\n  }\n}\n\ntype Options<T extends keyof CustomElements> = { kind: T } & Required<{ x: CustomElements[(T extends string ? T : never) & string] }['x']>;\n\ndeclare function Component<T extends keyof CustomElements>(props: Options<T>): void;\n\nconst c = <Component  kind=\"component-one\" />"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(&files, compiler_options(), "/component.tsx", (13, 21), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "foo", "kind": 5, "sortText": "11", "data": {"fileName": "/component.tsx", "position": 369, "name": "foo"}}]}"#
+        ),
+    );
+}
+/// TestTsxCompletion10: at a closing tag, the opening tag's name.
+#[test]
+fn jsx_closing_tag() {
+    let files = [
+        ("/file.tsx", "declare namespace JSX {\n    interface Element { }\n    interface IntrinsicElements {\n        div: { ONE: string; TWO: number; }\n    }\n}\nvar x1 = <div></"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(&files, compiler_options(), "/file.tsx", (6, 16), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 6, "character": 16}, "end": {"line": 6, "character": 16}}, "replace": {"start": {"line": 6, "character": 16}, "end": {"line": 6, "character": 16}}}}, "items": [{"label": "div>", "kind": 7, "sortText": "11", "data": {"fileName": "/file.tsx", "position": 151, "name": "div>"}}]}"#
+        ),
+    );
+}
+/// TestCompletionListWithLabel: after `break` or `continue`, the labels around.
+#[test]
+fn labels() {
+    let files = [
+        ("/completionListWithLabel.ts", " label: while (true) {\n    break \n    continue \n    testlabel: while (true) {\n        break \n        continue \n        break tes\n        continue tes\n    }\n    break \n    break; \n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListWithLabel.ts",
+            (1, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "label", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 33, "name": "label"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListWithLabel.ts",
+            (2, 13),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "label", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 47, "name": "label"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListWithLabel.ts",
+            (9, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "label", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 166, "name": "label"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListWithLabel.ts",
+            (4, 14),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "testlabel", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 92, "name": "testlabel"}}, {"label": "label", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 92, "name": "label"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListWithLabel.ts",
+            (5, 17),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "testlabel", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 110, "name": "testlabel"}}, {"label": "label", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 110, "name": "label"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListWithLabel.ts",
+            (6, 17),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 6, "character": 14}, "end": {"line": 6, "character": 17}}, "replace": {"start": {"line": 6, "character": 14}, "end": {"line": 6, "character": 17}}}}, "items": [{"label": "testlabel", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 128, "name": "testlabel"}}, {"label": "label", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 128, "name": "label"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListWithLabel.ts",
+            (7, 20),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 7, "character": 17}, "end": {"line": 7, "character": 20}}, "replace": {"start": {"line": 7, "character": 17}, "end": {"line": 7, "character": 20}}}}, "items": [{"label": "testlabel", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 149, "name": "testlabel"}}, {"label": "label", "kind": 10, "sortText": "11", "data": {"fileName": "/completionListWithLabel.ts", "position": 149, "name": "label"}}]}"#
+        ),
+    );
+    let response = completion(
+        &files,
+        compiler_options(),
+        "/completionListWithLabel.ts",
+        (10, 11),
+        None,
+    );
+    assert_eq!(response["items"].as_array().map(Vec::len), Some(1075));
+    assert_eq!(
+        response["itemDefaults"],
+        tsgo(r#"{"commitCharacters": [".", ",", ";"]}"#)
+    );
+}
+/// TestCompletionListInNamedClassExpressionWithShadowing: in a class body, the
+/// class member keywords.
+#[test]
+fn class_member_keywords() {
+    let files = [
+        ("/completionListInNamedClassExpressionWithShadowing.ts", "class myClass {  }\n\nvar x = class myClass {\n   getClassName (){\n       m\n   }\n   \n}\nvar y = class {\n   getSomeName() {\n       \n   }\n   \n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInNamedClassExpressionWithShadowing.ts",
+            (0, 16),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "private", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "private"}}, {"label": "protected", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "protected"}}, {"label": "public", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "public"}}, {"label": "static", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "static"}}, {"label": "abstract", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "abstract"}}, {"label": "accessor", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "accessor"}}, {"label": "async", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "async"}}, {"label": "constructor", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "constructor"}}, {"label": "declare", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "declare"}}, {"label": "get", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "get"}}, {"label": "readonly", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "readonly"}}, {"label": "set", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "set"}}, {"label": "override", "kind": 14, "sortText": "15", "data": {"fileName": "/completionListInNamedClassExpressionWithShadowing.ts", "position": 16, "name": "override"}}]}"#
+        ),
+    );
+}
+/// TestCompletionsAfterJSDoc: in an interface body, `readonly` only.
+#[test]
+fn interface_member_keyword() {
+    let files = [(
+        "/completionsAfterJSDoc.ts",
+        "export interface Foo {\n  /** JSDoc */\n  foo(): void;\n}",
+    )];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionsAfterJSDoc.ts",
+            (2, 2),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [], "editRange": {"insert": {"start": {"line": 2, "character": 2}, "end": {"line": 2, "character": 2}}, "replace": {"start": {"line": 2, "character": 2}, "end": {"line": 2, "character": 5}}}}, "items": [{"label": "readonly", "kind": 14, "sortText": "15", "data": {"fileName": "/completionsAfterJSDoc.ts", "position": 40, "name": "readonly"}}]}"#
+        ),
+    );
+}
+/// TestCompletionListInTypeLiteralInTypeParameter8: in an object type argument, the
+/// constraint's members not written yet.
+#[test]
+fn type_argument_object_type_members() {
+    let files = [
+        ("/completionListInTypeLiteralInTypeParameter8.ts", "interface Foo {\n    one: string;\n    two: {\n        three: {\n            four: number;\n            five: string;\n        }\n    }\n}\n\ninterface Bar<T extends Foo> {\n    foo: T;\n}\n\nvar foobar: Bar<{\n    two: {\n        three: {\n            five: string,\n            \n        },\n        \n    },\n    \n}>;"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter8.ts",
+            (18, 12),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "four", "kind": 5, "sortText": "11", "data": {"fileName": "/completionListInTypeLiteralInTypeParameter8.ts", "position": 262, "name": "four"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter8.ts",
+            (20, 8),
+            None
+        ),
+        tsgo(r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": []}"#),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter8.ts",
+            (22, 4),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "one", "kind": 5, "sortText": "11", "data": {"fileName": "/completionListInTypeLiteralInTypeParameter8.ts", "position": 294, "name": "one"}}]}"#
+        ),
+    );
+}
+/// TestJsxAttributeSnippetCompletionUnclosed: with braces preferred, an attribute
+/// inserts `name={$1}`.
+#[test]
+fn jsx_attribute_snippets() {
+    let files = [
+        ("/file.tsx", "interface NestedInterface {\n    Foo: NestedInterface;\n    (props: {className?: string}): any;\n}\n\ndeclare const Foo: NestedInterface;\n\nfunction fn1() {\n    return <Foo>\n        <Foo \n    </Foo>\n}\nfunction fn2() {\n    return <Foo>\n        <Foo.Foo \n    </Foo>\n}\nfunction fn3() {\n    return <Foo>\n        <Foo.Foo cla\n    </Foo>\n}\nfunction fn4() {\n    return <Foo>\n        <Foo.Foo cla something\n    </Foo>\n}\nfunction fn5() {\n    return <Foo>\n        <Foo.Foo something \n    </Foo>\n}\nfunction fn6() {\n    return <Foo>\n        <Foo.Foo something cla\n    </Foo>\n}\nfunction fn7() {\n    return <Foo \n}\nfunction fn8() {\n    return <Foo cla\n}\nfunction fn9() {\n    return <Foo cla something\n}\nfunction fn10() {\n    return <Foo something \n}\nfunction fn11() {\n    return <Foo something cla\n}"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.strict = Some(false);
+        })
+    };
+    assert_eq!(
+        completion_with(
+            &files,
+            compiler_options(),
+            UserPreferences {
+                completion_preferences: CompletionPreferences {
+                    jsx_attribute_completion_style: JsxAttributeCompletionStyle::BRACES,
+                    ..CompletionPreferences::default()
+                },
+                ..UserPreferences::default()
+            },
+            true,
+            "/file.tsx",
+            (9, 13),
+            None,
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "className?", "kind": 5, "sortText": "12", "filterText": "className", "insertText": "className={$1}", "insertTextFormat": 2, "data": {"fileName": "/file.tsx", "position": 181, "name": "className"}}]}"#
+        ),
     );
 }

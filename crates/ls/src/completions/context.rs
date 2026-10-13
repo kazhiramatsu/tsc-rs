@@ -265,7 +265,7 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
 
     /// tsgo `Node.Type`: the type annotation (or return type) of a node.
     pub(crate) fn type_of(&self, node: NodeId) -> Option<NodeId> {
-        self.request.state.type_annotation_of(node)
+        self.request.state.type_node_of(node)
     }
 
     /// tsgo `Node.Body`.
