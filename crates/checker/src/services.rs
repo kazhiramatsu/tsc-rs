@@ -10,7 +10,7 @@ use tsc_types::{
 };
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult, CheckerState};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 
 /// tsgo `knownGenericTypeNames`.
 const KNOWN_GENERIC_TYPE_NAMES: [&str; 20] = [
@@ -142,6 +142,52 @@ impl CheckerState<'_> {
                 .set_symbol_type(self.speculation_depth, symbol, previous);
         }
         result
+    }
+
+    /// tsgo `getResolvedSignatureWorker`: a call's signature, resolved as if
+    /// it had `argument_count` arguments, and the candidates chosen from.
+    fn get_resolved_signature_worker(
+        &mut self,
+        node: NodeId,
+        check_mode: tsc_types::CheckMode,
+        argument_count: usize,
+    ) -> CheckResult<(SignatureId, Vec<SignatureId>)> {
+        self.apparent_argument_count = Some(argument_count);
+        let mut candidates = Vec::new();
+        let result = self.get_resolved_signature(node, Some(&mut candidates), check_mode);
+        self.apparent_argument_count = None;
+        Ok((result?, candidates))
+    }
+
+    /// tsgo `GetCandidateSignaturesForStringLiteralCompletions`: the
+    /// candidates of a call with the edited argument's inferences blocked,
+    /// then those with them.
+    pub fn get_candidate_signatures_for_string_literal_completions(
+        &mut self,
+        call: NodeId,
+        editing_argument: NodeId,
+    ) -> CheckResult<Vec<SignatureId>> {
+        let mut candidates: Vec<SignatureId> = self.run_with_inference_blocked_from_source_node(
+            Some(editing_argument),
+            editing_argument,
+            |state| {
+                Ok(state
+                    .get_resolved_signature_worker(call, tsc_types::CheckMode::NORMAL, 0)?
+                    .1)
+            },
+        )?;
+        let blocked = candidates.len();
+        let others = self.run_without_resolved_signature_caching(editing_argument, |state| {
+            Ok(state
+                .get_resolved_signature_worker(call, tsc_types::CheckMode::NORMAL, 0)?
+                .1)
+        })?;
+        for candidate in others {
+            if !candidates[..blocked].contains(&candidate) {
+                candidates.push(candidate);
+            }
+        }
+        Ok(candidates)
     }
 
     /// tsgo `ast.FindAncestor(node, ast.IsCallLikeOrFunctionLikeExpression)`.
@@ -447,7 +493,7 @@ impl CheckerState<'_> {
             TypeData::Literal { value } => match value {
                 LiteralValue::String(text) => format!(
                     "\"{}\"",
-                    tsc_emitter::escape_double_quoted_string(text.units())
+                    tsc_emitter::escape_string(text.units(), tsc_emitter::LiteralQuote::Double)
                 ),
                 LiteralValue::Number(value) => tsc_types::js_number_to_string(*value),
                 LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),

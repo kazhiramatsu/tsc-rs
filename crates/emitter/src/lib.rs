@@ -82,7 +82,7 @@ pub use position::{
     SourceByteRange, SourcePositionError, SourceRange, SourceUtf16Location, SourceUtf16Position,
 };
 pub use printer::{
-    create_printer, escape_double_quoted_string, PrintRequest, PrintedText, Printer, PrinterError,
+    create_printer, escape_string, LiteralQuote, PrintRequest, PrintedText, Printer, PrinterError,
     PrinterOptions, SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{

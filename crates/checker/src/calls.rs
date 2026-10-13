@@ -717,7 +717,7 @@ impl<'a> CheckerState<'a> {
     /// reachable only under experimental_decorators=true.
     fn check_decorator(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_decorator(node);
-        let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
+        let signature = self.get_resolved_signature(node, None, CheckMode::NORMAL)?;
         self.check_deprecated_signature(signature, node)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         if self.tables.flags_of(return_type).intersects(TypeFlags::ANY) {
@@ -796,6 +796,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_decorator(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         let NodeData::Decorator(data) = self.data_of(node) else {
@@ -861,6 +862,7 @@ impl<'a> CheckerState<'a> {
         self.resolve_call(
             node,
             &call_signatures,
+            candidates_out,
             check_mode,
             SignatureFlags::NONE,
             Some(head_message),
@@ -3969,6 +3971,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signatures: &[SignatureId],
+        mut candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         mut head_message: Option<&'static DiagnosticMessage>,
@@ -4001,6 +4004,12 @@ impl<'a> CheckerState<'a> {
         }
 
         let candidates = self.reorder_candidates(signatures, call_chain_flags)?;
+        // tsgo's candidatesOutArray shares the candidates' slice: the slot of
+        // the chosen or failure candidate holds its instantiation.
+        let has_candidates_out = candidates_out.is_some();
+        if let Some(out) = candidates_out.as_deref_mut() {
+            out.clone_from(&candidates);
+        }
         // tsgo resolveCall (checker.go:9048-9052): no candidate is no error
         // ("In Strada we would error here, but no known repro doesn't have at
         // least one other error in this codepath").
@@ -4082,13 +4091,24 @@ impl<'a> CheckerState<'a> {
         // resolution skips the constraint checks, so taking its signature
         // here would lose the outer one's errors.
         if let Some(result) = result {
+            if let Some(out) = candidates_out {
+                out.clone_from(&ctx.candidates);
+            }
             return Ok(result);
         }
 
         // Failure: stash the candidate BEFORE error reporting so the
         // deferred re-checks and contextual reads see its parameters
         // (76629-76630, load-bearing ordering).
-        let result = self.get_candidate_for_overload_failure(node, &mut ctx, check_mode)?;
+        let result = self.get_candidate_for_overload_failure(
+            node,
+            &mut ctx,
+            has_candidates_out,
+            check_mode,
+        )?;
+        if let Some(out) = candidates_out.as_deref_mut() {
+            out.clone_from(&ctx.candidates);
+        }
 
         // tsrs-native: candidate trials are rollback-capable because this
         // port has a typed CheckAbort exit that tsc does not. That boundary
@@ -4114,6 +4134,9 @@ impl<'a> CheckerState<'a> {
                 true,
             )?;
             if let Some(retry) = retry {
+                if let Some(out) = candidates_out {
+                    out.clone_from(&ctx.candidates);
+                }
                 return Ok(retry);
             }
         }
@@ -4124,8 +4147,8 @@ impl<'a> CheckerState<'a> {
         );
 
         // tsgo `reportErrors`: none while the language service blocks
-        // the node's inferences.
-        if !self.is_inference_partially_blocked {
+        // the node's inferences or asks for the candidates.
+        if !self.is_inference_partially_blocked && !has_candidates_out {
             if head_message.is_none() && is_instanceof {
                 head_message = Some(&diagnostics::The_left_hand_side_of_an_instanceof_expression_must_be_assignable_to_the_first_argument_of_the_right_hand_side_s_Symbol_hasInstance_method);
             }
@@ -4679,6 +4702,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         ctx: &mut ResolveCallCtx,
+        has_candidates_out: bool,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         debug_assert!(!ctx.candidates.is_empty());
@@ -4687,7 +4711,7 @@ impl<'a> CheckerState<'a> {
             .candidates
             .iter()
             .any(|&c| self.signature_of(c).type_parameters.is_some());
-        if ctx.candidates.len() == 1 || any_generic {
+        if has_candidates_out || ctx.candidates.len() == 1 || any_generic {
             self.pick_longest_candidate_signature(node, ctx, check_mode)
         } else {
             self.create_union_of_signatures_for_overload_failure(&ctx.candidates)
@@ -5569,6 +5593,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_call_expression(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
@@ -5604,6 +5629,7 @@ impl<'a> CheckerState<'a> {
                     return self.resolve_call(
                         node,
                         &base_constructors,
+                        candidates_out,
                         check_mode,
                         SignatureFlags::NONE,
                         None,
@@ -5729,7 +5755,14 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.resolving_signature);
             }
         }
-        self.resolve_call(node, &call_signatures, check_mode, call_chain_flags, None)
+        self.resolve_call(
+            node,
+            &call_signatures,
+            candidates_out,
+            check_mode,
+            call_chain_flags,
+            None,
+        )
     }
 
     /// tsc-port: isGenericFunctionReturningFunction @6.0.3
@@ -5755,6 +5788,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_new_expression(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         let NodeData::NewExpression(data) = self.data_of(node) else {
@@ -5850,6 +5884,7 @@ impl<'a> CheckerState<'a> {
             return self.resolve_call(
                 node,
                 &construct_signatures,
+                candidates_out,
                 check_mode,
                 SignatureFlags::NONE,
                 None,
@@ -5860,6 +5895,7 @@ impl<'a> CheckerState<'a> {
             let signature = self.resolve_call(
                 node,
                 &call_signatures,
+                candidates_out,
                 check_mode,
                 SignatureFlags::NONE,
                 None,
@@ -6151,6 +6187,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_jsx_opening_like_element(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
@@ -6251,7 +6288,14 @@ impl<'a> CheckerState<'a> {
             );
             return self.resolve_error_call(node);
         }
-        self.resolve_call(node, &signatures, check_mode, SignatureFlags::NONE, None)
+        self.resolve_call(
+            node,
+            &signatures,
+            candidates_out,
+            check_mode,
+            SignatureFlags::NONE,
+            None,
+        )
     }
 
     // ---- tagged templates ----
@@ -6262,6 +6306,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_tagged_template_expression(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
@@ -6307,6 +6352,7 @@ impl<'a> CheckerState<'a> {
         self.resolve_call(
             node,
             &call_signatures,
+            candidates_out,
             check_mode,
             SignatureFlags::NONE,
             None,
@@ -6328,7 +6374,7 @@ impl<'a> CheckerState<'a> {
         if !self.check_grammar_tagged_template_chain(node) {
             self.check_grammar_type_arguments(node, type_arguments);
         }
-        let signature = self.get_resolved_signature(node, check_mode)?;
+        let signature = self.get_resolved_signature(node, None, check_mode)?;
         self.check_deprecated_signature(signature, node)?;
         self.get_return_type_of_signature(signature)
     }
@@ -6365,6 +6411,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_instanceof_expression(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         let NodeData::BinaryExpression(data) = self.data_of(node) else {
@@ -6400,6 +6447,7 @@ impl<'a> CheckerState<'a> {
                     return self.resolve_call(
                         node,
                         &call_signatures,
+                        candidates_out,
                         check_mode,
                         SignatureFlags::NONE,
                         None,
@@ -6660,21 +6708,28 @@ impl<'a> CheckerState<'a> {
     fn resolve_signature_dispatch(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         match self.kind_of(node) {
-            SyntaxKind::CallExpression => self.resolve_call_expression(node, check_mode),
-            SyntaxKind::NewExpression => self.resolve_new_expression(node, check_mode),
-            SyntaxKind::TaggedTemplateExpression => {
-                self.resolve_tagged_template_expression(node, check_mode)
+            SyntaxKind::CallExpression => {
+                self.resolve_call_expression(node, candidates_out, check_mode)
             }
-            SyntaxKind::Decorator => self.resolve_decorator(node, check_mode),
+            SyntaxKind::NewExpression => {
+                self.resolve_new_expression(node, candidates_out, check_mode)
+            }
+            SyntaxKind::TaggedTemplateExpression => {
+                self.resolve_tagged_template_expression(node, candidates_out, check_mode)
+            }
+            SyntaxKind::Decorator => self.resolve_decorator(node, candidates_out, check_mode),
             SyntaxKind::JsxOpeningFragment
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::JsxSelfClosingElement => {
-                self.resolve_jsx_opening_like_element(node, check_mode)
+                self.resolve_jsx_opening_like_element(node, candidates_out, check_mode)
             }
-            SyntaxKind::BinaryExpression => self.resolve_instanceof_expression(node, check_mode),
+            SyntaxKind::BinaryExpression => {
+                self.resolve_instanceof_expression(node, candidates_out, check_mode)
+            }
             _ => panic!("Unhandled case in resolveSignature"),
         }
     }
@@ -6704,26 +6759,38 @@ impl<'a> CheckerState<'a> {
     pub fn get_resolved_signature(
         &mut self,
         node: NodeId,
+        candidates_out: Option<&mut Vec<SignatureId>>,
         check_mode: CheckMode,
     ) -> CheckResult<SignatureId> {
         self.profile_ops[crate::line_profile::OP_SIGNATURES] += 1;
         let cached = self
             .links
             .read_node(node, |links| links.resolved_signature.get());
-        if let LinkSlot::Resolved(cached) = cached {
-            return Ok(cached);
+        if let (LinkSlot::Resolved(cached), None) = (&cached, &candidates_out) {
+            return Ok(*cached);
         }
         let save_resolution_start = self.resolution_start;
         let wrote_sentinel = matches!(cached, LinkSlot::Vacant);
         if wrote_sentinel {
             self.resolution_start = self.resolution_targets.len();
         }
-        self.links.set_node_resolved_signature_call_protocol(
-            self.speculation_depth,
-            node,
-            LinkSlot::Resolving,
-        );
-        let result = self.resolve_signature_dispatch(node, check_mode);
+        // tsgo resolves a cached call again to fill the candidates output,
+        // and puts the cached signature back when it does not memoize.
+        let rerun = matches!(cached, LinkSlot::Resolved(_));
+        if rerun {
+            self.links.swap_node_resolved_signature_iife(
+                self.speculation_depth,
+                node,
+                LinkSlot::Resolving,
+            );
+        } else {
+            self.links.set_node_resolved_signature_call_protocol(
+                self.speculation_depth,
+                node,
+                LinkSlot::Resolving,
+            );
+        }
+        let result = self.resolve_signature_dispatch(node, candidates_out, check_mode);
         self.resolution_start = save_resolution_start;
         match result {
             Ok(result) => {
@@ -6753,6 +6820,12 @@ impl<'a> CheckerState<'a> {
                     );
                 } else if wrote_sentinel {
                     self.links.clear_node_resolved_signature_call(node);
+                } else if rerun {
+                    self.links.swap_node_resolved_signature_iife(
+                        self.speculation_depth,
+                        node,
+                        cached,
+                    );
                 } else {
                     self.links
                         .restore_node_resolved_signature_call_resolving(node);
@@ -6780,6 +6853,12 @@ impl<'a> CheckerState<'a> {
                     ) {
                         self.contained_call_resolutions.insert(node);
                     }
+                } else if rerun {
+                    self.links.swap_node_resolved_signature_iife(
+                        self.speculation_depth,
+                        node,
+                        cached,
+                    );
                 } else {
                     self.links
                         .restore_node_resolved_signature_call_resolving(node);
@@ -6812,7 +6891,7 @@ impl<'a> CheckerState<'a> {
             _ => unreachable!("checkCallExpression serves call/new"),
         };
         self.check_grammar_type_arguments(node, type_arguments);
-        let signature = self.get_resolved_signature(node, check_mode)?;
+        let signature = self.get_resolved_signature(node, None, check_mode)?;
         if signature == self.resolving_signature {
             // 77616-77618: the SkipGenericFunctions defer (77041, live
             // at 7.4b) — silentNever until the NORMAL-mode re-run

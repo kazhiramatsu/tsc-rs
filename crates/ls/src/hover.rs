@@ -561,9 +561,9 @@ impl<'a> Request<'_, 'a> {
                 if self.node_kind(call) == SyntaxKind::CallExpression {
                     flags |= TYPE_FORMAT_WRITE_CALL_STYLE_SIGNATURE;
                 }
-                let signature = self
-                    .state
-                    .get_resolved_signature(call, tsc_types::CheckMode::NORMAL)?;
+                let signature =
+                    self.state
+                        .get_resolved_signature(call, None, tsc_types::CheckMode::NORMAL)?;
                 self.write_signature(info, signature, container, flags, verbosity);
             } else {
                 let location = match node {
@@ -1279,9 +1279,11 @@ impl<'a> Request<'_, 'a> {
         };
         if signatures.len() > 1 || signatures.len() == 1 && generic(self.state, signatures[0]) {
             if let Some(call) = self.call_or_new_expression(node) {
-                return Ok(vec![self
-                    .state
-                    .get_resolved_signature(call, tsc_types::CheckMode::NORMAL)?]);
+                return Ok(vec![self.state.get_resolved_signature(
+                    call,
+                    None,
+                    tsc_types::CheckMode::NORMAL,
+                )?]);
             }
         }
         Ok(signatures)
