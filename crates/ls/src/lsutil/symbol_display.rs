@@ -97,6 +97,18 @@ impl ScriptElementKindModifier {
     pub const ABSTRACT: Self = Self(1 << 7);
     pub const OPTIONAL: Self = Self(1 << 8);
     pub const DEPRECATED: Self = Self(1 << 9);
+    pub const DTS: Self = Self(1 << 10);
+    pub const TS: Self = Self(1 << 11);
+    pub const TSX: Self = Self(1 << 12);
+    pub const JS: Self = Self(1 << 13);
+    pub const JSX: Self = Self(1 << 14);
+    pub const JSON: Self = Self(1 << 15);
+    pub const DMTS: Self = Self(1 << 16);
+    pub const MTS: Self = Self(1 << 17);
+    pub const MJS: Self = Self(1 << 18);
+    pub const DCTS: Self = Self(1 << 19);
+    pub const CTS: Self = Self(1 << 20);
+    pub const CJS: Self = Self(1 << 21);
 
     pub const fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0

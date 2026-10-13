@@ -1,7 +1,6 @@
 //! tsgo `ls/string_completions.go`: completions inside a string literal,
-//! from the literal types it may be or the properties it may name. The
-//! paths and module names (`getStringLiteralCompletionsFromModuleNames`,
-//! triple-slash references) are L4c-2.
+//! from the literal types it may be, the properties it may name or the
+//! paths and modules it may import (`paths.rs`).
 
 use std::collections::HashSet;
 
@@ -16,6 +15,7 @@ use crate::utilities::Touching;
 
 use super::context::{is_string_literal_like, Completions};
 use super::data::{CompletionDataData, JsxInitializer};
+use super::paths::PathCompletions;
 use super::{
     default_commit_characters, items, sort_text, ClientSupport, CompletionKind, CompletionList,
     KeywordCompletionFilters,
@@ -35,8 +35,9 @@ struct CompletionsFromProperties {
 
 /// tsgo `stringLiteralCompletions`: the kind of it that is set.
 enum StringLiteralCompletions {
-    FromTypes(CompletionsFromTypes),
-    FromProperties(CompletionsFromProperties),
+    Types(CompletionsFromTypes),
+    Properties(CompletionsFromProperties),
+    Paths(PathCompletions),
 }
 
 /// tsgo `toCompletionsFromTypes`: none for no types.
@@ -54,6 +55,10 @@ impl Completions<'_, '_, '_> {
         &mut self,
         context_token: Option<Touching>,
     ) -> CheckResult<Option<CompletionList>> {
+        if self.is_in_reference_comment() {
+            let completion = self.triple_slash_reference_completions();
+            return Ok(self.convert_path_completions(completion));
+        }
         if !self.is_in_string(self.position, context_token) {
             return Ok(None);
         }
@@ -81,7 +86,10 @@ impl Completions<'_, '_, '_> {
             .lsp_range(self.source, self.position as usize..self.position as usize)
             .start;
         match completion {
-            StringLiteralCompletions::FromProperties(completion) => {
+            StringLiteralCompletions::Paths(completion) => {
+                Ok(self.convert_path_completions(Some(completion)))
+            }
+            StringLiteralCompletions::Properties(completion) => {
                 let data = CompletionDataData {
                     symbols: completion.symbols,
                     completion_kind: CompletionKind::String,
@@ -117,7 +125,7 @@ impl Completions<'_, '_, '_> {
                     items,
                 }))
             }
-            StringLiteralCompletions::FromTypes(completion) => {
+            StringLiteralCompletions::Types(completion) => {
                 // tsgo reads the quote from the literal's value, not its
                 // text.
                 let quote = match self.data(token) {
@@ -180,9 +188,10 @@ impl Completions<'_, '_, '_> {
             NodeData::LiteralType(_) => {
                 let grandparent = self
                     .walk_up_parentheses(self.parent_of(parent).expect("a literal type's parent"));
-                // The module names of an import type (L4c-2).
                 if self.node_kind(grandparent) == SyntaxKind::ImportType {
-                    return Ok(None);
+                    return Ok(Some(StringLiteralCompletions::Paths(
+                        self.string_literal_completions_from_module_names(node)?,
+                    )));
                 }
                 self.unionable_literal_type_completions(grandparent, parent)
             }
@@ -195,7 +204,7 @@ impl Completions<'_, '_, '_> {
                     // The quoted names of the object literal's properties.
                     return Ok(self
                         .string_literal_completions_for_object_literal(object.expect("tested"))?
-                        .map(StringLiteralCompletions::FromProperties));
+                        .map(StringLiteralCompletions::Properties));
                 }
                 if self
                     .find_ancestor(object, |this, node| {
@@ -215,12 +224,12 @@ impl Completions<'_, '_, '_> {
                     )?;
                     types.extend(self.string_literal_types(contextual, &mut uniques)?);
                     return Ok(
-                        to_completions_from_types(types).map(StringLiteralCompletions::FromTypes)
+                        to_completions_from_types(types).map(StringLiteralCompletions::Types)
                     );
                 }
                 Ok(self
                     .contextual_string_literals(ContextFlags::NONE, node)?
-                    .map(StringLiteralCompletions::FromTypes))
+                    .map(StringLiteralCompletions::Types))
             }
             NodeData::ElementAccessExpression(access) => {
                 let argument = access
@@ -232,7 +241,7 @@ impl Completions<'_, '_, '_> {
                 // The names of the expression's properties.
                 let expression = access.expression.expect("an element access's expression");
                 let ty = self.request.state.get_type_at_location(expression)?;
-                Ok(Some(StringLiteralCompletions::FromProperties(
+                Ok(Some(StringLiteralCompletions::Properties(
                     self.string_literal_completions_from_properties(ty)?,
                 )))
             }
@@ -259,21 +268,23 @@ impl Completions<'_, '_, '_> {
                     info.argument_index,
                     info.argument_count,
                 )? {
-                    return Ok(Some(StringLiteralCompletions::FromTypes(result)));
+                    return Ok(Some(StringLiteralCompletions::Types(result)));
                 }
                 Ok(self
                     .contextual_string_literals(ContextFlags::NONE, node)?
-                    .map(StringLiteralCompletions::FromTypes))
+                    .map(StringLiteralCompletions::Types))
             }
-            // The module names of an import, export, `require` or
-            // `import()` (L4c-2).
+            // The known module names or a path to a module: an import, an
+            // export, `require(...)` or `import(...)`.
             NodeData::CallExpression(_)
             | NodeData::NewExpression(_)
             | NodeData::JsxAttribute(_)
             | NodeData::ImportDeclaration(_)
             | NodeData::ExportDeclaration(_)
             | NodeData::ExternalModuleReference(_)
-            | NodeData::JSDocImportTag(_) => Ok(None),
+            | NodeData::JSDocImportTag(_) => Ok(Some(StringLiteralCompletions::Paths(
+                self.string_literal_completions_from_module_names(node)?,
+            ))),
             NodeData::CaseClause(_) => {
                 let case_block = self.parent_of(parent).expect("a case clause's block");
                 let tracker = self.case_clause_tracker(case_block)?;
@@ -290,7 +301,7 @@ impl Completions<'_, '_, '_> {
                         _ => true,
                     })
                     .collect();
-                Ok(Some(StringLiteralCompletions::FromTypes(
+                Ok(Some(StringLiteralCompletions::Types(
                     CompletionsFromTypes {
                         types: literals,
                         is_new_identifier: false,
@@ -312,7 +323,7 @@ impl Completions<'_, '_, '_> {
                     .into_iter()
                     .filter(|&symbol| !self.is_private_identifier_class_element_symbol(symbol))
                     .collect();
-                Ok(Some(StringLiteralCompletions::FromProperties(
+                Ok(Some(StringLiteralCompletions::Properties(
                     CompletionsFromProperties {
                         symbols,
                         has_index_signature: false,
@@ -321,16 +332,16 @@ impl Completions<'_, '_, '_> {
             }
             NodeData::BinaryExpression(_) => Ok(self
                 .contextual_string_literals(ContextFlags::NONE, node)?
-                .map(StringLiteralCompletions::FromTypes)),
+                .map(StringLiteralCompletions::Types)),
             _ => {
                 if let Some(result) =
                     self.contextual_string_literals(ContextFlags::IGNORE_NODE_INFERENCES, node)?
                 {
-                    return Ok(Some(StringLiteralCompletions::FromTypes(result)));
+                    return Ok(Some(StringLiteralCompletions::Types(result)));
                 }
                 Ok(self
                     .contextual_string_literals(ContextFlags::NONE, node)?
-                    .map(StringLiteralCompletions::FromTypes))
+                    .map(StringLiteralCompletions::Types))
             }
         }
     }
@@ -395,7 +406,7 @@ impl Completions<'_, '_, '_> {
                 name != "default" && !existing.contains(&name)
             })
             .collect();
-        Ok(Some(StringLiteralCompletions::FromProperties(
+        Ok(Some(StringLiteralCompletions::Properties(
             CompletionsFromProperties {
                 symbols,
                 has_index_signature: false,
@@ -440,7 +451,7 @@ impl Completions<'_, '_, '_> {
                     .state
                     .get_type_argument_constraint(type_argument)?;
                 let types = self.string_literal_types(constraint, &mut HashSet::new())?;
-                Ok(Some(StringLiteralCompletions::FromTypes(
+                Ok(Some(StringLiteralCompletions::Types(
                     CompletionsFromTypes {
                         types,
                         is_new_identifier: false,
@@ -459,7 +470,7 @@ impl Completions<'_, '_, '_> {
                     return Ok(None);
                 }
                 let ty = self.request.state.get_type_from_type_node(object_type)?;
-                Ok(Some(StringLiteralCompletions::FromProperties(
+                Ok(Some(StringLiteralCompletions::Properties(
                     self.string_literal_completions_from_properties(ty)?,
                 )))
             }
@@ -473,8 +484,9 @@ impl Completions<'_, '_, '_> {
                 let already_used =
                     self.already_used_types_in_string_literal_union(grandparent, parent);
                 Ok(Some(match result {
-                    StringLiteralCompletions::FromProperties(result) => {
-                        StringLiteralCompletions::FromProperties(CompletionsFromProperties {
+                    StringLiteralCompletions::Paths(_) => return Ok(None),
+                    StringLiteralCompletions::Properties(result) => {
+                        StringLiteralCompletions::Properties(CompletionsFromProperties {
                             symbols: result
                                 .symbols
                                 .into_iter()
@@ -486,8 +498,8 @@ impl Completions<'_, '_, '_> {
                             has_index_signature: result.has_index_signature,
                         })
                     }
-                    StringLiteralCompletions::FromTypes(result) => {
-                        StringLiteralCompletions::FromTypes(CompletionsFromTypes {
+                    StringLiteralCompletions::Types(result) => {
+                        StringLiteralCompletions::Types(CompletionsFromTypes {
                             types: result
                                 .types
                                 .into_iter()
@@ -507,7 +519,7 @@ impl Completions<'_, '_, '_> {
                 let constraint =
                     self.constraint_of_type_argument_property(Touching::Node(grandparent))?;
                 let types = self.string_literal_types(constraint, &mut HashSet::new())?;
-                Ok(Some(StringLiteralCompletions::FromTypes(
+                Ok(Some(StringLiteralCompletions::Types(
                     CompletionsFromTypes {
                         types,
                         is_new_identifier: false,

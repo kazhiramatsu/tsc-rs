@@ -1207,7 +1207,7 @@ impl Completions<'_, '_, '_> {
 /// Small helpers of `getCompletionData`.
 impl Completions<'_, '_, '_> {
     /// tsgo `GetTokenAtPosition`.
-    fn token_at(&self, position: u32) -> Touching {
+    pub(super) fn token_at(&self, position: u32) -> Touching {
         crate::utilities::touching(self.navigator.token_at(position))
             .unwrap_or(Touching::Node(self.source.root))
     }
