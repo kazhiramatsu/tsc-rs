@@ -9,13 +9,13 @@ use tsc_syntax::{
 };
 use tsc_types::NodeFlags;
 
-use crate::encoder::{Tree, View};
+use crate::tree::{Tree, View};
 
 /// What a search finds: a node of tsgo's tree, or a token the tree does not
 /// keep, which tsgo's source file creates for the scanner's token (tsgo
 /// `GetOrCreateToken`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Found {
+pub enum Found {
     Node(View),
     Token(Token),
 }
@@ -23,11 +23,11 @@ pub(crate) enum Found {
 /// A token the scanner read: its kind, full start and end, and the node it
 /// was read in.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct Token {
-    pub(crate) kind: SyntaxKind,
-    pub(crate) pos: u32,
-    pub(crate) end: u32,
-    pub(crate) parent: View,
+pub struct Token {
+    pub kind: SyntaxKind,
+    pub pos: u32,
+    pub end: u32,
+    pub parent: View,
 }
 
 /// A child a visitor sees: a node, or a NodeList it takes as a whole.
@@ -42,13 +42,13 @@ enum Child {
 type IncludePrecedingToken<'f> = &'f dyn Fn(&Navigator<'_>, Found) -> bool;
 
 /// Token navigation over one source file.
-pub(crate) struct Navigator<'a> {
+pub struct Navigator<'a> {
     file: &'a SourceFile,
     tree: Tree<'a>,
 }
 
 impl<'a> Navigator<'a> {
-    pub(crate) fn new(file: &'a SourceFile) -> Self {
+    pub fn new(file: &'a SourceFile) -> Self {
         Self {
             file,
             tree: Tree::new(file, None),
@@ -57,7 +57,7 @@ impl<'a> Navigator<'a> {
 
     /// tsgo `GetTouchingPropertyName`: the token at `position`, or the
     /// property name, keyword or private identifier that ends there.
-    pub(crate) fn touching_property_name(&self, position: u32) -> Found {
+    pub fn touching_property_name(&self, position: u32) -> Found {
         self.token_at_position(
             position,
             false,
@@ -684,7 +684,7 @@ impl<'a> Navigator<'a> {
         skip_trivia_ex(text, pos as usize, options) as u32
     }
 
-    pub(crate) fn kind(&self, found: Found) -> SyntaxKind {
+    pub fn kind(&self, found: Found) -> SyntaxKind {
         match found {
             Found::Node(view) => self.view_kind(view),
             Found::Token(token) => token.kind,

@@ -10,7 +10,8 @@ of the encoder's generated tables (internal/api/encoder/encoder_generated.go:
 getNodeDataType and getChildrenPropertyMask, whose bits list each kind's
 child properties in visitor order), maps them onto tsc-rs's syntax tree
 (crates/syntax/src/kind.rs and nodes.rs) and writes
-crates/api/src/encoder/generated.rs and crates/api/src/decoder/generated.rs
+crates/ls/src/tree/generated.rs (tsgo's tree as tsc-rs presents it, shared by
+the API's encoder and the language service) and crates/api/src/decoder/generated.rs
 (the same tables read the other way); --check compares instead of writing.
 
 A tsgo property maps to the tsc-rs field of the same name in snake case
@@ -28,7 +29,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROFILE = "7.1.0-dev-aa814927"
-OUTPUT = ROOT / "crates/api/src/encoder/generated.rs"
+OUTPUT = ROOT / "crates/ls/src/tree/generated.rs"
 DECODER_OUTPUT = ROOT / "crates/api/src/decoder/generated.rs"
 
 # tsc-rs kinds whose tsgo kind has another name.
@@ -235,15 +236,15 @@ def generate(profile):
         "",
         "use super::Property;",
         "",
-        *[f"pub(crate) const KIND_{constant(name)}: u32 = {index[name]};" for name in NAMED_KINDS],
+        *[f"pub const KIND_{constant(name)}: u32 = {index[name]};" for name in NAMED_KINDS],
         "",
         "/// tsgo's `Kind.String()` of each kind number.",
-        f"pub(crate) const KIND_NAMES: [&str; {len(kinds)}] = [",
+        f"pub const KIND_NAMES: [&str; {len(kinds)}] = [",
         *[f'    "Kind{name}",' for name in kinds],
         "];",
         "",
         "/// tsgo's kind number of a tsc-rs kind (`None`: tsgo has no such kind).",
-        "pub(crate) fn tsgo_kind(kind: SyntaxKind) -> Option<u32> {",
+        "pub fn tsgo_kind(kind: SyntaxKind) -> Option<u32> {",
         "    Some(match kind {",
     ]
     for kind in port:
@@ -257,7 +258,7 @@ def generate(profile):
         by_type.setdefault(result, []).append(index[kind])
     out += [
         "/// tsgo `getNodeDataType` of a tsgo kind number.",
-        "pub(crate) fn node_data_type(kind: u32) -> u32 {",
+        "pub fn node_data_type(kind: u32) -> u32 {",
         "    match kind {",
     ]
     for result in sorted(by_type):
@@ -268,7 +269,7 @@ def generate(profile):
     out += [
         "/// The child properties tsgo's encoder visits on `node`, in visitor order",
         "/// (`getChildrenPropertyMask`'s bits); a node with none calls nothing.",
-        "pub(crate) fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {",
+        "pub fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {",
         "    match &node.data {",
     ]
     for kind in port:

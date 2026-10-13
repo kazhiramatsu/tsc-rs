@@ -8,7 +8,8 @@ use std::path::Path;
 use serde::Serialize;
 
 use super::*;
-use crate::encoder::{kind_name, tsgo_kind, ScriptKind};
+use crate::tree::{kind_name, tsgo_kind};
+use tsc_syntax::ScriptKind;
 
 const PROFILE: &str = "7.1.0-dev-aa814927";
 
@@ -45,7 +46,12 @@ fn token_info(navigator: &Navigator<'_>, found: Found) -> (String, u32, u32) {
 /// tsgo `baselineGoTokensJSON`.
 fn baseline(test_name: &str, find: impl Fn(&Navigator<'_>, u32) -> Option<Found>) {
     let text = upstream("fixtures/services/mapCode.ts");
-    let file = crate::parse_source_file("/file.ts", &text, ScriptKind::Ts);
+    // The API's created file (tsgo's zero module-indicator options).
+    let options = tsc_syntax::ParseOptions {
+        script_kind: ScriptKind::Ts,
+        ..tsc_syntax::ParseOptions::default()
+    };
+    let file = tsc_syntax::parse_source_file("/file.ts", &text, options, None);
     let navigator = Navigator::new(&file);
     let mut runs = Vec::new();
     let mut current: Option<TokenRun> = None;

@@ -28,7 +28,6 @@ use tsc_types::{
     TypeData, TypeFlags, TypeId,
 };
 
-use crate::astnav::{Found, Navigator};
 use crate::decoder::port_kind;
 use crate::encoder::{build_node_index_table, encode_node, tsgo_kind, NodeIndexTable, PositionMap};
 use crate::ipc::Payload;
@@ -41,6 +40,7 @@ use crate::symbols::{
     escape_symbol_name, file_symbol_id, record_flags, symbol_of_file_id, FileSymbols,
     SymbolResponse,
 };
+use tsc_ls::astnav::{Found, Navigator};
 
 /// A symbol's identity in a snapshot (tsgo's `*ast.Symbol`): a binder
 /// symbol by the source file whose bind created it, the same in every
