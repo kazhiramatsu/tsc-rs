@@ -369,3 +369,59 @@ tsgo の API server は `--runExternalCode` のときだけ content mapper を�
     mapper で）。
 - **LS の作業に回すもの**：client の contribution と inferred project の mapper、watch の mapper の file、`toAPITextEdits`、LS
   だけの test mapper。
+
+## C6 API（PR #771）
+
+C6a と C6b を一つの PR にした。content mapper が API server（`tsc-rs --api --runExternalCode`）で走り、project system が tsgo の
+content mapper の規則を持つ。計画で LS の作業に回した「watch の mapper の file」は、API の `updateSnapshot` の通知でも同じ
+project system の経路を通るので、この PR に入れた。
+
+- **session**：`--runExternalCode` のとき session の snapshot host が mapper の host を持ち（tsgo `newContentMapperHost`）、
+  session を閉じるときに閉じる。config は `runExternalCode` を既存の option として解析し、`contentMappers` が登録される
+  （tsgo `reloadIfNeeded`）。API の build は process を起こさない（tsgo `apiBuildSystem.Spawn` の文言）。
+- **module resolution**：snapshot の上の `resolveModuleName` は snapshot の config の mapper の拡張子で解決する（tsgo
+  `ContentMapperExtensions`）。`resolveModuleName` と `getResolvedModule` の応答に `resolvedUsingExtraExtensions`（これまでは常に
+  false）。ディレクトリからの相対名はそのディレクトリから解決する（tsgo `ResolveModuleNameFromDirectory`。これまではディレクトリ
+  を含む file のように扱い、親から解決していた）。API が作る program は inferred project の mapper（LS の client の
+  contribution）を持つので、作成途中の snapshot の拡張子は LS の作業で。
+- **project system**：configured project の program に session の host の project を付け、program と、それから reuse された
+  program が持ち、最後の snapshot と一緒に閉じる（tsgo `Snapshot.dispose`）。
+  - 変換結果の cache（tsgo `ContentMappedParseCache`）：file、元の text、transform identity で変換結果を見つけ、作り直した
+    program は mapper を呼ばずに使う。entry は program が出力を持つ間だけ生きる（program の `Arc` に従う `Weak`。tsgo は bundle
+    を取得した program を数える）。CLI は tsgo の compiler host と同じく毎回変換する。parse は document registry が transform で
+    共有する。failure stub は自分から clone された program とだけ共有する（tsgo は program ごとに作り、`ReuseProgram` は他の
+    file を引き継ぐので、別の file の編集の `changedFiles` にはその file だけが出る）。
+  - program の reuse（tsgo `ReuseProgram`）：変わった mapped file を mapper に通し直し、supplemental の出力も置き換える。変換の
+    失敗や supplemental の名前の違いは作り直しにして、loader の失敗の規則を走らせる。
+  - mapper の watch（tsgo `updateProgram`、`refreshContentMapperProjectForChanges`）：program を更新するたびに mapper の package
+    の manifest と、mapped file があるときは dynamic mapper が watch する file を記録する（使われない dynamic mapper は開かない）。
+    その file の変更・作成・削除と、多すぎる変更の batch は mapper の project を refresh して program を作り直す。manifest の変更
+    はその mapper を宣言する config を解析し直す（tsgo `contentMapperManifestPath`）。
+  - file の通知（tsgo `isRelevantFileName`）：mapper の拡張子の file と mapper が watch する file の変更を捨てない。これまでは
+    `.vue` の変更が無関係として落ち、project に届かなかった。
+- **API の層**：encoder が mapped file の欄（`originalText`、`spanMap`、`supplementalSourceFileNames`、
+  `canonicalSourceFileName`、`contentMapper`、`virtualFileName`、`diagnosticDirectives`）を tsgo の文字列表と structured data の
+  順で書く。mapped な出力の header の hash は tsgo の cache key の hash（`contentMappedParseCacheKey`：元の text と transform
+  identity の xxh3-128、既定の locale）、failure stub は 0。mapped file の symbol は snapshot の持ち物（tsgo
+  `symbolOwnerFile`）、`getCachedSourceFile` は mapped file を見つけない。
+- **test**：encoder（tsgo `TestEncodeContentMapperSourceFileMetadata`、hash は Go の probe で tsgo の xxh3 の値）、cache
+  （`TestContentMappedParseCacheBundleLifetime`）、snapshot の FS（`snapshotfs_test.go` の "preserves exact content mapper
+  dependencies"）、tsgo `project/contentmapper_test.go` の LS 以外の 10 の test（`TestContentMapperInProject` は LS の部分を除く 4 つの
+  subtest。client の file の通知を watch の event、release した snapshot を落とした snapshot として）、API の session（snapshot の symbol、TS18068、option、dynamic mapper の project の
+  close、clone での failure stub、`./app.box` の `getResolvedModule` と `resolveModuleName` は tsgo の応答）。harness に tsgo の
+  `recordingContentMapperSpawner`（CLI の system contract から移した）。
+- **API の tsgo 比較**（`--api --async --runExternalCode`、id は伏せる）：vitesse（Vue の mapper）の 14 の応答（snapshot、
+  encode した mapped file、symbol、type、診断、`.vue` と config の変更の通知）と、失敗する mapper の project の 15 の応答
+  （`resolveModuleName`、`getResolvedModule`、編集後の一度と二度に分けた `updateSnapshot` の changes）が全て同じ。この比較で
+  最後の二つ（別の file の編集の `changedFiles` の failure stub、mapped な出力の hash）を見つけた。道具は scratchpad の
+  `api_client.py`（`$write` でファイルを書く手順）と `api_compare.py`。
+- **結果**（head `8e0285f5b`、`nice -n 20`・`-j 2`・2 worker）：test 4,281 が全て通る、clippy（7 crate）は clean、suites は
+  0 regressions、full の conformance（`--workers 2 --check`、506 s）は 0 regressions で #770 の report と 15,339 の構成が全て
+  同じ。並列対照（`--checkers 4`、481 s）は記録済みの 4 構成だけ（C4b と同じ）。実プロジェクトの 4 つは CLI の 16 の比較と
+  incremental の build info の 8 の比較が全て tsgo と同じ。
+- **hosted と merge**：PR #771 の hosted run 38337456857（rust 12m12s、conformance 20m35s、gates pass、head `8e0285f5b`）、merge
+  commit `5b079ba76`。
+- **残り**：LS の部分（client の contribution と inferred project の mapper とその作成途中の解決、`RegisterContentMapperExtensions`、
+  mapper の locale、open file、`toAPITextEdits` の元の座標、LS だけの test mapper）。pretty の要約の mapped file の行の順
+  （#765 の通り）。
+- **次**：content mapper の計画は LS の部分を除いて完了。次は LSP の計画 packet。
