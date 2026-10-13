@@ -313,6 +313,7 @@ fn a_deletion_drops_the_files_no_project_read() {
             logging_enabled: false,
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
+            relative_pattern_support: false,
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,
@@ -360,7 +361,11 @@ fn a_created_path_that_was_looked_for_and_missing_dirties() {
     // each directory above it: a link created where the program looked for
     // a missing node_modules.
     let seen = SeenFiles {
-        files: ["/project/index.ts".to_owned()].into(),
+        files: [(
+            "/project/index.ts".to_owned(),
+            "/project/index.ts".to_owned(),
+        )]
+        .into(),
         missing_directories: ["/project/node_modules".to_owned()].into(),
     };
     assert!(seen.seen_file_or_missing_parent_directory("/project/node_modules"));

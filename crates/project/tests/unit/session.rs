@@ -35,6 +35,7 @@ fn setup(fs: &Arc<MemFs>) -> Session {
             logging_enabled: true,
             push_diagnostics_enabled: true,
             debounce_delay: std::time::Duration::ZERO,
+            relative_pattern_support: false,
         },
         Arc::clone(fs) as Arc<dyn FileSystem>,
         None,

@@ -361,6 +361,68 @@ fn documents_reach_the_session() {
     assert_eq!(session.finish(), Ok(()));
 }
 
+/// tsgo `WatchFiles`: with a client that registers watchers, the session's
+/// watches of an opened config's roots and program reach the client as
+/// `client/registerCapability` of `workspace/didChangeWatchedFiles`, one
+/// recursive glob of the workspace here.
+#[test]
+fn watches_reach_the_client() {
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/ws/tsconfig.json",
+                    Seed::file(r#"{"compilerOptions": {"noLib": true}, "include": ["src"]}"#),
+                ),
+                ("/ws/src/index.ts", Seed::file("export const x = 1;")),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    session.initialize(
+        serde_json::json!({
+            "processId": null, "rootUri": "file:///ws",
+            "capabilities": {"workspace": {"didChangeWatchedFiles": {"dynamicRegistration": true}}},
+        }),
+        Value::Null,
+    );
+    let open = serde_json::json!({"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": {
+        "textDocument": {"uri": "file:///ws/src/index.ts", "languageId": "typescript", "version": 1, "text": "export const x = 1;"},
+    }});
+    session.send(&open.to_string());
+    let registration = loop {
+        let text = session.receive().expect("a message");
+        let message: Value = serde_json::from_str(&text).unwrap();
+        if message["method"] != "client/registerCapability" {
+            continue;
+        }
+        let answer = serde_json::json!({"jsonrpc": "2.0", "id": message["id"], "result": null});
+        session.send(&answer.to_string());
+        break message["params"]["registrations"][0].clone();
+    };
+    assert_eq!(registration["method"], "workspace/didChangeWatchedFiles");
+    let id = registration["id"].as_str().unwrap();
+    assert!(
+        id.starts_with("root files for /ws/tsconfig.json watcher ") && id.ends_with(".0"),
+        "{id}"
+    );
+    assert_eq!(
+        registration["registerOptions"]["watchers"],
+        serde_json::json!([{"globPattern": "/ws/**/*", "kind": 7}])
+    );
+    session.send(r#"{"jsonrpc":"2.0","id":2,"method":"shutdown"}"#);
+    while let Some(text) = session.receive() {
+        if text.contains(r#""id":2"#) {
+            break;
+        }
+    }
+    session.close();
+    assert_eq!(session.finish(), Ok(()));
+}
+
 /// `exit` ends the server with tsgo's `context canceled` (the command's
 /// status 1).
 #[test]

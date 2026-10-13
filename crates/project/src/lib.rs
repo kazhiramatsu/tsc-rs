@@ -21,6 +21,7 @@ mod overlay;
 mod project;
 mod session;
 mod snapshot;
+mod watch;
 
 pub use client::{Client, Logger};
 pub use fs::FileChangeSummary;

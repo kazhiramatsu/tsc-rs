@@ -2,9 +2,14 @@
 //! and tsgo `logging.Logger`, where it logs.
 
 use tsc_compiler::locale::Locale;
+use tsc_lsproto::FileSystemWatcher;
 
 /// tsgo `Client`, as far as the session uses it so far.
 pub trait Client: Send + Sync {
+    /// tsgo `WatchFiles`: the editor watches `watchers` under `id`.
+    fn watch_files(&self, id: &str, watchers: Vec<FileSystemWatcher>) -> Result<(), String>;
+    /// tsgo `UnwatchFiles`.
+    fn unwatch_files(&self, id: &str) -> Result<(), String>;
     /// tsgo `RefreshInlayHints`: the editor asks for its inlay hints again.
     fn refresh_inlay_hints(&self) -> Result<(), String>;
     /// tsgo `RefreshCodeLens`: the editor asks for its code lenses again.
