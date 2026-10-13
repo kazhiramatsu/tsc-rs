@@ -280,3 +280,24 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 - **検査（c8fb8f871 + 8a3107fa1）**：release build、`suites_ts71.py --update` と `--check` 0 regressions、
   `lsp_transcripts.py --check` 一致、API client sync 337/356・async 346/365（変わらず）、test、clippy、fmt。compiler の経路に
   届かないので conformance は回していない。
+
+## L3b pull の診断（PR #779）
+
+- **merge**：#779 → `616f7224d`（hosted run 38392705342：rust 12m4s、conformance 29m8s、gates。一度目の run 38390971840 は
+  checker の単体 test が tsc 6.0.3 の構築 signature の文（`'(): object'`）を固定していて落ちた：tsgo は `new (): object`。七つの
+  提案を Go の probe で確かめて期待値を直した 43bbc6f71）。commit：a08c179c4、618eb8c8f、5009c3863、e47138dbf、ratchet
+  3b34134d2、43bbc6f71。
+- **言語 service**：`tsc_ls::LanguageService`（program、converters、preferences、client の capability、locale の catalog）と
+  `provide_diagnostics`（tsgo `getAllDiagnostics`：構文、意味、提案、宣言を出す時は宣言の診断）。server は tsgo の
+  `registerLanguageServiceDocumentRequestHandler`（同期の部分で既定の project、後で program に handler、panic は tsgo の
+  `recover` と同じ error、その後に checking で見つかった global の診断の push）。
+- **checker の修正**（transcript で見つかり、conformance の baseline では見えない）：object literal と JSX 属性の文脈的な非推奨、
+  構築 signature の文（`new (): C`）、JS の 2570 の関連情報、late-bound の override の名前、切り詰めの長さ、宣言の診断の範囲
+  （emitter が `get_error_span_for_node` を使う）と順、関連情報の並べ替えと統合、shard をまたぐ同じ行の重複除去。
+- **回帰 test**（利用者の指示：conformance で捕まえられない誤りは Rust の test に）：
+  `crates/compiler/tests/language_service_diagnostics.rs` の 9（8 が修正前に失敗）、shard の test 1、project の test 1。
+- **見つけた罠**：CLI の `run` が process 全体の設定（未使用の識別子の提案、JSDoc の parse mode）を変え、同じ process の後の LSP の
+  場面に漏れた（suites で 812 → 1,039）。suites の tsc の `render()` で保存と復元。設定を実行ごとにするのは後の候補。
+- **検査（3b34134d2 + 43bbc6f71）**：conformance 0 regressions（全 13,577 full）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（lsp 150 full、診断 1,039/1,043、残りは content mapper の 4 → L10）、API client sync 337/356・async 346/365、
+  test、clippy、fmt。
