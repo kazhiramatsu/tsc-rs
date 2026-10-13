@@ -349,3 +349,23 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   regressions（lsp 893 full、hover 2,325/2,455、definition・typeDefinition・診断は変わらず）、API client sync 337/356・
   async 346/365、test、clippy、fmt。
 - **有界の違い**：verbosity 1 以上（L3d-2）68、Visual Studio の `_vs_rawContent`（L3d-3）53、content mapper（L10）9。
+
+## L3d-2 hover の verbosity 1 以上（PR #782）
+
+- **merge**：#782 → `ebd61b3fb`（hosted run 38433092888：rust 9m43s、conformance 28m50s、gates）。commit：5b99c750b
+  （checker の展開）、bc85c7b40（hover）、ratchet 64b8fc669。
+- **checker**（`crates/checker/src/node_builder/hover.rs`）：tsgo `checker/nodebuilder_hover.go` と
+  `NodeBuilder.ExpandSymbolForHover`。hover が見せる宣言を直接作る：enum の member（書いた初期化子か定数値）、class の
+  member・constructor・index signature・heritage 句（class の修飾子つき）、interface の signature と property、
+  namespace の export（alias（局所の対象を先に宣言）、関数、入れ子の宣言、型 alias）。切り詰めの長さで切り、元の宣言の
+  修飾子（`export`・`declare` なし）を付ける。`CheckerState::expand_symbol_for_hover` が tsgo の `ExpandSymbolForHover`
+  と同じに印字する。
+- **言語 service**：`tryExpandSymbol` が一段下の verbosity で展開を見せ、`canIncreaseVerbosity` と切り詰めを持ち出す。
+- **回帰 test**：`crates/ls/tests/hover.rs` に 17（計 34。期待値は transcript の tsgo の答えのまま）：enum と空の enum
+  （panic していた）、class（abstract、mixin の基底、interface との統合）、interface の member の順、namespace（alias、
+  default export、型 alias、default export の関数の binding、interface・class の heritage、crash の場面）、切り詰め、
+  import attributes 付きの pattern ambient module。
+- **検査（56a630eab、main 789857f83 への rebase は packet の README だけ、ratchet 64b8fc669）**：conformance 0
+  regressions（全 13,577 full、481 s）、`--checkers 4` は既知の 4 だけ、suites 0 regressions（lsp 925 full、hover
+  2,393/2,455）、API client sync 337/356・async 346/365、test（checker 1,797、ls 61、api 295）、clippy、fmt。
+- **有界の違い**：Visual Studio の `_vs_rawContent`（L3d-3）53、content mapper（L10）9。
