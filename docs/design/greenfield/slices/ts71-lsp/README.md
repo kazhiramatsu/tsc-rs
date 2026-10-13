@@ -458,3 +458,21 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   （checker 1,797、ls 101、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：class member・object literal method・網羅的な switch の case の snippet は tsgo の formatter
   （`format.FormatNodeGivenIndentation`）を使うので L8 の後。L4c〜L4e、L5、L10。
+
+## L4c-1 文字列リテラルの completion（PR #786）
+
+- **merge**：#786 → `656b39336`（hosted run 38473329341：rust 12m37s、conformance 23m48s、gates）。commit：fddecc587
+  （checker の候補一覧）、c0aa39f9c（completion）、ratchet a510edf5a。
+- **checker**：tsgo の `candidatesOutArray`。`getResolvedSignature` は候補を求められると cache 済みの呼び出しも解決し直し、
+  `resolveCall` は候補を返し（選んだ候補・失敗の候補の位置はその instantiation。tsgo の slice の共有と同じ）、その間は
+  error を報告せず、失敗では常に最長の候補を選ぶ。`GetCandidateSignaturesForStringLiteralCompletions`（編集中の引数からの
+  推論を止めた候補、次に止めない候補）。`printer.EscapeString` は引用符を取る。
+- **言語 service**（`crates/ls/src/completions/strings.rs`）：文脈上の型のリテラル、object literal の引用符付き property 名、
+  element access と indexed access type の property 名、union（書いた member を除く）、型引数とその property、呼び出し・
+  `new`・JSX の引数（候補の引数の型。引数の数も）、case 句（書いた case を除く）、import・export specifier、`in` 演算子。
+  項目は tsgo の置き換え範囲と、literal の引用符に合わせた escape（tsgo は引用符を literal の値から読む）。
+- **回帰 test**：`crates/ls/tests/completion.rs` に 11（計 46）。
+- **検査（a510edf5a）**：conformance 0 regressions（全 13,577 full、491 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（lsp 1,592 full、completion 1,688/2,419、65 行が none→full）、API client sync 337/356・async 346/365、test
+  （checker 1,797、emitter 196、ls 112、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
+- **有界の違い**：path・module 名・triple-slash 参照（L4c-2）、snippet（L8）、L4d、L4e、L5、L10。
