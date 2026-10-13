@@ -15,7 +15,8 @@ progress on `main`; see [Compatibility](#compatibility).
 - No Node.js required.
 
 Also experimental: an [API server](#api-server-experimental) and a
-[Rust API](#rust-api-experimental). There is no language server.
+[Rust API](#rust-api-experimental). The language server is being ported:
+`tsc-rs --lsp --stdio` answers the protocol's lifecycle requests only.
 
 ## Install
 
@@ -165,7 +166,7 @@ Guide: [docs/rust-api.md](docs/rust-api.md).
 
 ## Limitations
 
-- No language server or editor integration.
+- No language features in the language server yet, so no editor integration.
 - `-b` builds projects one at a time.
 - `--diagnostics` prints fewer statistics than `tsgo`.
 - Memory grows with the number of checkers.

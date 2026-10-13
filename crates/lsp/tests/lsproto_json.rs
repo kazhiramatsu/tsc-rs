@@ -1,8 +1,8 @@
 //! tsgo `lsproto/lsp_json_test.go` and `lsp_test.go`
 //! (`TestUnmarshalCompletionItem`): the protocol types' JSON, with tsgo's
-//! inputs and error messages. `TestUnmarshalParamsRequiresParams` belongs to
-//! the base protocol's messages and `TestTryDynamicFileNameToDocumentUri` to
-//! the URIs, which come with the server.
+//! inputs and error messages. `TestUnmarshalParamsRequiresParams` is in
+//! `messages.rs`; `TestTryDynamicFileNameToDocumentUri` belongs to the URIs,
+//! which come with the session.
 
 use std::borrow::Cow;
 

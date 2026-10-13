@@ -26613,6 +26613,1815 @@ impl Decode for StringLiteralContainerElement {
     }
 }
 
+/// ResolvedChangeAnnotationsSupportOptions is a resolved version of ChangeAnnotationsSupportOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedChangeAnnotationsSupportOptions {
+    #[serde(rename = "groupsOnLabel", skip_serializing_if = "IsZero::is_zero")]
+    pub groups_on_label: bool,
+}
+
+impl IsZero for ResolvedChangeAnnotationsSupportOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedWorkspaceEditClientCapabilities is a resolved version of WorkspaceEditClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedWorkspaceEditClientCapabilities {
+    #[serde(rename = "documentChanges", skip_serializing_if = "IsZero::is_zero")]
+    pub document_changes: bool,
+    #[serde(rename = "resourceOperations", skip_serializing_if = "IsZero::is_zero")]
+    pub resource_operations: Vec<ResourceOperationKind>,
+    #[serde(rename = "failureHandling", skip_serializing_if = "IsZero::is_zero")]
+    pub failure_handling: FailureHandlingKind,
+    #[serde(
+        rename = "normalizesLineEndings",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub normalizes_line_endings: bool,
+    #[serde(
+        rename = "changeAnnotationSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub change_annotation_support: ResolvedChangeAnnotationsSupportOptions,
+    #[serde(rename = "metadataSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub metadata_support: bool,
+    #[serde(rename = "snippetEditSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub snippet_edit_support: bool,
+}
+
+impl IsZero for ResolvedWorkspaceEditClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDidChangeConfigurationClientCapabilities is a resolved version of DidChangeConfigurationClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDidChangeConfigurationClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedDidChangeConfigurationClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDidChangeWatchedFilesClientCapabilities is a resolved version of DidChangeWatchedFilesClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDidChangeWatchedFilesClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(
+        rename = "relativePatternSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub relative_pattern_support: bool,
+}
+
+impl IsZero for ResolvedDidChangeWatchedFilesClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientSymbolKindOptions is a resolved version of ClientSymbolKindOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientSymbolKindOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<SymbolKind>,
+}
+
+impl IsZero for ResolvedClientSymbolKindOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientSymbolTagOptions is a resolved version of ClientSymbolTagOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientSymbolTagOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<SymbolTag>,
+}
+
+impl IsZero for ResolvedClientSymbolTagOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientSymbolResolveOptions is a resolved version of ClientSymbolResolveOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientSymbolResolveOptions {
+    #[serde(rename = "properties", skip_serializing_if = "IsZero::is_zero")]
+    pub properties: Vec<String>,
+}
+
+impl IsZero for ResolvedClientSymbolResolveOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedWorkspaceSymbolClientCapabilities is a resolved version of WorkspaceSymbolClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities for a WorkspaceSymbolRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedWorkspaceSymbolClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "symbolKind", skip_serializing_if = "IsZero::is_zero")]
+    pub symbol_kind: ResolvedClientSymbolKindOptions,
+    #[serde(rename = "tagSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub tag_support: ResolvedClientSymbolTagOptions,
+    #[serde(rename = "resolveSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub resolve_support: ResolvedClientSymbolResolveOptions,
+}
+
+impl IsZero for ResolvedWorkspaceSymbolClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedExecuteCommandClientCapabilities is a resolved version of ExecuteCommandClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// The client capabilities of a ExecuteCommandRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedExecuteCommandClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedExecuteCommandClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedSemanticTokensWorkspaceClientCapabilities is a resolved version of SemanticTokensWorkspaceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedSemanticTokensWorkspaceClientCapabilities {
+    #[serde(rename = "refreshSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub refresh_support: bool,
+}
+
+impl IsZero for ResolvedSemanticTokensWorkspaceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCodeLensWorkspaceClientCapabilities is a resolved version of CodeLensWorkspaceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCodeLensWorkspaceClientCapabilities {
+    #[serde(rename = "refreshSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub refresh_support: bool,
+}
+
+impl IsZero for ResolvedCodeLensWorkspaceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedFileOperationClientCapabilities is a resolved version of FileOperationClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Capabilities relating to events from file operations by the user in the client.
+///
+/// These events do not come from the file system, they come from user operations
+/// like renaming a file in the UI.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedFileOperationClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "didCreate", skip_serializing_if = "IsZero::is_zero")]
+    pub did_create: bool,
+    #[serde(rename = "willCreate", skip_serializing_if = "IsZero::is_zero")]
+    pub will_create: bool,
+    #[serde(rename = "didRename", skip_serializing_if = "IsZero::is_zero")]
+    pub did_rename: bool,
+    #[serde(rename = "willRename", skip_serializing_if = "IsZero::is_zero")]
+    pub will_rename: bool,
+    #[serde(rename = "didDelete", skip_serializing_if = "IsZero::is_zero")]
+    pub did_delete: bool,
+    #[serde(rename = "willDelete", skip_serializing_if = "IsZero::is_zero")]
+    pub will_delete: bool,
+}
+
+impl IsZero for ResolvedFileOperationClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedInlineValueWorkspaceClientCapabilities is a resolved version of InlineValueWorkspaceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client workspace capabilities specific to inline values.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedInlineValueWorkspaceClientCapabilities {
+    #[serde(rename = "refreshSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub refresh_support: bool,
+}
+
+impl IsZero for ResolvedInlineValueWorkspaceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedInlayHintWorkspaceClientCapabilities is a resolved version of InlayHintWorkspaceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client workspace capabilities specific to inlay hints.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedInlayHintWorkspaceClientCapabilities {
+    #[serde(rename = "refreshSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub refresh_support: bool,
+}
+
+impl IsZero for ResolvedInlayHintWorkspaceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDiagnosticWorkspaceClientCapabilities is a resolved version of DiagnosticWorkspaceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Workspace client capabilities specific to diagnostic pull requests.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDiagnosticWorkspaceClientCapabilities {
+    #[serde(rename = "refreshSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub refresh_support: bool,
+}
+
+impl IsZero for ResolvedDiagnosticWorkspaceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedFoldingRangeWorkspaceClientCapabilities is a resolved version of FoldingRangeWorkspaceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// # Client workspace capabilities specific to folding ranges
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedFoldingRangeWorkspaceClientCapabilities {
+    #[serde(rename = "refreshSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub refresh_support: bool,
+}
+
+impl IsZero for ResolvedFoldingRangeWorkspaceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedTextDocumentContentClientCapabilities is a resolved version of TextDocumentContentClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities for a text document content provider.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedTextDocumentContentClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedTextDocumentContentClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedWorkspaceClientCapabilities is a resolved version of WorkspaceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Workspace specific client capabilities.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedWorkspaceClientCapabilities {
+    #[serde(rename = "applyEdit", skip_serializing_if = "IsZero::is_zero")]
+    pub apply_edit: bool,
+    #[serde(rename = "workspaceEdit", skip_serializing_if = "IsZero::is_zero")]
+    pub workspace_edit: ResolvedWorkspaceEditClientCapabilities,
+    #[serde(
+        rename = "didChangeConfiguration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub did_change_configuration: ResolvedDidChangeConfigurationClientCapabilities,
+    #[serde(
+        rename = "didChangeWatchedFiles",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub did_change_watched_files: ResolvedDidChangeWatchedFilesClientCapabilities,
+    #[serde(rename = "symbol", skip_serializing_if = "IsZero::is_zero")]
+    pub symbol: ResolvedWorkspaceSymbolClientCapabilities,
+    #[serde(rename = "executeCommand", skip_serializing_if = "IsZero::is_zero")]
+    pub execute_command: ResolvedExecuteCommandClientCapabilities,
+    #[serde(rename = "workspaceFolders", skip_serializing_if = "IsZero::is_zero")]
+    pub workspace_folders: bool,
+    #[serde(rename = "configuration", skip_serializing_if = "IsZero::is_zero")]
+    pub configuration: bool,
+    #[serde(rename = "semanticTokens", skip_serializing_if = "IsZero::is_zero")]
+    pub semantic_tokens: ResolvedSemanticTokensWorkspaceClientCapabilities,
+    #[serde(rename = "codeLens", skip_serializing_if = "IsZero::is_zero")]
+    pub code_lens: ResolvedCodeLensWorkspaceClientCapabilities,
+    #[serde(rename = "fileOperations", skip_serializing_if = "IsZero::is_zero")]
+    pub file_operations: ResolvedFileOperationClientCapabilities,
+    #[serde(rename = "inlineValue", skip_serializing_if = "IsZero::is_zero")]
+    pub inline_value: ResolvedInlineValueWorkspaceClientCapabilities,
+    #[serde(rename = "inlayHint", skip_serializing_if = "IsZero::is_zero")]
+    pub inlay_hint: ResolvedInlayHintWorkspaceClientCapabilities,
+    #[serde(rename = "diagnostics", skip_serializing_if = "IsZero::is_zero")]
+    pub diagnostics: ResolvedDiagnosticWorkspaceClientCapabilities,
+    #[serde(rename = "foldingRange", skip_serializing_if = "IsZero::is_zero")]
+    pub folding_range: ResolvedFoldingRangeWorkspaceClientCapabilities,
+    #[serde(
+        rename = "textDocumentContent",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub text_document_content: ResolvedTextDocumentContentClientCapabilities,
+}
+
+impl IsZero for ResolvedWorkspaceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedTextDocumentSyncClientCapabilities is a resolved version of TextDocumentSyncClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedTextDocumentSyncClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "willSave", skip_serializing_if = "IsZero::is_zero")]
+    pub will_save: bool,
+    #[serde(rename = "willSaveWaitUntil", skip_serializing_if = "IsZero::is_zero")]
+    pub will_save_wait_until: bool,
+    #[serde(rename = "didSave", skip_serializing_if = "IsZero::is_zero")]
+    pub did_save: bool,
+}
+
+impl IsZero for ResolvedTextDocumentSyncClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedTextDocumentFilterClientCapabilities is a resolved version of TextDocumentFilterClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedTextDocumentFilterClientCapabilities {
+    #[serde(
+        rename = "relativePatternSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub relative_pattern_support: bool,
+}
+
+impl IsZero for ResolvedTextDocumentFilterClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCompletionItemTagOptions is a resolved version of CompletionItemTagOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCompletionItemTagOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<CompletionItemTag>,
+}
+
+impl IsZero for ResolvedCompletionItemTagOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCompletionItemResolveOptions is a resolved version of ClientCompletionItemResolveOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCompletionItemResolveOptions {
+    #[serde(rename = "properties", skip_serializing_if = "IsZero::is_zero")]
+    pub properties: Vec<String>,
+}
+
+impl IsZero for ResolvedClientCompletionItemResolveOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCompletionItemInsertTextModeOptions is a resolved version of ClientCompletionItemInsertTextModeOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCompletionItemInsertTextModeOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<InsertTextMode>,
+}
+
+impl IsZero for ResolvedClientCompletionItemInsertTextModeOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCompletionItemOptions is a resolved version of ClientCompletionItemOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCompletionItemOptions {
+    #[serde(rename = "snippetSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub snippet_support: bool,
+    #[serde(
+        rename = "commitCharactersSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub commit_characters_support: bool,
+    #[serde(
+        rename = "documentationFormat",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub documentation_format: Vec<MarkupKind>,
+    #[serde(rename = "deprecatedSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub deprecated_support: bool,
+    #[serde(rename = "preselectSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub preselect_support: bool,
+    #[serde(rename = "tagSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub tag_support: ResolvedCompletionItemTagOptions,
+    #[serde(
+        rename = "insertReplaceSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub insert_replace_support: bool,
+    #[serde(rename = "resolveSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub resolve_support: ResolvedClientCompletionItemResolveOptions,
+    #[serde(
+        rename = "insertTextModeSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub insert_text_mode_support: ResolvedClientCompletionItemInsertTextModeOptions,
+    #[serde(
+        rename = "labelDetailsSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub label_details_support: bool,
+}
+
+impl IsZero for ResolvedClientCompletionItemOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCompletionItemOptionsKind is a resolved version of ClientCompletionItemOptionsKind with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCompletionItemOptionsKind {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<CompletionItemKind>,
+}
+
+impl IsZero for ResolvedClientCompletionItemOptionsKind {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCompletionListCapabilities is a resolved version of CompletionListCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// The client supports the following `CompletionList` specific
+/// capabilities.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCompletionListCapabilities {
+    #[serde(rename = "itemDefaults", skip_serializing_if = "IsZero::is_zero")]
+    pub item_defaults: Vec<String>,
+    #[serde(rename = "applyKindSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub apply_kind_support: bool,
+}
+
+impl IsZero for ResolvedCompletionListCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCompletionClientCapabilities is a resolved version of CompletionClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Completion client capabilities
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCompletionClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "completionItem", skip_serializing_if = "IsZero::is_zero")]
+    pub completion_item: ResolvedClientCompletionItemOptions,
+    #[serde(rename = "completionItemKind", skip_serializing_if = "IsZero::is_zero")]
+    pub completion_item_kind: ResolvedClientCompletionItemOptionsKind,
+    #[serde(rename = "insertTextMode", skip_serializing_if = "IsZero::is_zero")]
+    pub insert_text_mode: InsertTextMode,
+    #[serde(rename = "contextSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub context_support: bool,
+    #[serde(rename = "completionList", skip_serializing_if = "IsZero::is_zero")]
+    pub completion_list: ResolvedCompletionListCapabilities,
+}
+
+impl IsZero for ResolvedCompletionClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedHoverClientCapabilities is a resolved version of HoverClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedHoverClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "contentFormat", skip_serializing_if = "IsZero::is_zero")]
+    pub content_format: Vec<MarkupKind>,
+}
+
+impl IsZero for ResolvedHoverClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientSignatureParameterInformationOptions is a resolved version of ClientSignatureParameterInformationOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientSignatureParameterInformationOptions {
+    #[serde(rename = "labelOffsetSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub label_offset_support: bool,
+}
+
+impl IsZero for ResolvedClientSignatureParameterInformationOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientSignatureInformationOptions is a resolved version of ClientSignatureInformationOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientSignatureInformationOptions {
+    #[serde(
+        rename = "documentationFormat",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub documentation_format: Vec<MarkupKind>,
+    #[serde(
+        rename = "parameterInformation",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub parameter_information: ResolvedClientSignatureParameterInformationOptions,
+    #[serde(
+        rename = "activeParameterSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub active_parameter_support: bool,
+    #[serde(
+        rename = "noActiveParameterSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub no_active_parameter_support: bool,
+}
+
+impl IsZero for ResolvedClientSignatureInformationOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedSignatureHelpClientCapabilities is a resolved version of SignatureHelpClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client Capabilities for a SignatureHelpRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedSignatureHelpClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(
+        rename = "signatureInformation",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub signature_information: ResolvedClientSignatureInformationOptions,
+    #[serde(rename = "contextSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub context_support: bool,
+}
+
+impl IsZero for ResolvedSignatureHelpClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDeclarationClientCapabilities is a resolved version of DeclarationClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.14.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDeclarationClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "linkSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub link_support: bool,
+}
+
+impl IsZero for ResolvedDeclarationClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDefinitionClientCapabilities is a resolved version of DefinitionClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client Capabilities for a DefinitionRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDefinitionClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "linkSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub link_support: bool,
+}
+
+impl IsZero for ResolvedDefinitionClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedTypeDefinitionClientCapabilities is a resolved version of TypeDefinitionClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since 3.6.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedTypeDefinitionClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "linkSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub link_support: bool,
+}
+
+impl IsZero for ResolvedTypeDefinitionClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedImplementationClientCapabilities is a resolved version of ImplementationClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.6.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedImplementationClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "linkSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub link_support: bool,
+}
+
+impl IsZero for ResolvedImplementationClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedReferenceClientCapabilities is a resolved version of ReferenceClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client Capabilities for a ReferencesRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedReferenceClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedReferenceClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDocumentHighlightClientCapabilities is a resolved version of DocumentHighlightClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client Capabilities for a DocumentHighlightRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDocumentHighlightClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedDocumentHighlightClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDocumentSymbolClientCapabilities is a resolved version of DocumentSymbolClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client Capabilities for a DocumentSymbolRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDocumentSymbolClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "symbolKind", skip_serializing_if = "IsZero::is_zero")]
+    pub symbol_kind: ResolvedClientSymbolKindOptions,
+    #[serde(
+        rename = "hierarchicalDocumentSymbolSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub hierarchical_document_symbol_support: bool,
+    #[serde(rename = "tagSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub tag_support: ResolvedClientSymbolTagOptions,
+    #[serde(rename = "labelSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub label_support: bool,
+}
+
+impl IsZero for ResolvedDocumentSymbolClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCodeActionKindOptions is a resolved version of ClientCodeActionKindOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCodeActionKindOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<CodeActionKind>,
+}
+
+impl IsZero for ResolvedClientCodeActionKindOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCodeActionLiteralOptions is a resolved version of ClientCodeActionLiteralOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCodeActionLiteralOptions {
+    #[serde(rename = "codeActionKind", skip_serializing_if = "IsZero::is_zero")]
+    pub code_action_kind: ResolvedClientCodeActionKindOptions,
+}
+
+impl IsZero for ResolvedClientCodeActionLiteralOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCodeActionResolveOptions is a resolved version of ClientCodeActionResolveOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCodeActionResolveOptions {
+    #[serde(rename = "properties", skip_serializing_if = "IsZero::is_zero")]
+    pub properties: Vec<String>,
+}
+
+impl IsZero for ResolvedClientCodeActionResolveOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCodeActionTagOptions is a resolved version of CodeActionTagOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCodeActionTagOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<CodeActionTag>,
+}
+
+impl IsZero for ResolvedCodeActionTagOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCodeActionClientCapabilities is a resolved version of CodeActionClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// The Client Capabilities of a CodeActionRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCodeActionClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(
+        rename = "codeActionLiteralSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub code_action_literal_support: ResolvedClientCodeActionLiteralOptions,
+    #[serde(rename = "isPreferredSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub is_preferred_support: bool,
+    #[serde(rename = "disabledSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub disabled_support: bool,
+    #[serde(rename = "dataSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub data_support: bool,
+    #[serde(rename = "resolveSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub resolve_support: ResolvedClientCodeActionResolveOptions,
+    #[serde(
+        rename = "honorsChangeAnnotations",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub honors_change_annotations: bool,
+    #[serde(
+        rename = "documentationSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub documentation_support: bool,
+    #[serde(rename = "tagSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub tag_support: ResolvedCodeActionTagOptions,
+}
+
+impl IsZero for ResolvedCodeActionClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCodeLensResolveOptions is a resolved version of ClientCodeLensResolveOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCodeLensResolveOptions {
+    #[serde(rename = "properties", skip_serializing_if = "IsZero::is_zero")]
+    pub properties: Vec<String>,
+}
+
+impl IsZero for ResolvedClientCodeLensResolveOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCodeLensClientCapabilities is a resolved version of CodeLensClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// The client capabilities of a CodeLensRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCodeLensClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "resolveSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub resolve_support: ResolvedClientCodeLensResolveOptions,
+}
+
+impl IsZero for ResolvedCodeLensClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDocumentLinkClientCapabilities is a resolved version of DocumentLinkClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// The client capabilities of a DocumentLinkRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDocumentLinkClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "tooltipSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub tooltip_support: bool,
+}
+
+impl IsZero for ResolvedDocumentLinkClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDocumentColorClientCapabilities is a resolved version of DocumentColorClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDocumentColorClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedDocumentColorClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDocumentFormattingClientCapabilities is a resolved version of DocumentFormattingClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities of a DocumentFormattingRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDocumentFormattingClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedDocumentFormattingClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDocumentRangeFormattingClientCapabilities is a resolved version of DocumentRangeFormattingClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities of a DocumentRangeFormattingRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDocumentRangeFormattingClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "rangesSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub ranges_support: bool,
+}
+
+impl IsZero for ResolvedDocumentRangeFormattingClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDocumentOnTypeFormattingClientCapabilities is a resolved version of DocumentOnTypeFormattingClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities of a DocumentOnTypeFormattingRequest.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDocumentOnTypeFormattingClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedDocumentOnTypeFormattingClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedRenameClientCapabilities is a resolved version of RenameClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedRenameClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "prepareSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub prepare_support: bool,
+    #[serde(
+        rename = "prepareSupportDefaultBehavior",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub prepare_support_default_behavior: PrepareSupportDefaultBehavior,
+    #[serde(
+        rename = "honorsChangeAnnotations",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub honors_change_annotations: bool,
+}
+
+impl IsZero for ResolvedRenameClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientFoldingRangeKindOptions is a resolved version of ClientFoldingRangeKindOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientFoldingRangeKindOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<FoldingRangeKind>,
+}
+
+impl IsZero for ResolvedClientFoldingRangeKindOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientFoldingRangeOptions is a resolved version of ClientFoldingRangeOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientFoldingRangeOptions {
+    #[serde(rename = "collapsedText", skip_serializing_if = "IsZero::is_zero")]
+    pub collapsed_text: bool,
+}
+
+impl IsZero for ResolvedClientFoldingRangeOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedFoldingRangeClientCapabilities is a resolved version of FoldingRangeClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedFoldingRangeClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "rangeLimit", skip_serializing_if = "IsZero::is_zero")]
+    pub range_limit: u32,
+    #[serde(rename = "lineFoldingOnly", skip_serializing_if = "IsZero::is_zero")]
+    pub line_folding_only: bool,
+    #[serde(rename = "foldingRangeKind", skip_serializing_if = "IsZero::is_zero")]
+    pub folding_range_kind: ResolvedClientFoldingRangeKindOptions,
+    #[serde(rename = "foldingRange", skip_serializing_if = "IsZero::is_zero")]
+    pub folding_range: ResolvedClientFoldingRangeOptions,
+}
+
+impl IsZero for ResolvedFoldingRangeClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedSelectionRangeClientCapabilities is a resolved version of SelectionRangeClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedSelectionRangeClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedSelectionRangeClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientDiagnosticsTagOptions is a resolved version of ClientDiagnosticsTagOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientDiagnosticsTagOptions {
+    #[serde(rename = "valueSet", skip_serializing_if = "IsZero::is_zero")]
+    pub value_set: Vec<DiagnosticTag>,
+}
+
+impl IsZero for ResolvedClientDiagnosticsTagOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedPublishDiagnosticsClientCapabilities is a resolved version of PublishDiagnosticsClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// The publish diagnostic client capabilities.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedPublishDiagnosticsClientCapabilities {
+    #[serde(rename = "relatedInformation", skip_serializing_if = "IsZero::is_zero")]
+    pub related_information: bool,
+    #[serde(rename = "tagSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub tag_support: ResolvedClientDiagnosticsTagOptions,
+    #[serde(
+        rename = "codeDescriptionSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub code_description_support: bool,
+    #[serde(rename = "dataSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub data_support: bool,
+    #[serde(rename = "versionSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub version_support: bool,
+}
+
+impl IsZero for ResolvedPublishDiagnosticsClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedCallHierarchyClientCapabilities is a resolved version of CallHierarchyClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedCallHierarchyClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedCallHierarchyClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientSemanticTokensRequestOptions is a resolved version of ClientSemanticTokensRequestOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientSemanticTokensRequestOptions {
+    #[serde(rename = "range", skip_serializing_if = "IsZero::is_zero")]
+    pub range: Option<BooleanOrEmptyObject>,
+    #[serde(rename = "full", skip_serializing_if = "IsZero::is_zero")]
+    pub full: Option<BooleanOrClientSemanticTokensRequestFullDelta>,
+}
+
+impl IsZero for ResolvedClientSemanticTokensRequestOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedSemanticTokensClientCapabilities is a resolved version of SemanticTokensClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedSemanticTokensClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "requests", skip_serializing_if = "IsZero::is_zero")]
+    pub requests: ResolvedClientSemanticTokensRequestOptions,
+    #[serde(rename = "tokenTypes", skip_serializing_if = "IsZero::is_zero")]
+    pub token_types: Vec<String>,
+    #[serde(rename = "tokenModifiers", skip_serializing_if = "IsZero::is_zero")]
+    pub token_modifiers: Vec<String>,
+    #[serde(rename = "formats", skip_serializing_if = "IsZero::is_zero")]
+    pub formats: Vec<TokenFormat>,
+    #[serde(
+        rename = "overlappingTokenSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub overlapping_token_support: bool,
+    #[serde(
+        rename = "multilineTokenSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub multiline_token_support: bool,
+    #[serde(
+        rename = "serverCancelSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub server_cancel_support: bool,
+    #[serde(
+        rename = "augmentsSyntaxTokens",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub augments_syntax_tokens: bool,
+}
+
+impl IsZero for ResolvedSemanticTokensClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedLinkedEditingRangeClientCapabilities is a resolved version of LinkedEditingRangeClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities for the linked editing range request.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedLinkedEditingRangeClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedLinkedEditingRangeClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedMonikerClientCapabilities is a resolved version of MonikerClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities specific to the moniker request.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedMonikerClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedMonikerClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedTypeHierarchyClientCapabilities is a resolved version of TypeHierarchyClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedTypeHierarchyClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedTypeHierarchyClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedInlineValueClientCapabilities is a resolved version of InlineValueClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities specific to inline values.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedInlineValueClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedInlineValueClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientInlayHintResolveOptions is a resolved version of ClientInlayHintResolveOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientInlayHintResolveOptions {
+    #[serde(rename = "properties", skip_serializing_if = "IsZero::is_zero")]
+    pub properties: Vec<String>,
+}
+
+impl IsZero for ResolvedClientInlayHintResolveOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedInlayHintClientCapabilities is a resolved version of InlayHintClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Inlay hint client capabilities.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedInlayHintClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(rename = "resolveSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub resolve_support: ResolvedClientInlayHintResolveOptions,
+}
+
+impl IsZero for ResolvedInlayHintClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedDiagnosticClientCapabilities is a resolved version of DiagnosticClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities specific to diagnostic pull requests.
+///
+/// Since: 3.17.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedDiagnosticClientCapabilities {
+    #[serde(rename = "relatedInformation", skip_serializing_if = "IsZero::is_zero")]
+    pub related_information: bool,
+    #[serde(rename = "tagSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub tag_support: ResolvedClientDiagnosticsTagOptions,
+    #[serde(
+        rename = "codeDescriptionSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub code_description_support: bool,
+    #[serde(rename = "dataSupport", skip_serializing_if = "IsZero::is_zero")]
+    pub data_support: bool,
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+    #[serde(
+        rename = "relatedDocumentSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub related_document_support: bool,
+    #[serde(
+        rename = "markupMessageSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub markup_message_support: bool,
+}
+
+impl IsZero for ResolvedDiagnosticClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedInlineCompletionClientCapabilities is a resolved version of InlineCompletionClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities specific to inline completions.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedInlineCompletionClientCapabilities {
+    #[serde(
+        rename = "dynamicRegistration",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub dynamic_registration: bool,
+}
+
+impl IsZero for ResolvedInlineCompletionClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedTextDocumentClientCapabilities is a resolved version of TextDocumentClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Text document specific client capabilities.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedTextDocumentClientCapabilities {
+    #[serde(rename = "synchronization", skip_serializing_if = "IsZero::is_zero")]
+    pub synchronization: ResolvedTextDocumentSyncClientCapabilities,
+    #[serde(rename = "filters", skip_serializing_if = "IsZero::is_zero")]
+    pub filters: ResolvedTextDocumentFilterClientCapabilities,
+    #[serde(rename = "completion", skip_serializing_if = "IsZero::is_zero")]
+    pub completion: ResolvedCompletionClientCapabilities,
+    #[serde(rename = "hover", skip_serializing_if = "IsZero::is_zero")]
+    pub hover: ResolvedHoverClientCapabilities,
+    #[serde(rename = "signatureHelp", skip_serializing_if = "IsZero::is_zero")]
+    pub signature_help: ResolvedSignatureHelpClientCapabilities,
+    #[serde(rename = "declaration", skip_serializing_if = "IsZero::is_zero")]
+    pub declaration: ResolvedDeclarationClientCapabilities,
+    #[serde(rename = "definition", skip_serializing_if = "IsZero::is_zero")]
+    pub definition: ResolvedDefinitionClientCapabilities,
+    #[serde(rename = "typeDefinition", skip_serializing_if = "IsZero::is_zero")]
+    pub type_definition: ResolvedTypeDefinitionClientCapabilities,
+    #[serde(rename = "implementation", skip_serializing_if = "IsZero::is_zero")]
+    pub implementation: ResolvedImplementationClientCapabilities,
+    #[serde(rename = "references", skip_serializing_if = "IsZero::is_zero")]
+    pub references: ResolvedReferenceClientCapabilities,
+    #[serde(rename = "documentHighlight", skip_serializing_if = "IsZero::is_zero")]
+    pub document_highlight: ResolvedDocumentHighlightClientCapabilities,
+    #[serde(rename = "documentSymbol", skip_serializing_if = "IsZero::is_zero")]
+    pub document_symbol: ResolvedDocumentSymbolClientCapabilities,
+    #[serde(rename = "codeAction", skip_serializing_if = "IsZero::is_zero")]
+    pub code_action: ResolvedCodeActionClientCapabilities,
+    #[serde(rename = "codeLens", skip_serializing_if = "IsZero::is_zero")]
+    pub code_lens: ResolvedCodeLensClientCapabilities,
+    #[serde(rename = "documentLink", skip_serializing_if = "IsZero::is_zero")]
+    pub document_link: ResolvedDocumentLinkClientCapabilities,
+    #[serde(rename = "colorProvider", skip_serializing_if = "IsZero::is_zero")]
+    pub color_provider: ResolvedDocumentColorClientCapabilities,
+    #[serde(rename = "formatting", skip_serializing_if = "IsZero::is_zero")]
+    pub formatting: ResolvedDocumentFormattingClientCapabilities,
+    #[serde(rename = "rangeFormatting", skip_serializing_if = "IsZero::is_zero")]
+    pub range_formatting: ResolvedDocumentRangeFormattingClientCapabilities,
+    #[serde(rename = "onTypeFormatting", skip_serializing_if = "IsZero::is_zero")]
+    pub on_type_formatting: ResolvedDocumentOnTypeFormattingClientCapabilities,
+    #[serde(rename = "rename", skip_serializing_if = "IsZero::is_zero")]
+    pub rename: ResolvedRenameClientCapabilities,
+    #[serde(rename = "foldingRange", skip_serializing_if = "IsZero::is_zero")]
+    pub folding_range: ResolvedFoldingRangeClientCapabilities,
+    #[serde(rename = "selectionRange", skip_serializing_if = "IsZero::is_zero")]
+    pub selection_range: ResolvedSelectionRangeClientCapabilities,
+    #[serde(rename = "publishDiagnostics", skip_serializing_if = "IsZero::is_zero")]
+    pub publish_diagnostics: ResolvedPublishDiagnosticsClientCapabilities,
+    #[serde(rename = "callHierarchy", skip_serializing_if = "IsZero::is_zero")]
+    pub call_hierarchy: ResolvedCallHierarchyClientCapabilities,
+    #[serde(rename = "semanticTokens", skip_serializing_if = "IsZero::is_zero")]
+    pub semantic_tokens: ResolvedSemanticTokensClientCapabilities,
+    #[serde(rename = "linkedEditingRange", skip_serializing_if = "IsZero::is_zero")]
+    pub linked_editing_range: ResolvedLinkedEditingRangeClientCapabilities,
+    #[serde(rename = "moniker", skip_serializing_if = "IsZero::is_zero")]
+    pub moniker: ResolvedMonikerClientCapabilities,
+    #[serde(rename = "typeHierarchy", skip_serializing_if = "IsZero::is_zero")]
+    pub type_hierarchy: ResolvedTypeHierarchyClientCapabilities,
+    #[serde(rename = "inlineValue", skip_serializing_if = "IsZero::is_zero")]
+    pub inline_value: ResolvedInlineValueClientCapabilities,
+    #[serde(rename = "inlayHint", skip_serializing_if = "IsZero::is_zero")]
+    pub inlay_hint: ResolvedInlayHintClientCapabilities,
+    #[serde(rename = "diagnostic", skip_serializing_if = "IsZero::is_zero")]
+    pub diagnostic: ResolvedDiagnosticClientCapabilities,
+    #[serde(rename = "inlineCompletion", skip_serializing_if = "IsZero::is_zero")]
+    pub inline_completion: ResolvedInlineCompletionClientCapabilities,
+}
+
+impl IsZero for ResolvedTextDocumentClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientShowMessageActionItemOptions is a resolved version of ClientShowMessageActionItemOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientShowMessageActionItemOptions {
+    #[serde(
+        rename = "additionalPropertiesSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub additional_properties_support: bool,
+}
+
+impl IsZero for ResolvedClientShowMessageActionItemOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedShowMessageRequestClientCapabilities is a resolved version of ShowMessageRequestClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Show message request client capabilities
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedShowMessageRequestClientCapabilities {
+    #[serde(rename = "messageActionItem", skip_serializing_if = "IsZero::is_zero")]
+    pub message_action_item: ResolvedClientShowMessageActionItemOptions,
+}
+
+impl IsZero for ResolvedShowMessageRequestClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedShowDocumentClientCapabilities is a resolved version of ShowDocumentClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities for the showDocument request.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedShowDocumentClientCapabilities {
+    #[serde(rename = "support", skip_serializing_if = "IsZero::is_zero")]
+    pub support: bool,
+}
+
+impl IsZero for ResolvedShowDocumentClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedWindowClientCapabilities is a resolved version of WindowClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedWindowClientCapabilities {
+    #[serde(rename = "workDoneProgress", skip_serializing_if = "IsZero::is_zero")]
+    pub work_done_progress: bool,
+    #[serde(rename = "showMessage", skip_serializing_if = "IsZero::is_zero")]
+    pub show_message: ResolvedShowMessageRequestClientCapabilities,
+    #[serde(rename = "showDocument", skip_serializing_if = "IsZero::is_zero")]
+    pub show_document: ResolvedShowDocumentClientCapabilities,
+}
+
+impl IsZero for ResolvedWindowClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedStaleRequestSupportOptions is a resolved version of StaleRequestSupportOptions with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Since: 3.18.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedStaleRequestSupportOptions {
+    #[serde(rename = "cancel", skip_serializing_if = "IsZero::is_zero")]
+    pub cancel: bool,
+    #[serde(
+        rename = "retryOnContentModified",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub retry_on_content_modified: Vec<String>,
+}
+
+impl IsZero for ResolvedStaleRequestSupportOptions {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedRegularExpressionsClientCapabilities is a resolved version of RegularExpressionsClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities specific to regular expressions.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedRegularExpressionsClientCapabilities {
+    #[serde(rename = "engine", skip_serializing_if = "IsZero::is_zero")]
+    pub engine: String,
+    #[serde(rename = "version", skip_serializing_if = "IsZero::is_zero")]
+    pub version: String,
+}
+
+impl IsZero for ResolvedRegularExpressionsClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedMarkdownClientCapabilities is a resolved version of MarkdownClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// Client capabilities specific to the used markdown parser.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedMarkdownClientCapabilities {
+    #[serde(rename = "parser", skip_serializing_if = "IsZero::is_zero")]
+    pub parser: String,
+    #[serde(rename = "version", skip_serializing_if = "IsZero::is_zero")]
+    pub version: String,
+    #[serde(rename = "allowedTags", skip_serializing_if = "IsZero::is_zero")]
+    pub allowed_tags: Vec<String>,
+}
+
+impl IsZero for ResolvedMarkdownClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedGeneralClientCapabilities is a resolved version of GeneralClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// General client capabilities.
+///
+/// Since: 3.16.0
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedGeneralClientCapabilities {
+    #[serde(
+        rename = "staleRequestSupport",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub stale_request_support: ResolvedStaleRequestSupportOptions,
+    #[serde(rename = "regularExpressions", skip_serializing_if = "IsZero::is_zero")]
+    pub regular_expressions: ResolvedRegularExpressionsClientCapabilities,
+    #[serde(rename = "markdown", skip_serializing_if = "IsZero::is_zero")]
+    pub markdown: ResolvedMarkdownClientCapabilities,
+    #[serde(rename = "positionEncodings", skip_serializing_if = "IsZero::is_zero")]
+    pub position_encodings: Vec<PositionEncodingKind>,
+}
+
+impl IsZero for ResolvedGeneralClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedExperimentalClientCapabilities is a resolved version of ExperimentalClientCapabilities with all optional fields
+/// converted to non-pointer values for easier access.
+///
+/// ExperimentalClientCapabilities contains experimental capabilities under development.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedExperimentalClientCapabilities {
+    #[serde(
+        rename = "hoverVerbosityLevel",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub hover_verbosity_level: bool,
+}
+
+impl IsZero for ResolvedExperimentalClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// ResolvedClientCapabilities is a version of ClientCapabilities where all nested
+/// fields are values (not pointers), making it easier to access deeply nested capabilities.
+/// Use (*ClientCapabilities).Resolve() to convert from ClientCapabilities.
+///
+/// Defines the capabilities provided by the client.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct ResolvedClientCapabilities {
+    #[serde(rename = "workspace", skip_serializing_if = "IsZero::is_zero")]
+    pub workspace: ResolvedWorkspaceClientCapabilities,
+    #[serde(rename = "textDocument", skip_serializing_if = "IsZero::is_zero")]
+    pub text_document: ResolvedTextDocumentClientCapabilities,
+    #[serde(rename = "window", skip_serializing_if = "IsZero::is_zero")]
+    pub window: ResolvedWindowClientCapabilities,
+    #[serde(rename = "general", skip_serializing_if = "IsZero::is_zero")]
+    pub general: ResolvedGeneralClientCapabilities,
+    #[serde(rename = "experimental", skip_serializing_if = "IsZero::is_zero")]
+    pub experimental: ResolvedExperimentalClientCapabilities,
+    #[serde(
+        rename = "_vs_supportsVisualStudioExtensions",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub _vs_supports_visual_studio_extensions: bool,
+    #[serde(
+        rename = "_vs_supportedSnippetVersion",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub _vs_supported_snippet_version: i32,
+    #[serde(
+        rename = "_vs_supportsNotIncludingTextInTextDocumentDidOpen",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub _vs_supports_not_including_text_in_text_document_did_open: bool,
+    #[serde(
+        rename = "_vs_supportsIconExtensions",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub _vs_supports_icon_extensions: bool,
+    #[serde(
+        rename = "_vs_supportsDiagnosticRequests",
+        skip_serializing_if = "IsZero::is_zero"
+    )]
+    pub _vs_supports_diagnostic_requests: bool,
+}
+
+impl IsZero for ResolvedClientCapabilities {
+    fn is_zero(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
 /// The protocol's method names (tsgo's `Method` constants).
 pub mod method {
     /// A request to resolve the implementation locations of a symbol at a given text
@@ -28314,5 +30123,1209 @@ impl HasTextDocumentPosition for TypeHierarchyPrepareParams {
 impl HasTextDocumentPosition for VSOnAutoInsertParams {
     fn text_document_position(&self) -> Position {
         self._vs_position.clone()
+    }
+}
+
+impl ClientCapabilities {
+    /// tsgo `Resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCapabilities {
+        ResolvedClientCapabilities {
+            workspace: self
+                .workspace
+                .as_ref()
+                .map(WorkspaceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            text_document: self
+                .text_document
+                .as_ref()
+                .map(TextDocumentClientCapabilities::resolve)
+                .unwrap_or_default(),
+            window: self
+                .window
+                .as_ref()
+                .map(WindowClientCapabilities::resolve)
+                .unwrap_or_default(),
+            general: self
+                .general
+                .as_ref()
+                .map(GeneralClientCapabilities::resolve)
+                .unwrap_or_default(),
+            experimental: self
+                .experimental
+                .as_ref()
+                .map(ExperimentalClientCapabilities::resolve)
+                .unwrap_or_default(),
+            _vs_supports_visual_studio_extensions: self
+                ._vs_supports_visual_studio_extensions
+                .clone()
+                .unwrap_or_default(),
+            _vs_supported_snippet_version: self
+                ._vs_supported_snippet_version
+                .clone()
+                .unwrap_or_default(),
+            _vs_supports_not_including_text_in_text_document_did_open: self
+                ._vs_supports_not_including_text_in_text_document_did_open
+                .clone()
+                .unwrap_or_default(),
+            _vs_supports_icon_extensions: self
+                ._vs_supports_icon_extensions
+                .clone()
+                .unwrap_or_default(),
+            _vs_supports_diagnostic_requests: self
+                ._vs_supports_diagnostic_requests
+                .clone()
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl WorkspaceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedWorkspaceClientCapabilities {
+        ResolvedWorkspaceClientCapabilities {
+            apply_edit: self.apply_edit.clone().unwrap_or_default(),
+            workspace_edit: self
+                .workspace_edit
+                .as_ref()
+                .map(WorkspaceEditClientCapabilities::resolve)
+                .unwrap_or_default(),
+            did_change_configuration: self
+                .did_change_configuration
+                .as_ref()
+                .map(DidChangeConfigurationClientCapabilities::resolve)
+                .unwrap_or_default(),
+            did_change_watched_files: self
+                .did_change_watched_files
+                .as_ref()
+                .map(DidChangeWatchedFilesClientCapabilities::resolve)
+                .unwrap_or_default(),
+            symbol: self
+                .symbol
+                .as_ref()
+                .map(WorkspaceSymbolClientCapabilities::resolve)
+                .unwrap_or_default(),
+            execute_command: self
+                .execute_command
+                .as_ref()
+                .map(ExecuteCommandClientCapabilities::resolve)
+                .unwrap_or_default(),
+            workspace_folders: self.workspace_folders.clone().unwrap_or_default(),
+            configuration: self.configuration.clone().unwrap_or_default(),
+            semantic_tokens: self
+                .semantic_tokens
+                .as_ref()
+                .map(SemanticTokensWorkspaceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            code_lens: self
+                .code_lens
+                .as_ref()
+                .map(CodeLensWorkspaceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            file_operations: self
+                .file_operations
+                .as_ref()
+                .map(FileOperationClientCapabilities::resolve)
+                .unwrap_or_default(),
+            inline_value: self
+                .inline_value
+                .as_ref()
+                .map(InlineValueWorkspaceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            inlay_hint: self
+                .inlay_hint
+                .as_ref()
+                .map(InlayHintWorkspaceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            diagnostics: self
+                .diagnostics
+                .as_ref()
+                .map(DiagnosticWorkspaceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            folding_range: self
+                .folding_range
+                .as_ref()
+                .map(FoldingRangeWorkspaceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            text_document_content: self
+                .text_document_content
+                .as_ref()
+                .map(TextDocumentContentClientCapabilities::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl TextDocumentClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedTextDocumentClientCapabilities {
+        ResolvedTextDocumentClientCapabilities {
+            synchronization: self
+                .synchronization
+                .as_ref()
+                .map(TextDocumentSyncClientCapabilities::resolve)
+                .unwrap_or_default(),
+            filters: self
+                .filters
+                .as_ref()
+                .map(TextDocumentFilterClientCapabilities::resolve)
+                .unwrap_or_default(),
+            completion: self
+                .completion
+                .as_ref()
+                .map(CompletionClientCapabilities::resolve)
+                .unwrap_or_default(),
+            hover: self
+                .hover
+                .as_ref()
+                .map(HoverClientCapabilities::resolve)
+                .unwrap_or_default(),
+            signature_help: self
+                .signature_help
+                .as_ref()
+                .map(SignatureHelpClientCapabilities::resolve)
+                .unwrap_or_default(),
+            declaration: self
+                .declaration
+                .as_ref()
+                .map(DeclarationClientCapabilities::resolve)
+                .unwrap_or_default(),
+            definition: self
+                .definition
+                .as_ref()
+                .map(DefinitionClientCapabilities::resolve)
+                .unwrap_or_default(),
+            type_definition: self
+                .type_definition
+                .as_ref()
+                .map(TypeDefinitionClientCapabilities::resolve)
+                .unwrap_or_default(),
+            implementation: self
+                .implementation
+                .as_ref()
+                .map(ImplementationClientCapabilities::resolve)
+                .unwrap_or_default(),
+            references: self
+                .references
+                .as_ref()
+                .map(ReferenceClientCapabilities::resolve)
+                .unwrap_or_default(),
+            document_highlight: self
+                .document_highlight
+                .as_ref()
+                .map(DocumentHighlightClientCapabilities::resolve)
+                .unwrap_or_default(),
+            document_symbol: self
+                .document_symbol
+                .as_ref()
+                .map(DocumentSymbolClientCapabilities::resolve)
+                .unwrap_or_default(),
+            code_action: self
+                .code_action
+                .as_ref()
+                .map(CodeActionClientCapabilities::resolve)
+                .unwrap_or_default(),
+            code_lens: self
+                .code_lens
+                .as_ref()
+                .map(CodeLensClientCapabilities::resolve)
+                .unwrap_or_default(),
+            document_link: self
+                .document_link
+                .as_ref()
+                .map(DocumentLinkClientCapabilities::resolve)
+                .unwrap_or_default(),
+            color_provider: self
+                .color_provider
+                .as_ref()
+                .map(DocumentColorClientCapabilities::resolve)
+                .unwrap_or_default(),
+            formatting: self
+                .formatting
+                .as_ref()
+                .map(DocumentFormattingClientCapabilities::resolve)
+                .unwrap_or_default(),
+            range_formatting: self
+                .range_formatting
+                .as_ref()
+                .map(DocumentRangeFormattingClientCapabilities::resolve)
+                .unwrap_or_default(),
+            on_type_formatting: self
+                .on_type_formatting
+                .as_ref()
+                .map(DocumentOnTypeFormattingClientCapabilities::resolve)
+                .unwrap_or_default(),
+            rename: self
+                .rename
+                .as_ref()
+                .map(RenameClientCapabilities::resolve)
+                .unwrap_or_default(),
+            folding_range: self
+                .folding_range
+                .as_ref()
+                .map(FoldingRangeClientCapabilities::resolve)
+                .unwrap_or_default(),
+            selection_range: self
+                .selection_range
+                .as_ref()
+                .map(SelectionRangeClientCapabilities::resolve)
+                .unwrap_or_default(),
+            publish_diagnostics: self
+                .publish_diagnostics
+                .as_ref()
+                .map(PublishDiagnosticsClientCapabilities::resolve)
+                .unwrap_or_default(),
+            call_hierarchy: self
+                .call_hierarchy
+                .as_ref()
+                .map(CallHierarchyClientCapabilities::resolve)
+                .unwrap_or_default(),
+            semantic_tokens: self
+                .semantic_tokens
+                .as_ref()
+                .map(SemanticTokensClientCapabilities::resolve)
+                .unwrap_or_default(),
+            linked_editing_range: self
+                .linked_editing_range
+                .as_ref()
+                .map(LinkedEditingRangeClientCapabilities::resolve)
+                .unwrap_or_default(),
+            moniker: self
+                .moniker
+                .as_ref()
+                .map(MonikerClientCapabilities::resolve)
+                .unwrap_or_default(),
+            type_hierarchy: self
+                .type_hierarchy
+                .as_ref()
+                .map(TypeHierarchyClientCapabilities::resolve)
+                .unwrap_or_default(),
+            inline_value: self
+                .inline_value
+                .as_ref()
+                .map(InlineValueClientCapabilities::resolve)
+                .unwrap_or_default(),
+            inlay_hint: self
+                .inlay_hint
+                .as_ref()
+                .map(InlayHintClientCapabilities::resolve)
+                .unwrap_or_default(),
+            diagnostic: self
+                .diagnostic
+                .as_ref()
+                .map(DiagnosticClientCapabilities::resolve)
+                .unwrap_or_default(),
+            inline_completion: self
+                .inline_completion
+                .as_ref()
+                .map(InlineCompletionClientCapabilities::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl WindowClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedWindowClientCapabilities {
+        ResolvedWindowClientCapabilities {
+            work_done_progress: self.work_done_progress.clone().unwrap_or_default(),
+            show_message: self
+                .show_message
+                .as_ref()
+                .map(ShowMessageRequestClientCapabilities::resolve)
+                .unwrap_or_default(),
+            show_document: self
+                .show_document
+                .as_ref()
+                .map(ShowDocumentClientCapabilities::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl GeneralClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedGeneralClientCapabilities {
+        ResolvedGeneralClientCapabilities {
+            stale_request_support: self
+                .stale_request_support
+                .as_ref()
+                .map(StaleRequestSupportOptions::resolve)
+                .unwrap_or_default(),
+            regular_expressions: self
+                .regular_expressions
+                .as_ref()
+                .map(RegularExpressionsClientCapabilities::resolve)
+                .unwrap_or_default(),
+            markdown: self
+                .markdown
+                .as_ref()
+                .map(MarkdownClientCapabilities::resolve)
+                .unwrap_or_default(),
+            position_encodings: self.position_encodings.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl WorkspaceEditClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedWorkspaceEditClientCapabilities {
+        ResolvedWorkspaceEditClientCapabilities {
+            document_changes: self.document_changes.clone().unwrap_or_default(),
+            resource_operations: self.resource_operations.clone().unwrap_or_default(),
+            failure_handling: self.failure_handling.clone().unwrap_or_default(),
+            normalizes_line_endings: self.normalizes_line_endings.clone().unwrap_or_default(),
+            change_annotation_support: self
+                .change_annotation_support
+                .as_ref()
+                .map(ChangeAnnotationsSupportOptions::resolve)
+                .unwrap_or_default(),
+            metadata_support: self.metadata_support.clone().unwrap_or_default(),
+            snippet_edit_support: self.snippet_edit_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DidChangeConfigurationClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDidChangeConfigurationClientCapabilities {
+        ResolvedDidChangeConfigurationClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DidChangeWatchedFilesClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDidChangeWatchedFilesClientCapabilities {
+        ResolvedDidChangeWatchedFilesClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            relative_pattern_support: self.relative_pattern_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl WorkspaceSymbolClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedWorkspaceSymbolClientCapabilities {
+        ResolvedWorkspaceSymbolClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            symbol_kind: self
+                .symbol_kind
+                .as_ref()
+                .map(ClientSymbolKindOptions::resolve)
+                .unwrap_or_default(),
+            tag_support: self
+                .tag_support
+                .as_ref()
+                .map(ClientSymbolTagOptions::resolve)
+                .unwrap_or_default(),
+            resolve_support: self
+                .resolve_support
+                .as_ref()
+                .map(ClientSymbolResolveOptions::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl ExecuteCommandClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedExecuteCommandClientCapabilities {
+        ResolvedExecuteCommandClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl SemanticTokensWorkspaceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedSemanticTokensWorkspaceClientCapabilities {
+        ResolvedSemanticTokensWorkspaceClientCapabilities {
+            refresh_support: self.refresh_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl CodeLensWorkspaceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCodeLensWorkspaceClientCapabilities {
+        ResolvedCodeLensWorkspaceClientCapabilities {
+            refresh_support: self.refresh_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl FileOperationClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedFileOperationClientCapabilities {
+        ResolvedFileOperationClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            did_create: self.did_create.clone().unwrap_or_default(),
+            will_create: self.will_create.clone().unwrap_or_default(),
+            did_rename: self.did_rename.clone().unwrap_or_default(),
+            will_rename: self.will_rename.clone().unwrap_or_default(),
+            did_delete: self.did_delete.clone().unwrap_or_default(),
+            will_delete: self.will_delete.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl InlineValueWorkspaceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedInlineValueWorkspaceClientCapabilities {
+        ResolvedInlineValueWorkspaceClientCapabilities {
+            refresh_support: self.refresh_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl InlayHintWorkspaceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedInlayHintWorkspaceClientCapabilities {
+        ResolvedInlayHintWorkspaceClientCapabilities {
+            refresh_support: self.refresh_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DiagnosticWorkspaceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDiagnosticWorkspaceClientCapabilities {
+        ResolvedDiagnosticWorkspaceClientCapabilities {
+            refresh_support: self.refresh_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl FoldingRangeWorkspaceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedFoldingRangeWorkspaceClientCapabilities {
+        ResolvedFoldingRangeWorkspaceClientCapabilities {
+            refresh_support: self.refresh_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl TextDocumentContentClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedTextDocumentContentClientCapabilities {
+        ResolvedTextDocumentContentClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl TextDocumentSyncClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedTextDocumentSyncClientCapabilities {
+        ResolvedTextDocumentSyncClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            will_save: self.will_save.clone().unwrap_or_default(),
+            will_save_wait_until: self.will_save_wait_until.clone().unwrap_or_default(),
+            did_save: self.did_save.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl TextDocumentFilterClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedTextDocumentFilterClientCapabilities {
+        ResolvedTextDocumentFilterClientCapabilities {
+            relative_pattern_support: self.relative_pattern_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl CompletionClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCompletionClientCapabilities {
+        ResolvedCompletionClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            completion_item: self
+                .completion_item
+                .as_ref()
+                .map(ClientCompletionItemOptions::resolve)
+                .unwrap_or_default(),
+            completion_item_kind: self
+                .completion_item_kind
+                .as_ref()
+                .map(ClientCompletionItemOptionsKind::resolve)
+                .unwrap_or_default(),
+            insert_text_mode: self.insert_text_mode.clone().unwrap_or_default(),
+            context_support: self.context_support.clone().unwrap_or_default(),
+            completion_list: self
+                .completion_list
+                .as_ref()
+                .map(CompletionListCapabilities::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl HoverClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedHoverClientCapabilities {
+        ResolvedHoverClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            content_format: self.content_format.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl SignatureHelpClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedSignatureHelpClientCapabilities {
+        ResolvedSignatureHelpClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            signature_information: self
+                .signature_information
+                .as_ref()
+                .map(ClientSignatureInformationOptions::resolve)
+                .unwrap_or_default(),
+            context_support: self.context_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DeclarationClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDeclarationClientCapabilities {
+        ResolvedDeclarationClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            link_support: self.link_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DefinitionClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDefinitionClientCapabilities {
+        ResolvedDefinitionClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            link_support: self.link_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl TypeDefinitionClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedTypeDefinitionClientCapabilities {
+        ResolvedTypeDefinitionClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            link_support: self.link_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ImplementationClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedImplementationClientCapabilities {
+        ResolvedImplementationClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            link_support: self.link_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ReferenceClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedReferenceClientCapabilities {
+        ResolvedReferenceClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DocumentHighlightClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDocumentHighlightClientCapabilities {
+        ResolvedDocumentHighlightClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DocumentSymbolClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDocumentSymbolClientCapabilities {
+        ResolvedDocumentSymbolClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            symbol_kind: self
+                .symbol_kind
+                .as_ref()
+                .map(ClientSymbolKindOptions::resolve)
+                .unwrap_or_default(),
+            hierarchical_document_symbol_support: self
+                .hierarchical_document_symbol_support
+                .clone()
+                .unwrap_or_default(),
+            tag_support: self
+                .tag_support
+                .as_ref()
+                .map(ClientSymbolTagOptions::resolve)
+                .unwrap_or_default(),
+            label_support: self.label_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl CodeActionClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCodeActionClientCapabilities {
+        ResolvedCodeActionClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            code_action_literal_support: self
+                .code_action_literal_support
+                .as_ref()
+                .map(ClientCodeActionLiteralOptions::resolve)
+                .unwrap_or_default(),
+            is_preferred_support: self.is_preferred_support.clone().unwrap_or_default(),
+            disabled_support: self.disabled_support.clone().unwrap_or_default(),
+            data_support: self.data_support.clone().unwrap_or_default(),
+            resolve_support: self
+                .resolve_support
+                .as_ref()
+                .map(ClientCodeActionResolveOptions::resolve)
+                .unwrap_or_default(),
+            honors_change_annotations: self.honors_change_annotations.clone().unwrap_or_default(),
+            documentation_support: self.documentation_support.clone().unwrap_or_default(),
+            tag_support: self
+                .tag_support
+                .as_ref()
+                .map(CodeActionTagOptions::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl CodeLensClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCodeLensClientCapabilities {
+        ResolvedCodeLensClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            resolve_support: self
+                .resolve_support
+                .as_ref()
+                .map(ClientCodeLensResolveOptions::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl DocumentLinkClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDocumentLinkClientCapabilities {
+        ResolvedDocumentLinkClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            tooltip_support: self.tooltip_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DocumentColorClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDocumentColorClientCapabilities {
+        ResolvedDocumentColorClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DocumentFormattingClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDocumentFormattingClientCapabilities {
+        ResolvedDocumentFormattingClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DocumentRangeFormattingClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDocumentRangeFormattingClientCapabilities {
+        ResolvedDocumentRangeFormattingClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            ranges_support: self.ranges_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl DocumentOnTypeFormattingClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDocumentOnTypeFormattingClientCapabilities {
+        ResolvedDocumentOnTypeFormattingClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl RenameClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedRenameClientCapabilities {
+        ResolvedRenameClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            prepare_support: self.prepare_support.clone().unwrap_or_default(),
+            prepare_support_default_behavior: self
+                .prepare_support_default_behavior
+                .clone()
+                .unwrap_or_default(),
+            honors_change_annotations: self.honors_change_annotations.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl FoldingRangeClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedFoldingRangeClientCapabilities {
+        ResolvedFoldingRangeClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            range_limit: self.range_limit.clone().unwrap_or_default(),
+            line_folding_only: self.line_folding_only.clone().unwrap_or_default(),
+            folding_range_kind: self
+                .folding_range_kind
+                .as_ref()
+                .map(ClientFoldingRangeKindOptions::resolve)
+                .unwrap_or_default(),
+            folding_range: self
+                .folding_range
+                .as_ref()
+                .map(ClientFoldingRangeOptions::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl SelectionRangeClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedSelectionRangeClientCapabilities {
+        ResolvedSelectionRangeClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl PublishDiagnosticsClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedPublishDiagnosticsClientCapabilities {
+        ResolvedPublishDiagnosticsClientCapabilities {
+            related_information: self.related_information.clone().unwrap_or_default(),
+            tag_support: self
+                .tag_support
+                .as_ref()
+                .map(ClientDiagnosticsTagOptions::resolve)
+                .unwrap_or_default(),
+            code_description_support: self.code_description_support.clone().unwrap_or_default(),
+            data_support: self.data_support.clone().unwrap_or_default(),
+            version_support: self.version_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl CallHierarchyClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCallHierarchyClientCapabilities {
+        ResolvedCallHierarchyClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl SemanticTokensClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedSemanticTokensClientCapabilities {
+        ResolvedSemanticTokensClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            requests: self.requests.resolve(),
+            token_types: self.token_types.clone(),
+            token_modifiers: self.token_modifiers.clone(),
+            formats: self.formats.clone(),
+            overlapping_token_support: self.overlapping_token_support.clone().unwrap_or_default(),
+            multiline_token_support: self.multiline_token_support.clone().unwrap_or_default(),
+            server_cancel_support: self.server_cancel_support.clone().unwrap_or_default(),
+            augments_syntax_tokens: self.augments_syntax_tokens.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl LinkedEditingRangeClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedLinkedEditingRangeClientCapabilities {
+        ResolvedLinkedEditingRangeClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl MonikerClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedMonikerClientCapabilities {
+        ResolvedMonikerClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl TypeHierarchyClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedTypeHierarchyClientCapabilities {
+        ResolvedTypeHierarchyClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl InlineValueClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedInlineValueClientCapabilities {
+        ResolvedInlineValueClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl InlayHintClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedInlayHintClientCapabilities {
+        ResolvedInlayHintClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            resolve_support: self
+                .resolve_support
+                .as_ref()
+                .map(ClientInlayHintResolveOptions::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl DiagnosticClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedDiagnosticClientCapabilities {
+        ResolvedDiagnosticClientCapabilities {
+            related_information: self.related_information.clone().unwrap_or_default(),
+            tag_support: self
+                .tag_support
+                .as_ref()
+                .map(ClientDiagnosticsTagOptions::resolve)
+                .unwrap_or_default(),
+            code_description_support: self.code_description_support.clone().unwrap_or_default(),
+            data_support: self.data_support.clone().unwrap_or_default(),
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+            related_document_support: self.related_document_support.clone().unwrap_or_default(),
+            markup_message_support: self.markup_message_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl InlineCompletionClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedInlineCompletionClientCapabilities {
+        ResolvedInlineCompletionClientCapabilities {
+            dynamic_registration: self.dynamic_registration.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ShowMessageRequestClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedShowMessageRequestClientCapabilities {
+        ResolvedShowMessageRequestClientCapabilities {
+            message_action_item: self
+                .message_action_item
+                .as_ref()
+                .map(ClientShowMessageActionItemOptions::resolve)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl ShowDocumentClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedShowDocumentClientCapabilities {
+        ResolvedShowDocumentClientCapabilities {
+            support: self.support.clone(),
+        }
+    }
+}
+
+impl StaleRequestSupportOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedStaleRequestSupportOptions {
+        ResolvedStaleRequestSupportOptions {
+            cancel: self.cancel.clone(),
+            retry_on_content_modified: self.retry_on_content_modified.clone(),
+        }
+    }
+}
+
+impl RegularExpressionsClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedRegularExpressionsClientCapabilities {
+        ResolvedRegularExpressionsClientCapabilities {
+            engine: self.engine.clone(),
+            version: self.version.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl MarkdownClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedMarkdownClientCapabilities {
+        ResolvedMarkdownClientCapabilities {
+            parser: self.parser.clone(),
+            version: self.version.clone().unwrap_or_default(),
+            allowed_tags: self.allowed_tags.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ChangeAnnotationsSupportOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedChangeAnnotationsSupportOptions {
+        ResolvedChangeAnnotationsSupportOptions {
+            groups_on_label: self.groups_on_label.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientSymbolKindOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientSymbolKindOptions {
+        ResolvedClientSymbolKindOptions {
+            value_set: self.value_set.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientSymbolTagOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientSymbolTagOptions {
+        ResolvedClientSymbolTagOptions {
+            value_set: self.value_set.clone(),
+        }
+    }
+}
+
+impl ClientSymbolResolveOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientSymbolResolveOptions {
+        ResolvedClientSymbolResolveOptions {
+            properties: self.properties.clone(),
+        }
+    }
+}
+
+impl ClientCompletionItemOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCompletionItemOptions {
+        ResolvedClientCompletionItemOptions {
+            snippet_support: self.snippet_support.clone().unwrap_or_default(),
+            commit_characters_support: self.commit_characters_support.clone().unwrap_or_default(),
+            documentation_format: self.documentation_format.clone().unwrap_or_default(),
+            deprecated_support: self.deprecated_support.clone().unwrap_or_default(),
+            preselect_support: self.preselect_support.clone().unwrap_or_default(),
+            tag_support: self
+                .tag_support
+                .as_ref()
+                .map(CompletionItemTagOptions::resolve)
+                .unwrap_or_default(),
+            insert_replace_support: self.insert_replace_support.clone().unwrap_or_default(),
+            resolve_support: self
+                .resolve_support
+                .as_ref()
+                .map(ClientCompletionItemResolveOptions::resolve)
+                .unwrap_or_default(),
+            insert_text_mode_support: self
+                .insert_text_mode_support
+                .as_ref()
+                .map(ClientCompletionItemInsertTextModeOptions::resolve)
+                .unwrap_or_default(),
+            label_details_support: self.label_details_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientCompletionItemOptionsKind {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCompletionItemOptionsKind {
+        ResolvedClientCompletionItemOptionsKind {
+            value_set: self.value_set.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl CompletionListCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCompletionListCapabilities {
+        ResolvedCompletionListCapabilities {
+            item_defaults: self.item_defaults.clone().unwrap_or_default(),
+            apply_kind_support: self.apply_kind_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientSignatureInformationOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientSignatureInformationOptions {
+        ResolvedClientSignatureInformationOptions {
+            documentation_format: self.documentation_format.clone().unwrap_or_default(),
+            parameter_information: self
+                .parameter_information
+                .as_ref()
+                .map(ClientSignatureParameterInformationOptions::resolve)
+                .unwrap_or_default(),
+            active_parameter_support: self.active_parameter_support.clone().unwrap_or_default(),
+            no_active_parameter_support: self
+                .no_active_parameter_support
+                .clone()
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientCodeActionLiteralOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCodeActionLiteralOptions {
+        ResolvedClientCodeActionLiteralOptions {
+            code_action_kind: self.code_action_kind.resolve(),
+        }
+    }
+}
+
+impl ClientCodeActionResolveOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCodeActionResolveOptions {
+        ResolvedClientCodeActionResolveOptions {
+            properties: self.properties.clone(),
+        }
+    }
+}
+
+impl CodeActionTagOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCodeActionTagOptions {
+        ResolvedCodeActionTagOptions {
+            value_set: self.value_set.clone(),
+        }
+    }
+}
+
+impl ClientCodeLensResolveOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCodeLensResolveOptions {
+        ResolvedClientCodeLensResolveOptions {
+            properties: self.properties.clone(),
+        }
+    }
+}
+
+impl ClientFoldingRangeKindOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientFoldingRangeKindOptions {
+        ResolvedClientFoldingRangeKindOptions {
+            value_set: self.value_set.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientFoldingRangeOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientFoldingRangeOptions {
+        ResolvedClientFoldingRangeOptions {
+            collapsed_text: self.collapsed_text.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientSemanticTokensRequestOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientSemanticTokensRequestOptions {
+        ResolvedClientSemanticTokensRequestOptions {
+            range: self.range.clone(),
+            full: self.full.clone(),
+        }
+    }
+}
+
+impl ClientInlayHintResolveOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientInlayHintResolveOptions {
+        ResolvedClientInlayHintResolveOptions {
+            properties: self.properties.clone(),
+        }
+    }
+}
+
+impl ClientShowMessageActionItemOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientShowMessageActionItemOptions {
+        ResolvedClientShowMessageActionItemOptions {
+            additional_properties_support: self
+                .additional_properties_support
+                .clone()
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl CompletionItemTagOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedCompletionItemTagOptions {
+        ResolvedCompletionItemTagOptions {
+            value_set: self.value_set.clone(),
+        }
+    }
+}
+
+impl ClientCompletionItemResolveOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCompletionItemResolveOptions {
+        ResolvedClientCompletionItemResolveOptions {
+            properties: self.properties.clone(),
+        }
+    }
+}
+
+impl ClientCompletionItemInsertTextModeOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCompletionItemInsertTextModeOptions {
+        ResolvedClientCompletionItemInsertTextModeOptions {
+            value_set: self.value_set.clone(),
+        }
+    }
+}
+
+impl ClientSignatureParameterInformationOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientSignatureParameterInformationOptions {
+        ResolvedClientSignatureParameterInformationOptions {
+            label_offset_support: self.label_offset_support.clone().unwrap_or_default(),
+        }
+    }
+}
+
+impl ClientCodeActionKindOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientCodeActionKindOptions {
+        ResolvedClientCodeActionKindOptions {
+            value_set: self.value_set.clone(),
+        }
+    }
+}
+
+impl ClientDiagnosticsTagOptions {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedClientDiagnosticsTagOptions {
+        ResolvedClientDiagnosticsTagOptions {
+            value_set: self.value_set.clone(),
+        }
+    }
+}
+
+impl ExperimentalClientCapabilities {
+    /// tsgo `resolve`: the capabilities with their defaults filled in.
+    pub fn resolve(&self) -> ResolvedExperimentalClientCapabilities {
+        ResolvedExperimentalClientCapabilities {
+            hover_verbosity_level: self.hover_verbosity_level.clone().unwrap_or_default(),
+        }
     }
 }

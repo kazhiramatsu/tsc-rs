@@ -8,7 +8,8 @@
 //! the last segment.
 
 use tsc_diagnostics::JsStr;
-use tsc_program::DYNAMIC_URI_FILE_NAME_PREFIX;
+
+use crate::DYNAMIC_URI_FILE_NAME_PREFIX;
 
 const PATH_SEGMENT_ESCAPE_PREFIX: &str = "~ts-uri-escape~";
 const MODULE_SPECIFIER_ESCAPE_PREFIX: &str = "~ts-uri-spec~";
@@ -92,12 +93,11 @@ pub fn uri_to_file_name(uri: &str) -> Result<String, String> {
 
 /// tsgo `RootedPathFromAbsolute`: normalized, a root alone ending with a
 /// separator.
-fn rooted_path_from_absolute(path: &str) -> String {
-    let mut normalized =
-        tsc_program::get_normalized_absolute_path(JsStr::from_str(path), "".into())
-            .to_string_lossy()
-            .into_owned();
-    let root_only = tsc_program::path_root_parts(JsStr::from_str(&normalized))
+pub fn rooted_path_from_absolute(path: &str) -> String {
+    let mut normalized = crate::get_normalized_absolute_path(JsStr::from_str(path), "".into())
+        .to_string_lossy()
+        .into_owned();
+    let root_only = crate::path_root_parts(JsStr::from_str(&normalized))
         .is_some_and(|(_, rest)| rest.is_empty());
     if root_only && !normalized.ends_with('/') {
         normalized.push('/');
@@ -135,7 +135,7 @@ fn encode_path_with_suffix(path: &str, suffix: &str) -> String {
 /// segments' escapes has its first segment escaped too.
 fn encode_path_root_aware(path: &str, preserve_final_extension: bool) -> String {
     let encoded = encode_segments(path, preserve_final_extension);
-    if tsc_program::path_root_parts(JsStr::from_str(&encoded)).is_none() {
+    if crate::path_root_parts(JsStr::from_str(&encoded)).is_none() {
         return encoded;
     }
     match encoded.split_once('/') {
