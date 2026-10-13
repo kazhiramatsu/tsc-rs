@@ -38,6 +38,7 @@ RUST_CHECKS = (
     ["cargo", "xtask", "codegen", "diagnostics-check"],
     [sys.executable, "scripts/generate_api_encoder.py", "--check"],
     [sys.executable, "scripts/generate_lsp_protocol.py", "--check"],
+    [sys.executable, "scripts/generate_lsp_preferences.py", "--check"],
 )
 
 

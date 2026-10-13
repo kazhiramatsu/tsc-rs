@@ -1,0 +1,1088 @@
+[
+ {
+  "sections": {},
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "format": {
+    "convertTabsToSpaces": true,
+    "enabled": true,
+    "indentSize": 4,
+    "indentStyle": 2,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 4,
+    "trimTrailingWhitespace": true
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "auto",
+     "typeOrder": "auto",
+     "unicodeCollation": "ordinal"
+    }
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": true,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": true
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true,
+    "scope": "allOpenProjects"
+   }
+  }
+ },
+ {
+  "sections": {
+   "js/ts": {
+    "preferences": {
+     "quoteStyle": "single",
+     "importModuleSpecifier": "relative",
+     "importModuleSpecifierEnding": "js",
+     "organizeImports": {
+      "sort": "natural",
+      "caseSensitivity": "caseInsensitive",
+      "unicodeCollation": "unicode",
+      "typeOrder": "inline",
+      "caseFirst": "upper",
+      "locale": "en",
+      "numericCollation": true,
+      "accentCollation": false
+     },
+     "jsxAttributeCompletionStyle": "none",
+     "autoImportFileExcludePatterns": [
+      "**/node_modules/@types/**"
+     ],
+     "autoImportSpecifierExcludeRegexes": [
+      "^lodash"
+     ],
+     "preferTypeOnlyAutoImports": true,
+     "useAliasesForRenames": false,
+     "autoImportEntrypointDirectorySearch": true
+    },
+    "suggest": {
+     "autoImports": false,
+     "includeAutomaticOptionalChainCompletions": false,
+     "includeCompletionsForImportStatements": false,
+     "classMemberSnippets": {
+      "enabled": false
+     },
+     "objectLiteralMethodSnippets": {
+      "enabled": true
+     },
+     "jsdoc": {
+      "enabled": false,
+      "generateReturns": false
+     }
+    },
+    "inlayHints": {
+     "parameterNames": {
+      "enabled": "literals",
+      "suppressWhenArgumentMatchesName": false
+     },
+     "parameterTypes": {
+      "enabled": true
+     },
+     "variableTypes": {
+      "enabled": true,
+      "suppressWhenTypeMatchesName": true
+     },
+     "propertyDeclarationTypes": {
+      "enabled": true
+     },
+     "functionLikeReturnTypes": {
+      "enabled": false
+     },
+     "enumMemberValues": {
+      "enabled": true
+     }
+    },
+    "format": {
+     "semicolons": "remove",
+     "indentSize": 3,
+     "tabSize": 3,
+     "convertTabsToSpaces": false,
+     "newLineCharacter": "\r\n",
+     "insertSpaceAfterOpeningAndBeforeClosingEmptyBraces": true,
+     "placeOpenBraceOnNewLineForFunctions": true,
+     "indentStyle": "none",
+     "baseIndentSize": 2,
+     "insertSpaceBeforeTypeAnnotation": true,
+     "insertSpaceAfterTypeAssertion": true,
+     "indentMultiLineObjectLiteralBeginningOnBlankLine": true,
+     "trimTrailingWhitespace": false
+    },
+    "implementationsCodeLens": {
+     "enabled": true,
+     "showOnInterfaceMethods": true,
+     "showOnAllClassMethods": false
+    },
+    "referencesCodeLens": {
+     "enabled": true,
+     "showOnAllFunctions": true
+    },
+    "workspaceSymbols": {
+     "scope": "currentProject",
+     "excludeLibrarySymbols": false
+    },
+    "tsserver": {
+     "automaticTypeAcquisition": {
+      "enabled": false
+     }
+    },
+    "locale": "ja",
+    "validate": {
+     "enabled": false
+    },
+    "customConfigFileName": " tsconfig.custom.json ",
+    "reportStyleChecksAsWarnings": false,
+    "disableAutomaticTypeAcquisition": true
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "customConfigFileName": "tsconfig.custom.json",
+   "disableAutomaticTypeAcquisition": true,
+   "format": {
+    "baseIndentSize": 2,
+    "convertTabsToSpaces": false,
+    "enabled": true,
+    "indentMultiLineObjectLiteralBeginningOnBlankLine": true,
+    "indentSize": 3,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingEmptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceAfterTypeAssertion": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "insertSpaceBeforeTypeAnnotation": true,
+    "newLineCharacter": "\r\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": true,
+    "semicolons": "remove",
+    "tabSize": 3,
+    "trimTrailingWhitespace": false
+   },
+   "implementationsCodeLens": {
+    "enabled": true,
+    "showOnAllClassMethods": false,
+    "showOnInterfaceMethods": true
+   },
+   "inlayHints": {
+    "enumMemberValues": {
+     "enabled": true
+    },
+    "functionLikeReturnTypes": {
+     "enabled": false
+    },
+    "parameterNames": {
+     "enabled": "literals",
+     "suppressWhenArgumentMatchesName": false
+    },
+    "parameterTypes": {
+     "enabled": true
+    },
+    "propertyDeclarationTypes": {
+     "enabled": true
+    },
+    "variableTypes": {
+     "enabled": true,
+     "suppressWhenTypeMatchesName": true
+    }
+   },
+   "locale": "ja",
+   "preferences": {
+    "autoImportEntrypointDirectorySearch": true,
+    "autoImportFileExcludePatterns": [
+     "**/node_modules/@types/**"
+    ],
+    "autoImportSpecifierExcludeRegexes": [
+     "^lodash"
+    ],
+    "importModuleSpecifier": "relative",
+    "importModuleSpecifierEnding": "js",
+    "jsxAttributeCompletionStyle": "none",
+    "organizeImports": {
+     "accentCollation": false,
+     "caseFirst": "upper",
+     "caseSensitivity": true,
+     "locale": "en",
+     "numericCollation": true,
+     "sort": "natural",
+     "typeOrder": "inline",
+     "unicodeCollation": "unicode"
+    },
+    "preferTypeOnlyAutoImports": true,
+    "quoteStyle": "single",
+    "useAliasesForRenames": false
+   },
+   "referencesCodeLens": {
+    "enabled": true,
+    "showOnAllFunctions": true
+   },
+   "reportStyleChecksAsWarnings": false,
+   "suggest": {
+    "autoImports": false,
+    "classMemberSnippets": {
+     "enabled": false
+    },
+    "includeAutomaticOptionalChainCompletions": false,
+    "includeCompletionsForImportStatements": false,
+    "jsdoc": {
+     "enabled": false,
+     "generateReturns": false
+    },
+    "objectLiteralMethodSnippets": {
+     "enabled": true
+    }
+   },
+   "tsserver": {
+    "automaticTypeAcquisition": {
+     "enabled": false
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": false
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": false,
+    "scope": "currentProject"
+   }
+  }
+ },
+ {
+  "sections": {
+   "editor": {
+    "tabSize": 8,
+    "insertSpaces": false,
+    "trimTrailingWhitespace": false
+   },
+   "javascript": {
+    "format": {
+     "insertSpaceAfterCommaDelimiter": false
+    },
+    "preferences": {
+     "quoteStyle": "double"
+    }
+   },
+   "typescript": {
+    "format": {
+     "insertSpaceAfterCommaDelimiter": true
+    },
+    "unstable": {
+     "maximumHoverLength": 500,
+     "disableSuggestions": true,
+     "preferGoToSourceDefinition": true,
+     "allowTextChangesInNewFiles": true,
+     "lazyConfiguredProjectsFromExternalProject": true,
+     "quotePreference": "auto"
+    }
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "format": {
+    "convertTabsToSpaces": false,
+    "enabled": true,
+    "indentSize": 8,
+    "indentStyle": 2,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 8,
+    "trimTrailingWhitespace": false
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "auto",
+     "typeOrder": "auto",
+     "unicodeCollation": "ordinal"
+    },
+    "quoteStyle": "auto"
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": true,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "allowTextChangesInNewFiles": true,
+    "disableLineTextInReferences": true,
+    "disableSuggestions": true,
+    "displayPartsForJSDoc": true,
+    "lazyConfiguredProjectsFromExternalProject": true,
+    "maximumHoverLength": 500,
+    "preferGoToSourceDefinition": true,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": true
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true,
+    "scope": "allOpenProjects"
+   }
+  }
+ },
+ {
+  "sections": {
+   "js/ts": {
+    "format": {
+     "indentStyle": 0,
+     "tabSize": "x",
+     "semicolons": 3,
+     "indentSize": 2.9
+    },
+    "preferences": {
+     "quoteStyle": 5,
+     "organizeImports": {
+      "caseSensitivity": "auto",
+      "sort": 2,
+      "typeOrder": "FIRST",
+      "caseFirst": null
+     }
+    },
+    "customConfigFileName": "../x",
+    "inlayHints": {
+     "parameterNames": {
+      "suppressWhenArgumentMatchesName": "yes",
+      "enabled": "ALL"
+     }
+    },
+    "workspaceSymbols": {
+     "scope": "nowhere"
+    },
+    "suggest": {
+     "jsdoc": {
+      "enabled": null
+     },
+     "completeJSDocs": false
+    }
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "format": {
+    "convertTabsToSpaces": true,
+    "enabled": true,
+    "indentSize": 2,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 4,
+    "trimTrailingWhitespace": true
+   },
+   "inlayHints": {
+    "parameterNames": {
+     "enabled": "all"
+    }
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "auto",
+     "typeOrder": "first",
+     "unicodeCollation": "ordinal"
+    }
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": true,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": true
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true
+   }
+  }
+ },
+ {
+  "sections": {
+   "typescript": {
+    "autoClosingTags": false,
+    "format": {
+     "enable": false
+    },
+    "validate": {
+     "enable": false
+    },
+    "suggest": {
+     "completeJSDocs": false
+    }
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": false
+   },
+   "format": {
+    "convertTabsToSpaces": true,
+    "enabled": false,
+    "indentSize": 4,
+    "indentStyle": 2,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 4,
+    "trimTrailingWhitespace": true
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "auto",
+     "typeOrder": "auto",
+     "unicodeCollation": "ordinal"
+    }
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": false,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": false
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true,
+    "scope": "allOpenProjects"
+   }
+  }
+ },
+ {
+  "sections": {
+   "js/ts": {
+    "implementationsCodeLensEnabled": false,
+    "implementationsCodeLensShowOnAllClassMethods": false,
+    "implementationsCodeLensShowOnInterfaceMethods": false,
+    "referencesCodeLensEnabled": false,
+    "referencesCodeLensShowOnAllFunctions": false,
+    "includeAutomaticOptionalChainCompletions": false,
+    "includeCompletionsForImportStatements": false,
+    "includeCompletionsForModuleExports": false,
+    "includeCompletionsWithClassMemberSnippets": false,
+    "includeCompletionsWithObjectLiteralMethodSnippets": false,
+    "jsxAttributeCompletionStyle": "braces",
+    "baseIndentSize": 1,
+    "convertTabsToSpaces": false,
+    "indentSize": 1,
+    "indentStyle": "block",
+    "newLineCharacter": "test",
+    "tabSize": 1,
+    "trimTrailingWhitespace": false,
+    "indentMultiLineObjectLiteralBeginningOnBlankLine": false,
+    "indentSwitchCase": false,
+    "insertSpaceAfterCommaDelimiter": false,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": false,
+    "insertSpaceAfterOpeningAndBeforeClosingEmptyBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": false,
+    "insertSpaceAfterTypeAssertion": false,
+    "insertSpaceBeforeAndAfterBinaryOperators": false,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "insertSpaceBeforeTypeAnnotation": false,
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "insert",
+    "includeInlayEnumMemberValueHints": false,
+    "includeInlayFunctionLikeReturnTypeHints": false,
+    "includeInlayFunctionParameterTypeHints": false,
+    "includeInlayParameterNameHints": "all",
+    "includeInlayParameterNameHintsWhenArgumentMatchesName": false,
+    "includeInlayPropertyDeclarationTypeHints": false,
+    "includeInlayVariableTypeHints": false,
+    "includeInlayVariableTypeHintsWhenTypeMatchesName": false,
+    "allowRenameOfImportPath": false,
+    "allowTextChangesInNewFiles": false,
+    "autoClosingTags": false,
+    "autoImportEntrypointDirectorySearch": false,
+    "autoImportFileExcludePatterns": [
+     "test"
+    ],
+    "autoImportSpecifierExcludeRegexes": [
+     "test"
+    ],
+    "automaticTypeAcquisitionEnabled": false,
+    "completeJSDocs": false,
+    "customConfigFileName": "test",
+    "disableAutomaticTypeAcquisition": false,
+    "disableLineTextInReferences": false,
+    "disableSuggestions": false,
+    "displayPartsForJSDoc": false,
+    "excludeLibrarySymbolsInNavTo": false,
+    "formatEnabled": false,
+    "generateReturnInDocTemplate": false,
+    "importModuleSpecifierEnding": "js",
+    "importModuleSpecifierPreference": "relative",
+    "lazyConfiguredProjectsFromExternalProject": false,
+    "locale": "test",
+    "maximumHoverLength": 1,
+    "organizeImportsAccentCollation": false,
+    "organizeImportsCaseFirst": "lower",
+    "organizeImportsCollation": "unicode",
+    "organizeImportsIgnoreCase": false,
+    "organizeImportsLocale": "test",
+    "organizeImportsNumericCollation": false,
+    "organizeImportsSort": "ordinal",
+    "organizeImportsTypeOrder": "last",
+    "preferGoToSourceDefinition": true,
+    "preferTypeOnlyAutoImports": false,
+    "providePrefixAndSuffixTextForRename": false,
+    "provideRefactorNotApplicableReason": false,
+    "quotePreference": "single",
+    "reportStyleChecksAsWarnings": false,
+    "validateEnabled": false,
+    "workspaceSymbolsScope": "allOpenProjects"
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": false
+   },
+   "customConfigFileName": "test",
+   "disableAutomaticTypeAcquisition": false,
+   "format": {
+    "baseIndentSize": 1,
+    "convertTabsToSpaces": false,
+    "enabled": false,
+    "indentMultiLineObjectLiteralBeginningOnBlankLine": false,
+    "indentSize": 1,
+    "indentStyle": 1,
+    "indentSwitchCase": false,
+    "insertSpaceAfterCommaDelimiter": false,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": false,
+    "insertSpaceAfterOpeningAndBeforeClosingEmptyBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": false,
+    "insertSpaceAfterTypeAssertion": false,
+    "insertSpaceBeforeAndAfterBinaryOperators": false,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "insertSpaceBeforeTypeAnnotation": false,
+    "newLineCharacter": "test",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "insert",
+    "tabSize": 1,
+    "trimTrailingWhitespace": false
+   },
+   "implementationsCodeLens": {
+    "enabled": false,
+    "showOnAllClassMethods": false,
+    "showOnInterfaceMethods": false
+   },
+   "inlayHints": {
+    "enumMemberValues": {
+     "enabled": false
+    },
+    "functionLikeReturnTypes": {
+     "enabled": false
+    },
+    "parameterNames": {
+     "enabled": "all",
+     "suppressWhenArgumentMatchesName": true
+    },
+    "parameterTypes": {
+     "enabled": false
+    },
+    "propertyDeclarationTypes": {
+     "enabled": false
+    },
+    "variableTypes": {
+     "enabled": false,
+     "suppressWhenTypeMatchesName": true
+    }
+   },
+   "locale": "test",
+   "preferences": {
+    "autoImportEntrypointDirectorySearch": false,
+    "autoImportFileExcludePatterns": [
+     "test"
+    ],
+    "autoImportSpecifierExcludeRegexes": [
+     "test"
+    ],
+    "importModuleSpecifier": "relative",
+    "importModuleSpecifierEnding": "js",
+    "jsxAttributeCompletionStyle": "braces",
+    "organizeImports": {
+     "accentCollation": false,
+     "caseFirst": "lower",
+     "caseSensitivity": false,
+     "locale": "test",
+     "numericCollation": false,
+     "sort": "ordinal",
+     "typeOrder": "last",
+     "unicodeCollation": "unicode"
+    },
+    "preferTypeOnlyAutoImports": false,
+    "quoteStyle": "single",
+    "useAliasesForRenames": false
+   },
+   "referencesCodeLens": {
+    "enabled": false,
+    "showOnAllFunctions": false
+   },
+   "reportStyleChecksAsWarnings": false,
+   "suggest": {
+    "autoImports": false,
+    "classMemberSnippets": {
+     "enabled": false
+    },
+    "includeAutomaticOptionalChainCompletions": false,
+    "includeCompletionsForImportStatements": false,
+    "jsdoc": {
+     "enabled": false,
+     "generateReturns": false
+    },
+    "objectLiteralMethodSnippets": {
+     "enabled": false
+    }
+   },
+   "tsserver": {
+    "automaticTypeAcquisition": {
+     "enabled": false
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": false,
+    "allowTextChangesInNewFiles": false,
+    "disableLineTextInReferences": false,
+    "disableSuggestions": false,
+    "displayPartsForJSDoc": false,
+    "lazyConfiguredProjectsFromExternalProject": false,
+    "maximumHoverLength": 1,
+    "preferGoToSourceDefinition": true,
+    "provideRefactorNotApplicableReason": false
+   },
+   "validate": {
+    "enabled": false
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": false,
+    "scope": "allOpenProjects"
+   }
+  }
+ },
+ {
+  "sections": {
+   "js/ts": {
+    "format": {
+     "indentStyle": 7
+    },
+    "organizeImportsCollation": "ordinal",
+    "organizeImportsSort": "naturalIgnoreCase"
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "format": {
+    "convertTabsToSpaces": true,
+    "enabled": true,
+    "indentSize": 4,
+    "indentStyle": 7,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 4,
+    "trimTrailingWhitespace": true
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "naturalIgnoreCase",
+     "typeOrder": "auto",
+     "unicodeCollation": "ordinal"
+    }
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": true,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": true
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true,
+    "scope": "allOpenProjects"
+   }
+  }
+ },
+ {
+  "sections": {
+   "editor": {
+    "tabSize": 2,
+    "indentSize": 6,
+    "insertSpaces": true,
+    "convertTabsToSpaces": false,
+    "detectIndentation": true
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "format": {
+    "convertTabsToSpaces": false,
+    "enabled": true,
+    "indentSize": 6,
+    "indentStyle": 2,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 2,
+    "trimTrailingWhitespace": true
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "auto",
+     "typeOrder": "auto",
+     "unicodeCollation": "ordinal"
+    }
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": true,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": true
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true,
+    "scope": "allOpenProjects"
+   }
+  }
+ },
+ {
+  "sections": {
+   "editor": null,
+   "typescript": "not an object",
+   "js/ts": {
+    "unstable": "not an object",
+    "locale": null
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "format": {
+    "convertTabsToSpaces": true,
+    "enabled": true,
+    "indentSize": 4,
+    "indentStyle": 2,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 4,
+    "trimTrailingWhitespace": true
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "auto",
+     "typeOrder": "auto",
+     "unicodeCollation": "ordinal"
+    }
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": true,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": true
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true,
+    "scope": "allOpenProjects"
+   }
+  }
+ },
+ {
+  "sections": {
+   "js/ts": {
+    "customConfigFileName": "a/b.json"
+   },
+   "typescript": {
+    "customConfigFileName": "tsconfig.dev.json"
+   }
+  },
+  "tsgo": {
+   "autoClosingTags": {
+    "enabled": true
+   },
+   "format": {
+    "convertTabsToSpaces": true,
+    "enabled": true,
+    "indentSize": 4,
+    "indentStyle": 2,
+    "indentSwitchCase": true,
+    "insertSpaceAfterCommaDelimiter": true,
+    "insertSpaceAfterConstructor": false,
+    "insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
+    "insertSpaceAfterKeywordsInControlFlowStatements": true,
+    "insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": true,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets": false,
+    "insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+    "insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": false,
+    "insertSpaceAfterSemicolonInForStatements": true,
+    "insertSpaceBeforeAndAfterBinaryOperators": true,
+    "insertSpaceBeforeFunctionParenthesis": false,
+    "newLineCharacter": "\n",
+    "placeOpenBraceOnNewLineForControlBlocks": false,
+    "placeOpenBraceOnNewLineForFunctions": false,
+    "semicolons": "ignore",
+    "tabSize": 4,
+    "trimTrailingWhitespace": true
+   },
+   "preferences": {
+    "organizeImports": {
+     "caseFirst": "default",
+     "sort": "auto",
+     "typeOrder": "auto",
+     "unicodeCollation": "ordinal"
+    }
+   },
+   "reportStyleChecksAsWarnings": true,
+   "suggest": {
+    "autoImports": true,
+    "includeCompletionsForImportStatements": true,
+    "jsdoc": {
+     "enabled": true,
+     "generateReturns": true
+    }
+   },
+   "unstable": {
+    "allowRenameOfImportPath": true,
+    "disableLineTextInReferences": true,
+    "displayPartsForJSDoc": true,
+    "preferGoToSourceDefinition": false,
+    "provideRefactorNotApplicableReason": true
+   },
+   "validate": {
+    "enabled": true
+   },
+   "workspaceSymbols": {
+    "excludeLibrarySymbols": true,
+    "scope": "allOpenProjects"
+   }
+  }
+ }
+]

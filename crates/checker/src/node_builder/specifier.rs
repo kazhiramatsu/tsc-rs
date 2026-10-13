@@ -35,29 +35,38 @@ pub(crate) enum ModuleSpecifierEnding {
     TsExtension,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ImportModuleSpecifierPreference {
-    #[allow(dead_code)] // a language-service preference; the compiler never sets it
-    Relative,
-    #[allow(dead_code)] // a language-service preference; the compiler never sets it
-    NonRelative,
-    ProjectRelative,
+/// tsgo `modulespecifiers.ImportModuleSpecifierPreference`: the user
+/// preference for the form of a module specifier (`""` when not given).
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ImportModuleSpecifierPreference(pub &'static str);
+
+impl ImportModuleSpecifierPreference {
+    pub const NONE: Self = Self("");
+    pub const SHORTEST: Self = Self("shortest");
+    pub const PROJECT_RELATIVE: Self = Self("project-relative");
+    pub const RELATIVE: Self = Self("relative");
+    pub const NON_RELATIVE: Self = Self("non-relative");
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ImportModuleSpecifierEnding {
-    #[allow(dead_code)] // a language-service preference; the compiler never sets it
-    Minimal,
-    #[allow(dead_code)] // a language-service preference; the compiler never sets it
-    Index,
-    Js,
+/// tsgo `modulespecifiers.ImportModuleSpecifierEndingPreference`: the user
+/// preference for a module specifier's ending (`""` when not given).
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ImportModuleSpecifierEndingPreference(pub &'static str);
+
+impl ImportModuleSpecifierEndingPreference {
+    pub const NONE: Self = Self("");
+    pub const AUTO: Self = Self("auto");
+    pub const MINIMAL: Self = Self("minimal");
+    pub const INDEX: Self = Self("index");
+    pub const JS: Self = Self("js");
 }
 
+/// tsgo `modulespecifiers.UserPreferences`.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub(crate) struct ModuleSpecifierUserPreferences {
-    pub(crate) import_module_specifier_preference: Option<ImportModuleSpecifierPreference>,
-    pub(crate) import_module_specifier_ending: Option<ImportModuleSpecifierEnding>,
-    pub(crate) auto_import_specifier_exclude_regexes: Vec<String>,
+pub struct ModuleSpecifierUserPreferences {
+    pub import_module_specifier_preference: ImportModuleSpecifierPreference,
+    pub import_module_specifier_ending: ImportModuleSpecifierEndingPreference,
+    pub auto_import_specifier_exclude_regexes: Vec<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -137,7 +146,7 @@ pub(crate) struct ModuleSpecifierPreferences {
     pub(crate) file_preferred_ending: ModuleSpecifierEnding,
     importing_file: NodeId,
     old_import_specifier: Option<JsString>,
-    import_module_specifier_ending: Option<ImportModuleSpecifierEnding>,
+    import_module_specifier_ending: ImportModuleSpecifierEndingPreference,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -380,11 +389,11 @@ pub(crate) fn get_specifier_for_module_symbol(
         specifier_options = specifier_options.with_program_options(program_options);
     }
     let user_preferences = ModuleSpecifierUserPreferences {
-        import_module_specifier_preference: Some(ImportModuleSpecifierPreference::ProjectRelative),
+        import_module_specifier_preference: ImportModuleSpecifierPreference::PROJECT_RELATIVE,
         import_module_specifier_ending: if resolution_mode == EmitResolutionMode::EsNext {
-            Some(ImportModuleSpecifierEnding::Js)
+            ImportModuleSpecifierEndingPreference::JS
         } else {
-            None
+            ImportModuleSpecifierEndingPreference::NONE
         },
         auto_import_specifier_exclude_regexes: Vec::new(),
     };
@@ -706,12 +715,12 @@ pub(crate) fn get_module_specifier_preferences(
         }
     } else {
         match user_preferences.import_module_specifier_preference {
-            Some(ImportModuleSpecifierPreference::Relative) => RelativePreference::Relative,
-            Some(ImportModuleSpecifierPreference::NonRelative) => RelativePreference::NonRelative,
-            Some(ImportModuleSpecifierPreference::ProjectRelative) => {
+            ImportModuleSpecifierPreference::RELATIVE => RelativePreference::Relative,
+            ImportModuleSpecifierPreference::NON_RELATIVE => RelativePreference::NonRelative,
+            ImportModuleSpecifierPreference::PROJECT_RELATIVE => {
                 RelativePreference::ExternalNonRelative
             }
-            None => RelativePreference::Shortest,
+            _ => RelativePreference::Shortest,
         }
     };
     ModuleSpecifierPreferences {
@@ -778,7 +787,7 @@ impl ModuleSpecifierPreferences {
             get_preferred_ending(
                 state,
                 &ModuleSpecifierUserPreferences {
-                    import_module_specifier_preference: None,
+                    import_module_specifier_preference: ImportModuleSpecifierPreference::NONE,
                     import_module_specifier_ending: self.import_module_specifier_ending,
                     auto_import_specifier_exclude_regexes: Vec::new(),
                 },
@@ -867,7 +876,7 @@ impl ModuleSpecifierPreferences {
 
 fn get_module_specifier_ending_preference(
     state: &CheckerState<'_>,
-    preference: Option<ImportModuleSpecifierEnding>,
+    preference: ImportModuleSpecifierEndingPreference,
     resolution_mode: EmitResolutionMode,
     host: &dyn EmitModuleSpecifierHost,
     options: &SpecifierCompilerOptions,
@@ -877,7 +886,7 @@ fn get_module_specifier_ending_preference(
     let node_next = (3..=99).contains(&module_resolution);
     let allow_ts = compiler_allows_importing_ts_extensions(options);
     let infer = || infer_ending_preference(state, importing_file, resolution_mode, node_next, host);
-    if preference == Some(ImportModuleSpecifierEnding::Js)
+    if preference == ImportModuleSpecifierEndingPreference::JS
         || resolution_mode == EmitResolutionMode::EsNext && node_next
     {
         if !allow_ts {
@@ -890,17 +899,17 @@ fn get_module_specifier_ending_preference(
         };
     }
     match preference {
-        Some(ImportModuleSpecifierEnding::Minimal) => ModuleSpecifierEnding::Minimal,
-        Some(ImportModuleSpecifierEnding::Index) => ModuleSpecifierEnding::Index,
-        Some(ImportModuleSpecifierEnding::Js) => unreachable!(),
-        None if !allow_ts => {
+        ImportModuleSpecifierEndingPreference::MINIMAL => ModuleSpecifierEnding::Minimal,
+        ImportModuleSpecifierEndingPreference::INDEX => ModuleSpecifierEnding::Index,
+        // No preference was given (or `auto`).
+        _ if !allow_ts => {
             if source_uses_extensions_on_imports(state, importing_file) {
                 ModuleSpecifierEnding::JsExtension
             } else {
                 ModuleSpecifierEnding::Minimal
             }
         }
-        None => infer(),
+        _ => infer(),
     }
 }
 

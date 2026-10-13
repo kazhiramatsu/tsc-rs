@@ -2,7 +2,7 @@
 //! capabilities tsgo advertises, with the trigger characters and the
 //! semantic token legend of tsgo's language service.
 
-use crate::lsproto::*;
+use tsc_lsproto::*;
 
 /// tsgo `ls.CompletionTriggerCharacters`.
 pub const COMPLETION_TRIGGER_CHARACTERS: [&str; 10] =
