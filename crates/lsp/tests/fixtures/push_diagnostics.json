@@ -1,0 +1,95 @@
+{
+ "workspace": "/private/tmp/tsc-rs-lsp-ws",
+ "files": {
+  "tsconfig.json": "{\n  \"compilerOptions\": {\n    \"target\": \"nope\",\n    \"noLib\": true\n  },\n  \"include\": [\"src\"]\n}\n",
+  "src/index.ts": "export const x = 1;\n"
+ },
+ "answers": {
+  "workspace/configuration": null,
+  "client/registerCapability": null
+ },
+ "steps": [
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "processId": null,
+     "rootUri": "file://${WS}",
+     "capabilities": {
+      "workspace": {
+       "didChangeWatchedFiles": {
+        "dynamicRegistration": true,
+        "relativePatternSupport": true
+       }
+      },
+      "textDocument": {
+       "publishDiagnostics": {
+        "relatedInformation": true,
+        "tagSupport": {
+         "valueSet": [
+          1,
+          2
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "wait": 1
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "method": "initialized",
+    "params": {}
+   }
+  },
+  {
+   "waitMethod": "client/registerCapability"
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "method": "textDocument/didOpen",
+    "params": {
+     "textDocument": {
+      "uri": "file://${WS}/src/index.ts",
+      "languageId": "typescript",
+      "version": 1,
+      "text": "export const x = 1;\n"
+     }
+    }
+   }
+  },
+  {
+   "waitMethod": "textDocument/publishDiagnostics"
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "shutdown"
+   }
+  },
+  {
+   "wait": 2
+  },
+  {
+   "waitMethod": "window/logMessage"
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "method": "exit"
+   }
+  },
+  {
+   "close": true
+  }
+ ]
+}

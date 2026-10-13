@@ -2,7 +2,7 @@
 //! and tsgo `logging.Logger`, where it logs.
 
 use tsc_compiler::locale::Locale;
-use tsc_lsproto::FileSystemWatcher;
+use tsc_lsproto::{FileSystemWatcher, PublishDiagnosticsParams};
 
 /// tsgo `Client`, as far as the session uses it so far.
 pub trait Client: Send + Sync {
@@ -10,6 +10,10 @@ pub trait Client: Send + Sync {
     fn watch_files(&self, id: &str, watchers: Vec<FileSystemWatcher>) -> Result<(), String>;
     /// tsgo `UnwatchFiles`.
     fn unwatch_files(&self, id: &str) -> Result<(), String>;
+    /// tsgo `PublishDiagnostics`: `textDocument/publishDiagnostics`.
+    fn publish_diagnostics(&self, params: PublishDiagnosticsParams) -> Result<(), String>;
+    /// tsgo `RefreshDiagnostics`: the editor pulls its diagnostics again.
+    fn refresh_diagnostics(&self) -> Result<(), String>;
     /// tsgo `RefreshInlayHints`: the editor asks for its inlay hints again.
     fn refresh_inlay_hints(&self) -> Result<(), String>;
     /// tsgo `RefreshCodeLens`: the editor asks for its code lenses again.
@@ -24,4 +28,6 @@ pub trait Client: Send + Sync {
 pub trait Logger: Send + Sync {
     /// tsgo `Log`.
     fn log(&self, message: &str);
+    /// tsgo `IsVerbose`: the logs name each project's files.
+    fn is_verbose(&self) -> bool;
 }

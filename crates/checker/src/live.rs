@@ -485,6 +485,26 @@ impl LiveChecker {
         }
     }
 
+    /// tsgo's project `checkerPool.GetGlobalDiagnostics`: the global rows
+    /// of the checkers made so far, none before the first file is checked
+    /// or the first query or emit makes one (tsgo makes its checkers on
+    /// demand; this program's diagnostics checker stands for them).
+    pub fn global_diagnostics_so_far(&self) -> DiagnosticList {
+        match &self.live {
+            Live::Empty { .. } => Vec::new(),
+            Live::Checked(cell) => cell.with_dependent(|_, live| {
+                if live.checked.iter().any(|&checked| checked)
+                    || live.api.is_some()
+                    || live.query.is_some()
+                {
+                    live.diagnostics.get_global_diagnostics()
+                } else {
+                    Vec::new()
+                }
+            }),
+        }
+    }
+
     /// Run `query` over the API checker (tsgo's persistent checker for the
     /// API's types, symbols, signatures and node builder), created by the
     /// first query and kept apart from the diagnostics checker; none for a

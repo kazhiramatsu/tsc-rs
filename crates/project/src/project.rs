@@ -15,6 +15,7 @@ use crate::fs::{Paths, SeenFiles};
 use crate::id::{ProjectId, ProjectKind};
 use crate::snapshot::ProjectError;
 use crate::watch::{ContentMapperWatch, ProgramFilesWatch};
+use tsc_diagnostics::{sort_and_dedupe_diagnostics, DiagnosticList};
 
 /// How a project's program was last built (tsgo `ProgramUpdateKind`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -394,6 +395,22 @@ impl Project {
         self.command_line
             .as_ref()
             .is_some_and(|current| current.same(command_line))
+    }
+
+    /// tsgo `GetProjectDiagnostics`: the config's parsing diagnostics, the
+    /// program's and the global ones of the checkers made so far, sorted
+    /// and deduplicated.
+    pub fn project_diagnostics(&self) -> DiagnosticList {
+        let Some(program) = &self.program else {
+            return DiagnosticList::new();
+        };
+        program.with_live(|live| {
+            let mut diagnostics = live.config_file_parsing_diagnostics().to_vec();
+            diagnostics.extend(live.program_diagnostics());
+            diagnostics.extend(live.global_diagnostics_so_far());
+            sort_and_dedupe_diagnostics(&mut diagnostics);
+            diagnostics
+        })
     }
 
     /// tsgo `containsFile`.

@@ -40,7 +40,7 @@ fn session_in(current_directory: &str, files: &[(&str, &str)]) -> (Session, Arc<
             logging_enabled: false,
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
-            relative_pattern_support: false,
+            client_capabilities: Default::default(),
         },
         Arc::new(BundledFs::new(Arc::clone(&fs))),
         None,
