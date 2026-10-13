@@ -1560,6 +1560,13 @@ impl<'text> Scanner<'text> {
     }
 
     /// tsc resetTokenState: reposition for a fresh scan (reparse paths).
+    /// tsgo `ResetPos`: the positions only (the token stays).
+    pub(crate) fn reset_pos(&mut self, pos: usize) {
+        self.pos = pos;
+        self.full_start_pos = pos;
+        self.token_start = pos;
+    }
+
     pub(crate) fn reset_token_state(&mut self, pos: usize) {
         self.pos = pos;
         self.full_start_pos = pos;
@@ -2685,14 +2692,25 @@ impl<'text> TokenScanner<'text> {
         self.scanner.scan()
     }
 
-    /// tsgo `ResetPos`.
+    /// tsgo `ResetPos`: the token stays until the next scan.
     pub fn reset_pos(&mut self, pos: usize) {
-        self.scanner.reset_token_state(pos);
+        self.scanner.reset_pos(pos);
     }
 
     /// tsgo `ReScanJsxToken(true)`.
     pub fn re_scan_jsx_token(&mut self) -> SyntaxKind {
         self.scanner.re_scan_jsx_token(true)
+    }
+
+    /// tsgo `ReScanTemplateToken`: a `}` read again as a template middle
+    /// or tail.
+    pub fn re_scan_template_token(&mut self, is_tagged_template: bool) -> SyntaxKind {
+        self.scanner.re_scan_template_token(is_tagged_template)
+    }
+
+    /// Whether the token is unterminated (tsgo `TokenFlagsUnterminated`).
+    pub fn is_unterminated(&self) -> bool {
+        self.scanner.is_unterminated()
     }
 }
 

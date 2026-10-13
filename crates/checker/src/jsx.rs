@@ -30,7 +30,7 @@ use tsc_diagnostics::MessageChain;
 /// consults.
 const JSX_NAMESPACE_NAME: &str = "JSX";
 const JSX_ELEMENT: &str = "Element";
-const JSX_INTRINSIC_ELEMENTS: &str = "IntrinsicElements";
+pub(crate) const JSX_INTRINSIC_ELEMENTS: &str = "IntrinsicElements";
 const JSX_ELEMENT_CLASS: &str = "ElementClass";
 const JSX_ELEMENT_ATTRIBUTES_PROPERTY_NAME_CONTAINER: &str = "ElementAttributesProperty";
 const JSX_ELEMENT_CHILDREN_ATTRIBUTE_NAME_CONTAINER: &str = "ElementChildrenAttribute";
@@ -1072,7 +1072,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7c6f27e0e16484dad8149ee8100c711537a059f5cd79e2202a96590e10b11ace
     /// tsc-span: _tsc.js:74525-74530
     ///
-    fn get_jsx_type(&mut self, name: &str, location: NodeId) -> CheckResult<TypeId> {
+    pub(crate) fn get_jsx_type(&mut self, name: &str, location: NodeId) -> CheckResult<TypeId> {
         let namespace = self.get_jsx_namespace_at(location)?;
         let Some(namespace) = namespace else {
             return Ok(self.tables.intrinsics.error);

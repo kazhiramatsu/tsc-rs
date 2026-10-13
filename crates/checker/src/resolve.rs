@@ -1992,7 +1992,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isValidTypeOnlyAliasUseSite @6.0.3
     /// tsc-hash: 3b58ba6af9dbe593bc4519ffebbef0c9eeea8004014ecc966f9f7287a85f7471
     /// tsc-span: _tsc.js:18991-19024
-    fn is_valid_type_only_alias_use_site(&self, use_site: NodeId) -> bool {
+    pub fn is_valid_type_only_alias_use_site(&self, use_site: NodeId) -> bool {
         if self.node_flags(use_site) & NodeFlags::AMBIENT.bits() != 0
             || self.node_flags(use_site) & NodeFlags::JS_DOC.bits() != 0
             || self.is_in_type_query(use_site)
@@ -3036,7 +3036,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: typed AST projection for tsc's direct declaration
     /// `type` property access.
-    pub(crate) fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
+    pub fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => data.r#type,
             NodeData::FunctionExpression(data) => data.r#type,
@@ -3091,9 +3091,8 @@ impl<'a> CheckerState<'a> {
         children
     }
 
-    /// tsc-port: isTypeNodeKind @6.0.3
-    /// tsc-hash: 9848a49e4c3c1c37141e5b8133408d45e2b07b5a04ca4d2a6b33befcee7dc766
-    /// tsc-span: _tsc.js:17579-17581
+    /// tsgo `ast.IsTypeNodeKind` (utilities.go:775-798), with the JSDoc
+    /// types.
     pub(crate) fn is_type_node_kind(&self, kind: SyntaxKind) -> bool {
         (kind >= SyntaxKind::TypePredicate && kind <= SyntaxKind::ImportType)
             || matches!(
@@ -3111,6 +3110,11 @@ impl<'a> CheckerState<'a> {
                     | SyntaxKind::NeverKeyword
                     | SyntaxKind::IntrinsicKeyword
                     | SyntaxKind::ExpressionWithTypeArguments
+                    | SyntaxKind::JSDocAllType
+                    | SyntaxKind::JSDocNullableType
+                    | SyntaxKind::JSDocNonNullableType
+                    | SyntaxKind::JSDocOptionalType
+                    | SyntaxKind::JSDocVariadicType
             )
     }
 }
