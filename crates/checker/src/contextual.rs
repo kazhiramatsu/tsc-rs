@@ -658,7 +658,17 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         context_flags: ContextFlags,
     ) -> CheckResult<Option<TypeId>> {
-        let Some(func) = self.get_containing_function(node) else {
+        let func = self.get_containing_function(node);
+        self.get_contextual_type_for_return_expression_of(func, context_flags)
+    }
+
+    /// getContextualTypeForReturnExpression past its containing function.
+    fn get_contextual_type_for_return_expression_of(
+        &mut self,
+        func: Option<NodeId>,
+        context_flags: ContextFlags,
+    ) -> CheckResult<Option<TypeId>> {
+        let Some(func) = func else {
             return Ok(None);
         };
         let Some(contextual_return_type) = self.get_contextual_return_type(func, context_flags)?
@@ -1033,6 +1043,28 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContextualTypeForBinaryOperand @6.0.3
     /// tsc-hash: bec959dd83fe56039a67a594889bdf6033231a6abba3666720924d37b00c8086
     /// tsc-span: _tsc.js:72935-72953
+    /// getContextualTypeForBinaryOperand of a token of the binary
+    /// expression, which is neither operand: only `||` and `??` give it the
+    /// expression's contextual type.
+    fn get_contextual_type_for_binary_token(
+        &mut self,
+        binary: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult<Option<TypeId>> {
+        if let Some(type_node) = self.assignment_declaration_type_node(binary) {
+            return Ok(Some(self.get_type_from_type_node(type_node)?));
+        }
+        let NodeData::BinaryExpression(data) = self.data_of(binary) else {
+            unreachable!("kind/data agree");
+        };
+        match data.operator_token.map(|token| self.kind_of(token)) {
+            Some(SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken) => {
+                self.get_contextual_type(binary, context_flags)
+            }
+            _ => Ok(None),
+        }
+    }
+
     fn get_contextual_type_for_binary_operand(
         &mut self,
         node: NodeId,
@@ -1776,7 +1808,7 @@ impl<'a> CheckerState<'a> {
     /// EVERY nonzero element flag, not just Optional; and
     /// `!firstSpreadIndex` is a falsy test — an index-0 spread behaves
     /// like no spread on the numeric-name fast path.
-    fn get_contextual_type_for_element_expression(
+    pub(crate) fn get_contextual_type_for_element_expression(
         &mut self,
         ty: Option<TypeId>,
         index: usize,
@@ -2492,18 +2524,48 @@ impl<'a> CheckerState<'a> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(None);
         };
+        self.get_contextual_type_in_parent(Some(node), parent, context_flags)
+    }
+
+    /// tsgo `getContextualType` of a token tsc-rs's tree does not keep (the
+    /// language service asks it of the token before the position): a node
+    /// with no flags, never on the contextual stack, and none of its
+    /// parent's operands.
+    pub fn get_contextual_type_of_token(
+        &mut self,
+        parent: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult<Option<TypeId>> {
+        self.get_contextual_type_in_parent(None, parent, context_flags)
+    }
+
+    /// getContextualType's switch over the parent of `node`, or of a token
+    /// (`None`) of `parent`.
+    fn get_contextual_type_in_parent(
+        &mut self,
+        node: Option<NodeId>,
+        parent: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult<Option<TypeId>> {
         match self.kind_of(parent) {
             SyntaxKind::VariableDeclaration
             | SyntaxKind::Parameter
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::PropertySignature
-            | SyntaxKind::BindingElement => {
-                self.get_contextual_type_for_initializer_expression(node, context_flags)
-            }
+            | SyntaxKind::BindingElement => match node {
+                Some(node) => {
+                    self.get_contextual_type_for_initializer_expression(node, context_flags)
+                }
+                // A token is no initializer.
+                None => Ok(None),
+            },
             // tsgo: the operand of the `as` cast its reparser makes of a
             // JavaScript `/** @type {T} */ return expr` is contextually typed
             // by T.
-            SyntaxKind::ReturnStatement if self.is_reparsed_return_assertion(node) => {
+            SyntaxKind::ReturnStatement
+                if node.is_some_and(|node| self.is_reparsed_return_assertion(node)) =>
+            {
+                let node = node.expect("tested above");
                 let cast = self.reparsed_cast(node).expect("tested above");
                 if self.is_const_type_reference_node(cast.type_node) {
                     self.get_contextual_type_for_return_expression(node, context_flags)
@@ -2511,18 +2573,32 @@ impl<'a> CheckerState<'a> {
                     Ok(Some(self.get_type_from_type_node(cast.type_node)?))
                 }
             }
-            SyntaxKind::ArrowFunction | SyntaxKind::ReturnStatement => {
-                self.get_contextual_type_for_return_expression(node, context_flags)
-            }
+            SyntaxKind::ArrowFunction | SyntaxKind::ReturnStatement => match node {
+                Some(node) => self.get_contextual_type_for_return_expression(node, context_flags),
+                // A token's containing function: the parent itself (an
+                // arrow function's `=>`) or above it.
+                None => {
+                    let func = self.find_ancestor(Some(parent), |state, n| {
+                        if node_util::is_function_like_kind(state.kind_of(n)) {
+                            crate::expr::Ancestor::Yes
+                        } else {
+                            crate::expr::Ancestor::No
+                        }
+                    });
+                    self.get_contextual_type_for_return_expression_of(func, context_flags)
+                }
+            },
             SyntaxKind::YieldExpression => {
                 self.get_contextual_type_for_yield_operand(parent, context_flags)
             }
             SyntaxKind::AwaitExpression => {
                 self.get_contextual_type_for_await_operand(parent, context_flags)
             }
-            SyntaxKind::CallExpression | SyntaxKind::NewExpression => {
-                self.get_contextual_type_for_argument(parent, node)
-            }
+            SyntaxKind::CallExpression | SyntaxKind::NewExpression => match node {
+                Some(node) => self.get_contextual_type_for_argument(parent, node),
+                // A token is no argument.
+                None => Ok(None),
+            },
             SyntaxKind::Decorator => self.get_contextual_type_for_decorator(parent),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                 let type_node = match self.data_of(parent) {
@@ -2539,9 +2615,10 @@ impl<'a> CheckerState<'a> {
                     Ok(Some(self.get_type_from_type_node(type_node)?))
                 }
             }
-            SyntaxKind::BinaryExpression => {
-                self.get_contextual_type_for_binary_operand(node, context_flags)
-            }
+            SyntaxKind::BinaryExpression => match node {
+                Some(node) => self.get_contextual_type_for_binary_operand(node, context_flags),
+                None => self.get_contextual_type_for_binary_token(parent, context_flags),
+            },
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 self.get_contextual_type_for_object_literal_element(parent, context_flags)
             }
@@ -2556,7 +2633,7 @@ impl<'a> CheckerState<'a> {
                     unreachable!("kind/data agree");
                 };
                 let elements = self.nodes_of(data.elements);
-                let Some(element_index) = elements.iter().position(|&e| e == node) else {
+                let Some(element_index) = elements.iter().position(|&e| Some(e) == node) else {
                     return Ok(None);
                 };
                 let spread_indices = match *self.links.node_cold().spread_indices.get(array_literal)
@@ -2576,20 +2653,26 @@ impl<'a> CheckerState<'a> {
                     spread_indices.1,
                 )
             }
-            SyntaxKind::ConditionalExpression => {
-                self.get_contextual_type_for_conditional_operand(node, context_flags)
-            }
-            SyntaxKind::TemplateSpan => {
-                let template = self.parent_of(parent).expect("span has a template");
-                debug_assert_eq!(self.kind_of(template), SyntaxKind::TemplateExpression);
-                self.get_contextual_type_for_substitution_expression(template, node)
-            }
+            SyntaxKind::ConditionalExpression => match node {
+                Some(node) => self.get_contextual_type_for_conditional_operand(node, context_flags),
+                // A token is neither branch.
+                None => Ok(None),
+            },
+            SyntaxKind::TemplateSpan => match node {
+                Some(node) => {
+                    let template = self.parent_of(parent).expect("span has a template");
+                    debug_assert_eq!(self.kind_of(template), SyntaxKind::TemplateExpression);
+                    self.get_contextual_type_for_substitution_expression(template, node)
+                }
+                // A token is no substitution.
+                None => Ok(None),
+            },
             SyntaxKind::ParenthesizedExpression => {
                 // tsgo: the operand of a JavaScript `/** @type {T} */ (expr)`
                 // or `/** @satisfies {T} */ (expr)` is the operand of the
                 // reparsed `as`/`satisfies` cast.
                 if self.is_in_js_file(parent) {
-                    if let Some(cast) = self.reparsed_cast(node) {
+                    if let Some(cast) = node.and_then(|node| self.reparsed_cast(node)) {
                         if !cast.is_assertion || !self.is_const_type_reference_node(cast.type_node)
                         {
                             return Ok(Some(self.get_type_from_type_node(cast.type_node)?));
@@ -2730,7 +2813,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContextualTypeForJsxAttribute @6.0.3
     /// tsc-hash: 234873420689f4e705c11dd2aef24f03350e3ea62a81f046f4ab3714f94f8bd8
     /// tsc-span: _tsc.js:73325-73335
-    fn get_contextual_type_for_jsx_attribute(
+    pub(crate) fn get_contextual_type_for_jsx_attribute(
         &mut self,
         attribute: NodeId,
         context_flags: ContextFlags,

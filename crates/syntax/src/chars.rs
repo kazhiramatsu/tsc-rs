@@ -2,14 +2,14 @@
 // (`cargo xtask codegen scanner`, since removed); tsgo has only the ESNext
 // ones (stringutil/identifier.go).
 
-pub(crate) fn is_identifier_start(ch: char) -> bool {
+pub fn is_identifier_start(ch: char) -> bool {
     ch.is_ascii_alphabetic()
         || ch == '$'
         || ch == '_'
         || (ch as u32 > 0x7f && lookup_in_unicode_map(ch as u32, UNICODE_ES_NEXT_IDENTIFIER_START))
 }
 
-pub(crate) fn is_identifier_part(ch: char) -> bool {
+pub fn is_identifier_part(ch: char) -> bool {
     ch.is_ascii_alphanumeric()
         || ch == '$'
         || ch == '_'
