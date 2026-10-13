@@ -3189,6 +3189,62 @@ fn sharded_checker_budgets_publish_the_serial_no_emit_outcome() {
     }
 }
 
+/// Every shard's checker merges the same globals and publishes the same
+/// duplicate-declaration rows; the sharded merge keeps such a row once, so
+/// its related rows stay in the serial order (tsgo's
+/// compactAndMergeRelatedInfos would sort the copies' related rows: here by
+/// file name, `a.d.ts` before `z.d.ts`, against the declaration order).
+#[test]
+fn sharded_checkers_keep_a_shared_duplicate_declaration_once() {
+    let files = [
+        ("lib.d.ts", MINIMAL_GLOBALS),
+        ("z.d.ts", "declare var Dup: number;\n"),
+        ("a.d.ts", "declare var Dup: number;\n"),
+        ("dup.ts", "class Dup {}\n"),
+    ];
+    let run = |checkers: usize| {
+        consume(
+            ProgramSession::new(prepared_program(
+                &files,
+                3,
+                PreparationDiagnostics::default(),
+                |_| {},
+            ))
+            .with_checker_budget(CheckerBudget::new(
+                std::num::NonZeroUsize::new(checkers).expect("nonzero"),
+            )),
+        )
+    };
+    let serial = run(1);
+    let duplicate = serial
+        .semantic_diagnostics()
+        .iter()
+        .find(|diagnostic| {
+            diagnostic.code() == 2300
+                && diagnostic
+                    .file_name
+                    .as_ref()
+                    .is_some_and(|name| name.to_string_lossy().ends_with("dup.ts"))
+        })
+        .expect("the class's duplicate identifier");
+    let related_files = duplicate
+        .related
+        .iter()
+        .map(|related| {
+            let name = related
+                .file_name
+                .as_ref()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            name.rsplit('/').next().unwrap_or_default().to_owned()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(related_files, ["z.d.ts", "a.d.ts"]);
+    for checkers in [2usize, 4] {
+        assert_eq!(run(checkers), serial, "checkers={checkers}");
+    }
+}
+
 /// W2c: a sharded session whose result could depend on shard-local type-id
 /// order (last-member inference over an intersection of two shard-local
 /// function types) is replayed serially in the exact mode
