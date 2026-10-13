@@ -1,4 +1,5 @@
-//! tsgo `project.Client` (client.go): what the session asks of the editor.
+//! tsgo `project.Client` (client.go): what the session asks of the editor;
+//! and tsgo `logging.Logger`, where it logs.
 
 use tsc_compiler::locale::Locale;
 
@@ -12,4 +13,10 @@ pub trait Client: Send + Sync {
     fn set_locale(&self, locale: &str);
     /// tsgo `GetLocale`.
     fn locale(&self) -> Locale;
+}
+
+/// tsgo `logging.Logger`, as far as the session logs so far.
+pub trait Logger: Send + Sync {
+    /// tsgo `Log`.
+    fn log(&self, message: &str);
 }

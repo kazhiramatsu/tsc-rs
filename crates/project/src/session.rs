@@ -7,7 +7,9 @@
 
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
+use std::time::Instant;
 
+use tsc_host::go_time::duration_string;
 use tsc_host::vfs::FileSystem;
 use tsc_ls::lsutil::UserPreferences;
 use tsc_lsproto::{
@@ -19,7 +21,7 @@ use tsc_program::uri::uri_to_file_name;
 use tsc_syntax::ScriptKind;
 
 use crate::background::{Cancellation, Queue};
-use crate::client::Client;
+use crate::client::{Client, Logger};
 use crate::fs::{FileChangeSummary, Paths};
 use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
 use crate::project::Project;
@@ -49,6 +51,7 @@ pub struct Session {
 struct Inner {
     host: SnapshotHost,
     client: Option<Arc<dyn Client>>,
+    logger: Option<Arc<dyn Logger>>,
     /// The open documents (tsgo `fs`).
     fs: Mutex<OverlayFs>,
     snapshot: RwLock<Arc<Snapshot>>,
@@ -71,6 +74,7 @@ impl Session {
         options: SessionOptions,
         fs: Arc<dyn FileSystem>,
         client: Option<Arc<dyn Client>>,
+        logger: Option<Arc<dyn Logger>>,
         spawner: Option<Arc<dyn Spawner>>,
     ) -> Self {
         let position_encoding = options.position_encoding.clone();
@@ -84,6 +88,7 @@ impl Session {
             inner: Arc::new(Inner {
                 host,
                 client,
+                logger,
                 fs: Mutex::new(OverlayFs::new(fs, paths, position_encoding)),
                 snapshot: RwLock::new(snapshot),
                 snapshot_update: Mutex::new(()),
@@ -416,7 +421,27 @@ impl Inner {
         if pending.is_empty() {
             return (FileChangeSummary::default(), fs.overlays());
         }
-        fs.process_changes(std::mem::take(pending))
+        let start = Instant::now();
+        let count = pending.len();
+        let processed = fs.process_changes(std::mem::take(pending));
+        self.log(|| {
+            format!(
+                "Processed {count} file changes in {}",
+                duration_string(start.elapsed())
+            )
+        });
+        processed
+    }
+
+    /// tsgo's `if s.options.LoggingEnabled { s.logger.Log(...) }`.
+    fn log(&self, message: impl FnOnce() -> String) {
+        if let Some(logger) = self
+            .logger
+            .as_ref()
+            .filter(|_| self.host.options().logging_enabled)
+        {
+            logger.log(&message());
+        }
     }
 }
 
