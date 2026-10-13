@@ -6,13 +6,13 @@ use tsc_syntax::{Node, NodeData, SyntaxKind};
 
 use super::Property;
 
-pub(crate) const KIND_IDENTIFIER: u32 = 79;
-pub(crate) const KIND_STRING_LITERAL: u32 = 10;
-pub(crate) const KIND_NO_SUBSTITUTION_TEMPLATE_LITERAL: u32 = 14;
-pub(crate) const KIND_TEMPLATE_TAIL: u32 = 17;
+pub const KIND_IDENTIFIER: u32 = 79;
+pub const KIND_STRING_LITERAL: u32 = 10;
+pub const KIND_NO_SUBSTITUTION_TEMPLATE_LITERAL: u32 = 14;
+pub const KIND_TEMPLATE_TAIL: u32 = 17;
 
 /// tsgo's `Kind.String()` of each kind number.
-pub(crate) const KIND_NAMES: [&str; 353] = [
+pub const KIND_NAMES: [&str; 353] = [
     "KindUnknown",
     "KindEndOfFile",
     "KindSingleLineCommentTrivia",
@@ -369,7 +369,7 @@ pub(crate) const KIND_NAMES: [&str; 353] = [
 ];
 
 /// tsgo's kind number of a tsc-rs kind (`None`: tsgo has no such kind).
-pub(crate) fn tsgo_kind(kind: SyntaxKind) -> Option<u32> {
+pub fn tsgo_kind(kind: SyntaxKind) -> Option<u32> {
     Some(match kind {
         SyntaxKind::Unknown => 0,
         SyntaxKind::EndOfFileToken => 1,
@@ -726,7 +726,7 @@ pub(crate) fn tsgo_kind(kind: SyntaxKind) -> Option<u32> {
 }
 
 /// tsgo `getNodeDataType` of a tsgo kind number.
-pub(crate) fn node_data_type(kind: u32) -> u32 {
+pub fn node_data_type(kind: u32) -> u32 {
     match kind {
         8 | 9 | 10 | 13 | 14 | 15 | 16 | 17 | 308 => super::NODE_DATA_TYPE_EXTENDED_DATA,
         11 | 79 | 80 | 317 | 320 | 321 | 322 => super::NODE_DATA_TYPE_STRING,
@@ -736,7 +736,7 @@ pub(crate) fn node_data_type(kind: u32) -> u32 {
 
 /// The child properties tsgo's encoder visits on `node`, in visitor order
 /// (`getChildrenPropertyMask`'s bits); a node with none calls nothing.
-pub(crate) fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {
+pub fn for_each_property<'a>(node: &'a Node, mut f: impl FnMut(Property<'a>)) {
     match &node.data {
         NodeData::QualifiedName(d) => {
             f(Property::Node(d.left));
