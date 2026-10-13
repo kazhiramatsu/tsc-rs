@@ -517,8 +517,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
 
         let scan_end = self.node_pos();
-        let joined_comments = comments.join("");
-        let trimmed_comments = Self::trim_end(&joined_comments).to_owned();
+        // tsgo trims only the last piece of the comment (a blank line before
+        // the end stays a newline).
+        if let Some(last) = comments.last_mut() {
+            let trimmed = last.trim_end_matches(char::is_whitespace).len();
+            last.truncate(trimmed);
+        }
+        let trimmed_comments = comments.join("");
         if !parts.is_empty() && !trimmed_comments.is_empty() {
             parts.push(self.finish(
                 NodeData::JSDocText(JSDocTextData {
