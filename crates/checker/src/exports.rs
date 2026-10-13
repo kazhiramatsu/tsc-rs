@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use tsc_binder::{node_util, SymbolTable};
+pub use tsc_emitter::DisplayPart;
 use tsc_emitter::{
     create_printer, EmitNodeBuilderFlags, EmitResolverError, EmitSymbolExpansionOut, NewLineKind,
     PrintRequest, PrinterOptions, StandaloneWriter, TransformArena, TransformNode,
@@ -82,6 +83,10 @@ pub const TYPE_FORMAT_WRITE_CALL_STYLE_SIGNATURE: u32 = 1 << 27;
 pub const TYPE_FORMAT_USE_INSTANTIATION_EXPRESSIONS: u32 = 1 << 30;
 /// tsgo `nodebuilder.FlagsWriteTypeParametersInQualifiedName`.
 const NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 1 << 9;
+/// tsgo hover's `classifiedNodeBuilderFlags`: `IgnoreErrors |
+/// UseAliasDefinedOutsideCurrentScope | WriteTypeParametersInQualifiedName`.
+const CLASSIFIED_NODE_BUILDER_FLAGS: u32 =
+    NODE_BUILDER_IGNORE_ERRORS | 1 << 14 | NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME;
 
 /// tsgo `VerbosityContext` (checker/nodebuilder.go): a hover's expansion
 /// level (0 only finds out whether a higher level shows more) and
@@ -1311,9 +1316,134 @@ impl CheckerState<'_> {
         Ok(result)
     }
 
+    /// tsgo hover's `writeTypeClassified` for a client with Visual Studio
+    /// extensions: the type node a node builder without a verbosity context
+    /// builds, printed with its comments into a display parts writer, each
+    /// identifier naming a symbol classified by `classify`. `None` when the
+    /// node builder builds no node.
+    pub fn type_to_display_parts(
+        &mut self,
+        ty: TypeId,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+        classify: &mut dyn FnMut(&mut Self, SymbolId) -> &'static str,
+    ) -> Result<Option<Vec<DisplayPart>>, String> {
+        let flags = EmitNodeBuilderFlags(
+            (flags & TYPE_FORMAT_NODE_BUILDER_FLAGS_MASK) | CLASSIFIED_NODE_BUILDER_FLAGS,
+        );
+        let built = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::type_to_type_node_with_identifier_symbols(
+                checker,
+                arena,
+                target,
+                ty,
+                enclosing_declaration,
+                flags,
+            )
+        })?;
+        match built {
+            Some((node, identifiers)) => self
+                .print_display_parts(node, identifiers, classify)
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+
+    /// tsgo hover's `writeSignatureClassified` for a client with Visual
+    /// Studio extensions: the signature's declaration (call, construct,
+    /// function or constructor type by the flags) as display parts, with
+    /// its trailing semicolon.
+    pub fn signature_to_display_parts(
+        &mut self,
+        signature: SignatureId,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+        classify: &mut dyn FnMut(&mut Self, SymbolId) -> &'static str,
+    ) -> Result<Option<Vec<DisplayPart>>, String> {
+        let kind = self.signature_display_kind(signature, flags);
+        let flags = EmitNodeBuilderFlags(
+            (flags & TYPE_FORMAT_NODE_BUILDER_FLAGS_MASK) | CLASSIFIED_NODE_BUILDER_FLAGS,
+        );
+        let built = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::signature_to_signature_declaration_with_identifier_symbols(
+                checker,
+                arena,
+                target,
+                signature,
+                kind,
+                enclosing_declaration,
+                flags,
+            )
+        })?;
+        match built {
+            Some((node, identifiers)) => self
+                .print_display_parts(node, identifiers, classify)
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+
+    /// tsgo `SignatureToStringEx`'s kind: an arrow-style signature is a
+    /// function or constructor type, otherwise a call or construct
+    /// signature (a construct signature written call style is a call).
+    fn signature_display_kind(&self, signature: SignatureId, flags: u32) -> SyntaxKind {
+        let is_constructor = self
+            .signature_of(signature)
+            .flags
+            .intersects(tsc_types::SignatureFlags::CONSTRUCT)
+            && flags & TYPE_FORMAT_WRITE_CALL_STYLE_SIGNATURE == 0;
+        match (
+            flags & TYPE_FORMAT_WRITE_ARROW_STYLE_SIGNATURE != 0,
+            is_constructor,
+        ) {
+            (true, true) => SyntaxKind::ConstructorType,
+            (true, false) => SyntaxKind::FunctionType,
+            (false, true) => SyntaxKind::ConstructSignature,
+            (false, false) => SyntaxKind::CallSignature,
+        }
+    }
+
+    /// A built node printed (LF, comments kept) into a display parts
+    /// writer, the identifiers naming symbols written as those symbols.
+    fn print_display_parts(
+        &mut self,
+        node: TransformNode,
+        identifiers: crate::node_builder::IdentifierSymbols,
+        classify: &mut dyn FnMut(&mut Self, SymbolId) -> &'static str,
+    ) -> Result<Vec<DisplayPart>, String> {
+        let mut classifications = std::collections::HashMap::new();
+        for (identifier, symbol) in identifiers {
+            let classification = classify(self, symbol);
+            classifications.insert(identifier, classification);
+        }
+        let printed = self
+            .with_emit_display(|display| {
+                create_printer(
+                    PrinterOptions::new(NewLineKind::LineFeed).with_declaration_syntax(true),
+                )
+                .with_identifier_classifications(classifications)
+                .print(
+                    display,
+                    PrintRequest::StandaloneNode {
+                        node,
+                        writer: StandaloneWriter::DisplayParts,
+                    },
+                    None,
+                )
+            })
+            .map_err(|error| format!("display parts printer: {error:?}"))?;
+        Ok(printed.display_parts().unwrap_or_default().to_vec())
+    }
+
     /// A source node printed on one line (tsgo's `EFSingleLine` on it) with
-    /// LF new lines, as hover writes a module's import attributes.
-    pub fn print_source_node_single_line(&mut self, node: NodeId) -> Result<String, String> {
+    /// LF new lines, as hover writes a module's import attributes; for a
+    /// client with Visual Studio extensions, into a display parts writer
+    /// (whose runs come too).
+    pub fn print_source_node_single_line(
+        &mut self,
+        node: NodeId,
+        display_parts: bool,
+    ) -> Result<(String, Option<Vec<DisplayPart>>), String> {
         let target = self.emit_display_target(self.binder.file_index_of_node(node));
         let (node, flags) = self.with_emit_display(|display| {
             let arena = display
@@ -1328,10 +1458,14 @@ impl CheckerState<'_> {
                 .add_flags(tsc_emitter::EmitFlags::SINGLE_LINE);
             Ok::<_, String>((node, flags))
         })?;
-        let printed = self.print_display_node(
+        let printed = self.print_display(
             node,
             PrinterOptions::new(NewLineKind::LineFeed).with_declaration_syntax(true),
-            StandaloneWriter::MultiLine,
+            if display_parts {
+                StandaloneWriter::DisplayParts
+            } else {
+                StandaloneWriter::MultiLine
+            },
         );
         self.with_emit_display(|display| {
             let arena = display
@@ -1341,7 +1475,11 @@ impl CheckerState<'_> {
                 .metadata_mut(node)
                 .set_flags(flags.unwrap_or_default());
         });
-        printed
+        let printed = printed?;
+        Ok((
+            printed_text(&printed),
+            printed.display_parts().map(<[DisplayPart]>::to_vec),
+        ))
     }
 
     /// A display node printed standalone.
@@ -1351,17 +1489,30 @@ impl CheckerState<'_> {
         options: PrinterOptions,
         writer: StandaloneWriter,
     ) -> Result<String, String> {
-        let printed = self
-            .with_emit_display(|display| {
-                create_printer(options).print(
-                    display,
-                    PrintRequest::StandaloneNode { node, writer },
-                    None,
-                )
-            })
-            .map_err(|error| format!("type node printer: {error:?}"))?;
-        Ok(JsString::from_code_units(printed.text_utf16().as_ref())
-            .to_string_lossy()
-            .into_owned())
+        self.print_display(node, options, writer)
+            .map(|printed| printed_text(&printed))
     }
+
+    fn print_display(
+        &mut self,
+        node: TransformNode,
+        options: PrinterOptions,
+        writer: StandaloneWriter,
+    ) -> Result<tsc_emitter::PrintedText, String> {
+        self.with_emit_display(|display| {
+            create_printer(options).print(
+                display,
+                PrintRequest::StandaloneNode { node, writer },
+                None,
+            )
+        })
+        .map_err(|error| format!("type node printer: {error:?}"))
+    }
+}
+
+/// A printed text as a Rust string (an unpaired surrogate as U+FFFD).
+fn printed_text(printed: &tsc_emitter::PrintedText) -> String {
+    JsString::from_code_units(printed.text_utf16().as_ref())
+        .to_string_lossy()
+        .into_owned()
 }

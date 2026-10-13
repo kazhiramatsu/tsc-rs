@@ -1516,13 +1516,14 @@ pub(crate) fn chains_symbol_to_entity_name_node(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
-    _context: &mut NodeBuilderContext<'_>,
+    context: &mut NodeBuilderContext<'_>,
     symbol: SymbolId,
 ) -> BuildResult<TransformNode> {
     fn build(
         checker: &CheckerState<'_>,
         arena: &mut TransformArena,
         target: TransformSourceId,
+        context: &mut NodeBuilderContext<'_>,
         symbol: SymbolId,
     ) -> BuildResult<TransformNode> {
         let identifier = create_output_identifier(
@@ -1530,15 +1531,16 @@ pub(crate) fn chains_symbol_to_entity_name_node(
             target,
             tsc_binder::unescape_leading_underscores(checker.binder.symbol(symbol).escaped_name),
         )?;
+        context.name_identifier(identifier, symbol);
         match checker.binder.symbol(symbol).parent {
             Some(parent) => {
-                let left = build(checker, arena, target, parent)?;
+                let left = build(checker, arena, target, context, parent)?;
                 create_qualified_name(arena, target, left, identifier)
             }
             None => Ok(identifier),
         }
     }
-    build(checker, arena, target, symbol)
+    build(checker, arena, target, context, symbol)
 }
 
 fn create_literal_type(
@@ -1981,6 +1983,7 @@ fn create_access_from_symbol_chain(
 
     let identifier = create_output_identifier(arena, target, &symbol_name)?;
     let identifier = set_no_ascii_escaping(arena, identifier);
+    context.name_identifier(identifier, symbol);
     if index > stopper {
         let lhs = create_access_from_symbol_chain(
             checker,
@@ -2418,6 +2421,7 @@ pub(crate) fn type_parameter_to_name(
         }
         if text != raw_text {
             result = create_identifier(arena, target, &text)?;
+            context.name_identifier(result, symbol);
         }
         if context.must_create_type_parameters_names_lookups {
             context.must_create_type_parameters_names_lookups = false;
@@ -2503,6 +2507,7 @@ fn create_entity_name_from_symbol_chain(
     }
     let identifier = create_output_identifier(arena, target, &name)?;
     let identifier = set_no_ascii_escaping(arena, identifier);
+    context.name_identifier(identifier, symbol);
     if index == 0 {
         Ok(identifier)
     } else {
@@ -2578,6 +2583,7 @@ fn create_expression_from_symbol_chain(
     if index == 0 || can_use_property_access(&name) {
         let identifier = create_output_identifier(arena, target, &name)?;
         let identifier = set_no_ascii_escaping(arena, identifier);
+        context.name_identifier(identifier, symbol);
         add_approximate_length(context, js_len(&name) + 1);
         if index == 0 {
             return create_expression_with_type_arguments(
@@ -2624,7 +2630,9 @@ fn create_expression_from_symbol_chain(
         } else {
             add_approximate_length(context, js_len(&name));
             let identifier = create_output_identifier(arena, target, &name)?;
-            set_no_ascii_escaping(arena, identifier)
+            let identifier = set_no_ascii_escaping(arena, identifier);
+            context.name_identifier(identifier, symbol);
+            identifier
         }
     };
     add_approximate_length(context, 2);
@@ -2680,9 +2688,12 @@ fn cloned_hash_private_name(
     clone_parse_node(checker, arena, name)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_property_name_for_identifier_or_literal(
     arena: &mut TransformArena,
     target: TransformSourceId,
+    context: &mut NodeBuilderContext<'_>,
+    symbol: SymbolId,
     name: impl NameKey,
     single_quote: bool,
     string_named: bool,
@@ -2694,7 +2705,9 @@ fn create_property_name_for_identifier_or_literal(
     // surrogates. Values outside those grammars remain string literal names.
     if let Some(scalar_name) = name.as_str() {
         if !method_named_new && tsc_syntax::is_identifier_text(scalar_name) {
-            return create_identifier(arena, target, scalar_name);
+            let identifier = create_identifier(arena, target, scalar_name)?;
+            context.name_identifier(identifier, symbol);
+            return Ok(identifier);
         }
         if !string_named
             && !method_named_new
@@ -2753,6 +2766,8 @@ pub(crate) fn chains_get_property_name_node_for_symbol(
     create_property_name_for_identifier_or_literal(
         arena,
         target,
+        context,
+        symbol,
         raw_name,
         single_quote,
         string_named,
@@ -2864,6 +2879,8 @@ fn get_property_name_node_for_symbol_from_name_type(
         return create_property_name_for_identifier_or_literal(
             arena,
             target,
+            context,
+            symbol,
             &name,
             single_quote,
             string_named,
@@ -3018,7 +3035,7 @@ fn node_is_synthesized(arena: &TransformArena, node: TransformNode) -> BuildResu
 pub(crate) fn set_text_range2(
     checker: &CheckerState<'_>,
     arena: &mut TransformArena,
-    context: &NodeBuilderContext<'_>,
+    context: &mut NodeBuilderContext<'_>,
     mut range: TransformNode,
     location: Option<TransformNode>,
 ) -> BuildResult<TransformNode> {
@@ -3028,10 +3045,19 @@ pub(crate) fn set_text_range2(
         || !flags.contains(NodeFlags::SYNTHESIZED)
         || !source_matches_enclosing_file(checker, arena, context, original)?
     {
+        let copied = range;
         range = arena
             .factory()
             .clone_node_keeping_quote(range)
             .map_err(factory_error)?;
+        // The copy names the copied identifier's symbol.
+        if let Some(&(_, symbol)) = context
+            .identifier_symbols
+            .iter()
+            .find(|&&(identifier, _)| identifier == copied)
+        {
+            context.name_identifier(range, symbol);
+        }
     }
     if location == Some(range) {
         return Ok(range);
