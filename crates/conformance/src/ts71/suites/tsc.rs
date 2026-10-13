@@ -151,8 +151,34 @@ pub(super) fn suite_and_name(scenario: &Scenario) -> (&str, &str) {
         .unwrap_or(("tsc", scenario.baseline.as_str()))
 }
 
+/// The process-wide settings tsc-rs's command line selects for the rest of
+/// its process (the unused-identifier suggestion pass off, tsc's JSDoc
+/// parsing mode), restored when a scenario ends: the suites run the command
+/// line and the language server's transcripts in one process.
+struct CommandLineSettings {
+    unused_identifier_suggestions: bool,
+    js_doc_parsing_mode: tsc_checker::JSDocParsingMode,
+}
+
+impl CommandLineSettings {
+    fn save() -> Self {
+        Self {
+            unused_identifier_suggestions: tsc_checker::unused_identifier_suggestions(),
+            js_doc_parsing_mode: tsc_program::default_js_doc_parsing_mode(),
+        }
+    }
+}
+
+impl Drop for CommandLineSettings {
+    fn drop(&mut self) {
+        tsc_checker::set_unused_identifier_suggestions(self.unused_identifier_suggestions);
+        tsc_program::set_default_js_doc_parsing_mode(self.js_doc_parsing_mode);
+    }
+}
+
 /// tsgo `tscInput.run`: the baseline of one scenario.
 pub(super) fn render(scenario: &Scenario, libraries: &[String]) -> Result<String, String> {
+    let _settings = CommandLineSettings::save();
     let mut baseline = String::new();
     let system = TestSystem::new(scenario, libraries, false)?;
     baseline.push_str(&format!(
