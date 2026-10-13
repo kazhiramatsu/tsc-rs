@@ -301,3 +301,25 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 - **検査（3b34134d2 + 43bbc6f71）**：conformance 0 regressions（全 13,577 full）、`--checkers 4` は既知の 4 だけ、suites 0
   regressions（lsp 150 full、診断 1,039/1,043、残りは content mapper の 4 → L10）、API client sync 337/356・async 346/365、
   test、clippy、fmt。
+
+## L3c go to definition と type definition（PR #780）
+
+- **merge**：#780 → `577bc9afa`（hosted run 38404039864：rust 8m34s、conformance 23m30s、gates）。commit：169f32702（tree view と
+  astnav を言語 service へ）、a4a6962eb（sourcemap の decoder と document position mapper を emitter へ）、3b7d7c1cd（機能）、
+  ratchet 764e5dce9。
+- **言語 service**：tsgo `ls/definition.go`（`ProvideDefinition`、`ProvideTypeDefinition`、`createDefinitionLocations`、
+  `getDeclarationsFromLocation`、文脈型からの object literal の property、呼ばれた signature の宣言、override、label、`switch` と
+  関数の keyword、index signature）、`getReferenceAtPosition`（triple-slash の path・types・lib、相対の module 指定子）、
+  `ls/source_map.go`（宣言 file の位置を declaration map で source へ）、tsgo `ls.Host`（snapshot が実装）。
+- **checker**：tsgo の services（`GetRootSymbols`、`GetPropertySymbolsFromContextualType` と
+  `IsTypeInvalidDueToUnionDiscriminant`、`GetIndexSignaturesAtLocation`、`GetFirstTypeArgumentFromKnownType`）と
+  `GetContextualType` の `IgnoreNodeInferences`（`runWithInferenceBlockedFromSourceNode`、`runWithoutResolvedSignatureCaching`：
+  三つの skip-direct-inference の stub を置き換え、`resolveCall` の `reportErrors` も）。transcript で見つかった修正：
+  `resolveDecorator` の `CanHaveDecorators`（関数宣言の decorator で panic）、JSDoc `@import` の module 指定子（tsgo は reparse
+  した宣言で解決）。
+- **回帰 test**：`crates/ls/tests/definition.rs` の 6（decorator、`@import`、declaration map、`IgnoreNodeInferences` の二つ：
+  union の方は遮断なしで失敗、type definition の戻り値型）、emitter の source mapper の test。
+- **検査（764e5dce9）**：conformance 0 regressions（全 full、sourcemap は共有 decoder で 13,577 full）、`--checkers 4` は既知の
+  4 だけ、suites 0 regressions（lsp 392 full、definition 472/482、typeDefinition 59/64、診断 1,039/1,043）、API client sync
+  337/356・async 346/365、test、clippy、fmt。
+- **有界の違い**：content mapper（L10）の 5 test、`preferGoToSourceDefinition`（L7）の 1 test。
