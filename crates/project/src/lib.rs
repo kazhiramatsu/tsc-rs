@@ -17,11 +17,13 @@ mod builder;
 mod config;
 mod fs;
 mod id;
+mod overlay;
 mod project;
 mod snapshot;
 
 pub use fs::FileChangeSummary;
 pub use id::{ProjectId, ProjectKind};
+pub use overlay::{FileChange, FileChangeKind, Overlay};
 pub use project::{CommandLine, ProgramRoots, ProgramUpdateKind, Project, ProjectProgram};
 pub use snapshot::{
     ApiSnapshotRequest, CreateProgramRequest, ProjectError, ReconfigureProgramRequest,
