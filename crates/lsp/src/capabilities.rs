@@ -41,8 +41,9 @@ pub const TOKEN_TYPES: [SemanticTokenType; 23] = [
     SemanticTokenType::OPERATOR,
 ];
 
-/// tsgo `ls.tokenModifiers`, in their encoding order.
-pub const TOKEN_MODIFIERS: [SemanticTokenModifier; 10] = [
+/// tsgo `ls.tokenModifiers`, in their encoding order (`local` is tsgo's
+/// own).
+pub const TOKEN_MODIFIERS: [SemanticTokenModifier; 11] = [
     SemanticTokenModifier::DECLARATION,
     SemanticTokenModifier::DEFINITION,
     SemanticTokenModifier::READONLY,
@@ -53,6 +54,7 @@ pub const TOKEN_MODIFIERS: [SemanticTokenModifier; 10] = [
     SemanticTokenModifier::MODIFICATION,
     SemanticTokenModifier::DOCUMENTATION,
     SemanticTokenModifier::DEFAULT_LIBRARY,
+    SemanticTokenModifier(std::borrow::Cow::Borrowed("local")),
 ];
 
 /// tsgo `ls.SemanticTokensLegend`: the token types and modifiers the client

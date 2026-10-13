@@ -1624,3 +1624,32 @@ fn a_locale_change_builds_the_programs_again() {
     assert!(!Arc::ptr_eq(&program(&session, index), &initial));
     session.close();
 }
+
+#[test]
+fn compiler_options_update_the_inferred_project() {
+    // tsgo project_test.go "compiler options update inferred project".
+    let index = "file:///src/index.ts";
+    let (session, _) = setup(&[("/src/index.ts", "export const x = 1;")]);
+    open(&session, index, "export const x = 1;");
+    let old = program(&session, index);
+    assert_eq!(old.prepared().compiler_options().strict, None);
+
+    let options = serde_json::json!({ "noLib": true, "strict": true });
+    let options = tsc_program::go_json::compiler_options_bag(options.as_object().unwrap())
+        .expect("the options convert");
+    session.did_change_compiler_options_for_inferred_projects(Arc::new(options));
+    let updated = program(&session, index);
+    assert!(!Arc::ptr_eq(&updated, &old));
+    assert_eq!(updated.prepared().compiler_options().strict, Some(true));
+    let snapshot = session.snapshot();
+    let inferred = snapshot.inferred_project().expect("the inferred project");
+    assert_eq!(
+        inferred
+            .command_line()
+            .expect("its command line")
+            .compiler_options()
+            .strict,
+        Some(true)
+    );
+    assert_eq!(old.prepared().compiler_options().strict, None);
+}

@@ -59,6 +59,17 @@ fn main() {
             suite.suite, suite.baselines, suite.full, suite.mismatch, suite.harness_error
         );
     }
+    let mut responses = std::collections::BTreeMap::<&str, [usize; 2]>::new();
+    for result in &results {
+        for (method, [same, all]) in &result.responses {
+            let counts = responses.entry(method).or_default();
+            counts[0] += same;
+            counts[1] += all;
+        }
+    }
+    for (method, [same, all]) in &responses {
+        println!("lsp responses {method}: {same}/{all}");
+    }
     for result in &results {
         if result.outcome != tsc_conformance::ts71::suites::SuiteOutcome::Full {
             println!(
