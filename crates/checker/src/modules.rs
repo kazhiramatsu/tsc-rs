@@ -3522,7 +3522,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: the no-excludes flavor of get_symbol_flags_full
     /// (tsc's optional-parameter defaults).
-    pub(crate) fn get_symbol_flags_of(&mut self, symbol: SymbolId) -> CheckResult<SymbolFlags> {
+    pub fn get_symbol_flags_of(&mut self, symbol: SymbolId) -> CheckResult<SymbolFlags> {
         self.get_symbol_flags_full(symbol, false, false)
     }
 

@@ -5261,7 +5261,7 @@ impl<'a> CheckerState<'a> {
     /// recipe for properties with more than two constituents. Deferral is
     /// observable: normalization can report TS2590 at the eventual read
     /// site, so eagerly combining here is not semantically equivalent.
-    fn create_union_or_intersection_property<'n>(
+    pub(crate) fn create_union_or_intersection_property<'n>(
         &mut self,
         containing_type: TypeId,
         name: impl Into<JsStr<'n>>,

@@ -1452,7 +1452,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isInTypeQuery @6.0.3
     /// tsc-hash: 8785d47c907901c016e44b54eafcb54081198d3feba0af1af3d51531d273d52d
     /// tsc-span: _tsc.js:16701-16706
-    pub(crate) fn is_in_type_query(&self, node: NodeId) -> bool {
+    pub fn is_in_type_query(&self, node: NodeId) -> bool {
         let mut current = Some(node);
         while let Some(node) = current {
             match self.kind_of(node) {
