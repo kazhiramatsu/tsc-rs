@@ -559,6 +559,7 @@ impl Request<'_, '_> {
                 return Some(Touching::Token {
                     kind,
                     pos: position as u32,
+                    end: end as u32,
                     parent: node,
                 });
             }

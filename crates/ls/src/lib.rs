@@ -4,6 +4,7 @@
 //! (`lsconv`).
 
 pub mod astnav;
+mod completions;
 mod definition;
 mod diagnostics;
 mod hover;
