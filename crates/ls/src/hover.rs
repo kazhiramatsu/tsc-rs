@@ -9,17 +9,22 @@ use tsc_checker::exports::{
     TYPE_FORMAT_WRITE_ARROW_STYLE_SIGNATURE, TYPE_FORMAT_WRITE_CALL_STYLE_SIGNATURE,
     TYPE_FORMAT_WRITE_TYPE_ARGUMENTS_OF_SIGNATURE,
 };
-use tsc_checker::state::{CheckResult, SignatureId, SignatureKind};
-use tsc_checker::SymbolFormatFlags;
+use tsc_checker::state::{CheckResult, CheckerState, SignatureId, SignatureKind};
+use tsc_checker::{DisplayPart, SymbolFormatFlags};
 use tsc_lsproto::{
     Hover, HoverParams, MarkupContent,
     MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings, MarkupKind,
+    VSClassifiedTextRun,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId};
 
 use crate::astnav::Navigator;
+use crate::hovericon::{build_vs_hover_raw_content, vs_hover_image_id};
 use crate::language_service::{LanguageService, LsError};
+use crate::lsutil::{
+    get_symbol_kind, get_symbol_modifiers, ScriptElementKind, ScriptElementKindModifier,
+};
 use crate::meaning::SemanticMeaning;
 use crate::request::Request;
 use crate::utilities::{containing_object_literal_element, range_of_node, touching, Touching};
@@ -58,6 +63,7 @@ impl LanguageService<'_> {
         }
         let can_increase_verbosity_capability =
             self.capabilities.experimental.hover_verbosity_level;
+        let vs_capability = self.capabilities._vs_supports_visual_studio_extensions;
         let file = self.file(&params.text_document.uri);
         let hover = self.with_request(file, &params.position, false, |request, position| {
             let source = request.state.binder.source(file);
@@ -85,11 +91,17 @@ impl LanguageService<'_> {
                 max_truncation_length: max_truncation_length as u32,
                 ..VerbosityContext::default()
             };
-            let (quick_info, documentation) = request.quick_info_and_documentation(
+            let QuickInfoAndDocumentation {
+                quick_info,
+                documentation,
+                vs_documentation,
+                runs,
+            } = request.quick_info_and_documentation(
                 symbol,
                 range_node,
                 markdown,
                 &mut verbosity,
+                vs_capability,
             )?;
             if quick_info.is_empty() {
                 return Ok(None);
@@ -109,6 +121,49 @@ impl LanguageService<'_> {
             } else {
                 format!("{quick_info}{documentation}")
             };
+            // A client with Visual Studio extensions shows `_vs_rawContent`
+            // instead: the symbol's icon beside the colorized quick info.
+            let vs_raw_content = if vs_capability && !runs.is_empty() {
+                let mut kind = ScriptElementKind::Keyword;
+                let mut modifiers = ScriptElementKindModifier::NONE;
+                if let Some(symbol) = symbol {
+                    // An alias shows its target's icon.
+                    let mut icon_symbol = symbol;
+                    if request
+                        .state
+                        .symbol_flags(symbol)
+                        .intersects(SymbolFlags::ALIAS)
+                    {
+                        let resolved = request.state.get_aliased_symbol(symbol)?;
+                        if resolved != symbol {
+                            icon_symbol = resolved;
+                        }
+                    }
+                    let location = match range_node {
+                        Touching::Node(id) => id,
+                        Touching::Token { parent, .. } => parent,
+                    };
+                    kind = get_symbol_kind(request.state, icon_symbol, location)?;
+                    modifiers = get_symbol_modifiers(request.state, symbol)?;
+                }
+                let documentation_runs = match vs_documentation.trim_start_matches('\n') {
+                    "" => Vec::new(),
+                    text => vec![VSClassifiedTextRun {
+                        classification_type_name: "text".to_owned(),
+                        text: text.to_owned(),
+                        marker_tag_type: None,
+                        style: 0,
+                        _vs_type: Default::default(),
+                    }],
+                };
+                build_vs_hover_raw_content(
+                    vs_hover_image_id(kind, modifiers),
+                    runs,
+                    documentation_runs,
+                )
+            } else {
+                None
+            };
             Ok(Some(Hover {
                 contents:
                     MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings::MarkupContent(
@@ -121,10 +176,62 @@ impl LanguageService<'_> {
                 can_increase_verbosity: can_increase_verbosity_capability
                     && verbosity.can_increase_verbosity
                     && !verbosity.truncated,
-                _vs_raw_content: None,
+                _vs_raw_content: vs_raw_content,
             }))
         })?;
         Ok(hover.flatten())
+    }
+}
+
+/// tsgo `getQuickInfoAndDocumentationForSymbol`'s results.
+#[derive(Default)]
+struct QuickInfoAndDocumentation {
+    quick_info: String,
+    documentation: String,
+    vs_documentation: String,
+    runs: Vec<VSClassifiedTextRun>,
+}
+
+/// tsgo `classificationForSymbol`: a symbol's name's Visual Studio
+/// classification, as Strada's `displayPartKind` and `GetClassificationName`
+/// chain it.
+fn classification_for_symbol(state: &CheckerState<'_>, symbol: SymbolId) -> &'static str {
+    let data = state.binder.symbol(symbol);
+    let flags = data.flags;
+    if flags.intersects(SymbolFlags::VARIABLE) {
+        let parameter = data.declarations.first().is_some_and(|&declaration| {
+            state.binder.node_record(declaration).kind == SyntaxKind::Parameter
+        });
+        return if parameter {
+            "parameter name"
+        } else {
+            "local name"
+        };
+    }
+    if flags
+        .intersects(SymbolFlags::PROPERTY | SymbolFlags::GET_ACCESSOR | SymbolFlags::SET_ACCESSOR)
+    {
+        "property name"
+    } else if flags.intersects(SymbolFlags::ENUM_MEMBER) {
+        "field name"
+    } else if flags.intersects(SymbolFlags::FUNCTION) {
+        "method name"
+    } else if flags.intersects(SymbolFlags::CLASS) {
+        "class name"
+    } else if flags.intersects(SymbolFlags::INTERFACE) {
+        "interface name"
+    } else if flags.intersects(SymbolFlags::ENUM) {
+        "enum name"
+    } else if flags.intersects(SymbolFlags::MODULE) {
+        "module name"
+    } else if flags.intersects(SymbolFlags::METHOD) {
+        "method name"
+    } else if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+        "type parameter name"
+    } else if flags.intersects(SymbolFlags::TYPE_ALIAS | SymbolFlags::ALIAS) {
+        "identifier"
+    } else {
+        "text"
     }
 }
 
@@ -154,26 +261,89 @@ pub(crate) fn write_code(text: &mut String, language: &str, code: &str) {
     text.push('\n');
 }
 
-/// The quick info being written (tsgo's `displayPartsWriter` without the
-/// classified runs of Visual Studio's).
+/// The quick info being written: tsgo's `displayPartsWriter`, whose
+/// classified runs a client with Visual Studio extensions gets.
 struct QuickInfo {
     text: String,
+    /// The runs, for a client with Visual Studio extensions.
+    runs: Option<Vec<VSClassifiedTextRun>>,
     alias_level: u32,
     declaration: Option<NodeId>,
 }
 
 impl QuickInfo {
-    fn write(&mut self, text: &str) {
+    fn new(vs_capability: bool) -> Self {
+        Self {
+            text: String::new(),
+            runs: vs_capability.then(Vec::new),
+            alias_level: 0,
+            declaration: None,
+        }
+    }
+
+    /// tsgo `addRun`.
+    fn add_run(&mut self, classification: &str, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        if let Some(runs) = &mut self.runs {
+            runs.push(VSClassifiedTextRun {
+                classification_type_name: classification.to_owned(),
+                text: text.to_owned(),
+                marker_tag_type: None,
+                style: 0,
+                _vs_type: Default::default(),
+            });
+        }
         self.text.push_str(text);
+    }
+
+    fn write(&mut self, text: &str) {
+        self.add_run("text", text);
+    }
+
+    fn write_keyword(&mut self, text: &str) {
+        self.add_run("keyword", text);
+    }
+
+    fn write_punctuation(&mut self, text: &str) {
+        self.add_run("punctuation", text);
+    }
+
+    fn write_operator(&mut self, text: &str) {
+        self.add_run("operator", text);
+    }
+
+    fn write_literal(&mut self, text: &str) {
+        self.add_run("string", text);
+    }
+
+    /// tsgo `WriteSymbol`: a name with its symbol's classification.
+    fn write_symbol(&mut self, text: &str, classification: &str) {
+        self.add_run(classification, text);
+    }
+
+    /// tsgo `WriteFrom`: another writer's runs.
+    fn write_parts(&mut self, parts: Vec<DisplayPart>) {
+        for part in parts {
+            self.add_run(part.classification, &part.text);
+        }
+    }
+
+    /// tsgo's `(` text `) ` prefix.
+    fn write_parenthesized(&mut self, text: &str) {
+        self.write_punctuation("(");
+        self.write(text);
+        self.write_punctuation(") ");
     }
 
     /// tsgo `writeNewLine`: a line between meanings, and an alias's prefix.
     fn write_new_line(&mut self) {
         if !self.text.is_empty() {
-            self.text.push('\n');
+            self.write("\n");
         }
         if self.alias_level != 0 {
-            self.text.push_str("(alias) ");
+            self.write_parenthesized("alias");
         }
     }
 
@@ -186,23 +356,42 @@ impl QuickInfo {
 }
 
 impl<'a> Request<'_, 'a> {
-    /// tsgo `getQuickInfoAndDocumentationForSymbol` (without Visual Studio's
-    /// documentation).
+    /// tsgo `getQuickInfoAndDocumentationForSymbol`: the quick info, its
+    /// documentation and, for a client with Visual Studio extensions, the
+    /// plain JSDoc summary (Visual Studio renders no Markdown or tags) and
+    /// the quick info's classified runs.
     fn quick_info_and_documentation(
         &mut self,
         symbol: Option<SymbolId>,
         node: Touching,
         markdown: bool,
         verbosity: &mut VerbosityContext,
-    ) -> CheckResult<(String, String)> {
+        vs_capability: bool,
+    ) -> CheckResult<QuickInfoAndDocumentation> {
         let meaning = self.meaning_from_location(node);
-        let info = self.quick_info_and_declaration_at_location(symbol, node, verbosity, meaning)?;
+        let info = self.quick_info_and_declaration_at_location(
+            symbol,
+            node,
+            verbosity,
+            meaning,
+            vs_capability,
+        )?;
         if info.text.is_empty() {
-            return Ok((String::new(), String::new()));
+            return Ok(QuickInfoAndDocumentation::default());
         }
         let documentation =
             self.documentation_for_symbol(symbol, node, info.declaration, markdown, false)?;
-        Ok((info.text, documentation))
+        let vs_documentation = if vs_capability {
+            self.documentation_for_symbol(symbol, node, info.declaration, false, true)?
+        } else {
+            String::new()
+        };
+        Ok(QuickInfoAndDocumentation {
+            quick_info: info.text,
+            documentation,
+            vs_documentation,
+            runs: info.runs.unwrap_or_default(),
+        })
     }
 
     /// tsgo `getQuickInfoAndDeclarationAtLocation`.
@@ -212,19 +401,16 @@ impl<'a> Request<'_, 'a> {
         node: Touching,
         verbosity: &mut VerbosityContext,
         meaning: SemanticMeaning,
+        vs_capability: bool,
     ) -> CheckResult<QuickInfo> {
         let container = self.container_node(node);
-        let mut info = QuickInfo {
-            text: String::new(),
-            alias_level: 0,
-            declaration: None,
-        };
+        let mut info = QuickInfo::new(vs_capability);
         let kind = self.kind(node);
         if kind == SyntaxKind::ThisKeyword && self.is_in_expression_context(node)
             || self.is_this_in_type_query(node)
         {
-            info.write("this");
-            info.write(": ");
+            info.write_keyword("this");
+            info.write_punctuation(": ");
             let ty = self.type_at(node)?;
             self.write_type(&mut info, ty, container, TYPE_FORMAT_FLAGS, verbosity);
             return Ok(info);
@@ -318,28 +504,29 @@ impl<'a> Request<'_, 'a> {
             info.write_new_line();
             if !self.state.is_index_symbol(symbol) {
                 if flags.intersects(SymbolFlags::PROPERTY) {
-                    info.write("(property) ");
+                    info.write_parenthesized("property");
                 } else if flags.intersects(SymbolFlags::ACCESSOR) {
-                    info.write("(accessor) ");
+                    info.write_parenthesized("accessor");
                 } else if let Some(declaration) = value_declaration {
                     let source = self.state.binder.source_of_node(declaration);
                     let root = node_util::get_root_declaration(source, declaration);
                     if self.node_kind(root) == SyntaxKind::Parameter {
-                        info.write("(parameter) ");
+                        info.write_parenthesized("parameter");
                     } else {
                         let block_scoped = node_util::get_combined_node_flags(source, root)
                             & NodeFlags::BLOCK_SCOPED;
-                        info.write(if block_scoped == NodeFlags::LET {
-                            "let "
+                        if block_scoped == NodeFlags::LET {
+                            info.write_keyword("let ");
                         } else if block_scoped == NodeFlags::CONST {
-                            "const "
+                            info.write_keyword("const ");
                         } else if block_scoped == NodeFlags::USING {
-                            "using "
+                            info.write_keyword("using ");
                         } else if block_scoped == NodeFlags::AWAIT_USING {
-                            "await using "
+                            info.write_keyword("await ");
+                            info.write_keyword("using ");
                         } else {
-                            "var "
-                        });
+                            info.write_keyword("var ");
+                        }
                     }
                 }
                 let parent = self.state.binder.symbol(symbol).parent;
@@ -363,9 +550,9 @@ impl<'a> Request<'_, 'a> {
                     )?;
                 }
                 if symbol_flags.intersects(SymbolFlags::OPTIONAL) {
-                    info.write("?");
+                    info.write_punctuation("?");
                 }
-                info.write(": ");
+                info.write_punctuation(": ");
             }
             if let Some(call) = self.call_or_new_expression(node) {
                 let mut flags = TYPE_FORMAT_FLAGS
@@ -423,7 +610,7 @@ impl<'a> Request<'_, 'a> {
         }
         if flags.intersects(SymbolFlags::ENUM_MEMBER) {
             info.write_new_line();
-            info.write("(enum member) ");
+            info.write_parenthesized("enum member");
             let ty = self.state.get_type_of_symbol(symbol)?;
             self.write_type(info, ty, container, TYPE_FORMAT_FLAGS, verbosity);
             if self
@@ -432,8 +619,8 @@ impl<'a> Request<'_, 'a> {
                 .flags_of(ty)
                 .intersects(TypeFlags::LITERAL)
             {
-                info.write(" = ");
-                info.write(&self.literal_text(ty));
+                info.write_operator(" = ");
+                info.write_literal(&self.literal_text(ty));
             }
             info.set_declaration(value_declaration);
         }
@@ -492,7 +679,7 @@ impl<'a> Request<'_, 'a> {
             if kind_is(self.kind(node), SyntaxKind::ThisKeyword) || self.is_this_in_type_query(node)
             {
                 info.write_new_line();
-                info.write("this");
+                info.write_keyword("this");
             } else if self.kind(node) == SyntaxKind::ConstructorKeyword
                 && parent.is_some_and(|parent| {
                     matches!(
@@ -542,7 +729,7 @@ impl<'a> Request<'_, 'a> {
                         let class_expression =
                             self.declaration_of_kind(symbol, SyntaxKind::ClassExpression);
                         if class_expression.is_some() {
-                            info.write("(local class) ");
+                            info.write_parenthesized("local class");
                         }
                         if !self.try_expand_symbol(
                             info,
@@ -563,9 +750,9 @@ impl<'a> Request<'_, 'a> {
                                             )
                                     });
                                 if is_abstract {
-                                    info.write("abstract ");
+                                    info.write_keyword("abstract ");
                                 }
-                                info.write("class ");
+                                info.write_keyword("class ");
                             }
                             self.write_symbol_name(
                                 info,
@@ -585,7 +772,7 @@ impl<'a> Request<'_, 'a> {
                         verbosity,
                         symbol_was_expanded,
                     )? {
-                        info.write("interface ");
+                        info.write_keyword("interface ");
                         self.write_symbol_name(
                             info,
                             symbol,
@@ -622,9 +809,9 @@ impl<'a> Request<'_, 'a> {
                         .intersects(ModifierFlags::CONST)
                 });
                 if is_const {
-                    info.write("const ");
+                    info.write_keyword("const ");
                 }
-                info.write("enum ");
+                info.write_keyword("enum ");
                 self.write_symbol_name(
                     info,
                     symbol,
@@ -649,7 +836,7 @@ impl<'a> Request<'_, 'a> {
                             declaration,
                         )
                 });
-                info.write(if is_module { "module " } else { "namespace " });
+                info.write_keyword(if is_module { "module " } else { "namespace " });
                 self.write_symbol_name(
                     info,
                     symbol,
@@ -667,7 +854,7 @@ impl<'a> Request<'_, 'a> {
         }
         if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
             info.write_new_line();
-            info.write("(type parameter) ");
+            info.write_parenthesized("type parameter");
             if let Touching::Node(id) = node {
                 let parent = self.parent(node);
                 if self.node_kind(id) == SyntaxKind::Identifier
@@ -684,7 +871,7 @@ impl<'a> Request<'_, 'a> {
                             ..
                         }
                     ) {
-                        info.write("(distributed) ");
+                        info.write_parenthesized("distributed");
                     }
                 }
             }
@@ -697,12 +884,12 @@ impl<'a> Request<'_, 'a> {
                 SYMBOL_FORMAT_FLAGS,
             )?;
             if let Some(constraint) = self.state.get_constraint_of_type_parameter(ty)? {
-                info.write(" extends ");
+                info.write_keyword(" extends ");
                 self.write_type(info, constraint, container, TYPE_FORMAT_FLAGS, verbosity);
             }
             if let Some(parent) = self.state.binder.symbol(symbol).parent {
                 // A class or interface's type parameter.
-                info.write(" in ");
+                info.write_keyword(" in ");
                 self.write_symbol_name(
                     info,
                     parent,
@@ -722,9 +909,9 @@ impl<'a> Request<'_, 'a> {
                 if let Some(owner) = self.state.binder.node_record(declaration).parent {
                     let owner_kind = self.node_kind(owner);
                     if crate::utilities::is_function_like_kind(owner_kind) {
-                        info.write(" in ");
+                        info.write_keyword(" in ");
                         if owner_kind == SyntaxKind::ConstructSignature {
-                            info.write("new ");
+                            info.write_keyword("new ");
                         } else if owner_kind != SyntaxKind::CallSignature
                             && self.name_of(owner).is_some()
                         {
@@ -747,8 +934,8 @@ impl<'a> Request<'_, 'a> {
                             verbosity,
                         );
                     } else if owner_kind == SyntaxKind::TypeAliasDeclaration {
-                        info.write(" in ");
-                        info.write("type ");
+                        info.write_keyword(" in ");
+                        info.write_keyword("type ");
                         if let Some(owner_symbol) = self.state.binder.node_symbol(owner) {
                             self.write_symbol_name(
                                 info,
@@ -767,7 +954,7 @@ impl<'a> Request<'_, 'a> {
         }
         if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             info.write_new_line();
-            info.write("type ");
+            info.write_keyword("type ");
             self.write_symbol_name(
                 info,
                 symbol,
@@ -777,7 +964,7 @@ impl<'a> Request<'_, 'a> {
             )?;
             let parameters = self.type_alias_type_parameters(symbol)?;
             self.write_type_params(info, &parameters, verbosity)?;
-            info.write(" = ");
+            info.write_operator(" = ");
             let parent = self.parent(node);
             let ty = match parent.filter(|&parent| self.is_const_type_reference(parent)) {
                 Some(parent) => self.state.get_type_at_location(parent)?,
@@ -827,15 +1014,14 @@ impl<'a> Request<'_, 'a> {
         for (index, &signature) in signatures.iter().enumerate() {
             info.write_new_line();
             if index == 3 && signatures.len() >= 5 {
+                // tsgo `WriteComment`, a text run.
                 info.write(&format!("// +{} more overloads", signatures.len() - 3));
                 break;
             }
             if parenthesized {
-                info.write("(");
-                info.write(prefix);
-                info.write(") ");
+                info.write_parenthesized(prefix);
             } else {
-                info.write(prefix);
+                info.write_keyword(prefix);
             }
             self.write_symbol_name(
                 info,
@@ -851,7 +1037,7 @@ impl<'a> Request<'_, 'a> {
                 .flags
                 .intersects(SymbolFlags::OPTIONAL)
             {
-                info.write("?");
+                info.write_punctuation("?");
             }
             self.write_signature(
                 info,
@@ -876,24 +1062,24 @@ impl<'a> Request<'_, 'a> {
         if parameters.is_empty() {
             return Ok(());
         }
-        info.write("<");
+        info.write_punctuation("<");
         for (index, &parameter) in parameters.iter().enumerate() {
             if index != 0 {
-                info.write(", ");
+                info.write_punctuation(", ");
             }
             if let Some(symbol) = self.state.tables.type_of(parameter).symbol {
                 self.write_symbol_name(info, symbol, None, SymbolFlags::NONE, SYMBOL_FORMAT_FLAGS)?;
             }
             if let Some(constraint) = self.state.get_constraint_of_type_parameter(parameter)? {
-                info.write(" extends ");
+                info.write_keyword(" extends ");
                 self.write_type(info, constraint, None, TYPE_FORMAT_FLAGS, verbosity);
             }
             if let Some(default) = self.state.get_default_from_type_parameter(parameter)? {
-                info.write(" = ");
+                info.write_operator(" = ");
                 self.write_type(info, default, None, TYPE_FORMAT_FLAGS, verbosity);
             }
         }
-        info.write(">");
+        info.write_punctuation(">");
         Ok(())
     }
 
@@ -983,12 +1169,20 @@ impl<'a> Request<'_, 'a> {
         let Some(attributes) = attributes else {
             return;
         };
-        if let Ok(text) = self.state.print_source_node_single_line(attributes) {
-            info.write(" with ");
-            info.write(&text);
+        let display_parts = info.runs.is_some();
+        if let Ok((text, parts)) = self
+            .state
+            .print_source_node_single_line(attributes, display_parts)
+        {
+            info.write_keyword(" with ");
+            match parts {
+                Some(parts) => info.write_parts(parts),
+                None => info.write(&text),
+            }
         }
     }
 
+    /// tsgo's `writeTypeClassified`.
     fn write_type(
         &mut self,
         info: &mut QuickInfo,
@@ -997,18 +1191,26 @@ impl<'a> Request<'_, 'a> {
         flags: u32,
         verbosity: &mut VerbosityContext,
     ) {
+        let flags = flags | TYPE_FORMAT_MULTILINE_OBJECT_LITERALS;
+        if info.runs.is_some() {
+            if let Ok(Some(parts)) =
+                self.state
+                    .type_to_display_parts(ty, enclosing, flags, &mut |state, symbol| {
+                        classification_for_symbol(state, symbol)
+                    })
+            {
+                info.write_parts(parts);
+                return;
+            }
+        }
         let text = self
             .state
-            .type_to_string_with_flags(
-                ty,
-                enclosing,
-                flags | TYPE_FORMAT_MULTILINE_OBJECT_LITERALS,
-                Some(verbosity),
-            )
+            .type_to_string_with_flags(ty, enclosing, flags, Some(verbosity))
             .unwrap_or_default();
         info.write(&text);
     }
 
+    /// tsgo's `writeSignatureClassified`.
     fn write_signature(
         &mut self,
         info: &mut QuickInfo,
@@ -1017,14 +1219,21 @@ impl<'a> Request<'_, 'a> {
         flags: u32,
         verbosity: &mut VerbosityContext,
     ) {
-        let text = self
-            .state
-            .signature_to_string_with_flags(
+        let flags = flags | TYPE_FORMAT_MULTILINE_OBJECT_LITERALS;
+        if info.runs.is_some() {
+            if let Ok(Some(parts)) = self.state.signature_to_display_parts(
                 signature,
                 enclosing,
-                flags | TYPE_FORMAT_MULTILINE_OBJECT_LITERALS,
-                Some(verbosity),
-            )
+                flags,
+                &mut |state, symbol| classification_for_symbol(state, symbol),
+            ) {
+                info.write_parts(parts);
+                return;
+            }
+        }
+        let text = self
+            .state
+            .signature_to_string_with_flags(signature, enclosing, flags, Some(verbosity))
             .unwrap_or_default();
         info.write(&text);
     }
@@ -1040,7 +1249,8 @@ impl<'a> Request<'_, 'a> {
         let text = self
             .state
             .symbol_to_string_with_flags(symbol, enclosing, meaning, flags)?;
-        info.write(&text);
+        // tsgo's `writeSymbolClassified`.
+        info.write_symbol(&text, classification_for_symbol(self.state, symbol));
         Ok(())
     }
 

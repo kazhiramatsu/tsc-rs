@@ -14,8 +14,9 @@ use tsc_ls::lsconv::{Converters, LspLineMap};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_ls::LanguageService;
 use tsc_lsproto::{
-    DocumentUri, HoverParams, MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings,
-    MarkupKind, Position, PositionEncodingKind, ResolvedClientCapabilities, TextDocumentIdentifier,
+    DocumentUri, Hover, HoverParams,
+    MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings, MarkupKind, Position,
+    PositionEncodingKind, ResolvedClientCapabilities, TextDocumentIdentifier,
 };
 use tsc_program::{load_program, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
 use tsc_types::CompilerOptions;
@@ -78,15 +79,16 @@ impl SourceMapperHost for Files {
 
 impl tsc_ls::Host for Files {}
 
-/// tsgo's hover at `(line, character)` of `file`: the markdown value, the
-/// range and whether a higher verbosity level shows more.
-fn hover(
+/// tsgo's hover at `(line, character)` of `file` for a client with or
+/// without Visual Studio extensions.
+fn provide_hover(
     files: &[(&str, &str)],
     options: CompilerOptions,
     file: &str,
     (line, character): (u32, u32),
     verbosity_level: Option<i32>,
-) -> Option<(String, Range, bool)> {
+    vs_capability: bool,
+) -> Option<Hover> {
     let mut builder = MemoryCompilerHost::builder("/").case_sensitive(true);
     for (name, text) in files {
         builder = builder.file(PathBuf::from(name), text.as_bytes());
@@ -126,6 +128,7 @@ fn hover(
     capabilities.text_document.hover.content_format =
         vec![MarkupKind::MARKDOWN, MarkupKind::PLAIN_TEXT];
     capabilities.experimental.hover_verbosity_level = true;
+    capabilities._vs_supports_visual_studio_extensions = vs_capability;
     let mut service = LanguageService::new(
         &mut live,
         &files,
@@ -142,7 +145,19 @@ fn hover(
         work_done_token: None,
         verbosity_level,
     };
-    let hover = service.provide_hover(&params).expect("an answer")?;
+    service.provide_hover(&params).expect("an answer")
+}
+
+/// tsgo's hover at `(line, character)` of `file`: the markdown value, the
+/// range and whether a higher verbosity level shows more.
+fn hover(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    file: &str,
+    position: (u32, u32),
+    verbosity_level: Option<i32>,
+) -> Option<(String, Range, bool)> {
+    let hover = provide_hover(files, options, file, position, verbosity_level, false)?;
     let MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings::MarkupContent(content) =
         hover.contents
     else {
@@ -157,6 +172,31 @@ fn hover(
         ),
         hover.can_increase_verbosity,
     ))
+}
+
+/// tsgo's hover for a client with Visual Studio extensions: the markdown
+/// value and the `_vs_rawContent` it shows instead, as JSON.
+fn hover_vs(
+    files: &[(&str, &str)],
+    options: CompilerOptions,
+    file: &str,
+    position: (u32, u32),
+) -> Option<(String, serde_json::Value)> {
+    let hover = provide_hover(files, options, file, position, None, true)?;
+    let MarkupContentOrStringOrMarkedStringWithLanguageOrMarkedStrings::MarkupContent(content) =
+        hover.contents
+    else {
+        panic!("markup content");
+    };
+    Some((
+        content.value,
+        serde_json::to_value(&hover._vs_raw_content).expect("raw content as JSON"),
+    ))
+}
+
+/// A `_vs_rawContent` tsgo answered, as JSON.
+fn raw(json: &str) -> serde_json::Value {
+    serde_json::from_str(json).expect("tsgo's raw content")
 }
 
 /// quickInfoDisplayPartsTypeParameterInClass: a symbol's qualified name writes
@@ -1283,6 +1323,186 @@ fn expanded_pattern_ambient_modules() {
             "```typescript\nmodule \"*.asset\" with { type: \"text\"; } {\n    let textOnly: \"text\";\n    let textAlso: \"text-also\";\n}\n```\n".to_owned(),
             ((3, 16), (3, 23)),
             false,
+        ))
+    );
+}
+
+/// quickInfoAliasVS: an alias shows its target's icon and the declaration's
+/// documentation summary.
+#[test]
+fn vs_alias() {
+    let files = [
+        ("/a.ts", "/**\n * Doc\n * @tag Tag text\n */\nexport const x = 0;"),
+        ("/b.ts", "import { x } from \"./a\";\nx;"),
+        ("/c.ts", "/**\n * Doc 2\n * @tag Tag text 2\n */\nimport {\n    /**\n     * Doc 3\n     * @tag Tag text 3\n     */\n    x\n} from \"./a\";\nx;"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover_vs(&files, compiler_options(), "/b.ts", (1, 1)),
+        Some((
+            "```typescript\n(alias) const x: 0\n```\nDoc\n\n*@tag* \u{2014} Tag text".to_owned(),
+            raw(
+                r#"{"Style":1,"Elements":[{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":620,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"alias","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"const ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"local name","Text":"x","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":": ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"string","Text":"0","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"},{"Runs":[{"ClassificationTypeName":"text","Text":"Doc","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+    assert_eq!(
+        hover_vs(&files, compiler_options(), "/c.ts", (11, 1)),
+        Some((
+            "```typescript\n(alias) const x: 0\n```\nDoc\n\n*@tag* \u{2014} Tag text".to_owned(),
+            raw(
+                r#"{"Style":1,"Elements":[{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":620,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"alias","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"const ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"local name","Text":"x","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":": ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"string","Text":"0","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"},{"Runs":[{"ClassificationTypeName":"text","Text":"Doc","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+}
+
+/// quickInfoDisplayPartsFunctionVS: parameter names, optional and rest
+/// parameters, and a signature's trailing semicolon.
+#[test]
+fn vs_function_parameters() {
+    let files = [
+        ("/quickInfoDisplayPartsFunctionVS.ts", "function foo(param: string, optionalParam?: string, paramWithInitializer = \"hello\", ...restParam: string[]) {\n}\nfunction foowithoverload(a: string): string;\nfunction foowithoverload(a: number): number;\nfunction foowithoverload(a: any): any {\n    return a;\n}\nfunction foowith3overload(a: string): string;\nfunction foowith3overload(a: number): number;\nfunction foowith3overload(a: boolean): boolean;\nfunction foowith3overload(a: any): any {\n    return a;\n}\nfoo(\"hello\");\nfoowithoverload(\"hello\");\nfoowithoverload(10);\nfoowith3overload(\"hello\");\nfoowith3overload(10);\nfoowith3overload(true);"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover_vs(&files, compiler_options(), "/quickInfoDisplayPartsFunctionVS.ts", (0, 9)),
+        Some((
+            "```typescript\nfunction foo(param: string, optionalParam?: string, paramWithInitializer?: string, ...restParam: string[]): void;\n```\n".to_owned(),
+            raw(r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":1880,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"keyword","Text":"function ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"method name","Text":"foo","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"parameter name","Text":"param","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":",","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"parameter name","Text":"optionalParam","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"?","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":",","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"parameter name","Text":"paramWithInitializer","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"?","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":",","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"...","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"parameter name","Text":"restParam","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"[","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"]","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":")","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"void","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":";","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#),
+        ))
+    );
+    assert_eq!(
+        hover_vs(
+            &files,
+            compiler_options(),
+            "/quickInfoDisplayPartsFunctionVS.ts",
+            (2, 9)
+        ),
+        Some((
+            "```typescript\nfunction foowithoverload(a: string): string;\n```\n".to_owned(),
+            raw(
+                r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":1880,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"keyword","Text":"function ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"method name","Text":"foowithoverload","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"parameter name","Text":"a","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":")","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":";","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+}
+
+/// quickInfoDisplayPartsClassMethodVS: a method's icon by its accessibility.
+#[test]
+fn vs_class_method_icons() {
+    let files = [
+        ("/quickInfoDisplayPartsClassMethodVS.ts", "class c {\n    public publicMethod() { }\n    private privateMethod() { }\n    protected protectedMethod() { }\n    static staticMethod() { }\n    private static privateStaticMethod() { }\n    protected static protectedStaticMethod() { }\n    method() {\n        this.publicMethod();\n        this.privateMethod();\n        this.protectedMethod();\n        c.staticMethod();\n        c.privateStaticMethod();\n        c.protectedStaticMethod();\n    }\n}\nvar cInstance = new c();\ncInstance.publicMethod();\nc.staticMethod();"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover_vs(
+            &files,
+            compiler_options(),
+            "/quickInfoDisplayPartsClassMethodVS.ts",
+            (1, 11)
+        ),
+        Some((
+            "```typescript\n(method) c.publicMethod(): void;\n```\n".to_owned(),
+            raw(
+                r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":1880,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"method","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"method name","Text":"c.publicMethod","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":")","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"void","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":";","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+    assert_eq!(
+        hover_vs(
+            &files,
+            compiler_options(),
+            "/quickInfoDisplayPartsClassMethodVS.ts",
+            (2, 12)
+        ),
+        Some((
+            "```typescript\n(method) c.privateMethod(): void;\n```\n".to_owned(),
+            raw(
+                r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":1878,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"method","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"method name","Text":"c.privateMethod","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":")","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"void","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":";","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+    assert_eq!(
+        hover_vs(
+            &files,
+            compiler_options(),
+            "/quickInfoDisplayPartsClassMethodVS.ts",
+            (3, 14)
+        ),
+        Some((
+            "```typescript\n(method) c.protectedMethod(): void;\n```\n".to_owned(),
+            raw(
+                r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":1879,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"method","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"method name","Text":"c.protectedMethod","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":")","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"void","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":";","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+    assert_eq!(
+        hover_vs(
+            &files,
+            compiler_options(),
+            "/quickInfoDisplayPartsClassMethodVS.ts",
+            (4, 11)
+        ),
+        Some((
+            "```typescript\n(method) c.staticMethod(): void;\n```\n".to_owned(),
+            raw(
+                r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":1880,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"method","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"method name","Text":"c.staticMethod","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":")","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"void","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":";","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+}
+
+/// quickInfoDisplayPartsClassPropertyVS: a property's runs and icon.
+#[test]
+fn vs_class_properties() {
+    let files = [
+        ("/quickInfoDisplayPartsClassPropertyVS.ts", "class c {\n    public publicProperty: string;\n    private privateProperty: string;\n    protected protectedProperty: string;\n    static staticProperty: string;\n    private static privateStaticProperty: string;\n    protected static protectedStaticProperty: string;\n    method() {\n        this.publicProperty;\n        this.privateProperty;\n        this.protectedProperty;\n        c.staticProperty;\n        c.privateStaticProperty;\n        c.protectedStaticProperty;\n    }\n}\nvar cInstance = new c();\ncInstance.publicProperty;\nc.staticProperty;"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover_vs(
+            &files,
+            compiler_options(),
+            "/quickInfoDisplayPartsClassPropertyVS.ts",
+            (1, 11)
+        ),
+        Some((
+            "```typescript\n(property) c.publicProperty: string\n```\n".to_owned(),
+            raw(
+                r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":2436,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"property","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"property name","Text":"c.publicProperty","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":": ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+    assert_eq!(
+        hover_vs(
+            &files,
+            compiler_options(),
+            "/quickInfoDisplayPartsClassPropertyVS.ts",
+            (2, 12)
+        ),
+        Some((
+            "```typescript\n(property) c.privateProperty: string\n```\n".to_owned(),
+            raw(
+                r#"{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":2434,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"text","Text":"property","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":") ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"property name","Text":"c.privateProperty","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":": ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#
+            ),
+        ))
+    );
+}
+
+/// quickInfoCommentsFunctionDeclarationVS: the documentation is the plain
+/// comment, without its tags.
+#[test]
+fn vs_documentation_summary() {
+    let files = [
+        ("/quickInfoCommentsFunctionDeclarationVS.ts", "/** This comment should appear for foo*/\nfunction foo() {\n}\nfoo();\n/** This is comment for function signature*/\nfunction fooWithParameters(/** this is comment about a*/a: string,\n    /** this is comment for b*/\n    b: number) {\n    var d = a;\n}\nfooWithParameters(\"a\",10);\n/**\n* Does something\n* @param a a string\n*/\ndeclare function fn(a: string);\nfn(\"hello\");"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover_vs(&files, compiler_options(), "/quickInfoCommentsFunctionDeclarationVS.ts", (5, 11)),
+        Some((
+            "```typescript\nfunction fooWithParameters(a: string, b: number): void;\n```\nThis is comment for function signature".to_owned(),
+            raw(r#"{"Style":1,"Elements":[{"Style":0,"Elements":[{"ImageId":{"Guid":"ae27a6b0-e345-4288-96df-5eaf394ee369","Id":1880,"_vs_type":"ImageId"},"_vs_type":"ImageElement"},{"Runs":[{"ClassificationTypeName":"keyword","Text":"function ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"method name","Text":"fooWithParameters","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":"(","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"parameter name","Text":"a","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"string","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":",","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"parameter name","Text":"b","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"number","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":")","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":":","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"whitespace","Text":" ","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"keyword","Text":"void","_vs_type":"ClassifiedTextRun"},{"ClassificationTypeName":"punctuation","Text":";","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"},{"Runs":[{"ClassificationTypeName":"text","Text":"This is comment for function signature","_vs_type":"ClassifiedTextRun"}],"_vs_type":"ClassifiedTextElement"}],"_vs_type":"ContainerElement"}"#),
         ))
     );
 }
