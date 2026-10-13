@@ -323,3 +323,29 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   4 だけ、suites 0 regressions（lsp 392 full、definition 472/482、typeDefinition 59/64、診断 1,039/1,043）、API client sync
   337/356・async 346/365、test、clippy、fmt。
 - **有界の違い**：content mapper（L10）の 5 test、`preferGoToSourceDefinition`（L7）の 1 test。
+
+## L3d-1 hover の verbosity 0（PR #781）
+
+- **merge**：#781 → `25ae95f8f`（hosted run 38427807862：rust 9m13s、conformance 19m7s、gates）。commit：2aa391a01
+  （JSDoc の `@` と comment の終わり）、7bd80f600（printer の一行の type literal、末尾の semicolon の省略、`EscapeString`）、
+  d91f8e159（checker の表示の文字列と verbosity、hover の node builder の規則）、1ce3f6c18（hover）、ratchet dc58ad3f4。
+- **言語 service**：tsgo `ls/hover.go`（`ProvideHover`、`getQuickInfoAndDeclarationAtLocation` と全ての symbol の種類の表示、
+  `getNodeForQuickInfo`、`getSymbolAtLocationForQuickInfo`、`shouldGetType`、呼び出しと `new` の signature）、`ls/jsdoc.go`
+  （symbol・signature・alias の documentation、tag、link とその名前）、`getMeaningFromLocation` と `getAdjustedLocation`。
+  definition の request の状態は共有の `Request` に。server は hover を言語 service の document request として登録。
+- **checker**：tsgo の `TypeToStringEx`・`SignatureToStringEx`・`SymbolToStringEx`・`TypeParameterToStringEx` と
+  `VerbosityContext`。hover で tsc 6.0.3 の振る舞いが見えた node builder を tsgo に：`UseInstantiationExpressions`
+  （`f<string>.C`）、`getClassOrInterfaceLikeDeclaration` による `lookupInstantiatedTypeArgumentNodes`（関数の外側の型引数も）、
+  signature の具体化した型引数、`UseOnlyExternalAliasing`、展開の判定（`isExpandableType`・`shouldExpandType`・
+  `checkTypeExpandability`・`walkNodeForExpandability` が tsc の `canPossiblyExpandType` を置き換え）、union の enum だけを展開。
+  JSDoc の名前は tsgo が reparse した複製で解くのと同じに（名前空間付きの typedef の最も内側の名前は alias の名前、無効な識別子の
+  property は symbol なし、名前空間付きの alias の型の名前はその名前空間から）。
+- **JSDoc の parser**（tsgo）：`@` は識別子の始まりの前でだけ tag を始め、主の comment は最後の部分だけが末尾の空白を落とす。
+- **printer**：一行の印の付いた type literal は一行に（tsgo `LFSingleLineTypeLiteralMembers`）、`OmitTrailingSemicolon`、
+  `EscapeString`。
+- **回帰 test**（利用者の指示：conformance で捕まえられない誤りは Rust の test に）：`crates/ls/tests/hover.rs` の 17（期待値は
+  transcript の tsgo の答えのまま）、checker の node builder の単体 test は tsgo の `shouldExpandType` を固定。
+- **検査（dc58ad3f4）**：conformance 0 regressions（全 13,577 full、488 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（lsp 893 full、hover 2,325/2,455、definition・typeDefinition・診断は変わらず）、API client sync 337/356・
+  async 346/365、test、clippy、fmt。
+- **有界の違い**：verbosity 1 以上（L3d-2）68、Visual Studio の `_vs_rawContent`（L3d-3）53、content mapper（L10）9。
