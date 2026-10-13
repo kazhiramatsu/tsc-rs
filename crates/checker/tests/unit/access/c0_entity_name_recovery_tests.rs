@@ -3,7 +3,7 @@ use tsc_syntax::nodes::{
     ElementAccessExpressionData, EmptyStatementData, JsxNamespacedNameData, NonNullExpressionData,
     PropertyAccessExpressionData, QualifiedNameData,
 };
-use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+use tsc_syntax::{parse_source_file, NodeData, ParseOptions, ScriptKind, SyntaxKind};
 use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
 
 use crate::state::CheckerState;
@@ -14,8 +14,7 @@ fn recovered_entity_names_keep_source_text_and_valid_siblings_keep_entity_render
         "entity-recovery.ts".to_owned(),
         "alpha".to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: ScriptKind::Ts,
             ..ParseOptions::default()
         },
         None,

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList, DocumentVersion, JsStr, JsString, TextSnapshot};
 use tsc_host::to_file_name_lower_case_js;
-use tsc_syntax::{ParseOptions, SourceFile};
+use tsc_syntax::{ParseOptions, ScriptKind, SourceFile};
 use tsc_types::CompilerOptions;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
@@ -236,6 +236,9 @@ pub struct PreparedSourceFile {
     /// What a content-mapped file (its virtual text is the snapshot) or a
     /// supplemental output carries (tsgo `ContentMapperSourceFileInfo`).
     content_mapped: Option<Arc<crate::content_mapper::source::ContentMappedSource>>,
+    /// tsgo's file handle's script kind when it is not the file name's (an
+    /// open document's language).
+    script_kind: Option<ScriptKind>,
 }
 
 /// The options of a referenced project its files are checked under (tsgo
@@ -348,6 +351,26 @@ impl PreparedSourceFile {
             preparsed_syntax: PreparsedSyntax::empty(),
             project_reference: None,
             content_mapped: None,
+            script_kind: None,
+        }
+    }
+
+    /// The source with the script kind of its file handle (an open
+    /// document's language); an unknown kind leaves the file name's.
+    pub fn with_script_kind(mut self, kind: ScriptKind) -> Self {
+        self.script_kind = (kind != ScriptKind::Unknown).then_some(kind);
+        self
+    }
+
+    /// tsgo's kind the file is parsed as: a content mapper output's virtual
+    /// name's, else its file handle's (`ParseCacheKey`), else its name's
+    /// (`EnsureScriptKindFromFileName`).
+    pub fn script_kind(&self) -> ScriptKind {
+        match (&self.content_mapped, self.script_kind) {
+            (Some(_), _) | (None, None) => {
+                ScriptKind::ensure_from_file_name(&self.parse_file_name().to_string_lossy())
+            }
+            (None, Some(kind)) => kind,
         }
     }
 
@@ -1405,6 +1428,9 @@ pub struct ProgramOptions {
     /// The mappers' view of the program (tsgo
     /// `CompilerHost.ContentMapperProject`), when they may run.
     content_mapper_project: Option<ContentMapperProjectHandle>,
+    /// The script kinds of the files whose handles give one (an editor's
+    /// open documents' languages), by canonical path.
+    document_script_kinds: Option<Arc<BTreeMap<String, ScriptKind>>>,
 }
 
 /// A [`crate::content_mapper::Project`] in a program's options: programs are
@@ -1476,6 +1502,21 @@ impl ProgramOptions {
     /// The config's content mappers and the configuration they see.
     pub fn content_mapper_spec(&self) -> Option<&Arc<crate::content_mapper::host::ProjectSpec>> {
         self.content_mapper_spec.as_ref()
+    }
+
+    /// The program with the script kinds of the files whose handles give
+    /// one (tsgo's file handle `Kind`), by canonical path.
+    pub fn with_document_script_kinds(mut self, kinds: Arc<BTreeMap<String, ScriptKind>>) -> Self {
+        self.document_script_kinds = (!kinds.is_empty()).then_some(kinds);
+        self
+    }
+
+    /// The script kind the handle of the file at `path` gives, if any.
+    pub fn document_script_kind(&self, path: &CanonicalPath) -> Option<ScriptKind> {
+        self.document_script_kinds
+            .as_ref()?
+            .get(path.as_js().to_string_lossy().as_ref())
+            .copied()
     }
 
     pub fn with_content_mapper_project(mut self, project: ContentMapperProjectHandle) -> Self {

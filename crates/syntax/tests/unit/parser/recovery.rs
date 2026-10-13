@@ -342,7 +342,7 @@ fn reference_directives_are_structural_and_jsdoc_has_a_separate_destination() {
         "main.js".into(),
         "/** @type {Array<} */ const x = 1;".to_owned(),
         ParseOptions {
-            javascript_file: true,
+            script_kind: ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,
@@ -1854,7 +1854,7 @@ fn empty_variable_list_recovery_requires_an_adjacent_numeric_statement() {
             name.into(),
             text.into(),
             ParseOptions {
-                javascript_file: name.ends_with(".js"),
+                script_kind: crate::ScriptKind::ensure_from_file_name(name),
                 ..ParseOptions::default()
             },
             None,

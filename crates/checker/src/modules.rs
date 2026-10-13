@@ -2337,7 +2337,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(file_index) = file_index {
             let source = self.binder.source(file_index);
-            if crate::is_js_file_name(&source.file_name) {
+            if source.is_source_file_js() {
                 // A syntax-external JS file is ESM and cannot gain a
                 // synthetic default. CommonJS/script JS can, unless
                 // the conventional __esModule marker is exported.

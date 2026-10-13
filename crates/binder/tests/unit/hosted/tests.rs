@@ -6,7 +6,7 @@ fn parse_js(text: &str) -> SourceFile {
         "a.js",
         text,
         ParseOptions {
-            javascript_file: true,
+            script_kind: tsc_syntax::ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,

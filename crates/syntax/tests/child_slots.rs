@@ -5,8 +5,8 @@
 
 use tsc_syntax::{
     apply_child_slots, child_slots, map_child_slots, try_visit_each_child, ChildSlot,
-    JSDocParsingMode, LanguageVariant, NodeArena, NodeArrayId, NodeDataChildVisitor, NodeId,
-    ParseOptions, SyntaxKind,
+    JSDocParsingMode, NodeArena, NodeArrayId, NodeDataChildVisitor, NodeId, ParseOptions,
+    ScriptKind, SyntaxKind,
 };
 
 const TYPESCRIPT: &str = r#"
@@ -136,12 +136,7 @@ fn parse(name: &str, text: &str) -> tsc_syntax::SourceFile {
         name,
         text,
         ParseOptions {
-            javascript_file: name.ends_with(".js"),
-            language_variant: if name.ends_with("x") {
-                LanguageVariant::Jsx
-            } else {
-                LanguageVariant::Standard
-            },
+            script_kind: ScriptKind::ensure_from_file_name(name),
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
             ..ParseOptions::default()
         },

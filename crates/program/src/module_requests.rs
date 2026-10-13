@@ -5,9 +5,8 @@ use tsc_diagnostics::{JsStr, JsString, PositionIndex};
 
 use tsc_syntax::utilities::{is_import_call, is_source_phase_import, is_source_phase_import_call};
 use tsc_syntax::{
-    for_each_child, parse_source_file_from_snapshot, skip_trivia, JSDocParsingMode,
-    LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
-    TypeReferenceDirectiveResolutionMode,
+    for_each_child, parse_source_file_from_snapshot, skip_trivia, JSDocParsingMode, NodeData,
+    NodeId, ParseOptions, SourceFile, SyntaxKind, TypeReferenceDirectiveResolutionMode,
 };
 use tsc_types::{CompilerOptions, NodeFlags};
 
@@ -416,12 +415,6 @@ pub fn source_request_parse_options(
     // ParseResult: the virtual name's script kind), and a module extension
     // makes it a module.
     let parse_file_name = source.parse_file_name();
-    let javascript_file = is_javascript_file_name(parse_file_name);
-    let language_variant = if parse_file_name.ends_with(".tsx") || javascript_file {
-        LanguageVariant::Jsx
-    } else {
-        LanguageVariant::Standard
-    };
     let is_declaration_file = is_declaration_file_name(file_name);
     let module_detection = options.emit_module_detection_kind();
     let module_extension = |name: JsStr<'_>| {
@@ -442,8 +435,7 @@ pub fn source_request_parse_options(
     let detect_external_module_from_jsx =
         !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
     ParseOptions {
-        language_variant,
-        javascript_file,
+        script_kind: source.script_kind(),
         force_external_module,
         detect_external_module_from_jsx,
         js_doc_parsing_mode: default_js_doc_parsing_mode(),
@@ -491,7 +483,7 @@ fn plan_module_requests_worker(
         (ResolutionMode::Unspecified, ResolutionMode::Unspecified)
     };
     let parse_options = source_request_parse_options(source, options);
-    let javascript_file = parse_options.javascript_file;
+    let javascript_file = parse_options.javascript_file();
     let parsed = parse_source_file_from_snapshot(
         file_name.to_owned(),
         Arc::clone(source.snapshot()),
@@ -1600,12 +1592,6 @@ fn import_syntax_affects_module_resolution(options: &CompilerOptions) -> bool {
         || (matches!(module_resolution, 3 | 99 | 100)
             && (options.resolve_package_json_exports != Some(false)
                 || options.resolve_package_json_imports != Some(false)))
-}
-
-fn is_javascript_file_name(file_name: JsStr<'_>) -> bool {
-    [".js", ".jsx", ".mjs", ".cjs"]
-        .iter()
-        .any(|extension| file_name.ends_with(extension))
 }
 
 /// tsc `getEmitModuleFormatOfFileWorker` for the representation exposed by

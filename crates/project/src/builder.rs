@@ -28,6 +28,7 @@ use crate::snapshot::{
     ApiSnapshotRequest, ApiState, CreateProgramRequest, OpenedFile, ProjectCollection,
     ProjectError, SnapshotHost,
 };
+use tsc_syntax::ScriptKind;
 
 type Projects = Arc<BTreeMap<ProjectId, Arc<Project>>>;
 
@@ -531,6 +532,13 @@ impl<'a> ProjectCollectionBuilder<'a> {
         else {
             return Ok(None);
         };
+        // tsgo's parse cache key holds the file handle's kind: an open
+        // document whose language changed is parsed anew.
+        if self.fs.overlays().get(path).is_some_and(|overlay| {
+            overlay.kind() != ScriptKind::Unknown && overlay.kind() != source.script_kind()
+        }) {
+            return Ok(None);
+        }
         let file_name = source.path().display().to_string_lossy().into_owned();
         let Some(text) = self
             .fs
@@ -596,10 +604,15 @@ impl<'a> ProjectCollectionBuilder<'a> {
             Some(Arc::new(resolved))
         };
         let host = VfsCompilerHost::new(&source, project.current_directory.clone());
+        let document_script_kinds = self.document_script_kinds();
         let prepared = match command_line {
             CommandLine::Config(plan) => load_project_config_program(
                 &host,
-                &self.with_content_mapper_project(plan),
+                &Arc::new(
+                    (*self.with_content_mapper_project(plan))
+                        .clone()
+                        .with_document_script_kinds(document_script_kinds),
+                ),
                 resolved,
                 plan.options()
                     .option_bool("disableSourceOfProjectReferenceRedirect")
@@ -619,7 +632,10 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 } else {
                     load_emitting_program
                 };
-                let mut program_options = roots.program_options.clone();
+                let mut program_options = roots
+                    .program_options
+                    .clone()
+                    .with_document_script_kinds(document_script_kinds);
                 if let Some(resolved) = resolved {
                     program_options = program_options
                         .with_project_references(resolved)
@@ -640,6 +656,19 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let live = LiveProgram::with_documents(prepared, self.host.documents())
             .map_err(|error| failed(&error))?;
         Ok((ProjectProgram::new(live, references), source.into_seen()))
+    }
+
+    /// tsgo's file handles' kinds (`FileHandle.Kind`): the languages of the
+    /// open documents that give one, by path.
+    fn document_script_kinds(&self) -> Arc<BTreeMap<String, ScriptKind>> {
+        Arc::new(
+            self.fs
+                .overlays()
+                .iter()
+                .filter(|(_, overlay)| overlay.kind() != ScriptKind::Unknown)
+                .map(|(path, overlay)| (path.clone(), overlay.kind()))
+                .collect(),
+        )
     }
 
     /// tsgo compiler host `ContentMapperProject`: the config's content

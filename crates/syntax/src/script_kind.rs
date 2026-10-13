@@ -26,6 +26,15 @@ impl ScriptKind {
         }
     }
 
+    /// tsgo `core.EnsureScriptKindFromFileName`: the file name's kind, and
+    /// TypeScript for a name without a known extension.
+    pub fn ensure_from_file_name(file_name: &str) -> Self {
+        match Self::from_file_name(file_name) {
+            Self::Unknown => Self::Ts,
+            kind => kind,
+        }
+    }
+
     /// tsgo `core.GetScriptKindFromFileName`.
     pub fn from_file_name(file_name: &str) -> Self {
         let Some(dot) = file_name.rfind('.') else {

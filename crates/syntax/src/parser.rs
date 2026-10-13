@@ -1,3 +1,4 @@
+use crate::ScriptKind;
 use crate::{
     MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,
     ParseRecoveryEvent, ParseRecoveryKind, ParseTokenSkipSite,
@@ -78,9 +79,9 @@ pub enum JSDocParsingMode {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParseOptions {
-    pub language_variant: LanguageVariant,
-    /// tsc ContextFlags.JavaScriptFile (subset: the parse-steering uses).
-    pub javascript_file: bool,
+    /// tsgo `ParseSourceFile`'s script kind: the language variant and the
+    /// JavaScript context of the parse, kept on the source file.
+    pub script_kind: ScriptKind,
     /// tsc createSourceFile defaults to ParseAll. Program/compiler callers
     /// explicitly select ParseForTypeErrors.
     pub js_doc_parsing_mode: JSDocParsingMode,
@@ -100,11 +101,27 @@ pub struct ParseOptions {
     pub node_array_id_base: u32,
 }
 
+impl ParseOptions {
+    /// tsgo `getLanguageVariant`: JSX for TSX, JSX, JS and JSON.
+    pub fn language_variant(&self) -> LanguageVariant {
+        match self.script_kind {
+            ScriptKind::Tsx | ScriptKind::Jsx | ScriptKind::Js | ScriptKind::Json => {
+                LanguageVariant::Jsx
+            }
+            ScriptKind::Ts | ScriptKind::Unknown => LanguageVariant::Standard,
+        }
+    }
+
+    /// tsgo's `NodeFlagsJavaScriptFile` context of a JS or JSX parse.
+    pub fn javascript_file(&self) -> bool {
+        matches!(self.script_kind, ScriptKind::Js | ScriptKind::Jsx)
+    }
+}
+
 impl Default for ParseOptions {
     fn default() -> Self {
         Self {
-            language_variant: LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: ScriptKind::Ts,
             js_doc_parsing_mode: JSDocParsingMode::ParseAll,
             force_external_module: false,
             detect_external_module_from_jsx: false,
@@ -10496,14 +10513,14 @@ fn parse_source_file_from_snapshot_worker(
         file_name,
         text,
         snapshot.shared_positions(),
-        options.language_variant,
-        options.javascript_file,
+        options.language_variant(),
+        options.javascript_file(),
     );
     parser.syntax_cursor = cursor.cloned();
     parser.incremental_options = incremental_options;
     parser
         .scanner
-        .set_jsdoc_parsing_mode(options.js_doc_parsing_mode, !options.javascript_file);
+        .set_jsdoc_parsing_mode(options.js_doc_parsing_mode, !options.javascript_file());
     if options.node_id_base != 0 || options.node_array_id_base != 0 {
         debug_assert!(parser.arena.is_empty());
         parser.arena = NodeArena::with_bases(options.node_id_base, options.node_array_id_base);
@@ -10548,6 +10565,7 @@ fn parse_source_file_from_snapshot_worker(
         file_name: finished.file_name,
         snapshot,
         language_variant: finished.language_variant,
+        script_kind: options.script_kind,
         is_declaration_file: finished.is_declaration_file,
         js_doc_parsing_mode: options.js_doc_parsing_mode,
         arena: finished.arena,
@@ -10722,6 +10740,7 @@ fn parse_json_text_with_options(
         file_name: finished.file_name,
         snapshot,
         language_variant: finished.language_variant,
+        script_kind: ScriptKind::Json,
         is_declaration_file: finished.is_declaration_file,
         js_doc_parsing_mode: JSDocParsingMode::ParseAll,
         arena: finished.arena,

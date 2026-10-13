@@ -67,8 +67,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
         "relpin.ts".to_owned(),
         text,
         tsc_syntax::ParseOptions {
-            language_variant: tsc_syntax::LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: tsc_syntax::ScriptKind::Ts,
             ..tsc_syntax::ParseOptions::default()
         },
         None,

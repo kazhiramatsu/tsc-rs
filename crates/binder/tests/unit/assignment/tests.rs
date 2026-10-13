@@ -6,7 +6,11 @@ fn kinds(text: &str, javascript_file: bool) -> Vec<AssignmentDeclarationKind> {
         if javascript_file { "a.js" } else { "a.ts" },
         text,
         ParseOptions {
-            javascript_file,
+            script_kind: if javascript_file {
+                tsc_syntax::ScriptKind::Js
+            } else {
+                tsc_syntax::ScriptKind::Ts
+            },
             ..ParseOptions::default()
         },
         None,

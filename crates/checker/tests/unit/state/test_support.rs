@@ -1,5 +1,5 @@
 use tsc_binder::Binder;
-use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions, SourceFile};
+use tsc_syntax::{parse_source_file, ParseOptions, SourceFile};
 use tsc_types::CompilerOptions;
 
 use super::CheckerState;
@@ -13,18 +13,11 @@ fn parse_program(files: &[(&str, &str)], require_clean_parse: bool) -> Vec<Sourc
             Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
             None => (0, 0),
         };
-        let javascript_file = name.ends_with(".js") || name.ends_with(".jsx");
-        let jsx_file = name.ends_with(".tsx") || name.ends_with(".jsx");
         let source = parse_source_file(
             (*name).to_owned(),
             (*text).to_owned(),
             ParseOptions {
-                language_variant: if javascript_file || jsx_file {
-                    LanguageVariant::Jsx
-                } else {
-                    LanguageVariant::Standard
-                },
-                javascript_file,
+                script_kind: tsc_syntax::ScriptKind::ensure_from_file_name(name),
                 node_id_base,
                 node_array_id_base,
                 js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,

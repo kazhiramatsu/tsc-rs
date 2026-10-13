@@ -1230,7 +1230,7 @@ impl<'a> CheckerState<'a> {
         };
         let source = self.binder.source_of_node(node);
         if !crate::is_plain_js_file(
-            crate::is_js_file_name(&source.file_name),
+            source.is_source_file_js(),
             crate::check_directive(source.text()),
             self.options,
         ) {
