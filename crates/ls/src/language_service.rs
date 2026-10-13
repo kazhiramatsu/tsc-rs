@@ -62,6 +62,11 @@ impl<'a> LanguageService<'a> {
         self.preferences
     }
 
+    /// The preferences with the service's lifetime, for a request.
+    pub(crate) fn user_preferences_ref(&self) -> &'a UserPreferences {
+        self.preferences
+    }
+
     /// tsgo `getProgramAndFile`: the document's file in the program, which
     /// must have it (tsgo panics, and the server answers the panic).
     pub(crate) fn file(&self, uri: &DocumentUri) -> usize {

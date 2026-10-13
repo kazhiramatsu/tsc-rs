@@ -1039,6 +1039,18 @@ impl Server {
         })
     }
 
+    /// tsgo `handleCompletion`.
+    fn handle_completion(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::CompletionParams,
+    ) -> Result<lsproto::CompletionResponse, Failure> {
+        service
+            .provide_completion(&params)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleDefinition`.
     fn handle_definition(
         self: &Arc<Self>,
@@ -1375,6 +1387,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentHoverInfo>(
             &mut handlers,
             Server::handle_hover,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentCompletionInfo>(
+            &mut handlers,
+            Server::handle_completion,
         );
         register_language_service_document_request::<lsproto::TextDocumentDefinitionInfo>(
             &mut handlers,
