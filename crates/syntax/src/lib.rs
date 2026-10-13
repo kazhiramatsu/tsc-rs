@@ -207,6 +207,7 @@ impl SourceFile {
     /// nothing was parsed, recovered or read from pragmas. Without `text`
     /// (a node of no source file), the positions index no text
     /// ([`tsc_diagnostics::PositionIndex::is_detached`]).
+    #[allow(clippy::too_many_arguments)]
     pub fn from_tree(
         file_name: impl Into<JsString>,
         text: Option<String>,
