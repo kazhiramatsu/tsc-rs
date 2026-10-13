@@ -577,3 +577,32 @@ fn module_specifier_preferences() {
         ImportModuleSpecifierEndingPreference::MINIMAL
     );
 }
+
+/// tsgo `TestCustomConfigFileName` "rejects path traversal in
+/// customConfigFileName" and "accepts plain base file names in
+/// customConfigFileName".
+#[test]
+fn custom_config_file_names_are_base_names() {
+    let parse = |name: &str| {
+        parse_user_preferences(&object(json!({"js/ts": {"customConfigFileName": name}})))
+            .custom_config_file_name
+    };
+    for invalid in [
+        "/etc/passwd",
+        "../tsconfig.json",
+        "configs/tsconfig.all.json",
+        "..\\tsconfig.json",
+        "sub\\dir\\tsconfig.json",
+        "..",
+        ".",
+    ] {
+        assert_eq!(parse(invalid), "", "{invalid}");
+    }
+    for valid in [
+        "tsconfig.all.json",
+        "tsconfig.editor.json",
+        "jsconfig.custom.json",
+    ] {
+        assert_eq!(parse(valid), valid);
+    }
+}

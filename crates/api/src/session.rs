@@ -44,7 +44,8 @@ use tsc_program::{
 };
 use tsc_project::{
     ApiSnapshotRequest, CommandLine, CreateProgramRequest, FileChangeSummary, Project, ProjectId,
-    ProjectKind, ProjectProgram, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotHost,
+    ProjectKind, ProjectProgram, ReconfigureProgramRequest, SessionOptions, Snapshot,
+    SnapshotChange, SnapshotHost,
 };
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 
@@ -1657,9 +1658,14 @@ impl Session {
         let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
         let root = self.host.new_root_snapshot();
         self.begin_snapshot(file_system.as_ref());
-        let snapshot = self
-            .host
-            .clone_snapshot(&root, file_changes, Some(&request));
+        let snapshot = self.host.clone_snapshot(
+            &root,
+            SnapshotChange {
+                file_changes,
+                api_request: Some(&request),
+                ..SnapshotChange::default()
+            },
+        );
         let resolution_error = self.resolution.end();
         // A failed resolver callback fails the snapshot, as tsgo's clone
         // returns the program's error.
@@ -1714,9 +1720,14 @@ impl Session {
             .is_some_and(|supplied| supplied.is_full());
         let file_changes = read_through(&mut request, file_changes, file_system.as_ref());
         self.begin_snapshot(file_system.as_ref());
-        let snapshot = self
-            .host
-            .clone_snapshot(&base, file_changes, Some(&request));
+        let snapshot = self.host.clone_snapshot(
+            &base,
+            SnapshotChange {
+                file_changes,
+                api_request: Some(&request),
+                ..SnapshotChange::default()
+            },
+        );
         let resolution_error = self.resolution.end();
         let snapshot = snapshot
             .map_err(|error| error.to_string())
@@ -1987,6 +1998,7 @@ impl Session {
         if notifications.invalidate_all {
             return Ok(FileChangeSummary {
                 invalidate_all: true,
+                includes_watch_change_outside_node_modules: true,
                 ..FileChangeSummary::default()
             });
         }
@@ -1996,12 +2008,16 @@ impl Session {
                 .map(|document| self.absolute_file_name(document))
                 .collect::<Result<BTreeSet<_>, _>>()
         };
-        Ok(FileChangeSummary {
+        let mut summary = FileChangeSummary {
             changed: names(&notifications.changed)?,
             created: names(&notifications.created)?,
             deleted: names(&notifications.deleted)?,
-            invalidate_all: false,
-        })
+            ..FileChangeSummary::default()
+        };
+        // tsgo counts the API's notifications as changes outside
+        // node_modules.
+        summary.includes_watch_change_outside_node_modules = !summary.is_empty();
+        Ok(summary)
     }
 
     /// tsgo `createSnapshotResponse`: every project without a base, else the

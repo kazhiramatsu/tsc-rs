@@ -37,6 +37,7 @@ fn builder(fs: &Arc<MemFs>, base: &SnapshotFs) -> SnapshotFsBuilder {
         Arc::clone(&base.files),
         Arc::clone(&base.aliases),
         paths(),
+        Arc::default(),
     )
 }
 
@@ -288,7 +289,7 @@ fn a_deletion_drops_the_files_no_project_read() {
     // tsgo Clone's clean-up: after a deletion that builds a program again,
     // the cache keeps only the files a project's build read (the config the
     // registry parsed is not one of them; tsgo, probed).
-    use crate::{ApiSnapshotRequest, ProjectId, SessionOptions, SnapshotHost};
+    use crate::{ApiSnapshotRequest, ProjectId, SessionOptions, SnapshotChange, SnapshotHost};
     use tsc_program::{LibraryCatalog, ProgramLoadLimits};
 
     let fs = memory(&[
@@ -305,6 +306,13 @@ fn a_deletion_drops_the_files_no_project_read() {
             library_catalog: LibraryCatalog::typescript_7_1("/typescript/lib"),
             load_limits: ProgramLoadLimits::new(1_000, 10_000, 64, 1 << 20, 1 << 24),
             run_external_code: false,
+            // tsgo's API sessions: UTF-8 positions, no watching,
+            // logging or published diagnostics.
+            position_encoding: tsc_lsproto::PositionEncodingKind::UTF8,
+            watch_enabled: false,
+            logging_enabled: false,
+            push_diagnostics_enabled: false,
+            debounce_delay: std::time::Duration::ZERO,
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,
@@ -313,12 +321,14 @@ fn a_deletion_drops_the_files_no_project_read() {
     let opened = host
         .clone_snapshot(
             &host.new_root_snapshot(),
-            FileChangeSummary::default(),
-            Some(&ApiSnapshotRequest {
-                open_projects: BTreeSet::from(["/p/tsconfig.json".to_owned()]),
-                ensure_programs: BTreeSet::from([id.clone()]),
-                ..ApiSnapshotRequest::default()
-            }),
+            SnapshotChange {
+                api_request: Some(&ApiSnapshotRequest {
+                    open_projects: BTreeSet::from(["/p/tsconfig.json".to_owned()]),
+                    ensure_programs: BTreeSet::from([id.clone()]),
+                    ..ApiSnapshotRequest::default()
+                }),
+                ..SnapshotChange::default()
+            },
         )
         .expect("open the project");
     assert!(opened.fs.files.contains_key("/p/tsconfig.json"));
@@ -327,14 +337,17 @@ fn a_deletion_drops_the_files_no_project_read() {
     let deleted = host
         .clone_snapshot(
             &opened,
-            FileChangeSummary {
-                deleted: links(&["/p/b.ts"]),
-                ..FileChangeSummary::default()
+            SnapshotChange {
+                file_changes: FileChangeSummary {
+                    deleted: links(&["/p/b.ts"]),
+                    ..FileChangeSummary::default()
+                },
+                api_request: Some(&ApiSnapshotRequest {
+                    ensure_programs: BTreeSet::from([id]),
+                    ..ApiSnapshotRequest::default()
+                }),
+                ..SnapshotChange::default()
             },
-            Some(&ApiSnapshotRequest {
-                ensure_programs: BTreeSet::from([id]),
-                ..ApiSnapshotRequest::default()
-            }),
         )
         .expect("delete the file");
     let cached = deleted.fs.files.keys().cloned().collect::<Vec<_>>();

@@ -10,21 +10,26 @@
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc;
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde_json::Value;
 use tsc_compiler::locale::Locale;
+use tsc_compiler::DEFAULT_LOAD_LIMITS;
 use tsc_host::ipc::jsonrpc::{Reader, Writer};
+use tsc_host::vfs::FileSystem;
 use tsc_ls::lsutil::{parse_user_preferences, UserPreferences};
 use tsc_lsproto::message::{decode_result, to_raw};
 use tsc_lsproto::{
     self as lsproto, decode_params, method, parse_message, ErrorCode, Id, LspError, Message,
     NoParams, Notification, Request, RequestMessage, ResponseError, ResponseMessage,
 };
+use tsc_program::LibraryCatalog;
+use tsc_project::{Session, SessionOptions};
 
 use crate::gofmt;
 use crate::logger::{is_valid_log_verbosity, Logger};
@@ -46,6 +51,10 @@ pub struct ServerOptions {
     /// tsgo `SetParentProcessID`: watches the process id the client gives
     /// in `initialize`.
     pub set_parent_process_id: Option<Box<dyn Fn(i32) + Send + Sync>>,
+    /// tsgo `FS`: the files the session reads.
+    pub fs: Arc<dyn FileSystem>,
+    /// tsgo `DefaultLibraryPath`: the directory of the standard library.
+    pub default_library_path: String,
 }
 
 /// Why a handler did not answer (tsgo's handler errors: `io.EOF` for
@@ -136,8 +145,6 @@ struct ServerState {
     watch_enabled: bool,
     telemetry_enabled: bool,
     current_directory: String,
-    /// The preferences the client configured, which the session takes.
-    user_preferences: Option<UserPreferences>,
 }
 
 /// tsgo `Server`.
@@ -148,8 +155,8 @@ pub struct Server {
     pending_server_requests: Mutex<HashMap<Id, mpsc::Sender<ResponseMessage>>>,
     client_seq: AtomicI32,
     pub(crate) init_started: AtomicBool,
-    /// tsgo `session != nil`: set when `initialized` creates the session.
-    session_created: AtomicBool,
+    /// tsgo `session`: created by `initialized`.
+    session: OnceLock<Session>,
     stopped: Arc<AtomicBool>,
     stop_reason: Mutex<Option<StopReason>>,
     state: Mutex<ServerState>,
@@ -158,6 +165,8 @@ pub struct Server {
     pub(crate) stderr: Mutex<Box<dyn Write + Send>>,
     cwd: String,
     set_parent_process_id: Option<Box<dyn Fn(i32) + Send + Sync>>,
+    fs: Arc<dyn FileSystem>,
+    default_library_path: String,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -174,7 +183,7 @@ impl Server {
             pending_server_requests: Mutex::default(),
             client_seq: AtomicI32::new(0),
             init_started: AtomicBool::new(false),
-            session_created: AtomicBool::new(false),
+            session: OnceLock::new(),
             stopped: Arc::new(AtomicBool::new(false)),
             stop_reason: Mutex::new(None),
             state: Mutex::default(),
@@ -183,6 +192,8 @@ impl Server {
             stderr: Mutex::new(options.stderr),
             cwd: options.cwd,
             set_parent_process_id: options.set_parent_process_id,
+            fs: options.fs,
+            default_library_path: options.default_library_path,
         })
     }
 
@@ -466,7 +477,7 @@ impl Server {
                 let method = request.method.clone();
                 Ok(Some(Box::new(move || {
                     let result = work();
-                    let elapsed = gofmt::format_duration(start.elapsed());
+                    let elapsed = tsc_host::go_time::duration_string(start.elapsed());
                     if result.is_err() {
                         server.logger.info(
                             &server,
@@ -483,7 +494,7 @@ impl Server {
             }
             Ok(None) => {
                 if !self.logger.is_tracing() {
-                    let elapsed = gofmt::format_duration(start.elapsed());
+                    let elapsed = tsc_host::go_time::duration_string(start.elapsed());
                     self.logger.info(
                         self,
                         &format!("handled method '{}'{id} in {elapsed}", request.method),
@@ -629,11 +640,20 @@ impl Server {
 
     /// The preferences the client configured (once it initialized).
     pub fn user_preferences(&self) -> Option<UserPreferences> {
-        lock(&self.state).user_preferences.clone()
+        self.session().map(Session::config)
     }
 
-    fn session_created(&self) -> bool {
-        self.session_created.load(Ordering::SeqCst)
+    /// tsgo `session`: the projects, once `initialized` created them.
+    pub fn session(&self) -> Option<&Session> {
+        self.session.get()
+    }
+
+    /// The session, which every handler but `initialize`'s and
+    /// `initialized`'s has.
+    fn initialized_session(&self) -> &Session {
+        self.session
+            .get()
+            .expect("the handlers run once the session exists")
     }
 
     // -- lifecycle handlers ----------------------------------------------------
@@ -706,7 +726,15 @@ impl Server {
         context: &RequestContext,
         _params: lsproto::InitializedParams,
     ) -> Result<(), Failure> {
-        let (dynamic_watch_registration, telemetry, workspace_folders, root_uri, root_path) = {
+        let (
+            dynamic_watch_registration,
+            telemetry,
+            disable_push_diagnostics,
+            run_external_code,
+            workspace_folders,
+            root_uri,
+            root_path,
+        ) = {
             let state = lock(&self.state);
             let params = state.initialize_params.as_ref();
             let folders = params.and_then(|params| match &params.workspace_folders {
@@ -732,6 +760,14 @@ impl Server {
                 state
                     .initialization_options
                     .enable_telemetry
+                    .unwrap_or_default(),
+                state
+                    .initialization_options
+                    .disable_push_diagnostics
+                    .unwrap_or_default(),
+                state
+                    .initialization_options
+                    .run_external_code
                     .unwrap_or_default(),
                 folders.filter(|_| state.client_capabilities.workspace.workspace_folders),
                 root_uri,
@@ -770,14 +806,38 @@ impl Server {
                 cwd = tsc_program::uri::rooted_path_from_absolute(&path);
             }
         }
-        {
+        let (position_encoding, watch_enabled) = {
             let mut state = lock(&self.state);
             state.telemetry_enabled = telemetry;
-            state.current_directory = cwd;
+            state.current_directory = cwd.clone();
+            (state.position_encoding.clone(), state.watch_enabled)
+        };
+        let host = Arc::new(SessionHost(Arc::downgrade(self)));
+        let session = Session::new(
+            SessionOptions {
+                current_directory: cwd,
+                library_catalog: LibraryCatalog::typescript_7_1(Path::new(
+                    &self.default_library_path,
+                )),
+                load_limits: DEFAULT_LOAD_LIMITS,
+                run_external_code,
+                position_encoding,
+                watch_enabled,
+                logging_enabled: true,
+                push_diagnostics_enabled: !disable_push_diagnostics,
+                debounce_delay: Duration::from_millis(500),
+            },
+            Arc::clone(&self.fs),
+            Some(Arc::clone(&host) as Arc<dyn tsc_project::Client>),
+            Some(host as Arc<dyn tsc_project::Logger>),
+            None,
+        );
+        if self.session.set(session).is_err() {
+            return Err(ErrorCode::INVALID_REQUEST.into());
         }
-        self.session_created.store(true, Ordering::SeqCst);
         let preferences = self.request_configuration(context)?;
-        lock(&self.state).user_preferences = Some(preferences);
+        self.initialized_session()
+            .initialize_with_user_config(preferences);
         let registration = lsproto::RegistrationParams {
             registrations: vec![lsproto::Registration {
                 id: "typescript-config-watch-id".to_owned(),
@@ -872,7 +932,8 @@ impl Server {
         params: lsproto::DidChangeConfigurationParams,
     ) -> Result<(), Failure> {
         if let Value::Object(settings) = &params.settings {
-            lock(&self.state).user_preferences = Some(parse_user_preferences(settings));
+            self.initialized_session()
+                .configure(parse_user_preferences(settings));
         }
         Ok(())
     }
@@ -884,7 +945,120 @@ impl Server {
         _params: NoParams,
         _request: &RequestMessage,
     ) -> Result<lsproto::ShutdownResponse, Failure> {
+        self.initialized_session().close();
         Ok(lsproto::Null)
+    }
+
+    // -- document handlers ---------------------------------------------------
+
+    /// tsgo `handleDidOpen`.
+    fn handle_did_open(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::DidOpenTextDocumentParams,
+    ) -> Result<(), Failure> {
+        let document = params.text_document;
+        self.initialized_session()
+            .did_open_file(
+                &document.uri,
+                document.version,
+                &document.text,
+                &document.language_id,
+            )
+            .map_err(|error| LspError::internal(error.to_string()).into())
+    }
+
+    /// tsgo `handleDidChange`.
+    fn handle_did_change(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::DidChangeTextDocumentParams,
+    ) -> Result<(), Failure> {
+        self.initialized_session().did_change_file(
+            &params.text_document.uri,
+            params.text_document.version,
+            params.content_changes,
+        );
+        Ok(())
+    }
+
+    /// tsgo `handleDidSave`.
+    fn handle_did_save(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::DidSaveTextDocumentParams,
+    ) -> Result<(), Failure> {
+        self.initialized_session()
+            .did_save_file(&params.text_document.uri);
+        Ok(())
+    }
+
+    /// tsgo `handleDidClose`.
+    fn handle_did_close(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::DidCloseTextDocumentParams,
+    ) -> Result<(), Failure> {
+        self.initialized_session()
+            .did_close_file(&params.text_document.uri);
+        Ok(())
+    }
+
+    /// tsgo `handleDidChangeWatchedFiles`.
+    fn handle_did_change_watched_files(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::DidChangeWatchedFilesParams,
+    ) -> Result<(), Failure> {
+        self.initialized_session()
+            .did_change_watched_files(&params.changes);
+        Ok(())
+    }
+
+    // -- the session's client ------------------------------------------------
+
+    /// tsgo `RefreshInlayHints`.
+    fn refresh_inlay_hints(&self) -> Result<(), String> {
+        if !self
+            .client_capabilities()
+            .workspace
+            .inlay_hint
+            .refresh_support
+        {
+            return Ok(());
+        }
+        self.send_client_request_fire_and_forget::<lsproto::WorkspaceInlayHintRefreshInfo>(
+            &NoParams,
+        )
+        .map_err(|error| format!("failed to refresh inlay hints: {error}"))
+    }
+
+    /// tsgo `RefreshCodeLens`.
+    fn refresh_code_lens(&self) -> Result<(), String> {
+        if !self
+            .client_capabilities()
+            .workspace
+            .code_lens
+            .refresh_support
+        {
+            return Ok(());
+        }
+        self.send_client_request_fire_and_forget::<lsproto::WorkspaceCodeLensRefreshInfo>(&NoParams)
+            .map_err(|error| format!("failed to refresh code lens: {error}"))
+    }
+
+    /// tsgo `SetLocale`: `auto` is the locale `initialize` gave.
+    fn set_locale(&self, locale: &str) {
+        let mut state = lock(&self.state);
+        let locale = if locale == "auto" {
+            state.init_locale
+        } else {
+            match Locale::parse(locale) {
+                Some(locale) => locale,
+                None => return,
+            }
+        };
+        state.locale = locale;
     }
 
     /// tsgo `handleSetLogVerbosity`.
@@ -975,6 +1149,26 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             &mut handlers,
             Server::handle_did_change_workspace_configuration,
         );
+        register_notification::<lsproto::TextDocumentDidOpenInfo>(
+            &mut handlers,
+            Server::handle_did_open,
+        );
+        register_notification::<lsproto::TextDocumentDidChangeInfo>(
+            &mut handlers,
+            Server::handle_did_change,
+        );
+        register_notification::<lsproto::TextDocumentDidSaveInfo>(
+            &mut handlers,
+            Server::handle_did_save,
+        );
+        register_notification::<lsproto::TextDocumentDidCloseInfo>(
+            &mut handlers,
+            Server::handle_did_close,
+        );
+        register_notification::<lsproto::WorkspaceDidChangeWatchedFilesInfo>(
+            &mut handlers,
+            Server::handle_did_change_watched_files,
+        );
         register_notification::<lsproto::SetTraceInfo>(&mut handlers, |_, _, _| Ok(()));
         register_notification::<lsproto::CustomSetLogVerbosityInfo>(
             &mut handlers,
@@ -1007,7 +1201,7 @@ fn register_request<R: Request + 'static>(
     handlers.insert(
         R::METHOD,
         Box::new(move |server, context, request| {
-            if !server.session_created() && R::METHOD != method::INITIALIZE {
+            if server.session().is_none() && R::METHOD != method::INITIALIZE {
                 return Err(ErrorCode::SERVER_NOT_INITIALIZED.into());
             }
             let params = decode_params::<R::Params>(request)?;
@@ -1031,7 +1225,7 @@ fn register_notification<N: Notification + 'static>(
     handlers.insert(
         N::METHOD,
         Box::new(move |server, context, request| {
-            if !server.session_created() && N::METHOD != method::INITIALIZED {
+            if server.session().is_none() && N::METHOD != method::INITIALIZED {
                 return Err(ErrorCode::SERVER_NOT_INITIALIZED.into());
             }
             let params = decode_params::<N::Params>(request)?;
@@ -1040,4 +1234,43 @@ fn register_notification<N: Notification + 'static>(
             Ok(None)
         }),
     );
+}
+
+/// The server as the session's client and logger (tsgo's `Client: s` and
+/// `Logger: s.logger`), without keeping the server alive.
+struct SessionHost(Weak<Server>);
+
+impl tsc_project::Client for SessionHost {
+    fn refresh_inlay_hints(&self) -> Result<(), String> {
+        self.0
+            .upgrade()
+            .map_or(Ok(()), |server| server.refresh_inlay_hints())
+    }
+
+    fn refresh_code_lens(&self) -> Result<(), String> {
+        self.0
+            .upgrade()
+            .map_or(Ok(()), |server| server.refresh_code_lens())
+    }
+
+    fn set_locale(&self, locale: &str) {
+        if let Some(server) = self.0.upgrade() {
+            server.set_locale(locale);
+        }
+    }
+
+    fn locale(&self) -> Locale {
+        self.0
+            .upgrade()
+            .map(|server| server.locale())
+            .unwrap_or_default()
+    }
+}
+
+impl tsc_project::Logger for SessionHost {
+    fn log(&self, message: &str) {
+        if let Some(server) = self.0.upgrade() {
+            server.logger.log(&server, message);
+        }
+    }
 }

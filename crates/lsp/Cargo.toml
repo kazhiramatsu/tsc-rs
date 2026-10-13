@@ -20,6 +20,7 @@ tsc-host.workspace = true
 tsc-ls.workspace = true
 tsc-lsproto.workspace = true
 tsc-program.workspace = true
+tsc-project.workspace = true
 tsc-types.workspace = true
 
 [lints]

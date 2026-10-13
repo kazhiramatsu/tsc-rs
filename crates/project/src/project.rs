@@ -285,6 +285,9 @@ pub struct Project {
     /// tsgo `contentMapperWatchedFiles`: the paths of the files whose
     /// changes refresh the program's content mappers, once it has a program.
     pub(crate) content_mapper_watched_files: Option<Arc<BTreeSet<String>>>,
+    /// tsgo `potentialProjectReferences`: for a solution created to load
+    /// later, the paths of the configs below it that may be its references.
+    pub(crate) potential_project_references: Option<Arc<BTreeSet<String>>>,
 }
 
 impl Project {
@@ -304,7 +307,30 @@ impl Project {
             program_last_update: 0,
             seen: Arc::default(),
             content_mapper_watched_files: None,
+            potential_project_references: None,
         }
+    }
+
+    /// The config a configured project's command line parsed.
+    pub(crate) fn config_plan(&self) -> Option<&Arc<ConfigRootPlan>> {
+        match &self.command_line {
+            Some(CommandLine::Config(plan)) => Some(plan),
+            _ => None,
+        }
+    }
+
+    /// tsgo `setPotentialProjectReference`.
+    pub(crate) fn set_potential_project_reference(&mut self, config_file_path: Option<String>) {
+        let Some(path) = config_file_path else {
+            return;
+        };
+        let mut references = self
+            .potential_project_references
+            .as_deref()
+            .cloned()
+            .unwrap_or_default();
+        references.insert(path);
+        self.potential_project_references = Some(Arc::new(references));
     }
 
     /// tsgo `NewConfiguredProject`.

@@ -11,6 +11,7 @@
 mod error;
 mod filesystem;
 pub mod flag;
+pub mod go_time;
 pub mod ipc;
 mod js_path;
 mod memory;
