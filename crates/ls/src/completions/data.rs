@@ -115,9 +115,10 @@ pub(crate) enum CompletionData {
 
 /// tsgo `globalsSearch`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum GlobalsSearch {
+pub(super) enum GlobalsSearch {
     Continue,
     Success,
+    Fail,
 }
 
 /// One of `tryGetGlobalSymbols`' searches.
@@ -145,30 +146,30 @@ fn keyword_filters_from_syntax_kind(keyword: SyntaxKind) -> KeywordCompletionFil
 }
 
 /// The state `getCompletionData`'s closures share.
-struct Collector {
-    symbols: Vec<SymbolId>,
-    symbol_to_origin_info_map: HashMap<usize, SymbolOriginInfo>,
-    symbol_to_sort_text_map: HashMap<SymbolId, String>,
-    seen_property_symbols: HashSet<SymbolId>,
-    completion_kind: CompletionKind,
-    is_new_identifier_location: bool,
-    keyword_filters: KeywordCompletionFilters,
-    default_commit_characters: Option<Vec<String>>,
+pub(super) struct Collector {
+    pub(super) symbols: Vec<SymbolId>,
+    pub(super) symbol_to_origin_info_map: HashMap<usize, SymbolOriginInfo>,
+    pub(super) symbol_to_sort_text_map: HashMap<SymbolId, String>,
+    pub(super) seen_property_symbols: HashSet<SymbolId>,
+    pub(super) completion_kind: CompletionKind,
+    pub(super) is_new_identifier_location: bool,
+    pub(super) keyword_filters: KeywordCompletionFilters,
+    pub(super) default_commit_characters: Option<Vec<String>>,
 }
 
 /// The facts about the location `getCompletionData` computes before it
 /// collects symbols.
-struct Location {
-    context_token: Option<Touching>,
-    previous_token: Option<Touching>,
-    node: Option<Touching>,
-    location: Touching,
-    is_right_of_dot: bool,
-    is_right_of_question_dot: bool,
-    import_statement_completion: Option<ImportStatementCompletionInfo>,
-    is_type_only_location: bool,
-    inside_js_doc_tag_type_expression: bool,
-    in_checked_file: bool,
+pub(super) struct Location {
+    pub(super) context_token: Option<Touching>,
+    pub(super) previous_token: Option<Touching>,
+    pub(super) node: Option<Touching>,
+    pub(super) location: Touching,
+    pub(super) is_right_of_dot: bool,
+    pub(super) is_right_of_question_dot: bool,
+    pub(super) import_statement_completion: Option<ImportStatementCompletionInfo>,
+    pub(super) is_type_only_location: bool,
+    pub(super) inside_js_doc_tag_type_expression: bool,
+    pub(super) in_checked_file: bool,
 }
 
 impl Completions<'_, '_, '_> {
@@ -1045,24 +1046,6 @@ impl Completions<'_, '_, '_> {
         Ok(result == GlobalsSearch::Success)
     }
 
-    /// tsgo `tryGetObjectTypeLiteralInTypeArgumentCompletionSymbols` (L4b).
-    fn try_get_object_type_literal_in_type_argument_completion_symbols(
-        &mut self,
-        _facts: &Location,
-        _collector: &mut Collector,
-    ) -> CheckResult<GlobalsSearch> {
-        Ok(GlobalsSearch::Continue)
-    }
-
-    /// tsgo `tryGetObjectLikeCompletionSymbols` (L4b).
-    fn try_get_object_like_completion_symbols(
-        &mut self,
-        _facts: &Location,
-        _collector: &mut Collector,
-    ) -> CheckResult<GlobalsSearch> {
-        Ok(GlobalsSearch::Continue)
-    }
-
     /// tsgo `tryGetImportCompletionSymbols`: the auto-imports of an import
     /// statement being written (L5).
     fn try_get_import_completion_symbols(
@@ -1075,33 +1058,6 @@ impl Completions<'_, '_, '_> {
         }
         collector.is_new_identifier_location = true;
         Ok(GlobalsSearch::Success)
-    }
-
-    /// tsgo `tryGetImportOrExportClauseCompletionSymbols` (L4b).
-    fn try_get_import_or_export_clause_completion_symbols(
-        &mut self,
-        _facts: &Location,
-        _collector: &mut Collector,
-    ) -> CheckResult<GlobalsSearch> {
-        Ok(GlobalsSearch::Continue)
-    }
-
-    /// tsgo `tryGetImportAttributesCompletionSymbols` (L4b).
-    fn try_get_import_attributes_completion_symbols(
-        &mut self,
-        _facts: &Location,
-        _collector: &mut Collector,
-    ) -> CheckResult<GlobalsSearch> {
-        Ok(GlobalsSearch::Continue)
-    }
-
-    /// tsgo `tryGetLocalNamedExportCompletionSymbols` (L4b).
-    fn try_get_local_named_export_completion_symbols(
-        &mut self,
-        _facts: &Location,
-        _collector: &mut Collector,
-    ) -> CheckResult<GlobalsSearch> {
-        Ok(GlobalsSearch::Continue)
     }
 
     /// tsgo `tryGetConstructorCompletion`: only keywords at a constructor
@@ -1122,24 +1078,6 @@ impl Completions<'_, '_, '_> {
         collector.is_new_identifier_location = true;
         collector.keyword_filters = KeywordCompletionFilters::ConstructorParameterKeywords;
         Ok(GlobalsSearch::Success)
-    }
-
-    /// tsgo `tryGetClassLikeCompletionSymbols` (L4b).
-    fn try_get_class_like_completion_symbols(
-        &mut self,
-        _facts: &Location,
-        _collector: &mut Collector,
-    ) -> CheckResult<GlobalsSearch> {
-        Ok(GlobalsSearch::Continue)
-    }
-
-    /// tsgo `tryGetJsxCompletionSymbols` (L4b).
-    fn try_get_jsx_completion_symbols(
-        &mut self,
-        _facts: &Location,
-        _collector: &mut Collector,
-    ) -> CheckResult<GlobalsSearch> {
-        Ok(GlobalsSearch::Continue)
     }
 
     /// tsgo `getGlobalCompletions`: every entity in the scope.

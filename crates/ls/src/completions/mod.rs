@@ -7,12 +7,15 @@ mod data;
 mod entries;
 mod items;
 mod keywords;
+mod searches;
 
 use tsc_checker::state::CheckResult;
 use tsc_lsproto::{
     CompletionItem, CompletionItemData, CompletionItemDefaults, CompletionItemsOrListOrNull,
     CompletionParams, ResolvedClientCapabilities,
 };
+
+use tsc_syntax::SyntaxKind;
 
 use crate::language_service::{LanguageService, LsError};
 
@@ -23,6 +26,8 @@ use data::CompletionData;
 pub(crate) mod sort_text {
     pub(crate) const LOCAL_DECLARATION_PRIORITY: &str = "10";
     pub(crate) const LOCATION_PRIORITY: &str = "11";
+    pub(crate) const OPTIONAL_MEMBER: &str = "12";
+    pub(crate) const MEMBER_DECLARED_BY_SPREAD_ASSIGNMENT: &str = "13";
     pub(crate) const SUGGESTED_CLASS_MEMBERS: &str = "14";
     pub(crate) const GLOBALS_OR_KEYWORDS: &str = "15";
     pub(crate) const JAVASCRIPT_IDENTIFIERS: &str = "18";
@@ -30,6 +35,11 @@ pub(crate) mod sort_text {
     /// tsgo `DeprecateSortText`.
     pub(crate) fn deprecated(original: &str) -> String {
         format!("z{original}")
+    }
+
+    /// tsgo `ObjectLiteralPropertySortText`.
+    pub(crate) fn object_literal_property(preset: &str, display_name: &str) -> String {
+        format!("{preset}\0{display_name}\0")
     }
 }
 
@@ -40,6 +50,10 @@ pub(crate) enum KeywordCompletionFilters {
     None,
     /// Every possible keyword.
     All,
+    /// Keywords inside a class body.
+    ClassElementKeywords,
+    /// Keywords inside an interface body.
+    InterfaceElementKeywords,
     /// Keywords at a constructor parameter.
     ConstructorParameterKeywords,
     /// Keywords at a function-like body.
@@ -57,13 +71,16 @@ pub(crate) enum CompletionKind {
     ObjectPropertyDeclaration,
     Global,
     PropertyAccess,
+    MemberLike,
 }
 
 /// tsgo `isMemberCompletionKind`.
 pub(crate) fn is_member_completion_kind(kind: CompletionKind) -> bool {
     matches!(
         kind,
-        CompletionKind::ObjectPropertyDeclaration | CompletionKind::PropertyAccess
+        CompletionKind::ObjectPropertyDeclaration
+            | CompletionKind::MemberLike
+            | CompletionKind::PropertyAccess
     )
 }
 
@@ -199,8 +216,26 @@ impl Completions<'_, '_, '_> {
                 return Ok(None);
             }
         }
-        // JSDoc snippets (L4d), string completions (L4c) and label
-        // completions (L4b) come first in tsgo.
+        // JSDoc snippets (L4d) and string completions (L4c) come first in
+        // tsgo.
+        if let Some(previous) = previous_token {
+            let parent = self.parent(previous);
+            if matches!(
+                self.kind(previous),
+                SyntaxKind::BreakKeyword | SyntaxKind::ContinueKeyword | SyntaxKind::Identifier
+            ) && parent.is_some_and(|parent| {
+                matches!(
+                    self.node_kind(parent),
+                    SyntaxKind::BreakStatement | SyntaxKind::ContinueStatement
+                )
+            }) {
+                let optional_replacement_span = self.optional_replacement_span(Some(previous));
+                return Ok(self.label_completions_at_position(
+                    parent.expect("a break or continue statement"),
+                    optional_replacement_span,
+                ));
+            }
+        }
         let Some(data) = self.get_completion_data()? else {
             return Ok(None);
         };
@@ -225,6 +260,64 @@ impl Completions<'_, '_, '_> {
             | CompletionData::JSDocTag
             | CompletionData::JSDocParameterName => Ok(None),
         }
+    }
+
+    /// tsgo `getLabelCompletionsAtPosition`: the labels of the statements
+    /// around a `break` or `continue`, in its function.
+    fn label_completions_at_position(
+        &self,
+        statement: tsc_syntax::NodeId,
+        optional_replacement_span: Option<tsc_lsproto::Range>,
+    ) -> Option<CompletionList> {
+        let mut names = std::collections::HashSet::new();
+        let mut items = Vec::new();
+        let file_name = self.file_name();
+        let mut current = Some(statement);
+        while let Some(node) = current {
+            if crate::utilities::is_function_like_kind(self.node_kind(node)) {
+                break;
+            }
+            if let tsc_syntax::NodeData::LabeledStatement(data) = self.data(node) {
+                let name = data
+                    .label
+                    .and_then(|label| self.identifier_text(crate::utilities::Touching::Node(label)))
+                    .unwrap_or_default()
+                    .to_owned();
+                if names.insert(name.clone()) {
+                    items.push(items::create_lsp_completion_item(
+                        self.text(),
+                        &file_name,
+                        self.position,
+                        items::ItemSpec {
+                            name,
+                            sort_text: sort_text::LOCATION_PRIORITY.to_owned(),
+                            element_kind: Some(crate::lsutil::ScriptElementKind::Label),
+                            ..items::ItemSpec::default()
+                        },
+                    ));
+                }
+            }
+            current = self.parent_of(node);
+        }
+        if items.is_empty() {
+            return None;
+        }
+        let position = self
+            .request
+            .lsp_range(self.source, self.position as usize..self.position as usize)
+            .start;
+        let item_defaults = items::set_item_defaults(
+            ClientSupport(self.request.capabilities),
+            position,
+            &mut items,
+            Some(default_commit_characters(false)),
+            optional_replacement_span,
+        );
+        Some(CompletionList {
+            is_incomplete: false,
+            item_defaults,
+            items,
+        })
     }
 
     /// tsgo `specificKeywordCompletionInfo`.

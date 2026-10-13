@@ -9,7 +9,7 @@ use tsc_checker::exports::ConstantValue;
 use tsc_checker::state::CheckResult;
 use tsc_lsproto::{CompletionItem, CompletionItemKind, Range};
 use tsc_syntax::{identifier_to_keyword_kind, NodeData, NodeId, SyntaxKind};
-use tsc_types::{LiteralValue, SymbolFlags, SymbolId};
+use tsc_types::{LiteralValue, SymbolFlags, SymbolId, TypeFlags, TypeId};
 
 use crate::lsutil::{get_symbol_kind, get_symbol_modifiers, QuotePreference, ScriptElementKind};
 use crate::utilities::Touching;
@@ -37,6 +37,13 @@ impl Completions<'_, '_, '_> {
         data: &mut CompletionDataData,
         optional_replacement_span: Option<Range>,
     ) -> CheckResult<Option<CompletionList>> {
+        // In a JSX file, a closing tag's name.
+        if self.source.language_variant == tsc_syntax::LanguageVariant::Jsx {
+            if let Some(list) = self.jsx_closing_tag_completion(data.location) {
+                return Ok(Some(list));
+            }
+        }
+
         let keyword_filters = data.keyword_filters;
         let is_new_identifier_location = data.is_new_identifier_location;
         let context_token = data.context_token;
@@ -166,6 +173,90 @@ impl Completions<'_, '_, '_> {
         }))
     }
 
+    /// tsgo `getJsxClosingTagCompletion`: at a closing tag, its opening
+    /// tag's name (with `>` when the closing tag has none).
+    fn jsx_closing_tag_completion(&self, location: Touching) -> Option<CompletionList> {
+        // Up the tree to a JSX closing element.
+        let mut current = Some(location);
+        let mut closing = None;
+        while let Some(node) = current {
+            match self.kind(node) {
+                SyntaxKind::JsxClosingElement => {
+                    if let Touching::Node(node) = node {
+                        closing = Some(node);
+                    }
+                    break;
+                }
+                SyntaxKind::LessThanSlashToken
+                | SyntaxKind::GreaterThanToken
+                | SyntaxKind::Identifier
+                | SyntaxKind::PropertyAccessExpression => {
+                    current = self.parent(node).map(Touching::Node);
+                }
+                _ => break,
+            }
+        }
+        let closing = closing?;
+        // At `var x = <div> </ /*1*/` the name is `div>`; with the closing
+        // `>`, `div`. A property access tag name is the whole closing tag
+        // name.
+        let has_closing_angle_bracket = self
+            .child_of_kind(closing, SyntaxKind::GreaterThanToken)
+            .is_some();
+        let element = self.parent_of(closing)?;
+        let NodeData::JsxElement(element) = self.data(element) else {
+            return None;
+        };
+        let opening_tag_name = match self.data(element.opening_element?) {
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            _ => None,
+        }?;
+        let closing_tag = &self.text()[self.node_start(opening_tag_name) as usize
+            ..self.record(opening_tag_name).end as usize];
+        let full_closing_tag = if has_closing_angle_bracket {
+            closing_tag.to_owned()
+        } else {
+            format!("{closing_tag}>")
+        };
+        let closing_tag_name = match self.data(closing) {
+            NodeData::JsxClosingElement(data) => data.tag_name,
+            _ => None,
+        }?;
+        let optional_replacement_span = self.request.lsp_range(
+            self.source,
+            crate::utilities::range_of_node(self.request.state, closing_tag_name),
+        );
+        let file_name = self.file_name();
+        let mut items = vec![create_lsp_completion_item(
+            self.text(),
+            &file_name,
+            self.position,
+            ItemSpec {
+                name: full_closing_tag,
+                sort_text: sort_text::LOCATION_PRIORITY.to_owned(),
+                element_kind: Some(ScriptElementKind::ClassElement),
+                is_member_completion: true,
+                ..ItemSpec::default()
+            },
+        )];
+        let position = self
+            .request
+            .lsp_range(self.source, self.position as usize..self.position as usize)
+            .start;
+        let item_defaults = set_item_defaults(
+            ClientSupport(self.request.capabilities),
+            position,
+            &mut items,
+            Some(super::default_commit_characters(false)),
+            Some(optional_replacement_span),
+        );
+        Some(CompletionList {
+            is_incomplete: false,
+            item_defaults,
+            items,
+        })
+    }
+
     /// Whether `node` is `ancestor` or below it.
     fn is_descendant_of(&self, node: Touching, ancestor: NodeId) -> bool {
         let start = match node {
@@ -276,6 +367,7 @@ impl Completions<'_, '_, '_> {
         let context_token = data.context_token;
         let mut insert_text = String::new();
         let filter_text = String::new();
+        let mut is_snippet = false;
         // tsgo `getReplacementRangeForContextToken` of no token.
         let mut replacement_span: Option<Range> = None;
         let mut source = source_from_origin(origin).to_owned();
@@ -449,7 +541,71 @@ impl Completions<'_, '_, '_> {
                     && self.initializer_of(parent).is_some()
             })
         {
-            // L4b: the attribute snippets.
+            let use_braces_preference = self
+                .request
+                .preferences
+                .completion_preferences
+                .jsx_attribute_completion_style
+                == crate::lsutil::JsxAttributeCompletionStyle::BRACES;
+            let mut use_braces = use_braces_preference;
+            let location_node = match data.location {
+                Touching::Node(node) => node,
+                Touching::Token { parent, .. } => parent,
+            };
+            let ty = self
+                .request
+                .state
+                .get_type_of_symbol_at_location(symbol, Some(location_node))?;
+            // Boolean-like or undefined: just the name.
+            if self
+                .request
+                .preferences
+                .completion_preferences
+                .jsx_attribute_completion_style
+                == crate::lsutil::JsxAttributeCompletionStyle::AUTO
+                && !self.is_boolean_like(ty)
+                && !(self.is_union_type(ty)
+                    && self
+                        .union_types(ty)
+                        .into_iter()
+                        .any(|t| self.is_boolean_like(t)))
+            {
+                let string_like = self
+                    .request
+                    .state
+                    .tables
+                    .flags_of(ty)
+                    .intersects(TypeFlags::STRING_LIKE)
+                    || self.is_union_type(ty) && {
+                        let mut all = true;
+                        for t in self.union_types(ty) {
+                            if !(self
+                                .request
+                                .state
+                                .tables
+                                .flags_of(t)
+                                .intersects(TypeFlags::STRING_LIKE | TypeFlags::UNDEFINED)
+                                || self.is_string_and_empty_anonymous_object_intersection(t)?)
+                            {
+                                all = false;
+                                break;
+                            }
+                        }
+                        all
+                    };
+                if string_like {
+                    // String-like or undefined: quotes.
+                    insert_text = format!("{}={}", escape_snippet_text(&name), self.quote("$1"));
+                    is_snippet = true;
+                } else {
+                    // Braces for anything else.
+                    use_braces = true;
+                }
+            }
+            if use_braces {
+                insert_text = format!("{}={{$1}}", escape_snippet_text(&name));
+                is_snippet = true;
+            }
         }
 
         // In named imports or exports, a name that is no identifier is a
@@ -531,7 +687,7 @@ impl Completions<'_, '_, '_> {
                 commit_characters,
                 label_details: None,
                 is_member_completion,
-                is_snippet: false,
+                is_snippet,
                 preselect,
                 source,
                 auto_import_fix: None,
@@ -545,6 +701,62 @@ impl Completions<'_, '_, '_> {
     /// The file's name, as the item data carries it.
     pub(crate) fn file_name(&self) -> String {
         self.source.file_name.to_string_lossy().into_owned()
+    }
+
+    /// tsgo `Type.IsBooleanLike`.
+    fn is_boolean_like(&self, ty: TypeId) -> bool {
+        self.request
+            .state
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::BOOLEAN_LIKE)
+    }
+
+    fn is_union_type(&self, ty: TypeId) -> bool {
+        self.request
+            .state
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::UNION)
+    }
+
+    /// tsgo `isStringAndEmptyAnonymousObjectIntersection`: `string & {}`.
+    fn is_string_and_empty_anonymous_object_intersection(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult<bool> {
+        if !self
+            .request
+            .state
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::INTERSECTION)
+        {
+            return Ok(false);
+        }
+        let types = self.union_types(ty);
+        if types.len() != 2 {
+            return Ok(false);
+        }
+        Ok(
+            self.are_intersected_types_avoiding_string_reduction(types[0], types[1])?
+                || self.are_intersected_types_avoiding_string_reduction(types[1], types[0])?,
+        )
+    }
+
+    /// tsgo `areIntersectedTypesAvoidingStringReduction`.
+    fn are_intersected_types_avoiding_string_reduction(
+        &mut self,
+        first: TypeId,
+        second: TypeId,
+    ) -> CheckResult<bool> {
+        Ok(self
+            .request
+            .state
+            .tables
+            .flags_of(first)
+            .intersects(TypeFlags::STRING)
+            && self.request.state.is_empty_anonymous_object_type(second)?)
     }
 
     /// tsgo `isRecommendedCompletionMatch`.
@@ -569,7 +781,7 @@ impl Completions<'_, '_, '_> {
 
     /// tsgo `getCompletionEntryDisplayNameForSymbol`: the name, and whether
     /// a property access needs converting to an element access.
-    fn completion_entry_display_name_for_symbol(
+    pub(super) fn completion_entry_display_name_for_symbol(
         &self,
         symbol: SymbolId,
         origin: Option<&SymbolOriginInfo>,
@@ -621,6 +833,17 @@ impl Completions<'_, '_, '_> {
             return (name, true);
         }
         match completion_kind {
+            CompletionKind::MemberLike => {
+                if origin_is(origin, origin_kind::COMPUTED_PROPERTY_NAME) {
+                    return (
+                        origin
+                            .and_then(|origin| origin.symbol_name.clone())
+                            .unwrap_or_default(),
+                        false,
+                    );
+                }
+                (String::new(), false)
+            }
             CompletionKind::ObjectPropertyDeclaration => (self.quote(&name), false),
             CompletionKind::PropertyAccess | CompletionKind::Global => {
                 // A `this.` completion is global, but may have a name that is
@@ -1466,4 +1689,9 @@ fn syntax_requires_trailing_semicolon_or_asi(kind: SyntaxKind) -> bool {
             | SyntaxKind::NamespaceExportDeclaration
             | SyntaxKind::ExportAssignment
     )
+}
+
+/// tsgo `escapeSnippetText`.
+fn escape_snippet_text(text: &str) -> String {
+    text.replace('$', "\\$")
 }

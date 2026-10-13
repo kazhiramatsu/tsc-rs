@@ -936,6 +936,13 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsgo `Node.Type`: the type annotation, else in JavaScript the type a
+    /// JSDoc tag gave the declaration (`@type`, `@param` or `@return`).
+    pub fn type_node_of(&self, node: NodeId) -> Option<NodeId> {
+        self.type_annotation_of(node)
+            .or_else(|| self.reparsed_type_node(node))
+    }
+
     /// tsgo `TryGetThisTypeAtEx` (checker.go:12378-12384): the type of
     /// `this` at `node`, in `container` or the node's own `this` container.
     pub fn try_get_this_type_at_ex(

@@ -191,6 +191,8 @@ fn allows(filter: KeywordCompletionFilters, kind: SyntaxKind) -> bool {
                 )
                 || is_type_keyword(kind) && kind != SyntaxKind::UndefinedKeyword
         }
+        KeywordCompletionFilters::ClassElementKeywords => is_class_member_completion_keyword(kind),
+        KeywordCompletionFilters::InterfaceElementKeywords => kind == SyntaxKind::ReadonlyKeyword,
         KeywordCompletionFilters::FunctionLikeBodyKeywords => is_function_like_body_keyword(kind),
         KeywordCompletionFilters::ConstructorParameterKeywords => {
             is_parameter_property_modifier(kind)
