@@ -8,7 +8,12 @@ use tsc_program::{
 };
 use tsc_syntax::{FileReference, NodeData, NodeId, SourceFile, SyntaxKind};
 
+use std::ops::Range;
+
+use tsc_binder::node_util;
+
 use crate::astnav::{Found, Navigator};
+use crate::lsconv::TextScript;
 use crate::references::{collect_external_module_references, is_external_module_name_relative};
 
 /// tsgo `refInfo`: a file a reference at a position names, and whether the
@@ -348,4 +353,323 @@ fn path_key(prepared: &PreparedProgram, file_name: &str) -> String {
 
 fn canonical_path(prepared: &PreparedProgram, file_name: &str) -> Option<CanonicalPath> {
     CanonicalPath::from_js_normalized(JsStr::from_str(&path_key(prepared, file_name))).ok()
+}
+
+/// What tsgo's `GetTouchingPropertyName` finds, as the definition reads it:
+/// a node, or a token tsc-rs's tree does not keep (tsgo's source file
+/// creates one for the scanner's token).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Touching {
+    Node(NodeId),
+    Token {
+        kind: SyntaxKind,
+        pos: u32,
+        parent: NodeId,
+    },
+}
+
+/// What astnav found, as a node or token of tsc-rs's tree; none for a view
+/// without a node (a list or a JSDoc comment's text).
+pub(crate) fn touching(found: Found) -> Option<Touching> {
+    match found {
+        Found::Node(view) => view.node().map(Touching::Node),
+        Found::Token(token) => token.parent.node().map(|parent| Touching::Token {
+            kind: token.kind,
+            pos: token.pos,
+            parent,
+        }),
+    }
+}
+
+/// A file of the program as a script: its name and text.
+pub(crate) fn script_of(source: &SourceFile) -> TextScript<'_> {
+    TextScript {
+        file_name: source.file_name.to_string_lossy().into_owned(),
+        text: source.text(),
+    }
+}
+
+/// tsgo `GetTokenPosOfNode(node, file, false)` of a node of the tree.
+pub(crate) fn token_start(source: &SourceFile, node: NodeId) -> usize {
+    Navigator::new(source).start_of_node(Found::Node(crate::tree::View::Node(node)), false) as usize
+}
+
+/// tsgo `getRangeOfNode` (without an end node): a string literal's range
+/// without its quotes.
+pub(crate) fn range_of_node(state: &CheckerState<'_>, node: NodeId) -> Range<usize> {
+    let source = state.binder.source_of_node(node);
+    let record = state.binder.node_record(node);
+    let mut start = token_start(source, node);
+    let mut end = record.end as usize;
+    if matches!(
+        record.kind,
+        SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+    ) && end - start > 2
+    {
+        start += 1;
+        end -= 1;
+    }
+    start..end
+}
+
+/// tsgo `getContainingObjectLiteralElement`: the object literal (or JSX
+/// attributes) element a name names.
+pub(crate) fn containing_object_literal_element(
+    state: &CheckerState<'_>,
+    node: NodeId,
+) -> Option<NodeId> {
+    let element = containing_object_literal_element_worker(state, node)?;
+    let parent = state.binder.node_record(element).parent?;
+    matches!(
+        state.binder.node_record(parent).kind,
+        SyntaxKind::ObjectLiteralExpression | SyntaxKind::JsxAttributes
+    )
+    .then_some(element)
+}
+
+pub(crate) fn containing_object_literal_element_worker(
+    state: &CheckerState<'_>,
+    node: NodeId,
+) -> Option<NodeId> {
+    let record = state.binder.node_record(node);
+    let parent = record.parent?;
+    let parent_record = state.binder.node_record(parent);
+    match record.kind {
+        SyntaxKind::StringLiteral
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::NumericLiteral
+            if parent_record.kind == SyntaxKind::ComputedPropertyName =>
+        {
+            let element = parent_record.parent?;
+            is_object_literal_or_jsx_element(state.binder.node_record(element).kind)
+                .then_some(element)
+        }
+        SyntaxKind::StringLiteral
+        | SyntaxKind::NoSubstitutionTemplateLiteral
+        | SyntaxKind::NumericLiteral
+        | SyntaxKind::Identifier
+        | SyntaxKind::JsxNamespacedName => {
+            let grandparent = parent_record.parent?;
+            let source = state.binder.source_of_node(parent);
+            (is_object_literal_or_jsx_element(parent_record.kind)
+                && matches!(
+                    state.binder.node_record(grandparent).kind,
+                    SyntaxKind::ObjectLiteralExpression | SyntaxKind::JsxAttributes
+                )
+                && node_util::name_field_of(source, parent) == Some(node))
+            .then_some(parent)
+        }
+        _ => None,
+    }
+}
+
+/// tsgo `isObjectLiteralOrJsxElement`.
+pub(crate) fn is_object_literal_or_jsx_element(kind: SyntaxKind) -> bool {
+    is_object_literal_element(kind)
+        || matches!(
+            kind,
+            SyntaxKind::JsxAttribute | SyntaxKind::JsxSpreadAttribute
+        )
+}
+
+/// tsgo `ast.IsObjectLiteralElement`.
+pub(crate) fn is_object_literal_element(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::PropertyAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+    )
+}
+
+/// tsgo `ast.IsPropertyName`.
+pub(crate) fn is_property_name(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Identifier
+            | SyntaxKind::PrivateIdentifier
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::ComputedPropertyName
+    )
+}
+
+/// tsgo `ast.IsClassElement`.
+pub(crate) fn is_class_element(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::SemicolonClassElement
+    )
+}
+
+/// tsgo `ast.IsFunctionLikeKind`.
+pub(crate) fn is_function_like_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::MethodSignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::JSDocSignature
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType
+    ) || node_util::is_function_like_declaration_kind(kind)
+}
+
+/// tsgo `ast.CanHaveSymbol`.
+pub(crate) fn can_have_symbol(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::ArrowFunction
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::BindingElement
+            | SyntaxKind::CallExpression
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::EnumMember
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportSpecifier
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionType
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::ImportClause
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::JsxAttribute
+            | SyntaxKind::JsxAttributes
+            | SyntaxKind::JsxSpreadAttribute
+            | SyntaxKind::MappedType
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::NamespaceExport
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::NewExpression
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::NumericLiteral
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::Parameter
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::SourceFile
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::StringLiteral
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::VariableDeclaration
+    )
+}
+
+/// tsgo's nodes with `DeclarationData` (the node types that embed
+/// `DeclarationBase`).
+pub(crate) fn has_declaration_data(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::ArrowFunction
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::BindingElement
+            | SyntaxKind::CallExpression
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::Constructor
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::EnumMember
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportSpecifier
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionType
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::ImportClause
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::JSDocSignature
+            | SyntaxKind::JSDocTypeLiteral
+            | SyntaxKind::JsxAttribute
+            | SyntaxKind::JsxAttributes
+            | SyntaxKind::JsxSpreadAttribute
+            | SyntaxKind::MappedType
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::MissingDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::NamespaceExport
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::Parameter
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::SemicolonClassElement
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::SourceFile
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::VariableDeclaration
+    )
+}
+
+/// A function-like node's parameters (tsgo `Node.Parameters()`).
+pub(crate) fn parameters_of(state: &CheckerState<'_>, node: NodeId) -> Vec<NodeId> {
+    let list = match &state.binder.node_record(node).data {
+        NodeData::FunctionDeclaration(data) => data.parameters,
+        NodeData::FunctionExpression(data) => data.parameters,
+        NodeData::ArrowFunction(data) => data.parameters,
+        NodeData::MethodDeclaration(data) => data.parameters,
+        NodeData::MethodSignature(data) => data.parameters,
+        NodeData::Constructor(data) => data.parameters,
+        NodeData::GetAccessor(data) => data.parameters,
+        NodeData::SetAccessor(data) => data.parameters,
+        NodeData::CallSignature(data) => data.parameters,
+        NodeData::ConstructSignature(data) => data.parameters,
+        NodeData::IndexSignature(data) => data.parameters,
+        NodeData::FunctionType(data) => data.parameters,
+        NodeData::ConstructorType(data) => data.parameters,
+        NodeData::JSDocFunctionType(data) => data.parameters,
+        _ => None,
+    };
+    list.map(|list| state.binder.node_array(list).nodes.to_vec())
+        .unwrap_or_default()
 }

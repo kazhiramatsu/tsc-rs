@@ -1023,6 +1023,22 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo `handleHover`.
+    fn handle_hover(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::HoverParams,
+    ) -> Result<lsproto::HoverResponse, Failure> {
+        let hover = service
+            .provide_hover(&params)
+            .map_err(language_service_failure)?;
+        Ok(match hover {
+            Some(hover) => lsproto::HoverOrNull::Hover(hover),
+            None => lsproto::HoverOrNull::Null,
+        })
+    }
+
     /// tsgo `handleDefinition`.
     fn handle_definition(
         self: &Arc<Self>,
@@ -1355,6 +1371,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentDiagnosticInfo>(
             &mut handlers,
             Server::handle_document_diagnostic,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentHoverInfo>(
+            &mut handlers,
+            Server::handle_hover,
         );
         register_language_service_document_request::<lsproto::TextDocumentDefinitionInfo>(
             &mut handlers,
