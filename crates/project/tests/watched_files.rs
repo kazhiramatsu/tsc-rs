@@ -552,3 +552,132 @@ fn the_default_files_are_watched_below_the_workspace() {
     let snapshot: Arc<Snapshot> = session.snapshot();
     assert_eq!(snapshot.projects().count(), 1);
 }
+
+/// "delete sibling folder schedules diagnostics refresh" and "… after
+/// opening third file": a deleted directory with an open file below it
+/// refreshes the editor's diagnostics.
+fn a_deleted_sibling_folder_refreshes_the_diagnostics(open_third: bool) {
+    let files = [
+        (
+            "/home/projects/TS/p1/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true }, "files": ["index.ts", "third.ts"] }"#,
+        ),
+        (
+            "/home/projects/TS/p1/index.ts",
+            "import { content } from \"./f/content\";\n\nexport const value = content;",
+        ),
+        (
+            "/home/projects/TS/p1/f/content.ts",
+            "export const content = 1;",
+        ),
+        ("/home/projects/TS/p1/third.ts", "export const third = 3;"),
+    ];
+    let (session, fs, client) = setup_with_client(&files);
+    let index = "file:///home/projects/TS/p1/index.ts";
+    let content = "file:///home/projects/TS/p1/f/content.ts";
+    open(&session, index, files[1].1);
+    open(&session, content, files[2].1);
+    program(&session, index);
+    session.wait_for_background_tasks();
+    let baseline = client.refresh_diagnostics_calls();
+
+    fs.remove("/home/projects/TS/p1/f/content.ts")
+        .expect("delete content.ts");
+    fs.remove("/home/projects/TS/p1/f")
+        .expect("delete the folder");
+    event(
+        &session,
+        "file:///home/projects/TS/p1/f",
+        FileChangeType::DELETED,
+    );
+    if open_third {
+        open(&session, "file:///home/projects/TS/p1/third.ts", files[3].1);
+    } else {
+        session.did_close_file(&uri(content));
+    }
+    session.wait_for_background_tasks();
+    assert!(client.refresh_diagnostics_calls() > baseline);
+}
+
+#[test]
+fn a_deleted_sibling_folder_refreshes_the_diagnostics_after_a_close() {
+    a_deleted_sibling_folder_refreshes_the_diagnostics(false);
+}
+
+#[test]
+fn a_deleted_sibling_folder_refreshes_the_diagnostics_after_an_open() {
+    a_deleted_sibling_folder_refreshes_the_diagnostics(true);
+}
+
+#[test]
+fn irrelevant_extensions_do_not_refresh_the_diagnostics() {
+    // "skips irrelevant extensions".
+    let files = [
+        (
+            "/home/projects/TS/p1/tsconfig.json",
+            r#"{ "compilerOptions": {}, "include": ["src"] }"#,
+        ),
+        (INDEX_FILE, "export const x = 1;"),
+    ];
+    let (session, fs, client) = setup_with_client(&files);
+    open(&session, INDEX, files[1].1);
+    session.wait_for_background_tasks();
+    let mut baseline = client.refresh_diagnostics_calls();
+    let mut events = |changes: &[(&str, FileChangeType)], refreshes: bool| {
+        let events = changes
+            .iter()
+            .map(|(path, kind)| watch_event(&format!("file://{path}"), *kind))
+            .collect::<Vec<_>>();
+        session.did_change_watched_files(&events);
+        session.wait_for_background_tasks();
+        let count = client.refresh_diagnostics_calls();
+        assert_eq!(count > baseline, refreshes, "{changes:?}");
+        baseline = count;
+    };
+    // An irrelevant .svg, a relevant .ts, the config.
+    events(
+        &[("/home/projects/TS/p1/icon.svg", FileChangeType::CREATED)],
+        false,
+    );
+    events(
+        &[("/home/projects/TS/p1/src/new.ts", FileChangeType::CREATED)],
+        true,
+    );
+    events(
+        &[(
+            "/home/projects/TS/p1/tsconfig.json",
+            FileChangeType::CHANGED,
+        )],
+        true,
+    );
+    // A created directory (no extension).
+    fs.create_dir_all("/home/projects/TS/p1/node_modules/@types")
+        .expect("create the directory");
+    events(
+        &[(
+            "/home/projects/TS/p1/node_modules/@types",
+            FileChangeType::CREATED,
+        )],
+        true,
+    );
+    // A batch with a relevant file, then a package install's noise.
+    events(
+        &[
+            ("/home/projects/TS/p1/icon.png", FileChangeType::CREATED),
+            (INDEX_FILE, FileChangeType::CHANGED),
+        ],
+        true,
+    );
+    events(
+        &[
+            (
+                "/home/projects/TS/p1/node_modules/pkg/LICENSE",
+                FileChangeType::CREATED,
+            ),
+            ("/home/projects/TS/p1/README.md", FileChangeType::CREATED),
+            ("/home/projects/TS/p1/LICENSE.txt", FileChangeType::CREATED),
+            ("/home/projects/TS/p1/style.css", FileChangeType::CREATED),
+        ],
+        false,
+    );
+}

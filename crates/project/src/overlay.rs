@@ -221,6 +221,17 @@ impl OverlayFs {
         Arc::clone(&self.overlays)
     }
 
+    /// tsgo `overlayFS.DirectoryExists`: a directory of an open document or
+    /// of the host.
+    pub(crate) fn directory_exists(&self, file_name: &str) -> bool {
+        OverlayLayer::new(
+            Arc::clone(&self.host),
+            self.paths.clone(),
+            Arc::clone(&self.overlays),
+        )
+        .is_dir(file_name)
+    }
+
     /// tsgo `processChanges`: the batch's notifications applied, each
     /// file's reduced first (a delete after a create cancels it, a create
     /// after a delete is a change, an open replaces what came before), and

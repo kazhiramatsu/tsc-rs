@@ -59,6 +59,12 @@ impl Logger {
         self.verbosity() == LogVerbosity::TRACE
     }
 
+    /// tsgo `IsVerbose`: tracing or debugging.
+    pub fn is_verbose(&self) -> bool {
+        let verbosity = self.verbosity();
+        verbosity >= LogVerbosity::TRACE && verbosity <= LogVerbosity::DEBUG
+    }
+
     /// tsgo `sendLogMessage`.
     fn send(&self, server: &Server, message_type: MessageType, message: &str) {
         if !server.init_started.load(Ordering::SeqCst) {

@@ -3,6 +3,7 @@
 //! on UTF-8) and offsets in a text (UTF-8 bytes), and from the client's
 //! language ids.
 
+mod diagnostics;
 mod line_map;
 
 use std::ops::Range;
@@ -11,6 +12,7 @@ use std::sync::Arc;
 use tsc_lsproto::{LanguageKind, Position, PositionEncodingKind};
 use tsc_syntax::ScriptKind;
 
+pub use diagnostics::{diagnostic_to_lsp, DiagnosticFile, DiagnosticOptions};
 pub use line_map::LspLineMap;
 
 /// tsgo `Script` without a content mapper's span map: a file's name and

@@ -511,6 +511,17 @@ fn write_location(
     Ok(())
 }
 
+/// tsgo `WriteFlattenedDiagnosticMessage`'s text of a message chain.
+pub fn flattened_message(
+    chain: &MessageChain,
+    new_line: &str,
+    catalog: Option<&dyn MessageCatalog>,
+) -> JsString {
+    let mut output = JsString::new();
+    write_flattened_message(&mut output, chain, new_line, catalog);
+    output
+}
+
 /// tsgo `WriteFlattenedDiagnosticMessage`: the head, then each chained
 /// message on its own line, indented two spaces per level.
 fn write_flattened_message(
