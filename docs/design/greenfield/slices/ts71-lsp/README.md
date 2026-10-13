@@ -369,3 +369,47 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   regressions（全 13,577 full、481 s）、`--checkers 4` は既知の 4 だけ、suites 0 regressions（lsp 925 full、hover
   2,393/2,455）、API client sync 337/356・async 346/365、test（checker 1,797、ls 61、api 295）、clippy、fmt。
 - **有界の違い**：Visual Studio の `_vs_rawContent`（L3d-3）53、content mapper（L10）9。
+
+## L3d-3 Visual Studio の hover の raw content（PR #783）
+
+- **merge**：#783 → `7dee0bc8c`（hosted run 38443134012：rust 8m8s、conformance 28m30s、gates）。commit：90417ac14
+  （printer の display parts）、30fe05e6d（checker の分類された印字）、dff3e7ad5（hover）、ratchet bb6b909e4。
+- **printer**：単独の印字が書くたびの分類を記録する（tsgo の `displayPartsWriter`：一行、改行は空白）。識別子は symbol に
+  与えられた分類で（tsgo `IdToSymbol`）、token の node は tsgo の `emitTokenNode` と同じく keyword か punctuation、配列型の
+  括弧は二つの punctuation。普通の出力は変わらない。
+- **checker**：node builder が symbol に名前を付ける識別子を記録する（tsgo `idToSymbol`：`newIdentifier`、宣言の引数名、
+  `setTextRange` の複製）。型・signature・module の import attributes を tsgo の Visual Studio 向けの hover と同じく
+  display parts で印字（verbosity なし、comment を残し、signature は末尾に semicolon）。tsgo の `IsUndefinedSymbol`・
+  `IsArgumentsSymbol`・`IsDeprecatedDeclaration`・`IsThisInTypeQuery` を公開。
+- **言語 service**：quick info の writer が tsgo と同じく全ての書き込みを分類し（keyword、punctuation、operator、literal、
+  `classificationForSymbol` による symbol）、hover は icon（tsgo `hovericon.go`、`lsutil` の `GetSymbolKind`・
+  `GetSymbolModifiers` を `lsutil/symbol_display.rs` に port）と comment だけの documentation を加える。
+- **回帰 test**：`crates/ls/tests/hover.rs` に Visual Studio の 5（計 39）：alias の icon と documentation の要約、省略可能と
+  rest の引数名、accessibility ごとの method の icon、property、tag なしの documentation の要約。
+- **検査（bb6b909e4、ratchet の commit は code を変えない）**：conformance 0 regressions（全 13,577 full、478 s）、
+  `--checkers 4` は既知の 4 だけ、suites 0 regressions（lsp 930 full、hover 2,446/2,455）、API client sync 337/356・
+  async 346/365、test（emitter 348、checker 1,797、ls 66、api 295、compiler 225、conformance 49）、clippy、fmt。
+- **有界の違い**：content mapper（L10）9。transcript の hover は他が全て tsgo と同じ。
+
+## L4 completion の計画
+
+tsgo の `ls/completions.go`（6,922 行）、`ls/string_completions.go`（2,249 行）、`ls/jsdoc_snippet.go`（597 行）。
+transcript では 1,210 の場面に completion 2,419（null 233、auto-import の項目を含むもの 262）と completionItem/resolve 655。
+項目の順は比べない（digest が並べ替える）。auto-import（registry、import の code fix、completion の auto-import）は L5。
+小分けにして、各段で transcript の一致を測る。
+
+1. **L4a 土台**：`ProvideCompletion`、`getCompletionData` の一般の道（文脈の token と前の token、補完を止める位置、新しい
+   識別子の位置と commit characters、scope の symbol（`getGlobalCompletions`）、property access の member
+   （`getTypeScriptMemberSymbols`）、keyword、import 文の keyword だけの補完）、文脈上の型によるリテラルと推奨の項目、
+   `completionInfoFromData`・`getCompletionEntriesFromSymbols`・`createCompletionItem`（名前、kind と kindModifiers、
+   sortText、insertText と filterText、置き換えの範囲、commit characters、itemDefaults の editRange、resolve のための
+   data）。
+2. **L4b 形の決まった場所**：object literal・JSX 属性・object の binding pattern・import／export の句・class の member・
+   型引数の object 型の補完（`tryGetObjectLikeCompletionSymbols` ほか）と、特別な項目（object literal の method と class の
+   member の snippet：`createObjectLiteralMethod`、`getEntryForMemberCompletion`。printer と node builder を使う）、label の
+   補完、JSX の閉じ tag、switch の case の snippet。
+3. **L4c string completion**：`string_completions.go`（literal 型、element access の property 名、path と module 指定子、
+   package.json）。
+4. **L4d JSDoc**：tag 名・param 名の completion と `jsdoc_snippet.go`。
+5. **L4e completionItem/resolve**：details と documentation（hover の symbol の表示と JSDoc を使う）。auto-import の code
+   action は L5。
