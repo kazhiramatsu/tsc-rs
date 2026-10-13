@@ -46,6 +46,7 @@ fn the_flags_take_go_forms() {
             async_protocol: true,
             collect_timing: true,
             use_case_sensitive_file_names: Some(true),
+            run_external_code: true,
         }
     );
     // Parsing stops at the first argument that is not a flag.

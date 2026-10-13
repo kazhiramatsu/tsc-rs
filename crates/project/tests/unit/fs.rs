@@ -131,6 +131,8 @@ fn a_deleted_file_is_no_longer_an_alias() {
             ..FileChangeSummary::default()
         },
         &first,
+        &[],
+        &BTreeSet::new(),
     );
     assert!(changes
         .deleted
@@ -175,6 +177,8 @@ fn links_to_one_real_file_are_aliases_until_each_goes() {
             ..FileChangeSummary::default()
         },
         &first,
+        &[],
+        &BTreeSet::new(),
     );
     let second = build.finish();
     assert_eq!(
@@ -230,6 +234,8 @@ fn a_change_to_a_real_file_reaches_the_file_read_through_its_link() {
             ..FileChangeSummary::default()
         },
         &first,
+        &[],
+        &BTreeSet::new(),
     );
     assert!(changes
         .changed
@@ -298,8 +304,10 @@ fn a_deletion_drops_the_files_no_project_read() {
             current_directory: "/".to_owned(),
             library_catalog: LibraryCatalog::typescript_7_1("/typescript/lib"),
             load_limits: ProgramLoadLimits::new(1_000, 10_000, 64, 1 << 20, 1 << 24),
+            run_external_code: false,
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
+        None,
     );
     let id = ProjectId::configured("/p/tsconfig.json").expect("a configured ID");
     let opened = host
@@ -347,4 +355,25 @@ fn a_created_path_that_was_looked_for_and_missing_dirties() {
     assert!(seen.seen_file_or_missing_parent_directory("/project/index.ts"));
     assert!(!seen.seen_file_or_missing_parent_directory("/project/other.ts"));
     assert!(!seen.seen_file_or_missing_parent_directory("/project"));
+}
+
+#[test]
+fn a_file_a_content_mapper_watches_keeps_its_changes() {
+    // "preserves exact content mapper dependencies": a watched file without
+    // a script extension keeps its change and its deletion.
+    let fs = memory(&[("/project/index.ts", Seed::file("export const x = 1;"))]);
+    let first = empty(&fs);
+    let build = builder(&fs, &first);
+    let changes = build.process_file_changes(
+        FileChangeSummary {
+            changed: links(&["/project/mapper.config"]),
+            deleted: links(&["/project/mapper.config"]),
+            ..FileChangeSummary::default()
+        },
+        &first,
+        &[],
+        &links(&["/project/mapper.config"]),
+    );
+    assert!(changes.changed.contains("/project/mapper.config"));
+    assert!(changes.deleted.contains("/project/mapper.config"));
 }

@@ -35,8 +35,10 @@ fn session_with(entries: Vec<(String, Seed)>) -> (SnapshotHost, Arc<MemFs>) {
             current_directory: "/".to_owned(),
             library_catalog: LibraryCatalog::typescript_7_1("/typescript/lib"),
             load_limits: ProgramLoadLimits::new(1_000, 10_000, 64, 1 << 20, 1 << 24),
+            run_external_code: false,
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
+        None,
     );
     (host, fs)
 }
