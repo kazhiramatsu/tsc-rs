@@ -16,6 +16,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use tsc_host::ipc::jsonrpc::{Reader, Writer};
+use tsc_host::vfs::{MemFs, Seed, SystemClock};
 use tsc_ls::lsutil::{
     parse_user_preferences, QuotePreference, SemicolonPreference, UserPreferences,
 };
@@ -91,6 +92,11 @@ struct Session {
 
 impl Session {
     fn start() -> Self {
+        Self::start_with(Arc::new(MemFs::new(false, Arc::new(SystemClock))))
+    }
+
+    /// A server whose session reads `fs`.
+    fn start_with(fs: Arc<MemFs>) -> Self {
         let input_pipe = Pipe::default();
         let output_pipe = Pipe::default();
         let stderr = Pipe::default();
@@ -98,6 +104,8 @@ impl Session {
             stderr: Box::new(stderr.clone()),
             cwd: "/".to_owned(),
             set_parent_process_id: None,
+            fs,
+            default_library_path: "/typescript/lib".to_owned(),
         });
         let run = {
             let server = Arc::clone(&server);
@@ -264,6 +272,95 @@ impl Session {
     }
 }
 
+/// tsgo's document notifications reach the session: an open loads the
+/// document's project and logs tsgo's "Processed 1 file changes", a change
+/// edits the document at the next request, a close leaves it to the disk,
+/// and the settings of `workspace/didChangeConfiguration` choose the
+/// config file name.
+#[test]
+fn documents_reach_the_session() {
+    let fs = Arc::new(
+        MemFs::from_entries(
+            [
+                (
+                    "/ws/tsconfig.json",
+                    Seed::file(r#"{"compilerOptions": {"noLib": true}, "include": ["src"]}"#),
+                ),
+                (
+                    "/ws/tsconfig.all.json",
+                    Seed::file(r#"{"compilerOptions": {"noLib": true, "strict": true}}"#),
+                ),
+                ("/ws/src/index.ts", Seed::file("export const x = 1;")),
+            ],
+            false,
+            Arc::new(SystemClock),
+        )
+        .unwrap(),
+    );
+    let mut session = Session::start_with(fs);
+    session.initialize(
+        serde_json::json!({"processId": null, "rootUri": "file:///ws", "capabilities": {}}),
+        Value::Null,
+    );
+    let index = "file:///ws/src/index.ts";
+    let document = serde_json::json!({
+        "uri": index, "languageId": "typescript", "version": 1, "text": "export const x = 1;",
+    });
+    let edit = serde_json::json!({
+        "textDocument": {"uri": index, "version": 2},
+        "contentChanges": [{"range": {"start": {"line": 0, "character": 17}, "end": {"line": 0, "character": 18}}, "text": "2"}],
+    });
+    for (method, params) in [
+        (
+            "textDocument/didOpen",
+            serde_json::json!({ "textDocument": document }),
+        ),
+        ("textDocument/didChange", edit),
+        (
+            "workspace/didChangeConfiguration",
+            serde_json::json!({"settings": {"js/ts": {"customConfigFileName": "tsconfig.all.json"}}}),
+        ),
+    ] {
+        let message = serde_json::json!({"jsonrpc": "2.0", "method": method, "params": params});
+        session.send(&message.to_string());
+    }
+    session.send(r#"{"jsonrpc":"2.0","id":2,"method":"shutdown"}"#);
+    let mut logs = Vec::new();
+    while let Some(text) = session.receive() {
+        if text.contains(r#""id":2"#) {
+            break;
+        }
+        let message: Value = serde_json::from_str(&text).unwrap();
+        if message["method"] == "window/logMessage" {
+            logs.push(message["params"]["message"].as_str().unwrap().to_owned());
+        }
+    }
+    // The open's log, then the handler's, as tsgo writes them.
+    let open = logs
+        .iter()
+        .position(|log| log.starts_with("Processed 1 file changes in "))
+        .expect("the open's log");
+    assert!(logs[open + 1].starts_with("handled method 'textDocument/didOpen' in "));
+
+    let projects = session.server.session().expect("the session");
+    let (snapshot, project) = projects
+        .get_snapshot_and_default_project(&lsproto::DocumentUri::from(index))
+        .expect("the document's project");
+    assert!(snapshot.is_open_file("/ws/src/index.ts"));
+    assert_eq!(project.config_file_name(), Some("/ws/tsconfig.all.json"));
+    let program = project.program().expect("the program");
+    let text = program
+        .prepared()
+        .source_files()
+        .iter()
+        .find(|source| source.path().display().to_string_lossy() == "/ws/src/index.ts")
+        .map(|source| source.text().to_owned());
+    assert_eq!(text.as_deref(), Some("export const x = 2;"));
+
+    session.close();
+    assert_eq!(session.finish(), Ok(()));
+}
+
 /// `exit` ends the server with tsgo's `context canceled` (the command's
 /// status 1).
 #[test]
@@ -389,6 +486,8 @@ fn outgoing_queue_does_not_block_without_writer() {
         stderr: Box::new(io::sink()),
         cwd: "/test".to_owned(),
         set_parent_process_id: None,
+        fs: Arc::new(MemFs::new(false, Arc::new(SystemClock))),
+        default_library_path: "/typescript/lib".to_owned(),
     });
     for _ in 0..1000 {
         let message = lsproto::RequestMessage::new(

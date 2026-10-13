@@ -605,6 +605,7 @@ dependencies = [
  "tsc-rs-ls",
  "tsc-rs-lsproto",
  "tsc-rs-program",
+ "tsc-rs-project",
  "tsc-rs-types",
 ]
 

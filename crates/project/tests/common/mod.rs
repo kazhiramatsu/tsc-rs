@@ -42,6 +42,7 @@ pub fn setup(files: &[(&str, &str)]) -> (Session, Arc<MemFs>) {
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,
         None,
+        None,
     );
     (session, fs)
 }

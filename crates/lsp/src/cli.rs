@@ -5,7 +5,10 @@ use std::io::{self, Write};
 use std::sync::{Arc, OnceLock, Weak};
 use std::time::Duration;
 
+use tsc_compiler::system::{BundledFs, EMBEDDED_LIBRARY_DIRECTORY};
 use tsc_host::flag::{self, Flag, Kind, Value};
+use tsc_host::vfs::{FileSystem, OsFs};
+use tsc_host::{CompilerHost, FsCompilerHost};
 
 use crate::server::{Server, ServerOptions};
 
@@ -69,6 +72,11 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         let _ = writeln!(io::stderr(), "only stdio is supported");
         return 1;
     }
+    // tsgo `bundled.WrapFS(osvfs.FS())` and `bundled.LibPath()`.
+    let case_sensitive = FsCompilerHost::from_process()
+        .map(|host| host.use_case_sensitive_file_names())
+        .unwrap_or(true);
+    let fs: Arc<dyn FileSystem> = Arc::new(BundledFs::new(OsFs::new(case_sensitive)));
     let cwd = std::env::current_dir()
         .map(|directory| tsc_program::uri::rooted_path_from_absolute(&directory.to_string_lossy()))
         .unwrap_or_default();
@@ -87,6 +95,8 @@ pub fn run_lsp(arguments: &[String], process_alive: Option<fn(i32) -> bool>) -> 
         stderr: Box::new(io::stderr()),
         cwd,
         set_parent_process_id,
+        fs,
+        default_library_path: EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
     });
     let _ = server_cell.set(Arc::downgrade(&server));
     match server.run(Box::new(io::stdin()), Box::new(io::stdout())) {

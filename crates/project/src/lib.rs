@@ -22,7 +22,7 @@ mod project;
 mod session;
 mod snapshot;
 
-pub use client::Client;
+pub use client::{Client, Logger};
 pub use fs::FileChangeSummary;
 pub use id::{ProjectId, ProjectKind};
 pub use overlay::{FileChange, FileChangeKind, Overlay};
