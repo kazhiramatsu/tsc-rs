@@ -314,6 +314,34 @@ C5a と C5b を一つの PR にした。content mapper が、tsgo が走らせ�
   の要約の mapped file の行の順（#765 の通り）。
 - **次**：type root の候補の正規化、その後 C6。
 
+## type root の候補の正規化（PR #770）
+
+C5 の実プロジェクトの build info の比較で見つかった resolver の差。TS 6 は候補を `combinePaths` で作り、request の綴りを
+残していた。tsgo（`aa814927`）は正規化したパスにする。
+
+- **type root の候補は正規化したパス**（tsgo `getCandidateFromTypeRoot` → `resolutionCandidateFromDirectoryPath`）：名前を
+  root に対して解決し、探索、`package.json` の探索、trace、結果がそのパスを使う。`node_modules/@types` からの `../../lib/x`
+  は `lib/x` として探す（これまでは `node_modules/@types/../../lib/x` で、結果の名前にも残った）。custom の type root では `.`
+  は root 自身なので `/types.d.ts` に解決する（TS 6 は末尾の dot の `/types/.d..ts`）。
+- **scoped な名前の trace は type root ごと**：tsgo は root の存在を確かめる前に候補を作るので、
+  `Scoped package detected, looking in 'scope__pkg'` は無い root も含めて root ごとに出る。これまでは存在する root だけ。
+- **相対の module 名が external library の import になるのは、解決したパスが `node_modules` の中のときだけ**（tsgo
+  `nodeModuleNameResolverWorker`）：`./node_modules/../b` は local な file なので emit する。TS 6 は request の綴りで分類して
+  いた。type reference は既にこの規則。
+- **test**：tsgo の `--traceResolution` の行の resolver contract（default の type root からの相対の type reference、存在する
+  root と無い root での scoped な名前）、tsgo の bytes の CLI contract（`--explainFiles`、emit される `a.js` と `b.js`、type
+  reference の trace）。TS 6 を固定していた 3 つの期待を tsgo に（custom の type root の `.`、`./node_modules/../foo.js`、
+  separator を含む module suffix で `node_modules` に入る相対の結果。最後のものは tsgo 自身が suffix で panic する（"file name
+  suffix must not contain a directory separator"）ので、package の事実を残して tsgo の分類の規則に従う）。
+- **結果**（release build、head `6feb05a01`、夜間の設定）：test 4,258 が全て通る、clippy（program、cli）は clean、suites は
+  0 regressions、full の conformance（`--workers 1 --check`、5,073 s）は 0 regressions で C5 の report と 15,339 の構成が全て
+  同じ。checker の変更は無いので並列対照は無し。実プロジェクトの 4 つは診断・`--explainFiles`・`--listFilesOnly`・宣言の 16
+  の比較と、incremental の `--noEmit` を同じ `--tsBuildInfoFile` で 2 回走らせた 8 の比較（出力と build info）が全て tsgo と
+  同じ（vitesse と soybean の `missingPackageJsons` も）。
+- **hosted と merge**：PR #770 の hosted run 38321664540（rust 11m44s、conformance 20m02s、gates pass、head `6feb05a01`）、
+  merge commit `53373ffa7`。
+- **次**：C6（下の計画）。
+
 ## C6 の計画（API）
 
 tsgo の API server は `--runExternalCode` のときだけ content mapper を走らせる（`cmd/tsc/api.go` の flag、
