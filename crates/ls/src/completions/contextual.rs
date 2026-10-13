@@ -11,6 +11,14 @@ use crate::utilities::Touching;
 
 use super::context::{is_class_like, is_template_literal_kind, is_type_node_kind, Completions};
 
+/// tsgo `argumentInfoForCompletions`: the call a position is an argument
+/// of, the argument's index and how many arguments the call has.
+pub(crate) struct ArgumentInfo {
+    pub(crate) invocation: NodeId,
+    pub(crate) argument_index: usize,
+    pub(crate) argument_count: usize,
+}
+
 impl Completions<'_, '_, '_> {
     /// tsgo `getContextualType` (completions.go): the type the previous
     /// token's position expects.
@@ -129,13 +137,11 @@ impl Completions<'_, '_, '_> {
             _ => {}
         }
         // An argument position.
-        if let Some((invocation, argument_index)) =
-            self.argument_info_for_completions(previous, position)?
-        {
+        if let Some(info) = self.argument_info_for_completions(previous, position)? {
             return self
                 .request
                 .state
-                .get_contextual_type_for_argument_at_index(invocation, argument_index);
+                .get_contextual_type_for_argument_at_index(info.invocation, info.argument_index);
         }
         if is_equality_operator_kind(self.kind(previous)) {
             if let NodeData::BinaryExpression(data) = self.data(parent) {
@@ -178,7 +184,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `getContextualTypeFromParent`.
-    fn contextual_type_from_parent(
+    pub(crate) fn contextual_type_from_parent(
         &mut self,
         node: NodeId,
         flags: ContextFlags,
@@ -240,13 +246,13 @@ impl Completions<'_, '_, '_> {
         conditional: NodeId,
         position: u32,
     ) -> CheckResult<Option<TypeId>> {
-        if let Some((invocation, argument_index)) =
+        if let Some(info) =
             self.argument_info_for_completions(Touching::Node(conditional), position)?
         {
             return self
                 .request
                 .state
-                .get_contextual_type_for_argument_at_index(invocation, argument_index);
+                .get_contextual_type_for_argument_at_index(info.invocation, info.argument_index);
         }
         // Not in an argument: the conditional's own context.
         if let Some(ty) = self
@@ -261,24 +267,23 @@ impl Completions<'_, '_, '_> {
             .language_service_contextual_type(conditional, ContextFlags::NONE)
     }
 
-    /// tsgo `getArgumentInfoForCompletions`: the call and the index of the
-    /// argument at the position.
-    fn argument_info_for_completions(
+    /// tsgo `getArgumentInfoForCompletions`: the call, the index of the
+    /// argument at the position and the call's argument count.
+    pub(crate) fn argument_info_for_completions(
         &mut self,
         node: Touching,
         position: u32,
-    ) -> CheckResult<Option<(NodeId, usize)>> {
+    ) -> CheckResult<Option<ArgumentInfo>> {
         self.immediately_containing_argument_info(node, position)
     }
 
     /// tsgo `getImmediatelyContainingArgumentInfo` (signaturehelp.go), as
-    /// completions read it: the invocation and the argument index, none for
-    /// a type argument list.
+    /// completions read it: none for a type argument list.
     fn immediately_containing_argument_info(
         &mut self,
         node: Touching,
         position: u32,
-    ) -> CheckResult<Option<(NodeId, usize)>> {
+    ) -> CheckResult<Option<ArgumentInfo>> {
         let Some(parent) = self.parent(node) else {
             return Ok(None);
         };
@@ -307,14 +312,22 @@ impl Completions<'_, '_, '_> {
             if is_type_parameter_list {
                 return Ok(None);
             }
-            return Ok(Some((parent, argument_index)));
+            let argument_count = match list {
+                Some(list) => self.argument_index_or_count(list, parent, None)?,
+                None => 0,
+            };
+            return Ok(Some(ArgumentInfo {
+                invocation: parent,
+                argument_index,
+                argument_count,
+            }));
         }
         if node_kind == SyntaxKind::NoSubstitutionTemplateLiteral
             && parent_kind == SyntaxKind::TaggedTemplateExpression
         {
             // Only inside the template.
             if self.is_inside_template_literal(node, position) {
-                return Ok(Some((parent, 0)));
+                return Ok(Some(self.argument_info_for_template(parent, 0)));
             }
             return Ok(None);
         }
@@ -327,7 +340,7 @@ impl Completions<'_, '_, '_> {
                 } else {
                     1
                 };
-                return Ok(Some((tag, argument_index)));
+                return Ok(Some(self.argument_info_for_template(tag, argument_index)));
             }
         }
         if parent_kind == SyntaxKind::TemplateSpan {
@@ -360,17 +373,40 @@ impl Completions<'_, '_, '_> {
                 } else {
                     span_index + 1
                 };
-                return Ok(Some((tag, argument_index)));
+                return Ok(Some(self.argument_info_for_template(tag, argument_index)));
             }
         }
         if matches!(
             parent_kind,
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
         ) {
-            return Ok(Some((parent, 0)));
+            return Ok(Some(ArgumentInfo {
+                invocation: parent,
+                argument_index: 0,
+                argument_count: 1,
+            }));
         }
         // Type arguments of `f <`: a type parameter list.
         Ok(None)
+    }
+
+    /// tsgo `getArgumentListInfoForTemplate`: the template strings array
+    /// and a substitution per span.
+    fn argument_info_for_template(&self, tag: NodeId, argument_index: usize) -> ArgumentInfo {
+        let NodeData::TaggedTemplateExpression(data) = self.data(tag) else {
+            unreachable!("a tagged template");
+        };
+        let argument_count = match data.template.map(|template| self.data(template)) {
+            Some(NodeData::TemplateExpression(template)) => {
+                self.node_list(template.template_spans).len() + 1
+            }
+            _ => 1,
+        };
+        ArgumentInfo {
+            invocation: tag,
+            argument_index,
+            argument_count,
+        }
     }
 
     /// tsgo `isInsideTemplateLiteral`.
@@ -412,23 +448,24 @@ impl Completions<'_, '_, '_> {
         let Some(list) = list else {
             return Ok(None);
         };
-        let argument_index = self.argument_index(node, list, parent)?;
+        let argument_index = self.argument_index_or_count(list, parent, Some(node))?;
         Ok(Some((Some(list), argument_index)))
     }
 
-    /// tsgo `getArgumentIndex`: the index of the argument holding `node`,
-    /// counting a spread tuple's required elements.
-    fn argument_index(
+    /// tsgo `getArgumentIndexOrCount`: the index of the argument holding
+    /// `node`, or the list's argument count, counting a spread tuple's
+    /// required elements.
+    fn argument_index_or_count(
         &mut self,
-        node: Touching,
         list: NodeArrayId,
         parent: NodeId,
+        node: Option<Touching>,
     ) -> CheckResult<usize> {
         let arguments = self.tokens_of_node_list(list, parent);
         let mut argument_index = 0;
         let mut skip_comma = false;
-        for argument in arguments {
-            if argument == node {
+        for &argument in &arguments {
+            if Some(argument) == node {
                 if !skip_comma && self.kind(argument) == SyntaxKind::CommaToken {
                     argument_index += 1;
                 }
@@ -452,6 +489,16 @@ impl Completions<'_, '_, '_> {
                 continue;
             }
             argument_index += 1;
+        }
+        if node.is_some() {
+            return Ok(argument_index);
+        }
+        // `f(a,)` has a second argument.
+        if arguments
+            .last()
+            .is_some_and(|&last| self.kind(last) == SyntaxKind::CommaToken)
+        {
+            return Ok(argument_index + 1);
         }
         Ok(argument_index)
     }
