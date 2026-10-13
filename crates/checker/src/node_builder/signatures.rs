@@ -1436,18 +1436,24 @@ pub(super) fn parameter_to_parameter_declaration_name(
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
     let Some(declaration) = declaration else {
-        return create_identifier(
+        let identifier = create_identifier(
             arena,
             target,
             checker
                 .symbol_display_name(parameter)
                 .as_str()
                 .expect("parameter symbols have scalar identifier names"),
-        );
+        )?;
+        context.name_identifier(identifier, parameter);
+        return Ok(identifier);
     };
     if let Some(serialized) =
         syntactic_serialize_name_of_parameter_seam(checker, arena, target, context, declaration)?
     {
+        // tsgo names the parameter's symbol with an identifier name.
+        if arena.node(serialized).map_err(factory_error)?.kind == SyntaxKind::Identifier {
+            context.name_identifier(serialized, parameter);
+        }
         return Ok(serialized);
     }
     let name = match checker.data_of(declaration) {
@@ -1456,14 +1462,16 @@ pub(super) fn parameter_to_parameter_declaration_name(
         _ => None,
     };
     let Some(name) = name else {
-        return create_identifier(
+        let identifier = create_identifier(
             arena,
             target,
             checker
                 .symbol_display_name(parameter)
                 .as_str()
                 .expect("parameter symbols have scalar identifier names"),
-        );
+        )?;
+        context.name_identifier(identifier, parameter);
+        return Ok(identifier);
     };
     match checker.kind_of(name) {
         SyntaxKind::Identifier => {
@@ -1477,7 +1485,9 @@ pub(super) fn parameter_to_parameter_declaration_name(
                         .expect("parameter symbols have scalar identifier names"),
                 )?,
             );
-            Ok(set_no_ascii_escaping(arena, cloned))
+            let cloned = set_no_ascii_escaping(arena, cloned);
+            context.name_identifier(cloned, parameter);
+            Ok(cloned)
         }
         SyntaxKind::QualifiedName => {
             let right = match checker.data_of(name) {
@@ -1496,7 +1506,9 @@ pub(super) fn parameter_to_parameter_declaration_name(
                     .as_str()
                     .expect("parameter symbols have scalar identifier names"),
             )?);
-            Ok(set_no_ascii_escaping(arena, cloned))
+            let cloned = set_no_ascii_escaping(arena, cloned);
+            context.name_identifier(cloned, parameter);
+            Ok(cloned)
         }
         SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => {
             clone_binding_name(checker, arena, target, name, context)

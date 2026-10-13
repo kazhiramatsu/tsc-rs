@@ -124,6 +124,16 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) fake_scopes: FakeScopeChain,
     /// The number of fake scope Blocks this request has created.
     pub(crate) fake_scope_counter: u32,
+    /// tsgo's `idToSymbol`: the identifiers `newIdentifier` made for a
+    /// symbol, which a display parts printer classifies by it.
+    pub(crate) identifier_symbols: Vec<(TransformNode, SymbolId)>,
+}
+
+impl NodeBuilderContext<'_> {
+    /// tsgo `newIdentifier` with a symbol: the identifier names it.
+    pub(crate) fn name_identifier(&mut self, identifier: TransformNode, symbol: SymbolId) {
+        self.identifier_symbols.push((identifier, symbol));
+    }
 }
 
 /// The fake scope Blocks tsgo's `enterNewScope` puts above the enclosing
@@ -279,6 +289,7 @@ pub(crate) fn with_context<'program, 'tracker, T>(
         serialized_types: take_serialized_types(arena),
         fake_scopes: FakeScopeChain::default(),
         fake_scope_counter: 0,
+        identifier_symbols: Vec::new(),
     };
 
     let resulting_node = callback(checker, arena, target, &mut context);
