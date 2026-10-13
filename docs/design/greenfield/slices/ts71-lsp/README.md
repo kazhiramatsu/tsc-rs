@@ -139,3 +139,21 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   byte offset を書く。tsc-rs は params の型名まで。JSON の構文誤りの文言も違う。Go は "cannot"／"unable to" を process ごとに
   無作為に選ぶ）、内蔵の file 監視がまだない時の log、`--pprofDir` の profile、SIGINT・SIGTERM、128 段より深い入力の JSON、
   client が送った空配列の capability の log、`exit` の log の競合（tsgo でも）。
+
+## L1c user preferences（PR #773）
+
+- **merge**：#773 → `a9c98a8da`（hosted run 38354260439：rust 8m12s、conformance 13m42s、gates）。commit：0061fe498（preferences）、
+  10ca5ce2b（記録した session が最後の handler の log を待ってから入力を閉じる。最初の hosted run 38352336923 はその log の
+  競合で止まった。tsgo で記録し直した transcript は変わらない）。
+- **preferences**：vendor した tsgo の `tools/userPreferences.schema.json` から `scripts/generate_lsp_preferences.py`（tsgo
+  `tools/gen-preferences` の移植）が `crates/ls/src/lsutil/user_preferences_generated.rs` を生成する（hosted の rust job が
+  `--check` を実行）。新しい crate `crates/ls`（`tsc_ls::lsutil`）に手書きの型、`NewDefaultUserPreferences`、
+  `ParseUserPreferences`、format の設定。protocol の型は `crates/lsproto`（`tsc_lsproto`）に分けた。checker の module specifier の
+  preference は tsgo の値の全てを持つ newtype で public（compiler の挙動は変わらない）。
+- **server**：`initialized` が設定を読み（`workspace/configuration`、初期化 option、tsgo の既定）、
+  `workspace/didChangeConfiguration` で読み直して session に保つ。
+- **tsgo との照合**：`userpreferences_test.go` の 10 test、tsgo 自身（Go の probe）で parse と直列化した 10 の設定が tsc-rs と
+  同じ形（`crates/ls/tests/fixtures/preferences.json`）、server の三つの出所の test。vendor の file 数の契約は 59,635。
+- **検査（0061fe498）**：suites 0 regressions、conformance 0 regressions（15,339、507 s）、`--checkers 4` の対照は既知の 4 件だけ、
+  API client sync 337/356・async 346/365（変わらず）、clippy、fmt。
+- **有界の違い**：auto-import の除外（`ParsedAutoImportFileExcludePatterns`、`IsModuleSpecifierExcluded`）は L5。
