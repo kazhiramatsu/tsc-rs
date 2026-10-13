@@ -6,6 +6,7 @@ mod contextual;
 mod data;
 mod entries;
 mod items;
+mod jsdoc;
 mod keywords;
 mod paths;
 mod searches;
@@ -219,7 +220,9 @@ impl Completions<'_, '_, '_> {
                 return Ok(None);
             }
         }
-        // JSDoc snippets (L4d) come first in tsgo.
+        if let Some(list) = self.jsdoc_snippet_completion() {
+            return Ok(Some(list));
+        }
         if let Some(list) = self.string_literal_completions(previous_token)? {
             return Ok(Some(list));
         }
@@ -260,10 +263,12 @@ impl Completions<'_, '_, '_> {
                     optional_replacement_span,
                 )))
             }
-            // The JSDoc completions (L4d).
-            CompletionData::JSDocTagName
-            | CompletionData::JSDocTag
-            | CompletionData::JSDocParameterName => Ok(None),
+            // At a JSDoc tag name, only tag names (and parameter tags).
+            CompletionData::JSDocTagName => Ok(Some(self.jsdoc_tag_completions(true)?)),
+            CompletionData::JSDocTag => Ok(Some(self.jsdoc_tag_completions(false)?)),
+            CompletionData::JSDocParameterName(tag) => {
+                Ok(Some(self.jsdoc_parameter_name_completions(tag)))
+            }
         }
     }
 

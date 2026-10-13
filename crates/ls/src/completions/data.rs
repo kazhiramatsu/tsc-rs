@@ -110,7 +110,8 @@ pub(crate) enum CompletionData {
     },
     JSDocTagName,
     JSDocTag,
-    JSDocParameterName,
+    /// The `@param` tag whose name the position is in.
+    JSDocParameterName(NodeId),
 }
 
 /// tsgo `globalsSearch`.
@@ -244,7 +245,7 @@ impl Completions<'_, '_, '_> {
                                 record.pos <= position && position <= record.end
                             })
                         {
-                            return Ok(Some(CompletionData::JSDocParameterName));
+                            return Ok(Some(CompletionData::JSDocParameterName(tag)));
                         }
                     }
                 }
@@ -1882,7 +1883,7 @@ fn left_most_name(source: &tsc_syntax::SourceFile, expression: NodeId) -> Option
 }
 
 /// tsgo `stringutil.IsWhiteSpaceSingleLine`.
-fn is_white_space_single_line(c: char) -> bool {
+pub(super) fn is_white_space_single_line(c: char) -> bool {
     tsc_syntax::is_whitespace_like(c) && !tsc_syntax::is_line_break(c)
 }
 
