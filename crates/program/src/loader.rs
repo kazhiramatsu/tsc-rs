@@ -1955,8 +1955,8 @@ impl ParallelReadAhead<'_> {
                     scope.as_ref(),
                     self.options,
                 );
-                let prepared = PreparedSourceFile::new(path.clone(), canonical.text)
-                    .with_content_mapped(Arc::new(canonical.info))
+                let prepared = PreparedSourceFile::from_snapshot(path.clone(), canonical.text)
+                    .with_content_mapped(canonical.info)
                     .with_implied_node_formats(implied, implied_for_emit);
                 let canonical = Box::new(
                     match plan_source_requests_retaining_syntax(&prepared, self.options) {
@@ -2212,9 +2212,10 @@ impl From<MappedSource> for DecodedSource {
 }
 
 /// tsgo `TransformAndParse` with the compiler host's supplemental name
-/// check (`CheckSupplementalFileNameCollisions`), on the walk or on a
-/// read-ahead worker.
-fn transform_content_mapped(
+/// check (`CheckSupplementalFileNameCollisions`), on the walk, on a
+/// read-ahead worker, or when a program is reused with the file changed
+/// (tsgo `ReuseProgram`).
+pub fn transform_content_mapped(
     host: &dyn CompilerHost,
     project: &dyn crate::content_mapper::Project,
     file_name: JsStr<'_>,
@@ -2224,15 +2225,28 @@ fn transform_content_mapped(
     let transform_identity = project
         .identity(mapper)
         .map_err(TransformFailure::Project)?;
-    let request_file_name = file_name.to_string_lossy();
-    let output = project.transform(
-        mapper,
-        Request {
-            file_name: &request_file_name,
-            content,
-        },
-    )?;
-    let sources = virtual_sources(file_name, content, mapper, &transform_identity, output)?;
+    // tsgo's project compiler host: the outputs a program holds for the
+    // same file, content and transform identity, without the mapper.
+    let cache = project.content_mapped_cache();
+    let cached = cache.and_then(|cache| cache.get(file_name, content, &transform_identity));
+    let sources = match cached {
+        Some(sources) => sources,
+        None => {
+            let request_file_name = file_name.to_string_lossy();
+            let output = project.transform(
+                mapper,
+                Request {
+                    file_name: &request_file_name,
+                    content,
+                },
+            )?;
+            let sources = virtual_sources(file_name, content, mapper, &transform_identity, output)?;
+            if let Some(cache) = cache {
+                cache.insert(&sources);
+            }
+            sources
+        }
+    };
     for supplemental in &sources.supplemental {
         if host
             .file_exists_js(supplemental.file_name.as_js())
@@ -4902,7 +4916,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             SourceInput::Fresh(bytes) => bytes.len(),
             SourceInput::Prefetched { byte_len, .. }
             | SourceInput::PrefetchedMapped { byte_len, .. } => *byte_len,
-            SourceInput::Provided(provided) => provided.text.len(),
+            SourceInput::Provided(provided) => provided.text.text().len(),
         };
 
         self.enforce_limit(
@@ -5035,7 +5049,7 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     supplemental.push(self.program_path(name.as_js())?);
                 }
                 (
-                    PreparedSourceFile::new(path.clone(), text).with_content_mapped(Arc::new(info)),
+                    PreparedSourceFile::from_snapshot(path.clone(), text).with_content_mapped(info),
                     None,
                     Vec::new(),
                 )

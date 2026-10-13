@@ -2800,10 +2800,16 @@ fn parse_program_inputs(
     let share = |file_name: JsStr<'_>,
                  text: &str,
                  parse_options: &tsc_syntax::ParseOptions,
+                 content_mapped: Option<
+        &tsc_program::content_mapper::source::ContentMappedSource,
+    >,
                  shared_documents: &mut Vec<SharedDocument>|
      -> Option<Arc<tsc_syntax::SourceFile>> {
         let documents = documents?;
-        let address = DocumentAddress::new(parse_options, identity_domain);
+        let mut address = DocumentAddress::new(parse_options, identity_domain);
+        if let Some(info) = content_mapped {
+            address = address.with_content_mapper(&info.transform_identity, &info.original_text);
+        }
         match documents.get(file_name, text, &address) {
             Some(document) => {
                 let source = Arc::clone(&document.parsed.source);
@@ -2932,6 +2938,7 @@ fn parse_program_inputs(
                 file.name.as_js(),
                 file.text(),
                 &parse_options,
+                None,
                 &mut shared_documents,
             ) {
                 pending_sources.push(PendingProgramSource::Shared(source));
@@ -2973,16 +2980,22 @@ fn parse_program_inputs(
                 .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
         };
         // A source with the API's module name or renamed dependencies
-        // (transpile) is never shared, nor a content mapper's output (its
-        // mapper's diagnostics join its tree).
+        // (transpile) is never shared, nor a content mapper's failure stub
+        // (tsgo makes one per program). A content mapper's output is shared
+        // by its transform (tsgo's content-mapped parse cache), with its
+        // mapper's diagnostics already joined to its tree.
         if file.module_name.is_none()
             && file.renamed_dependencies.is_empty()
-            && file.content_mapped.is_none()
+            && !file
+                .content_mapped
+                .as_ref()
+                .is_some_and(|info| info.is_failure_stub())
         {
             if let Some(source) = share(
                 file.name.as_js(),
                 file.text(),
                 &parse_options,
+                file.content_mapped.as_deref(),
                 &mut shared_documents,
             ) {
                 // The loader's parse of the same text is not needed.

@@ -1233,6 +1233,9 @@ impl CheckerSetup {
                         .map_or(0, |document| document.parsed.id())
                 })
                 .collect::<Vec<_>>();
+            let content_mapped = (0..live.file_count())
+                .map(|index| live.content_mapped(index).is_some())
+                .collect::<Vec<_>>();
             live.with_checker(|state| {
                 query(&mut Query {
                     state,
@@ -1241,6 +1244,7 @@ impl CheckerSetup {
                     project: &self.project,
                     program,
                     documents: &documents,
+                    content_mapped: &content_mapped,
                     session,
                 })
             })
@@ -1259,6 +1263,8 @@ pub(crate) struct Query<'q, 'a> {
     program: usize,
     /// Each program file's parse identity (tsgo's source file node id).
     documents: &'q [u64],
+    /// Whether each program file is a content mapper's output.
+    content_mapped: &'q [bool],
     session: &'q Session,
 }
 
@@ -1302,9 +1308,14 @@ impl Query<'_, '_> {
     }
 
     /// tsgo `symbolOwnerFile`: the program file whose bind created
-    /// `symbol`, `None` for a checker's (transient) symbol.
+    /// `symbol`, `None` for a checker's (transient) symbol and for a symbol
+    /// of a content mapper's output, which the parse cache does not hold
+    /// (the snapshot owns it).
     fn owner_file(&self, symbol: SymbolId) -> Option<usize> {
-        self.state.binder.file_index_of_symbol(symbol)
+        self.state
+            .binder
+            .file_index_of_symbol(symbol)
+            .filter(|&file| !self.content_mapped.get(file).copied().unwrap_or(false))
     }
 
     /// tsgo `newSourceFileDescriptor` of the program's file `file`.

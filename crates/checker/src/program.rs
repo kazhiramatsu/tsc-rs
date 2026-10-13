@@ -77,6 +77,9 @@ impl BoundDocument {
 pub struct DocumentAddress {
     parse: ParseOptions,
     identity_domain: IdentityDomain,
+    /// A content mapper's output (tsgo's content-mapped parse cache): the
+    /// mapper's transform identity and the original text it transformed.
+    content_mapper: Option<(String, Arc<str>)>,
 }
 
 impl DocumentAddress {
@@ -90,13 +93,29 @@ impl DocumentAddress {
                 ..parse.clone()
             },
             identity_domain: identity_domain.clone(),
+            content_mapper: None,
         }
+    }
+
+    /// The address of a content mapper's output (tsgo
+    /// `contentMappedParseCacheKey`): found again only for the same
+    /// transform of the same original text, which gives the same outputs
+    /// with the same mapper diagnostics.
+    pub fn with_content_mapper(
+        mut self,
+        transform_identity: &str,
+        original_text: &Arc<str>,
+    ) -> Self {
+        self.content_mapper = Some((transform_identity.to_owned(), Arc::clone(original_text)));
+        self
     }
 }
 
 impl PartialEq for DocumentAddress {
     fn eq(&self, other: &Self) -> bool {
-        self.parse == other.parse && self.identity_domain.same_domain(&other.identity_domain)
+        self.parse == other.parse
+            && self.identity_domain.same_domain(&other.identity_domain)
+            && self.content_mapper == other.content_mapper
     }
 }
 
@@ -174,12 +193,17 @@ impl DocumentRegistry {
     }
 
     /// The live documents of `file_name`, at any address (tsgo's parse cache
-    /// entries of the file).
+    /// entries of the file). A content mapper's output is not one: tsgo
+    /// keeps it in a cache of its own.
     pub fn documents_of(&self, file_name: JsStr<'_>) -> Vec<Arc<BoundDocument>> {
         self.lock()
             .iter()
             .filter(|((name, _), _)| name.as_js() == file_name)
-            .flat_map(|(_, slot)| slot.iter().filter_map(|entry| entry.document.upgrade()))
+            .flat_map(|(_, slot)| {
+                slot.iter()
+                    .filter(|entry| entry.address.content_mapper.is_none())
+                    .filter_map(|entry| entry.document.upgrade())
+            })
             .collect()
     }
 

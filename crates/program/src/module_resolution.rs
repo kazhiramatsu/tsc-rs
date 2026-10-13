@@ -1634,7 +1634,7 @@ impl<'a> ModuleResolver<'a> {
         }
         self.trace_module_resolution_kind();
         let (mut result, diagnostics) = self.with_input_request(true, |resolver| {
-            resolver.resolve_module_request(containing_file, containing_directory, specifier, mode)
+            resolver.resolve_module_request(containing_directory, specifier, mode)
         })?;
         result.diagnostics = diagnostics;
         self.trace_module_resolution_result(specifier, &result);
@@ -1661,20 +1661,18 @@ impl<'a> ModuleResolver<'a> {
         result.map(|result| (result, diagnostics))
     }
 
-    fn resolve_module_request<'j0, 'j1, 'j2>(
+    fn resolve_module_request<'j0, 'j1>(
         &mut self,
-        containing_file: impl Into<JsStr<'j0>>,
-        containing_directory: impl Into<JsStr<'j1>>,
-        specifier: impl Into<JsStr<'j2>>,
+        containing_directory: impl Into<JsStr<'j0>>,
+        specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
     ) -> Result<HostModuleResolution, ResolutionError> {
-        let containing_file = containing_file.into();
         let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         self.trace_resolution_mode(mode);
         if is_relative_specifier(specifier) {
             return self
-                .resolve_relative(containing_file, specifier, mode)
+                .resolve_relative(containing_directory, specifier, mode)
                 .map(HostModuleResolution::new);
         }
 
@@ -4357,29 +4355,31 @@ impl<'a> ModuleResolver<'a> {
         )
     }
 
-    /// Resolve a relative request through the legacy file/directory loader.
-    /// A directory package is reconsidered from its own package root so a
-    /// versioned declaration can intentionally refer back to itself.
+    /// Resolve a relative request through the legacy file/directory loader,
+    /// from the request's containing directory (tsgo's resolution state:
+    /// the containing file's directory, or the directory itself for
+    /// `ResolveModuleNameFromDirectory`). A directory package is reconsidered
+    /// from its own package root so a versioned declaration can
+    /// intentionally refer back to itself.
     fn resolve_relative<'j0, 'j1>(
         &mut self,
-        containing_file: impl Into<JsStr<'j0>>,
+        containing_directory: impl Into<JsStr<'j0>>,
         specifier: impl Into<JsStr<'j1>>,
         mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let containing_file = containing_file.into();
+        let containing_directory = containing_directory.into();
         let specifier = specifier.into();
         if specifier.contains("\0") {
             return Err(ResolutionError::invalid_data(format!(
                 "invalid relative module specifier {specifier:?}"
             )));
         }
-        let containing_directory = js_directory_name(containing_file);
         // tsgo resolveNodeLike runs once with every admitted extension.
         // Keeping optional and ordinary candidates inside the same pass
         // preserves both rootDirs ordering and the duplicate original probe
         // after a rootDirs miss.
         self.resolve_relative_with_passes(
-            &containing_directory,
+            containing_directory,
             specifier,
             mode,
             &[ExtensionProbePass::All],
@@ -7108,6 +7108,12 @@ fn package_id_for_legacy_path_from_directory<'d, 'p>(
 /// tsgo `resolvedUsingExtraExtensions`: the resolution of a fully specified
 /// import of a content mapper's extension.
 impl ModuleResolver<'_> {
+    /// tsgo `ResolverOptions.ExtraExtensions` given by the caller (the API
+    /// resolves over a snapshot with its content mappers' extensions).
+    pub fn set_extra_extensions(&mut self, extensions: Vec<String>) {
+        self.extra_extensions = extensions;
+    }
+
     /// tsgo `SplitExtension` with the extra extensions: the longest content
     /// mapper extension the candidate ends with.
     fn extra_extension_of(&self, candidate: JsStr<'_>) -> Option<JsString> {

@@ -41,6 +41,12 @@ pub trait Project: Send + Sync {
     ) -> Result<TransformOutput, TransformFailure>;
     /// tsgo `Close`: the view is released.
     fn close(&self) -> Result<(), String>;
+    /// tsgo's project system compiler host: the transform outputs the
+    /// session's programs share (tsgo `contentMappedParseCache`). A command
+    /// line's project has none (tsgo's compiler host transforms every file).
+    fn content_mapped_cache(&self) -> Option<&source::ContentMappedCache> {
+        None
+    }
 }
 
 /// tsgo `contentmapper.Definition`: a `contentMappers` entry, the package

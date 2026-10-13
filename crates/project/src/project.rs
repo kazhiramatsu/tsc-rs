@@ -282,6 +282,9 @@ pub struct Project {
     /// The ID of the snapshot whose build made the program.
     pub(crate) program_last_update: u64,
     pub(crate) seen: Arc<SeenFiles>,
+    /// tsgo `contentMapperWatchedFiles`: the paths of the files whose
+    /// changes refresh the program's content mappers, once it has a program.
+    pub(crate) content_mapper_watched_files: Option<Arc<BTreeSet<String>>>,
 }
 
 impl Project {
@@ -300,6 +303,7 @@ impl Project {
             program_update_kind: ProgramUpdateKind::None,
             program_last_update: 0,
             seen: Arc::default(),
+            content_mapper_watched_files: None,
         }
     }
 

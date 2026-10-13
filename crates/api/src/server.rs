@@ -7,6 +7,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::sync::Arc;
 
+use tsc_compiler::content_mapper_process::NativeSpawner;
 use tsc_compiler::system::{BundledFs, EMBEDDED_LIBRARY_DIRECTORY};
 use tsc_compiler::DEFAULT_LOAD_LIMITS;
 use tsc_host::vfs::{FileSystem, OsFs};
@@ -40,6 +41,9 @@ pub struct ServerOptions {
     /// over the OS's (`--useCaseSensitiveFileNames`, which the command line
     /// always sets).
     pub use_case_sensitive_file_names: Option<bool>,
+    /// tsgo `RunExternalCode`: the projects' content mappers may run
+    /// (`--runExternalCode`).
+    pub run_external_code: bool,
 }
 
 /// tsgo `StdioServer.Run`: serves one client until its input ends.
@@ -69,8 +73,11 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
             current_directory: options.current_directory.clone(),
             library_catalog: LibraryCatalog::typescript_7_1(Path::new(EMBEDDED_LIBRARY_DIRECTORY)),
             load_limits: DEFAULT_LOAD_LIMITS,
+            run_external_code: options.run_external_code,
         },
         fs,
+        // tsgo `ContentMapperSpawner: system`.
+        Some(Arc::new(NativeSpawner)),
         // Only MessagePack sends binary responses.
         !options.async_protocol,
     ));
@@ -101,6 +108,8 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
     }
     session.set_connection(&conn);
     let result = conn.run().map_err(|error| error.to_string());
+    // tsgo `defer session.Close()`.
+    session.close();
     // Go's listener removes its socket when it closes.
     if let Some(path) = &options.pipe_path {
         let _ = std::fs::remove_file(path);
@@ -254,8 +263,7 @@ pub fn parse_api_flags(
                 "useCaseSensitiveFileNames" => {
                     options.use_case_sensitive_file_names = Some(enabled);
                 }
-                // Content mappers (external code) are not ported.
-                _ => {}
+                _ => options.run_external_code = enabled,
             }
         } else {
             let value = match value {

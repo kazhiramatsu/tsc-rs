@@ -28,5 +28,8 @@ tsc-syntax.workspace = true
 tsc-types.workspace = true
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
+[dev-dependencies]
+tsc-harness.workspace = true
+
 [lints]
 workspace = true

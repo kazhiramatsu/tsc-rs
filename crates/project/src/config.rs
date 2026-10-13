@@ -10,8 +10,9 @@ use std::sync::Arc;
 use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::vfs::VfsCompilerHost;
 use tsc_program::{
-    parse_config_root_plan_with_cache, CompilerConfigHost, ConfigExtendedCache, ConfigRootPlan,
-    ConfigRootPlanRequest,
+    command_line_option_bag, parse_config_root_plan_with_cache,
+    parse_config_root_plan_with_command_line, CompilerConfigHost, ConfigExtendedCache,
+    ConfigRootPlan, ConfigRootPlanRequest, JsonValue,
 };
 
 use crate::fs::{FileChangeSummary, SnapshotFsBuilder, SourceFs};
@@ -56,6 +57,20 @@ impl ConfigFileRegistry {
     pub(crate) fn config(&self, path: &str) -> Option<&Arc<ConfigRootPlan>> {
         self.configs.get(path)?.plan.as_ref()
     }
+
+    /// tsgo `collectConfiguredContentMappers`: the extensions of every
+    /// parse's content mappers, sorted, each once.
+    pub(crate) fn content_mapper_extensions(&self) -> Vec<String> {
+        let mut extensions = self
+            .configs
+            .values()
+            .filter_map(|entry| entry.plan.as_deref())
+            .flat_map(|plan| plan.content_mapper_extensions().map(str::to_owned))
+            .collect::<Vec<_>>();
+        extensions.sort();
+        extensions.dedup();
+        extensions
+    }
 }
 
 /// The configs of a snapshot build (tsgo `configFileRegistryBuilder`).
@@ -63,14 +78,21 @@ pub(crate) struct ConfigFileRegistryBuilder<'a> {
     fs: &'a SnapshotFsBuilder,
     base: Configs,
     configs: Configs,
+    /// The session's `run_external_code`.
+    run_external_code: bool,
 }
 
 impl<'a> ConfigFileRegistryBuilder<'a> {
-    pub(crate) fn new(fs: &'a SnapshotFsBuilder, base: &ConfigFileRegistry) -> Self {
+    pub(crate) fn new(
+        fs: &'a SnapshotFsBuilder,
+        base: &ConfigFileRegistry,
+        run_external_code: bool,
+    ) -> Self {
         Self {
             fs,
             base: Arc::clone(&base.configs),
             configs: Arc::clone(&base.configs),
+            run_external_code,
         }
     }
 
@@ -226,17 +248,35 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
             .map_err(|error| ProjectError::new(format!("cannot decode {file_name}: {error}")))?;
         let paths = self.fs.paths();
         let host = VfsCompilerHost::new(SourceFs::new(self.fs), paths.current_directory.clone());
-        parse_config_root_plan_with_cache(
-            &CompilerConfigHost::new(&host),
-            ConfigRootPlanRequest {
-                file_name: JsString::from(paths.absolute(file_name).as_str()),
-                text,
-                base_path: JsString::from(paths.current_directory.as_str()),
-            },
-            &mut ConfigExtendedCache::default(),
-        )
-        .map(Some)
-        .map_err(|error| ProjectError::new(format!("cannot parse {file_name}: {error}")))
+        let config_host = CompilerConfigHost::new(&host);
+        let request = ConfigRootPlanRequest {
+            file_name: JsString::from(paths.absolute(file_name).as_str()),
+            text,
+            base_path: JsString::from(paths.current_directory.as_str()),
+        };
+        // tsgo `reloadIfNeeded`: when the session runs external code, the
+        // parse has `runExternalCode` as an existing option, so a config's
+        // content mappers register as they do with the command line flag.
+        let parsed = if self.run_external_code {
+            parse_config_root_plan_with_command_line(
+                &config_host,
+                request,
+                &command_line_option_bag(
+                    &[("runExternalCode".to_owned(), JsonValue::Bool(true))],
+                    JsStr::from_str(&paths.current_directory),
+                ),
+                &mut ConfigExtendedCache::default(),
+            )
+        } else {
+            parse_config_root_plan_with_cache(
+                &config_host,
+                request,
+                &mut ConfigExtendedCache::default(),
+            )
+        };
+        parsed
+            .map(Some)
+            .map_err(|error| ProjectError::new(format!("cannot parse {file_name}: {error}")))
     }
 
     /// tsgo `updateExtendingConfigs`: the configs a parse extends are kept
@@ -334,9 +374,27 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
             touched.insert(path);
         }
 
-        // Changes to the configs themselves and to the configs they extend.
+        // Changes to the configs themselves and to the configs they extend,
+        // and to the manifests of their content mappers' packages.
         for path in &touched {
             let Some(entry) = self.configs.get(path) else {
+                if path.ends_with("/package.json") {
+                    let declaring = self
+                        .configs
+                        .iter()
+                        .filter(|(_, entry)| {
+                            entry.plan.as_ref().is_some_and(|plan| {
+                                plan.content_mapper_manifest_files()
+                                    .iter()
+                                    .any(|manifest| paths.to_path(manifest) == *path)
+                            })
+                        })
+                        .map(|(config, _)| config.clone())
+                        .collect::<Vec<_>>();
+                    for config in declaring {
+                        affected.extend(self.handle_config_change(&config));
+                    }
+                }
                 continue;
             };
             if has_excessive_changes {

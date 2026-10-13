@@ -160,9 +160,9 @@ pub use library::LibraryCatalog;
 pub use loader::{
     load_emitting_program, load_emitting_program_js, load_emitting_program_with_root_reasons,
     load_no_lib_program, load_program, load_program_js, load_program_with_root_reasons,
-    LibraryRootReason, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
-    ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation, RootFileReason,
-    SourceInclusionReason, PARALLEL_READ_AHEAD_MIN_ROOTS,
+    transform_content_mapped, LibraryRootReason, ProgramLoadError, ProgramLoadErrorKind,
+    ProgramLoadLimit, ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
+    RootFileReason, SourceInclusionReason, PARALLEL_READ_AHEAD_MIN_ROOTS,
 };
 pub use module_requests::{
     default_js_doc_parsing_mode, plan_module_requests, plan_source_requests,

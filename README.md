@@ -80,10 +80,10 @@ into TypeScript. List them in `tsconfig.json` and run with
 As with `tsgo`, errors point into the original files, and with
 `declaration` a mapped file gets a declaration file (`Card.d.astro.ts`) but
 no JavaScript. On two Astro and two Vue projects, the output matched
-`tsgo`'s. Content mappers also run in `-b` builds and under `--watch`:
-`--incremental` and `-b` build again when a mapper's version or options
-change, and `--watch` restarts a mapper whose package changes. Not yet:
-content mappers in the API server.
+`tsgo`'s. Content mappers also run in `-b` builds, under `--watch` and in
+the API server (`tsc-rs --api --runExternalCode`): `--incremental` and
+`-b` build again when a mapper's version or options change, and `--watch`
+restarts a mapper whose package changes.
 
 ## Compatibility
 
@@ -139,6 +139,8 @@ and will be measured again.
 ```sh
 tsc-rs --api --cwd /path/to/workspace   # MessagePack over stdio (--async: JSON-RPC, --pipe <path>: socket)
 ```
+
+With `--runExternalCode`, projects run their [content mappers](#content-mappers).
 
 Implemented: snapshots and projects, config parsing, source files,
 transpilation, module resolution, symbol, type and signature queries, scope

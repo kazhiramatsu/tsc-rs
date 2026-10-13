@@ -20,6 +20,7 @@ use tsc_emitter::{
     validate_emit_request, EmitDiagnosticGate, EmitOutcome, EmitRouteKind, EmitSelection,
     OutputSink, UnitEmitRequest,
 };
+use tsc_host::CompilerHost;
 use tsc_program::{
     plan_source_requests, plan_source_requests_retaining_syntax, CanonicalPath, CompilerOptions,
     PreparedProgram, PreparedProgramMode, PreparedSourceFile, ProgramPath, SourceFileId,
@@ -91,17 +92,21 @@ impl LiveProgram {
 
     /// tsgo `ReuseProgram`: the Program `prepared` with the source at `path`
     /// read again as `text`, sharing the resolutions, the Program
-    /// diagnostics and (through `documents`) every other file. `None` when
-    /// the file cannot be replaced in place (tsgo `canReplaceFileInProgram`):
-    /// its requests change (the imports and their modes, module
-    /// augmentations, path, type and lib references, module status), its
-    /// check directive changes, it has the synthesized `tslib` or JSX
-    /// runtime import, it takes part in a package redirect, or a Program row
-    /// is located in it (tsgo locates those in the new file).
+    /// diagnostics and (through `documents`) every other file. A content
+    /// mapper's file runs through its mapper again, over `host`, and its
+    /// supplemental outputs are replaced with it. `None` when the file
+    /// cannot be replaced in place (tsgo `canReplaceFileInProgram`): its
+    /// requests change (the imports and their modes, module augmentations,
+    /// path, type and lib references, module status), its check directive
+    /// changes, it has the synthesized `tslib` or JSX runtime import, it
+    /// takes part in a package redirect, a Program row is located in it
+    /// (tsgo locates those in the new file), or its mapper fails or names
+    /// other supplemental outputs (the loader's failure policy then runs).
     pub fn reuse(
         prepared: &PreparedProgram,
         path: &CanonicalPath,
         text: String,
+        host: &dyn CompilerHost,
         documents: &DocumentRegistry,
     ) -> Option<Result<Self, DriverError>> {
         let id = prepared.source_id(path)?;
@@ -109,26 +114,37 @@ impl LiveProgram {
         if old.path().canonical() != path || !old.package_redirect_paths().is_empty() {
             return None;
         }
-        if include_processor_rows(prepared)
-            .iter()
-            .any(|(source, _)| *source == id)
-        {
-            return None;
+        let replacements = match old.content_mapped() {
+            None => vec![(
+                id,
+                old.with_snapshot(TextSnapshot::new(text, DocumentVersion::default())),
+            )],
+            Some(_) => content_mapped_replacements(prepared, id, old, &text, host)?,
+        };
+        let rows = include_processor_rows(prepared);
+        let mut reused = None::<PreparedProgram>;
+        for (id, new) in replacements {
+            let old = prepared.source_file(id)?;
+            if rows.iter().any(|(source, _)| *source == id) {
+                return None;
+            }
+            let options = options_for_source(prepared, old)?;
+            let old_plan = plan_source_requests(old, options).ok()?;
+            let (new_plan, syntax) = plan_source_requests_retaining_syntax(&new, options).ok()?;
+            if !old_plan.has_same_requests(&new_plan)
+                || new_plan.has_synthetic_imports()
+                || check_directive(old.text()) != check_directive(new.text())
+            {
+                return None;
+            }
+            reused = Some(
+                reused
+                    .as_ref()
+                    .unwrap_or(prepared)
+                    .with_replaced_source(id, new.with_preparsed_syntax(syntax)),
+            );
         }
-        let options = options_for_source(prepared, old)?;
-        let new = old.with_snapshot(TextSnapshot::new(text, DocumentVersion::default()));
-        let old_plan = plan_source_requests(old, options).ok()?;
-        let (new_plan, syntax) = plan_source_requests_retaining_syntax(&new, options).ok()?;
-        if !old_plan.has_same_requests(&new_plan)
-            || new_plan.has_synthetic_imports()
-            || check_directive(old.text()) != check_directive(new.text())
-        {
-            return None;
-        }
-        Some(Self::build(
-            prepared.with_replaced_source(id, new.with_preparsed_syntax(syntax)),
-            Some(documents),
-        ))
+        Some(Self::build(reused?, Some(documents)))
     }
 
     fn build(
@@ -195,6 +211,18 @@ impl LiveProgram {
     /// The file name of the checker's file at `index`.
     pub fn file_name(&self, index: usize) -> Option<JsStr<'_>> {
         self.checker.file_name(index)
+    }
+
+    /// The content mapper output the checker's file at `index` is (tsgo
+    /// `ContentMapperSourceFileInfo`), when it is one.
+    pub fn content_mapped(
+        &self,
+        index: usize,
+    ) -> Option<&Arc<tsc_program::content_mapper::source::ContentMappedSource>> {
+        let token = self.checker.source_token(index)?;
+        self.prepared
+            .source_file(SourceFileId::from_raw(token.0))?
+            .content_mapped()
     }
 
     /// tsgo `GetConfigFileParsingDiagnostics`.
@@ -557,6 +585,63 @@ fn incomplete_check(partials: Vec<PartialCheck>) -> Result<(), DriverError> {
         }),
         None => Ok(()),
     }
+}
+
+/// tsgo `ReuseProgram`'s transform of a content mapper's file (its host's
+/// `GetContentMappedSourceFiles`): the file's outputs for `content`, each
+/// with the source it replaces, when the mapper succeeds and its
+/// supplemental outputs keep their names.
+fn content_mapped_replacements(
+    prepared: &PreparedProgram,
+    id: SourceFileId,
+    old: &PreparedSourceFile,
+    content: &str,
+    host: &dyn CompilerHost,
+) -> Option<Vec<(SourceFileId, PreparedSourceFile)>> {
+    let options = prepared.program_options();
+    let mapper = tsc_program::content_mapper_for_file_name(
+        &options.content_mapper_spec()?.mappers,
+        old.path().display(),
+        host.use_case_sensitive_file_names(),
+    )?;
+    let project = options.content_mapper_project()?;
+    let sources = tsc_program::transform_content_mapped(
+        host,
+        &*project.0,
+        old.path().display(),
+        content,
+        mapper,
+    )
+    .ok()?;
+    let old_names = &old.content_mapped()?.supplemental;
+    if sources.supplemental.len() != old_names.len() {
+        return None;
+    }
+    let mut replacements = vec![(
+        id,
+        old.with_snapshot(sources.canonical.text)
+            .with_content_mapped(sources.canonical.info),
+    )];
+    for (name, supplemental) in old_names.iter().zip(sources.supplemental) {
+        let (supplemental_id, old_supplemental) = prepared
+            .source_files()
+            .iter()
+            .find(|source| source.path().display() == name.as_js())
+            .and_then(|source| {
+                let id = prepared.source_id(source.path().canonical())?;
+                Some((id, source))
+            })?;
+        if supplemental.file_name != *name {
+            return None;
+        }
+        replacements.push((
+            supplemental_id,
+            old_supplemental
+                .with_snapshot(supplemental.text)
+                .with_content_mapped(supplemental.info),
+        ));
+    }
+    Some(replacements)
 }
 
 /// The options a source's requests were planned with (tsgo

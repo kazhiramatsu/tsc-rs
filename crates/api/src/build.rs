@@ -12,6 +12,7 @@ use std::time::{Duration, Instant, SystemTime};
 use tsc_compiler::system::System;
 use tsc_compiler::{ApiBuildOptions, ApiOrchestrator, OrchestratorResult};
 use tsc_host::vfs::FileSystem;
+use tsc_program::content_mapper::host::{MapperProcess, Spawner};
 
 use crate::ipc::Payload;
 use crate::proto::{
@@ -226,4 +227,22 @@ impl System for ApiBuildSystem {
     fn write_output(&self, _text: &str) {}
 
     fn write_error(&self, _text: &str) {}
+
+    fn content_mapper_spawner(&self) -> Arc<dyn Spawner> {
+        Arc::new(ApiBuildSpawner)
+    }
+}
+
+/// tsgo `apiBuildSystem.Spawn`: the build starts no content mapper.
+struct ApiBuildSpawner;
+
+impl Spawner for ApiBuildSpawner {
+    fn spawn(
+        &self,
+        _command: &[String],
+        _dir: &str,
+        _stderr: Box<dyn std::io::Write + Send>,
+    ) -> Result<MapperProcess, String> {
+        Err("spawning processes is not supported by the API build orchestrator".to_owned())
+    }
 }

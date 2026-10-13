@@ -9,6 +9,8 @@ use std::sync::Arc;
 use tsc_compiler::DocumentRegistry;
 use tsc_diagnostics::Diagnostic;
 use tsc_host::vfs::FileSystem;
+use tsc_program::content_mapper::host::{Host as ContentMapperHost, Spawner};
+use tsc_program::content_mapper::source::ContentMappedCache;
 use tsc_program::{
     ConfigOptionBag, ConfigParseError, ConfigProjectReference, ConfigRootPlan, LibraryCatalog,
     ProgramLoadLimits,
@@ -27,6 +29,9 @@ pub struct SessionOptions {
     /// The default libraries (tsgo `DefaultLibraryPath`).
     pub library_catalog: LibraryCatalog,
     pub load_limits: ProgramLoadLimits,
+    /// tsgo `RunExternalCode`: the configs' content mappers may run their
+    /// processes (the API server's `--runExternalCode`).
+    pub run_external_code: bool,
 }
 
 /// A failed snapshot update (tsgo's API errors), with tsgo's message.
@@ -255,6 +260,22 @@ impl Snapshot {
     pub fn config(&self, file_name: &str) -> Option<&Arc<ConfigRootPlan>> {
         self.configs.config(&self.fs.paths().to_path(file_name))
     }
+
+    /// tsgo `ContentMapperExtensions`: the extensions of the content
+    /// mappers of every config the snapshot keeps, sorted, each once.
+    pub fn content_mapper_extensions(&self) -> Vec<String> {
+        self.configs.content_mapper_extensions()
+    }
+
+    /// tsgo `contentMapperWatchState`'s files: the paths the projects'
+    /// content mappers watch, whose changes the next snapshot keeps.
+    fn content_mapper_watched_files(&self) -> BTreeSet<String> {
+        self.projects()
+            .filter_map(|project| project.content_mapper_watched_files.as_deref())
+            .flatten()
+            .cloned()
+            .collect()
+    }
 }
 
 /// The services shared by a session's snapshots (tsgo `SnapshotHost`).
@@ -266,20 +287,57 @@ pub struct SnapshotHost {
     /// tsgo `parseCache`: the parsed and bound sources the snapshots'
     /// programs share.
     documents: DocumentRegistry,
+    /// tsgo `contentMapperHost`: the content mappers' processes the
+    /// programs share.
+    content_mapper_host: Option<ContentMapperHost>,
+    /// tsgo `contentMappedParseCache`: the content mappers' outputs the
+    /// programs share.
+    content_mapped_cache: Arc<ContentMappedCache>,
 }
 
 impl SnapshotHost {
-    pub fn new(options: SessionOptions, fs: Arc<dyn FileSystem>) -> Self {
+    /// tsgo `NewSnapshotHost`. The content mapper host runs the mappers
+    /// through `spawner` under `run_external_code` (tsgo
+    /// `newContentMapperHost`); without either, a config's content mappers
+    /// do not register.
+    pub fn new(
+        options: SessionOptions,
+        fs: Arc<dyn FileSystem>,
+        spawner: Option<Arc<dyn Spawner>>,
+    ) -> Self {
         let paths = Paths {
             current_directory: options.current_directory.clone(),
             case_sensitive: fs.case_sensitive(),
         };
+        let content_mapper_host = spawner
+            .filter(|_| options.run_external_code)
+            .map(|spawner| ContentMapperHost::new(spawner, ""));
         Self {
             options,
             fs,
             paths,
             snapshot_id: AtomicU64::new(0),
             documents: DocumentRegistry::new(),
+            content_mapper_host,
+            content_mapped_cache: Arc::default(),
+        }
+    }
+
+    /// The content mappers' host, under `run_external_code` with a spawner.
+    pub(crate) fn content_mapper_host(&self) -> Option<&ContentMapperHost> {
+        self.content_mapper_host.as_ref()
+    }
+
+    /// The content mappers' outputs the programs share (tsgo's
+    /// content-mapped parse cache).
+    pub fn content_mapped_cache(&self) -> &Arc<ContentMappedCache> {
+        &self.content_mapped_cache
+    }
+
+    /// tsgo `SnapshotHost.Close`: the content mappers' processes end.
+    pub fn close(&self) {
+        if let Some(host) = &self.content_mapper_host {
+            host.close();
         }
     }
 
@@ -314,9 +372,10 @@ impl SnapshotHost {
         mut file_changes: FileChangeSummary,
         request: Option<&ApiSnapshotRequest>,
     ) -> Result<Snapshot, ProjectError> {
-        // The documents of the programs that are gone (tsgo releases a
-        // program's files when its snapshot goes).
+        // The documents and mapped outputs of the programs that are gone
+        // (tsgo releases a program's files when its snapshot goes).
         self.documents.purge();
+        self.content_mapped_cache.purge();
         let file_system = request.and_then(|request| request.file_system.clone());
         let file_system_override = file_system.is_some();
         // A total replacement, and a return from a request's file system to
@@ -332,10 +391,16 @@ impl SnapshotHost {
             Arc::clone(&base.fs.aliases),
             self.paths.clone(),
         );
-        let file_changes = fs.process_file_changes(file_changes, &base.fs);
+        let file_changes = fs.process_file_changes(
+            file_changes,
+            &base.fs,
+            &base.content_mapper_extensions(),
+            &base.content_mapper_watched_files(),
+        );
         let id = self.snapshot_id.fetch_add(1, Ordering::Relaxed) + 1;
         let (projects, configs, created_programs) = {
-            let configs = ConfigFileRegistryBuilder::new(&fs, &base.configs);
+            let configs =
+                ConfigFileRegistryBuilder::new(&fs, &base.configs, self.options.run_external_code);
             let mut builder = ProjectCollectionBuilder::new(self, &fs, id, &base.projects, configs);
             if !file_changes.is_empty() {
                 builder.did_change_files(&file_changes);
