@@ -118,6 +118,7 @@ mod resolution_cache;
 mod resolution_error;
 mod symlinks;
 mod text;
+pub mod uri;
 mod workers;
 
 pub use command_line::{

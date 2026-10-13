@@ -35,6 +35,7 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/testdata/fixtures/services/mapCode.ts         the file they navigate
   tsc/internal/ast/kind_generated.go, tsc/internal/api/encoder/encoder_generated.go
                                                     the kinds and the API encoder's tables
+  tsc/internal/lsp/lsproto/lsp_generated.go         the language server protocol's types
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
 each set's Git tree id (a single file's blob id; a filtered baseline set
@@ -92,6 +93,9 @@ FILES = [
     # file encoder follows (scripts/generate_api_encoder.py).
     "tsc/internal/ast/kind_generated.go",
     "tsc/internal/api/encoder/encoder_generated.go",
+    # The language server protocol's types, generated upstream from the LSP
+    # meta model and tsgo's additions (scripts/generate_lsp_protocol.py).
+    "tsc/internal/lsp/lsproto/lsp_generated.go",
     # The file the token navigation baselines navigate.
     "tsc/testdata/fixtures/services/mapCode.ts",
     # The localized diagnostic messages tsgo embeds (gzip-compressed JSON).
