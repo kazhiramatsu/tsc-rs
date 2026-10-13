@@ -10,6 +10,8 @@ use std::time::SystemTime;
 use tsc_diagnostics::JsStr;
 use tsc_host::vfs::{DirEntry, Entries, FileSystem, FileType, Metadata};
 
+use crate::overlay::Overlays;
+
 /// tsgo `excessiveChangeThreshold`.
 const EXCESSIVE_CHANGE_THRESHOLD: usize = 1000;
 
@@ -123,9 +125,12 @@ pub(crate) type Aliases = Arc<BTreeMap<String, BTreeSet<String>>>;
 /// A snapshot's view of the files (tsgo `SnapshotFS`).
 #[derive(Clone)]
 pub(crate) struct SnapshotFs {
+    /// The file system the snapshot reads, the open documents over it.
     pub(crate) base: Arc<dyn FileSystem>,
     pub(crate) files: Files,
     pub(crate) aliases: Aliases,
+    /// The open documents by path (tsgo `snapshotOverlays`).
+    pub(crate) overlays: Overlays,
     paths: Paths,
     /// tsgo `readFiles`: the files the snapshot did not cache, read once.
     reads: Arc<Mutex<BTreeMap<String, Option<Arc<CachedFile>>>>>,
@@ -137,6 +142,7 @@ impl SnapshotFs {
             base,
             files: Arc::default(),
             aliases: Arc::default(),
+            overlays: Arc::default(),
             paths,
             reads: Arc::default(),
         }
@@ -146,10 +152,14 @@ impl SnapshotFs {
         &self.paths
     }
 
-    /// tsgo `SnapshotFS.GetFile`: the file as the snapshot read it, or as
-    /// its file system holds it, read once per snapshot.
+    /// tsgo `SnapshotFS.GetFile`: the open document, the file as the
+    /// snapshot read it, or as its file system holds it, read once per
+    /// snapshot.
     pub(crate) fn file(&self, file_name: &str) -> Option<Arc<CachedFile>> {
         let path = self.paths.to_path(file_name);
+        if let Some(overlay) = self.overlays.get(&path) {
+            return Some(overlay.cached_file());
+        }
         if let Some(file) = self.files.get(&path) {
             return Some(Arc::clone(file));
         }
@@ -200,10 +210,12 @@ impl SnapshotFs {
 /// base snapshot's files over the new base file system, read again or
 /// dropped as the build's file changes say.
 pub(crate) struct SnapshotFsBuilder {
+    /// The file system the build reads, the open documents over it.
     base: Arc<dyn FileSystem>,
     paths: Paths,
     files: Mutex<Files>,
     aliases: Mutex<Aliases>,
+    overlays: Overlays,
 }
 
 impl SnapshotFsBuilder {
@@ -212,13 +224,25 @@ impl SnapshotFsBuilder {
         files: Files,
         aliases: Aliases,
         paths: Paths,
+        overlays: Overlays,
     ) -> Self {
         Self {
             base,
             paths,
             files: Mutex::new(files),
             aliases: Mutex::new(aliases),
+            overlays,
         }
+    }
+
+    /// The open documents by path.
+    pub(crate) fn overlays(&self) -> &Overlays {
+        &self.overlays
+    }
+
+    /// tsgo `isOpenFile`: whether the editor has the file at `path` open.
+    pub(crate) fn is_open_file(&self, path: &str) -> bool {
+        self.overlays.contains_key(path)
     }
 
     pub(crate) fn paths(&self) -> &Paths {
@@ -236,6 +260,7 @@ impl SnapshotFsBuilder {
                 .aliases
                 .into_inner()
                 .unwrap_or_else(PoisonError::into_inner),
+            overlays: self.overlays,
             paths: self.paths,
             reads: Arc::default(),
         }
@@ -374,9 +399,15 @@ impl SnapshotFsBuilder {
     }
 
     /// tsgo `GetFileByPath`: the cached file (read again when marked, dropped
-    /// when gone), or the file read from the base and cached.
+    /// when gone), or the open document (never cached), or the file read
+    /// from the base and cached.
     pub(crate) fn get(&self, file_name: &str) -> Option<Arc<CachedFile>> {
         let path = self.paths.to_path(file_name);
+        if let Some(overlay) = self.overlays.get(&path) {
+            if !self.with_files(|files| files.contains_key(&path)) {
+                return Some(overlay.cached_file());
+            }
+        }
         self.with_files(|files| {
             let cached = files.get(&path).cloned();
             let read_name = match &cached {
@@ -414,6 +445,9 @@ impl SnapshotFsBuilder {
     /// tsgo `FileExists`: a cached file exists while it can be read; others
     /// as the base says.
     pub(crate) fn file_exists(&self, file_name: &str) -> bool {
+        if self.is_open_file(&self.paths.to_path(file_name)) {
+            return true;
+        }
         let cached = self.with_files(|files| files.contains_key(&self.paths.to_path(file_name)));
         if cached {
             self.get(file_name).is_some()
@@ -422,8 +456,9 @@ impl SnapshotFsBuilder {
         }
     }
 
-    /// tsgo `processFileChanges` (snapshot.go:134-191) for a build without
-    /// open files: the changes a build acts on, the cache updated for them.
+    /// tsgo `processFileChanges` (snapshot.go:134-191): the changes a build
+    /// acts on, the cache updated for them; `base` is the snapshot the build
+    /// starts from (its open documents are the previous ones).
     pub(crate) fn process_file_changes(
         &self,
         mut changes: FileChangeSummary,
@@ -431,72 +466,114 @@ impl SnapshotFsBuilder {
         content_mapper_extensions: &[String],
         content_mapper_watched_files: &BTreeSet<String>,
     ) -> FileChangeSummary {
+        let previous = &base.overlays;
         if changes.has_excessive_watch_events() {
-            if changes.invalidate_all || self.changes_overlap_cache(&changes) {
-                // The API's notifications always count as changes outside
-                // node_modules (tsgo `IncludesWatchChangeOutsideNodeModules`).
+            if changes.invalidate_all {
                 self.invalidate_cache();
-            } else {
+            } else if !self.changes_overlap_cache(&changes, previous) {
+                // Every change names a file nothing read (an external
+                // tool's build, say).
                 changes.changed.clear();
                 changes.deleted.clear();
+            } else if changes.includes_watch_change_outside_node_modules {
+                self.invalidate_cache();
+            } else {
+                // An npm install.
+                self.invalidate_node_modules_cache();
             }
-            return changes;
+        } else {
+            self.expand_and_filter(
+                &mut changes,
+                content_mapper_extensions,
+                content_mapper_watched_files,
+                previous,
+            );
+            changes = base.expand_realpath_aliases(changes);
+            self.mark_dirty_files(&mut changes);
+            self.convert_open_and_close_to_changes(&mut changes, previous);
         }
-        self.expand_and_filter(
-            &mut changes,
-            content_mapper_extensions,
-            content_mapper_watched_files,
-        );
-        let mut changes = base.expand_realpath_aliases(changes);
-        self.mark_dirty_files(&mut changes);
+        // The open documents are read from the editor, never the cache.
+        self.with_files(|files| {
+            for path in self.overlays.keys() {
+                if files.contains_key(path) {
+                    self.remove_entry(files, path, true);
+                }
+            }
+        });
         changes
     }
 
-    /// tsgo `watchChangesOverlapCache`.
-    fn changes_overlap_cache(&self, changes: &FileChangeSummary) -> bool {
+    /// tsgo `watchChangesOverlapCache`: a change or deletion names a file
+    /// open before or now, cached, or read through a link.
+    fn changes_overlap_cache(&self, changes: &FileChangeSummary, previous: &Overlays) -> bool {
+        let aliases = Arc::clone(&self.aliases.lock().unwrap_or_else(PoisonError::into_inner));
         self.with_files(|files| {
             changes
                 .changed
                 .iter()
                 .chain(&changes.deleted)
-                .any(|file_name| files.contains_key(&self.paths.to_path(file_name)))
+                .any(|file_name| {
+                    let path = self.paths.to_path(file_name);
+                    previous.contains_key(&path)
+                        || self.overlays.contains_key(&path)
+                        || files.contains_key(&path)
+                        || aliases.contains_key(&path)
+                })
         })
     }
 
     /// tsgo `invalidateCache`: every cached file is read again before use.
     fn invalidate_cache(&self) {
+        self.mark_for_reload(|_| true);
+    }
+
+    /// tsgo `invalidateNodeModulesCache`: every cached file in a
+    /// `node_modules` directory is read again before use.
+    fn invalidate_node_modules_cache(&self) {
+        self.mark_for_reload(|path| path.contains("/node_modules/"));
+    }
+
+    fn mark_for_reload(&self, marked: impl Fn(&str) -> bool) {
         self.with_files(|files| {
-            let marked = files
+            let reloaded = files
                 .iter()
                 .map(|(path, entry)| {
-                    let entry = Arc::new(CachedFile {
-                        needs_reload: true,
-                        ..entry.reloaded(Arc::clone(&entry.content))
-                    });
+                    let entry = if marked(path) {
+                        Arc::new(CachedFile {
+                            needs_reload: true,
+                            ..entry.reloaded(Arc::clone(&entry.content))
+                        })
+                    } else {
+                        Arc::clone(entry)
+                    };
                     (path.clone(), entry)
                 })
                 .collect();
-            *files = Arc::new(marked);
+            *files = Arc::new(reloaded);
         });
     }
 
     /// tsgo `expandAndFilterWatchEvents`: a deleted directory stands for the
-    /// cached files below it; other deletions and changes count only for
-    /// files that can affect a program (or anything in node_modules, for a
-    /// deletion). Creations are kept: one may be a directory link.
+    /// cached and open files below it; other deletions and changes count
+    /// only for files that can affect a program (an open one, or anything in
+    /// node_modules for a deletion). Creations are kept: one may be a
+    /// directory link.
     fn expand_and_filter(
         &self,
         changes: &mut FileChangeSummary,
         content_mapper_extensions: &[String],
         content_mapper_watched_files: &BTreeSet<String>,
+        previous: &Overlays,
     ) {
         let relevant = |file_name: &str| {
-            is_relevant_file_name(
-                file_name,
-                &self.paths.to_path(file_name),
-                content_mapper_extensions,
-                content_mapper_watched_files,
-            )
+            let path = self.paths.to_path(file_name);
+            self.overlays.contains_key(&path)
+                || is_relevant_file_name(
+                    file_name,
+                    &path,
+                    content_mapper_extensions,
+                    content_mapper_watched_files,
+                )
         };
         if !changes.deleted.is_empty() {
             let mut deleted = BTreeSet::new();
@@ -504,11 +581,19 @@ impl SnapshotFsBuilder {
                 for file_name in &changes.deleted {
                     let path = self.paths.to_path(file_name);
                     let prefix = format!("{}/", path.trim_end_matches('/'));
-                    let below = files
+                    let mut below = files
                         .range(prefix.clone()..)
                         .take_while(|(cached, _)| cached.starts_with(&prefix))
                         .map(|(_, entry)| entry.file_name.clone())
                         .collect::<Vec<_>>();
+                    for overlays in [&self.overlays, previous] {
+                        below.extend(
+                            overlays
+                                .range(prefix.clone()..)
+                                .take_while(|(open, _)| open.starts_with(&prefix))
+                                .map(|(_, overlay)| overlay.file_name().to_owned()),
+                        );
+                    }
                     if !below.is_empty() {
                         deleted.extend(below);
                     } else if relevant(file_name)
@@ -526,12 +611,16 @@ impl SnapshotFsBuilder {
 
     /// tsgo `markDirtyFiles`: a changed file that is cached is read again
     /// and no longer counts as changed when its text is the same (or when
-    /// it is gone, its entry is dropped); a deleted file's entry is dropped.
+    /// it is gone, its entry is dropped); an open document stays changed; a
+    /// deleted file's entry is dropped.
     fn mark_dirty_files(&self, changes: &mut FileChangeSummary) {
         let base = &self.base;
         self.with_files(|files| {
             changes.changed.retain(|file_name| {
                 let path = self.paths.to_path(file_name);
+                if self.overlays.contains_key(&path) {
+                    return true;
+                }
                 let Some(entry) = files.get(&path) else {
                     return true;
                 };
@@ -560,11 +649,86 @@ impl SnapshotFsBuilder {
             }
         });
     }
+
+    /// tsgo `convertOpenAndCloseToChanges`: an opened file nothing read is
+    /// a created one, and one read with other text a changed one; a closed
+    /// file is read from disk again (watch events may have been ignored
+    /// while it was open) and is changed when that text is not the
+    /// editor's, or deleted when it is gone.
+    fn convert_open_and_close_to_changes(
+        &self,
+        changes: &mut FileChangeSummary,
+        previous: &Overlays,
+    ) {
+        if let Some(opened) = changes
+            .opened
+            .clone()
+            .filter(|name| !name.starts_with("^/"))
+        {
+            let path = self.paths.to_path(&opened);
+            let cached = self.with_files(|files| files.get(&path).cloned());
+            match (cached, self.overlays.get(&path)) {
+                (None, _) => {
+                    changes.created.insert(opened);
+                }
+                (Some(cached), Some(overlay)) => {
+                    if *cached.content != *overlay.content().as_bytes() {
+                        changes.changed.insert(opened);
+                    }
+                    self.with_files(|files| self.remove_entry(files, &path, true));
+                }
+                (Some(_), None) => {}
+            }
+        }
+        for closed in changes.closed.clone() {
+            if closed.starts_with("^/") {
+                continue;
+            }
+            let path = self.paths.to_path(&closed);
+            match self.reload(&closed, &path) {
+                Some(file) => {
+                    if previous
+                        .get(&path)
+                        .is_some_and(|overlay| *file.content != *overlay.content().as_bytes())
+                    {
+                        changes.changed.insert(closed);
+                    }
+                }
+                None => {
+                    changes.deleted.insert(closed);
+                }
+            }
+        }
+    }
+
+    /// tsgo `getCachedFile` with `forceReload`: the file read from the base
+    /// and cached, or none (and no entry) when it is gone.
+    fn reload(&self, file_name: &str, path: &str) -> Option<Arc<CachedFile>> {
+        self.with_files(|files| match self.base.read(file_name) {
+            Ok(content) => {
+                let entry = Arc::new(match files.get(path) {
+                    Some(entry) => entry.reloaded(content.into()),
+                    None => CachedFile {
+                        realpath_path: self.realpath_alias(file_name, path),
+                        file_name: file_name.to_owned(),
+                        content: content.into(),
+                        needs_reload: false,
+                    },
+                });
+                Arc::make_mut(files).insert(path.to_owned(), Arc::clone(&entry));
+                Some(entry)
+            }
+            Err(_) => {
+                self.remove_entry(files, path, false);
+                None
+            }
+        })
+    }
 }
 
-/// tsgo `isRelevantFileName` without open files: a file a content mapper
-/// watches (by `path`) or one of a content mapper's extension, a dynamic
-/// name, or one with a script or JSON extension.
+/// tsgo `isRelevantFileName` (an open file is relevant too): a file a
+/// content mapper watches (by `path`) or one of a content mapper's
+/// extension, a dynamic name, or one with a script or JSON extension.
 fn is_relevant_file_name(
     file_name: &str,
     path: &str,

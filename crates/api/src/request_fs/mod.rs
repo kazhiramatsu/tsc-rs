@@ -654,6 +654,10 @@ fn add_file_changes(
             summary.created.extend(request.aliases_for_path(&absolute));
         }
     }
+    // tsgo counts the layer's changes as changes outside node_modules.
+    if !(summary.changed.is_empty() && summary.created.is_empty() && summary.deleted.is_empty()) {
+        summary.includes_watch_change_outside_node_modules = true;
+    }
 }
 
 impl FileSystem for RequestFileSystem {

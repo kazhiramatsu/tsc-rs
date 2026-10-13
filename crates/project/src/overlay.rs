@@ -18,7 +18,7 @@ use tsc_program::uri::uri_to_file_name;
 use tsc_syntax::ScriptKind;
 use xxhash_rust::xxh3::xxh3_128;
 
-use crate::fs::{FileChangeSummary, Paths};
+use crate::fs::{CachedFile, FileChangeSummary, Paths};
 
 /// tsgo `FileChangeKind`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -84,6 +84,8 @@ pub struct Overlay {
     kind: ScriptKind,
     matches_disk_text: bool,
     line_map: OnceLock<Arc<LspLineMap>>,
+    /// The document as a file the snapshot reads.
+    file: OnceLock<Arc<CachedFile>>,
 }
 
 impl Overlay {
@@ -97,6 +99,7 @@ impl Overlay {
             kind,
             matches_disk_text: false,
             line_map: OnceLock::new(),
+            file: OnceLock::new(),
         }
     }
 
@@ -139,6 +142,18 @@ impl Overlay {
             self.line_map
                 .get_or_init(|| Arc::new(LspLineMap::new(&self.content))),
         )
+    }
+
+    /// The document as a file the snapshot reads.
+    pub(crate) fn cached_file(&self) -> Arc<CachedFile> {
+        Arc::clone(self.file.get_or_init(|| {
+            Arc::new(CachedFile {
+                file_name: self.file_name.clone(),
+                content: Arc::from(self.content.as_bytes()),
+                needs_reload: false,
+                realpath_path: None,
+            })
+        }))
     }
 
     /// tsgo `computeMatchesDiskText`: whether the file on disk has the
