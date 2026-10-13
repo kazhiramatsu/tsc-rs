@@ -129,6 +129,11 @@ pub struct TextWriter {
     text_position: GeneratedUtf16Position,
     has_trailing_comment: bool,
     recording: Option<crate::source_map::SourceMapRecording>,
+    /// tsgo's `OmitTrailingSemicolon` (`trailingSemicolonDeferringWriter`):
+    /// a trailing semicolon waits for the next write, and one still waiting
+    /// at the end is never written.
+    defers_trailing_semicolon: bool,
+    pending_semicolon: bool,
 }
 
 /// tsc-port: createTextWriter @6.0.3
@@ -155,6 +160,8 @@ impl TextWriter {
             text_position: GeneratedUtf16Position::new(0),
             has_trailing_comment: false,
             recording: None,
+            defers_trailing_semicolon: false,
+            pending_semicolon: false,
         }
     }
 
@@ -173,6 +180,23 @@ impl TextWriter {
             text_position: GeneratedUtf16Position::new(0),
             has_trailing_comment: false,
             recording: None,
+            defers_trailing_semicolon: false,
+            pending_semicolon: false,
+        }
+    }
+
+    /// tsgo `getTrailingSemicolonDeferringWriter`: from now on, a trailing
+    /// semicolon is written only when something follows it.
+    pub fn defer_trailing_semicolons(&mut self) {
+        self.defers_trailing_semicolon = true;
+    }
+
+    /// tsgo `commitSemicolon`: the waiting semicolon, before a write.
+    fn commit_semicolon(&mut self) {
+        if self.pending_semicolon {
+            self.pending_semicolon = false;
+            self.has_trailing_comment = false;
+            self.write_text(";");
         }
     }
 
@@ -420,6 +444,7 @@ impl TextWriter {
 
     /// Write JavaScript units without replacing unpaired surrogates.
     pub fn write_utf16(&mut self, units: &[u16]) {
+        self.commit_semicolon();
         if !units.is_empty() {
             self.has_trailing_comment = false;
         }
@@ -427,6 +452,7 @@ impl TextWriter {
     }
 
     pub fn raw_write_utf16(&mut self, units: &[u16]) {
+        self.commit_semicolon();
         if self.single_line {
             self.append_single_line_utf16(units);
             return;
@@ -442,6 +468,7 @@ impl TextWriter {
     }
 
     pub fn write_comment_utf16(&mut self, units: &[u16]) {
+        self.commit_semicolon();
         if !self.single_line && !units.is_empty() {
             self.has_trailing_comment = true;
         }
@@ -453,6 +480,7 @@ impl TextWriter {
     }
 
     pub fn write(&mut self, text: &str) {
+        self.commit_semicolon();
         if !text.is_empty() {
             self.has_trailing_comment = false;
         }
@@ -463,6 +491,7 @@ impl TextWriter {
     /// raw write still leaves the writer off the start-of-line state, matching
     /// the defined-string branch in TypeScript's writer.
     pub fn raw_write(&mut self, text: &str) {
+        self.commit_semicolon();
         if self.single_line {
             self.append_single_line(text);
             return;
@@ -482,6 +511,7 @@ impl TextWriter {
     }
 
     pub fn write_comment(&mut self, text: &str) {
+        self.commit_semicolon();
         if !self.single_line && !text.is_empty() {
             self.has_trailing_comment = true;
         }
@@ -489,6 +519,7 @@ impl TextWriter {
     }
 
     pub fn write_line(&mut self, force: bool) {
+        self.commit_semicolon();
         if self.single_line {
             self.append_single_line(" ");
             return;
@@ -512,6 +543,7 @@ impl TextWriter {
     }
 
     pub fn increase_indent(&mut self) {
+        self.commit_semicolon();
         if self.single_line {
             return;
         }
@@ -522,6 +554,7 @@ impl TextWriter {
     }
 
     pub fn decrease_indent(&mut self) {
+        self.commit_semicolon();
         if self.single_line {
             return;
         }
@@ -594,6 +627,7 @@ impl TextWriter {
     }
 
     pub fn clear(&mut self) {
+        self.pending_semicolon = false;
         self.output.clear();
         self.indent = 0;
         self.line_start = !self.single_line;
@@ -636,6 +670,10 @@ impl TextWriter {
     }
 
     pub fn write_trailing_semicolon(&mut self, text: &str) {
+        if self.defers_trailing_semicolon {
+            self.pending_semicolon = true;
+            return;
+        }
         self.write(text);
     }
 }
