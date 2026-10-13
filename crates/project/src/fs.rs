@@ -18,15 +18,26 @@ const EXCESSIVE_CHANGE_THRESHOLD: usize = 1000;
 /// files read so far.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct FileChangeSummary {
+    /// The file the editor opened (one at a time).
+    pub opened: Option<String>,
+    /// The file the editor closed and opened again in one batch, unchanged.
+    pub reopened: Option<String>,
+    pub closed: BTreeSet<String>,
     pub changed: BTreeSet<String>,
     pub created: BTreeSet<String>,
     pub deleted: BTreeSet<String>,
+    /// tsgo `IncludesWatchChangeOutsideNodeModules`: a watch event names a
+    /// file outside `node_modules`.
+    pub includes_watch_change_outside_node_modules: bool,
     pub invalidate_all: bool,
 }
 
 impl FileChangeSummary {
     pub fn is_empty(&self) -> bool {
         !self.invalidate_all
+            && self.opened.is_none()
+            && self.reopened.is_none()
+            && self.closed.is_empty()
             && self.changed.is_empty()
             && self.created.is_empty()
             && self.deleted.is_empty()

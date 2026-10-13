@@ -638,8 +638,12 @@ dependencies = [
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
  "tsc-rs-host",
+ "tsc-rs-ls",
+ "tsc-rs-lsproto",
  "tsc-rs-program",
+ "tsc-rs-syntax",
  "tsc-rs-types",
+ "xxhash-rust",
 ]
 
 [[package]]

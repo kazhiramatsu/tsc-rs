@@ -2000,7 +2000,7 @@ impl Session {
             changed: names(&notifications.changed)?,
             created: names(&notifications.created)?,
             deleted: names(&notifications.deleted)?,
-            invalidate_all: false,
+            ..FileChangeSummary::default()
         })
     }
 
