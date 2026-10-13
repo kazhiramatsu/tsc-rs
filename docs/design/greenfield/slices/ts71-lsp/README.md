@@ -200,3 +200,23 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   API client sync 337/356・async 346/365（変わらず）、crate の test（syntax 247、binder 78、program 669、checker 1,798、
   emitter 341、compiler 215、project 140、api 298、lsp 12）、clippy、fmt。L2a の有界の違い（untitled の JavaScript が
   TypeScript として parse される）を解消した。
+
+## L2b file の監視（PR #776）
+
+- **merge**：#776 → `d73cdec53`（hosted run 38364892878：rust 12m39s、conformance 20m53s、gates）。commit：3bcf9a7b3（ef70ffd4a を
+  main に rebase、差はドキュメントだけ）。
+- **監視**（`crates/project/src/watch.rs`）：tsgo の `WatchedFiles`（求められた時に計算し、clone は元の watcher を保って変わった
+  時だけ process 全体の counter から新しい ID をとる）、glob を watch 全体で数える registry（client への登録は一度、どの watch も
+  持たなくなったら解除、失敗は次の更新で再試行）、`getPathComponentsForWatching`、`GetCommonParentDirectories`、program file の
+  glob（`createResolutionLookupGlobMapper`）。config ごとの root file の監視（全体の parse ごとに更新）、project ごとの program
+  file の監視（新しい file の build ごと）と content mapper の監視。build が見た file は名前も保つ。
+- **session と server**：snapshot の採用ごとに background で監視を更新する（tsgo の log を含む）。server は
+  `client/registerCapability`・`client/unregisterCapability` を tsgo の 1 秒の timeout で送る。workspace の外の directory は
+  client が対応すれば relative pattern。
+- **tsgo との照合**：`watch_test.go`、`GetCommonParentDirectories` の 11 入力（Go の probe に固定）、session の
+  DidChangeWatchedFiles の 17 test、project の寿命の監視の数、server の test。
+- **検査（ef70ffd4a）**：project 166、lsp 13、api 298、clippy、fmt、API client sync 337/356・async 346/365（変わらず）。compiler の
+  経路に届かないので conformance と suites は回していない。
+- **有界の違い**：watch ID の数字（typings と auto-import の監視、config registry の `LoadOrStore` の余分な entry の分の counter が
+  まだ無い。登録は transcript の判定の対象外で、glob と kind は tsgo と同じ）。typings と auto-import の監視は L11 と L5、
+  dynamic registration の無い client の内蔵の監視は L11。
