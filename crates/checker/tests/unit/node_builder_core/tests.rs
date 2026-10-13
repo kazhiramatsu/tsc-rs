@@ -758,32 +758,12 @@ fn node_builder_save_restore_and_expansion_helpers_restore_all_owned_state() {
         context.approximate_length = 0;
         assert!(check_truncation_length(context));
 
-        context.max_expansion_depth = 1;
-        context.approximate_length = 6;
-        context.depth = 1;
-        context.out.can_increase_expansion_depth = false;
-        context.type_stack.clear();
-        assert!(can_possibly_expand_type(old_type, context));
-        context.out.can_increase_expansion_depth = true;
-        assert!(!can_possibly_expand_type(old_type, context));
-        context.out.can_increase_expansion_depth = false;
-        context.type_stack = vec![Some(old_type), None];
-        assert!(!can_possibly_expand_type(old_type, context));
-
-        context.type_stack.clear();
-        context.depth = 0;
-        context.max_expansion_depth = 1;
-        context.out.can_increase_expansion_depth = false;
-        assert!(should_expand_type(checker, old_type, context, false));
-        context.depth = 1;
-        assert!(!should_expand_type(checker, old_type, context, false));
-        assert!(context.out.can_increase_expansion_depth);
-
-        context.out.can_increase_expansion_depth = false;
-        context.type_stack = vec![Some(old_type), None];
-        assert!(!should_expand_type(checker, old_type, context, false));
-        assert!(!context.out.can_increase_expansion_depth);
-
+        // tsgo shouldExpandType: `any` is not expandable and a tuple is a
+        // library type for hover; a type without a library alias is
+        // expandable as an alias. An expandable type expands below the
+        // verbosity level and at the level only signals that a higher one
+        // shows more. A type further out on the stack (the last entry is the
+        // type being serialized) does not expand again.
         let empty_flags = [];
         let tuple = checker.tables.get_tuple_target_type(
             None,
@@ -791,10 +771,29 @@ fn node_builder_save_restore_and_expansion_helpers_restore_all_owned_state() {
             false,
             None,
         );
+        context.approximate_length = 6;
         context.type_stack.clear();
         context.depth = 0;
         context.max_expansion_depth = 1;
+        context.out.can_increase_expansion_depth = false;
+        assert!(!should_expand_type(checker, old_type, context, false));
         assert!(!should_expand_type(checker, tuple, context, false));
         assert!(should_expand_type(checker, tuple, context, true));
+        assert!(!context.out.can_increase_expansion_depth);
+        context.depth = 1;
+        assert!(!should_expand_type(checker, tuple, context, true));
+        assert!(context.out.can_increase_expansion_depth);
+
+        context.depth = 0;
+        context.out.can_increase_expansion_depth = false;
+        context.type_stack = vec![Some(tuple), None];
+        assert!(!should_expand_type(checker, tuple, context, true));
+        context.type_stack = vec![None, Some(tuple)];
+        assert!(should_expand_type(checker, tuple, context, true));
+
+        context.type_stack.clear();
+        context.max_expansion_depth = -1;
+        assert!(!should_expand_type(checker, tuple, context, true));
+        assert!(!context.out.can_increase_expansion_depth);
     });
 }

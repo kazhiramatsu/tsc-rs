@@ -30,7 +30,7 @@ use super::type_nodes::{
     set_no_ascii_escaping, update_factory_node, BuildResult,
 };
 use super::{
-    can_possibly_expand_type, restore_flags, save_restore_flags,
+    check_type_expandability, restore_flags, save_restore_flags,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration_seam,
     syntactic_serialize_name_of_parameter_seam, type_parameter_to_name, type_to_type_node_helper,
     NodeBuilderContext,
@@ -384,7 +384,6 @@ pub(crate) fn signature_to_signature_declaration_helper(
     let result = (|| -> BuildResult<TransformNode> {
         add_approximate_length(context, 3);
 
-        let mut type_arguments = None;
         let mut type_parameters = Vec::new();
         let signature_instantiation = if has_flag(context, WRITE_TYPE_ARGUMENTS_OF_SIGNATURE) {
             signature
@@ -395,18 +394,21 @@ pub(crate) fn signature_to_signature_declaration_helper(
                         .signature_of(target_signature_id)
                         .type_parameters
                         .clone()
+                        .filter(|parameters| !parameters.is_empty())
                         .map(|parameters| (parameters, mapper))
                 })
         } else {
             None
         };
         if let Some((target_type_parameters, mapper)) = signature_instantiation {
-            let mut arguments = Vec::with_capacity(target_type_parameters.len());
+            // tsgo (nodebuilderimpl.go:1872-1875): the instantiated
+            // signature's type arguments are its type parameter list.
+            type_parameters.reserve(target_type_parameters.len());
             for parameter in target_type_parameters {
                 let instantiated = checker
                     .instantiate_type(parameter, Some(mapper))
                     .map_err(|abort| checker_abort_error(checker, context, abort))?;
-                arguments.push(required_type_node(
+                type_parameters.push(required_type_node(
                     checker,
                     arena,
                     target,
@@ -414,7 +416,6 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     context,
                 )?);
             }
-            type_arguments = node_array(arena, target, arguments)?;
         } else if let Some(parameters) = signature.type_parameters.as_deref() {
             type_parameters.reserve(parameters.len());
             for parameter in parameters {
@@ -741,11 +742,6 @@ pub(crate) fn signature_to_signature_declaration_helper(
             // tsgo writes no JSDoc function type (nodebuilderimpl.go:1950-1952).
             _ => panic!("Unhandled kind in signatureToSignatureDeclarationHelper"),
         };
-        // `node.typeArguments` is a dynamic, printer-internal property upstream;
-        // the generated Rust NodeData schema has no corresponding field. The
-        // instantiated arguments were still serialized above so all resolver and
-        // truncation effects occur at the upstream point.
-        let _ = type_arguments;
         if let Some(declaration) = signature.declaration {
             if checker.kind_of(declaration) == SyntaxKind::JSDocSignature {
                 if let Some(overload_tag) = checker
@@ -1204,7 +1200,7 @@ fn type_to_type_node_helper_with_possible_reusable_type_node(
     type_node: Option<NodeId>,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<Option<TransformNode>> {
-    if !can_possibly_expand_type(r#type, context) {
+    if !super::serialize::is_actively_expanding(context) {
         if let Some(type_node) = type_node {
             // `b.getTypeFromTypeNode(typeNode, false) == t`, then
             // `tryReuseExistingNodeHelper` (checker/nodebuilderimpl.go:
@@ -1219,6 +1215,7 @@ fn type_to_type_node_helper_with_possible_reusable_type_node(
                 if let Some(reused) = super::serialize::syntactic_try_reuse_existing_node(
                     checker, arena, target, context, type_node,
                 )? {
+                    check_type_expandability(checker, r#type, context)?;
                     return Ok(Some(reused));
                 }
             }

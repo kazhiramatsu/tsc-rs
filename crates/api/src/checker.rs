@@ -536,7 +536,7 @@ impl Session {
                 };
                 let text = query
                     .state
-                    .type_to_string_with_flags(ty, enclosing, flags)?;
+                    .type_to_string_with_flags(ty, enclosing, flags, None)?;
                 Ok(json(&text))
             }
             "typeToTypeNode" | "signatureToSignatureDeclaration" => {

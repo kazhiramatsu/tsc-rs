@@ -16,10 +16,10 @@ pub(crate) use chains::{
     get_type_from_type_node2, set_text_range2, symbol_to_node, type_parameter_to_name,
 };
 pub(crate) use context::{
-    add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length, restore_flags,
-    restore_symbol_type_to_context, save_restore_flags, should_expand_type, with_context,
-    with_context_in_synthetic_module_scope, NodeBuilderContext, RecoveryTrackedSymbol,
-    SyntheticModuleScope, TrackedSymbol,
+    add_symbol_type_to_context, check_truncation_length, check_type_expandability, is_lib_type,
+    restore_flags, restore_symbol_type_to_context, save_restore_flags, should_expand_type,
+    with_context, with_context_in_synthetic_module_scope, NodeBuilderContext,
+    RecoveryTrackedSymbol, SyntheticModuleScope, TrackedSymbol,
 };
 pub(crate) use serialize::{
     build_symbol_display_node, index_info_to_index_signature_declaration,
@@ -28,7 +28,7 @@ pub(crate) use serialize::{
     serialize_type_for_expression, serialize_type_for_symbolless_declaration,
     serialize_type_parameters_for_signature, signature_to_signature_declaration,
     syntactic_serialize_name_of_parameter_seam, syntactic_try_reuse_existing_type_node,
-    try_js_type_node_to_type_node, type_to_type_node,
+    try_js_type_node_to_type_node, type_parameter_to_declaration_node, type_to_type_node,
 };
 pub(crate) use signatures::{
     enter_new_scope, index_info_to_index_signature_declaration_helper,

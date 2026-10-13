@@ -3843,38 +3843,44 @@ impl<'a> CheckerState<'a> {
     ///
     /// The single-argument getOuterTypeParameters call means
     /// includeThisTypes = false.
-    fn get_outer_type_parameters_of_class_or_interface(
+    pub(crate) fn get_outer_type_parameters_of_class_or_interface(
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<Option<Vec<TypeId>>> {
-        let flags = self.symbol_flags(symbol);
-        let declaration = if flags.intersects(SymbolFlags::CLASS | SymbolFlags::FUNCTION) {
-            self.binder.symbol(symbol).value_declaration
-        } else {
-            self.binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .copied()
-                .find(|&declaration| {
-                    if self.kind_of(declaration) == SyntaxKind::InterfaceDeclaration {
-                        return true;
-                    }
-                    let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
-                        return false;
-                    };
-                    data.initializer.is_some_and(|initializer| {
-                        matches!(
-                            self.kind_of(initializer),
-                            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
-                        )
-                    })
-                })
-        };
-        let declaration = declaration.expect(
+        let declaration = self.class_or_interface_like_declaration(symbol).expect(
             "Class was missing valueDeclaration -OR- non-class had no interface declarations",
         );
         self.get_outer_type_parameters(declaration, /*include_this_types*/ false)
+    }
+
+    /// tsgo `getClassOrInterfaceLikeDeclaration`: the declaration that gives
+    /// a class, interface or function symbol its outer type parameters.
+    pub(crate) fn class_or_interface_like_declaration(&self, symbol: SymbolId) -> Option<NodeId> {
+        if self
+            .symbol_flags(symbol)
+            .intersects(SymbolFlags::CLASS | SymbolFlags::FUNCTION)
+        {
+            return self.binder.symbol(symbol).value_declaration;
+        }
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| {
+                if self.kind_of(declaration) == SyntaxKind::InterfaceDeclaration {
+                    return true;
+                }
+                let NodeData::VariableDeclaration(data) = self.data_of(declaration) else {
+                    return false;
+                };
+                data.initializer.is_some_and(|initializer| {
+                    matches!(
+                        self.kind_of(initializer),
+                        SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+                    )
+                })
+            })
     }
 
     /// tsc-port: getLocalTypeParametersOfClassOrInterfaceOrTypeAlias @6.0.3

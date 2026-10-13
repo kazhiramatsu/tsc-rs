@@ -742,6 +742,23 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::JSDocTypedefTag
                 | SyntaxKind::JSDocCallbackTag
                 | SyntaxKind::JSDocImportTag => {
+                    // A namespaced alias is reparsed inside its namespaces
+                    // (reparser.go wrapInJSDocNamespace), so names resolve
+                    // from their exports first, innermost first.
+                    for namespace in self.jsdoc_alias_namespaces(loc) {
+                        let exports = self
+                            .binder
+                            .node_symbol(namespace)
+                            .map(|s| self.get_merged_symbol(s))
+                            .map(|s| &**self.binder.symbol(s).exports());
+                        let masked = meaning & SymbolFlags::MODULE_MEMBER;
+                        let input = LookupInput::new(exports, name, suggestion);
+                        let probe = self.lookup_probe(input, name, masked, false)?;
+                        if let Some(found) = self.finish_lookup(probe, name, masked) {
+                            result = Some(found);
+                            break 'walk;
+                        }
+                    }
                     if let Some(hop) = self
                         .get_jsdoc_root(loc)
                         .and_then(|document| self.parent_of(document))
@@ -933,6 +950,27 @@ impl<'a> CheckerState<'a> {
     /// The node whose parent is the statement list tsgo's reparser places a
     /// `@typedef`, `@callback` or `@import` of `host`'s JSDoc in: the nearest
     /// source file, block or module block containing `host`.
+    /// The namespaces tsgo's reparse wraps a namespaced typedef or callback
+    /// with a type in, innermost first.
+    fn jsdoc_alias_namespaces(&self, tag: NodeId) -> Vec<NodeId> {
+        let (full_name, type_expression) = match self.data_of(tag) {
+            NodeData::JSDocTypedefTag(data) => (data.full_name, data.type_expression),
+            NodeData::JSDocCallbackTag(data) => (data.full_name, data.type_expression),
+            _ => return Vec::new(),
+        };
+        let mut namespaces = Vec::new();
+        let mut current = full_name.filter(|_| type_expression.is_some());
+        while let Some(node) = current {
+            let NodeData::ModuleDeclaration(data) = self.data_of(node) else {
+                break;
+            };
+            namespaces.push(node);
+            current = data.body;
+        }
+        namespaces.reverse();
+        namespaces
+    }
+
     pub(crate) fn reparsed_statement_position(&self, host: NodeId) -> NodeId {
         let mut node = host;
         while let Some(parent) = self.parent_of(node) {

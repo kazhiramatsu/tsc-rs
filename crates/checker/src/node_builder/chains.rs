@@ -38,12 +38,17 @@ use tsc_binder::NameKey;
 
 const USE_FULLY_QUALIFIED_TYPE: u32 = 64;
 const WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 512;
+/// tsgo `nodebuilder.FlagsUseOnlyExternalAliasing`.
+const USE_ONLY_EXTERNAL_ALIASING: u32 = 128;
 const USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: u32 = 16_384;
 const ALLOW_QUALIFIED_NAME_IN_PLACE_OF_IDENTIFIER: u32 = 65_536;
 const IN_INITIAL_ENTITY_NAME: u32 = 16_777_216;
 const ALLOW_NODE_MODULES_RELATIVE_PATHS: u32 = 67_108_864;
 const FORBID_INDEXED_ACCESS_SYMBOL_REFERENCES: u32 = 16;
 const DO_NOT_INCLUDE_SYMBOL_CHAIN: u32 = 4;
+/// tsgo `nodebuilder.FlagsUseInstantiationExpressions`: qualified names of
+/// instantiated symbols are written `Foo<string>.Bar`.
+pub(super) const USE_INSTANTIATION_EXPRESSIONS: u32 = 1 << 30;
 
 fn has_flag(context: &NodeBuilderContext<'_>, flag: u32) -> bool {
     context.flags.0 & flag != 0
@@ -816,7 +821,12 @@ fn symbol_chain_with_reexport_containers(
 ) -> BuildResult<Option<Vec<SymbolId>>> {
     let enclosing = context.enclosing_declaration;
     let mut accessible = checker
-        .accessible_symbol_chain_at(symbol, meaning, enclosing)
+        .accessible_symbol_chain_at(
+            symbol,
+            meaning,
+            enclosing,
+            has_flag(context, USE_ONLY_EXTERNAL_ALIASING),
+        )
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     let needs_walk = match &accessible {
         None => true,
@@ -1227,22 +1237,6 @@ pub(super) fn type_parameters_to_type_parameter_declarations(
     Ok(Some(declarations))
 }
 
-fn class_or_interface_type_parameters(
-    checker: &mut CheckerState<'_>,
-    symbol: SymbolId,
-    context: &NodeBuilderContext<'_>,
-) -> BuildResult<Vec<TypeId>> {
-    let declared = checker
-        .get_declared_type_of_symbol(symbol)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    Ok(match &checker.tables.type_of(declared).data {
-        TypeData::GenericType {
-            type_parameters, ..
-        } => type_parameters.to_vec(),
-        _ => checker.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol),
-    })
-}
-
 /// tsc-port: lookupTypeParameterNodes @6.0.3
 /// tsc-hash: e6b9d7c2a9c995b35507303c582cd892219f72e7e3add4143d39587c0d6f4f29
 /// tsc-span: _tsc.js:53026-53053
@@ -1280,42 +1274,129 @@ fn lookup_type_parameter_nodes(
     if !has_flag(context, WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME) || index >= chain.len() - 1 {
         return Ok(None);
     }
+    if let Some(arguments) =
+        lookup_instantiated_type_argument_nodes(checker, arena, target, chain, index, context)?
+    {
+        return Ok(Some(arguments));
+    }
+    type_parameters_to_type_parameter_declarations(checker, arena, target, symbol, context)
+}
+
+/// tsgo `lookupInstantiatedTypeArgumentNodes`: the type arguments the next
+/// symbol of the chain is instantiated with, for the class or interface
+/// before it.
+fn lookup_instantiated_type_argument_nodes(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    chain: &[SymbolId],
+    index: usize,
+    context: &mut NodeBuilderContext<'_>,
+) -> BuildResult<Option<Vec<TransformNode>>> {
+    let symbol = chain[index];
     let next = chain[index + 1];
-    if checker
+    if !checker
         .get_check_flags(next)
         .intersects(CheckFlags::INSTANTIATED)
     {
-        let parent = if checker.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
-            checker
-                .resolve_alias(symbol)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?
-        } else {
-            symbol
-        };
-        let parameters = class_or_interface_type_parameters(checker, parent, context)?;
-        let Some(mapper) = checker.links.symbol(next).mapper else {
-            return Err(EmitResolverError::CheckerAborted {
-                method: EmitResolverMethod::CreateTypeOfDeclaration,
-                node: enclosing_resolver_node(
-                    checker,
-                    context
-                        .enclosing_declaration
-                        .unwrap_or_else(|| checker.binder.source(0).root),
-                ),
-                reason: "instantiated symbol is missing its type mapper",
-            });
-        };
-        let mut mapped = Vec::with_capacity(parameters.len());
-        for parameter in parameters {
-            mapped.push(
-                checker
-                    .get_mapped_type(parameter, mapper)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?,
-            );
+        return Ok(None);
+    }
+    let parent = if checker.symbol_flags(symbol).intersects(SymbolFlags::ALIAS)
+        && checker
+            .class_or_interface_like_declaration(symbol)
+            .is_none()
+    {
+        checker
+            .resolve_alias(symbol)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+    } else {
+        symbol
+    };
+    if checker
+        .class_or_interface_like_declaration(parent)
+        .is_none()
+    {
+        return Ok(None);
+    }
+    // tsgo `getTypeParametersOfClassOrInterface`: the outer type parameters,
+    // then the local ones.
+    let mut parameters = checker
+        .get_outer_type_parameters_of_class_or_interface(parent)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?
+        .unwrap_or_default();
+    parameters
+        .extend(checker.get_local_type_parameters_of_class_or_interface_or_type_alias(parent));
+    if let Some(mapper) = checker.links.symbol(next).mapper {
+        for parameter in &mut parameters {
+            *parameter = checker
+                .get_mapped_type(*parameter, mapper)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?;
         }
-        return super::map_to_type_nodes(checker, arena, target, &mapped, context, false);
+    }
+    super::map_to_type_nodes(checker, arena, target, &parameters, context, false)
+}
+
+/// tsgo `lookupExpressionChainTypeArgumentNodes`: an expression chain's
+/// type arguments (or parameters) of a qualified name's left side.
+fn lookup_expression_chain_type_argument_nodes(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    chain: &[SymbolId],
+    index: usize,
+    context: &mut NodeBuilderContext<'_>,
+) -> BuildResult<Option<Vec<TransformNode>>> {
+    if !has_flag(context, WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME) || index >= chain.len() - 1 {
+        return Ok(None);
+    }
+    let symbol = chain[index];
+    if context
+        .type_parameter_symbol_list
+        .as_ref()
+        .is_some_and(|symbols| symbols.contains(&symbol))
+    {
+        return Ok(None);
+    }
+    if context.must_create_type_parameter_symbol_list {
+        context.must_create_type_parameter_symbol_list = false;
+        context.type_parameter_symbol_list = Some(
+            context
+                .type_parameter_symbol_list
+                .clone()
+                .unwrap_or_default(),
+        );
+    }
+    context
+        .type_parameter_symbol_list
+        .get_or_insert_with(Default::default)
+        .insert(symbol);
+    if let Some(arguments) =
+        lookup_instantiated_type_argument_nodes(checker, arena, target, chain, index, context)?
+    {
+        return Ok(Some(arguments));
     }
     type_parameters_to_type_parameter_declarations(checker, arena, target, symbol, context)
+}
+
+/// tsgo `createExpressionWithTypeArguments`.
+fn create_expression_with_type_arguments(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    expression: TransformNode,
+    type_arguments: Option<Vec<TransformNode>>,
+) -> BuildResult<TransformNode> {
+    let Some(type_arguments) = type_arguments.filter(|arguments| !arguments.is_empty()) else {
+        return Ok(expression);
+    };
+    let type_arguments = Some(create_node_array(arena, target, type_arguments)?);
+    create_node(
+        arena,
+        target,
+        NodeData::ExpressionWithTypeArguments(tsc_syntax::nodes::ExpressionWithTypeArgumentsData {
+            type_arguments,
+            expression: Some(expression.node()),
+        }),
+    )
 }
 
 /// tsc-port: getTopmostIndexedAccessType @6.0.3
@@ -1911,7 +1992,26 @@ fn create_access_from_symbol_chain(
             context,
             override_type_arguments,
         )?;
-        if !is_entity_name(arena, lhs.node)? {
+        let lhs_is_entity_name = is_entity_name(arena, lhs.node)?;
+        if has_flag(context, USE_INSTANTIATION_EXPRESSIONS)
+            && (!lhs_is_entity_name
+                || type_parameter_nodes
+                    .as_ref()
+                    .is_some_and(|nodes| !nodes.is_empty()))
+        {
+            let expression = create_access_expression(arena, target, lhs.node)?;
+            let access = create_property_access(arena, target, expression, identifier)?;
+            return Ok(AccessBuild {
+                node: create_expression_with_type_arguments(
+                    arena,
+                    target,
+                    access,
+                    type_parameter_nodes,
+                )?,
+                final_type_arguments: None,
+            });
+        }
+        if !lhs_is_entity_name {
             return Err(EmitResolverError::CheckerAborted {
                 method: EmitResolverMethod::CreateTypeOfDeclaration,
                 node: enclosing_resolver_node(
@@ -2133,14 +2233,67 @@ pub(crate) fn chains_symbol_to_type_node(
         context,
         type_arguments.as_deref(),
     )?;
-    if arena.node(access.node).map_err(factory_error)?.kind == SyntaxKind::IndexedAccessType {
-        return Ok(access.node);
+    match arena.node(access.node).map_err(factory_error)?.data.clone() {
+        NodeData::IndexedAccessType(_) => Ok(access.node),
+        _ if is_entity_name(arena, access.node)? => {
+            if is_type_of {
+                create_type_query(arena, target, access.node)
+            } else {
+                create_type_reference(arena, target, access.node, access.final_type_arguments)
+            }
+        }
+        // tsgo writes an instantiation expression's `typeof` as a query with
+        // type arguments; other instantiation expressions stand as they are.
+        NodeData::ExpressionWithTypeArguments(data) if is_type_of => create_node(
+            arena,
+            target,
+            NodeData::TypeQuery(TypeQueryData {
+                type_arguments: data.type_arguments,
+                expr_name: data.expression,
+            }),
+        ),
+        _ => Ok(access.node),
     }
-    if is_type_of {
-        create_type_query(arena, target, access.node)
-    } else {
-        create_type_reference(arena, target, access.node, access.final_type_arguments)
+}
+
+/// tsgo `createAccessExpression`: an entity name or access as an expression.
+pub(super) fn create_access_expression(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    node: TransformNode,
+) -> BuildResult<TransformNode> {
+    match arena.node(node).map_err(factory_error)?.data.clone() {
+        NodeData::QualifiedName(data) => {
+            let left = data
+                .left
+                .and_then(|left| arena.node_ref(node.source(), left))
+                .expect("qualified name has a left side");
+            let right = data
+                .right
+                .and_then(|right| arena.node_ref(node.source(), right))
+                .expect("qualified name has a right side");
+            let expression = create_access_expression(arena, target, left)?;
+            create_property_access(arena, target, expression, right)
+        }
+        _ => Ok(node),
     }
+}
+
+pub(super) fn create_property_access(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    expression: TransformNode,
+    name: TransformNode,
+) -> BuildResult<TransformNode> {
+    create_node(
+        arena,
+        target,
+        NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+            name: Some(name.node()),
+            expression: Some(expression.node()),
+            question_dot_token: None,
+        }),
+    )
 }
 
 /// tsc-port: typeParameterShadowsOtherTypeParameterInScope @6.0.3
@@ -2333,8 +2486,8 @@ fn create_entity_name_from_symbol_chain(
     index: usize,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
-    let _type_parameter_nodes =
-        lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?;
+    // tsgo computes no type parameter nodes for an entity name (its
+    // `lookupTypeParameterNodes` call there is commented out).
     let symbol = chain[index];
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
@@ -2399,8 +2552,8 @@ fn create_expression_from_symbol_chain(
     index: usize,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
-    let _type_parameter_nodes =
-        lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?;
+    let type_parameter_nodes =
+        lookup_expression_chain_type_argument_nodes(checker, arena, target, chain, index, context)?;
     let symbol = chain[index];
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
@@ -2427,11 +2580,16 @@ fn create_expression_from_symbol_chain(
         let identifier = set_no_ascii_escaping(arena, identifier);
         add_approximate_length(context, js_len(&name) + 1);
         if index == 0 {
-            return Ok(identifier);
+            return create_expression_with_type_arguments(
+                arena,
+                target,
+                identifier,
+                type_parameter_nodes,
+            );
         }
         let expression =
             create_expression_from_symbol_chain(checker, arena, target, chain, index - 1, context)?;
-        return create_node(
+        let access = create_node(
             arena,
             target,
             NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
@@ -2439,7 +2597,8 @@ fn create_expression_from_symbol_chain(
                 expression: Some(expression.node()),
                 question_dot_token: None,
             }),
-        );
+        )?;
+        return create_expression_with_type_arguments(arena, target, access, type_parameter_nodes);
     }
     if let Some(body) = name
         .as_js()
@@ -2471,7 +2630,7 @@ fn create_expression_from_symbol_chain(
     add_approximate_length(context, 2);
     let expression =
         create_expression_from_symbol_chain(checker, arena, target, chain, index - 1, context)?;
-    create_node(
+    let access = create_node(
         arena,
         target,
         NodeData::ElementAccessExpression(ElementAccessExpressionData {
@@ -2479,7 +2638,8 @@ fn create_expression_from_symbol_chain(
             question_dot_token: None,
             argument_expression: Some(argument.node()),
         }),
-    )
+    )?;
+    create_expression_with_type_arguments(arena, target, access, type_parameter_nodes)
 }
 
 /// tsc-port: isStringNamed @6.0.3
