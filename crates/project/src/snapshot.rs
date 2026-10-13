@@ -45,6 +45,10 @@ pub struct SessionOptions {
     /// tsgo `DebounceDelay`: how long a scheduled update waits for more
     /// events.
     pub debounce_delay: std::time::Duration,
+    /// tsgo's client capability `workspace.didChangeWatchedFiles.
+    /// relativePatternSupport`: directories outside the workspace are
+    /// watched with relative patterns.
+    pub relative_pattern_support: bool,
 }
 
 /// A failed snapshot update (tsgo's API errors), with tsgo's message.
@@ -599,6 +603,7 @@ impl SnapshotHost {
                 &fs,
                 &base.configs,
                 self.options.run_external_code,
+                self.options.relative_pattern_support,
                 &custom_config_file_name,
             );
             let mut builder = ProjectCollectionBuilder::new(self, &fs, id, &base.projects, configs);
