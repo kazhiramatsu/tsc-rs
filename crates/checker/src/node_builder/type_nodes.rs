@@ -36,6 +36,10 @@ use super::{
     should_expand_type, symbol_to_node, type_parameter_to_name, with_context, NodeBuilderContext,
 };
 
+use super::chains::{
+    create_access_expression, create_property_access, USE_INSTANTIATION_EXPRESSIONS,
+};
+
 const METHOD: EmitResolverMethod = EmitResolverMethod::CreateTypeOfDeclaration;
 
 const WRITE_ARRAY_AS_GENERIC_TYPE: u32 = 2;
@@ -1586,7 +1590,8 @@ fn type_to_type_node_worker(
                     .filter(|name| tsc_syntax::is_identifier_text(name))
                 {
                     let member = create_named_type_reference(arena, target, member_name, None)?;
-                    return append_reference_to_type(arena, target, parent_name, member).map(Some);
+                    return append_reference_to_type(arena, target, parent_name, member, context)
+                        .map(Some);
                 }
                 let literal = create_node(
                     arena,
@@ -1623,7 +1628,10 @@ fn type_to_type_node_worker(
                 )
                 .map(Some);
             }
-            if !should_expand_type(checker, r#type, context, false) {
+            // tsgo expands only a union enum (an empty one is no union).
+            if !flags.intersects(TypeFlags::UNION)
+                || !should_expand_type(checker, r#type, context, false)
+            {
                 return chains_symbol_to_type_node(
                     checker,
                     arena,
@@ -3775,7 +3783,7 @@ fn type_reference_to_type_node(
             restore_flags(context, restore);
             let reference = reference?;
             result_type = Some(match result_type {
-                Some(root) => append_reference_to_type(arena, target, root, reference)?,
+                Some(root) => append_reference_to_type(arena, target, root, reference, context)?,
                 None => reference,
             });
         }
@@ -3860,7 +3868,7 @@ fn type_reference_to_type_node(
     restore_flags(context, restore);
     let final_reference = final_reference?;
     match result_type {
-        Some(root) => append_reference_to_type(arena, target, root, final_reference),
+        Some(root) => append_reference_to_type(arena, target, root, final_reference, context),
         None => Ok(final_reference),
     }
     .map(Some)
@@ -3874,6 +3882,7 @@ fn append_reference_to_type(
     target: TransformSourceId,
     root: TransformNode,
     reference: TransformNode,
+    context: &NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
     let access = get_access_stack(arena, reference)?;
     let reference_arguments = match &arena.node(reference).map_err(factory_error)?.data {
@@ -3882,6 +3891,36 @@ fn append_reference_to_type(
     };
     let root_data = arena.node(root).map_err(factory_error)?.data.clone();
     let data = match root_data {
+        // tsgo: an instantiated qualifier becomes an instantiation
+        // expression, `f<string>.C`.
+        NodeData::TypeReference(data)
+            if context.flags.0 & USE_INSTANTIATION_EXPRESSIONS != 0
+                && data.type_arguments.is_some_and(|arguments| {
+                    arena
+                        .node_array(TransformNodeArray::new(root.source(), arguments))
+                        .is_ok_and(|arguments| !arguments.nodes.is_empty())
+                }) =>
+        {
+            let name = data
+                .type_name
+                .and_then(|name| arena.node_ref(root.source(), name))
+                .expect("type reference has a name");
+            let name = create_access_expression(arena, target, name)?;
+            let mut expression = create_node(
+                arena,
+                target,
+                NodeData::ExpressionWithTypeArguments(
+                    tsc_syntax::nodes::ExpressionWithTypeArgumentsData {
+                        type_arguments: data.type_arguments,
+                        expression: Some(name.node()),
+                    },
+                ),
+            )?;
+            for identifier in access {
+                expression = create_property_access(arena, target, expression, identifier)?;
+            }
+            return Ok(expression);
+        }
         NodeData::TypeReference(mut data) => {
             let mut name = data.type_name;
             for identifier in access {
@@ -3921,6 +3960,16 @@ fn append_reference_to_type(
             data.qualifier = qualifier;
             data.type_arguments = reference_arguments;
             NodeData::ImportType(data)
+        }
+        NodeData::Identifier(_)
+        | NodeData::QualifiedName(_)
+        | NodeData::PropertyAccessExpression(_)
+        | NodeData::ExpressionWithTypeArguments(_) => {
+            let mut expression = create_access_expression(arena, target, root)?;
+            for identifier in access {
+                expression = create_property_access(arena, target, expression, identifier)?;
+            }
+            return Ok(expression);
         }
         _ => return Ok(root),
     };

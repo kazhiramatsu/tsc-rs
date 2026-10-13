@@ -20,19 +20,28 @@ use tsc_types::{CheckFlags, ModifierFlags, NodeFlags, SymbolFlags};
 use crate::state::{CheckAbort, CheckResult, CheckerState, OracleCrashKind};
 
 /// SymbolFormatFlags word consumed by checker `symbolToString`.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct SymbolFormatFlags(u32);
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SymbolFormatFlags(pub u32);
 
 impl SymbolFormatFlags {
-    const WRITE_TYPE_PARAMETERS_OR_ARGUMENTS: Self = Self(1);
-    const USE_ONLY_EXTERNAL_ALIASING: Self = Self(2);
-    pub(crate) const ALLOW_ANY_NODE_KIND: Self = Self(4);
-    const USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: Self = Self(8);
-    const WRITE_COMPUTED_PROPS: Self = Self(16);
-    const DO_NOT_INCLUDE_SYMBOL_CHAIN: Self = Self(32);
+    pub const NONE: Self = Self(0);
+    pub const WRITE_TYPE_PARAMETERS_OR_ARGUMENTS: Self = Self(1);
+    pub const USE_ONLY_EXTERNAL_ALIASING: Self = Self(2);
+    pub const ALLOW_ANY_NODE_KIND: Self = Self(4);
+    pub const USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: Self = Self(8);
+    pub const WRITE_COMPUTED_PROPS: Self = Self(16);
+    pub const DO_NOT_INCLUDE_SYMBOL_CHAIN: Self = Self(32);
 
     const fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
+    }
+}
+
+impl std::ops::BitOr for SymbolFormatFlags {
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self {
+        Self(self.0 | other.0)
     }
 }
 
