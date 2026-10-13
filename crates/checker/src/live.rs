@@ -514,6 +514,23 @@ impl LiveChecker {
         }
     }
 
+    /// Run `query` over the query checker (tsgo's pool
+    /// `CheckerLifetimeTemporary`, the language service's requests), created
+    /// by its first use; none for a Program without files.
+    pub fn with_query_checker<T>(
+        &mut self,
+        query: impl FnOnce(&mut CheckerState<'_>) -> T,
+    ) -> Option<T> {
+        match &mut self.live {
+            Live::Empty { .. } => None,
+            Live::Checked(cell) => Some(cell.with_dependent_mut(|owner, live| {
+                let session = live.session(owner, CheckerLifetime::Temporary);
+                let mut state = session.state();
+                query(&mut state)
+            })),
+        }
+    }
+
     /// Run `operation` over the Program's snapshot and its checker of
     /// `lifetime` as an emit session (the query checker is created by its
     /// first use); none for a Program without files, which has no checker.

@@ -1951,7 +1951,7 @@ impl<'a> CheckerState<'a> {
     /// resolution — every such forcer pre-5.3 (indexed access over
     /// tuples, member access) escapes, so the arms sit unexercised
     /// until 5.3 (pin then).
-    pub(crate) fn get_type_arguments(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
+    pub fn get_type_arguments(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
         if let Some(resolved) = self.tables.try_type_arguments(ty) {
             return Ok(resolved.to_vec());
         }

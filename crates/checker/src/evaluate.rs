@@ -1553,7 +1553,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryGetTextOfPropertyName @6.0.3
     /// tsc-hash: 775dd95b7a0f4d64b4b910bb31e7dd9bdcddd1c473bf9b913b2b2adbe4afd0c2
     /// tsc-span: _tsc.js:13863-13882
-    pub(crate) fn try_get_text_of_property_name(&self, name: NodeId) -> Option<EscapedName> {
+    pub fn try_get_text_of_property_name(&self, name: NodeId) -> Option<EscapedName> {
         let source = self.binder.source_of_node(name);
         match self.data_of(name) {
             // emitNode.autoGenerate is not represented in the parsed

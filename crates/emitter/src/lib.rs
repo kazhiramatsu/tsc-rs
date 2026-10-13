@@ -26,6 +26,7 @@ mod resolver;
 mod route;
 mod sink;
 mod source_map;
+pub mod source_mapper;
 mod token_cursor;
 mod transform;
 mod writer;

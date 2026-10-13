@@ -145,6 +145,7 @@ pub mod relate;
 #[doc(hidden)]
 pub mod relpin;
 pub mod resolve;
+mod services;
 pub mod shard;
 pub mod speculate;
 pub mod spell;

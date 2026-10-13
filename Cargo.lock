@@ -436,6 +436,7 @@ dependencies = [
  "tsc-rs-emitter",
  "tsc-rs-harness",
  "tsc-rs-host",
+ "tsc-rs-ls",
  "tsc-rs-lsproto",
  "tsc-rs-program",
  "tsc-rs-project",
@@ -523,6 +524,7 @@ dependencies = [
  "tsc-rs-checker",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
+ "tsc-rs-emitter",
  "tsc-rs-harness",
  "tsc-rs-host",
  "tsc-rs-incremental",
@@ -589,13 +591,18 @@ dependencies = [
 name = "tsc-rs-ls"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "serde_json",
+ "tsc-rs-binder",
  "tsc-rs-checker",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
+ "tsc-rs-emitter",
+ "tsc-rs-host",
  "tsc-rs-lsproto",
  "tsc-rs-program",
  "tsc-rs-syntax",
+ "tsc-rs-types",
 ]
 
 [[package]]
@@ -644,6 +651,7 @@ dependencies = [
  "serde_json",
  "tsc-rs-compiler",
  "tsc-rs-diagnostics",
+ "tsc-rs-emitter",
  "tsc-rs-host",
  "tsc-rs-ls",
  "tsc-rs-lsproto",
