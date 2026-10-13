@@ -220,3 +220,29 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 - **有界の違い**：watch ID の数字（typings と auto-import の監視、config registry の `LoadOrStore` の余分な entry の分の counter が
   まだ無い。登録は transcript の判定の対象外で、glob と kind は tsgo と同じ）。typings と auto-import の監視は L11 と L5、
   dynamic registration の無い client の内蔵の監視は L11。
+
+## L2c config の診断の push と refresh（PR #777）
+
+- **merge**：#777 → `be84cfa42`（hosted run 38369297130：rust 12m8s、conformance 21m32s、gates）。commit：6002bf8fe
+  （6131868d4 を main に rebase、差はドキュメントだけ）。
+- **push の診断**（tsgo `publishProgramDiagnostics`）：snapshot の採用ごとに、開いた file のある configured project の
+  `tsconfig.json` へ、config の parse の診断と program の診断と、作られた checker の global の診断（`LiveProgram::
+  global_diagnostics_so_far`：checker を使う前は無し）を送る。program を新しく作った時（一 file の clone でなく）と file を
+  開き直した時だけ。project が無くなった時、file を全て閉じた時、利用者が検証を切った時は空で送る。
+- **protocol の診断**（`tsc_ls::lsconv::diagnostic_to_lsp`、tsgo `diagnosticToLSP`）：重さ（style check を警告にする設定）、
+  code（Visual Studio には `TS<n>`）、source、client の locale で平らにした message の連鎖、関連情報、不要・非推奨の tag、
+  UTF-16 の span から protocol の range。
+- **refresh**（tsgo `scheduleDiagnosticsRefresh`）：program を変えうる監視の event、tsgo が refresh する設定の変更、content
+  mapper の file の編集（即時）で debounce して `workspace/diagnostic/refresh`。普通の編集は待ちの refresh を取り消す。
+- **アイドルの掃除**（tsgo `scheduleIdleCacheClean`）：30 秒の静止の後、build が見なかった cache の file を捨てる。
+  background の待ちは取り消し、close は取り消して走っている掃除を待つ。
+- **採用の log**：`Adopted snapshot N (parent M) as current session snapshot (replacing K)`、追加・削除・新しい file で build
+  された project（verbose なら file も）、cache の統計。
+- **tsgo との照合**：`TestPushDiagnostics` の 9（global の診断と hover の 3 は L3）、refresh の test、アイドルの掃除の close
+  の test、code lens・inlay hint・locale の設定の test。server の transcript（`crates/lsp/tests/fixtures/push_diagnostics.*`、
+  不正な `target` の config を開く）は log と watch ID の数字を除いて tsgo と一致。
+- **検査（6131868d4）**：release build、conformance 0 regressions（15,339、493 s）、`--checkers 4` と比較で既知の 4 件だけ、
+  suites 0 regressions、API client sync 337/356・async 346/365（変わらず）、test（diagnostics 82、ls 18、project 184、
+  lsp 14、api 298）、clippy、fmt。
+- **有界の違い**：builder の log tree と verbose の cache 統計、checking で見つかる global の診断の request 後の push（L3）、
+  content mapper の span map（L10）。
