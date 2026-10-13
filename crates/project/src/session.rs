@@ -480,3 +480,7 @@ impl std::error::Error for DocumentProjectError {}
 fn document_file_name(uri: &DocumentUri) -> Option<String> {
     uri_to_file_name(uri.as_str()).ok()
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/session.rs"]
+mod tests;
