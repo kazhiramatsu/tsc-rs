@@ -585,6 +585,19 @@ impl CompilerOptions {
         true
     }
 
+    /// tsgo `GetResolvePackageJsonExports`: the option, else whether the
+    /// resolver is node16, nodenext or bundler.
+    pub fn resolve_package_json_exports_effective(&self) -> bool {
+        self.resolve_package_json_exports
+            .unwrap_or_else(|| matches!(self.emit_module_resolution_kind(), 3 | 99 | 100))
+    }
+
+    /// tsgo `GetResolvePackageJsonImports`.
+    pub fn resolve_package_json_imports_effective(&self) -> bool {
+        self.resolve_package_json_imports
+            .unwrap_or_else(|| matches!(self.emit_module_resolution_kind(), 3 | 99 | 100))
+    }
+
     pub fn resolve_json_module_effective(&self) -> bool {
         self.resolve_json_module.unwrap_or_else(|| {
             matches!(self.emit_module_kind(), 102 | 199)

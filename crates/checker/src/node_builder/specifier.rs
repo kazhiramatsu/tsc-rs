@@ -27,8 +27,9 @@ pub(crate) enum RelativePreference {
     ExternalNonRelative,
 }
 
+/// tsgo `modulespecifiers.ModuleSpecifierEnding`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ModuleSpecifierEnding {
+pub enum ModuleSpecifierEnding {
     Minimal,
     Index,
     JsExtension,
@@ -1451,7 +1452,9 @@ pub(crate) fn get_local_module_specifier<'path>(
         .base_url
         .as_ref()
         .map(JsString::as_js);
-    let resolve_package_json_imports = get_resolve_package_json_imports(&options.compiler_options);
+    let resolve_package_json_imports = options
+        .compiler_options
+        .resolve_package_json_imports_effective();
     if (base_url.is_none() && options.paths.is_empty() && !resolve_package_json_imports)
         || preferences.relative_preference == RelativePreference::Relative
     {
@@ -2385,7 +2388,10 @@ pub(crate) fn try_get_module_name_from_package_json_imports<'path>(
 ) -> Option<JsString> {
     let module_file_name = module_file_name.into();
     let source_directory = source_directory.into();
-    if !get_resolve_package_json_imports(&options.compiler_options) {
+    if !options
+        .compiler_options
+        .resolve_package_json_imports_effective()
+    {
         return None;
     }
     let ancestor = get_nearest_ancestor_directory_with_package_json(host, source_directory)?;
@@ -2615,7 +2621,10 @@ pub(crate) fn try_directory_with_package_json<'path>(
     if package_json_exists {
         let import_mode = override_mode
             .unwrap_or_else(|| host.get_default_resolution_mode_for_file(importing_file));
-        if get_resolve_package_json_exports(&options.compiler_options) {
+        if options
+            .compiler_options
+            .resolve_package_json_exports_effective()
+        {
             let node_modules_directory_name =
                 byte_path_slice(package_root_path, parts.top_level_package_name_index + 1..)
                     .expect("package name ASCII boundary");
@@ -2881,7 +2890,7 @@ pub(crate) fn process_ending<'path>(
 /// tsc-port: tryGetRealFileNameForNonJsDeclarationFileName @6.0.3
 /// tsc-hash: 708ef279f3a044763a0274c327f23e6adc91e8541dcbd2612fa796d67527db7a
 /// tsc-span: _tsc.js:46234-46240
-pub(crate) fn try_get_real_file_name_for_non_js_declaration_file_name<'path>(
+pub fn try_get_real_file_name_for_non_js_declaration_file_name<'path>(
     file_name: impl Into<JsStr<'path>>,
 ) -> Option<JsString> {
     let file_name = file_name.into();
@@ -3892,18 +3901,6 @@ fn get_package_name_from_types_package_name<'n, 'p>(name: impl Into<JsStr<'n>>) 
     } else {
         without_prefix.to_owned()
     }
-}
-
-fn get_resolve_package_json_exports(options: &CompilerOptions) -> bool {
-    options
-        .resolve_package_json_exports
-        .unwrap_or_else(|| matches!(options.emit_module_resolution_kind(), 3 | 99 | 100))
-}
-
-fn get_resolve_package_json_imports(options: &CompilerOptions) -> bool {
-    options
-        .resolve_package_json_imports
-        .unwrap_or_else(|| matches!(options.emit_module_resolution_kind(), 3 | 99 | 100))
 }
 
 fn get_conditions(options: &CompilerOptions, resolution_mode: EmitResolutionMode) -> Vec<JsString> {

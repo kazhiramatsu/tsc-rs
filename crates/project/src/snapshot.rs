@@ -338,8 +338,63 @@ pub struct Snapshot {
     created_programs: Vec<ProjectId>,
 }
 
-/// tsgo's snapshot as the language service's host.
-impl tsc_ls::Host for Snapshot {}
+/// tsgo's snapshot as the language service's host: its file system for
+/// module specifier completions (tsgo `s.fs.fs`, the open documents left
+/// out).
+impl tsc_ls::Host for Snapshot {
+    /// tsgo `Snapshot.ReadDirectory` (`vfsmatch.ReadDirectory`).
+    fn read_directory(
+        &self,
+        path: &str,
+        extensions: &[&str],
+        excludes: &[&str],
+        includes: &[&str],
+        depth: Option<usize>,
+    ) -> Vec<String> {
+        use tsc_program::ConfigParseHost;
+        let host = tsc_host::vfs::VfsCompilerHost::new(
+            &*self.fs.base,
+            self.fs.paths().current_directory.clone(),
+        );
+        let patterns = |patterns: &[&str]| {
+            patterns
+                .iter()
+                .map(|&pattern| tsc_diagnostics::JsString::from(pattern))
+                .collect::<Vec<_>>()
+        };
+        let (excludes, includes) = (patterns(excludes), patterns(includes));
+        tsc_program::CompilerConfigHost::new(&host)
+            .read_directory(
+                tsc_diagnostics::JsStr::from_str(path),
+                extensions,
+                Some(&excludes),
+                Some(&includes),
+                depth,
+            )
+            .map(|files| {
+                files
+                    .iter()
+                    .map(|file| file.to_string_lossy().into_owned())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// tsgo `Snapshot.GetDirectories`.
+    fn get_directories(&self, path: &str) -> Vec<String> {
+        self.fs.base.accessible_entries(path).directories
+    }
+
+    /// tsgo `Snapshot.DirectoryExists`.
+    fn directory_exists(&self, path: &str) -> bool {
+        self.fs.base.is_dir(path)
+    }
+
+    /// tsgo `Snapshot.FileExists`.
+    fn file_exists(&self, path: &str) -> bool {
+        self.fs.base.is_file(path)
+    }
+}
 
 impl tsc_emitter::source_mapper::SourceMapperHost for Snapshot {
     fn use_case_sensitive_file_names(&self) -> bool {

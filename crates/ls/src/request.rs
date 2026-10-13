@@ -5,7 +5,7 @@
 use tsc_checker::state::{CheckResult, CheckerState};
 use tsc_lsproto::{Position, ResolvedClientCapabilities};
 
-use crate::language_service::{LanguageService, LsError};
+use crate::language_service::{Host, LanguageService, LsError};
 use crate::lsconv::Converters;
 use crate::lsutil::UserPreferences;
 use crate::source_map::SourceMaps;
@@ -22,6 +22,8 @@ pub(crate) struct Request<'s, 'a> {
     pub(crate) links: bool,
     pub(crate) preferences: &'s UserPreferences,
     pub(crate) capabilities: &'s ResolvedClientCapabilities,
+    /// The snapshot's files and file system (tsgo `l.host`).
+    pub(crate) host: &'s dyn Host,
 }
 
 impl LanguageService<'_> {
@@ -38,7 +40,8 @@ impl LanguageService<'_> {
         let converters = self.converters;
         let preferences = self.user_preferences_ref();
         let capabilities = self.capabilities;
-        let source_maps = SourceMaps::new(self.host, converters);
+        let host = self.host;
+        let source_maps = SourceMaps::new(host, converters);
         let prepared = self.program.shared_prepared();
         let result = self.program.with_query_checker(|state| {
             let source = state.binder.source(file);
@@ -51,6 +54,7 @@ impl LanguageService<'_> {
                 links,
                 preferences,
                 capabilities,
+                host,
             };
             run(&mut request, position)
         });
