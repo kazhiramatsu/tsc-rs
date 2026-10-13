@@ -10,7 +10,7 @@ use tsc_emitter::{
     EmitSymbolMeaning, NewLineKind, PrintRequest, PrinterOptions, SourceFileId, TransformArena,
     TransformRoot,
 };
-use tsc_syntax::{LanguageVariant, NodeData, NodeId, ParseOptions, SyntaxKind};
+use tsc_syntax::{NodeData, NodeId, ParseOptions, ScriptKind, SyntaxKind};
 use tsc_types::{CompilerOptions, IdentityDomain, ModuleKind, ScriptTarget, SymbolFlags};
 
 use crate::state::test_support::with_program_state;
@@ -1071,7 +1071,7 @@ fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
             DocumentVersion::new("1"),
         ),
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -1191,7 +1191,7 @@ fn null_jsx_fragment_factory_does_not_retain_the_ordinary_factory_import_or_its_
             DocumentVersion::new("1"),
         ),
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -1625,7 +1625,7 @@ fn common_js_esmodule_marker_resolver_reads_the_exact_binder_fact() {
                 file.to_owned(),
                 TextSnapshot::new(text.to_owned(), DocumentVersion::new("1")),
                 ParseOptions {
-                    javascript_file: true,
+                    script_kind: ScriptKind::Js,
                     force_external_module: forced,
                     ..ParseOptions::default()
                 },

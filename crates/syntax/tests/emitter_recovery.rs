@@ -3,7 +3,7 @@
 
 use serde_json::{json, Value};
 use tsc_syntax::{
-    for_each_child, JSDocParsingMode, LanguageVariant, NodeId, ParseOptions, ParseRecoveryAction,
+    for_each_child, JSDocParsingMode, NodeId, ParseOptions, ParseRecoveryAction, ScriptKind,
     SourceFile, SyntaxKind,
 };
 use tsc_types::NodeFlags;
@@ -54,12 +54,7 @@ fn original_emit_recovery_rows_preserve_typescript_syntax_and_committed_facts() 
                 path,
                 file["text"].as_str().unwrap(),
                 ParseOptions {
-                    javascript_file: path.ends_with(".js") || path.ends_with(".jsx"),
-                    language_variant: if path.ends_with(".tsx") || path.ends_with(".jsx") {
-                        LanguageVariant::Jsx
-                    } else {
-                        LanguageVariant::Standard
-                    },
+                    script_kind: ScriptKind::ensure_from_file_name(path),
                     js_doc_parsing_mode: JSDocParsingMode::ParseForTypeErrors,
                     ..ParseOptions::default()
                 },
@@ -125,11 +120,7 @@ fn await_reparse_respects_factory_child_and_name_boundaries() {
             path,
             text,
             ParseOptions {
-                language_variant: if path.ends_with(".tsx") {
-                    LanguageVariant::Jsx
-                } else {
-                    LanguageVariant::Standard
-                },
+                script_kind: ScriptKind::ensure_from_file_name(path),
                 ..ParseOptions::default()
             },
             None,

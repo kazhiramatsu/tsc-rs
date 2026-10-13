@@ -3,7 +3,7 @@ use tsc_emitter::{
     base64_encode, create_printer, transform_nodes, EmitFlags, NewLineKind, PrintRequest,
     PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
 };
-use tsc_syntax::{parse_source_file, LanguageVariant, NodeId, ParseOptions};
+use tsc_syntax::{parse_source_file, NodeId, ParseOptions, ScriptKind};
 
 #[test]
 fn ellipsis_comment_printer_metadata_matches_typescript() {
@@ -26,11 +26,9 @@ fn ellipsis_comment_printer_metadata_matches_typescript() {
                     case["file_name"].as_str().unwrap(),
                     case["text"].as_str().unwrap(),
                     ParseOptions {
-                        language_variant: if case["file_name"].as_str().unwrap().ends_with(".tsx") {
-                            LanguageVariant::Jsx
-                        } else {
-                            LanguageVariant::Standard
-                        },
+                        script_kind: ScriptKind::ensure_from_file_name(
+                            case["file_name"].as_str().unwrap(),
+                        ),
                         ..Default::default()
                     },
                     None,

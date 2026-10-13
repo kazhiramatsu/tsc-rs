@@ -3,7 +3,7 @@ use tsc_syntax::nodes::{
     EmptyStatementData, JsxAttributeData, JsxAttributesData, JsxSelfClosingElementData,
     JsxSpreadAttributeData,
 };
-use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+use tsc_syntax::{parse_source_file, NodeData, ParseOptions, ScriptKind, SyntaxKind};
 use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
 
 use super::JsxReferenceKind;
@@ -20,8 +20,7 @@ fn synthetic_attribute_recovery_preserves_a_bound_sibling() {
          (<Ns.Tag />);\n"
             .to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
-            javascript_file: false,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,

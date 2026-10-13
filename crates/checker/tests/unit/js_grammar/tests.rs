@@ -7,7 +7,7 @@ fn js_syntactic_diagnostics(text: &str) -> Vec<tsc_diagnostics::Diagnostic> {
         "a.js".to_owned(),
         text.to_owned(),
         ParseOptions {
-            javascript_file: true,
+            script_kind: tsc_syntax::ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,
@@ -106,7 +106,7 @@ fn unchecked_js_parameter_decorators_report_at_the_decorator() {
         "a.js".to_owned(),
         text.to_owned(),
         ParseOptions {
-            javascript_file: true,
+            script_kind: tsc_syntax::ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,

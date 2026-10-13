@@ -1215,6 +1215,21 @@ impl ConfigRootPlan {
         self
     }
 
+    /// The plan with the script kinds its files' handles give (an editor's
+    /// open documents' languages), which the programs loaded from it parse
+    /// with.
+    pub fn with_document_script_kinds(
+        mut self,
+        kinds: Arc<std::collections::BTreeMap<String, tsc_syntax::ScriptKind>>,
+    ) -> Self {
+        self.module_resolution_options.program_options = self
+            .module_resolution_options
+            .program_options
+            .clone()
+            .with_document_script_kinds(kinds);
+        self
+    }
+
     /// tsgo `ContentMapperExtensions`: every mapper's extensions in order.
     pub fn content_mapper_extensions(&self) -> impl Iterator<Item = &str> + Clone {
         self.content_mappers

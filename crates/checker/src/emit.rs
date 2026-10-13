@@ -376,7 +376,7 @@ impl EmitResolver for CheckerSession<'_> {
         )?;
         let source = state.binder.source(source_index);
         Ok(crate::can_include_bind_and_check_diagnostics(
-            crate::is_js_file_name(&source.file_name),
+            source.is_source_file_js(),
             crate::check_directive(source.text()),
             state.options,
         ))
@@ -718,7 +718,7 @@ impl EmitResolver for CheckerSession<'_> {
         let index =
             resolver_source_index(&state, EmitResolverMethod::MarkLinkedReferences, source)?;
         let file = state.binder.source(index);
-        if crate::is_js_file_name(&file.file_name)
+        if file.is_source_file_js()
             || state.options.verbatim_module_syntax == Some(true)
             || state
                 .links

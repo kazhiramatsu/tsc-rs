@@ -4441,7 +4441,8 @@ fn project_source(
     let mut input = InputFile::from_snapshot(name, Arc::clone(source.snapshot()))
         .with_preparsed_syntax(source.preparsed_syntax().clone())
         .with_js_doc_parsing_mode(Some(tsc_program::default_js_doc_parsing_mode()))
-        .with_content_mapped(source.content_mapped().cloned());
+        .with_content_mapped(source.content_mapped().cloned())
+        .with_script_kind(source.script_kind());
     if let Some(facts) = facts {
         input = input
             .with_module_name(facts.module_name.clone())

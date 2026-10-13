@@ -198,7 +198,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c5f0db66356c51537ce1e7c91692c0775f3db5764d39100f22ad85b89e0ec9a1
     /// tsc-span: _tsc.js:14886-14888
     pub(crate) fn is_in_js_file(&self, node: NodeId) -> bool {
-        crate::is_js_file_name(&self.binder.source_of_node(node).file_name)
+        self.binder.source_of_node(node).is_source_file_js()
     }
 
     /// tsc resolveSymbol (49113) on mergeSymbol's immutable-target arm.
@@ -518,7 +518,7 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|&declaration| {
                     let source = state.binder.source_of_node(declaration);
                     crate::is_plain_js_file(
-                        is_js_file_name(&source.file_name),
+                        source.is_source_file_js(),
                         crate::check_directive(source.text()),
                         state.options,
                     )
@@ -1217,12 +1217,6 @@ impl<'a> CheckerState<'a> {
         }
         Ok(())
     }
-}
-
-fn is_js_file_name(name: &tsc_types::JsString) -> bool {
-    [".js", ".jsx", ".mjs", ".cjs"]
-        .iter()
-        .any(|extension| name.ends_with(extension))
 }
 
 /// tsc-port: isTypeDeclaration @6.0.3
