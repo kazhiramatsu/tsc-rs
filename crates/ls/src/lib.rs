@@ -7,6 +7,7 @@ pub mod astnav;
 mod definition;
 mod diagnostics;
 mod hover;
+mod hovericon;
 mod jsdoc;
 mod language_service;
 pub mod lsconv;

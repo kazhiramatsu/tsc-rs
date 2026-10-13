@@ -461,3 +461,15 @@ impl CheckerState<'_> {
             && symbol.escaped_name.as_str() == Some(tsc_types::InternalSymbolName::INDEX)
     }
 }
+
+impl CheckerState<'_> {
+    /// tsgo `IsUndefinedSymbol`.
+    pub fn is_undefined_symbol(&self, symbol: SymbolId) -> bool {
+        symbol == self.undefined_symbol
+    }
+
+    /// tsgo `IsArgumentsSymbol`.
+    pub fn is_arguments_symbol(&self, symbol: SymbolId) -> bool {
+        symbol == self.arguments_symbol
+    }
+}

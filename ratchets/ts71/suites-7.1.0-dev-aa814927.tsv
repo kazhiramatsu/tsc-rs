@@ -3617,7 +3617,7 @@ lsp/TestQualifiedName_import_declaration_with_variable_entity_names	none
 lsp/TestQualifyModuleTypeNames	none
 lsp/TestQuickCatchInfo	full
 lsp/TestQuickInfoAlias	full
-lsp/TestQuickInfoAliasVS	none
+lsp/TestQuickInfoAliasVS	full
 lsp/TestQuickInfoAmbientModule	full
 lsp/TestQuickInfoAssertionNodeNotReusedWhenTypeNotEquivalent1	full
 lsp/TestQuickInfoAssignToExistingClass	full
@@ -3632,7 +3632,7 @@ lsp/TestQuickInfoCommentsClass	full
 lsp/TestQuickInfoCommentsClassMembers	full
 lsp/TestQuickInfoCommentsCommentParsing	full
 lsp/TestQuickInfoCommentsFunctionDeclaration	full
-lsp/TestQuickInfoCommentsFunctionDeclarationVS	none
+lsp/TestQuickInfoCommentsFunctionDeclarationVS	full
 lsp/TestQuickInfoCommentsFunctionExpression	full
 lsp/TestQuickInfoConstAssertion	full
 lsp/TestQuickInfoContextualObjectMethodJSDoc	full
@@ -3649,9 +3649,9 @@ lsp/TestQuickInfoDisplayPartsClassDefaultAnonymous	full
 lsp/TestQuickInfoDisplayPartsClassDefaultNamed	full
 lsp/TestQuickInfoDisplayPartsClassIncomplete	full
 lsp/TestQuickInfoDisplayPartsClassMethod	full
-lsp/TestQuickInfoDisplayPartsClassMethodVS	none
+lsp/TestQuickInfoDisplayPartsClassMethodVS	full
 lsp/TestQuickInfoDisplayPartsClassProperty	full
-lsp/TestQuickInfoDisplayPartsClassPropertyVS	none
+lsp/TestQuickInfoDisplayPartsClassPropertyVS	full
 lsp/TestQuickInfoDisplayPartsConst	full
 lsp/TestQuickInfoDisplayPartsEnum1	full
 lsp/TestQuickInfoDisplayPartsEnum2	full
@@ -3662,7 +3662,7 @@ lsp/TestQuickInfoDisplayPartsExternalModules	full
 lsp/TestQuickInfoDisplayPartsFunction	full
 lsp/TestQuickInfoDisplayPartsFunctionExpression	full
 lsp/TestQuickInfoDisplayPartsFunctionIncomplete	full
-lsp/TestQuickInfoDisplayPartsFunctionVS	none
+lsp/TestQuickInfoDisplayPartsFunctionVS	full
 lsp/TestQuickInfoDisplayPartsIife	full
 lsp/TestQuickInfoDisplayPartsInterface	full
 lsp/TestQuickInfoDisplayPartsInterfaceMembers	full

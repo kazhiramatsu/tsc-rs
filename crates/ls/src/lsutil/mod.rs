@@ -2,9 +2,11 @@
 //! configuration form generated from tsgo's schema) and the format settings.
 
 mod format_code_options;
+mod symbol_display;
 mod user_preferences;
 mod user_preferences_generated;
 
 pub use format_code_options::*;
+pub use symbol_display::*;
 pub use user_preferences::*;
 pub use user_preferences_generated::*;
