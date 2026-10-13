@@ -3345,7 +3345,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isPartOfTypeNode @6.0.3
     /// tsc-hash: 55a9d46da576728e248042fc0ca94da1daed14019326a3d28b945c2fcfdea441
     /// tsc-span: _tsc.js:14190-14271
-    pub(crate) fn is_part_of_type_node(&self, node: NodeId) -> bool {
+    pub fn is_part_of_type_node(&self, node: NodeId) -> bool {
         let kind = self.kind_of(node);
         if SyntaxKind::FirstTypeNode <= kind && kind <= SyntaxKind::LastTypeNode {
             return true;

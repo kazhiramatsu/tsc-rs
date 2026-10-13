@@ -7792,7 +7792,7 @@ impl<'a> CheckerState<'a> {
         yield_module_symbol: bool,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        let mut accessible = self.accessible_symbol_chain_at(symbol, meaning, enclosing)?;
+        let mut accessible = self.accessible_symbol_chain_at(symbol, meaning, enclosing, false)?;
         let needs_walk = match &accessible {
             None => true,
             Some(chain) => {
@@ -7940,6 +7940,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
+        use_only_external_aliasing: bool,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
         let declarations = &self.binder.symbol(symbol).declarations;
         if !declarations.is_empty()
@@ -7967,6 +7968,7 @@ impl<'a> CheckerState<'a> {
                 is_local_name_lookup,
                 &mut visited,
                 enclosing,
+                use_only_external_aliasing,
             )? {
                 return Ok(Some(chain));
             }
@@ -8088,6 +8090,7 @@ impl<'a> CheckerState<'a> {
         is_local_name_lookup: bool,
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
+        use_only_external_aliasing: bool,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
         if visited.contains(&table_key) {
             return Ok(None);
@@ -8102,6 +8105,7 @@ impl<'a> CheckerState<'a> {
             is_local_name_lookup,
             visited,
             enclosing,
+            use_only_external_aliasing,
         );
         visited.pop();
         result
@@ -8128,6 +8132,7 @@ impl<'a> CheckerState<'a> {
         is_local_name_lookup: bool,
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
+        use_only_external_aliasing: bool,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
         let escaped = self.binder.symbol(symbol).escaped_name;
         let direct = table.get(escaped).copied();
@@ -8169,8 +8174,7 @@ impl<'a> CheckerState<'a> {
                 && name != tsc_types::InternalSymbolName::EXPORT_EQUALS
                 && name != tsc_types::InternalSymbolName::DEFAULT
                 // The isUMDExportSymbol leg: inside an external module the
-                // UMD global alias is excluded. The useOnlyExternalAliasing
-                // half stays off: the error path passes false.
+                // UMD global alias is excluded.
                 && !(self.is_umd_export_symbol(entry)
                     && enclosing
                         .is_some_and(|enclosing| self.binder.is_external_module_of_node(enclosing)))
@@ -8179,7 +8183,19 @@ impl<'a> CheckerState<'a> {
                 && !(is_local_name_lookup
                     && self.symbol_has_declaration_of_kind(entry, SyntaxKind::NamespaceExport))
                 && (ignore_qualification
-                    || !self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier));
+                    || !self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier))
+                // Only an `import x = require()` alias names the symbol when
+                // the node builder asks for external aliasing only.
+                && (!use_only_external_aliasing
+                    || self.binder.symbol(entry).declarations.iter().any(|&declaration| {
+                        matches!(
+                            self.data_of(declaration),
+                            NodeData::ImportEqualsDeclaration(import)
+                                if import.module_reference.is_some_and(|reference| {
+                                    self.kind_of(reference) == SyntaxKind::ExternalModuleReference
+                                })
+                        )
+                    }));
             if alias_leg {
                 let resolved = self.resolve_alias(entry)?;
                 if let Some(chain) = self.candidate_list_for_symbol(
@@ -8190,6 +8206,7 @@ impl<'a> CheckerState<'a> {
                     ignore_qualification,
                     visited,
                     enclosing,
+                    use_only_external_aliasing,
                 )? {
                     candidates.push(chain);
                 }
@@ -8228,6 +8245,7 @@ impl<'a> CheckerState<'a> {
                 ignore_qualification,
                 visited,
                 enclosing,
+                use_only_external_aliasing,
             );
         }
         Ok(None)
@@ -8246,6 +8264,7 @@ impl<'a> CheckerState<'a> {
         ignore_qualification: bool,
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
+        use_only_external_aliasing: bool,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
         if self.symbol_chain_is_accessible(
             symbol,
@@ -8267,6 +8286,7 @@ impl<'a> CheckerState<'a> {
             /*is_local_name_lookup*/ false,
             visited,
             enclosing,
+            use_only_external_aliasing,
         )?;
         if let Some(inner) = inner {
             if self.can_qualify_symbol(entry, Self::qualified_left_meaning(meaning), enclosing)? {
@@ -8347,7 +8367,12 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         };
         Ok(self
-            .accessible_symbol_chain_at(parent, Self::qualified_left_meaning(meaning), enclosing)?
+            .accessible_symbol_chain_at(
+                parent,
+                Self::qualified_left_meaning(meaning),
+                enclosing,
+                false,
+            )?
             .is_some())
     }
 
@@ -8574,6 +8599,7 @@ impl<'a> CheckerState<'a> {
                     container,
                     tsc_types::SymbolFlags::NAMESPACE,
                     enclosing,
+                    false,
                 )?
                 .is_some()
         {
@@ -12350,7 +12376,9 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         seen.push(symbol);
-        if let Some(chain) = self.accessible_symbol_chain_at(symbol, meaning, Some(enclosing))? {
+        if let Some(chain) =
+            self.accessible_symbol_chain_at(symbol, meaning, Some(enclosing), false)?
+        {
             if self.symbol_has_visible_declarations(chain[0]) {
                 return Ok(true);
             }
@@ -14545,7 +14573,7 @@ impl crate::declaration_emit::DeclarationEmitAccessibilityPrimitives for Checker
         meaning: SymbolFlags,
         enclosing: Option<NodeId>,
     ) -> CheckResult<Option<Vec<SymbolId>>> {
-        self.accessible_symbol_chain_at(symbol, meaning, enclosing)
+        self.accessible_symbol_chain_at(symbol, meaning, enclosing, false)
     }
 
     fn declaration_emit_containers_of_symbol(

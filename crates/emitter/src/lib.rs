@@ -82,8 +82,8 @@ pub use position::{
     SourceByteRange, SourcePositionError, SourceRange, SourceUtf16Location, SourceUtf16Position,
 };
 pub use printer::{
-    create_printer, PrintRequest, PrintedText, Printer, PrinterError, PrinterOptions,
-    SourceFileTextMode, StandaloneWriter,
+    create_printer, escape_double_quoted_string, PrintRequest, PrintedText, Printer, PrinterError,
+    PrinterOptions, SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
     EmitAccessorDeclarations, EmitExportContainerMode, EmitFunctionProperty,

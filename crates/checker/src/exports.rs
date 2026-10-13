@@ -7,8 +7,9 @@ use std::sync::Arc;
 
 use tsc_binder::{node_util, SymbolTable};
 use tsc_emitter::{
-    create_printer, EmitNodeBuilderFlags, EmitResolverError, NewLineKind, PrintRequest,
-    PrinterOptions, StandaloneWriter, TransformArena, TransformNode, TransformSourceId,
+    create_printer, EmitNodeBuilderFlags, EmitResolverError, EmitSymbolExpansionOut, NewLineKind,
+    PrintRequest, PrinterOptions, StandaloneWriter, TransformArena, TransformNode,
+    TransformSourceId,
 };
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{
@@ -65,8 +66,47 @@ pub enum IntrinsicType {
 
 /// tsgo `TypeFormatFlagsNoTruncation`.
 pub const TYPE_FORMAT_NO_TRUNCATION: u32 = 1;
+/// tsgo `TypeFormatFlagsWriteTypeArgumentsOfSignature`.
+pub const TYPE_FORMAT_WRITE_TYPE_ARGUMENTS_OF_SIGNATURE: u32 = 1 << 5;
 /// tsgo `TypeFormatFlagsMultilineObjectLiterals`.
-const TYPE_FORMAT_MULTILINE_OBJECT_LITERALS: u32 = 1 << 10;
+pub const TYPE_FORMAT_MULTILINE_OBJECT_LITERALS: u32 = 1 << 10;
+/// tsgo `TypeFormatFlagsUseAliasDefinedOutsideCurrentScope`.
+pub const TYPE_FORMAT_USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: u32 = 1 << 14;
+/// tsgo `TypeFormatFlagsWriteArrowStyleSignature`.
+pub const TYPE_FORMAT_WRITE_ARROW_STYLE_SIGNATURE: u32 = 1 << 18;
+/// tsgo `TypeFormatFlagsInTypeAlias`.
+pub const TYPE_FORMAT_IN_TYPE_ALIAS: u32 = 1 << 23;
+/// tsgo `TypeFormatFlagsWriteCallStyleSignature`.
+pub const TYPE_FORMAT_WRITE_CALL_STYLE_SIGNATURE: u32 = 1 << 27;
+/// tsgo `TypeFormatFlagsUseInstantiationExpressions`.
+pub const TYPE_FORMAT_USE_INSTANTIATION_EXPRESSIONS: u32 = 1 << 30;
+/// tsgo `nodebuilder.FlagsWriteTypeParametersInQualifiedName`.
+const NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME: u32 = 1 << 9;
+
+/// tsgo `VerbosityContext` (checker/nodebuilder.go): a hover's expansion
+/// level (0 only finds out whether a higher level shows more) and
+/// truncation length in; whether a higher level would show more and whether
+/// the output was cut out.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct VerbosityContext {
+    pub level: i32,
+    pub max_truncation_length: u32,
+    pub can_increase_verbosity: bool,
+    pub truncated: bool,
+}
+
+impl VerbosityContext {
+    /// tsgo `propagateVerbosityOut`: a node builder's signals, only ever
+    /// set.
+    fn absorb(&mut self, out: &EmitSymbolExpansionOut) {
+        if out.can_increase_expansion_depth {
+            self.can_increase_verbosity = true;
+        }
+        if out.truncated {
+            self.truncated = true;
+        }
+    }
+}
 /// tsgo `TypeFormatFlagsAllowUniqueESSymbolType |
 /// TypeFormatFlagsUseAliasDefinedOutsideCurrentScope`, `typeToString`'s.
 pub const TYPE_FORMAT_DEFAULT: u32 = 1 << 20 | 1 << 14;
@@ -444,6 +484,9 @@ impl CheckerState<'_> {
                 kind,
                 enclosing_declaration,
                 Some(EmitNodeBuilderFlags(flags)),
+                None,
+                None,
+                None,
                 None,
                 None,
             )
@@ -1018,25 +1061,49 @@ impl CheckerState<'_> {
         })
     }
 
-    /// tsgo `TypeToStringEx` (printer.go:59-117) without a verbosity
-    /// context: the type node the node builder builds for `ty`, printed on
-    /// one line without comments (but the unresolved type's), cut at
-    /// tsgo's absolute maximum length.
+    /// tsgo `TypeToStringEx` (printer.go:59-117): the type node the node
+    /// builder builds for `ty` (expanding to the verbosity context's level),
+    /// printed without comments (but the unresolved type's), cut at tsgo's
+    /// absolute maximum length.
     pub fn type_to_string_with_flags(
         &mut self,
         ty: TypeId,
         enclosing_declaration: Option<NodeId>,
         flags: u32,
+        mut verbosity: Option<&mut VerbosityContext>,
     ) -> Result<String, String> {
-        let no_truncation = self.options.no_error_truncation == Some(true)
+        let max_truncation_length = verbosity
+            .as_ref()
+            .map_or(0, |verbosity| verbosity.max_truncation_length);
+        let no_truncation = max_truncation_length == 0
+            && self.options.no_error_truncation == Some(true)
             || flags & TYPE_FORMAT_NO_TRUNCATION != 0;
         let mut combined =
             (flags & TYPE_FORMAT_NODE_BUILDER_FLAGS_MASK) | NODE_BUILDER_IGNORE_ERRORS;
         if no_truncation {
             combined |= EmitNodeBuilderFlags::NO_TRUNCATION.0;
         }
-        let Some(node) = self.type_to_type_node_with_flags(ty, enclosing_declaration, combined)?
-        else {
+        let level = verbosity.as_ref().map(|verbosity| verbosity.level);
+        let mut out = EmitSymbolExpansionOut::default();
+        let node = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::type_to_type_node(
+                checker,
+                arena,
+                target,
+                ty,
+                enclosing_declaration,
+                Some(EmitNodeBuilderFlags(combined)),
+                None,
+                None,
+                (max_truncation_length > 0).then_some(max_truncation_length),
+                level,
+                Some(&mut out),
+            )
+        })?;
+        if let Some(verbosity) = verbosity.as_deref_mut() {
+            verbosity.absorb(&out);
+        }
+        let Some(node) = node else {
             panic!("should always get typenode");
         };
         // The unresolved type keeps the comment that marks its `any`, which
@@ -1052,6 +1119,195 @@ impl CheckerState<'_> {
         } else {
             StandaloneWriter::SingleLine
         };
+        let mut result = self.print_display_node(node, options, writer)?;
+        let mut max_length = 2 * DEFAULT_MAXIMUM_TRUNCATION_LENGTH;
+        if max_truncation_length > 0 {
+            // The hard cutoff matching Strada's absoluteMaximumLength.
+            max_length = max_truncation_length as usize * 10;
+        }
+        if no_truncation {
+            max_length = 2 * NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH;
+        }
+        if !result.is_empty() && result.len() >= max_length {
+            if let Some(verbosity) = verbosity {
+                verbosity.truncated = true;
+            }
+            let mut cut = max_length - "...".len();
+            while !result.is_char_boundary(cut) {
+                cut -= 1;
+            }
+            result.truncate(cut);
+            result.push_str("...");
+        }
+        Ok(result)
+    }
+
+    /// tsgo `SignatureToStringEx` (printer.go:183-226): the signature as a
+    /// call or construct signature (or function or constructor type) the
+    /// node builder builds, printed without comments or a trailing
+    /// semicolon.
+    pub fn signature_to_string_with_flags(
+        &mut self,
+        signature: SignatureId,
+        enclosing_declaration: Option<NodeId>,
+        flags: u32,
+        verbosity: Option<&mut VerbosityContext>,
+    ) -> Result<String, String> {
+        let is_constructor = self
+            .signature_of(signature)
+            .flags
+            .intersects(tsc_types::SignatureFlags::CONSTRUCT)
+            && flags & TYPE_FORMAT_WRITE_CALL_STYLE_SIGNATURE == 0;
+        let kind = match (
+            flags & TYPE_FORMAT_WRITE_ARROW_STYLE_SIGNATURE != 0,
+            is_constructor,
+        ) {
+            (true, true) => SyntaxKind::ConstructorType,
+            (true, false) => SyntaxKind::FunctionType,
+            (false, true) => SyntaxKind::ConstructSignature,
+            (false, false) => SyntaxKind::CallSignature,
+        };
+        let combined = (flags & TYPE_FORMAT_NODE_BUILDER_FLAGS_MASK)
+            | NODE_BUILDER_IGNORE_ERRORS
+            | NODE_BUILDER_WRITE_TYPE_PARAMETERS_IN_QUALIFIED_NAME;
+        let (max_truncation_length, level) = verbosity.as_ref().map_or((0, None), |verbosity| {
+            (verbosity.max_truncation_length, Some(verbosity.level))
+        });
+        let mut out = EmitSymbolExpansionOut::default();
+        let node = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::signature_to_signature_declaration(
+                checker,
+                arena,
+                target,
+                signature,
+                kind,
+                enclosing_declaration,
+                Some(EmitNodeBuilderFlags(combined)),
+                None,
+                None,
+                (max_truncation_length > 0).then_some(max_truncation_length),
+                level,
+                Some(&mut out),
+            )
+        })?;
+        if let Some(verbosity) = verbosity {
+            verbosity.absorb(&out);
+        }
+        let Some(node) = node else {
+            return Ok(String::new());
+        };
+        let options = PrinterOptions::new(NewLineKind::LineFeed)
+            .with_remove_comments(true)
+            .with_omit_trailing_semicolon(true)
+            .with_never_ascii_escape(true)
+            .with_declaration_syntax(true);
+        let writer = if flags & TYPE_FORMAT_MULTILINE_OBJECT_LITERALS != 0 {
+            StandaloneWriter::MultiLine
+        } else {
+            StandaloneWriter::SingleLine
+        };
+        self.print_display_node(node, options, writer)
+    }
+
+    /// tsgo `SymbolToStringEx` (printer.go:128-180): the symbol's name as
+    /// the node builder writes it for `meaning` at the enclosing
+    /// declaration.
+    pub fn symbol_to_string_with_flags(
+        &mut self,
+        symbol: SymbolId,
+        enclosing_declaration: Option<NodeId>,
+        meaning: SymbolFlags,
+        flags: crate::SymbolFormatFlags,
+    ) -> CheckResult<String> {
+        Ok(self
+            .symbol_to_string_via_node_builder(
+                symbol,
+                enclosing_declaration,
+                tsc_emitter::EmitSymbolMeaning(meaning.bits() as u32),
+                flags,
+            )?
+            .to_string_lossy()
+            .into_owned())
+    }
+
+    /// tsgo `TypeParameterToStringEx` (printer.go:328-346): the type
+    /// parameter's declaration (`T extends Foo`), its plain name when the
+    /// node builder builds none.
+    pub fn type_parameter_to_string_with_flags(
+        &mut self,
+        ty: TypeId,
+        enclosing_declaration: Option<NodeId>,
+        verbosity: Option<&mut VerbosityContext>,
+    ) -> Result<String, String> {
+        let (max_truncation_length, level) = verbosity.as_ref().map_or((0, None), |verbosity| {
+            (verbosity.max_truncation_length, Some(verbosity.level))
+        });
+        let mut out = EmitSymbolExpansionOut::default();
+        let node = self.build_display_node(enclosing_declaration, |checker, arena, target| {
+            crate::node_builder::type_parameter_to_declaration_node(
+                checker,
+                arena,
+                target,
+                ty,
+                enclosing_declaration,
+                Some(EmitNodeBuilderFlags(NODE_BUILDER_IGNORE_ERRORS)),
+                (max_truncation_length > 0).then_some(max_truncation_length),
+                level,
+                Some(&mut out),
+            )
+        })?;
+        if let Some(verbosity) = verbosity {
+            verbosity.absorb(&out);
+        }
+        let Some(node) = node else {
+            return self.type_to_string_with_flags(ty, None, TYPE_FORMAT_DEFAULT, None);
+        };
+        let options = PrinterOptions::new(NewLineKind::LineFeed)
+            .with_remove_comments(true)
+            .with_declaration_syntax(true);
+        self.print_display_node(node, options, StandaloneWriter::MultiLine)
+    }
+
+    /// A source node printed on one line (tsgo's `EFSingleLine` on it) with
+    /// LF new lines, as hover writes a module's import attributes.
+    pub fn print_source_node_single_line(&mut self, node: NodeId) -> Result<String, String> {
+        let target = self.emit_display_target(self.binder.file_index_of_node(node));
+        let (node, flags) = self.with_emit_display(|display| {
+            let arena = display
+                .arena_mut()
+                .expect("checker display result remains live");
+            let node = arena
+                .node_ref(target, node)
+                .ok_or_else(|| "source node outside its display source".to_owned())?;
+            let flags = arena.metadata(node).map(|metadata| metadata.flags());
+            arena
+                .metadata_mut(node)
+                .add_flags(tsc_emitter::EmitFlags::SINGLE_LINE);
+            Ok::<_, String>((node, flags))
+        })?;
+        let printed = self.print_display_node(
+            node,
+            PrinterOptions::new(NewLineKind::LineFeed).with_declaration_syntax(true),
+            StandaloneWriter::MultiLine,
+        );
+        self.with_emit_display(|display| {
+            let arena = display
+                .arena_mut()
+                .expect("checker display result remains live");
+            arena
+                .metadata_mut(node)
+                .set_flags(flags.unwrap_or_default());
+        });
+        printed
+    }
+
+    /// A display node printed standalone.
+    fn print_display_node(
+        &mut self,
+        node: TransformNode,
+        options: PrinterOptions,
+        writer: StandaloneWriter,
+    ) -> Result<String, String> {
         let printed = self
             .with_emit_display(|display| {
                 create_printer(options).print(
@@ -1061,22 +1317,8 @@ impl CheckerState<'_> {
                 )
             })
             .map_err(|error| format!("type node printer: {error:?}"))?;
-        let mut result = JsString::from_code_units(printed.text_utf16().as_ref())
+        Ok(JsString::from_code_units(printed.text_utf16().as_ref())
             .to_string_lossy()
-            .into_owned();
-        let max_length = 2 * if no_truncation {
-            NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH
-        } else {
-            DEFAULT_MAXIMUM_TRUNCATION_LENGTH
-        };
-        if !result.is_empty() && result.len() >= max_length {
-            let mut cut = max_length - "...".len();
-            while !result.is_char_boundary(cut) {
-                cut -= 1;
-            }
-            result.truncate(cut);
-            result.push_str("...");
-        }
-        Ok(result)
+            .into_owned())
     }
 }

@@ -12,11 +12,18 @@ use tsc_types::{CheckMode, NodeFlags, SymbolFlags, SymbolId, TypeFlags, TypeId};
 use crate::state::{CheckResult, CheckerState};
 
 impl CheckerState<'_> {
-    /// tsgo `GetTypeAtLocation` (checker.go:32647-32649). The JSDoc
-    /// reparse of this port lives beside the tree, so there is no reparsed
-    /// clone to redirect to (`GetReparsedNodeForNode`).
+    /// tsgo `GetTypeAtLocation` (checker.go:32647-32649), with the JSDoc
+    /// names tsgo redirects to their reparsed clones
+    /// ([`Self::jsdoc_reparsed_name`]).
     pub fn get_type_at_location(&mut self, node: NodeId) -> CheckResult<TypeId> {
-        self.get_type_of_node(node)
+        match self.jsdoc_reparsed_name(node) {
+            Some(Some(declaration)) => {
+                let symbol = self.get_symbol_of_declaration(declaration)?;
+                self.get_type_of_symbol(symbol)
+            }
+            Some(None) => Ok(self.tables.intrinsics.error),
+            None => self.get_type_of_node(node),
+        }
     }
 
     /// tsgo `getTypeOfNode` (checker.go:32418-32516).
@@ -157,7 +164,60 @@ impl CheckerState<'_> {
     /// tsgo `GetSymbolAtLocation` (checker.go:32069-32076): lookups the API
     /// makes report no errors.
     pub fn get_symbol_at_location(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
+        if let Some(reparsed) = self.jsdoc_reparsed_name(node) {
+            return match reparsed {
+                Some(declaration) => self.get_symbol_of_declaration(declaration).map(Some),
+                None => Ok(None),
+            };
+        }
         self.get_symbol_at_location_ex(node, true)
+    }
+
+    /// tsgo resolves a JSDoc name through its reparsed clone
+    /// (`GetReparsedNodeForNode`); this port binds the tags themselves, so
+    /// two names resolve differently. A namespaced typedef's innermost name
+    /// is the reparsed alias's name (`Some(Some(tag))`), and a type literal
+    /// property named by an invalid identifier is reparsed as a string
+    /// literal, which leaves the JSDoc name without a clone or symbol
+    /// (`Some(None)`).
+    fn jsdoc_reparsed_name(&self, node: NodeId) -> Option<Option<NodeId>> {
+        let NodeData::Identifier(identifier) = self.data_of(node) else {
+            return None;
+        };
+        let parent = self.parent_of(node)?;
+        if self
+            .node_flags_of(node)
+            .contains(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
+        {
+            let mut current = parent;
+            while self.kind_of(current) == SyntaxKind::ModuleDeclaration {
+                current = self.parent_of(current)?;
+            }
+            return match self.data_of(current) {
+                NodeData::JSDocTypedefTag(tag) if tag.type_expression.is_some() => {
+                    Some(Some(current))
+                }
+                NodeData::JSDocCallbackTag(tag) if tag.type_expression.is_some() => {
+                    Some(Some(current))
+                }
+                _ => None,
+            };
+        }
+        let tag = match self.data_of(parent) {
+            NodeData::QualifiedName(name) if name.right == Some(node) => self.parent_of(parent)?,
+            _ => parent,
+        };
+        (matches!(
+            self.kind_of(tag),
+            SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag
+        ) && self
+            .parent_of(tag)
+            .is_some_and(|literal| self.kind_of(literal) == SyntaxKind::JSDocTypeLiteral)
+            && identifier
+                .escaped_text
+                .as_str()
+                .is_some_and(|text| !tsc_syntax::is_identifier_text(text)))
+        .then_some(None)
     }
 
     /// tsgo `getSymbolAtLocation` (checker.go:32082-32266).
@@ -765,7 +825,7 @@ impl CheckerState<'_> {
 
     /// tsgo `IsExpressionNode` (ast/utilities.go:1997-2030): the port's
     /// classifier, minus the callee of `import.defer(...)`.
-    pub(crate) fn is_expression_node_like_tsgo(&self, node: NodeId) -> bool {
+    pub fn is_expression_node_like_tsgo(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         if self.kind_of(node) == SyntaxKind::MetaProperty {
             if let Some(parent) = self.parent_of(node) {
