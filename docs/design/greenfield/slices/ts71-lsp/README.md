@@ -413,3 +413,30 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
 4. **L4d JSDoc**：tag 名・param 名の completion と `jsdoc_snippet.go`。
 5. **L4e completionItem/resolve**：details と documentation（hover の symbol の表示と JSDoc を使う）。auto-import の code
    action は L5。
+
+## L4a completion の土台（PR #784）
+
+- **merge**：#784 → `56b2c8e52`（hosted run 38458124716：rust 12m33s、conformance 23m48s、gates）。commit：bb15bb98e
+  （checker の service）、89ce863de（completion）、ratchet f394701e4。
+- **checker**：tsgo の completion が使う service（`IsValidPropertyAccess`、`GetAllPossiblePropertiesOfTypes`、
+  `GetNonOptionalType`、`GetStringIndexType`、`GetNumberIndexType`、`TryGetMemberInModuleExportsAndProperties`、
+  `GetExportsAndPropertiesOfModule`、`GetJsxIntrinsicTagNamesAt`、`TryGetThisTypeAtEx`、`GetAccessibleSymbolChain`、
+  `GetTypeArgumentConstraint`、`GetContextualTypeForArrayLiteralAtPosition`、`SkipAlias`、`IsUnknownSymbol`）。
+  `getContextualType` の分岐は tsc-rs の木にない token（tsgo の token の node：親の operand のどれでもない）にも答え、
+  推論の遮断も tsgo と同じ範囲に。`GetExportsOfModule` は予約名を除き（`symbolsToArray`）、`IsTypeNodeKind` は tsgo の
+  JSDoc の型を含める。
+- **言語 service**（`crates/ls/src/completions/`）：`ProvideCompletion`、文脈の token と前の token、補完を止める位置、新しい
+  識別子の位置と commit characters、`getScopeNode` と `IsCompletedNode`、scope の symbol、dot の右の member（`?.`・
+  element access・`await` の挿入）、`this.` の member、keyword、import 文の keyword だけの補完、文脈上の型のリテラルと推奨の
+  項目（signature help の引数の位置）、`completionInfoFromData`・`getCompletionEntriesFromSymbols`・`createCompletionItem`
+  （名前、kind と修飾、sortText、filterText、置き換えの範囲、itemDefaults、resolve の data、引用符の好み、Go の JSON の
+  引用）。検査しない JavaScript は file の識別子（tsgo の name table）を足す。navigator に `GetTokenAtPosition`・
+  `FindNextToken`・`FindChildOfKind`・`GetFirstToken`・`GetLastToken`・`nodeEndsWith`。tsgo の class の construct
+  signature は型引数の並びが空でも nil でない（`new Bar<` は型引数の位置）。
+- **回帰 test**：`crates/ls/tests/completion.rs` に 24（期待値は transcript の tsgo の答え。大きな一覧は件数・既定値・要の
+  項目）。
+- **検査（f394701e4）**：conformance 0 regressions（全 13,577 full、478 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（lsp 1,371 full、completion 1,164/2,419、441 行が none→full）、API client sync 337/356・async 346/365、
+  test（syntax 228、checker 1,797、ls 90、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
+- **有界の違い**：L4b〜L4e、auto-import（L5）、content mapper（L10）、JSDoc の `function(...)` 型（tsgo は `function` と
+  いう名前の型参照として読み、name table に入る）。
