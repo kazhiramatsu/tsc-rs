@@ -842,6 +842,8 @@ pub struct PrinterOptions {
     only_print_js_doc_style: bool,
     omit_brace_source_map_positions: bool,
     never_ascii_escape: bool,
+    /// tsgo `PrinterOptions.OmitTrailingSemicolon`.
+    omit_trailing_semicolon: bool,
     terminate_unterminated_literals: bool,
     target: Option<ScriptTarget>,
     module_kind: Option<i32>,
@@ -859,6 +861,7 @@ impl PrinterOptions {
             only_print_js_doc_style: false,
             omit_brace_source_map_positions: false,
             never_ascii_escape: false,
+            omit_trailing_semicolon: false,
             terminate_unterminated_literals: false,
             target: None,
             module_kind: None,
@@ -907,6 +910,13 @@ impl PrinterOptions {
     /// Upstream `omitBraceSourceMapPositions`.
     pub const fn with_omit_brace_source_map_positions(mut self, value: bool) -> Self {
         self.omit_brace_source_map_positions = value;
+        self
+    }
+
+    /// tsgo `OmitTrailingSemicolon`: a semicolon at the end of the output is
+    /// left out.
+    pub const fn with_omit_trailing_semicolon(mut self, value: bool) -> Self {
+        self.omit_trailing_semicolon = value;
         self
     }
 
@@ -1846,6 +1856,9 @@ impl Printer {
         } else {
             TextWriter::single_line()
         };
+        if self.options.omit_trailing_semicolon {
+            writer.defer_trailing_semicolons();
+        }
         let root_context = self.root_context();
         // printNode -> writeNode -> print -> pipelineEmit: the root's own
         // source comment phases run inside its notification bracket, guarded
@@ -11616,15 +11629,78 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::TypeLiteral)?;
         writer.write_punctuation("{");
-        self.emit_declaration_members(
-            transformation,
-            node,
-            data.members,
-            true,
-            expression_context,
-            writer,
-        )?;
+        let single_line = transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::SINGLE_LINE));
+        if single_line {
+            self.emit_single_line_type_literal_members(
+                transformation,
+                node,
+                data.members,
+                expression_context,
+                writer,
+            )?;
+        } else {
+            self.emit_declaration_members(
+                transformation,
+                node,
+                data.members,
+                true,
+                expression_context,
+                writer,
+            )?;
+        }
         writer.write_punctuation("}");
+        Ok(())
+    }
+
+    /// tsc `ListFormat.SingleLineTypeLiteralMembers | NoSpaceIfEmpty`: the
+    /// members of a type literal flagged single line, `{ a: A; b: B; }`.
+    fn emit_single_line_type_literal_members(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        members: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let ids = members
+            .and_then(|array| {
+                transformation
+                    .arena()
+                    .node_array_ref(parent.source(), array)
+            })
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.to_vec())
+            .unwrap_or_default();
+        if ids.is_empty() {
+            return Ok(());
+        }
+        writer.write_space(" ");
+        for (index, id) in ids.iter().copied().enumerate() {
+            let member = transformation
+                .arena()
+                .node_ref(parent.source(), id)
+                .ok_or(PrinterError::UnknownStatement(id.index()))?;
+            if index == 0 {
+                self.emit_leading_comments_for_node(transformation, member, writer)?;
+            } else {
+                writer.write_space(" ");
+                self.emit_leading_comments_for_node_after_sibling(transformation, member, writer)?;
+            }
+            self.record_list_element_position(transformation, member)?;
+            self.emit_node_id_with_context(
+                transformation,
+                parent.source(),
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            self.emit_trailing_comments_for_node(transformation, member, writer)?;
+        }
+        writer.write_space(" ");
         Ok(())
     }
 
@@ -21533,6 +21609,13 @@ fn quote_javascript_string(
     quoted.extend(escape_literal_text(units, quote, no_ascii_escaping));
     quoted.push(quote.unit());
     crate::JavaScriptString::from_code_units(quoted)
+}
+
+/// tsgo `printer.EscapeString(s, '"')`: a double-quoted string's text,
+/// escaped without escaping non-ASCII characters (an unpaired surrogate is
+/// escaped).
+pub fn escape_double_quoted_string(units: &[u16]) -> String {
+    String::from_utf16_lossy(&escape_literal_text(units, LiteralQuote::Double, true))
 }
 
 /// escapeString / escapeNonAsciiString / escapeTemplateSubstitution @6.0.3,

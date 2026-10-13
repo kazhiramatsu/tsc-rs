@@ -506,7 +506,7 @@ fn serialize_parameter_name_from_parse(
 
 /// tsgo `isActivelyExpanding` (nodebuilderimpl.go:229-233): type node reuse
 /// is skipped while a hover expands named types.
-fn is_actively_expanding(context: &NodeBuilderContext<'_>) -> bool {
+pub(super) fn is_actively_expanding(context: &NodeBuilderContext<'_>) -> bool {
     context.max_expansion_depth > 0 && context.depth < context.max_expansion_depth
 }
 
@@ -1292,6 +1292,9 @@ pub(crate) fn signature_to_signature_declaration(
     flags: Option<EmitNodeBuilderFlags>,
     internal_flags: Option<EmitInternalNodeBuilderFlags>,
     tracker: Option<&mut dyn EmitSymbolTracker>,
+    maximum_length: Option<u32>,
+    verbosity_level: Option<i32>,
+    out: Option<&mut EmitSymbolExpansionOut>,
 ) -> BuildResult<Option<TransformNode>> {
     with_context(
         checker,
@@ -1301,15 +1304,50 @@ pub(crate) fn signature_to_signature_declaration(
         flags,
         internal_flags,
         tracker,
-        None,
-        None,
+        maximum_length,
+        verbosity_level,
         |checker, arena, target, context| {
             signature_to_signature_declaration_helper(
                 checker, arena, target, signature, kind, context, None,
             )
         },
-        None,
+        out,
     )
+}
+
+/// tsgo-port: NodeBuilder.TypeParameterToDeclaration @7.1: a type
+/// parameter's declaration (its name, constraint and default).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn type_parameter_to_declaration_node(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    r#type: TypeId,
+    enclosing_declaration: Option<NodeId>,
+    flags: Option<EmitNodeBuilderFlags>,
+    maximum_length: Option<u32>,
+    verbosity_level: Option<i32>,
+    out: Option<&mut EmitSymbolExpansionOut>,
+) -> BuildResult<Option<TransformNode>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        flags,
+        None,
+        None,
+        maximum_length,
+        verbosity_level,
+        |checker, arena, target, context| {
+            super::signatures::type_parameter_to_declaration(
+                checker, arena, target, r#type, context, None,
+            )
+            .map(Some)
+        },
+        out,
+    )
+    .map(Option::flatten)
 }
 
 /// tsgo-port: NodeBuilder.SerializeTypeForDeclaration @7.1 (nodebuilder.go:133-137).

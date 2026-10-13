@@ -201,6 +201,8 @@ pub use crate::program::{
     EphemeralDocumentStoreError, ParsedDocument, ProgramFileFacts, ProgramFileId, ProgramSnapshot,
 };
 
+pub use declaration_emit::SymbolFormatFlags;
+pub use exports::VerbosityContext;
 pub use tsc_syntax::JSDocParsingMode;
 pub use tsc_types::CompilerOptions;
 

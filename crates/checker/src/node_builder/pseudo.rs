@@ -1563,12 +1563,57 @@ fn reuse_type_node(
     // a remapped type parameter inside is serialized on its own.
     if let Some(reused) = syntactic_try_reuse_existing_node(checker, arena, target, context, node)?
     {
+        // A reused node never reached `shouldExpandType`: probe it for the
+        // references a higher verbosity level could expand.
+        if context.max_expansion_depth >= 0 && !context.out.can_increase_expansion_depth {
+            walk_node_for_expandability(checker, context, node)?;
+        }
         return Ok(reused);
     }
     report_inference_fallback(checker, context, node)?;
     let r#type = get_type_from_type_node2(checker, context, node, false)?
         .unwrap_or(checker.tables.intrinsics.error);
     type_to_type_node(checker, arena, target, context, r#type)
+}
+
+/// tsgo-port: NodeBuilderImpl.walkNodeForExpandability @7.1 (nodecopy.go:
+/// 75-96): each type reference, type predicate or import type of a reused
+/// node, until one could be expanded.
+fn walk_node_for_expandability(
+    checker: &mut CheckerState<'_>,
+    context: &mut NodeBuilderContext<'_>,
+    node: NodeId,
+) -> BuildResult<()> {
+    if context.out.can_increase_expansion_depth {
+        return Ok(());
+    }
+    if matches!(
+        checker.kind_of(node),
+        SyntaxKind::TypeReference
+            | SyntaxKind::ExpressionWithTypeArguments
+            | SyntaxKind::TypePredicate
+            | SyntaxKind::ImportType
+    ) {
+        if let Some(r#type) = get_type_from_type_node2(checker, context, node, false)? {
+            super::check_type_expandability(checker, r#type, context)?;
+            if context.out.can_increase_expansion_depth {
+                return Ok(());
+            }
+        }
+    }
+    let source = checker.binder.source_of_node(node);
+    let mut children = Vec::new();
+    tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        children.push(child);
+        false
+    });
+    for child in children {
+        walk_node_for_expandability(checker, context, child)?;
+        if context.out.can_increase_expansion_depth {
+            break;
+        }
+    }
+    Ok(())
 }
 
 /// tsgo-port: NodeBuilderImpl.reuseNode @7.1 (nodecopy.go:12-18): the reused

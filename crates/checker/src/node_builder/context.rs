@@ -7,7 +7,7 @@ use tsc_emitter::{
     EmitSymbolMeaning, EmitSymbolTracker, TransformArena, TransformNode, TransformSourceId,
 };
 use tsc_syntax::{NodeId, SyntaxKind};
-use tsc_types::{MapperId, ObjectFlags, TypeId};
+use tsc_types::{MapperId, ObjectFlags, SymbolFlags, TypeFlags, TypeId};
 
 use crate::program::ProgramFileId;
 use crate::state::CheckerState;
@@ -431,53 +431,147 @@ pub(crate) fn check_truncation_length(context: &mut NodeBuilderContext<'_>) -> b
     context.truncating
 }
 
-/// tsc-port: canPossiblyExpandType @6.0.3
-/// tsc-hash: 842325baaf5e05099c30dfb1cce6638972f0db8265ee964e2b1b529344e81c7e
-/// tsc-span: _tsc.js:51288-51295
-pub(crate) fn can_possibly_expand_type(r#type: TypeId, context: &NodeBuilderContext<'_>) -> bool {
-    if context
+/// tsgo `isTypeOnStack` (nodebuilderimpl.go:196-205): the type is being
+/// serialized further out (the last entry is the type itself).
+fn is_type_on_stack(r#type: TypeId, context: &NodeBuilderContext<'_>) -> bool {
+    context
         .type_stack
         .iter()
         .take(context.type_stack.len().saturating_sub(1))
         .any(|entry| *entry == Some(r#type))
-    {
-        return false;
-    }
-    context.depth < context.max_expansion_depth
-        || context.depth == context.max_expansion_depth && !context.out.can_increase_expansion_depth
 }
 
-/// tsc-port: shouldExpandType @6.0.3
-/// tsc-hash: f3e4f58cc1c115dea69c6fb212003c5519624306ffd92d3eac18d788f62f5d97
-/// tsc-span: _tsc.js:51296-51310
+/// tsgo `isExpandableType` (nodebuilderimpl.go:173-194): a named type hover
+/// could show structurally — an enum, a reference, a class or interface, or
+/// the anonymous type of a class, enum, module or function — not one
+/// declared in a default library; for an alias, the alias's symbol.
+fn is_expandable_type(checker: &CheckerState<'_>, r#type: TypeId, is_alias: bool) -> bool {
+    let ty = checker.tables.type_of(r#type);
+    if is_alias {
+        return !ty
+            .alias_symbol
+            .is_some_and(|alias| is_lib_symbol(checker, alias));
+    }
+    if is_lib_type(checker, r#type) {
+        return false;
+    }
+    if ty.flags.intersects(TypeFlags::ENUM_LIKE)
+        || ty
+            .object_flags
+            .intersects(ObjectFlags::REFERENCE | ObjectFlags::CLASS_OR_INTERFACE)
+    {
+        return true;
+    }
+    ty.object_flags.intersects(ObjectFlags::ANONYMOUS)
+        && ty.symbol.is_some_and(|symbol| {
+            checker.binder.symbol(symbol).flags.intersects(
+                SymbolFlags::CLASS
+                    | SymbolFlags::ENUM
+                    | SymbolFlags::VALUE_MODULE
+                    | SymbolFlags::FUNCTION
+                    | SymbolFlags::METHOD,
+            )
+        })
+}
+
+/// tsgo `shouldExpandType` (nodebuilderimpl.go:207-228): expand the type
+/// below the verbosity level; at the level, only note that a higher one
+/// would show more.
 pub(crate) fn should_expand_type(
     checker: &CheckerState<'_>,
     r#type: TypeId,
     context: &mut NodeBuilderContext<'_>,
     is_alias: bool,
 ) -> bool {
-    if !is_alias && is_lib_type(checker, r#type) {
+    if context.max_expansion_depth < 0 {
         return false;
     }
-    if context
-        .type_stack
-        .iter()
-        .take(context.type_stack.len().saturating_sub(1))
-        .any(|entry| *entry == Some(r#type))
-    {
+    if !is_expandable_type(checker, r#type, is_alias) {
         return false;
     }
-    let result = context.depth < context.max_expansion_depth;
-    if !result {
-        context.out.can_increase_expansion_depth = true;
+    if is_type_on_stack(r#type, context) {
+        return false;
     }
+    if context.depth < context.max_expansion_depth {
+        return true;
+    }
+    context.out.can_increase_expansion_depth = true;
+    false
+}
+
+/// tsgo `checkTypeExpandability` (nodebuilderimpl.go:236-271): after a
+/// type node was reused (no `shouldExpandType` ran), whether the type or
+/// a reference's type argument could be expanded.
+pub(crate) fn check_type_expandability(
+    checker: &mut CheckerState<'_>,
+    r#type: TypeId,
+    context: &mut NodeBuilderContext<'_>,
+) -> Result<(), tsc_emitter::EmitResolverError> {
+    if context.max_expansion_depth < 0 || context.out.can_increase_expansion_depth {
+        return Ok(());
+    }
+    context.type_stack.push(Some(r#type));
+    let result = check_type_expandability_worker(checker, r#type, context);
+    context.type_stack.pop();
     result
+}
+
+fn check_type_expandability_worker(
+    checker: &mut CheckerState<'_>,
+    r#type: TypeId,
+    context: &mut NodeBuilderContext<'_>,
+) -> Result<(), tsc_emitter::EmitResolverError> {
+    if is_type_on_stack(r#type, context) {
+        return Ok(());
+    }
+    if checker.tables.type_of(r#type).alias_symbol.is_some() {
+        should_expand_type(checker, r#type, context, true);
+    }
+    if !context.out.can_increase_expansion_depth {
+        should_expand_type(checker, r#type, context, false);
+    }
+    if context.out.can_increase_expansion_depth {
+        return Ok(());
+    }
+    if checker
+        .tables
+        .object_flags_of(r#type)
+        .intersects(ObjectFlags::REFERENCE)
+    {
+        let arguments = checker
+            .get_type_arguments(r#type)
+            .map_err(|abort| super::type_nodes::checker_abort_error(checker, context, abort))?;
+        for argument in arguments {
+            check_type_expandability(checker, argument, context)?;
+            if context.out.can_increase_expansion_depth {
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// tsgo `IsLibSymbolForHoverVerbosity`: a symbol declared in a default
+/// library.
+fn is_lib_symbol(checker: &CheckerState<'_>, symbol: tsc_types::SymbolId) -> bool {
+    checker
+        .binder
+        .symbol(symbol)
+        .declarations
+        .iter()
+        .any(|&declaration| {
+            let file = checker.binder.file_index_of_node(declaration);
+            let file = ProgramFileId::from_raw(
+                u32::try_from(file).expect("Program file index exceeds u32"),
+            );
+            checker.binder.file_facts(file).is_default_library()
+        })
 }
 
 /// tsc-port: isLibType @6.0.3
 /// tsc-hash: 0481528ca734b60d6ec6ee852c78f57500c6aba5802fb587c27d7c31eeeb6a9f
 /// tsc-span: _tsc.js:55452-55456
-fn is_lib_type(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
+pub(crate) fn is_lib_type(checker: &CheckerState<'_>, r#type: TypeId) -> bool {
     if checker.tables.is_tuple_type(r#type) {
         return true;
     }

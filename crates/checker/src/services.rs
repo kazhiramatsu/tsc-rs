@@ -4,7 +4,10 @@
 //! and the type argument of a known generic type.
 
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{CheckFlags, ContextFlags, ObjectFlags, SymbolFlags, SymbolId, TypeFlags, TypeId};
+use tsc_types::{
+    CheckFlags, ContextFlags, LiteralValue, ObjectFlags, SymbolFlags, SymbolId, TypeData,
+    TypeFlags, TypeId,
+};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState};
@@ -392,5 +395,69 @@ impl CheckerState<'_> {
             }
         }
         Ok(signatures)
+    }
+
+    /// The check flags of a (transient) symbol (tsgo `Symbol.CheckFlags`).
+    pub fn symbol_check_flags(&self, symbol: SymbolId) -> CheckFlags {
+        self.links.read_symbol(symbol, |links| links.check_flags)
+    }
+
+    /// tsgo `IsLibTypeForHoverVerbosity`: a tuple, or a type (a reference's
+    /// target) declared in a default library, which hover never expands.
+    pub fn is_lib_type_for_hover_verbosity(&self, ty: TypeId) -> bool {
+        crate::node_builder::is_lib_type(self, ty)
+    }
+
+    /// tsgo `GetTypeAliasTypeParameters`: the type alias's local type
+    /// parameters.
+    pub fn get_type_alias_type_parameters(&mut self, symbol: SymbolId) -> CheckResult<Vec<TypeId>> {
+        self.get_declared_type_of_symbol(symbol)?;
+        Ok(self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol))
+    }
+
+    /// tsgo `RemoveMissingOrUndefinedType`.
+    pub fn remove_missing_or_undefined_type_public(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        self.remove_missing_or_undefined_type(ty)
+    }
+
+    /// tsgo `LiteralType.String()` (`ValueToString`): a string literal
+    /// quoted, a number as JavaScript writes it, a bigint with its `n`.
+    pub fn literal_type_value_text(&self, ty: TypeId) -> String {
+        match &self.tables.type_of(ty).data {
+            TypeData::Literal { value } => match value {
+                LiteralValue::String(text) => format!(
+                    "\"{}\"",
+                    tsc_emitter::escape_double_quoted_string(text.units())
+                ),
+                LiteralValue::Number(value) => tsc_types::js_number_to_string(*value),
+                LiteralValue::BigInt(value) => format!("{}n", value.to_base10_string()),
+            },
+            _ if ty == self.tables.intrinsics.true_fresh
+                || ty == self.tables.intrinsics.true_regular =>
+            {
+                "true".to_owned()
+            }
+            _ if ty == self.tables.intrinsics.false_fresh
+                || ty == self.tables.intrinsics.false_regular =>
+            {
+                "false".to_owned()
+            }
+            _ => String::new(),
+        }
+    }
+
+    /// tsgo `GetBaseConstructorTypeOfClass`.
+    pub fn get_base_constructor_type_of_class_public(&mut self, ty: TypeId) -> CheckResult<TypeId> {
+        self.get_base_constructor_type_of_class(ty)
+    }
+
+    /// tsgo `CheckFlagsIndexSymbol`: the property symbol
+    /// `getApplicableIndexSymbol` makes for the index signatures a property
+    /// access reads (named `__index`, unlike their declarations' signature
+    /// symbol).
+    pub fn is_index_symbol(&self, symbol: SymbolId) -> bool {
+        let symbol = self.binder.symbol(symbol);
+        symbol.flags.intersects(SymbolFlags::PROPERTY)
+            && symbol.escaped_name.as_str() == Some(tsc_types::InternalSymbolName::INDEX)
     }
 }
