@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
 use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
+use tsc_program::content_mapper::source::ContentMappedSource;
 use tsc_syntax::{NodeArray, NodeArrayId, NodeId, ParseOptions, SourceFile};
 use tsc_types::{IdentityDomain, JsStr, JsString, SymbolFlags, TRANSIENT_SYMBOL_BIT};
 
@@ -77,9 +78,31 @@ impl BoundDocument {
 pub struct DocumentAddress {
     parse: ParseOptions,
     identity_domain: IdentityDomain,
-    /// A content mapper's output (tsgo's content-mapped parse cache): the
-    /// mapper's transform identity and the original text it transformed.
-    content_mapper: Option<(String, Arc<str>)>,
+    /// A content mapper's output (tsgo's content-mapped parse cache).
+    content_mapper: Option<ContentMapperAddress>,
+}
+
+/// What a content mapper's output is found again by (tsgo's content-mapped
+/// parse cache): a transform's output by the mapper's transform identity
+/// and the original text it transformed, which give the same outputs with
+/// the same mapper diagnostics; a failure stub by itself, since tsgo makes
+/// one per program and a program cloned from it keeps it.
+#[derive(Clone, Debug)]
+enum ContentMapperAddress {
+    Transform(String, Arc<str>),
+    FailureStub(Arc<ContentMappedSource>),
+}
+
+impl PartialEq for ContentMapperAddress {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Transform(identity, text), Self::Transform(other_identity, other_text)) => {
+                identity == other_identity && text == other_text
+            }
+            (Self::FailureStub(stub), Self::FailureStub(other)) => Arc::ptr_eq(stub, other),
+            _ => false,
+        }
+    }
 }
 
 impl DocumentAddress {
@@ -98,15 +121,16 @@ impl DocumentAddress {
     }
 
     /// The address of a content mapper's output (tsgo
-    /// `contentMappedParseCacheKey`): found again only for the same
-    /// transform of the same original text, which gives the same outputs
-    /// with the same mapper diagnostics.
-    pub fn with_content_mapper(
-        mut self,
-        transform_identity: &str,
-        original_text: &Arc<str>,
-    ) -> Self {
-        self.content_mapper = Some((transform_identity.to_owned(), Arc::clone(original_text)));
+    /// `contentMappedParseCacheKey`, see [`ContentMapperAddress`]).
+    pub fn with_content_mapper(mut self, info: &Arc<ContentMappedSource>) -> Self {
+        self.content_mapper = Some(if info.is_failure_stub() {
+            ContentMapperAddress::FailureStub(Arc::clone(info))
+        } else {
+            ContentMapperAddress::Transform(
+                info.transform_identity.clone(),
+                Arc::clone(&info.original_text),
+            )
+        });
         self
     }
 }

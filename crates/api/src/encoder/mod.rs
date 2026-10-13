@@ -1153,7 +1153,10 @@ fn encode_tree<'a>(
     let mut parse_options = 0;
     if let Some(facts) = source_file_facts {
         if !facts.unhashed {
-            hash = xxhash_rust::xxh3::xxh3_128(file.text().as_bytes());
+            hash = match facts.content_mapped {
+                Some(info) => content_mapped_hash(info),
+                None => xxhash_rust::xxh3::xxh3_128(file.text().as_bytes()),
+            };
         }
         let indicator = file.external_module_indicator_options;
         parse_options = u32::from(indicator.jsx) | u32::from(indicator.force) << 1;
@@ -1735,6 +1738,27 @@ fn encode_type_reference_directives(file: &SourceFile, out: &mut Vec<u8>) -> u32
         msgpack_bool(out, directive.preserve);
     }
     offset
+}
+
+/// tsgo's hash of a content mapper's output (the content-mapped parse
+/// cache's key, `contentMappedParseCacheKey`): of the original text's hash
+/// and the transform identity's, each high half first, with the API's
+/// diagnostic locale (the default, written as nothing). A failure stub has
+/// none (tsgo parses it outside the cache).
+fn content_mapped_hash(info: &tsc_program::content_mapper::source::ContentMappedSource) -> u128 {
+    if info.is_failure_stub() {
+        return 0;
+    }
+    let raw = xxhash_rust::xxh3::xxh3_128(info.original_text.as_bytes());
+    let identity = xxhash_rust::xxh3::xxh3_128(info.transform_identity.as_bytes());
+    let mut buffer = [0; 32];
+    for (index, half) in [raw >> 64, raw, identity >> 64, identity]
+        .into_iter()
+        .enumerate()
+    {
+        buffer[index * 8..index * 8 + 8].copy_from_slice(&(half as u64).to_le_bytes());
+    }
+    xxhash_rust::xxh3::xxh3_128(&buffer)
 }
 
 /// tsgo `encodeSpanMap`: `[virtualStart, virtualLength, originalStart,

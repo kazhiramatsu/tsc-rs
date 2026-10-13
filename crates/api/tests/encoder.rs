@@ -5,12 +5,13 @@ use std::sync::Arc;
 
 use tsc_api::encoder::{
     build_node_index_table, encode_source_file, format_encoded_source_file, ScriptKind,
-    SourceFileFacts, HEADER_OFFSET_EXTENDED_DATA, HEADER_OFFSET_METADATA, HEADER_OFFSET_NODES,
+    SourceFileFacts, HEADER_OFFSET_EXTENDED_DATA, HEADER_OFFSET_HASH_HI0, HEADER_OFFSET_HASH_HI1,
+    HEADER_OFFSET_HASH_LO0, HEADER_OFFSET_HASH_LO1, HEADER_OFFSET_METADATA, HEADER_OFFSET_NODES,
     HEADER_OFFSET_STRING_DATA, HEADER_OFFSET_STRING_OFFSETS, HEADER_OFFSET_STRUCTURED_DATA,
     NODE_DATA_STRING_INDEX_MASK, NODE_OFFSET_DATA, NODE_SIZE, NO_STRUCTURED_DATA, PROTOCOL_VERSION,
 };
 use tsc_api::parse_source_file;
-use tsc_diagnostics::spanmap::{DirectivePolicy, MappedDiagnosticDirective};
+use tsc_diagnostics::spanmap::{DirectivePolicy, MappedDiagnosticDirective, SpanMap};
 use tsc_diagnostics::JsString;
 use tsc_program::content_mapper::source::ContentMappedSource;
 
@@ -168,6 +169,49 @@ fn source_file_metadata_of_a_content_mapper_output() {
             0xcd, 10, 18, // unused diagnostic code 2578
         ]
     );
+    // A failure stub (no span map) has no hash: tsgo parses it outside the
+    // content-mapped parse cache.
+    assert_eq!(header_hash(&encoded), [0; 4]);
+}
+
+/// tsgo `contentMappedParseCacheKey`: a mapped output's hash is the cache
+/// key's, of the original text's hash and the transform identity's (with
+/// the default locale), as tsgo's xxh3 computes it.
+#[test]
+fn a_content_mapper_outputs_hash_is_its_cache_keys() {
+    let file = parse_source_file("/component.vue", "virtual", ScriptKind::Ts);
+    let info = ContentMappedSource {
+        content_mapper: "mapper@1.0.0".to_owned(),
+        transform_identity: "mapper@1.0.0:0123456789abcdef".to_owned(),
+        virtual_file_name: JsString::from("/component.vue.ts"),
+        original_text: Arc::from("\u{1F600}original"),
+        span_map: Some(SpanMap::new(Vec::new())),
+        diagnostic_directives: Vec::new(),
+        supplemental: Vec::new(),
+        canonical: None,
+        diagnostics: Vec::new(),
+    };
+    let facts = SourceFileFacts {
+        path: Some("/component.vue"),
+        script_kind: ScriptKind::Ts,
+        content_mapped: Some(&info),
+        ..SourceFileFacts::default()
+    };
+    let encoded = encode_source_file(&file, &facts).0;
+    assert_eq!(
+        header_hash(&encoded),
+        [3686241245, 4018713728, 1495025372, 2624729770]
+    );
+}
+
+/// The header's hash words, low half first.
+fn header_hash(encoded: &[u8]) -> [u32; 4] {
+    [
+        read_u32(encoded, HEADER_OFFSET_HASH_LO0),
+        read_u32(encoded, HEADER_OFFSET_HASH_LO1),
+        read_u32(encoded, HEADER_OFFSET_HASH_HI0),
+        read_u32(encoded, HEADER_OFFSET_HASH_HI1),
+    ]
 }
 
 /// tsgo `encodedString`: a string of the string table.

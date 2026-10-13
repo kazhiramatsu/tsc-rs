@@ -9,8 +9,8 @@ use std::sync::atomic::Ordering;
 
 use base64::Engine;
 use tsc_harness::content_mappers::{
-    package_json, RecordingSpawner, DYNAMIC_VERBATIM_MAPPER, MODULE_VERBATIM_MAPPER,
-    SUPPLEMENTAL_MAPPER, TRANSFORMING_MAPPER, VERBATIM_MAPPER,
+    package_json, RecordingSpawner, DYNAMIC_VERBATIM_MAPPER, FAILING_MAPPER,
+    MODULE_VERBATIM_MAPPER, SUPPLEMENTAL_MAPPER, TRANSFORMING_MAPPER, VERBATIM_MAPPER,
 };
 use tsc_program::content_mapper::host::Spawner;
 use tsc_program::PreparedSourceFile;
@@ -1029,4 +1029,63 @@ fn resolution_over_a_snapshot_takes_its_mappers_extensions() {
             ],
         })
     );
+}
+
+#[test]
+fn a_failure_stub_is_kept_by_a_cloned_program_and_remade_by_a_new_one() {
+    // tsgo `ReuseProgram` keeps every other file of the program, a mapper's
+    // failure stub included, while a program built again makes its own
+    // stub (`emptyContentMappedFile`): an edit elsewhere changes only the
+    // edited file.
+    let manifest = package_json(FAILING_MAPPER);
+    let (session, fs) = mapper_session(
+        seeds(&[
+            ("/home/project/tsconfig.json", TARGET_CONFIG),
+            ("/home/project/node_modules/mapper/package.json", &manifest),
+            ("/home/project/app.box", "export const value = 1;\n"),
+            ("/home/project/main.ts", "export const main = 1;\n"),
+        ]),
+        true,
+        Arc::new(RecordingSpawner::new()),
+    );
+    let base = open_project(&session, "/home/project/tsconfig.json");
+    let stub_document = |snapshot: &Value| {
+        let program = program(&session, snapshot, "/home/project/tsconfig.json");
+        let stub = source(&program, "/home/project/app.box").unwrap();
+        assert!(stub.content_mapped().unwrap().is_failure_stub());
+        program.with_live(|live| {
+            let index = live.file_index("/home/project/app.box").unwrap();
+            Arc::clone(live.document(index).unwrap())
+        })
+    };
+    let first = stub_document(&base["snapshot"]);
+    fs.write("/home/project/main.ts", b"export const main = 2;\n")
+        .unwrap();
+    let cloned = notify(
+        &session,
+        &base["snapshot"],
+        json!({ "changed": ["/home/project/main.ts"] }),
+    );
+    assert_eq!(
+        cloned["changes"],
+        json!({ "changedProjects": { "/home/project/tsconfig.json": { "changedFiles": ["/home/project/main.ts"] } } })
+    );
+    assert_eq!(
+        project(&session, &cloned["snapshot"], "/home/project/tsconfig.json").program_update_kind(),
+        ProgramUpdateKind::Cloned
+    );
+    assert!(Arc::ptr_eq(&first, &stub_document(&cloned["snapshot"])));
+    fs.write(
+        "/home/project/tsconfig.json",
+        TARGET_CONFIG
+            .replace(r#""strict": true"#, r#""strict": false"#)
+            .as_bytes(),
+    )
+    .unwrap();
+    let rebuilt = notify(
+        &session,
+        &cloned["snapshot"],
+        json!({ "changed": ["/home/project/tsconfig.json"] }),
+    );
+    assert!(!Arc::ptr_eq(&first, &stub_document(&rebuilt["snapshot"])));
 }
