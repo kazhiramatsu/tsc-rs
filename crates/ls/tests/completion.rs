@@ -9,9 +9,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use serde_json::Value;
+use tsc_checker::ImportModuleSpecifierEndingPreference;
 use tsc_compiler::LiveProgram;
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_emitter::source_mapper::SourceMapperHost;
-use tsc_host::MemoryCompilerHost;
+use tsc_host::{CompilerHost, MemoryCompilerHost};
 use tsc_ls::lsconv::{Converters, LspLineMap};
 use tsc_ls::lsutil::{
     CompletionPreferences, JsxAttributeCompletionStyle, QuotePreference, UserPreferences,
@@ -21,7 +23,10 @@ use tsc_lsproto::{
     CompletionContext, CompletionParams, CompletionTriggerKind, DocumentUri, Position,
     PositionEncodingKind, ResolvedClientCapabilities, TextDocumentIdentifier,
 };
-use tsc_program::{load_program, LibraryCatalog, ProgramLoadLimits, ProgramOptions};
+use tsc_program::{
+    load_program, CompilerConfigHost, ConfigParseHost, LibraryCatalog, ProgramLoadLimits,
+    ProgramOptions,
+};
 use tsc_types::CompilerOptions;
 
 /// tsgo's `ScriptTargetLatestStandard` (ES2026), the fourslash default.
@@ -64,8 +69,9 @@ fn libraries() -> &'static [(String, Vec<u8>)] {
     })
 }
 
-/// The test's files as the language service's host.
-struct Files(BTreeMap<String, String>);
+/// The test's files as the language service's host, and as its file
+/// system (without the libraries, which tsgo bundles).
+struct Files(BTreeMap<String, String>, MemoryCompilerHost);
 
 impl SourceMapperHost for Files {
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -77,7 +83,62 @@ impl SourceMapperHost for Files {
     }
 }
 
-impl tsc_ls::Host for Files {}
+impl tsc_ls::Host for Files {
+    fn read_directory(
+        &self,
+        path: &str,
+        extensions: &[&str],
+        excludes: &[&str],
+        includes: &[&str],
+        depth: Option<usize>,
+    ) -> Vec<String> {
+        let patterns = |patterns: &[&str]| {
+            patterns
+                .iter()
+                .map(|&pattern| JsString::from(pattern))
+                .collect::<Vec<_>>()
+        };
+        let (excludes, includes) = (patterns(excludes), patterns(includes));
+        CompilerConfigHost::new(&self.1)
+            .read_directory(
+                JsStr::from_str(path),
+                extensions,
+                Some(&excludes),
+                Some(&includes),
+                depth,
+            )
+            .expect("the memory host's listing")
+            .iter()
+            .map(|file| file.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    /// The names of the directories (the memory host lists their paths).
+    fn get_directories(&self, path: &str) -> Vec<String> {
+        self.1
+            .get_directories_js(JsStr::from_str(path))
+            .unwrap_or_default()
+            .iter()
+            .map(|directory| {
+                tsc_program::base_file_name(directory.as_js())
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect()
+    }
+
+    fn directory_exists(&self, path: &str) -> bool {
+        self.1
+            .directory_exists_js(JsStr::from_str(path))
+            .unwrap_or(false)
+    }
+
+    fn file_exists(&self, path: &str) -> bool {
+        self.1
+            .file_exists_js(JsStr::from_str(path))
+            .unwrap_or(false)
+    }
+}
 
 /// tsgo's completion at `(line, character)` of `file` (with the trigger
 /// character, if any), as JSON with the items sorted, for the client the
@@ -143,7 +204,11 @@ fn completion_with(
             line_maps.get(file_name).map_or("", String::as_str),
         ))
     });
-    let files = Files(texts);
+    let mut file_system = MemoryCompilerHost::builder("/").case_sensitive(true);
+    for (name, text) in &texts {
+        file_system = file_system.file(PathBuf::from(name), text.as_bytes());
+    }
+    let files = Files(texts, file_system.build().expect("memory host"));
     let mut capabilities = ResolvedClientCapabilities::default();
     let completion = &mut capabilities.text_document.completion;
     completion.completion_item.commit_characters_support = true;
@@ -2422,6 +2487,445 @@ fn string_literals_of_a_discriminated_union_property() {
         ),
         tsgo(
             r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "b", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 36}, "end": {"line": 10, "character": 36}}, "newText": "b"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 457, "name": "b"}}, {"label": "d", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 36}, "end": {"line": 10, "character": 36}}, "newText": "d"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 457, "name": "d"}}]}"#
+        ),
+    );
+}
+/// The files a triple-slash path reference may name, only inside its unterminated string.
+#[test]
+fn triple_slash_reference_paths() {
+    let files = [
+        ("/f.ts", ""),
+        (
+            "/test.ts",
+            "/// <reference path=\"\n/// <reference path=\"\" />",
+        ),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (0, 19), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (0, 20), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (1, 19), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (1, 20), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (1, 22), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (1, 23), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (1, 24), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (1, 25), None),
+        tsgo(r#"null"#),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (0, 21), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "f.ts", "kind": 17, "detail": "f.ts", "sortText": "11", "data": {"fileName": "/test.ts", "position": 21, "name": "f.ts"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test.ts", (1, 21), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "f.ts", "kind": 17, "detail": "f.ts", "sortText": "11", "data": {"fileName": "/test.ts", "position": 43, "name": "f.ts"}}]}"#
+        ),
+    );
+}
+
+/// The files of a triple-slash path reference with their extensions, JavaScript files with allowJs.
+#[test]
+fn triple_slash_reference_paths_with_javascript() {
+    let files = [
+        ("/f1.cs", ""),
+        ("/f1.d.ts", ""),
+        ("/f1.js", ""),
+        ("/f1.jsx", ""),
+        ("/f1.ts", ""),
+        ("/f1.tsx", ""),
+        (
+            "/test0.ts",
+            "/// <reference path=\"\n/// <reference path=\"./\n/// <reference path=\"./f",
+        ),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/test0.ts", (0, 21), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "f1.jsx", "kind": 17, "detail": "f1.jsx", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 21, "name": "f1.jsx"}}, {"label": "f1.ts", "kind": 17, "detail": "f1.ts", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 21, "name": "f1.ts"}}, {"label": "f1.js", "kind": 17, "detail": "f1.js", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 21, "name": "f1.js"}}, {"label": "f1.d.ts", "kind": 17, "detail": "f1.d.ts", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 21, "name": "f1.d.ts"}}, {"label": "f1.tsx", "kind": 17, "detail": "f1.tsx", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 21, "name": "f1.tsx"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test0.ts", (1, 23), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "f1.jsx", "kind": 17, "detail": "f1.jsx", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 45, "name": "f1.jsx"}}, {"label": "f1.ts", "kind": 17, "detail": "f1.ts", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 45, "name": "f1.ts"}}, {"label": "f1.js", "kind": 17, "detail": "f1.js", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 45, "name": "f1.js"}}, {"label": "f1.d.ts", "kind": 17, "detail": "f1.d.ts", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 45, "name": "f1.d.ts"}}, {"label": "f1.tsx", "kind": 17, "detail": "f1.tsx", "sortText": "11", "data": {"fileName": "/test0.ts", "position": 45, "name": "f1.tsx"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/test0.ts", (2, 24), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "f1.ts", "kind": 17, "detail": "f1.ts", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 24}}, "newText": "f1.ts"}, "data": {"fileName": "/test0.ts", "position": 70, "name": "f1.ts"}}, {"label": "f1.js", "kind": 17, "detail": "f1.js", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 24}}, "newText": "f1.js"}, "data": {"fileName": "/test0.ts", "position": 70, "name": "f1.js"}}, {"label": "f1.d.ts", "kind": 17, "detail": "f1.d.ts", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 24}}, "newText": "f1.d.ts"}, "data": {"fileName": "/test0.ts", "position": 70, "name": "f1.d.ts"}}, {"label": "f1.tsx", "kind": 17, "detail": "f1.tsx", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 24}}, "newText": "f1.tsx"}, "data": {"fileName": "/test0.ts", "position": 70, "name": "f1.tsx"}}, {"label": "f1.jsx", "kind": 17, "detail": "f1.jsx", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 24}}, "newText": "f1.jsx"}, "data": {"fileName": "/test0.ts", "position": 70, "name": "f1.jsx"}}]}"#
+        ),
+    );
+}
+
+/// A package's typesVersions mapping redirects the directory a specifier completes in.
+#[test]
+fn paths_of_a_types_versions_wildcard() {
+    let files = [
+        ("/a.ts", "import { } from \"foo/\";"),
+        ("/node_modules/foo/dist/blah.d.ts", "export const blah = 0;"),
+        ("/node_modules/foo/dist/index.d.ts", "export const index = 0;"),
+        ("/node_modules/foo/dist/subfolder/one.d.ts", "export const one = 0;"),
+        ("/node_modules/foo/nope.d.ts", "export const nope = 0;"),
+        ("/node_modules/foo/package.json", "{\n  \"types\": \"index.d.ts\",\n  \"typesVersions\": {\n    \"*\": {\n      \"*\": [\"dist/*\"]\n    }\n  }\n}"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.module = Some(1);
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.ts", (0, 21), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "index", "kind": 17, "detail": "index.d.ts", "sortText": "11", "data": {"fileName": "/a.ts", "position": 21, "name": "index"}}, {"label": "blah", "kind": 17, "detail": "blah.d.ts", "sortText": "11", "data": {"fileName": "/a.ts", "position": 21, "name": "blah"}}, {"label": "subfolder", "kind": 19, "detail": "subfolder", "sortText": "11", "data": {"fileName": "/a.ts", "position": 21, "name": "subfolder"}}]}"#
+        ),
+    );
+}
+
+/// The subpath imports of the nearest package.json, its wildcard expanded.
+#[test]
+fn paths_of_package_json_imports() {
+    let files = [
+        ("/dist/arguments/index.d.ts", "export const arguments = 0;"),
+        ("/dist/blah.d.ts", "export const blah = 0;"),
+        ("/dist/index.d.ts", "export const index = 0;"),
+        ("/index.mts", "import { } from \"\";"),
+        ("/package.json", "{\n  \"name\": \"foo\",\n  \"main\": \"dist/index.js\",\n  \"module\": \"dist/index.mjs\",\n  \"types\": \"dist/index.d.ts\",\n  \"imports\": {\n    \"#*\": {\n      \"types\": \"./dist/*.d.ts\",\n      \"import\": \"./dist/*.mjs\",\n      \"default\": \"./dist/*.js\"\n    },\n    \"#arguments\": {\n      \"types\": \"./dist/arguments/index.d.ts\",\n      \"import\": \"./dist/arguments/index.mjs\",\n      \"default\": \"./dist/arguments/index.js\"\n    }\n  }\n}"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.module = Some(101);
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/index.mts", (0, 17), None),
+        tsgo(
+            r##"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "#index", "kind": 17, "detail": "#index.d.ts", "sortText": "11", "filterText": "index", "data": {"fileName": "/index.mts", "position": 17, "name": "#index"}}, {"label": "#blah", "kind": 17, "detail": "#blah.d.ts", "sortText": "11", "filterText": "blah", "data": {"fileName": "/index.mts", "position": 17, "name": "#blah"}}, {"label": "#arguments", "kind": 17, "detail": "#arguments.d.ts", "sortText": "11", "filterText": "arguments", "data": {"fileName": "/index.mts", "position": 17, "name": "#arguments"}}]}"##
+        ),
+    );
+}
+
+/// A package's exports, its wildcard expanded over the target directory.
+#[test]
+fn paths_of_package_json_exports() {
+    let files = [
+        ("/index.mts", "import { } from \"foo/\";"),
+        ("/node_modules/foo/dist/arguments/index.d.ts", "export const arguments = 0;"),
+        ("/node_modules/foo/dist/blah.d.ts", "export const blah = 0;"),
+        ("/node_modules/foo/dist/index.d.ts", "export const index = 0;"),
+        ("/node_modules/foo/package.json", "{\n  \"name\": \"foo\",\n  \"main\": \"dist/index.js\",\n  \"module\": \"dist/index.mjs\",\n  \"types\": \"dist/index.d.ts\",\n  \"exports\": {\n    \".\": {\n      \"types\": \"./dist/index.d.ts\",\n      \"import\": \"./dist/index.mjs\",\n      \"default\": \"./dist/index.js\"\n    },\n    \"./*\": {\n      \"types\": \"./dist/*.d.ts\",\n      \"import\": \"./dist/*.mjs\",\n      \"default\": \"./dist/*.js\"\n    },\n    \"./arguments\": {\n      \"types\": \"./dist/arguments/index.d.ts\",\n      \"import\": \"./dist/arguments/index.mjs\",\n      \"default\": \"./dist/arguments/index.js\"\n    }\n  }\n}"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.module = Some(101);
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/index.mts", (0, 21), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "index", "kind": 17, "detail": "index.d.ts", "sortText": "11", "data": {"fileName": "/index.mts", "position": 21, "name": "index"}}, {"label": "blah", "kind": 17, "detail": "blah.d.ts", "sortText": "11", "data": {"fileName": "/index.mts", "position": 21, "name": "blah"}}, {"label": "arguments", "kind": 17, "detail": "arguments.d.ts", "sortText": "11", "data": {"fileName": "/index.mts", "position": 21, "name": "arguments"}}]}"#
+        ),
+    );
+}
+
+/// The dependencies of every package.json above the script.
+#[test]
+fn packages_of_the_package_json_dependencies() {
+    let files = [
+        (
+            "/dir1/dir2/dir3/dir4/test0.ts",
+            "import * as foo1 from \"f\nimport foo4 = require(\"f\nvar foo7 = require(\"f",
+        ),
+        ("/dir1/dir2/dir3/node_modules/fake-module3/ts.ts", ""),
+        (
+            "/dir1/dir2/dir3/package.json",
+            "{ \"dependencies\": { \"fake-module3\": \"latest\" } }",
+        ),
+        ("/dir1/node_modules/fake-module2/index.ts", ""),
+        (
+            "/dir1/package.json",
+            "{ \"dependencies\": { \"fake-module2\": \"latest\" } }",
+        ),
+        ("/node_modules/fake-module/ts.ts", ""),
+        (
+            "/package.json",
+            "{ \"dependencies\": { \"fake-module\": \"latest\" } }",
+        ),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/dir1/dir2/dir3/dir4/test0.ts",
+            (0, 24),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "fake-module2", "kind": 9, "detail": "fake-module2", "sortText": "11", "textEdit": {"range": {"start": {"line": 0, "character": 23}, "end": {"line": 0, "character": 24}}, "newText": "fake-module2"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 24, "name": "fake-module2"}}, {"label": "fake-module", "kind": 9, "detail": "fake-module", "sortText": "11", "textEdit": {"range": {"start": {"line": 0, "character": 23}, "end": {"line": 0, "character": 24}}, "newText": "fake-module"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 24, "name": "fake-module"}}, {"label": "fake-module3", "kind": 9, "detail": "fake-module3", "sortText": "11", "textEdit": {"range": {"start": {"line": 0, "character": 23}, "end": {"line": 0, "character": 24}}, "newText": "fake-module3"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 24, "name": "fake-module3"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/dir1/dir2/dir3/dir4/test0.ts",
+            (1, 24),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "fake-module3", "kind": 9, "detail": "fake-module3", "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 23}, "end": {"line": 1, "character": 24}}, "newText": "fake-module3"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 49, "name": "fake-module3"}}, {"label": "fake-module2", "kind": 9, "detail": "fake-module2", "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 23}, "end": {"line": 1, "character": 24}}, "newText": "fake-module2"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 49, "name": "fake-module2"}}, {"label": "fake-module", "kind": 9, "detail": "fake-module", "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 23}, "end": {"line": 1, "character": 24}}, "newText": "fake-module"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 49, "name": "fake-module"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/dir1/dir2/dir3/dir4/test0.ts",
+            (2, 21),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "fake-module", "kind": 9, "detail": "fake-module", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 20}, "end": {"line": 2, "character": 21}}, "newText": "fake-module"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 71, "name": "fake-module"}}, {"label": "fake-module3", "kind": 9, "detail": "fake-module3", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 20}, "end": {"line": 2, "character": 21}}, "newText": "fake-module3"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 71, "name": "fake-module3"}}, {"label": "fake-module2", "kind": 9, "detail": "fake-module2", "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 20}, "end": {"line": 2, "character": 21}}, "newText": "fake-module2"}, "data": {"fileName": "/dir1/dir2/dir3/dir4/test0.ts", "position": 71, "name": "fake-module2"}}]}"#
+        ),
+    );
+}
+
+/// The module names of an import type, in TypeScript and in JSDoc.
+#[test]
+fn module_names_of_import_types() {
+    let files = [
+        ("/node_modules/package/index.ts", "file content not read"),
+        ("/ns.ts", "file content not read"),
+        (
+            "/usage.ts",
+            "type A = typeof import(\"p\");\ntype B = import(\"./\");",
+        ),
+        ("/user.js", "/** @type {import(\"\")} */"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+            options.module_resolution = Some(100);
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/usage.ts", (0, 25), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "package", "kind": 19, "detail": "package", "sortText": "11", "textEdit": {"range": {"start": {"line": 0, "character": 24}, "end": {"line": 0, "character": 25}}, "newText": "package"}, "data": {"fileName": "/usage.ts", "position": 25, "name": "package"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/user.js", (0, 19), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "package", "kind": 19, "detail": "package", "sortText": "11", "data": {"fileName": "/user.js", "position": 19, "name": "package"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/usage.ts", (1, 19), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "ns", "kind": 17, "detail": "ns.ts", "sortText": "11", "data": {"fileName": "/usage.ts", "position": 48, "name": "ns"}}, {"label": "user", "kind": 17, "detail": "user.js", "sortText": "11", "data": {"fileName": "/usage.ts", "position": 48, "name": "user"}}, {"label": "node_modules", "kind": 19, "detail": "node_modules", "sortText": "11", "data": {"fileName": "/usage.ts", "position": 48, "name": "node_modules"}}]}"#
+        ),
+    );
+}
+
+/// The module specifiers of node_modules files with the endings the resolution mode allows.
+#[test]
+fn paths_in_node_modules_by_extension() {
+    let files = [
+        ("/main.cts", "import {} from \"./src/\";\nimport mod = require(\"./src/\");\nconst m = import(\"./src/\");"),
+        ("/main.mts", "import {} from \"./src/\";\nimport mod = require(\"./src/\");\nconst m = import(\"./src/\");"),
+        ("/main.ts", "import {} from \"./src/\";\nimport mod = require(\"./src/\");\nconst m = import(\"./src/\");"),
+        ("/src/decl.d.cts", "export {}"),
+        ("/src/decl.d.mts", "export {}"),
+        ("/src/decl.d.ts", "export {}"),
+        ("/src/js.cjs", "export {}"),
+        ("/src/js.js", "export {}"),
+        ("/src/js.mjs", "export {}"),
+        ("/src/module.cts", "export {}"),
+        ("/src/module.js", "export {}"),
+        ("/src/module.mts", "export {}"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+            options.module = Some(101);
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.mts", (0, 22), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "module.cjs"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "js.mjs"}}, {"label": "js.js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "js.js"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "module.mjs"}}, {"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "decl.mjs"}}, {"label": "module.js", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "module.js"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "js.cjs"}}, {"label": "decl.js", "kind": 17, "detail": "decl.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "decl.js"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 22, "name": "decl.cjs"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.mts", (2, 24), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "js.js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "js.js"}}, {"label": "module.js", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "module.js"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "js.cjs"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "js.mjs"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "decl.cjs"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "module.mjs"}}, {"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "decl.mjs"}}, {"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "module.cjs"}}, {"label": "decl.js", "kind": 17, "detail": "decl.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 81, "name": "decl.js"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.cts", (2, 24), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "js.cjs"}}, {"label": "decl.js", "kind": 17, "detail": "decl.js", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "decl.js"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "decl.cjs"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "module.mjs"}}, {"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "decl.mjs"}}, {"label": "module.js", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "module.js"}}, {"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "module.cjs"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "js.mjs"}}, {"label": "js.js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.cts", "position": 81, "name": "js.js"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.ts", (2, 24), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "js.js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "js.js"}}, {"label": "decl.js", "kind": 17, "detail": "decl.js", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "decl.js"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "decl.cjs"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "module.mjs"}}, {"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "decl.mjs"}}, {"label": "module.js", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "module.js"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "js.cjs"}}, {"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "module.cjs"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 81, "name": "js.mjs"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.mts", (1, 28), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "decl.mjs"}}, {"label": "module", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "module"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "js.cjs"}}, {"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "module.cjs"}}, {"label": "decl", "kind": 17, "detail": "decl.d.ts", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "decl"}}, {"label": "js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "js"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "module.mjs"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "js.mjs"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.mts", "position": 53, "name": "decl.cjs"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.cts", (0, 22), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "module.cjs"}}, {"label": "decl", "kind": 17, "detail": "decl.d.ts", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "decl"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "js.mjs"}}, {"label": "js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "js"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "module.mjs"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "decl.cjs"}}, {"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "decl.mjs"}}, {"label": "module", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "module"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 22, "name": "js.cjs"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.cts", (1, 28), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "decl.mjs"}}, {"label": "module", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "module"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "js.cjs"}}, {"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "module.cjs"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "js.mjs"}}, {"label": "js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "js"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "module.mjs"}}, {"label": "decl", "kind": 17, "detail": "decl.d.ts", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "decl"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.cts", "position": 53, "name": "decl.cjs"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.ts", (0, 22), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "module.mjs"}}, {"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "decl.mjs"}}, {"label": "module", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "module"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "js.mjs"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "decl.cjs"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "js.cjs"}}, {"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "module.cjs"}}, {"label": "decl", "kind": 17, "detail": "decl.d.ts", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "decl"}}, {"label": "js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.ts", "position": 22, "name": "js"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/main.ts", (1, 28), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "decl", "kind": 17, "detail": "decl.d.ts", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "decl"}}, {"label": "module.mjs", "kind": 17, "detail": "module.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "module.mjs"}}, {"label": "module.cjs", "kind": 17, "detail": "module.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "module.cjs"}}, {"label": "js.mjs", "kind": 17, "detail": "js.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "js.mjs"}}, {"label": "js", "kind": 17, "detail": "js.js", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "js"}}, {"label": "decl.cjs", "kind": 17, "detail": "decl.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "decl.cjs"}}, {"label": "decl.mjs", "kind": 17, "detail": "decl.mjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "decl.mjs"}}, {"label": "module", "kind": 17, "detail": "module.js", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "module"}}, {"label": "js.cjs", "kind": 17, "detail": "js.cjs", "sortText": "11", "data": {"fileName": "/main.ts", "position": 53, "name": "js.cjs"}}]}"#
+        ),
+    );
+}
+
+/// The preferences with an `importModuleSpecifierEnding`.
+fn ending(preference: ImportModuleSpecifierEndingPreference) -> UserPreferences {
+    UserPreferences {
+        import_module_specifier_ending: preference,
+        ..UserPreferences::default()
+    }
+}
+
+/// A file's module specifier with the preferred ending: its JavaScript
+/// extension, or none (`index`).
+#[test]
+fn file_names_by_module_specifier_ending() {
+    let files = [
+        ("/module.js", "import { f } from \"./\""),
+        ("/test.js", "export function f(){\n    return 1\n}"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+        })
+    };
+    assert_eq!(
+        completion_with(
+            &files,
+            compiler_options(),
+            ending(ImportModuleSpecifierEndingPreference::JS),
+            false,
+            "/module.js",
+            (0, 21),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "test.js", "kind": 17, "detail": "test.js", "sortText": "11", "data": {"fileName": "/module.js", "position": 21, "name": "test.js"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion_with(
+            &files,
+            compiler_options(),
+            ending(ImportModuleSpecifierEndingPreference::INDEX),
+            false,
+            "/module.js",
+            (0, 21),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "test", "kind": 17, "detail": "test.js", "sortText": "11", "data": {"fileName": "/module.js", "position": 21, "name": "test"}}]}"#
+        ),
+    );
+}
+
+/// With allowImportingTsExtensions, a TypeScript file's specifier has no
+/// extension by default and its own with the `js` ending preference.
+#[test]
+fn file_names_with_typescript_extensions() {
+    let files = [
+        ("/project/foo.ts", "export const foo = 0;"),
+        ("/project/main.ts", "import {} from \"./\""),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_importing_ts_extensions = Some(true);
+            options.module_resolution = Some(100);
+        })
+    };
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/project/main.ts",
+            (0, 18),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "foo", "kind": 17, "detail": "foo.ts", "sortText": "11", "data": {"fileName": "/project/main.ts", "position": 18, "name": "foo"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion_with(
+            &files,
+            compiler_options(),
+            ending(ImportModuleSpecifierEndingPreference::JS),
+            false,
+            "/project/main.ts",
+            (0, 18),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": []}, "items": [{"label": "foo.ts", "kind": 17, "detail": "foo.ts", "sortText": "11", "data": {"fileName": "/project/main.ts", "position": 18, "name": "foo.ts"}}]}"#
         ),
     );
 }

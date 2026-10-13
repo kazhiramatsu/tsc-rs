@@ -83,7 +83,31 @@ impl SourceMapperHost for Files {
     }
 }
 
-impl tsc_ls::Host for Files {}
+/// Only module specifier completions read the file system.
+impl tsc_ls::Host for Files {
+    fn read_directory(
+        &self,
+        _: &str,
+        _: &[&str],
+        _: &[&str],
+        _: &[&str],
+        _: Option<usize>,
+    ) -> Vec<String> {
+        unreachable!("only module specifier completions read directories")
+    }
+
+    fn get_directories(&self, _: &str) -> Vec<String> {
+        unreachable!("only module specifier completions read directories")
+    }
+
+    fn directory_exists(&self, _: &str) -> bool {
+        unreachable!("only module specifier completions read directories")
+    }
+
+    fn file_exists(&self, _: &str) -> bool {
+        unreachable!("only module specifier completions read directories")
+    }
+}
 
 #[derive(Clone, Copy)]
 enum Request {
