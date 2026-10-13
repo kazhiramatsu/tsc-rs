@@ -134,12 +134,24 @@ impl ProgramRoots {
     }
 }
 
-/// The inferred project's roots and options (tsgo `NewInferredProject`'s
-/// defaults: `allowJs`, `module: esnext`, `moduleResolution: bundler`, the
-/// latest standard target, `jsx: react-jsx`, `allowImportingTsExtensions`,
-/// `strictNullChecks`, `strictFunctionTypes`, `sourceMap`,
-/// `allowNonTsExtensions` and `resolveJsonModule`).
-pub(crate) fn inferred_project_roots(root_file_names: Vec<String>, paths: &Paths) -> ProgramRoots {
+/// The inferred project's roots and options: the options given, else tsgo
+/// `NewInferredProject`'s defaults (`allowJs`, `module: esnext`,
+/// `moduleResolution: bundler`, the latest standard target, `jsx:
+/// react-jsx`, `allowImportingTsExtensions`, `strictNullChecks`,
+/// `strictFunctionTypes`, `sourceMap`, `allowNonTsExtensions` and
+/// `resolveJsonModule`).
+pub(crate) fn inferred_project_roots(
+    root_file_names: Vec<String>,
+    options: Option<&ConfigOptionBag>,
+    paths: &Paths,
+) -> ProgramRoots {
+    let options = options.cloned().unwrap_or_else(default_inferred_options);
+    ProgramRoots::new(root_file_names, options, Vec::new(), Vec::new(), paths)
+        .expect("the inferred project's options convert")
+}
+
+/// tsgo `NewInferredProject`'s default options.
+fn default_inferred_options() -> ConfigOptionBag {
     let options = serde_json::json!({
         "allowJs": true,
         "module": 99,
@@ -153,11 +165,9 @@ pub(crate) fn inferred_project_roots(root_file_names: Vec<String>, paths: &Paths
         "allowNonTsExtensions": true,
         "resolveJsonModule": true,
     });
-    let options = options
+    options
         .as_object()
         .and_then(|options| compiler_options_bag(options).ok())
-        .expect("the inferred project's options convert");
-    ProgramRoots::new(root_file_names, options, Vec::new(), Vec::new(), paths)
         .expect("the inferred project's options convert")
 }
 

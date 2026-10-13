@@ -12,6 +12,12 @@ tsoptions/tsconfigparsing_test.go), compares it with the vendored reference
 byte for byte and writes target/suites-ts71/<profile>/report.json. --dump writes the produced
 baselines that differ under <directory>/<suite>/.
 
+The lsp suite replays tsgo's language server transcripts
+(scripts/lsp_transcripts.py) against tsc-rs's server: a scenario is `full`
+when every response has the digest of tsgo's, and the run prints, per
+request method, how many responses have it. --dump writes the requests and
+tsc-rs's responses of a differing scenario under <directory>/lsp/.
+
 The ratchet ratchets/ts71/suites-<profile>.tsv lists every baseline of the
 suites as `<suite>/<baseline>` with its tier: `full` when tsc-rs's baseline
 matches the reference byte for byte, `none` otherwise. `--check` fails when

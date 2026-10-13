@@ -418,12 +418,15 @@ fn documents_reach_the_session() {
             logs.push(message["params"]["message"].as_str().unwrap().to_owned());
         }
     }
-    // The open's log, then the handler's, as tsgo writes them.
+    // The open's log, then the handler's, as tsgo writes them (the
+    // snapshot's adoption logs in the background may come between).
     let open = logs
         .iter()
         .position(|log| log.starts_with("Processed 1 file changes in "))
         .expect("the open's log");
-    assert!(logs[open + 1].starts_with("handled method 'textDocument/didOpen' in "));
+    assert!(logs[open + 1..]
+        .iter()
+        .any(|log| log.starts_with("handled method 'textDocument/didOpen' in ")));
 
     let projects = session.server.session().expect("the session");
     let (snapshot, project) = projects
