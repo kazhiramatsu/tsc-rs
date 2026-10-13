@@ -157,3 +157,32 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 - **検査（0061fe498）**：suites 0 regressions、conformance 0 regressions（15,339、507 s）、`--checkers 4` の対照は既知の 4 件だけ、
   API client sync 337/356・async 346/365（変わらず）、clippy、fmt。
 - **有界の違い**：auto-import の除外（`ParsedAutoImportFileExcludePatterns`、`IsModuleSpecifierExcluded`）は L5。
+
+## L2a session（PR #774）
+
+- **merge**：#774 → `026a7f683`（hosted run 38358291473：rust 7m58s、conformance 15m56s、gates）。commit：8abffa88c（lsconv と URI）、
+  0fb750399（overlay）、70f337dc7（open file を持つ snapshot）、4074878d7（Session）、dde477d27（server の document 通知）、
+  3b5ca0b07（test）。
+- **lsconv**：tsgo の `LSPLineMap` と位置の変換（UTF-8・UTF-16）、`LanguageKindToScriptKind`、`FileNameToDocumentURI` と動的な
+  file 名（`^/~ts-uri~/…`）。`ScriptKind` は `tsc_syntax` に移した。
+- **overlay と snapshot**：tsgo `overlayfs.go`（`processChanges` の畳み込みと panic を含む）。snapshot の更新（`SnapshotChange`）が
+  open document、request の document、新しい preferences、API の request を運び、読みは overlay が先でキャッシュしない。
+  config registry は open file ごとの config 名（最寄りと上位）、`customConfigFileName`、open file が保つ config を持つ。builder は
+  tsgo の open file の経路（solution 探索、`DidRequestFile`、inferred project の掃除）を移植した。
+- **Session**：tsgo `project.Session`。open は保留中の変更をすぐ適用し、document の request は default project が無いか dirty の時
+  だけ更新し、close と追跡中の config の watch event は debounce の後に background で更新する（tsgo の background queue と
+  世代）。preferences は次の更新で適用し、locale と inlay hint・code lens の refresh は client に渡す。
+- **server**：`initialized` が session を作り（workspace の directory、合意した位置の encoding、client が watcher を登録できる時の
+  監視、push 診断、`runExternalCode` の content mapper、500 ms の debounce）、`didOpen`・`didChange`・`didSave`・`didClose`・
+  `didChangeWatchedFiles` と設定の変更が session に届く。server は session の client と logger（`Processed N file changes`）。
+  Go の `time.Duration` の文字列は `tsc_host::go_time`。
+- **tsgo との照合**：tsgo の test の移植（overlayfs 13、session、projectlifetime 8、customconfigfilename、untitled、
+  projectcollectionbuilder 13 と defaultproject、configfilechanges 7、ProgramUpdateKind 6、snapshot の一部、background queue）。
+  session の test は 200 回の連続実行で失敗なし。
+- **検査（3b5ca0b07）**：conformance 0 regressions（15,339、486 s）、suites 0 regressions、API client sync 337/356・
+  async 346/365（変わらず）、clippy、fmt。
+- **有界の違い**：open document の言語種別がまだ parse に届かない（次の slice、`SourceFile.ScriptKind`）。session の log は
+  `Processed N file changes` だけで、tsgo の builder の log tree は L2c。watch の登録（L2b）、config 診断の push、診断の refresh、
+  idle cache clean（L2c）、ATA、auto-import の warming、telemetry と progress（L5、L11）。fourslash の harness が protocol の外で
+  呼ぶ `SetCompilerOptionsForInferredProjects` は記録器と共に L3。tsgo の `didOpen` は失敗しないが tsc-rs の snapshot 更新は
+  host の誤りで失敗しうる（handler の誤りとして返す）。
