@@ -1,5 +1,6 @@
 pub(crate) mod chains;
 mod context;
+mod hover;
 mod pseudo;
 mod serialize;
 mod signatures;
@@ -21,6 +22,7 @@ pub(crate) use context::{
     with_context, with_context_in_synthetic_module_scope, NodeBuilderContext,
     RecoveryTrackedSymbol, SyntheticModuleScope, TrackedSymbol,
 };
+pub(crate) use hover::expand_symbol_for_hover;
 pub(crate) use serialize::{
     build_symbol_display_node, index_info_to_index_signature_declaration,
     serialize_return_type_for_signature, serialize_return_type_for_signature_seam,
