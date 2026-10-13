@@ -22,6 +22,21 @@ pub struct DiagnosticOptions {
 }
 
 impl DiagnosticOptions {
+    /// tsgo `DiagnosticToLSPPull`'s options: the client's capabilities for
+    /// pulled diagnostics and the user's `reportStyleChecksAsWarnings`.
+    pub fn pull(
+        capabilities: &lsproto::ResolvedClientCapabilities,
+        report_style_checks_as_warnings: bool,
+    ) -> Self {
+        let diagnostic = &capabilities.text_document.diagnostic;
+        Self {
+            related_information: diagnostic.related_information,
+            tag_value_set: diagnostic.tag_support.value_set.clone(),
+            visual_studio: capabilities._vs_supports_visual_studio_extensions,
+            report_style_checks_as_warnings,
+        }
+    }
+
     /// tsgo `DiagnosticToLSPPush`'s options from the client's capabilities.
     pub fn push(capabilities: &lsproto::ResolvedClientCapabilities) -> Self {
         let publish = &capabilities.text_document.publish_diagnostics;
@@ -36,13 +51,13 @@ impl DiagnosticOptions {
 
 /// A file a diagnostic is in: its name and its text.
 pub struct DiagnosticFile<'a> {
-    pub file_name: &'a str,
+    pub file_name: String,
     pub text: &'a str,
 }
 
 impl Script for DiagnosticFile<'_> {
     fn file_name(&self) -> &str {
-        self.file_name
+        &self.file_name
     }
 
     fn text(&self) -> &str {

@@ -176,6 +176,9 @@ fn default_inferred_options() -> ConfigOptionBag {
 pub struct ProjectProgram {
     prepared: Arc<PreparedProgram>,
     live: Mutex<LiveProgram>,
+    /// How many global diagnostics [`Self::take_new_global_diagnostics`]
+    /// last saw (tsgo's pool `globalDiagChanged`).
+    global_diagnostics_taken: Mutex<usize>,
     /// The paths of the referenced projects' configs the program took from
     /// the project system (tsgo `RangeResolvedProjectReference`).
     references: BTreeSet<String>,
@@ -186,6 +189,7 @@ impl ProjectProgram {
         Self {
             prepared: live.shared_prepared(),
             live: Mutex::new(live),
+            global_diagnostics_taken: Mutex::new(0),
             references,
         }
     }
@@ -205,6 +209,19 @@ impl ProjectProgram {
     }
 
     /// Run `query` over the program's diagnostics and checker.
+    /// tsgo `checkerPool.TakeNewGlobalDiagnostics`: whether the diagnostics
+    /// checker has found global diagnostics since the last call.
+    pub(crate) fn take_new_global_diagnostics(&self) -> bool {
+        let count = self.with_live(|live| live.global_diagnostics_so_far().len());
+        let mut taken = self
+            .global_diagnostics_taken
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let changed = count != *taken;
+        *taken = count;
+        changed
+    }
+
     pub fn with_live<T>(&self, query: impl FnOnce(&mut LiveProgram) -> T) -> T {
         query(&mut self.live.lock().unwrap_or_else(PoisonError::into_inner))
     }

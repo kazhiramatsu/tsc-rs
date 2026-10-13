@@ -22,7 +22,9 @@ use crate::fs::{FileChangeSummary, Paths, SnapshotFs, SnapshotFsBuilder};
 use crate::id::{ProjectId, ProjectKind};
 use crate::overlay::{Overlay, OverlayLayer, Overlays};
 use crate::project::{default_project_from_program_inclusion, ProgramUpdateKind, Project};
+use tsc_ls::lsconv::{Converters, LspLineMap};
 use tsc_ls::lsutil::UserPreferences;
+use tsc_lsproto::PositionEncodingKind;
 
 /// What a session's projects are built with (tsgo `SessionOptions`).
 #[derive(Clone, Debug)]
@@ -485,6 +487,25 @@ impl Snapshot {
     /// Whether the snapshot reads an API request's file system.
     pub fn has_file_system_override(&self) -> bool {
         self.file_system_override
+    }
+
+    /// tsgo `LSPLineMap`: the protocol line starts of a file the snapshot
+    /// reads (an open document's own).
+    pub fn lsp_line_map(&self, file_name: &str) -> Option<Arc<LspLineMap>> {
+        if let Some(overlay) = self.fs.overlays.get(&self.fs.paths().to_path(file_name)) {
+            return Some(overlay.line_map());
+        }
+        self.fs.file(file_name).map(|file| file.line_map())
+    }
+
+    /// tsgo `Snapshot.Converters`: positions in the snapshot's files.
+    pub fn converters(self: &Arc<Self>, position_encoding: PositionEncodingKind) -> Converters {
+        let snapshot = Arc::clone(self);
+        Converters::new(position_encoding, move |file_name| {
+            snapshot
+                .lsp_line_map(file_name)
+                .unwrap_or_else(|| Arc::new(LspLineMap::new("")))
+        })
     }
 
     /// tsgo `Snapshot.ReadFile`: the file as the snapshot read it, or as its

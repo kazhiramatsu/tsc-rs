@@ -959,6 +959,9 @@ impl<'a> CheckerState<'a> {
         if let Some(expando) = self.expando_object_literal_type(node) {
             return Ok(expando);
         }
+        // tsgo checks the contextual type's deprecated properties after the
+        // file (`checkContextualDeprecations`).
+        self.check_node_deferred(node);
         let source = self.binder.source_of_node(node);
         let in_destructuring_pattern = node_util::is_assignment_target(source, node);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern)?;

@@ -1777,7 +1777,7 @@ impl<'a> CheckerState<'a> {
         let deprecated_entity = self
             .invoked_expression_of(node)
             .and_then(|expression| self.property_access_or_identifier_to_string(expression));
-        let signature_string = self.signature_to_string_for_overload_error(signature)?;
+        let signature_string = self.signature_to_string_default(signature)?;
         self.add_deprecated_suggestion_with_signature(
             suggestion_node,
             declaration,
