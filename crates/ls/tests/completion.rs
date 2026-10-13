@@ -1922,3 +1922,506 @@ fn jsx_attribute_snippets() {
         ),
     );
 }
+/// The string literal types of a contextual union, at a variable's initializer.
+#[test]
+fn string_literal_types_of_a_contextual_union() {
+    let files = [
+        ("/completionForStringLiteral.ts", "type Options = \"Option 1\" | \"Option 2\" | \"Option 3\";\nvar x: Options = \"Option 3\";\n\nfunction f(a: Options) { };\nf(\""),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionForStringLiteral.ts",
+            (1, 18),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "Option 1", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 18}, "end": {"line": 1, "character": 26}}, "newText": "Option 1"}, "data": {"fileName": "/completionForStringLiteral.ts", "position": 71, "name": "Option 1"}}, {"label": "Option 2", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 18}, "end": {"line": 1, "character": 26}}, "newText": "Option 2"}, "data": {"fileName": "/completionForStringLiteral.ts", "position": 71, "name": "Option 2"}}, {"label": "Option 3", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 18}, "end": {"line": 1, "character": 26}}, "newText": "Option 3"}, "data": {"fileName": "/completionForStringLiteral.ts", "position": 71, "name": "Option 3"}}]}"#
+        ),
+    );
+}
+
+/// The quoted property names of an object literal's contextual type.
+#[test]
+fn quoted_property_names_of_an_object_literal() {
+    let files = [
+        ("/completionForQuotedPropertyInPropertyAssignment1.ts", "export interface Configfiles {\n  jspm: string;\n  'jspm:browser': string;\n}\nlet files: Configfiles;\nfiles = {\n   : '',\n   '': ''\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionForQuotedPropertyInPropertyAssignment1.ts",
+            (7, 4),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 7, "character": 4}, "end": {"line": 7, "character": 4}}, "replace": {"start": {"line": 7, "character": 4}, "end": {"line": 7, "character": 4}}}}, "items": [{"label": "jspm", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 4}, "end": {"line": 7, "character": 4}}, "newText": "jspm"}, "data": {"fileName": "/completionForQuotedPropertyInPropertyAssignment1.ts", "position": 122, "name": "jspm"}}, {"label": "jspm:browser", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 4}, "end": {"line": 7, "character": 4}}, "newText": "jspm:browser"}, "data": {"fileName": "/completionForQuotedPropertyInPropertyAssignment1.ts", "position": 122, "name": "jspm:browser"}}]}"#
+        ),
+    );
+}
+
+/// The property names of an element access, a new identifier with an index signature.
+#[test]
+fn property_names_of_an_element_access() {
+    let files = [
+        ("/completionForStringLiteral2.ts", "var o = {\n    foo() { },\n    bar: 0,\n    \"some other name\": 1\n};\ndeclare const p: { [s: string]: any, a: number };\n\no[\"bar\"];\no[\" ;\np[\"\"];"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionForStringLiteral2.ts",
+            (7, 3),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 7, "character": 3}, "end": {"line": 7, "character": 3}}, "replace": {"start": {"line": 7, "character": 3}, "end": {"line": 7, "character": 6}}}}, "items": [{"label": "foo", "kind": 2, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 3}, "end": {"line": 7, "character": 6}}, "newText": "foo"}, "data": {"fileName": "/completionForStringLiteral2.ts", "position": 119, "name": "foo"}}, {"label": "bar", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 3}, "end": {"line": 7, "character": 6}}, "newText": "bar"}, "data": {"fileName": "/completionForStringLiteral2.ts", "position": 119, "name": "bar"}}, {"label": "some other name", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 3}, "end": {"line": 7, "character": 6}}, "newText": "some other name"}, "data": {"fileName": "/completionForStringLiteral2.ts", "position": 119, "name": "some other name"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionForStringLiteral2.ts",
+            (8, 3),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 8, "character": 3}, "end": {"line": 8, "character": 3}}, "replace": {"start": {"line": 8, "character": 3}, "end": {"line": 8, "character": 3}}}}, "items": [{"label": "foo", "kind": 2, "sortText": "11", "textEdit": {"range": {"start": {"line": 8, "character": 3}, "end": {"line": 8, "character": 3}}, "newText": "foo"}, "data": {"fileName": "/completionForStringLiteral2.ts", "position": 129, "name": "foo"}}, {"label": "bar", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 8, "character": 3}, "end": {"line": 8, "character": 3}}, "newText": "bar"}, "data": {"fileName": "/completionForStringLiteral2.ts", "position": 129, "name": "bar"}}, {"label": "some other name", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 8, "character": 3}, "end": {"line": 8, "character": 3}}, "newText": "some other name"}, "data": {"fileName": "/completionForStringLiteral2.ts", "position": 129, "name": "some other name"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionForStringLiteral2.ts",
+            (9, 3),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [], "editRange": {"insert": {"start": {"line": 9, "character": 3}, "end": {"line": 9, "character": 3}}, "replace": {"start": {"line": 9, "character": 3}, "end": {"line": 9, "character": 3}}}}, "items": [{"label": "a", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 9, "character": 3}, "end": {"line": 9, "character": 3}}, "newText": "a"}, "data": {"fileName": "/completionForStringLiteral2.ts", "position": 135, "name": "a"}}]}"#
+        ),
+    );
+}
+
+/// The property names of an indexed access type, less those in the union already.
+#[test]
+fn property_names_of_an_indexed_access_type() {
+    let files = [
+        ("/stringLiteralCompletionsForTypeIndexedAccess.ts", "type Foo = { a: string; b: number; c: boolean; };\ntype A = Foo[\"\"];\ntype AorB = Foo[\"a\" | \"\"];"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringLiteralCompletionsForTypeIndexedAccess.ts",
+            (1, 14),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 1, "character": 14}, "end": {"line": 1, "character": 14}}, "replace": {"start": {"line": 1, "character": 14}, "end": {"line": 1, "character": 14}}}}, "items": [{"label": "a", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 14}, "end": {"line": 1, "character": 14}}, "newText": "a"}, "data": {"fileName": "/stringLiteralCompletionsForTypeIndexedAccess.ts", "position": 64, "name": "a"}}, {"label": "b", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 14}, "end": {"line": 1, "character": 14}}, "newText": "b"}, "data": {"fileName": "/stringLiteralCompletionsForTypeIndexedAccess.ts", "position": 64, "name": "b"}}, {"label": "c", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 14}, "end": {"line": 1, "character": 14}}, "newText": "c"}, "data": {"fileName": "/stringLiteralCompletionsForTypeIndexedAccess.ts", "position": 64, "name": "c"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringLiteralCompletionsForTypeIndexedAccess.ts",
+            (2, 23),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"], "editRange": {"insert": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 23}}, "replace": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 23}}}}, "items": [{"label": "b", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 23}}, "newText": "b"}, "data": {"fileName": "/stringLiteralCompletionsForTypeIndexedAccess.ts", "position": 91, "name": "b"}}, {"label": "c", "kind": 5, "sortText": "11", "textEdit": {"range": {"start": {"line": 2, "character": 23}, "end": {"line": 2, "character": 23}}, "newText": "c"}, "data": {"fileName": "/stringLiteralCompletionsForTypeIndexedAccess.ts", "position": 91, "name": "c"}}]}"#
+        ),
+    );
+}
+
+/// The string literals of a switch's type that no case clause has.
+#[test]
+fn string_literals_of_case_clauses() {
+    let files = [
+        ("/switchCompletions.ts", "enum E { A, B }\ndeclare const e: E;\nswitch (e) {\n    case E.A:\n        return 0;\n    case E.\n}\ndeclare const f: 1 | 2 | 3;\nswitch (f) {\n    case 1:\n        return 1;\n    case \n}\ndeclare const f2: 'foo' | 'bar' | 'baz';\nswitch (f2) {\n    case 'bar':\n        return 1;\n    case ''\n}\n\n// repro from #52874\ndeclare let x: \"foo\" | \"bar\";\nswitch (x) {\n    case ('')\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/switchCompletions.ts",
+            (17, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "baz", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 17, "character": 10}, "end": {"line": 17, "character": 10}}, "newText": "baz"}, "data": {"fileName": "/switchCompletions.ts", "position": 277, "name": "baz"}}, {"label": "foo", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 17, "character": 10}, "end": {"line": 17, "character": 10}}, "newText": "foo"}, "data": {"fileName": "/switchCompletions.ts", "position": 277, "name": "foo"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/switchCompletions.ts",
+            (23, 11),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "bar", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 23, "character": 11}, "end": {"line": 23, "character": 11}}, "newText": "bar"}, "data": {"fileName": "/switchCompletions.ts", "position": 357, "name": "bar"}}, {"label": "foo", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 23, "character": 11}, "end": {"line": 23, "character": 11}}, "newText": "foo"}, "data": {"fileName": "/switchCompletions.ts", "position": 357, "name": "foo"}}]}"#
+        ),
+    );
+}
+
+/// String literal types escaped for the quote of the literal.
+#[test]
+fn string_literals_escaped_for_their_quote() {
+    let files = [
+        ("/stringCompletionsVsEscaping.ts", "type Value<P extends string> = `var(--\\\\\\\\, ${P})`\nexport const value: Value<'one' | 'two'> = \"\"\n\nexport const test: `\\ntest\\n` = ''\n\nexport const doubleQuoted1: `\"double-quoted\"` = ''\nexport const doubleQuoted2: `\"double-quoted\"` = \"\"\n\nexport const singleQuoted2: `'single-quoted'` = \"\"\nexport const singleQuoted2: `'single-quoted'` = ''\n\nexport const backtickQuoted1: '`backtick-quoted`' = \"\"\nexport const backtickQuoted2: '`backtick-quoted`' = ``"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringCompletionsVsEscaping.ts",
+            (1, 44),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "var(--\\\\\\\\, one)", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 44}, "end": {"line": 1, "character": 44}}, "newText": "var(--\\\\\\\\, one)"}, "data": {"fileName": "/stringCompletionsVsEscaping.ts", "position": 95, "name": "var(--\\\\\\\\, one)"}}, {"label": "var(--\\\\\\\\, two)", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 44}, "end": {"line": 1, "character": 44}}, "newText": "var(--\\\\\\\\, two)"}, "data": {"fileName": "/stringCompletionsVsEscaping.ts", "position": 95, "name": "var(--\\\\\\\\, two)"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringCompletionsVsEscaping.ts",
+            (3, 33),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "\\ntest\\n", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 3, "character": 33}, "end": {"line": 3, "character": 33}}, "newText": "\\ntest\\n"}, "data": {"fileName": "/stringCompletionsVsEscaping.ts", "position": 131, "name": "\\ntest\\n"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringCompletionsVsEscaping.ts",
+            (5, 49),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "\\\"double-quoted\\\"", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 5, "character": 49}, "end": {"line": 5, "character": 49}}, "newText": "\\\"double-quoted\\\""}, "data": {"fileName": "/stringCompletionsVsEscaping.ts", "position": 183, "name": "\\\"double-quoted\\\""}}]}"#
+        ),
+    );
+}
+
+/// The string literals of a JSX attribute, and the names of the props in an element's attribute initializer.
+#[test]
+fn string_literals_of_a_jsx_attribute() {
+    let files = [
+        ("/a.tsx", "type Props = { a: number } | { b: \"somethingelse\", c: 0 | 1 };\ndeclare function Foo(args: Props): any\n\nconst a1 = <Foo b={\"\"} />\nconst a2 = <Foo b=\"\" />\nconst a3 = <Foo b=\"somethingelse\" />\nconst a4 = <Foo b={\"somethingelse\"}  />\nconst a5 = <Foo b={\"somethingelse\"} c={0}  />"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.tsx", (3, 20), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "somethingelse", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 3, "character": 20}, "end": {"line": 3, "character": 20}}, "newText": "somethingelse"}, "data": {"fileName": "/a.tsx", "position": 123, "name": "somethingelse"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.tsx", (4, 19), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "somethingelse", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 4, "character": 19}, "end": {"line": 4, "character": 19}}, "newText": "somethingelse"}, "data": {"fileName": "/a.tsx", "position": 148, "name": "somethingelse"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.tsx", (5, 33), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "a", "kind": 5, "sortText": "11", "data": {"fileName": "/a.tsx", "position": 186, "name": "a"}}, {"label": "b", "kind": 5, "sortText": "11", "data": {"fileName": "/a.tsx", "position": 186, "name": "b"}}, {"label": "c", "kind": 5, "sortText": "11", "data": {"fileName": "/a.tsx", "position": 186, "name": "c"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.tsx", (6, 36), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "a", "kind": 5, "sortText": "11", "data": {"fileName": "/a.tsx", "position": 226, "name": "a"}}, {"label": "c", "kind": 5, "sortText": "11", "data": {"fileName": "/a.tsx", "position": 226, "name": "c"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.tsx", (7, 42), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "a", "kind": 5, "sortText": "11", "data": {"fileName": "/a.tsx", "position": 272, "name": "a"}}]}"#
+        ),
+    );
+}
+
+/// The keys a generic parameter takes, in a call, a JSX element and a JavaScript file.
+#[test]
+fn string_literals_of_a_generic_parameter() {
+    let files = [
+        ("/a.tsx", "interface Events {\n  \"\": any;\n  drag: any;\n  dragenter: any;\n}\ndeclare function addListener<K extends keyof Events>(type: K, listener: (ev: Events[K]) => any): void;\n\ndeclare function ListenerComponent<K extends keyof Events>(props: { type: K, onWhatever: (ev: Events[K]) => void }): JSX.Element;\n\naddListener(\"\");\n(<ListenerComponent type=\"\" />);"),
+        ("/b.js", "addListener(\"\");"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.allow_js = true;
+        })
+    };
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.tsx", (9, 13), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 9, "character": 13}, "end": {"line": 9, "character": 13}}, "newText": ""}, "data": {"fileName": "/a.tsx", "position": 311}}, {"label": "drag", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 9, "character": 13}, "end": {"line": 9, "character": 13}}, "newText": "drag"}, "data": {"fileName": "/a.tsx", "position": 311, "name": "drag"}}, {"label": "dragenter", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 9, "character": 13}, "end": {"line": 9, "character": 13}}, "newText": "dragenter"}, "data": {"fileName": "/a.tsx", "position": 311, "name": "dragenter"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/a.tsx", (10, 26), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 26}, "end": {"line": 10, "character": 26}}, "newText": ""}, "data": {"fileName": "/a.tsx", "position": 341}}, {"label": "drag", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 26}, "end": {"line": 10, "character": 26}}, "newText": "drag"}, "data": {"fileName": "/a.tsx", "position": 341, "name": "drag"}}, {"label": "dragenter", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 26}, "end": {"line": 10, "character": 26}}, "newText": "dragenter"}, "data": {"fileName": "/a.tsx", "position": 341, "name": "dragenter"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(&files, compiler_options(), "/b.js", (0, 13), None),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 0, "character": 13}, "end": {"line": 0, "character": 13}}, "newText": ""}, "data": {"fileName": "/b.js", "position": 13}}, {"label": "drag", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 0, "character": 13}, "end": {"line": 0, "character": 13}}, "newText": "drag"}, "data": {"fileName": "/b.js", "position": 13, "name": "drag"}}, {"label": "dragenter", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 0, "character": 13}, "end": {"line": 0, "character": 13}}, "newText": "dragenter"}, "data": {"fileName": "/b.js", "position": 13, "name": "dragenter"}}]}"#
+        ),
+    );
+}
+
+/// The literals a parameter takes as inferred from the arguments before it.
+#[test]
+fn string_literals_inferred_from_a_previous_argument() {
+    let files = [
+        ("/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "// https://github.com/microsoft/TypeScript/issues/55545\nenum myEnum {\n  valA = \"valA\",\n  valB = \"valB\",\n}\n\ninterface myEnumParamMapping {\n  [\"valA\"]: \"1\" | \"2\";\n  [\"valB\"]: \"3\" | \"4\";\n}\n\nfunction myFunction<K extends keyof typeof myEnum>(\n  a: K,\n  b: myEnumParamMapping[K],\n) {}\n\nmyFunction(\"valA\", \"\");\nmyFunction(\"valA\", ``);\n\nfunction myFunction2<K extends keyof typeof myEnum>(\n  a: K,\n  { b }: { b: myEnumParamMapping[K] },\n) {}\n\nmyFunction2(\"valA\", { b: \"\" });\nmyFunction2(\"valA\", { b: `` });"),
+    ];
+    let compiler_options = || {
+        options(|options| {
+            options.strict = Some(true);
+        })
+    };
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts",
+            (16, 20),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "1", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 16, "character": 20}, "end": {"line": 16, "character": 20}}, "newText": "1"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 301, "name": "1"}}, {"label": "2", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 16, "character": 20}, "end": {"line": 16, "character": 20}}, "newText": "2"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 301, "name": "2"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts",
+            (17, 20),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "1", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 17, "character": 20}, "end": {"line": 17, "character": 20}}, "newText": "1"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 325, "name": "1"}}, {"label": "2", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 17, "character": 20}, "end": {"line": 17, "character": 20}}, "newText": "2"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 325, "name": "2"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts",
+            (24, 26),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "1", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 24, "character": 26}, "end": {"line": 24, "character": 26}}, "newText": "1"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 462, "name": "1"}}, {"label": "2", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 24, "character": 26}, "end": {"line": 24, "character": 26}}, "newText": "2"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 462, "name": "2"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts",
+            (25, 26),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "1", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 25, "character": 26}, "end": {"line": 25, "character": 26}}, "newText": "1"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 494, "name": "1"}}, {"label": "2", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 25, "character": 26}, "end": {"line": 25, "character": 26}}, "newText": "2"}, "data": {"fileName": "/stringLiteralCompletionsInArgUsingInferenceResultFromPreviousArg.ts", "position": 494, "name": "2"}}]}"#
+        ),
+    );
+}
+
+/// The string literals of a type argument's property, from its type parameter's constraint.
+#[test]
+fn string_literals_of_a_type_argument_property() {
+    let files = [
+        ("/completionListInTypeLiteralInTypeParameter18.ts", "class Foo<T extends { x: 'one' | 'two' }> {}\nfunction foo<T extends { x: 'one' | 'two' }>() {}\ndeclare function tag<T extends { x: 'one' | 'two' }>(x: TemplateStringsArray): void;\ndeclare function decorator<T extends { x: 'one' | 'two' }>(...args: unknown[]): never\n\ntype A = Foo<{ x: '' }>;\nnew Foo<{ x: '' }>();\nfoo<{ x: '' }>();\nfoo<{ x: '' }>;\nFoo<{ x: '' }>;\ntag<{ x: '' }>``;\nclass { @decorator<{ x: '' }>; method() {} }"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter18.ts",
+            (5, 19),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "one", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 5, "character": 19}, "end": {"line": 5, "character": 19}}, "newText": "one"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 286, "name": "one"}}, {"label": "two", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 5, "character": 19}, "end": {"line": 5, "character": 19}}, "newText": "two"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 286, "name": "two"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter18.ts",
+            (6, 14),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "one", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 6, "character": 14}, "end": {"line": 6, "character": 14}}, "newText": "one"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 306, "name": "one"}}, {"label": "two", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 6, "character": 14}, "end": {"line": 6, "character": 14}}, "newText": "two"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 306, "name": "two"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter18.ts",
+            (7, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "one", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 10}, "end": {"line": 7, "character": 10}}, "newText": "one"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 324, "name": "one"}}, {"label": "two", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 10}, "end": {"line": 7, "character": 10}}, "newText": "two"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 324, "name": "two"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter18.ts",
+            (8, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "one", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 8, "character": 10}, "end": {"line": 8, "character": 10}}, "newText": "one"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 342, "name": "one"}}, {"label": "two", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 8, "character": 10}, "end": {"line": 8, "character": 10}}, "newText": "two"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 342, "name": "two"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter18.ts",
+            (9, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "one", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 9, "character": 10}, "end": {"line": 9, "character": 10}}, "newText": "one"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 358, "name": "one"}}, {"label": "two", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 9, "character": 10}, "end": {"line": 9, "character": 10}}, "newText": "two"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 358, "name": "two"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter18.ts",
+            (10, 10),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "one", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 10}, "end": {"line": 10, "character": 10}}, "newText": "one"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 374, "name": "one"}}, {"label": "two", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 10}, "end": {"line": 10, "character": 10}}, "newText": "two"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 374, "name": "two"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionListInTypeLiteralInTypeParameter18.ts",
+            (11, 25),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "one", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 11, "character": 25}, "end": {"line": 11, "character": 25}}, "newText": "one"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 407, "name": "one"}}, {"label": "two", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 11, "character": 25}, "end": {"line": 11, "character": 25}}, "newText": "two"}, "data": {"fileName": "/completionListInTypeLiteralInTypeParameter18.ts", "position": 407, "name": "two"}}]}"#
+        ),
+    );
+}
+
+/// The string literals a property takes in the members of a union the other properties allow.
+#[test]
+fn string_literals_of_a_discriminated_union_property() {
+    let files = [
+        ("/completionsUnionStringLiteralProperty.ts", "type Foo = { a: 0, b: 'x' } | { a: 0, b: 'y' } | { a: 1, b: 'z' };\nconst foo: Foo = { a: 0, b: '' }\n\ntype Bar = { a: 0, b: 'fx' } | { a: 0, b: 'fy' } | { a: 1, b: 'fz' };\nconst bar: Bar = { a: 0, b: 'f' }\n\ntype Baz = { x: 0, y: 0, z: 'a' } | { x: 0, y: 1, z: 'b' } | { x: 1, y: 0, z: 'c' } | { x: 1, y: 1, z: 'd' };\nconst baz1: Baz = { z: '' };\nconst baz2: Baz = { x: 0, z: '' };\nconst baz3: Baz = { x: 0, y: 1, z: '' };\nconst baz4: Baz = { x: 2, y: 1, z: '' };"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionsUnionStringLiteralProperty.ts",
+            (1, 29),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "x", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 29}, "end": {"line": 1, "character": 29}}, "newText": "x"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 96, "name": "x"}}, {"label": "y", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 1, "character": 29}, "end": {"line": 1, "character": 29}}, "newText": "y"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 96, "name": "y"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionsUnionStringLiteralProperty.ts",
+            (4, 30),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "fx", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 4, "character": 29}, "end": {"line": 4, "character": 30}}, "newText": "fx"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 201, "name": "fx"}}, {"label": "fy", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 4, "character": 29}, "end": {"line": 4, "character": 30}}, "newText": "fy"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 201, "name": "fy"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionsUnionStringLiteralProperty.ts",
+            (7, 24),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "a", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 24}, "end": {"line": 7, "character": 24}}, "newText": "a"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 340, "name": "a"}}, {"label": "b", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 24}, "end": {"line": 7, "character": 24}}, "newText": "b"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 340, "name": "b"}}, {"label": "c", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 24}, "end": {"line": 7, "character": 24}}, "newText": "c"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 340, "name": "c"}}, {"label": "d", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 7, "character": 24}, "end": {"line": 7, "character": 24}}, "newText": "d"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 340, "name": "d"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionsUnionStringLiteralProperty.ts",
+            (8, 30),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "a", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 8, "character": 30}, "end": {"line": 8, "character": 30}}, "newText": "a"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 375, "name": "a"}}, {"label": "b", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 8, "character": 30}, "end": {"line": 8, "character": 30}}, "newText": "b"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 375, "name": "b"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionsUnionStringLiteralProperty.ts",
+            (9, 36),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "b", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 9, "character": 36}, "end": {"line": 9, "character": 36}}, "newText": "b"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 416, "name": "b"}}]}"#
+        ),
+    );
+    assert_eq!(
+        completion(
+            &files,
+            compiler_options(),
+            "/completionsUnionStringLiteralProperty.ts",
+            (10, 36),
+            None
+        ),
+        tsgo(
+            r#"{"isIncomplete": false, "itemDefaults": {"commitCharacters": [".", ",", ";"]}, "items": [{"label": "b", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 36}, "end": {"line": 10, "character": 36}}, "newText": "b"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 457, "name": "b"}}, {"label": "d", "kind": 21, "sortText": "11", "textEdit": {"range": {"start": {"line": 10, "character": 36}, "end": {"line": 10, "character": 36}}, "newText": "d"}, "data": {"fileName": "/completionsUnionStringLiteralProperty.ts", "position": 457, "name": "d"}}]}"#
+        ),
+    );
+}
