@@ -168,6 +168,13 @@
       "bytes": 35696
     },
     {
+      "path": "tsc/internal/lsp/lsproto/lsp_generated.go",
+      "git_blob_sha1": "8e86bcc88a333c047bb636dfdc96ec9b51aec878",
+      "blob_inventory_sha256": "452d79ef50a42aadc6a956e4a36c22a0caef8ce434db4333f32e95e32d4a0934",
+      "files": 1,
+      "bytes": 631439
+    },
+    {
       "path": "tsc/testdata/fixtures/services/mapCode.ts",
       "git_blob_sha1": "11d9fb5acf2f93955c39cad8dc27e51c818edfb7",
       "blob_inventory_sha256": "e7f5bc95fd2654edb5a7e5b43f5340112e8f733a850cef52ccae2096c287c33c",

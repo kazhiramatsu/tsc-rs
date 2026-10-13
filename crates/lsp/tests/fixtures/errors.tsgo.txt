@@ -1,0 +1,24 @@
+{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"ServerNotInitialized"}}
+{"jsonrpc":"2.0","id":0,"error":{"code":-32002,"message":"ServerNotInitialized"}}
+{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"InvalidParams: params must be an object or array"}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":3,"message":"Resolved client capabilities: {\n\t\"workspace\": {\n\t\t\"didChangeWatchedFiles\": {\n\t\t\t\"dynamicRegistration\": true\n\t\t}\n\t}\n}"}}
+{"jsonrpc":"2.0","id":3,"result":{"capabilities":{"positionEncoding":"utf-16","textDocumentSync":{"openClose":true,"change":2,"save":true},"completionProvider":{"triggerCharacters":[".","\"","'","`","/","@","<","#"," ","*"],"resolveProvider":true,"completionItem":{"labelDetailsSupport":true}},"hoverProvider":true,"signatureHelpProvider":{"triggerCharacters":["(",",","<"],"retriggerCharacters":[")"]},"definitionProvider":true,"typeDefinitionProvider":true,"implementationProvider":true,"referencesProvider":true,"documentHighlightProvider":true,"documentSymbolProvider":true,"codeActionProvider":{"codeActionKinds":["quickfix","source.organizeImports.ts","source.removeUnusedImports.ts","source.sortImports.ts","source.fixAll.ts"]},"codeLensProvider":{"resolveProvider":true},"workspaceSymbolProvider":true,"documentFormattingProvider":true,"documentRangeFormattingProvider":true,"documentOnTypeFormattingProvider":{"firstTriggerCharacter":"{","moreTriggerCharacter":["}",";","\n"]},"renameProvider":{"prepareProvider":true},"foldingRangeProvider":true,"selectionRangeProvider":true,"callHierarchyProvider":true,"linkedEditingRangeProvider":true,"semanticTokensProvider":{"legend":{"tokenTypes":[],"tokenModifiers":[]},"range":true,"full":true},"inlayHintProvider":true,"diagnosticProvider":{"identifier":"typescript","interFileDependencies":true,"workspaceDiagnostics":false},"workspace":{"fileOperations":{"willRename":{"filters":[{"scheme":"file","pattern":{"glob":"**/*.{ts,tsx,js,jsx,cts,cjs,mts,mjs,json}"}}]}}},"experimental":{"customSourceDefinitionProvider":true,"customMultiDocumentHighlightProvider":true},"_vs_onAutoInsertProvider":{"_vs_triggerCharacters":[">"]},"_vs_referencesProvider":true},"serverInfo":{"name":"typescript","version":"7.1.0-dev"}}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":1,"message":"error handling method 'shutdown' (4): ServerNotInitialized"}}
+{"jsonrpc":"2.0","id":4,"error":{"code":-32002,"message":"ServerNotInitialized"}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":3,"message":"file watching: using LSP client-side watching (client supports dynamic registration)"}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":3,"message":"received formatting options from initialization: map[string]interface {}\nmap[list:[true x <nil> 1.5 100000 0.0001] n:1e+21 quoteStyle:double]"}}
+{"jsonrpc":"2.0","id":"ts1","method":"client/registerCapability","params":{"registrations":[{"id":"typescript-config-watch-id","method":"workspace/didChangeConfiguration","registerOptions":{"section":["js/ts","typescript","javascript","editor"]}}]}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":3,"message":"handled method 'initialized' in <time>"}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":1,"message":"error handling method 'custom/setLogVerbosity': InvalidParams: invalid log verbosity 9"}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":1,"message":"error handling notification: InvalidParams: invalid log verbosity 9"}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":1,"message":"error handling method 'shutdown' (5): InvalidParams: expected no params, got {}"}}
+{"jsonrpc":"2.0","id":5,"error":{"code":-32602,"message":"InvalidParams: expected no params, got {}"}}
+{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"InvalidRequest: json: cannot unmarshal JSON object into Go lsproto.Message: InvalidRequest: json: cannot unmarshal JSON string into Go jsonrpc.JSONRPCVersion within \"/jsonrpc\": invalid JSON-RPC version"}}
+{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"InvalidRequest: json: cannot unmarshal JSON object into Go lsproto.Message: InvalidRequest: json: cannot unmarshal JSON number into Go jsonrpc.JSONRPCVersion within \"/jsonrpc\": invalid JSON-RPC version"}}
+{"jsonrpc":"2.0","id":9,"result":null}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":3,"message":"handled method 'custom/setLogVerbosity' in <time>"}}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":3,"message":"handled method 'workspace/didChangeConfiguration' in <time>"}}
+{"jsonrpc":"2.0","id":"s10","result":null}
+{"jsonrpc":"2.0","method":"window/logMessage","params":{"type":3,"message":"handled method 'shutdown' (s10) in <time>"}}
+EXIT 0
+STDERR ""

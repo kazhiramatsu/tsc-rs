@@ -67,6 +67,24 @@ fn run_on_worker_stack<T: Send>(work: impl Fn() -> T + Sync) -> T {
     })
 }
 
+/// tsgo `isProcessAlive` (cmd/tsc/isprocessalive_unix.go): signal 0
+/// reaches the process, or it exists but belongs to another user.
+#[cfg(unix)]
+fn is_process_alive(pid: i32) -> bool {
+    // SAFETY: kill with signal 0 sends nothing; it only checks that the
+    // process exists and may be signalled.
+    if unsafe { libc::kill(pid, 0) } == 0 {
+        return true;
+    }
+    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
+/// The parent process watchdog's check, where the platform has one.
+#[cfg(unix)]
+const PROCESS_ALIVE: Option<fn(i32) -> bool> = Some(is_process_alive);
+#[cfg(not(unix))]
+const PROCESS_ALIVE: Option<fn(i32) -> bool> = None;
+
 fn main() {
     // Return freed pages to the OS 10 ms after they empty (mimalloc v2's
     // default, pinned here). A large program's arenas and tables outgrow
@@ -83,14 +101,21 @@ fn main() {
     tsc_program::set_thread_start_hook(prefer_interactive_scheduling);
     prefer_interactive_scheduling();
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    // tsgo `runMain`: `--api` first serves the API (cmd/tsc/api.go).
-    if arguments
-        .first()
-        .is_some_and(|argument| argument == "--api")
-    {
-        let code = run_on_worker_stack(|| tsc_api::server::run_api(&arguments[1..]));
-        // SAFETY: as below; the server flushed every response it wrote.
-        unsafe { libc::_exit(code) }
+    // tsgo `runMain`: a first `--lsp` serves the language server
+    // (cmd/tsc/lsp.go), a first `--api` the API (cmd/tsc/api.go).
+    match arguments.first().map(String::as_str) {
+        Some("--lsp") => {
+            let code =
+                run_on_worker_stack(|| tsc_lsp::cli::run_lsp(&arguments[1..], PROCESS_ALIVE));
+            // SAFETY: as below; the server flushed every message it wrote.
+            unsafe { libc::_exit(code) }
+        }
+        Some("--api") => {
+            let code = run_on_worker_stack(|| tsc_api::server::run_api(&arguments[1..]));
+            // SAFETY: as below; the server flushed every response it wrote.
+            unsafe { libc::_exit(code) }
+        }
+        _ => {}
     }
     let output = run_on_worker_stack(|| tsc_compiler::run_cli(&arguments));
     {

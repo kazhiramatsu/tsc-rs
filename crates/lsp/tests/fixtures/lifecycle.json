@@ -1,0 +1,327 @@
+{
+ "answers": {
+  "workspace/configuration": [
+   {
+    "preferences": {
+     "quoteStyle": "single"
+    },
+    "format": {
+     "tabSize": 4
+    }
+   },
+   {},
+   null,
+   {
+    "tabSize": 2,
+    "insertSpaces": true
+   }
+  ],
+  "client/registerCapability": null
+ },
+ "steps": [
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+     "processId": null,
+     "locale": "ja",
+     "rootUri": "file:///workspace/ws",
+     "capabilities": {
+      "general": {
+       "positionEncodings": [
+        "utf-16",
+        "utf-8"
+       ],
+       "staleRequestSupport": {
+        "cancel": true,
+        "retryOnContentModified": [
+         "textDocument/semanticTokens/full"
+        ]
+       },
+       "markdown": {
+        "parser": "marked",
+        "version": "1.1.0"
+       }
+      },
+      "workspace": {
+       "applyEdit": true,
+       "workspaceEdit": {
+        "documentChanges": true,
+        "resourceOperations": [
+         "create",
+         "rename",
+         "delete"
+        ]
+       },
+       "didChangeConfiguration": {
+        "dynamicRegistration": true
+       },
+       "didChangeWatchedFiles": {
+        "dynamicRegistration": true,
+        "relativePatternSupport": true
+       },
+       "configuration": true,
+       "workspaceFolders": true,
+       "semanticTokens": {
+        "refreshSupport": true
+       }
+      },
+      "textDocument": {
+       "synchronization": {
+        "dynamicRegistration": true,
+        "willSave": true,
+        "didSave": true
+       },
+       "completion": {
+        "dynamicRegistration": true,
+        "contextSupport": true,
+        "completionItem": {
+         "snippetSupport": true,
+         "commitCharactersSupport": true,
+         "documentationFormat": [
+          "markdown",
+          "plaintext"
+         ],
+         "deprecatedSupport": true,
+         "preselectSupport": true,
+         "tagSupport": {
+          "valueSet": [
+           1
+          ]
+         },
+         "insertReplaceSupport": true,
+         "resolveSupport": {
+          "properties": [
+           "documentation",
+           "detail",
+           "additionalTextEdits"
+          ]
+         },
+         "insertTextModeSupport": {
+          "valueSet": [
+           1,
+           2
+          ]
+         },
+         "labelDetailsSupport": true
+        },
+        "insertTextMode": 2,
+        "completionItemKind": {
+         "valueSet": [
+          1,
+          2,
+          3,
+          4,
+          5
+         ]
+        },
+        "completionList": {
+         "itemDefaults": [
+          "commitCharacters",
+          "editRange",
+          "insertTextFormat",
+          "insertTextMode",
+          "data"
+         ]
+        }
+       },
+       "hover": {
+        "dynamicRegistration": true,
+        "contentFormat": [
+         "markdown",
+         "plaintext"
+        ]
+       },
+       "semanticTokens": {
+        "dynamicRegistration": true,
+        "tokenTypes": [
+         "namespace",
+         "type",
+         "class",
+         "enum",
+         "interface",
+         "struct",
+         "typeParameter",
+         "parameter",
+         "variable",
+         "property",
+         "enumMember",
+         "event",
+         "function",
+         "method",
+         "macro",
+         "keyword",
+         "modifier",
+         "comment",
+         "string",
+         "number",
+         "regexp",
+         "operator",
+         "decorator",
+         "label"
+        ],
+        "tokenModifiers": [
+         "declaration",
+         "definition",
+         "readonly",
+         "static",
+         "deprecated",
+         "abstract",
+         "async",
+         "modification",
+         "documentation",
+         "defaultLibrary"
+        ],
+        "formats": [
+         "relative"
+        ],
+        "requests": {
+         "range": true,
+         "full": {
+          "delta": true
+         }
+        },
+        "multilineTokenSupport": false,
+        "overlappingTokenSupport": false,
+        "serverCancelSupport": true,
+        "augmentsSyntaxTokens": true
+       },
+       "publishDiagnostics": {
+        "relatedInformation": true,
+        "versionSupport": false,
+        "tagSupport": {
+         "valueSet": [
+          1,
+          2
+         ]
+        },
+        "codeDescriptionSupport": true,
+        "dataSupport": true
+       },
+       "rename": {
+        "dynamicRegistration": true,
+        "prepareSupport": true,
+        "prepareSupportDefaultBehavior": 1,
+        "honorsChangeAnnotations": true
+       },
+       "codeAction": {
+        "dynamicRegistration": true,
+        "isPreferredSupport": true,
+        "disabledSupport": true,
+        "dataSupport": true,
+        "resolveSupport": {
+         "properties": [
+          "edit"
+         ]
+        },
+        "codeActionLiteralSupport": {
+         "codeActionKind": {
+          "valueSet": [
+           "",
+           "quickfix",
+           "refactor",
+           "source"
+          ]
+         }
+        },
+        "honorsChangeAnnotations": false
+       }
+      },
+      "window": {
+       "showMessage": {
+        "messageActionItem": {
+         "additionalPropertiesSupport": true
+        }
+       },
+       "showDocument": {
+        "support": true
+       },
+       "workDoneProgress": false
+      }
+     },
+     "workspaceFolders": [
+      {
+       "uri": "file:///workspace/ws",
+       "name": "ws"
+      }
+     ],
+     "initializationOptions": {
+      "logVerbosity": 3
+     }
+    }
+   }
+  },
+  {
+   "wait": 1
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "method": "initialized",
+    "params": {}
+   }
+  },
+  {
+   "waitMethod": "client/registerCapability"
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "textDocument/unknownMethod",
+    "params": {}
+   }
+  },
+  {
+   "wait": 2
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "method": "workspace/didChangeConfiguration",
+    "params": {
+     "settings": null
+    }
+   }
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "method": "$/setTrace",
+    "params": {
+     "value": "verbose"
+    }
+   }
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "id": "abc",
+    "method": "initialize",
+    "params": {
+     "processId": null,
+     "rootUri": null,
+     "capabilities": {}
+    }
+   }
+  },
+  {
+   "wait": "abc"
+  },
+  {
+   "send": {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "shutdown"
+   }
+  },
+  {
+   "wait": 3
+  },
+  {
+   "close": true
+  }
+ ]
+}

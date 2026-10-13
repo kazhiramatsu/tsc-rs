@@ -7,8 +7,8 @@ license.workspace = true
 [package.metadata.tsc-rs]
 role = "cli"
 
-# The command (tsgo cmd/tsc): the compiler's command line, and `--api` for
-# the API server.
+# The command (tsgo cmd/tsc): the compiler's command line, `--lsp` for the
+# language server and `--api` for the API server.
 [[bin]]
 name = "tsc-rs"
 path = "src/main.rs"
@@ -19,6 +19,7 @@ libmimalloc-sys = { version = "0.1", features = ["extended"] }
 mimalloc = "0.1"
 tsc-api.workspace = true
 tsc-compiler.workspace = true
+tsc-lsp.workspace = true
 tsc-program.workspace = true
 tsc-types.workspace = true
 

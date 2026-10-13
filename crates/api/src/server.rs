@@ -10,6 +10,7 @@ use std::sync::Arc;
 use tsc_compiler::content_mapper_process::NativeSpawner;
 use tsc_compiler::system::{BundledFs, EMBEDDED_LIBRARY_DIRECTORY};
 use tsc_compiler::DEFAULT_LOAD_LIMITS;
+use tsc_host::flag::{self, Flag, Kind, Value};
 use tsc_host::vfs::{FileSystem, OsFs};
 use tsc_host::{CompilerHost, FsCompilerHost};
 use tsc_program::LibraryCatalog;
@@ -175,46 +176,48 @@ pub fn run_api(arguments: &[String]) -> i32 {
     }
 }
 
-/// The flags of tsgo `parseAPIFlags`, sorted by name: name, value type
-/// (empty for a boolean), usage.
-const API_FLAGS: &[(&str, &str, &str)] = &[
-    (
-        "async",
-        "",
-        "use JSON-RPC protocol instead of MessagePack (for async API)",
-    ),
-    (
-        "callbacks",
-        "string",
-        "comma-separated list of FS callbacks and defaults to enable",
-    ),
-    ("cwd", "string", "current working directory"),
-    (
-        "pipe",
-        "string",
-        "use named pipe or Unix domain socket for communication instead of stdio",
-    ),
-    (
-        "runExternalCode",
-        "",
-        "allow projects to execute configured external plugins",
-    ),
-    (
-        "timing",
-        "",
-        "collect per-request server processing time, folded into the client's timing snapshot",
-    ),
-    (
-        "useCaseSensitiveFileNames",
-        "",
-        "treat filesystem paths as case-sensitive",
-    ),
+/// The flags of tsgo `parseAPIFlags`.
+const API_FLAGS: &[Flag] = &[
+    Flag {
+        name: "async",
+        kind: Kind::Bool,
+        usage: "use JSON-RPC protocol instead of MessagePack (for async API)",
+    },
+    Flag {
+        name: "callbacks",
+        kind: Kind::String,
+        usage: "comma-separated list of FS callbacks and defaults to enable",
+    },
+    Flag {
+        name: "cwd",
+        kind: Kind::String,
+        usage: "current working directory",
+    },
+    Flag {
+        name: "pipe",
+        kind: Kind::String,
+        usage: "use named pipe or Unix domain socket for communication instead of stdio",
+    },
+    Flag {
+        name: "runExternalCode",
+        kind: Kind::Bool,
+        usage: "allow projects to execute configured external plugins",
+    },
+    Flag {
+        name: "timing",
+        kind: Kind::Bool,
+        usage:
+            "collect per-request server processing time, folded into the client's timing snapshot",
+    },
+    Flag {
+        name: "useCaseSensitiveFileNames",
+        kind: Kind::Bool,
+        usage: "treat filesystem paths as case-sensitive",
+    },
 ];
 
-/// tsgo `parseAPIFlags` with Go's `flag` package: `-name` or `--name`, a
-/// value after `=` or in the next argument, parsing up to the first
-/// argument that is not a flag. An error carries Go's message, or none for
-/// `-h` and `-help`.
+/// tsgo `parseAPIFlags` with Go's `flag` package. An error carries Go's
+/// message, or none for `-h` and `-help`.
 pub fn parse_api_flags(
     arguments: &[String],
     default_directory: &str,
@@ -226,58 +229,20 @@ pub fn parse_api_flags(
         ..ServerOptions::default()
     };
     let mut callbacks = String::new();
-    let mut remaining = arguments.iter();
-    while let Some(argument) = remaining.next() {
-        let Some(flag) = argument
-            .strip_prefix("--")
-            .or_else(|| argument.strip_prefix('-'))
-            .filter(|flag| argument.len() > 1 && !flag.is_empty())
-        else {
-            break;
-        };
-        if flag.starts_with('-') || flag.starts_with('=') {
-            return Err(Some(format!("bad flag syntax: {argument}")));
-        }
-        let (name, value) = match flag.split_once('=') {
-            Some((name, value)) => (name, Some(value)),
-            None => (flag, None),
-        };
-        let Some((_, kind, _)) = API_FLAGS.iter().find(|(known, _, _)| *known == name) else {
-            if name == "help" || name == "h" {
-                return Err(None);
+    for (name, value) in flag::parse(arguments, API_FLAGS)? {
+        match (name, value) {
+            ("async", Value::Bool(enabled)) => options.async_protocol = enabled,
+            ("timing", Value::Bool(enabled)) => options.collect_timing = enabled,
+            ("useCaseSensitiveFileNames", Value::Bool(enabled)) => {
+                options.use_case_sensitive_file_names = Some(enabled);
             }
-            return Err(Some(format!("flag provided but not defined: -{name}")));
-        };
-        if kind.is_empty() {
-            let enabled = match value {
-                None => true,
-                Some(value) => parse_go_bool(value).ok_or_else(|| {
-                    Some(format!(
-                        "invalid boolean value {value:?} for -{name}: parse error"
-                    ))
-                })?,
-            };
-            match name {
-                "async" => options.async_protocol = enabled,
-                "timing" => options.collect_timing = enabled,
-                "useCaseSensitiveFileNames" => {
-                    options.use_case_sensitive_file_names = Some(enabled);
-                }
-                _ => options.run_external_code = enabled,
+            ("runExternalCode", Value::Bool(enabled)) => options.run_external_code = enabled,
+            ("cwd", Value::String(value)) => options.current_directory = value,
+            ("pipe", Value::String(value)) => {
+                options.pipe_path = Some(value).filter(|path| !path.is_empty());
             }
-        } else {
-            let value = match value {
-                Some(value) => value.to_owned(),
-                None => remaining
-                    .next()
-                    .cloned()
-                    .ok_or_else(|| Some(format!("flag needs an argument: -{name}")))?,
-            };
-            match name {
-                "cwd" => options.current_directory = value,
-                "pipe" => options.pipe_path = Some(value).filter(|path| !path.is_empty()),
-                _ => callbacks = value,
-            }
+            (_, Value::String(value)) => callbacks = value,
+            _ => {}
         }
     }
     if !callbacks.is_empty() {
@@ -294,35 +259,12 @@ pub fn parse_api_flags(
     Ok(options)
 }
 
-/// Go's `strconv.ParseBool`.
-fn parse_go_bool(value: &str) -> Option<bool> {
-    match value {
-        "1" | "t" | "T" | "TRUE" | "true" | "True" => Some(true),
-        "0" | "f" | "F" | "FALSE" | "false" | "False" => Some(false),
-        _ => None,
-    }
-}
-
 /// Go's `FlagSet.PrintDefaults` under `Usage of api:`: a default other than
 /// the zero value is printed.
 fn api_usage(default_directory: &str, default_case_sensitive: bool) -> String {
-    let mut usage = "Usage of api:\n".to_owned();
-    for (name, kind, text) in API_FLAGS {
-        usage.push_str("  -");
-        usage.push_str(name);
-        if !kind.is_empty() {
-            usage.push(' ');
-            usage.push_str(kind);
-        }
-        usage.push_str("\n    \t");
-        usage.push_str(text);
-        if *name == "cwd" && !default_directory.is_empty() {
-            usage.push_str(&format!(" (default {default_directory:?})"));
-        }
-        if *name == "useCaseSensitiveFileNames" && default_case_sensitive {
-            usage.push_str(" (default true)");
-        }
-        usage.push('\n');
-    }
-    usage
+    flag::usage("api", API_FLAGS, |name| match name {
+        "cwd" if !default_directory.is_empty() => Some(default_directory.to_owned()),
+        "useCaseSensitiveFileNames" if default_case_sensitive => Some("true".to_owned()),
+        _ => None,
+    })
 }
