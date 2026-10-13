@@ -11,6 +11,10 @@
 //! UTF-8 texts, as in tsgo; the columns of the mappings are UTF-16 units.
 
 use serde_json::Value;
+use tsc_emitter::source_mapper::{
+    compute_ecma_line_starts as compute_line_starts, position_of_line_and_utf16_character,
+    try_get_source_mapping_url, Mapping, MappingsDecoder, MISSING,
+};
 
 use super::errors_baseline::{remove_test_path_prefixes, InputFile};
 
@@ -136,290 +140,6 @@ struct RawSourceMap {
     sources_content: Vec<Option<String>>,
 }
 
-/// tsgo `sourcemap.Mapping`; `MISSING` is its `-1` sentinels.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Mapping {
-    generated_line: i64,
-    generated_character: i64,
-    source_index: i64,
-    source_line: i64,
-    source_character: i64,
-    name_index: i64,
-}
-
-const MISSING: i64 = -1;
-
-impl Mapping {
-    fn is_source_mapping(&self) -> bool {
-        self.source_index != MISSING
-            && self.source_line != MISSING
-            && self.source_character != MISSING
-    }
-}
-
-/// tsgo `sourcemap.MappingsDecoder` (sourcemap/decoder.go).
-struct MappingsDecoder<'a> {
-    mappings: &'a [u8],
-    done: bool,
-    pos: usize,
-    generated_line: i64,
-    generated_character: i64,
-    source_index: i64,
-    source_line: i64,
-    source_character: i64,
-    name_index: i64,
-    error: Option<String>,
-}
-
-impl<'a> MappingsDecoder<'a> {
-    fn new(mappings: &'a str) -> Self {
-        Self {
-            mappings: mappings.as_bytes(),
-            done: false,
-            pos: 0,
-            generated_line: 0,
-            generated_character: 0,
-            source_index: 0,
-            source_line: 0,
-            source_character: 0,
-            name_index: 0,
-            error: None,
-        }
-    }
-
-    /// `State`: the current position as a full mapping.
-    fn state(&self) -> Mapping {
-        self.capture(true, true)
-    }
-
-    fn next(&mut self) -> Option<Mapping> {
-        while !self.done && self.pos < self.mappings.len() {
-            let ch = self.mappings[self.pos];
-            if ch == b';' {
-                self.generated_line += 1;
-                self.generated_character = 0;
-                self.pos += 1;
-                continue;
-            }
-            if ch == b',' {
-                self.pos += 1;
-                continue;
-            }
-            let mut has_source = false;
-            let mut has_name = false;
-            self.generated_character += self.base64_vlq_decode();
-            if self.error.is_some() {
-                return self.stop();
-            }
-            if self.generated_character < 0 {
-                return self.set_error_and_stop("Invalid generatedCharacter found");
-            }
-            if !self.is_segment_end() {
-                has_source = true;
-                self.source_index += self.base64_vlq_decode();
-                if self.error.is_some() {
-                    return self.stop();
-                }
-                if self.source_index < 0 {
-                    return self.set_error_and_stop("Invalid sourceIndex found");
-                }
-                if self.is_segment_end() {
-                    return self
-                        .set_error_and_stop("Unsupported Format: No entries after sourceIndex");
-                }
-                self.source_line += self.base64_vlq_decode();
-                if self.error.is_some() {
-                    return self.stop();
-                }
-                if self.source_line < 0 {
-                    return self.set_error_and_stop("Invalid sourceLine found");
-                }
-                if self.is_segment_end() {
-                    return self
-                        .set_error_and_stop("Unsupported Format: No entries after sourceLine");
-                }
-                self.source_character += self.base64_vlq_decode();
-                if self.error.is_some() {
-                    return self.stop();
-                }
-                if self.source_character < 0 {
-                    return self.set_error_and_stop("Invalid sourceCharacter found");
-                }
-                if !self.is_segment_end() {
-                    has_name = true;
-                    self.name_index += self.base64_vlq_decode();
-                    if self.error.is_some() {
-                        return self.stop();
-                    }
-                    if self.name_index < 0 {
-                        return self.set_error_and_stop("Invalid nameIndex found");
-                    }
-                    if !self.is_segment_end() {
-                        return self.set_error_and_stop(
-                            "Unsupported Error Format: Entries after nameIndex",
-                        );
-                    }
-                }
-            }
-            return Some(self.capture(has_source, has_name));
-        }
-        self.stop()
-    }
-
-    fn capture(&self, has_source: bool, has_name: bool) -> Mapping {
-        Mapping {
-            generated_line: self.generated_line,
-            generated_character: self.generated_character,
-            source_index: if has_source {
-                self.source_index
-            } else {
-                MISSING
-            },
-            source_line: if has_source {
-                self.source_line
-            } else {
-                MISSING
-            },
-            source_character: if has_source {
-                self.source_character
-            } else {
-                MISSING
-            },
-            name_index: if has_name { self.name_index } else { MISSING },
-        }
-    }
-
-    fn stop(&mut self) -> Option<Mapping> {
-        self.done = true;
-        None
-    }
-
-    fn set_error_and_stop(&mut self, error: &str) -> Option<Mapping> {
-        self.error = Some(error.to_owned());
-        self.stop()
-    }
-
-    fn is_segment_end(&self) -> bool {
-        self.pos == self.mappings.len()
-            || self.mappings[self.pos] == b','
-            || self.mappings[self.pos] == b';'
-    }
-
-    fn base64_vlq_decode(&mut self) -> i64 {
-        let mut more_digits = true;
-        let mut shift_count = 0;
-        let mut value: i64 = 0;
-        while more_digits {
-            if self.pos >= self.mappings.len() {
-                self.error = Some(
-                    "Error in decoding base64VLQFormatDecode, past the mapping string".to_owned(),
-                );
-                return -1;
-            }
-            let current = base64_decode(self.mappings[self.pos]);
-            if current == -1 {
-                self.error = Some("Invalid character in VLQ".to_owned());
-                return -1;
-            }
-            more_digits = (current & 32) != 0;
-            value |= (current & 31) << shift_count;
-            shift_count += 5;
-            self.pos += 1;
-        }
-        if value & 1 == 0 {
-            value >> 1
-        } else {
-            -(value >> 1)
-        }
-    }
-}
-
-fn base64_decode(ch: u8) -> i64 {
-    match ch {
-        b'A'..=b'Z' => i64::from(ch - b'A'),
-        b'a'..=b'z' => i64::from(ch - b'a') + 26,
-        b'0'..=b'9' => i64::from(ch - b'0') + 52,
-        b'+' => 62,
-        b'/' => 63,
-        _ => -1,
-    }
-}
-
-/// tsgo `core.ComputeECMALineStarts`: the byte offset of every line start
-/// (`\r\n`, `\n`, `\r`, U+2028 and U+2029 end a line).
-fn compute_line_starts(text: &str) -> Vec<usize> {
-    let bytes = text.as_bytes();
-    let mut result = Vec::new();
-    let mut pos = 0;
-    let mut line_start = 0;
-    while pos < bytes.len() {
-        let byte = bytes[pos];
-        if byte < 0x80 {
-            pos += 1;
-            match byte {
-                b'\r' => {
-                    if pos < bytes.len() && bytes[pos] == b'\n' {
-                        pos += 1;
-                    }
-                    result.push(line_start);
-                    line_start = pos;
-                }
-                b'\n' => {
-                    result.push(line_start);
-                    line_start = pos;
-                }
-                _ => {}
-            }
-        } else {
-            let ch = text[pos..].chars().next().expect("a char boundary");
-            pos += ch.len_utf8();
-            if ch == '\u{2028}' || ch == '\u{2029}' {
-                result.push(line_start);
-                line_start = pos;
-            }
-        }
-    }
-    result.push(line_start);
-    result
-}
-
-/// tsgo `scanner.ComputePositionOfLineAndUTF16Character` with `allowEdits`:
-/// the byte position of a UTF-16 column, clamped to the text.
-fn position_of_line_and_utf16_character(
-    line_starts: &[usize],
-    line: i64,
-    character: i64,
-    text: &str,
-) -> usize {
-    let line = if line < 0 {
-        0
-    } else {
-        usize::try_from(line).map_or(line_starts.len() - 1, |line| {
-            line.min(line_starts.len() - 1)
-        })
-    };
-    let line_start = line_starts[line];
-    if character > 0 {
-        let line_end = if line + 1 < line_starts.len() {
-            line_starts[line + 1]
-        } else {
-            text.len()
-        };
-        let mut utf16_count = 0;
-        let mut pos = line_start;
-        while pos < line_end {
-            if utf16_count >= character {
-                break;
-            }
-            let ch = text[pos..].chars().next().expect("a char boundary");
-            utf16_count += ch.len_utf16() as i64;
-            pos += ch.len_utf8();
-        }
-        return pos.min(text.len());
-    }
-    line_start.min(text.len())
-}
-
 /// The text of a line with its line break (`getTextOfLine`); the first line
 /// loses its byte order mark.
 fn text_of_line<'t>(line: i64, line_map: &[usize], code: &'t str) -> Result<&'t str, String> {
@@ -439,41 +159,6 @@ fn text_of_line<'t>(line: i64, line_map: &[usize], code: &'t str) -> Result<&'t 
     } else {
         text
     })
-}
-
-fn is_line_break(ch: char) -> bool {
-    matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')
-}
-
-/// tsgo `sourcemap.TryGetSourceMappingURL`: the `//# sourceMappingURL=`
-/// comment among the last lines of the generated file.
-fn try_get_source_mapping_url(text: &str, line_starts: &[usize]) -> String {
-    for index in (0..line_starts.len()).rev() {
-        let start = line_starts[index];
-        let end = if index + 1 < line_starts.len() {
-            line_starts[index + 1]
-        } else {
-            text.len()
-        };
-        let line = text[start..end]
-            .trim_start_matches(char::is_whitespace)
-            .trim_end_matches(is_line_break);
-        if line.is_empty() {
-            continue;
-        }
-        let bytes = line.as_bytes();
-        if bytes.len() < 4
-            || !line.starts_with("//")
-            || (bytes[2] != b'#' && bytes[2] != b'@')
-            || bytes[3] != b' '
-        {
-            break;
-        }
-        if let Some(url) = line[4..].strip_prefix("sourceMappingURL=") {
-            return url.trim_end_matches(char::is_whitespace).to_owned();
-        }
-    }
-    String::new()
 }
 
 /// tsgo `sourceMapSpanWriter` with its `recordedSpanWriter`.
@@ -577,9 +262,9 @@ impl<'r, 'a> SpanWriter<'r, 'a> {
                 self.decoder.state(),
                 Some(
                     self.decoder
-                        .error
-                        .clone()
-                        .unwrap_or_else(|| "No encoded entry found".to_owned()),
+                        .error()
+                        .unwrap_or("No encoded entry found")
+                        .to_owned(),
                 ),
             ),
         };
@@ -660,11 +345,11 @@ impl<'r, 'a> SpanWriter<'r, 'a> {
 
     fn close(&mut self) -> Result<(), String> {
         self.write_recorded_spans()?;
-        if self.decoder.pos != self.mappings.len() {
+        if self.decoder.pos() != self.mappings.len() {
             self.line("!!!! **** There are more source map entries in the sourceMap's mapping than what was encoded");
             let remaining = format!(
                 "!!!! **** Remaining decoded string: {}",
-                &self.mappings[self.decoder.pos..]
+                &self.mappings[self.decoder.pos()..]
             );
             self.line(&remaining);
         }
@@ -824,78 +509,6 @@ impl<'r, 'a> SpanWriter<'r, 'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn mappings(text: &str) -> (Vec<Mapping>, Option<String>, usize) {
-        let mut decoder = MappingsDecoder::new(text);
-        let mut decoded = Vec::new();
-        while let Some(mapping) = decoder.next() {
-            decoded.push(mapping);
-        }
-        (decoded, decoder.error, decoder.pos)
-    }
-
-    #[test]
-    fn decodes_segments_lines_and_names() {
-        let (decoded, error, pos) = mappings("AAAA,SAASA;AACA");
-        assert_eq!(error, None);
-        assert_eq!(pos, 15);
-        let span = |gl, gc, si, sl, sc, ni| Mapping {
-            generated_line: gl,
-            generated_character: gc,
-            source_index: si,
-            source_line: sl,
-            source_character: sc,
-            name_index: ni,
-        };
-        assert_eq!(
-            decoded,
-            vec![
-                span(0, 0, 0, 0, 0, MISSING),
-                span(0, 9, 0, 0, 9, 0),
-                span(1, 0, 0, 1, 9, MISSING),
-            ]
-        );
-        assert!(!span(0, 2, MISSING, MISSING, MISSING, MISSING).is_source_mapping());
-    }
-
-    #[test]
-    fn decoder_reports_invalid_characters() {
-        let (decoded, error, _) = mappings("AAAA,!");
-        assert_eq!(decoded.len(), 1);
-        assert_eq!(error.as_deref(), Some("Invalid character in VLQ"));
-    }
-
-    #[test]
-    fn line_starts_follow_every_ecma_line_break() {
-        assert_eq!(compute_line_starts(""), vec![0]);
-        assert_eq!(compute_line_starts("a\r\nb\nc\u{2028}d"), vec![0, 3, 5, 9]);
-        assert_eq!(compute_line_starts("x\n"), vec![0, 2]);
-    }
-
-    #[test]
-    fn utf16_columns_map_to_byte_positions() {
-        let text = "a\u{1d4b3}b";
-        let starts = compute_line_starts(text);
-        assert_eq!(position_of_line_and_utf16_character(&starts, 0, 1, text), 1);
-        assert_eq!(position_of_line_and_utf16_character(&starts, 0, 2, text), 5);
-        assert_eq!(position_of_line_and_utf16_character(&starts, 0, 3, text), 5);
-        assert_eq!(position_of_line_and_utf16_character(&starts, 0, 9, text), 6);
-        assert_eq!(position_of_line_and_utf16_character(&starts, 7, 0, text), 0);
-    }
-
-    #[test]
-    fn source_mapping_url_is_read_from_the_last_lines() {
-        let text = "var x;\n//# sourceMappingURL=a.js.map\n\n";
-        assert_eq!(
-            try_get_source_mapping_url(text, &compute_line_starts(text)),
-            "a.js.map"
-        );
-        let text = "var x;\n//# sourceMappingURL=a.js.map\nvar y;";
-        assert_eq!(
-            try_get_source_mapping_url(text, &compute_line_starts(text)),
-            ""
-        );
-    }
 
     #[test]
     fn renders_the_record_of_one_file() {

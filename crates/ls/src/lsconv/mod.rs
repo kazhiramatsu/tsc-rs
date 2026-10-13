@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tsc_lsproto::{LanguageKind, Position, PositionEncodingKind};
 use tsc_syntax::ScriptKind;
 
-pub use diagnostics::{diagnostic_to_lsp, DiagnosticFile, DiagnosticOptions};
+pub use diagnostics::{diagnostic_to_lsp, DiagnosticOptions, TextScript};
 pub use line_map::LspLineMap;
 
 /// tsgo `Script` without a content mapper's span map: a file's name and

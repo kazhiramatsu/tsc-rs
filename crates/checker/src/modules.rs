@@ -1781,7 +1781,7 @@ impl<'a> CheckerState<'a> {
     /// alias of the cycle reports TS2303 when its own frame pops (tsc 6.0
     /// reported only the outermost alias and collapsed the inner one
     /// silently). The CheckAbort unwind pops the frame this call pushed.
-    pub(crate) fn resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
+    pub fn resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         debug_assert!(
             self.binder
                 .symbol(symbol)

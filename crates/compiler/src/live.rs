@@ -585,6 +585,16 @@ impl LiveProgram {
     pub fn with_checker<T>(&mut self, query: impl FnOnce(&mut CheckerState<'_>) -> T) -> Option<T> {
         self.checker.with_checker(query)
     }
+
+    /// Run `query` over the Program's query checker (tsgo's pool
+    /// `CheckerLifetimeTemporary`, the language service's requests); none
+    /// for a Program without files.
+    pub fn with_query_checker<T>(
+        &mut self,
+        query: impl FnOnce(&mut CheckerState<'_>) -> T,
+    ) -> Option<T> {
+        self.checker.with_query_checker(query)
+    }
 }
 
 /// A check that stopped partway, as the batch sessions report it.
