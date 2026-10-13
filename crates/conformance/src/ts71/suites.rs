@@ -16,8 +16,12 @@
 //!
 //! api (`api/encoder/encoder_test.go`): the API encoder's dumps of two
 //! parsed sources ([`api`]).
+//!
+//! lsp (`fourslash`): tsgo's language server transcripts from its fourslash
+//! tests; a scenario is full when every response of tsc-rs's server has the
+//! digest of tsgo's ([`lsp`]).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
@@ -32,15 +36,17 @@ use super::errors_baseline::{self, InputFile};
 use super::{declaration_emit_extension, output_extension, panic_text, CASE_STACK_BYTES};
 
 mod api;
+mod lsp;
 mod tables;
 mod tsc;
 mod tsconfig;
 mod tsoptions;
 
 /// The suites [`run`] knows.
-pub const SUITES: [&str; 8] = [
+pub const SUITES: [&str; 9] = [
     "api",
     "config",
+    "lsp",
     "transpile",
     "tsbuild",
     "tsbuildWatch",
@@ -69,6 +75,9 @@ pub struct SuiteResult {
     pub outcome: SuiteOutcome,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+    /// lsp: by request method, the responses with tsgo's digest and all.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub responses: BTreeMap<String, [usize; 2]>,
 }
 
 #[derive(Clone, Debug)]
@@ -155,8 +164,69 @@ pub fn run(workspace: &Path, options: &SuiteRunOptions) -> Result<Vec<SuiteResul
         };
         results.extend(run_rendered(suite, &reference.join(suite), cases, options)?);
     }
+    results.extend(run_lsp(workspace, options)?);
     results
         .sort_by(|left, right| (left.suite, &left.baseline).cmp(&(right.suite, &right.baseline)));
+    Ok(results)
+}
+
+/// The language server's transcripts ([`lsp`]).
+fn run_lsp(workspace: &Path, options: &SuiteRunOptions) -> Result<Vec<SuiteResult>, String> {
+    let mut results = Vec::new();
+    for scenario in lsp::cases(workspace, &options.profile)? {
+        if options
+            .filter
+            .as_deref()
+            .is_some_and(|filter| !scenario.name.contains(filter))
+        {
+            continue;
+        }
+        let name = scenario.name.clone();
+        let replay = std::thread::Builder::new()
+            .stack_size(CASE_STACK_BYTES)
+            .spawn(move || {
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| lsp::replay(&scenario)))
+            })
+            .map_err(|error| format!("could not spawn the case thread: {error}"))?
+            .join()
+            .unwrap_or_else(Err)
+            .unwrap_or_else(|panic| Err(format!("panicked: {}", panic_text(&panic))));
+        let responses = replay
+            .as_ref()
+            .map(|replay| replay.methods.clone())
+            .unwrap_or_default();
+        let (outcome, detail) = match replay {
+            Ok(replay) if replay.differing.is_empty() => (SuiteOutcome::Full, None),
+            Ok(replay) => {
+                if let Some(dump) = &options.dump {
+                    let path = dump
+                        .join("lsp")
+                        .join(format!("{}.jsonl", name.replace('/', "_")));
+                    std::fs::create_dir_all(path.parent().expect("dump directory"))
+                        .and_then(|()| std::fs::write(&path, &replay.transcript))
+                        .map_err(|error| format!("{}: {error}", path.display()))?;
+                }
+                let shown = replay.differing.iter().take(3).cloned().collect::<Vec<_>>();
+                (
+                    SuiteOutcome::Mismatch,
+                    Some(format!(
+                        "{} of {} responses differ: {}",
+                        replay.differing.len(),
+                        replay.requests,
+                        shown.join(", ")
+                    )),
+                )
+            }
+            Err(detail) => (SuiteOutcome::HarnessError, Some(detail)),
+        };
+        results.push(SuiteResult {
+            suite: "lsp",
+            baseline: name,
+            outcome,
+            detail,
+            responses,
+        });
+    }
     Ok(results)
 }
 
@@ -246,6 +316,7 @@ fn unproduced_references(
                     baseline: name,
                     outcome: SuiteOutcome::Mismatch,
                     detail: Some("tsc-rs does not produce this baseline".to_owned()),
+                    responses: BTreeMap::new(),
                 });
             }
         }
@@ -280,6 +351,7 @@ fn run_transpile(
                     baseline: path.clone(),
                     outcome: SuiteOutcome::HarnessError,
                     detail: Some(error.to_string()),
+                    responses: BTreeMap::new(),
                 });
                 continue;
             }
@@ -455,6 +527,7 @@ fn compare(
                 baseline,
                 outcome: SuiteOutcome::HarnessError,
                 detail: Some(detail),
+                responses: BTreeMap::new(),
             }
         }
     };
@@ -480,6 +553,7 @@ fn compare(
         baseline,
         outcome,
         detail,
+        responses: BTreeMap::new(),
     }
 }
 

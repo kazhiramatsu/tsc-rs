@@ -23,6 +23,7 @@ use tsc_lsproto::{
 };
 use tsc_program::content_mapper::host::Spawner;
 use tsc_program::uri::uri_to_file_name;
+use tsc_program::ConfigOptionBag;
 use tsc_syntax::ScriptKind;
 
 use crate::background::{Cancellation, Queue};
@@ -418,6 +419,20 @@ impl Session {
             uri: uri.as_str().to_owned(),
             unknown_script_kind: kind == Some(ScriptKind::Unknown),
         })
+    }
+
+    /// tsgo `DidChangeCompilerOptionsForInferredProjects`: the inferred
+    /// projects take `options` (tsgo's language server sets them for its
+    /// tests).
+    pub fn did_change_compiler_options_for_inferred_projects(&self, options: Arc<ConfigOptionBag>) {
+        let overlays = lock(&self.inner.fs).overlays();
+        let _ = self.inner.update_snapshot(
+            overlays,
+            SnapshotChange {
+                compiler_options_for_inferred_projects: Some(options),
+                ..SnapshotChange::default()
+            },
+        );
     }
 
     /// tsgo `WaitForBackgroundTasks`: the idle clean cancelled, the

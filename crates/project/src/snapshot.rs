@@ -169,6 +169,9 @@ pub struct SnapshotChange<'a> {
     /// tsgo `cleanFileCache`: the cached files no project's build looked at
     /// are dropped (the session's idle clean).
     pub clean_file_cache: bool,
+    /// tsgo `compilerOptionsForInferredProjects`: the inferred projects'
+    /// options, when they changed.
+    pub compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
 }
 
 /// The API's open state (tsgo `APIState`): the projects and files opened
@@ -326,6 +329,9 @@ pub struct Snapshot {
     pub(crate) configs: ConfigFileRegistry,
     /// tsgo `userPreferences`.
     user_preferences: UserPreferences,
+    /// tsgo `compilerOptionsForInferredProjects`: the options a new inferred
+    /// project takes, its defaults when none.
+    compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
     file_system_override: bool,
     created_programs: Vec<ProjectId>,
 }
@@ -605,6 +611,7 @@ impl SnapshotHost {
             projects: Arc::default(),
             configs: ConfigFileRegistry::default(),
             user_preferences: UserPreferences::new_default(),
+            compiler_options_for_inferred_projects: None,
             file_system_override: false,
             created_programs: Vec::new(),
         }
@@ -626,6 +633,7 @@ impl SnapshotHost {
             new_config,
             api_request: request,
             clean_file_cache,
+            compiler_options_for_inferred_projects: new_inferred_options,
         } = change;
         let overlays = overlays.unwrap_or_else(|| Arc::clone(&base.fs.overlays));
         // The documents and mapped outputs of the programs that are gone
@@ -666,6 +674,9 @@ impl SnapshotHost {
             &base.content_mapper_extensions(),
             &base.content_mapper_watched_files(),
         );
+        let compiler_options_for_inferred_projects = new_inferred_options
+            .clone()
+            .or_else(|| base.compiler_options_for_inferred_projects.clone());
         let id = self.snapshot_id.fetch_add(1, Ordering::Relaxed) + 1;
         // tsgo `Clone`: the custom config file name of the new preferences.
         let custom_config_file_name = new_config.as_ref().map_or_else(
@@ -680,8 +691,18 @@ impl SnapshotHost {
                 self.options.relative_pattern_support(),
                 &custom_config_file_name,
             );
-            let mut builder = ProjectCollectionBuilder::new(self, &fs, id, &base.projects, configs);
+            let mut builder = ProjectCollectionBuilder::new(
+                self,
+                &fs,
+                id,
+                &base.projects,
+                configs,
+                compiler_options_for_inferred_projects.clone(),
+            );
             builder.did_change_custom_config_file_name();
+            if let Some(options) = &new_inferred_options {
+                builder.did_change_compiler_options_for_inferred_projects(options);
+            }
             if let Some(config) = &new_config {
                 builder.did_change_user_preferences(&base.user_preferences, config);
             }
@@ -730,6 +751,7 @@ impl SnapshotHost {
             projects,
             configs,
             user_preferences: new_config.unwrap_or_else(|| base.user_preferences.clone()),
+            compiler_options_for_inferred_projects,
             file_system_override,
             created_programs,
         })
