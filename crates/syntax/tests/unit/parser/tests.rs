@@ -593,7 +593,7 @@ fn jsx_text_stores_contains_only_trivia_white_spaces() {
         "a.tsx".into(),
         "const x = <div>\n  <span> hi </span>\n</div>;\n".to_owned(),
         ParseOptions {
-            language_variant: crate::LanguageVariant::Jsx,
+            script_kind: crate::ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -656,7 +656,7 @@ fn source_flags_stamp_the_source_file_root() {
         "a.js".into(),
         "var x = 1;\n".to_owned(),
         ParseOptions {
-            javascript_file: true,
+            script_kind: ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,
@@ -700,7 +700,7 @@ fn automatic_jsx_module_detection_uses_the_jsx_tag() {
         "a.tsx".into(),
         "const element = <div />;\n".to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             detect_external_module_from_jsx: true,
             ..ParseOptions::default()
         },
@@ -795,8 +795,7 @@ fn parse_tsx(text: &str) -> SourceFile {
         "a.tsx".into(),
         text.to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
-            javascript_file: false,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -3801,7 +3800,7 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
         "a.js".into(),
         text.to_owned(),
         ParseOptions {
-            javascript_file: true,
+            script_kind: ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,
@@ -3910,7 +3909,7 @@ fn no_jsdoc_source_allocates_no_jsdoc_nodes_or_attachments() {
         "large.js".into(),
         text,
         ParseOptions {
-            javascript_file: true,
+            script_kind: ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,
@@ -3936,7 +3935,11 @@ fn jsdoc_parsing_modes_match_tsc_script_kind_rules() {
             },
             text.to_owned(),
             ParseOptions {
-                javascript_file,
+                script_kind: if javascript_file {
+                    crate::ScriptKind::Js
+                } else {
+                    crate::ScriptKind::Ts
+                },
                 js_doc_parsing_mode,
                 ..ParseOptions::default()
             },
@@ -4015,7 +4018,7 @@ fn parse_js(text: &str) -> SourceFile {
         "a.js".into(),
         text.to_owned(),
         ParseOptions {
-            javascript_file: true,
+            script_kind: ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,
@@ -4260,7 +4263,7 @@ fn a_conflict_marker_in_jsx_text_ends_the_children_like_tsgo() {
         "a.tsx".into(),
         "const x = <div>\n<<<<<<< HEAD".to_owned(),
         ParseOptions {
-            language_variant: crate::LanguageVariant::Jsx,
+            script_kind: crate::ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,

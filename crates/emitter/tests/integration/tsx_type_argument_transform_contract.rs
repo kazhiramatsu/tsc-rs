@@ -3,7 +3,7 @@ use tsc_emitter::{
     PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot, UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
-use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
+use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind};
 use tsc_types::{CompilerOptions, ModuleKind, ScriptTarget};
 
 #[test]
@@ -16,7 +16,7 @@ fn preserved_jsx_erases_type_arguments_without_consuming_the_attribute_boundary(
             "<SFC<number> prop={2} />;\n",
         ),
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,

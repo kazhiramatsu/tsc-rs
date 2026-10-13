@@ -1,7 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{
-    parse_source_file, LanguageVariant, NodeData, ParseOptions, SourceFile, SyntaxKind,
-};
+use tsc_syntax::{parse_source_file, NodeData, ParseOptions, SourceFile, SyntaxKind};
 use tsc_types::{CompilerOptions, SymbolFlags};
 
 use crate::links::LinkSlot;
@@ -13,8 +11,7 @@ fn parse_js(text: &str) -> SourceFile {
         "commonjs-recovery.js".to_owned(),
         text.to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Standard,
-            javascript_file: true,
+            script_kind: tsc_syntax::ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,

@@ -1,8 +1,6 @@
 use tsc_binder::bind_source_file;
 use tsc_syntax::nodes::ElementAccessExpressionData;
-use tsc_syntax::{
-    parse_source_file, LanguageVariant, NodeData, ParseOptions, SourceFile, SyntaxKind,
-};
+use tsc_syntax::{parse_source_file, NodeData, ParseOptions, SourceFile, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, SymbolFlags};
 
 use crate::state::CheckerState;
@@ -12,8 +10,7 @@ fn parse(text: &str) -> SourceFile {
         "annotation-recovery.ts".to_owned(),
         text.to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: tsc_syntax::ScriptKind::Ts,
             ..ParseOptions::default()
         },
         None,

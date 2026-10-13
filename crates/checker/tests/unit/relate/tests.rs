@@ -1,5 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
+use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind};
 use tsc_types::{
     CompilerOptions, ElementFlags, IntersectionState, RelationComparisonResult, TupleTargetFlags,
 };
@@ -13,8 +13,7 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
         "relate-test.ts".to_owned(),
         String::new(),
         ParseOptions {
-            language_variant: LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: ScriptKind::Ts,
             ..ParseOptions::default()
         },
         None,

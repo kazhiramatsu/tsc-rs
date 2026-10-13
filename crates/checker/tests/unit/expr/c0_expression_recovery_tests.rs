@@ -3,7 +3,7 @@ use tsc_syntax::nodes::{
     DeleteExpressionData, EmptyStatementData, ParenthesizedExpressionData, PropertyAssignmentData,
     SpreadElementData, TypeOfExpressionData,
 };
-use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+use tsc_syntax::{parse_source_file, NodeData, ParseOptions, ScriptKind, SyntaxKind};
 use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
 
 use crate::state::CheckerState;
@@ -14,8 +14,7 @@ fn missing_expression_slots_use_operator_specific_recovery_values() {
         "expression-recovery.ts".to_owned(),
         "const live = 1;\n".to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: ScriptKind::Ts,
             ..ParseOptions::default()
         },
         None,

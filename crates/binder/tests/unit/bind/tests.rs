@@ -548,7 +548,11 @@ fn parse_named(name: &str, text: &str, javascript_file: bool) -> SourceFile {
         name,
         text,
         ParseOptions {
-            javascript_file,
+            script_kind: if javascript_file {
+                tsc_syntax::ScriptKind::Js
+            } else {
+                tsc_syntax::ScriptKind::Ts
+            },
             ..ParseOptions::default()
         },
         None,
@@ -939,7 +943,7 @@ fn forced_external_module_still_accepts_common_js_assignments() {
         "a.js",
         "module.exports.x = 1;\n",
         ParseOptions {
-            javascript_file: true,
+            script_kind: tsc_syntax::ScriptKind::Js,
             force_external_module: true,
             ..ParseOptions::default()
         },

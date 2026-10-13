@@ -394,7 +394,7 @@ fn registry_tells_parse_and_domain_addresses_apart() {
     registry.insert(address, &document);
 
     let other_parse = ParseOptions {
-        javascript_file: true,
+        script_kind: tsc_syntax::ScriptKind::Js,
         ..ParseOptions::default()
     };
     for address in [

@@ -5036,10 +5036,17 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
         );
         // A read-ahead parse is adopted only when its assumptions are the
         // facts computed above; otherwise its decoded text is planned here.
+        // tsgo's file handle may give the file a kind of its own (an open
+        // document's language).
+        let document_kind = self.program_options.document_script_kind(path.canonical());
+        let with_document_kind = |prepared: PreparedSourceFile| match document_kind {
+            Some(kind) => prepared.with_script_kind(kind),
+            None => prepared,
+        };
         let mut supplemental = Vec::new();
         let (mut prepared, prefetched_plan, mut prefetched_resolutions) = match decoded {
             DecodedSource::Text(text) => (
-                PreparedSourceFile::new(path.clone(), text),
+                with_document_kind(PreparedSourceFile::new(path.clone(), text)),
                 None,
                 Vec::new(),
             ),
@@ -5096,7 +5103,8 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
             DecodedSource::Parsed(parsed)
                 if parsed.implied == implied
                     && parsed.implied_for_emit == implied_for_emit
-                    && parsed.prepared.path().display() == path.display() =>
+                    && parsed.prepared.path().display() == path.display()
+                    && document_kind.is_none_or(|kind| kind == parsed.prepared.script_kind()) =>
             {
                 let parsed = *parsed;
                 (parsed.prepared, Some(parsed.plan), parsed.resolutions)
@@ -5113,10 +5121,10 @@ impl<'host: 'options, 'options, 'resolver> StagedGraph<'host, 'options, 'resolve
                     }
                 }
                 (
-                    PreparedSourceFile::from_snapshot(
+                    with_document_kind(PreparedSourceFile::from_snapshot(
                         path.clone(),
                         Arc::clone(parsed.prepared.snapshot()),
-                    ),
+                    )),
                     None,
                     Vec::new(),
                 )

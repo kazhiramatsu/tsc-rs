@@ -1,5 +1,5 @@
 use tsc_binder::bind_source_file;
-use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions, SourceFile};
+use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind, SourceFile};
 use tsc_types::{
     CheckFlags, CompilerOptions, ElementFlags, ObjectFlags, SignatureFlags, TypeData, TypeFlags,
     TypeId,
@@ -16,8 +16,7 @@ fn parse(text: &str) -> SourceFile {
         "annotate-test.ts".to_owned(),
         text.to_owned(),
         ParseOptions {
-            language_variant: LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: ScriptKind::Ts,
             ..ParseOptions::default()
         },
         None,
