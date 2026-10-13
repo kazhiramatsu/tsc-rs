@@ -1478,20 +1478,14 @@ impl<'a> CheckerState<'a> {
                 if is_unchecked_js {
                     diagnostic.message.category = DiagnosticCategory::Suggestion;
                 }
-                // addErrorOrSuggestion clones an unchecked-JS
-                // suggestion into suggestionDiagnostics before
-                // tsc appends related information to the original
-                // diagnostic, so the published 2570 has no related
-                // row.
-                if !is_unchecked_js {
-                    if let Some(value_declaration) = self.binder.symbol(suggested).value_declaration
-                    {
-                        diagnostic.related.push(self.related_info_for_node_js(
-                            value_declaration,
-                            &diagnostics::_0_is_declared_here,
-                            &[suggestion_name.as_js()],
-                        ));
-                    }
+                // tsgo adds the related row before `addErrorOrSuggestion`,
+                // so an unchecked-JS suggestion has it too.
+                if let Some(value_declaration) = self.binder.symbol(suggested).value_declaration {
+                    diagnostic.related.push(self.related_info_for_node_js(
+                        value_declaration,
+                        &diagnostics::_0_is_declared_here,
+                        &[suggestion_name.as_js()],
+                    ));
                 }
                 self.push_error_diagnostic(diagnostic);
             }

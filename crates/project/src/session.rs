@@ -7,15 +7,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
 use std::time::{Duration, Instant};
 
 use tsc_diagnostics::DiagnosticList;
 use tsc_host::go_time::duration_string;
 use tsc_host::vfs::FileSystem;
-use tsc_ls::lsconv::{
-    diagnostic_to_lsp, Converters, DiagnosticFile, DiagnosticOptions, LspLineMap,
-};
+use tsc_ls::lsconv::{diagnostic_to_lsp, DiagnosticFile, DiagnosticOptions};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_lsproto::{
     DocumentUri, FileChangeType, FileEvent, LanguageKind, PublishDiagnosticsParams,
@@ -73,6 +72,8 @@ struct Inner {
     /// tsgo's scheduled diagnostics refresh (`diagnosticsRefreshCancel`
     /// and `diagnosticsRefreshGeneration`).
     diagnostics_refresh: Mutex<ScheduledUpdate>,
+    /// tsgo `globalDiagPublishPending`.
+    global_diagnostics_publish_pending: AtomicBool,
     /// tsgo `watches`: the globs registered with the editor.
     watches: WatchRegistry,
     idle_clean: Mutex<IdleClean>,
@@ -128,6 +129,7 @@ impl Session {
                 background: Arc::default(),
                 scheduled_update: Mutex::default(),
                 diagnostics_refresh: Mutex::default(),
+                global_diagnostics_publish_pending: AtomicBool::new(false),
                 watches: WatchRegistry::default(),
                 idle_clean: Mutex::default(),
             }),
@@ -421,6 +423,30 @@ impl Session {
         })
     }
 
+    /// tsgo `EnqueuePublishGlobalDiagnostics`: after a language service
+    /// request, the configs' diagnostics again in the background when
+    /// checking found new global diagnostics.
+    pub fn enqueue_publish_global_diagnostics(&self) {
+        let inner = &self.inner;
+        if !inner.host.options().push_diagnostics_enabled
+            || self.config().validate_enabled == Some(false)
+        {
+            return;
+        }
+        if inner
+            .global_diagnostics_publish_pending
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            let background = Arc::clone(inner);
+            inner
+                .background
+                .enqueue(&Cancellation::default(), move |_| {
+                    background.publish_global_diagnostics();
+                });
+        }
+    }
+
     /// tsgo `DidChangeCompilerOptionsForInferredProjects`: the inferred
     /// projects take `options` (tsgo's language server sets them for its
     /// tests).
@@ -601,6 +627,28 @@ impl Inner {
 
     /// tsgo `publishProjectDiagnostics`: the diagnostics of a config (none
     /// when the user turned validation off) in the client's locale.
+    /// tsgo `publishGlobalDiagnostics`.
+    fn publish_global_diagnostics(&self) {
+        self.global_diagnostics_publish_pending
+            .store(false, Ordering::SeqCst);
+        let snapshot = Arc::clone(&self.snapshot.read().unwrap_or_else(PoisonError::into_inner));
+        for project in snapshot.projects() {
+            if project.kind != ProjectKind::Configured {
+                continue;
+            }
+            let Some(program) = project.program() else {
+                continue;
+            };
+            if program.take_new_global_diagnostics() {
+                self.publish_project_diagnostics(
+                    &snapshot,
+                    project.config_file_name.as_deref().unwrap_or_default(),
+                    project.project_diagnostics(),
+                );
+            }
+        }
+    }
+
     fn publish_project_diagnostics(
         &self,
         snapshot: &Arc<Snapshot>,
@@ -634,27 +682,16 @@ impl Inner {
                 Some((file_name, text))
             })
             .collect::<BTreeMap<_, _>>();
-        let line_maps = Arc::new(
-            texts
-                .iter()
-                .map(|(file_name, text)| (file_name.clone(), Arc::new(LspLineMap::new(text))))
-                .collect::<BTreeMap<_, _>>(),
-        );
-        let converters = Converters::new(
-            self.host.options().position_encoding.clone(),
-            move |file_name| {
-                line_maps
-                    .get(file_name)
-                    .cloned()
-                    .unwrap_or_else(|| Arc::new(LspLineMap::new("")))
-            },
-        );
+        let converters = snapshot.converters(self.host.options().position_encoding.clone());
         let options = DiagnosticOptions::push(&self.host.options().client_capabilities);
         let locale = client.locale();
         let file = |file_name: &str| {
             texts
                 .get_key_value(file_name)
-                .map(|(file_name, text)| DiagnosticFile { file_name, text })
+                .map(|(file_name, text)| DiagnosticFile {
+                    file_name: file_name.clone(),
+                    text,
+                })
         };
         let diagnostics = diagnostics
             .iter()

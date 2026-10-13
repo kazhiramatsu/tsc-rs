@@ -312,12 +312,17 @@ impl LiveProgram {
     }
 
     /// tsgo `GetDeclarationDiagnostics(file)` of each of `files` on the
-    /// diagnostics checker.
+    /// diagnostics checker, each sorted and deduplicated
+    /// (`filterAndSortDiagnostics`).
     pub fn declaration_diagnostics(
         &mut self,
         files: &[usize],
     ) -> Result<Vec<DiagnosticList>, DriverError> {
-        self.declaration_diagnostics_on(files, CheckerLifetime::Diagnostics)
+        let mut lists = self.declaration_diagnostics_on(files, CheckerLifetime::Diagnostics)?;
+        for diagnostics in &mut lists {
+            sort_and_dedupe_diagnostics(diagnostics);
+        }
+        Ok(lists)
     }
 
     /// tsgo `getDeclarationDiagnosticsForFile` on the checker of

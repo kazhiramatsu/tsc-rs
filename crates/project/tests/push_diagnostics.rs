@@ -267,3 +267,61 @@ fn closing_clears_the_diagnostics_and_reopening_restores_them() {
         1
     );
 }
+
+#[test]
+fn global_diagnostics_found_by_checking_are_published() {
+    // "publishes global diagnostics after checking": es2020 has no
+    // Disposable, so checking a `using` declaration finds the global
+    // diagnostic, which the session publishes on tsconfig.json after the
+    // request, never on the file.
+    let files = [
+        (
+            "/src/tsconfig.json",
+            r#"{ "compilerOptions": { "target": "es2020" } }"#,
+        ),
+        (
+            "/src/index.ts",
+            "export function f() {\n    using x = { [Symbol.dispose]() {} };\n}",
+        ),
+    ];
+    let (session, _, client) = setup_with_client(&files);
+    open(&session, INDEX, files[1].1);
+    let (snapshot, project) = session
+        .get_snapshot_and_default_project(&uri(INDEX))
+        .expect("the document's project");
+    session.wait_for_background_tasks();
+    let converters = snapshot.converters(tsc_lsproto::PositionEncodingKind::UTF16);
+    let preferences = snapshot.user_preferences().clone();
+    let capabilities = tsc_lsproto::ResolvedClientCapabilities::default();
+    for _ in 0..2 {
+        let report = project.program().expect("the program").with_live(|live| {
+            let file = live.file_index("/src/index.ts").expect("the file");
+            assert!(!live.semantic_diagnostics(file).expect("checked").is_empty());
+            tsc_ls::LanguageService::new(live, &converters, &preferences, &capabilities, None)
+                .provide_diagnostics(&uri(INDEX))
+                .expect("the diagnostics")
+        });
+        let tsc_lsproto::RelatedFullDocumentDiagnosticReportOrUnchangedDocumentDiagnosticReport::FullDocumentDiagnosticReport(report) = report else {
+            panic!("a full report");
+        };
+        assert!(report
+            .items
+            .iter()
+            .all(|diagnostic| !message(diagnostic).contains("Cannot find global")));
+        assert!(report.items.iter().any(|diagnostic| matches!(
+            diagnostic.code,
+            Some(tsc_lsproto::IntegerOrString::Integer(2550))
+        )));
+    }
+    session.enqueue_publish_global_diagnostics();
+    session.wait_for_background_tasks();
+    let calls = calls_for(&client.publish_diagnostics_calls(), TSCONFIG, 0);
+    let last = calls.last().expect("a call for tsconfig.json");
+    assert!(
+        last.diagnostics
+            .iter()
+            .any(|diagnostic| message(diagnostic).contains("Cannot find global")),
+        "{:?}",
+        last.diagnostics
+    );
+}

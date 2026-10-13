@@ -413,7 +413,7 @@ fn no_emit_declaration_diagnostics(
 /// tsc-port: getEmitDeclarations @6.0.3
 /// tsc-hash: f385c1e1ef2b314fab891cf63605d192e845fd49775c89849d96a7fa96389541
 /// tsc-span: _tsc.js:18151-18156
-pub(crate) fn get_emit_declarations(options: &CompilerOptions) -> bool {
+pub fn get_emit_declarations(options: &CompilerOptions) -> bool {
     options.declaration == Some(true) || options.composite == Some(true)
 }
 

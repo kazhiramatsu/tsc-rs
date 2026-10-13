@@ -238,6 +238,8 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult<TypeId> {
+        // tsgo `checkJsxAttributes` defers `checkContextualDeprecations`.
+        self.check_node_deferred(node);
         let Some(parent) = self.parent_of(node) else {
             // Parsed JsxAttributes are always installed by
             // parse_jsx_opening_or_self_closing_element_or_opening_fragment.

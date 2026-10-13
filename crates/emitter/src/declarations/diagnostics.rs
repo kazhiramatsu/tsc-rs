@@ -1,5 +1,5 @@
 use tsc_diagnostics::{gen as d, Diagnostic, DiagnosticMessage, MessageChain};
-use tsc_syntax::{Node, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{Node, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::ModifierFlags;
 
 use crate::{
@@ -977,7 +977,7 @@ pub(crate) fn diagnostic_for_source_node(
     message: &'static DiagnosticMessage,
     args: &[tsc_types::JsString],
 ) -> Diagnostic {
-    let (start, end) = error_span_for_node(source, node);
+    let (start, end) = tsc_binder::node_util::get_error_span_for_node(source, node);
     let to_utf16 = |byte: usize| {
         source
             .positions()
@@ -992,193 +992,6 @@ pub(crate) fn diagnostic_for_source_node(
         Some(end.saturating_sub(start)),
         MessageChain::new_js(message, args),
     )
-}
-
-/// tsc-port: getErrorSpanForNode @6.0.3
-/// tsc-hash: 2d2ca68c825de352e44893a3a69b54b87090a276ae158a59d05c5e3ebfec35dd
-/// tsc-span: _tsc.js:14023-14115
-fn error_span_for_node(source: &SourceFile, node: NodeId) -> (usize, usize) {
-    let record = source.arena.node(node);
-    let mut error_node = Some(node);
-    match &record.data {
-        NodeData::SourceFile(_) => {
-            let start = tsc_syntax::skip_trivia(source.text(), 0);
-            if start == source.text().len() {
-                return (0, 0);
-            }
-            return token_span(source, start);
-        }
-        NodeData::ArrowFunction(data) => {
-            return arrow_function_span(source, node, data.body);
-        }
-        NodeData::CaseClause(data) => {
-            let start = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
-            return case_clause_span(source, record.end as usize, start, data.statements);
-        }
-        NodeData::DefaultClause(data) => {
-            let start = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
-            return case_clause_span(source, record.end as usize, start, data.statements);
-        }
-        NodeData::ReturnStatement(_) | NodeData::YieldExpression(_) => {
-            let start = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
-            return token_span(source, start);
-        }
-        NodeData::SatisfiesExpression(data) => {
-            if let Some(expression) = data.expression {
-                let start = tsc_syntax::skip_trivia(
-                    source.text(),
-                    source.arena.node(expression).end as usize,
-                );
-                return token_span(source, start);
-            }
-        }
-        NodeData::JSDocSatisfiesTag(data) => {
-            if let Some(tag_name) = data.tag_name {
-                let tag_name = source.arena.node(tag_name);
-                let start = tsc_syntax::skip_trivia(source.text(), tag_name.pos as usize);
-                return token_span(source, start);
-            }
-        }
-        NodeData::Constructor(_) => {
-            let start = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
-            for token in
-                tsc_syntax::scan_byte_tokens(&source.text()[start..], source.language_variant)
-            {
-                if token.kind == SyntaxKind::ConstructorKeyword {
-                    return (start, start + token.end as usize);
-                }
-            }
-            return (start, record.end as usize);
-        }
-        _ => {
-            if matches!(
-                record.kind,
-                SyntaxKind::VariableDeclaration
-                    | SyntaxKind::BindingElement
-                    | SyntaxKind::ClassDeclaration
-                    | SyntaxKind::ClassExpression
-                    | SyntaxKind::InterfaceDeclaration
-                    | SyntaxKind::ModuleDeclaration
-                    | SyntaxKind::EnumDeclaration
-                    | SyntaxKind::EnumMember
-                    | SyntaxKind::FunctionDeclaration
-                    | SyntaxKind::FunctionExpression
-                    | SyntaxKind::MethodDeclaration
-                    | SyntaxKind::GetAccessor
-                    | SyntaxKind::SetAccessor
-                    | SyntaxKind::TypeAliasDeclaration
-                    | SyntaxKind::PropertyDeclaration
-                    | SyntaxKind::PropertySignature
-                    | SyntaxKind::NamespaceImport
-            ) {
-                error_node = direct_name_of_declaration(source, node);
-            }
-        }
-    }
-
-    let Some(error_node) = error_node else {
-        return token_span(source, record.pos as usize);
-    };
-    let error = source.arena.node(error_node);
-    let is_missing = error.pos == error.end && error.kind != SyntaxKind::EndOfFileToken;
-    let start = if is_missing || record.kind == SyntaxKind::JsxText {
-        error.pos as usize
-    } else {
-        tsc_syntax::skip_trivia(source.text(), error.pos as usize)
-    };
-    (start, error.end as usize)
-}
-
-fn case_clause_span(
-    source: &SourceFile,
-    node_end: usize,
-    start: usize,
-    statements: Option<NodeArrayId>,
-) -> (usize, usize) {
-    let end = statements
-        .map(|statements| source.arena.node_array(statements).nodes)
-        .and_then(|nodes| nodes.first())
-        .map(|&first| source.arena.node(first).pos as usize)
-        .unwrap_or(node_end);
-    (start, end)
-}
-
-fn arrow_function_span(source: &SourceFile, node: NodeId, body: Option<NodeId>) -> (usize, usize) {
-    let record = source.arena.node(node);
-    let start = tsc_syntax::skip_trivia(source.text(), record.pos as usize);
-    if let Some(body) = body {
-        let body = source.arena.node(body);
-        if body.kind == SyntaxKind::Block {
-            let starts = byte_line_starts(source.text());
-            let start_line = line_of_bytes(&starts, body.pos as usize);
-            let end_line = line_of_bytes(&starts, body.end as usize);
-            if start_line < end_line {
-                return (
-                    start,
-                    end_line_position(source.text(), &starts, start_line) + 1,
-                );
-            }
-        }
-    }
-    (start, record.end as usize)
-}
-
-fn token_span(source: &SourceFile, start: usize) -> (usize, usize) {
-    // getSpanOfTokenAtPosition: one token scanned at `start`.
-    let (token_start, token_end) =
-        tsc_syntax::scan_first_token_span(&source.text()[start..], source.language_variant);
-    (start + token_start, start + token_end)
-}
-
-fn byte_line_starts(text: &str) -> Vec<usize> {
-    let mut starts = vec![0];
-    let mut chars = text.char_indices().peekable();
-    while let Some((byte, ch)) = chars.next() {
-        match ch {
-            '\r' => {
-                let mut next = byte + 1;
-                if let Some(&(next_byte, '\n')) = chars.peek() {
-                    chars.next();
-                    next = next_byte + 1;
-                }
-                starts.push(next);
-            }
-            '\n' => starts.push(byte + 1),
-            '\u{2028}' | '\u{2029}' => starts.push(byte + ch.len_utf8()),
-            _ => {}
-        }
-    }
-    starts
-}
-
-fn line_of_bytes(starts: &[usize], position: usize) -> usize {
-    match starts.binary_search(&position) {
-        Ok(line) => line,
-        Err(insert) => insert.saturating_sub(1),
-    }
-}
-
-fn end_line_position(text: &str, starts: &[usize], line: usize) -> usize {
-    if line + 1 == starts.len() {
-        return text.len().saturating_sub(1);
-    }
-    let start = starts[line];
-    let mut position = starts[line + 1].saturating_sub(1);
-    while position >= start {
-        if text.is_char_boundary(position) {
-            match text[position..].chars().next() {
-                Some('\n' | '\r' | '\u{2028}' | '\u{2029}') => {}
-                _ => break,
-            }
-            if position == 0 {
-                break;
-            }
-            position -= 1;
-        } else {
-            position -= 1;
-        }
-    }
-    position
 }
 
 /// tsrs-native: declaration visitor comment-range lookup over parse and
