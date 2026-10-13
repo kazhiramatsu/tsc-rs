@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 use serde::Serialize;
 use serde_json::json;
-use tsc_lsp::lsproto::*;
+use tsc_lsproto::*;
 
 fn decode<T: Decode>(text: &str) -> Result<T, DecodeError> {
     from_str(text)

@@ -6,7 +6,7 @@ usage: generate_lsp_protocol.py [--profile <name>] [--check]
 tsgo's protocol types (internal/lsp/lsproto/lsp_generated.go) are generated
 upstream from the LSP meta model and tsgo's additions
 (tools/scripts/lsp/generate.mts). This script reads the vendored copy and
-writes the same types in Rust (crates/lsp/src/lsproto/generated.rs); --check
+writes the same types in Rust (crates/lsproto/src/generated.rs); --check
 compares instead of writing. The output goes through rustfmt.
 
 The Go file is the contract: its structs, their json tags (`omitzero` is an
@@ -18,7 +18,7 @@ does not recognize is an error, so a change of tsgo's generator is noticed.
 
 Encoding follows Go's: the fields in declaration order, optional fields
 omitted when absent, a union as its member. Decoding follows tsgo's
-`unmarshalStruct` and union decoders (crates/lsp/src/lsproto/codec.rs has the
+`unmarshalStruct` and union decoders (crates/lsproto/src/codec.rs has the
 shared rules and tsgo's error messages).
 """
 
@@ -30,7 +30,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROFILE = "7.1.0-dev-aa814927"
-OUTPUT = ROOT / "crates/lsp/src/lsproto/generated.rs"
+OUTPUT = ROOT / "crates/lsproto/src/generated.rs"
 SOURCE = "upstream/tsc/internal/lsp/lsproto/lsp_generated.go"
 
 # Go types the handwritten part of lsproto declares (lsp.go): their Rust

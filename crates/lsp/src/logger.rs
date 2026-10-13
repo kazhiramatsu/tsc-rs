@@ -6,7 +6,8 @@ use std::io::Write;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, PoisonError};
 
-use crate::lsproto::{self, LogVerbosity, MessageType};
+use tsc_lsproto::{self as lsproto, LogVerbosity, MessageType};
+
 use crate::server::Server;
 
 pub struct Logger {

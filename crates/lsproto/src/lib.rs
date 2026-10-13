@@ -1,7 +1,8 @@
-//! tsgo `lsproto`: the language server protocol's types. The types are
-//! generated from tsgo's (`generated.rs`, by `scripts/generate_lsp_protocol.py`);
-//! this module has the handwritten ones of tsgo's `lsp.go` and the decoding
-//! rules (`codec`).
+//! tsgo `lsproto`: the language server protocol's types and messages. The
+//! types are generated from tsgo's (`generated.rs`, by
+//! `scripts/generate_lsp_protocol.py`); this crate has the handwritten ones
+//! of tsgo's `lsp.go`, the decoding rules (`codec`) and the base protocol's
+//! messages (`message`).
 
 pub mod codec;
 #[allow(clippy::all)]
