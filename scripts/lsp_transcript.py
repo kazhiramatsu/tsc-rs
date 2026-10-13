@@ -17,16 +17,26 @@ message's JSON text as the server wrote it, one per line, then `EXIT <code>`
 and `STDERR <JSON string>`; `--normalize` replaces handler durations with
 `<time>` and Go's randomized "unable to" with "cannot".
 
+A script with "files" ({relative path: text}) runs in "workspace" (a fixed
+directory, made afresh and removed after; a new temporary one without it)
+holding them: `${WS}` in the steps is that directory, and the transcript
+names it `${WS}` again (as written and lowercased, the server's path key on
+a case-insensitive file system). A fixed workspace keeps what the server
+looks up above it the same for the in-process replay.
+
 With tsgo as the server (`target/typescript7/bin/tsc-<commit> --lsp --stdio`),
 this records the transcripts in crates/lsp/tests/fixtures/ the server tests
 replay.
 """
 
 import json
+import os
 import queue
+import shutil
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 
 
@@ -63,6 +73,20 @@ def main():
     separator = args.index("--")
     script = json.load(open(args[0]))
     command = args[separator + 1 :]
+    workspace = None
+    if "files" in script:
+        if "workspace" in script:
+            workspace = script["workspace"]
+            shutil.rmtree(workspace, ignore_errors=True)
+            os.makedirs(workspace)
+        else:
+            workspace = os.path.realpath(tempfile.mkdtemp(prefix="lsp-transcript-"))
+        for name, text in script["files"].items():
+            path = os.path.join(workspace, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as file:
+                file.write(text)
+        script["steps"] = json.loads(json.dumps(script["steps"]).replace("${WS}", workspace))
     server = subprocess.Popen(
         command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
@@ -79,7 +103,10 @@ def main():
                 sys.exit("timed out waiting for the server")
             if text is None:
                 return False
-            lines.append(normalize(text) if normalized else text)
+            line = normalize(text) if normalized else text
+            if workspace:
+                line = line.replace(workspace, "${WS}").replace(workspace.lower(), "${WS}")
+            lines.append(line)
             message = json.loads(text)
             if "method" in message and "id" in message:
                 answer = {"jsonrpc": "2.0", "id": message["id"], "result": answers.get(message["method"])}
@@ -107,6 +134,8 @@ def main():
         print(line)
     print("EXIT", code)
     print("STDERR", json.dumps(server.stderr.read().decode()))
+    if workspace:
+        shutil.rmtree(workspace)
 
 
 if __name__ == "__main__":

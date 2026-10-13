@@ -821,18 +821,14 @@ impl Server {
                 cwd = tsc_program::uri::rooted_path_from_absolute(&path);
             }
         }
-        let (position_encoding, watch_enabled, relative_pattern_support) = {
+        let (position_encoding, watch_enabled, client_capabilities) = {
             let mut state = lock(&self.state);
             state.telemetry_enabled = telemetry;
             state.current_directory = cwd.clone();
             (
                 state.position_encoding.clone(),
                 state.watch_enabled,
-                state
-                    .client_capabilities
-                    .workspace
-                    .did_change_watched_files
-                    .relative_pattern_support,
+                state.client_capabilities.clone(),
             )
         };
         let host = Arc::new(SessionHost(Arc::downgrade(self)));
@@ -849,7 +845,7 @@ impl Server {
                 logging_enabled: true,
                 push_diagnostics_enabled: !disable_push_diagnostics,
                 debounce_delay: Duration::from_millis(500),
-                relative_pattern_support,
+                client_capabilities,
             },
             Arc::clone(&self.fs),
             Some(Arc::clone(&host) as Arc<dyn tsc_project::Client>),
@@ -1097,6 +1093,23 @@ impl Server {
         Ok(())
     }
 
+    /// tsgo `RefreshDiagnostics`: fire and forget, as the client answers
+    /// null and a slow client must not hold the server.
+    fn refresh_diagnostics(&self) -> Result<(), String> {
+        if !self
+            .client_capabilities()
+            .workspace
+            .diagnostics
+            .refresh_support
+        {
+            return Ok(());
+        }
+        self.send_client_request_fire_and_forget::<lsproto::WorkspaceDiagnosticRefreshInfo>(
+            &NoParams,
+        )
+        .map_err(|error| format!("failed to refresh diagnostics: {error}"))
+    }
+
     /// tsgo `RefreshInlayHints`.
     fn refresh_inlay_hints(&self) -> Result<(), String> {
         if !self
@@ -1321,6 +1334,13 @@ fn register_notification<N: Notification + 'static>(
 struct SessionHost(Weak<Server>);
 
 impl tsc_project::Client for SessionHost {
+    /// tsgo `PublishDiagnostics`.
+    fn publish_diagnostics(&self, params: lsproto::PublishDiagnosticsParams) -> Result<(), String> {
+        self.0.upgrade().map_or(Ok(()), |server| {
+            server.send_notification::<lsproto::TextDocumentPublishDiagnosticsInfo>(&params)
+        })
+    }
+
     fn watch_files(
         &self,
         id: &str,
@@ -1335,6 +1355,12 @@ impl tsc_project::Client for SessionHost {
         self.0
             .upgrade()
             .map_or(Ok(()), |server| server.unwatch_files(id))
+    }
+
+    fn refresh_diagnostics(&self) -> Result<(), String> {
+        self.0
+            .upgrade()
+            .map_or(Ok(()), |server| server.refresh_diagnostics())
     }
 
     fn refresh_inlay_hints(&self) -> Result<(), String> {

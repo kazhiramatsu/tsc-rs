@@ -503,7 +503,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let options = self.host.options();
         let paths = self.host.paths();
         let case_sensitive = paths.case_sensitive;
-        let relative_pattern_support = options.relative_pattern_support;
+        let relative_pattern_support = options.relative_pattern_support();
         let workspace = paths.current_directory.clone();
         let library = options
             .library_catalog

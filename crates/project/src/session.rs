@@ -5,16 +5,20 @@
 //! watch event schedules an update in the background, each into a new
 //! snapshot the session adopts.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
+use tsc_diagnostics::DiagnosticList;
 use tsc_host::go_time::duration_string;
 use tsc_host::vfs::FileSystem;
+use tsc_ls::lsconv::{
+    diagnostic_to_lsp, Converters, DiagnosticFile, DiagnosticOptions, LspLineMap,
+};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_lsproto::{
-    DocumentUri, FileChangeType, FileEvent, LanguageKind,
+    DocumentUri, FileChangeType, FileEvent, LanguageKind, PublishDiagnosticsParams,
     TextDocumentContentChangePartialOrWholeDocument,
 };
 use tsc_program::content_mapper::host::Spawner;
@@ -24,8 +28,9 @@ use tsc_syntax::ScriptKind;
 use crate::background::{Cancellation, Queue};
 use crate::client::{Client, Logger};
 use crate::fs::{FileChangeSummary, Paths};
+use crate::id::ProjectKind;
 use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
-use crate::project::Project;
+use crate::project::{ProgramUpdateKind, Project};
 use crate::snapshot::{ProjectError, SessionOptions, Snapshot, SnapshotChange, SnapshotHost};
 use crate::watch::{glob_string, WatchRegistry, WatchedFiles};
 
@@ -64,6 +69,9 @@ struct Inner {
     /// tsgo `backgroundQueue`.
     background: Arc<Queue>,
     scheduled_update: Mutex<ScheduledUpdate>,
+    /// tsgo's scheduled diagnostics refresh (`diagnosticsRefreshCancel`
+    /// and `diagnosticsRefreshGeneration`).
+    diagnostics_refresh: Mutex<ScheduledUpdate>,
     /// tsgo `watches`: the globs registered with the editor.
     watches: WatchRegistry,
 }
@@ -104,6 +112,7 @@ impl Session {
                 }),
                 background: Arc::default(),
                 scheduled_update: Mutex::default(),
+                diagnostics_refresh: Mutex::default(),
                 watches: WatchRegistry::default(),
             }),
         }
@@ -145,6 +154,21 @@ impl Session {
         if old.code_lens_user_preferences != config.code_lens_user_preferences {
             let _ = client.refresh_code_lens();
         }
+        // tsgo `refreshDiagnosticsIfNeeded` and `refreshATAIfNeeded`.
+        if old.custom_config_file_name != config.custom_config_file_name
+            || old.report_style_checks_as_warnings != config.report_style_checks_as_warnings
+            || old.validate_enabled != config.validate_enabled
+            || (old.is_ata_disabled() && !config.is_ata_disabled())
+        {
+            self.schedule_diagnostics_refresh();
+        }
+    }
+
+    /// tsgo `ScheduleDiagnosticsRefresh`: the editor pulls its diagnostics
+    /// again after the debounce delay, unless another refresh comes first.
+    pub fn schedule_diagnostics_refresh(&self) {
+        self.inner
+            .schedule_diagnostics_refresh(self.inner.host.options().debounce_delay);
     }
 
     /// tsgo `InitializeWithUserConfig`.
@@ -213,6 +237,19 @@ impl Session {
             changes,
             ..FileChange::new(FileChangeKind::Change, uri.clone())
         });
+        // A content-mapped file's dependents are refreshed at once (the
+        // client re-pulls only the documents it syncs); an ordinary edit
+        // cancels a pending refresh (tsgo `isContentMapperFile`).
+        let file_name = document_file_name(uri).unwrap_or_default();
+        let extensions = self.snapshot().content_mapper_extensions();
+        if extensions
+            .iter()
+            .any(|extension| file_name.ends_with(extension.as_str()))
+        {
+            self.inner.schedule_diagnostics_refresh(Duration::ZERO);
+        } else {
+            self.inner.cancel_diagnostics_refresh();
+        }
     }
 
     /// tsgo `DidSaveFile`: pending until the next update.
@@ -226,6 +263,9 @@ impl Session {
     pub fn did_change_watched_files(&self, changes: &[FileEvent]) {
         let snapshot = self.snapshot();
         let mut has_config_change = false;
+        let mut has_relevant_change = false;
+        let extensions = snapshot.content_mapper_extensions();
+        let watched = snapshot.content_mapper_watched_paths();
         let changes = changes
             .iter()
             .filter_map(|change| {
@@ -235,17 +275,63 @@ impl Session {
                     FileChangeType::DELETED => FileChangeKind::WatchDelete,
                     _ => return None,
                 };
+                let file_name = document_file_name(&change.uri).unwrap_or_default();
                 if !has_config_change {
-                    has_config_change = document_file_name(&change.uri)
-                        .is_some_and(|file_name| snapshot.is_config_tracked(&file_name));
+                    has_config_change = snapshot.is_config_tracked(&file_name);
+                }
+                if !has_relevant_change {
+                    has_relevant_change =
+                        self.is_relevant_change(&snapshot, &file_name, kind, &extensions, &watched);
                 }
                 Some(FileChange::new(kind, change.uri.clone()))
             })
             .collect::<Vec<_>>();
         lock(&self.inner.pending_file_changes).extend(changes);
+        // Only the paths that can affect a program refresh the editor's
+        // diagnostics.
+        if has_relevant_change {
+            self.schedule_diagnostics_refresh();
+        }
+        // Config diagnostics are pushed on snapshot updates, not pulled.
         if has_config_change {
             self.inner.schedule_snapshot_update();
         }
+    }
+
+    /// tsgo `DidChangeWatchedFiles`' relevance: a content mapper's watched
+    /// file, a file of a relevant extension (or a content mapper's), or an
+    /// extensionless path that is a directory (for a deletion, one the
+    /// snapshot read files below or has open documents in, or within
+    /// `node_modules`).
+    fn is_relevant_change(
+        &self,
+        snapshot: &Snapshot,
+        file_name: &str,
+        kind: FileChangeKind,
+        extensions: &[String],
+        watched: &BTreeSet<String>,
+    ) -> bool {
+        let path = snapshot.to_path(file_name);
+        let path = path.trim_end_matches('/');
+        if watched.contains(path) {
+            return true;
+        }
+        let base = path.rsplit('/').next().unwrap_or(path);
+        let Some(index) = base.rfind('.') else {
+            if kind != FileChangeKind::WatchDelete {
+                return lock(&self.inner.fs).directory_exists(file_name);
+            }
+            return snapshot.has_files_within(path)
+                || path.ends_with("/node_modules")
+                || path.contains("/node_modules/");
+        };
+        let extension = &base[index..];
+        matches!(
+            extension,
+            ".js" | ".jsx" | ".mjs" | ".cjs" | ".ts" | ".tsx" | ".mts" | ".cts" | ".json"
+        ) || extensions
+            .iter()
+            .any(|mapped| path.ends_with(mapped.as_str()))
     }
 
     /// tsgo `getSnapshot` for documents: the pending changes applied, and
@@ -324,6 +410,7 @@ impl Session {
     pub fn close(&self) {
         let inner = &self.inner;
         inner.cancel_scheduled_snapshot_update();
+        inner.cancel_diagnostics_refresh();
         inner.background.close();
         let _update = lock(&inner.snapshot_update);
         inner.host.close();
@@ -359,16 +446,181 @@ impl Inner {
                 snapshot,
             )
         };
-        if self.host.options().watch_enabled {
-            let inner = Arc::clone(self);
-            let new = Arc::clone(&snapshot);
-            self.background.enqueue(&Cancellation::default(), move |_| {
+        // tsgo's adoption task: the watches, then the configs' diagnostics.
+        let inner = Arc::clone(self);
+        let new = Arc::clone(&snapshot);
+        self.background.enqueue(&Cancellation::default(), move |_| {
+            if inner.host.options().watch_enabled {
                 if let Err(error) = inner.update_watches(&old, &new) {
                     inner.log(|| error);
                 }
-            });
-        }
+            }
+            inner.publish_program_diagnostics(&old, &new);
+        });
         Ok(snapshot)
+    }
+
+    /// tsgo `publishProgramDiagnostics`: the config diagnostics of each
+    /// configured project with an open file, published when its program was
+    /// built anew (not a one-file clone) or its files were opened again, and
+    /// cleared when it went away, its files were closed or the user turned
+    /// validation off.
+    fn publish_program_diagnostics(&self, old: &Arc<Snapshot>, new: &Arc<Snapshot>) {
+        if !self.host.options().push_diagnostics_enabled {
+            return;
+        }
+        let configured = |project: &Project| project.kind == ProjectKind::Configured;
+        let config_file_name =
+            |project: &Project| project.config_file_name.clone().unwrap_or_default();
+        if new.user_preferences().validate_enabled == Some(false) {
+            if old.user_preferences().validate_enabled == Some(false) {
+                return;
+            }
+            let old_open = old.open_configured_projects();
+            for project in old.projects() {
+                if configured(project) && old_open.contains(&project.id) {
+                    self.publish_project_diagnostics(old, &config_file_name(project), Vec::new());
+                }
+            }
+            return;
+        }
+        let should_publish = |project: &Project| {
+            configured(project)
+                && project.program.is_some()
+                && project.program_last_update == new.id()
+                && matches!(
+                    project.program_update_kind,
+                    ProgramUpdateKind::SameFileNames | ProgramUpdateKind::NewFiles
+                )
+        };
+        let old_open = old.open_configured_projects();
+        let new_open = new.open_configured_projects();
+        for project in new.projects() {
+            if old.project(&project.id).is_none()
+                && should_publish(project)
+                && new_open.contains(&project.id)
+            {
+                self.publish_project_diagnostics(
+                    new,
+                    &config_file_name(project),
+                    project.project_diagnostics(),
+                );
+            }
+        }
+        for project in old.projects() {
+            match new.project(&project.id) {
+                None if configured(project) => {
+                    self.publish_project_diagnostics(old, &config_file_name(project), Vec::new())
+                }
+                Some(new_project)
+                    if !Arc::ptr_eq(project, new_project)
+                        && should_publish(new_project)
+                        && new_open.contains(&new_project.id) =>
+                {
+                    self.publish_project_diagnostics(
+                        new,
+                        &config_file_name(new_project),
+                        new_project.project_diagnostics(),
+                    );
+                }
+                _ => {}
+            }
+        }
+        // The projects whose open files changed without a new program.
+        for new_project in new.projects().filter(|project| configured(project)) {
+            let Some(old_project) = old.project(&new_project.id) else {
+                continue;
+            };
+            let new_has_open_files = new_open.contains(&new_project.id);
+            let old_has_open_files = old_open.contains(&new_project.id);
+            if new_has_open_files
+                && !old_has_open_files
+                && (Arc::ptr_eq(old_project, new_project) || !should_publish(new_project))
+            {
+                self.publish_project_diagnostics(
+                    new,
+                    &config_file_name(new_project),
+                    new_project.project_diagnostics(),
+                );
+            } else if !new_has_open_files && old_has_open_files {
+                self.publish_project_diagnostics(new, &config_file_name(new_project), Vec::new());
+            }
+        }
+    }
+
+    /// tsgo `publishProjectDiagnostics`: the diagnostics of a config (none
+    /// when the user turned validation off) in the client's locale.
+    fn publish_project_diagnostics(
+        &self,
+        snapshot: &Arc<Snapshot>,
+        config_file_name: &str,
+        diagnostics: DiagnosticList,
+    ) {
+        let Some(client) = &self.client else {
+            return;
+        };
+        let diagnostics = if lock(&self.user_config).workspace.validate_enabled == Some(false) {
+            Vec::new()
+        } else {
+            diagnostics
+        };
+        // The texts of the files the diagnostics are in.
+        let texts = diagnostics
+            .iter()
+            .flat_map(|diagnostic| {
+                diagnostic.file_name.iter().chain(
+                    diagnostic
+                        .related
+                        .iter()
+                        .filter_map(|related| related.file_name.as_ref()),
+                )
+            })
+            .map(|file_name| file_name.to_string_lossy().into_owned())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter_map(|file_name| {
+                let text = tsc_program::decode_host_text(snapshot.read_file(&file_name)?).ok()?;
+                Some((file_name, text))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let line_maps = Arc::new(
+            texts
+                .iter()
+                .map(|(file_name, text)| (file_name.clone(), Arc::new(LspLineMap::new(text))))
+                .collect::<BTreeMap<_, _>>(),
+        );
+        let converters = Converters::new(
+            self.host.options().position_encoding.clone(),
+            move |file_name| {
+                line_maps
+                    .get(file_name)
+                    .cloned()
+                    .unwrap_or_else(|| Arc::new(LspLineMap::new("")))
+            },
+        );
+        let options = DiagnosticOptions::push(&self.host.options().client_capabilities);
+        let locale = client.locale();
+        let file = |file_name: &str| {
+            texts
+                .get_key_value(file_name)
+                .map(|(file_name, text)| DiagnosticFile { file_name, text })
+        };
+        let diagnostics = diagnostics
+            .iter()
+            .map(|diagnostic| {
+                diagnostic_to_lsp(&converters, diagnostic, &options, locale.messages(), &file)
+            })
+            .collect();
+        let params = PublishDiagnosticsParams {
+            uri: DocumentUri(tsc_program::uri::file_name_to_document_uri(
+                config_file_name,
+            )),
+            version: None,
+            diagnostics,
+        };
+        if let Err(error) = client.publish_diagnostics(params) {
+            self.log(|| format!("Error publishing diagnostics: {error}"));
+        }
     }
 
     /// tsgo `updateWatches`: the watches of the configs and projects the
@@ -585,6 +837,52 @@ impl Inner {
                 },
             );
         });
+    }
+
+    /// tsgo `scheduleDiagnosticsRefresh`: the editor's `RefreshDiagnostics`
+    /// in the background after `delay`, unless another refresh comes first.
+    fn schedule_diagnostics_refresh(self: &Arc<Self>, delay: Duration) {
+        let mut scheduled = lock(&self.diagnostics_refresh);
+        match scheduled.cancellation.take() {
+            Some(cancellation) => {
+                cancellation.cancel();
+                self.log(|| "Delaying scheduled diagnostics refresh...".to_owned());
+            }
+            None => self.log(|| "Scheduling new diagnostics refresh...".to_owned()),
+        }
+        let cancellation = Cancellation::default();
+        scheduled.generation += 1;
+        let generation = scheduled.generation;
+        scheduled.cancellation = Some(cancellation.clone());
+        let inner = Arc::clone(self);
+        self.background.enqueue(&cancellation, move |cancellation| {
+            if !delay.is_zero() && !cancellation.sleep(delay) || cancellation.is_cancelled() {
+                return;
+            }
+            {
+                let mut scheduled = lock(&inner.diagnostics_refresh);
+                if scheduled.generation != generation {
+                    return;
+                }
+                scheduled.cancellation = None;
+            }
+            inner.log(|| "Running scheduled diagnostics refresh".to_owned());
+            if let Some(client) = &inner.client {
+                if let Err(error) = client.refresh_diagnostics() {
+                    inner.log(|| format!("Error refreshing diagnostics: {error}"));
+                }
+            }
+        });
+    }
+
+    /// tsgo `cancelDiagnosticsRefresh`.
+    fn cancel_diagnostics_refresh(&self) {
+        let mut scheduled = lock(&self.diagnostics_refresh);
+        if let Some(cancellation) = scheduled.cancellation.take() {
+            cancellation.cancel();
+            self.log(|| "Canceled scheduled diagnostics refresh".to_owned());
+            scheduled.generation += 1;
+        }
     }
 
     /// tsgo `cancelScheduledSnapshotUpdate`.
