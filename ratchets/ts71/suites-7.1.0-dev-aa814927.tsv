@@ -664,7 +664,7 @@ lsp/TestCompletionAfterImportWithJSDoc	full
 lsp/TestCompletionAfterNewline	full
 lsp/TestCompletionAfterNewline2	full
 lsp/TestCompletionAfterQuestionDot	none
-lsp/TestCompletionAfterTrailingAtInJSDoc1	none
+lsp/TestCompletionAfterTrailingAtInJSDoc1	full
 lsp/TestCompletionAmbientPropertyDeclaration	full
 lsp/TestCompletionAsKeyword	full
 lsp/TestCompletionAtCaseClause	full
@@ -767,7 +767,7 @@ lsp/TestCompletionInIncompleteCallExpression	full
 lsp/TestCompletionInJSDocFunctionNew	full
 lsp/TestCompletionInJSDocFunctionThis	full
 lsp/TestCompletionInJSDocPropertyWithLinkNoCrash1	full
-lsp/TestCompletionInJsDoc	none
+lsp/TestCompletionInJsDoc	full
 lsp/TestCompletionInJsDocQualifiedNames	none
 lsp/TestCompletionInNamedImportLocation	none
 lsp/TestCompletionInTernaryConditional	full
@@ -1092,8 +1092,8 @@ lsp/TestCompletionUsingKeyword	full
 lsp/TestCompletionWithConditionalOperatorMissingColon	full
 lsp/TestCompletionWithDotFollowedByNamespaceKeyword	none
 lsp/TestCompletionWithNamespaceInsideFunction	none
-lsp/TestCompletionWithUnterminatedJSDocEndingWithAt1	none
-lsp/TestCompletionWithUnterminatedJSDocEndingWithAt2	none
+lsp/TestCompletionWithUnterminatedJSDocEndingWithAt1	full
+lsp/TestCompletionWithUnterminatedJSDocEndingWithAt2	full
 lsp/TestCompletions01	none
 lsp/TestCompletions03	full
 lsp/TestCompletionsAfterAsyncInObjectLiteral	full
@@ -1252,9 +1252,9 @@ lsp/TestCompletionsJSDocNoCrash1	full
 lsp/TestCompletionsJSDocNoCrash2	full
 lsp/TestCompletionsJSDocNoCrash3	full
 lsp/TestCompletionsJSDocSignature	full
-lsp/TestCompletionsJSDocTrivia	none
+lsp/TestCompletionsJSDocTrivia	full
 lsp/TestCompletionsJsPropertyAssignment	full
-lsp/TestCompletionsJsdocParamTypeBeforeName	none
+lsp/TestCompletionsJsdocParamTypeBeforeName	full
 lsp/TestCompletionsJsdocTag	none
 lsp/TestCompletionsJsdocTypeTagCast	full
 lsp/TestCompletionsJsxAttribute2	full
@@ -1355,7 +1355,7 @@ lsp/TestCompletionsSelfDeclaring3	full
 lsp/TestCompletionsStringLiteral_fromTypeConstraint	full
 lsp/TestCompletionsStringsWithTriggerCharacter	full
 lsp/TestCompletionsSymbolMembers	full
-lsp/TestCompletionsTriggerCharacter	none
+lsp/TestCompletionsTriggerCharacter	full
 lsp/TestCompletionsTuple	full
 lsp/TestCompletionsTypeAssertionKeywords	full
 lsp/TestCompletionsTypeKeywords	full
@@ -1518,7 +1518,7 @@ lsp/TestDocCommentTemplateClassDeclMethods02	none
 lsp/TestDocCommentTemplateClassDeclProperty01	none
 lsp/TestDocCommentTemplateConstructor01	none
 lsp/TestDocCommentTemplateEmptyFile	none
-lsp/TestDocCommentTemplateExportAssignmentJS	none
+lsp/TestDocCommentTemplateExportAssignmentJS	full
 lsp/TestDocCommentTemplateFunctionExpression	none
 lsp/TestDocCommentTemplateFunctionWithParameters	none
 lsp/TestDocCommentTemplateInMultiLineComment	none
@@ -1540,7 +1540,7 @@ lsp/TestDocCommentTemplateVariableStatements02	none
 lsp/TestDocCommentTemplateVariableStatements03	none
 lsp/TestDocCommentTemplateWithExistingJSDoc	none
 lsp/TestDocCommentTemplateWithMultipleJSDoc1	none
-lsp/TestDocCommentTemplateWithMultipleJSDoc2	none
+lsp/TestDocCommentTemplateWithMultipleJSDoc2	full
 lsp/TestDocCommentTemplateWithMultipleJSDoc3	none
 lsp/TestDocCommentTemplateWithMultipleJSDocAndParameters	none
 lsp/TestDocCommentTemplate_insideEmptyComment	none
@@ -3187,7 +3187,7 @@ lsp/TestJsdocDeprecated_suggestion8	full
 lsp/TestJsdocDeprecated_suggestion9	full
 lsp/TestJsdocExtendsTagCompletion	full
 lsp/TestJsdocImplementsTagCompletion	full
-lsp/TestJsdocImportTagCompletion1	none
+lsp/TestJsdocImportTagCompletion1	full
 lsp/TestJsdocLink1	full
 lsp/TestJsdocLink2	full
 lsp/TestJsdocLink3	full
@@ -3199,16 +3199,16 @@ lsp/TestJsdocLink_rename1	none
 lsp/TestJsdocNullableUnion	full
 lsp/TestJsdocOnInheritedMembers1	full
 lsp/TestJsdocOnInheritedMembers2	full
-lsp/TestJsdocOverloadTagCompletion	none
+lsp/TestJsdocOverloadTagCompletion	full
 lsp/TestJsdocParamTagSpecialKeywords	full
 lsp/TestJsdocParam_suggestion1	full
-lsp/TestJsdocParameterNameCompletion	none
-lsp/TestJsdocPropTagCompletion	none
+lsp/TestJsdocParameterNameCompletion	full
+lsp/TestJsdocPropTagCompletion	full
 lsp/TestJsdocPropertyTagCompletion	full
 lsp/TestJsdocReturnsTag	none
 lsp/TestJsdocReturnsTagVS	none
 lsp/TestJsdocSatisfiesTagCompletion1	full
-lsp/TestJsdocSatisfiesTagCompletion2	none
+lsp/TestJsdocSatisfiesTagCompletion2	full
 lsp/TestJsdocSatisfiesTagFindAllReferences	none
 lsp/TestJsdocSatisfiesTagRename	none
 lsp/TestJsdocTemplatePrototypeCompletions	full
@@ -3766,7 +3766,7 @@ lsp/TestQuickInfoJSDocFunctionNew	full
 lsp/TestQuickInfoJSDocFunctionThis	full
 lsp/TestQuickInfoJSDocLinkBackticks	full
 lsp/TestQuickInfoJSDocParamWithInvalidTagInComment	full
-lsp/TestQuickInfoJSDocParamWithTrailingAtBeforeCommentEnd	none
+lsp/TestQuickInfoJSDocParamWithTrailingAtBeforeCommentEnd	full
 lsp/TestQuickInfoJSDocTags	full
 lsp/TestQuickInfoJSDocTypedefPropertyWithInvalidTag	full
 lsp/TestQuickInfoJSExport	full
