@@ -134,6 +134,8 @@ pub struct SourceFile {
     pub file_name: JsString,
     snapshot: Arc<TextSnapshot>,
     pub language_variant: LanguageVariant,
+    /// tsgo `SourceFile.ScriptKind`: the kind it was parsed as.
+    pub script_kind: ScriptKind,
     pub is_declaration_file: bool,
     /// tsc SourceFile.jsDocParsingMode.
     pub js_doc_parsing_mode: JSDocParsingMode,
@@ -194,17 +196,25 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
+    /// tsgo `ast.IsSourceFileJS`: the file was parsed as JavaScript (JS or
+    /// JSX).
+    pub fn is_source_file_js(&self) -> bool {
+        matches!(self.script_kind, ScriptKind::Js | ScriptKind::Jsx)
+    }
+
     /// The source file of a tree built outside the parser (tsgo's API
     /// decoder, `NewSourceFile`): `root` and its nodes are `arena`'s, and
     /// nothing was parsed, recovered or read from pragmas. Without `text`
     /// (a node of no source file), the positions index no text
     /// ([`tsc_diagnostics::PositionIndex::is_detached`]).
+    #[allow(clippy::too_many_arguments)]
     pub fn from_tree(
         file_name: impl Into<JsString>,
         text: Option<String>,
         arena: NodeArena,
         root: NodeId,
         language_variant: LanguageVariant,
+        script_kind: ScriptKind,
         is_declaration_file: bool,
         external_module_indicator_options: ExternalModuleIndicatorOptions,
     ) -> Self {
@@ -216,6 +226,7 @@ impl SourceFile {
             file_name: file_name.into(),
             snapshot,
             language_variant,
+            script_kind,
             is_declaration_file,
             js_doc_parsing_mode: JSDocParsingMode::default(),
             arena,

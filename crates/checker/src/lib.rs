@@ -226,6 +226,9 @@ pub struct InputFile {
     /// text is parsed as its virtual file, and the mapper's diagnostics join
     /// the file's syntactic ones.
     content_mapped: Option<Arc<tsc_program::content_mapper::source::ContentMappedSource>>,
+    /// tsgo's file handle's script kind when it is not the file name's (an
+    /// open document's language).
+    script_kind: Option<tsc_syntax::ScriptKind>,
 }
 
 impl InputFile {
@@ -241,6 +244,7 @@ impl InputFile {
             js_doc_parsing_mode: None,
             preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
             content_mapped: None,
+            script_kind: None,
         }
     }
 
@@ -259,6 +263,7 @@ impl InputFile {
             js_doc_parsing_mode: None,
             preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
             content_mapped: None,
+            script_kind: None,
         }
     }
 
@@ -285,6 +290,24 @@ impl InputFile {
         self.content_mapped
             .as_ref()
             .map_or_else(|| self.name.as_js(), |info| info.virtual_file_name.as_js())
+    }
+
+    /// The input with its file handle's script kind (an open document's
+    /// language); an unknown kind leaves the file name's.
+    pub fn with_script_kind(mut self, kind: tsc_syntax::ScriptKind) -> Self {
+        self.script_kind = (kind != tsc_syntax::ScriptKind::Unknown).then_some(kind);
+        self
+    }
+
+    /// tsgo's kind the text is parsed as: a content mapper output's virtual
+    /// name's, else the file handle's, else the file name's.
+    fn script_kind(&self) -> tsc_syntax::ScriptKind {
+        match (&self.content_mapped, self.script_kind) {
+            (None, Some(kind)) => kind,
+            _ => tsc_syntax::ScriptKind::ensure_from_file_name(
+                &self.parse_file_name().to_string_lossy(),
+            ),
+        }
     }
 
     /// tsc `sourceFile.moduleName = transpileOptions.moduleName`
@@ -332,6 +355,7 @@ impl InputFile {
             js_doc_parsing_mode: None,
             preparsed_syntax: tsc_program::PreparsedSyntax::empty(),
             content_mapped: None,
+            script_kind: None,
         }
     }
 
@@ -1031,7 +1055,7 @@ pub(crate) fn should_skip_type_checking_file(
         // source file is never checked.
         || source.file_name.as_js().ends_with(".json")
         || !can_include_bind_and_check_diagnostics(
-            is_js_file_name(&source.file_name),
+            source.is_source_file_js(),
             check_directive(source.text()),
             options,
         )
@@ -2963,18 +2987,10 @@ fn parse_program_inputs(
             pending_sources.push(PendingProgramSource::Ready(source_file));
             continue;
         }
-        // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds
-        // (of a content mapper output's virtual name).
-        let parse_file_name = file.parse_file_name();
-        let javascript_file = is_js_file_name(parse_file_name);
-        let language_variant = if parse_file_name.ends_with(".tsx") || javascript_file {
-            tsc_syntax::LanguageVariant::Jsx
-        } else {
-            tsc_syntax::LanguageVariant::Standard
-        };
+        // tsgo ParseSourceFile's script kind: a content mapper output's
+        // virtual name's, the file handle's or the file name's.
         let parse_options = tsc_syntax::ParseOptions {
-            language_variant,
-            javascript_file,
+            script_kind: file.script_kind(),
             force_external_module,
             detect_external_module_from_jsx,
             node_id_base: 0,
@@ -3322,7 +3338,7 @@ fn syntactic_rows_of_sources<'s>(
 ) -> Vec<FileDiagnosticPasses> {
     sources
         .map(|source| {
-            let mut syntactic = if is_js_file_name(&source.file_name) {
+            let mut syntactic = if source.is_source_file_js() {
                 let mut rows = js_grammar::get_js_syntactic_diagnostics(source);
                 // tsgo GetSyntacticDiagnostics (compiler/program.go:743-754):
                 // the option-dependent rows of a JavaScript file the checker
@@ -5624,7 +5640,7 @@ fn bind_and_check_rows(
     global_checker_diagnostics: &[Diagnostic],
     options: &CompilerOptions,
 ) -> DiagnosticList {
-    let javascript_file = is_js_file_name(&source.file_name);
+    let javascript_file = source.is_source_file_js();
     let directive = check_directive(source.text());
     let plain_js = is_plain_js_file(javascript_file, directive, options);
 
@@ -6015,8 +6031,7 @@ fn parse_lib_sources(
     let mut pending: Vec<PendingProgramSource> = Vec::new();
     for lib in libs {
         let parse_options = tsc_syntax::ParseOptions {
-            language_variant: tsc_syntax::LanguageVariant::Standard,
-            javascript_file: false,
+            script_kind: tsc_syntax::ScriptKind::Ts,
             force_external_module: false,
             detect_external_module_from_jsx: false,
             node_id_base: 0,

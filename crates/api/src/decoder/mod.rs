@@ -240,6 +240,7 @@ impl<'a> Decoder<'a> {
                     self.arena,
                     root,
                     facts.language_variant,
+                    facts.script_kind,
                     is_declaration_file,
                     facts.external_module_indicator_options,
                 )
@@ -250,6 +251,7 @@ impl<'a> Decoder<'a> {
                 self.arena,
                 root,
                 LanguageVariant::Standard,
+                ScriptKind::Unknown,
                 false,
                 ExternalModuleIndicatorOptions::default(),
             ),

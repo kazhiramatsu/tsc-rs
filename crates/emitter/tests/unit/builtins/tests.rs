@@ -19,7 +19,7 @@ fn jsx_transforms_preserve_js_option_and_literal_values() {
             js(&case["file_name"]),
             case["source"].as_str().unwrap(),
             ParseOptions {
-                language_variant: LanguageVariant::Jsx,
+                script_kind: ScriptKind::Tsx,
                 ..Default::default()
             },
             None,
@@ -172,12 +172,7 @@ fn preflight_admits_every_recovered_parse() {
             file_name,
             case["source"].as_str().unwrap(),
             ParseOptions {
-                javascript_file: file_name.ends_with(".js"),
-                language_variant: if file_name.ends_with(".tsx") {
-                    LanguageVariant::Jsx
-                } else {
-                    LanguageVariant::Standard
-                },
+                script_kind: tsc_syntax::ScriptKind::ensure_from_file_name(file_name),
                 ..ParseOptions::default()
             },
             None,
@@ -222,9 +217,7 @@ fn module_identifier_bases_match_typescript_utf16_replacement() {
 }
 
 use tsc_program::SourceFileId;
-use tsc_syntax::{
-    for_each_child, parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions,
-};
+use tsc_syntax::{for_each_child, parse_source_file, NodeData, NodeId, ParseOptions, ScriptKind};
 use tsc_types::{CompilerOptions, ModuleKind, NodeCheckFlags, ScriptTarget};
 
 use super::{
@@ -1577,7 +1570,7 @@ fn transform_and_print_preserved_tsx(source_text: &str) -> String {
         "preserved.tsx",
         source_text,
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -4328,7 +4321,7 @@ fn transform_and_print_classic_jsx_at_target(source_text: &str, target: ScriptTa
         "classic-jsx-spread.tsx",
         source_text,
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -4388,7 +4381,7 @@ fn classic_jsx_preserves_single_line_whitespace_text_children() {
         "classic-jsx-whitespace.tsx",
         source_text,
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -4451,7 +4444,7 @@ fn common_js_leaves_orphan_automatic_jsx_import_references_in_scripts() {
         "legacy-script.tsx",
         source_text,
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -4979,7 +4972,7 @@ fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
             file_name,
             case["text"].as_str().unwrap(),
             ParseOptions {
-                javascript_file: file_name.ends_with(".js"),
+                script_kind: tsc_syntax::ScriptKind::ensure_from_file_name(file_name),
                 ..Default::default()
             },
             None,
@@ -5137,7 +5130,7 @@ fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
                 file,
                 text,
                 ParseOptions {
-                    javascript_file: !file.ends_with(".ts") && !file.ends_with(".cts"),
+                    script_kind: tsc_syntax::ScriptKind::ensure_from_file_name(file),
                     force_external_module: forced,
                     ..ParseOptions::default()
                 },

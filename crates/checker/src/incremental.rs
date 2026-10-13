@@ -446,7 +446,7 @@ pub(crate) fn file_facts_without_rows(
     file: usize,
 ) -> IncrementalFileFacts {
     let source = state.binder.source(file);
-    let javascript = crate::is_js_file_name(&source.file_name);
+    let javascript = source.is_source_file_js();
     let references = collect_module_references(source, javascript);
     let affects_global_scope = affects_global_scope(state, source, &references);
     let path_references = source

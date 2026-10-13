@@ -27,7 +27,7 @@ pub mod session;
 mod symbols;
 
 use encoder::ScriptKind;
-use tsc_syntax::{LanguageVariant, ParseOptions, SourceFile};
+use tsc_syntax::{ParseOptions, SourceFile};
 
 /// Parses `text` as tsgo's API parses a file (`parser.ParseSourceFile`)
 /// of `script_kind`: the JSX variant for every kind but TypeScript, the
@@ -48,11 +48,10 @@ fn created_parse_options(script_kind: ScriptKind) -> ParseOptions {
         return ParseOptions::default();
     }
     ParseOptions {
-        language_variant: match script_kind {
-            ScriptKind::Ts | ScriptKind::Unknown => LanguageVariant::Standard,
-            _ => LanguageVariant::Jsx,
+        script_kind: match script_kind {
+            ScriptKind::Unknown => ScriptKind::Ts,
+            kind => kind,
         },
-        javascript_file: matches!(script_kind, ScriptKind::Js | ScriptKind::Jsx),
         ..ParseOptions::default()
     }
 }

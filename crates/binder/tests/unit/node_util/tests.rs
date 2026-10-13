@@ -7,7 +7,7 @@ fn assigned_expression_names_include_static_property_and_element_accesses() {
         "a.js",
         "ns.member = function() {};\nns['key'] = class {};\n",
         ParseOptions {
-            javascript_file: true,
+            script_kind: tsc_syntax::ScriptKind::Js,
             ..ParseOptions::default()
         },
         None,

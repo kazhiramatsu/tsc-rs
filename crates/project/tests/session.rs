@@ -15,6 +15,7 @@ use tsc_lsproto::{
 };
 use tsc_program::uri::uri_to_file_name;
 use tsc_project::{DocumentProjectError, ProgramUpdateKind, ProjectKind, ProjectProgram, Session};
+use tsc_syntax::ScriptKind;
 
 const P1_TSCONFIG: &str = r#"{
     "compilerOptions": {
@@ -141,7 +142,44 @@ fn an_extensionless_file_goes_to_the_inferred_project() {
     assert_eq!(snapshot.projects().count(), 1);
     assert!(snapshot.inferred_project().is_some());
     let program = program(&session, "file:///home/projects/TS/p1/script");
-    assert!(source_text(&program, "/home/projects/TS/p1/script").is_some());
+    assert_eq!(
+        document(&program, "/home/projects/TS/p1/script")
+            .source()
+            .script_kind,
+        ScriptKind::Ts
+    );
+}
+
+#[test]
+fn an_open_document_parses_as_its_language() {
+    // tsgo's parse cache key takes the file handle's kind: an untitled
+    // document opened as JavaScript parses as JavaScript (JSX and the
+    // JavaScript context), one opened as TypeScript as TypeScript.
+    let (session, _) = setup(&[]);
+    let text = "const element = <div />;\nmodule.exports = element;\n";
+    open_as(
+        &session,
+        "untitled:Untitled-1",
+        text,
+        LanguageKind::JAVA_SCRIPT,
+    );
+    open_as(
+        &session,
+        "untitled:Untitled-2",
+        text,
+        LanguageKind::TYPE_SCRIPT,
+    );
+    let parsed = |document_uri: &str| {
+        let program = program(&session, document_uri);
+        let file_name = uri_to_file_name(document_uri).expect("a dynamic file name");
+        let document = document(&program, &file_name);
+        let source = document.source();
+        (source.script_kind, source.parse_diagnostics.len())
+    };
+    assert_eq!(parsed("untitled:Untitled-1"), (ScriptKind::Js, 0));
+    let (kind, errors) = parsed("untitled:Untitled-2");
+    assert_eq!(kind, ScriptKind::Ts);
+    assert!(errors > 0, "a TypeScript parse of JSX has errors");
 }
 
 #[test]

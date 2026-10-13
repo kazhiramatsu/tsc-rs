@@ -306,6 +306,7 @@ pub fn source_files_structurally_equal(left: &SourceFile, right: &SourceFile) ->
     left.file_name == right.file_name
         && left.text() == right.text()
         && left.language_variant == right.language_variant
+        && left.script_kind == right.script_kind
         && left.is_declaration_file == right.is_declaration_file
         && left.js_doc_parsing_mode == right.js_doc_parsing_mode
         && syntax_graphs_equal(left, right)
@@ -853,10 +854,8 @@ fn has_statements(source: &SourceFile) -> bool {
 }
 
 fn parse_options_match(source: &SourceFile, options: &ParseOptions) -> bool {
-    let flags = NodeFlags::from_bits(source.arena.node(source.root).flags);
-    source.language_variant == options.language_variant
+    source.script_kind == options.script_kind
         && source.js_doc_parsing_mode == options.js_doc_parsing_mode
-        && flags.contains(NodeFlags::JAVA_SCRIPT_FILE) == options.javascript_file
 }
 
 fn merge_comment_directives(

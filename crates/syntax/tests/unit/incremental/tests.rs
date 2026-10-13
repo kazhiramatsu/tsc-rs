@@ -1,6 +1,7 @@
 use super::*;
 use crate::nodes::NodeData;
 use crate::relocate::{collect_node_data_ids, remap_node_data_ids};
+use crate::ScriptKind;
 use std::collections::HashMap;
 use tsc_diagnostics::{DocumentVersion, MessageChain, VersionedTextStore};
 use tsc_types::{IdentityDomain, IdentitySpace};
@@ -931,7 +932,7 @@ fn comment_directives_remain_fresh_equivalent_across_reused_regions() {
 fn reused_jsdoc_attachments_and_diagnostics_are_fresh_equivalent() {
     let source = "/**\n * @typedef Name\n * @type {string}\n * @type {Oops}\n */\nfunction first() {}\n/** @param {number} x */\nfunction second(x) { return x + 1; }\n";
     let options = ParseOptions {
-        javascript_file: true,
+        script_kind: ScriptKind::Js,
         ..ParseOptions::default()
     };
     let probe = create_language_service_source_file(
@@ -951,7 +952,7 @@ fn reused_jsdoc_attachments_and_diagnostics_are_fresh_equivalent() {
         0,
         " return; ",
         ParseOptions {
-            javascript_file: true,
+            script_kind: ScriptKind::Js,
             ..ParseOptions::default()
         },
     );

@@ -3,7 +3,7 @@
 //! a string/template token whose value carries an unpaired surrogate must
 //! neither panic nor fabricate an identifier from the literal value.
 use serde_json::{json, Value};
-use tsc_syntax::{for_each_child, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+use tsc_syntax::{for_each_child, NodeData, ParseOptions, ScriptKind, SyntaxKind};
 
 #[test]
 fn new_meta_property_names_follow_parse_identifier_name() {
@@ -17,12 +17,7 @@ fn new_meta_property_names_follow_parse_identifier_name() {
             file_name,
             case["source"].as_str().unwrap(),
             ParseOptions {
-                javascript_file: file_name.ends_with(".js"),
-                language_variant: if file_name.ends_with(".tsx") {
-                    LanguageVariant::Jsx
-                } else {
-                    LanguageVariant::Standard
-                },
+                script_kind: ScriptKind::ensure_from_file_name(file_name),
                 ..ParseOptions::default()
             },
             None,

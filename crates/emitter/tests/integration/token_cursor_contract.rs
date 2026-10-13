@@ -5,20 +5,20 @@ use tsc_emitter::{
     SourceFileTextMode, SourceMapRange, SourceRange, TransformArena, TransformRoot,
 };
 use tsc_program::SourceFileId;
-use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
+use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind};
 use tsc_types::{CompilerOptions, ModuleKind, ScriptTarget};
 
 fn canonical_identity(
     file_name: &str,
     source_text: &str,
-    variant: LanguageVariant,
+    script_kind: ScriptKind,
     remove_comments: bool,
 ) -> String {
     let parsed = parse_source_file(
         file_name,
         source_text,
         ParseOptions {
-            language_variant: variant,
+            script_kind,
             ..ParseOptions::default()
         },
         None,
@@ -128,12 +128,7 @@ const MODULE_COMMENT_MARKERS: [&str; 8] = [
 
 #[test]
 fn module_token_positions_preserve_unicode_comments_once() {
-    let output = canonical_identity(
-        "module.ts",
-        COMMENTED_MODULES,
-        LanguageVariant::Standard,
-        false,
-    );
+    let output = canonical_identity("module.ts", COMMENTED_MODULES, ScriptKind::Ts, false);
 
     for marker in MODULE_COMMENT_MARKERS {
         let rendered_comment = format!("/* {marker} */");
@@ -148,12 +143,7 @@ fn module_token_positions_preserve_unicode_comments_once() {
 
 #[test]
 fn remove_comments_uses_the_same_position_cursor_without_comment_output() {
-    let output = canonical_identity(
-        "module.ts",
-        COMMENTED_MODULES,
-        LanguageVariant::Standard,
-        true,
-    );
+    let output = canonical_identity("module.ts", COMMENTED_MODULES, ScriptKind::Ts, true);
 
     for marker in MODULE_COMMENT_MARKERS {
         assert!(!output.contains(marker), "{output}");
@@ -189,7 +179,7 @@ fn jsx_brace_positions_do_not_duplicate_unicode_comments() {
     let output = canonical_identity(
         "component.tsx",
         "const element = <div>{/* 空😀 */}{value/* 尾 */}</div>;\n",
-        LanguageVariant::Jsx,
+        ScriptKind::Tsx,
         false,
     );
 
@@ -202,7 +192,7 @@ fn detached_prefix_resumes_before_the_first_attached_comment() {
     let output = canonical_identity(
         "comments.ts",
         "// detached\n\n// attached\nconst value = 1;\n",
-        LanguageVariant::Standard,
+        ScriptKind::Ts,
         false,
     );
 
@@ -219,7 +209,7 @@ fn detached_prefix_resume_handles_crlf_and_jsdoc_boundaries() {
     let output = canonical_identity(
         "comments.ts",
         "// license\r\n\r\n/** attached */\r\nconst value = 1;\r\n",
-        LanguageVariant::Standard,
+        ScriptKind::Ts,
         false,
     );
 
@@ -300,12 +290,7 @@ fn keyword_expression_tokens_resume_into_their_operands() {
         "async function awaitValue() { await /*await operand*/ Array /*3*/; }\n",
     );
 
-    let output = canonical_identity(
-        "keyword-expression.ts",
-        source,
-        LanguageVariant::Standard,
-        false,
-    );
+    let output = canonical_identity("keyword-expression.ts", source, ScriptKind::Ts, false);
 
     for marker in [
         "new operand",
@@ -331,7 +316,7 @@ fn await_keyword_owns_the_frozen_inner_comment_boundary() {
     let output = canonical_identity(
         "awaitExpressionInnerCommentEmit.ts",
         source,
-        LanguageVariant::Standard,
+        ScriptKind::Ts,
         false,
     );
 
@@ -353,14 +338,14 @@ fn await_keyword_owns_the_frozen_inner_comment_boundary() {
 #[test]
 fn nested_await_comments_resume_once_and_remove_cleanly() {
     let source = "async function f() { await /*outer*/ await /*inner*/ 0; }\n";
-    let output = canonical_identity("nested-await.ts", source, LanguageVariant::Standard, false);
+    let output = canonical_identity("nested-await.ts", source, ScriptKind::Ts, false);
 
     assert_eq!(output, source);
     for marker in ["outer", "inner"] {
         assert_eq!(output.matches(marker).count(), 1, "{marker}:\n{output}");
     }
     assert_eq!(
-        canonical_identity("nested-await.ts", source, LanguageVariant::Standard, true,),
+        canonical_identity("nested-await.ts", source, ScriptKind::Ts, true,),
         "async function f() { await await 0; }\n"
     );
 }
@@ -372,12 +357,7 @@ fn return_and_throw_tokens_resume_comments_into_their_expressions() {
         "function fail() { throw /* reason */ Error(); }\n",
     );
 
-    let output = canonical_identity(
-        "keyword-statements.js",
-        source,
-        LanguageVariant::Standard,
-        false,
-    );
+    let output = canonical_identity("keyword-statements.js", source, ScriptKind::Ts, false);
 
     assert_eq!(output.matches("@type {number}").count(), 1, "{output}");
     assert_eq!(output.matches("reason").count(), 1, "{output}");
@@ -403,12 +383,7 @@ fn loop_and_with_headers_advance_across_internal_comments() {
         "/*1*/ with /*2*/ ( /*3*/false /*4*/) /*5*/ { }\n",
     );
 
-    let output = canonical_identity(
-        "statement-headers.ts",
-        source,
-        LanguageVariant::Standard,
-        false,
-    );
+    let output = canonical_identity("statement-headers.ts", source, ScriptKind::Ts, false);
 
     assert_eq!(output, expected);
 }
@@ -423,12 +398,7 @@ fn yield_and_yield_star_resume_comments_into_their_operands() {
         "}\n",
     );
 
-    let output = canonical_identity(
-        "yield-comments.ts",
-        source,
-        LanguageVariant::Standard,
-        false,
-    );
+    let output = canonical_identity("yield-comments.ts", source, ScriptKind::Ts, false);
 
     for marker in ["yield operand", "yield star operand", "before star"] {
         assert_eq!(output.matches(marker).count(), 1, "{marker}:\n{output}");
@@ -449,7 +419,7 @@ fn chained_access_keeps_a_line_comment_with_the_preceding_call() {
         "    .third();\n",
     );
 
-    let output = canonical_identity("chain.ts", source, LanguageVariant::Standard, false);
+    let output = canonical_identity("chain.ts", source, ScriptKind::Ts, false);
 
     assert_eq!(output, source);
 }
@@ -463,12 +433,7 @@ fn binary_separators_handoff_comments_once_across_layouts_and_in_keyword() {
         "    + /*after line operator*/right;\n",
     );
 
-    let output = canonical_identity(
-        "binary-comments.ts",
-        source,
-        LanguageVariant::Standard,
-        false,
-    );
+    let output = canonical_identity("binary-comments.ts", source, ScriptKind::Ts, false);
 
     for marker in [
         "binary left",
@@ -562,7 +527,7 @@ fn property_token_handoff_remains_non_duplicating() {
     let output = canonical_identity(
         "property-comments.ts",
         "const access = Array/*property edge*/./*property name*/toString;\n",
-        LanguageVariant::Standard,
+        ScriptKind::Ts,
         false,
     );
 

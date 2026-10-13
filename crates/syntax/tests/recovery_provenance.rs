@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 use tsc_diagnostics::Diagnostic;
-use tsc_syntax::{LanguageVariant, ParseOptions, ParseRecoveryKind};
+use tsc_syntax::{ParseOptions, ParseRecoveryKind, ScriptKind};
 
 fn diagnostics(rows: &[Diagnostic]) -> Vec<Value> {
     rows.iter()
@@ -25,12 +25,7 @@ fn recovery_controls_preserve_repeated_typescript_syntax_diagnostics() {
             file_name,
             case["source"].as_str().unwrap(),
             ParseOptions {
-                javascript_file: file_name.ends_with(".js"),
-                language_variant: if file_name.ends_with(".tsx") {
-                    LanguageVariant::Jsx
-                } else {
-                    LanguageVariant::Standard
-                },
+                script_kind: ScriptKind::ensure_from_file_name(file_name),
                 ..ParseOptions::default()
             },
             None,

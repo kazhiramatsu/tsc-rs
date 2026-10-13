@@ -2,7 +2,7 @@ use tsc_emitter::{
     create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode,
     StandaloneWriter, TransformArena, TransformRoot,
 };
-use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
+use tsc_syntax::{parse_source_file, ParseOptions, ScriptKind};
 
 fn transformed(
     text: &str,
@@ -94,7 +94,7 @@ fn standalone_tsx_printer_emits_type_argument_delimiters() {
             "const opening = <Foo<string>></Foo>;\n",
         ),
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -140,7 +140,7 @@ fn standalone_tsx_printer_preserves_attribute_and_child_comments() {
         "comments.tsx",
         text,
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -190,7 +190,7 @@ fn standalone_tsx_tag_name_line_comment_uses_the_configured_newline() {
         "tag-name-line-comment.tsx",
         text,
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
@@ -229,7 +229,7 @@ fn standalone_tsx_child_keeps_comment_newline_separate_from_raw_jsx_text() {
         "child-line-comment.tsx",
         text,
         ParseOptions {
-            language_variant: LanguageVariant::Jsx,
+            script_kind: ScriptKind::Tsx,
             ..ParseOptions::default()
         },
         None,
