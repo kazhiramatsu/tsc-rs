@@ -186,3 +186,17 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   idle cache clean（L2c）、ATA、auto-import の warming、telemetry と progress（L5、L11）。fourslash の harness が protocol の外で
   呼ぶ `SetCompilerOptionsForInferredProjects` は記録器と共に L3。tsgo の `didOpen` は失敗しないが tsc-rs の snapshot 更新は
   host の誤りで失敗しうる（handler の誤りとして返す）。
+
+## source file の script kind（PR #775）
+
+- **merge**：#775 → `9515f8394`（hosted run 38362451488：rust 12m18s、conformance 20m53s、gates）。commit：2de7f2f62（script kind）、
+  67eabeeca（`SourceFile::from_tree` の clippy の許可だけ）。
+- **内容**：parse は tsgo の script kind をとり（言語の variant と JavaScript の context はそこから決まる、tsgo
+  `initializeState`）、source file が保つ（`SourceFile.script_kind`、`is_source_file_js`）。prepared source の kind は content
+  mapper の出力の仮想名、file handle（open document の言語）、file 名の順。project は open document の言語を load の時に渡し
+  （保存した command line には入れない）、言語の変わった document は program の in-place の再利用をしない。checker の
+  `IsSourceFileJS`・`IsPlainJSFile`・`IsInJSFile` に当たる判定は kind を読み、拡張子による対応の判定は tsgo と同じく名前のまま。
+- **検査（2de7f2f62）**：conformance 0 regressions（15,339、500 s）、`--checkers 4` の対照は既知の 4 件だけ、suites 0 regressions、
+  API client sync 337/356・async 346/365（変わらず）、crate の test（syntax 247、binder 78、program 669、checker 1,798、
+  emitter 341、compiler 215、project 140、api 298、lsp 12）、clippy、fmt。L2a の有界の違い（untitled の JavaScript が
+  TypeScript として parse される）を解消した。
