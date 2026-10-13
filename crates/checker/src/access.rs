@@ -1893,7 +1893,8 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
-    fn is_call_like_expression(&self, node: NodeId) -> bool {
+    /// tsgo `ast.IsCallLikeExpression`.
+    pub(crate) fn is_call_like_expression(&self, node: NodeId) -> bool {
         match self.kind_of(node) {
             SyntaxKind::CallExpression
             | SyntaxKind::NewExpression

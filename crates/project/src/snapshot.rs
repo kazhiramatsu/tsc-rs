@@ -338,6 +338,24 @@ pub struct Snapshot {
     created_programs: Vec<ProjectId>,
 }
 
+/// tsgo's snapshot as the language service's host.
+impl tsc_ls::Host for Snapshot {}
+
+impl tsc_emitter::source_mapper::SourceMapperHost for Snapshot {
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.fs.paths().case_sensitive
+    }
+
+    /// tsgo `Snapshot.ReadFile`: the file's text as the snapshot reads it.
+    fn read_file(&self, file_name: &str) -> Option<String> {
+        let file = self.fs.file(file_name)?;
+        Some(
+            tsc_program::decode_host_text(file.content.to_vec())
+                .unwrap_or_else(|_| String::from_utf8_lossy(&file.content).into_owned()),
+        )
+    }
+}
+
 impl Snapshot {
     pub fn id(&self) -> u64 {
         self.id

@@ -700,6 +700,7 @@ impl Server {
         program.with_live(|live| {
             let mut service = LanguageService::new(
                 live,
+                snapshot.as_ref(),
                 &converters,
                 &preferences,
                 &capabilities,
@@ -1022,6 +1023,30 @@ impl Server {
             .map_err(language_service_failure)
     }
 
+    /// tsgo `handleDefinition`.
+    fn handle_definition(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::DefinitionParams,
+    ) -> Result<lsproto::DefinitionResponse, Failure> {
+        service
+            .provide_definition(&params.text_document.uri, &params.position)
+            .map_err(language_service_failure)
+    }
+
+    /// tsgo `handleTypeDefinition`.
+    fn handle_type_definition(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::TypeDefinitionParams,
+    ) -> Result<lsproto::TypeDefinitionResponse, Failure> {
+        service
+            .provide_type_definition(&params.text_document.uri, &params.position)
+            .map_err(language_service_failure)
+    }
+
     /// tsgo `handleShutdown`.
     fn handle_shutdown(
         self: &Arc<Self>,
@@ -1330,6 +1355,14 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_language_service_document_request::<lsproto::TextDocumentDiagnosticInfo>(
             &mut handlers,
             Server::handle_document_diagnostic,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentDefinitionInfo>(
+            &mut handlers,
+            Server::handle_definition,
+        );
+        register_language_service_document_request::<lsproto::TextDocumentTypeDefinitionInfo>(
+            &mut handlers,
+            Server::handle_type_definition,
         );
         register_notification::<lsproto::CustomSetLogVerbosityInfo>(
             &mut handlers,

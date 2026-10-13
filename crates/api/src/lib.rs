@@ -19,7 +19,7 @@ pub mod module_resolution;
 pub mod msgpack;
 mod print;
 pub mod proto;
-pub mod references;
+pub use tsc_ls::references;
 pub mod request_fs;
 pub mod server;
 pub mod session;

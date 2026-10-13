@@ -4,10 +4,11 @@
 
 use tsc_compiler::LiveProgram;
 use tsc_diagnostics::{JsStr, MessageCatalog};
+use tsc_emitter::source_mapper::SourceMapperHost;
 use tsc_lsproto::{DocumentUri, ResolvedClientCapabilities};
 use tsc_program::uri::uri_to_file_name;
 
-use crate::lsconv::{Converters, DiagnosticFile};
+use crate::lsconv::{Converters, TextScript};
 use crate::lsutil::UserPreferences;
 
 /// Why a language service request failed: the program could not answer
@@ -21,9 +22,14 @@ impl std::fmt::Display for LsError {
     }
 }
 
+/// tsgo `ls.Host`: what the language service reads beyond its program —
+/// the snapshot's files (a declaration's source map and its sources).
+pub trait Host: SourceMapperHost {}
+
 /// tsgo `LanguageService`.
 pub struct LanguageService<'a> {
     pub(crate) program: &'a mut LiveProgram,
+    pub(crate) host: &'a dyn Host,
     pub(crate) converters: &'a Converters,
     preferences: &'a UserPreferences,
     pub(crate) capabilities: &'a ResolvedClientCapabilities,
@@ -35,6 +41,7 @@ impl<'a> LanguageService<'a> {
     /// tsgo `NewLanguageService`.
     pub fn new(
         program: &'a mut LiveProgram,
+        host: &'a dyn Host,
         converters: &'a Converters,
         preferences: &'a UserPreferences,
         capabilities: &'a ResolvedClientCapabilities,
@@ -42,6 +49,7 @@ impl<'a> LanguageService<'a> {
     ) -> Self {
         Self {
             program,
+            host,
             converters,
             preferences,
             capabilities,
@@ -64,10 +72,10 @@ impl<'a> LanguageService<'a> {
     }
 
     /// A program file's name and text, for converting its positions.
-    pub(crate) fn diagnostic_file(&self, file_name: &str) -> Option<DiagnosticFile<'_>> {
+    pub(crate) fn diagnostic_file(&self, file_name: &str) -> Option<TextScript<'_>> {
         let index = self.program.file_index(JsStr::from_str(file_name))?;
         let document = self.program.document(index)?;
-        Some(DiagnosticFile {
+        Some(TextScript {
             file_name: file_name.to_owned(),
             text: document.source().text(),
         })

@@ -297,9 +297,16 @@ fn global_diagnostics_found_by_checking_are_published() {
         let report = project.program().expect("the program").with_live(|live| {
             let file = live.file_index("/src/index.ts").expect("the file");
             assert!(!live.semantic_diagnostics(file).expect("checked").is_empty());
-            tsc_ls::LanguageService::new(live, &converters, &preferences, &capabilities, None)
-                .provide_diagnostics(&uri(INDEX))
-                .expect("the diagnostics")
+            tsc_ls::LanguageService::new(
+                live,
+                snapshot.as_ref(),
+                &converters,
+                &preferences,
+                &capabilities,
+                None,
+            )
+            .provide_diagnostics(&uri(INDEX))
+            .expect("the diagnostics")
         });
         let tsc_lsproto::RelatedFullDocumentDiagnosticReportOrUnchangedDocumentDiagnosticReport::FullDocumentDiagnosticReport(report) = report else {
             panic!("a full report");

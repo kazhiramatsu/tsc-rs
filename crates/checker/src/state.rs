@@ -397,9 +397,14 @@ pub struct CheckerState<'a> {
     pub resolving_signature: SignatureId,
     /// tsc silentNeverSignature (47262).
     pub silent_never_signature: SignatureId,
-    /// tsc isInferencePartiallyBlocked (47420) — only ever set by M6
-    /// inference; resolveCall's reportErrors stays true until then.
+    /// tsgo `isInferencePartiallyBlocked`: set while the language service
+    /// asks for a contextual type with the node's inferences blocked
+    /// (`runWithInferenceBlockedFromSourceNode`); resolveCall reports no
+    /// errors then.
     pub(crate) is_inference_partially_blocked: bool,
+    /// tsgo `skipDirectInferenceNodes`: the node and its ancestors up to
+    /// the containing call while inference from them is blocked.
+    pub(crate) skip_direct_inference_nodes: std::collections::HashSet<NodeId>,
     /// tsgo `Checker.callResolutionStack` (checker/checker.go:798): the
     /// calls whose overloads are being chosen, innermost last.
     pub(crate) call_resolution_stack: Vec<NodeId>,
@@ -1530,6 +1535,7 @@ impl<'a> CheckerState<'a> {
             resolving_signature: SignatureId::new(0),
             silent_never_signature: SignatureId::new(0),
             is_inference_partially_blocked: false,
+            skip_direct_inference_nodes: std::collections::HashSet::new(),
             call_resolution_stack: Vec::new(),
             apparent_argument_count: None,
             no_constraint_type: TypeId::new(0),

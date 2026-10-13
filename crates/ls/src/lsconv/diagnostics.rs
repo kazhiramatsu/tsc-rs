@@ -49,13 +49,13 @@ impl DiagnosticOptions {
     }
 }
 
-/// A file a diagnostic is in: its name and its text.
-pub struct DiagnosticFile<'a> {
+/// A file as a script: its name and its text (tsgo `ls.script`).
+pub struct TextScript<'a> {
     pub file_name: String,
     pub text: &'a str,
 }
 
-impl Script for DiagnosticFile<'_> {
+impl Script for TextScript<'_> {
     fn file_name(&self) -> &str {
         &self.file_name
     }
@@ -86,7 +86,7 @@ pub fn diagnostic_to_lsp<'a>(
     diagnostic: &Diagnostic,
     options: &DiagnosticOptions,
     catalog: Option<&dyn MessageCatalog>,
-    file: &dyn Fn(&str) -> Option<DiagnosticFile<'a>>,
+    file: &dyn Fn(&str) -> Option<TextScript<'a>>,
 ) -> lsproto::Diagnostic {
     let mut severity = diagnostic_severity(diagnostic.category());
     if options.report_style_checks_as_warnings
@@ -182,7 +182,7 @@ pub fn diagnostic_to_lsp<'a>(
 /// text is not known has a zero range.
 fn span_range<'a>(
     converters: &Converters,
-    file: &dyn Fn(&str) -> Option<DiagnosticFile<'a>>,
+    file: &dyn Fn(&str) -> Option<TextScript<'a>>,
     file_name: &str,
     start: Option<u32>,
     length: Option<u32>,
