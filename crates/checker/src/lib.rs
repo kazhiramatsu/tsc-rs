@@ -3902,16 +3902,26 @@ fn merge_shard_outputs(
         Vec::new()
     };
 
-    // Rows by owning file, in (shard, publication) order.
+    // Rows by owning file, in (shard, publication) order. A row an earlier
+    // shard already published (each shard's checker merges the same
+    // globals) is kept once, as one checker publishes it once; tsgo's
+    // compactAndMergeRelatedInfos would otherwise merge the copies.
     fn rows_by_file<'o>(
         ledgers: impl Iterator<Item = &'o LedgerSnapshot>,
     ) -> rustc_hash::FxHashMap<&'o JsString, Vec<&'o Diagnostic>> {
         let mut by_file: rustc_hash::FxHashMap<&JsString, Vec<&Diagnostic>> =
             rustc_hash::FxHashMap::default();
         for ledger in ledgers {
+            // Per file, how many rows the earlier shards kept.
+            let mut earlier: rustc_hash::FxHashMap<&JsString, usize> =
+                rustc_hash::FxHashMap::default();
             for row in &ledger.rows {
                 if let Some(file_name) = row.file_name.as_ref() {
-                    by_file.entry(file_name).or_default().push(row);
+                    let kept = by_file.entry(file_name).or_default();
+                    let earlier = *earlier.entry(file_name).or_insert(kept.len());
+                    if !kept[..earlier].contains(&row) {
+                        kept.push(row);
+                    }
                 }
             }
         }
