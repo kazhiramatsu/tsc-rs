@@ -364,6 +364,7 @@ pub(crate) enum Touching {
     Token {
         kind: SyntaxKind,
         pos: u32,
+        end: u32,
         parent: NodeId,
     },
 }
@@ -376,6 +377,7 @@ pub(crate) fn touching(found: Found) -> Option<Touching> {
         Found::Token(token) => token.parent.node().map(|parent| Touching::Token {
             kind: token.kind,
             pos: token.pos,
+            end: token.end,
             parent,
         }),
     }

@@ -76,6 +76,299 @@ impl<'a> Navigator<'a> {
         self.token_at_position(position, false, None)
     }
 
+    /// tsgo `GetTokenAtPosition`: the token at `position`, its leading
+    /// trivia included.
+    pub fn token_at(&self, position: u32) -> Found {
+        self.token_at_position(position, true, None)
+    }
+
+    /// tsgo `FindPrecedingToken`.
+    pub fn preceding_token(&self, position: u32) -> Option<Found> {
+        self.find_preceding_token_ex(position, None, false)
+    }
+
+    /// tsgo `FindPrecedingTokenEx` from `start_node`.
+    pub fn preceding_token_from(
+        &self,
+        position: u32,
+        start_node: Option<View>,
+        exclude_js_doc: bool,
+    ) -> Option<Found> {
+        self.find_preceding_token_ex(position, start_node, exclude_js_doc)
+    }
+
+    /// tsgo `FindNextToken` (tokens.go:622-689): the token that starts where
+    /// `previous` ends, inside `parent`.
+    pub fn next_token(&self, previous: Found, parent: View) -> Option<Found> {
+        let previous_pos = self.pos(previous);
+        let previous_end = self.end(previous);
+        let mut n = parent;
+        loop {
+            if is_token_kind(self.view_kind(n)) && self.view_pos(n) == previous_end {
+                // The token that starts at the end of the previous one.
+                return Some(Found::Node(n));
+            }
+            // The node that contains the previous token or starts right
+            // after it.
+            let mut found: Option<View> = None;
+            for child in self.children(n) {
+                match child {
+                    Child::Node(node) => {
+                        if !self.is_reparsed(node)
+                            && self.view_pos(node) <= previous_end
+                            && self.view_end(node) > previous_end
+                        {
+                            found = Some(node);
+                        }
+                    }
+                    Child::List(list) => {
+                        if found.is_some() {
+                            continue;
+                        }
+                        let nodes = self.list_nodes(list);
+                        if nodes.is_empty() {
+                            continue;
+                        }
+                        let (index, matched) = binary_search_unique(&nodes, |_, node| {
+                            if self.is_reparsed(node) {
+                                return -1;
+                            }
+                            if self.view_pos(node) > previous_end {
+                                return 1;
+                            }
+                            if self.view_end(node) <= previous_pos {
+                                return -1;
+                            }
+                            0
+                        });
+                        if matched {
+                            found = Some(nodes[index]);
+                        }
+                    }
+                }
+            }
+            if let Some(found) = found {
+                n = found;
+                continue;
+            }
+            // The next token, read directly.
+            if previous_end >= self.view_pos(n) && previous_end < self.view_end(n) {
+                let scanner = TokenScanner::new(self.file, previous_end as usize);
+                let full_start = scanner.token_full_start() as u32;
+                assert_eq!(
+                    full_start, previous_end,
+                    "Expected to find the next token at {previous_end}"
+                );
+                return Some(Found::Token(Token {
+                    kind: scanner.token(),
+                    pos: full_start,
+                    end: scanner.token_end() as u32,
+                    parent: n,
+                }));
+            }
+            return None;
+        }
+    }
+
+    /// tsgo `FindChildOfKind` (tokens.go:739-794): the first child node or
+    /// token of `kind`, scanning the tokens between the children. As in
+    /// tsgo, the scanner is not rescanned after a child, so the token before
+    /// is seen once more (with no width) before the next scan.
+    pub fn child_of_kind(&self, containing: View, kind: SyntaxKind) -> Option<Found> {
+        let mut last_node_pos = self.view_pos(containing);
+        let mut scanner = TokenScanner::new(self.file, last_node_pos as usize);
+        let token_of = |scanner: &TokenScanner<'_>| {
+            Found::Token(Token {
+                kind: scanner.token(),
+                pos: scanner.token_full_start() as u32,
+                end: scanner.token_end() as u32,
+                parent: containing,
+            })
+        };
+        // tsgo `ForEachChildAndJSDoc`: the JSDoc comments, then each child.
+        let mut views = Vec::new();
+        self.tree.children(containing, &mut views);
+        let js_docs = views
+            .iter()
+            .rev()
+            .take_while(|child| matches!(child, View::JSDoc(..)))
+            .count();
+        views.rotate_right(js_docs);
+        let mut nodes = Vec::new();
+        for view in views {
+            match view {
+                View::List(..) | View::ImplicitModifiers(_) | View::Comment(_) => {
+                    nodes.extend(self.list_nodes(view));
+                }
+                _ => nodes.push(view),
+            }
+        }
+        for node in nodes {
+            if self.is_reparsed(node) {
+                continue;
+            }
+            // The tokens before the child.
+            let mut start = last_node_pos;
+            while start < self.view_pos(node) {
+                if scanner.token() == kind {
+                    return Some(token_of(&scanner));
+                }
+                start = scanner.token_end() as u32;
+                scanner.scan();
+            }
+            if self.view_kind(node) == kind {
+                return Some(Found::Node(node));
+            }
+            last_node_pos = self.view_end(node);
+            scanner.reset_pos(last_node_pos as usize);
+        }
+        // The tokens after the last child.
+        let mut start = last_node_pos;
+        while start < self.view_end(containing) {
+            if scanner.token() == kind {
+                return Some(token_of(&scanner));
+            }
+            start = scanner.token_end() as u32;
+            scanner.scan();
+        }
+        None
+    }
+
+    /// tsgo `lsutil.GetLastVisitedChild`: the last child node the visitor
+    /// sees (not reparsed), with no tokens.
+    pub fn last_visited_child(&self, view: View) -> Option<View> {
+        let mut last = None;
+        for child in self.children(view) {
+            match child {
+                Child::Node(node) => {
+                    if !self.is_reparsed(node) {
+                        last = Some(node);
+                    }
+                }
+                Child::List(list) => {
+                    if let Some(&node) = self
+                        .list_nodes(list)
+                        .iter()
+                        .rev()
+                        .find(|&&node| !self.is_reparsed(node))
+                    {
+                        last = Some(node);
+                    }
+                }
+            }
+        }
+        last
+    }
+
+    /// The tokens the scanner reads in `[start, view.end)` (tsgo's loops of
+    /// `GetScannerForSourceFile`), as tokens of `view`.
+    fn tokens_between(&self, view: View, start: u32) -> Vec<Found> {
+        let mut tokens = Vec::new();
+        let mut scanner = TokenScanner::new(self.file, start as usize);
+        let mut start = start;
+        while start < self.view_end(view) {
+            let end = scanner.token_end() as u32;
+            tokens.push(Found::Token(Token {
+                kind: scanner.token(),
+                pos: scanner.token_full_start() as u32,
+                end,
+                parent: view,
+            }));
+            start = end;
+            scanner.scan();
+        }
+        tokens
+    }
+
+    /// tsgo `lsutil.GetLastChild`: the last token after the last child, or
+    /// the last child.
+    pub fn last_child(&self, view: View) -> Option<Found> {
+        let last_child = self.last_visited_child(view);
+        if last_child.is_none() && self.is_single_comment_node(view) {
+            return None;
+        }
+        let start = last_child.map_or(self.view_pos(view), |child| self.view_end(child));
+        self.tokens_between(view, start)
+            .pop()
+            .or(last_child.map(Found::Node))
+    }
+
+    /// tsgo `lsutil.GetLastToken`.
+    pub fn last_token(&self, view: View) -> Option<Found> {
+        let kind = self.view_kind(view);
+        if is_token_kind(kind) || kind == SyntaxKind::Identifier {
+            return None;
+        }
+        let last = self.last_child(view)?;
+        match last {
+            Found::Node(node) if self.view_kind(node).value() >= SyntaxKind::FirstNode.value() => {
+                self.last_token(node)
+            }
+            _ => Some(last),
+        }
+    }
+
+    /// tsgo `lsutil.GetFirstToken`. As in tsgo, the reparsed test is the
+    /// node's own flag, not its child's.
+    pub fn first_token(&self, view: View) -> Option<Found> {
+        let kind = self.view_kind(view);
+        if kind == SyntaxKind::Identifier || is_token_kind(kind) {
+            return None;
+        }
+        let mut views = Vec::new();
+        self.tree.children(view, &mut views);
+        let first_child = views.into_iter().find_map(|child| match child {
+            View::List(..) | View::ImplicitModifiers(_) | View::Comment(_) => {
+                self.list_nodes(child).first().copied()
+            }
+            View::JSDoc(..) => None,
+            child => Some(child),
+        });
+        let token_end_position =
+            first_child.map_or(self.view_end(view), |child| self.view_pos(child));
+        if self.view_pos(view) < token_end_position {
+            let scanner = TokenScanner::new(self.file, self.view_pos(view) as usize);
+            return Some(Found::Token(Token {
+                kind: scanner.token(),
+                pos: scanner.token_full_start() as u32,
+                end: scanner.token_end() as u32,
+                parent: view,
+            }));
+        }
+        let first_child = first_child?;
+        if self.view_kind(first_child).value() < SyntaxKind::FirstNode.value() {
+            return Some(Found::Node(first_child));
+        }
+        self.first_token(first_child)
+    }
+
+    /// tsgo `lsutil.nodeEndsWith`: the node's last child or token is `kind`
+    /// (or is before a last semicolon).
+    pub fn node_ends_with(&self, view: View, kind: SyntaxKind) -> bool {
+        let last_child = self.last_visited_child(view);
+        let start = last_child.map_or(self.view_pos(view), |child| self.view_end(child));
+        let mut kinds: Vec<SyntaxKind> = last_child
+            .map(|child| self.view_kind(child))
+            .into_iter()
+            .collect();
+        kinds.extend(
+            self.tokens_between(view, start)
+                .into_iter()
+                .map(|token| self.kind(token)),
+        );
+        match kinds.as_slice() {
+            [] => false,
+            [.., last] if *last == kind => true,
+            [.., before, SyntaxKind::SemicolonToken] => *before == kind,
+            _ => false,
+        }
+    }
+
+    /// tsgo `ast.IsJSDocSingleCommentNode`.
+    fn is_single_comment_node(&self, view: View) -> bool {
+        matches!(view, View::Comment(_)) && self.list_nodes(view).len() == 1
+    }
+
     /// tsgo `getTokenAtPosition` (tokens.go:38-275).
     fn token_at_position(
         &self,

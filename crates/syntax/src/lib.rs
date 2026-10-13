@@ -28,6 +28,7 @@ use tsc_types::{
 };
 
 pub use arena::{NodeArena, SyntaxMemory};
+pub use chars::{is_identifier_part, is_identifier_start};
 pub use for_each_child::{
     apply_child_slots, child_slots, for_each_child, for_each_child_array, map_child_slots,
     try_visit_each_child, ChildSlot, ChildSlots, NodeDataChildVisitor, NodeLookup, MAX_CHILD_SLOTS,
@@ -46,8 +47,8 @@ pub use nodes::{
 };
 pub use observable_fields::{for_each_observable_field, ObservableField};
 pub use parser::{
-    is_entity_name_js_text, is_entity_name_text, is_identifier_text, parse_entity_name_components,
-    JSDocParsingMode, ParseOptions,
+    comment_ranges, is_entity_name_js_text, is_entity_name_text, is_identifier_text,
+    parse_entity_name_components, JSDocParsingMode, ParseOptions,
 };
 pub use recovery::{
     MissingNodeRecovery, ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryAction,

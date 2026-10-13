@@ -905,15 +905,17 @@ impl CheckerState<'_> {
     }
 
     /// tsgo `GetExportsOfModule` (services.go:132-134), in the module's
-    /// export table order.
+    /// export table order, without the reserved names (tsgo
+    /// `symbolsToArray`: an `export *`'s entry).
     pub fn get_exports_of_module_symbols(
         &mut self,
         module_symbol: SymbolId,
     ) -> CheckResult<Vec<SymbolId>> {
         Ok(self
             .module_exports(module_symbol)?
-            .values()
-            .copied()
+            .iter()
+            .filter(|&(&name, _)| !crate::annotate::is_reserved_member_name(name))
+            .map(|(_, &symbol)| symbol)
             .collect())
     }
 

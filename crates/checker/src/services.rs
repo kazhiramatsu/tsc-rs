@@ -46,20 +46,38 @@ impl CheckerState<'_> {
         context_flags: ContextFlags,
     ) -> CheckResult<Option<TypeId>> {
         if context_flags.intersects(ContextFlags::IGNORE_NODE_INFERENCES) {
-            return self.run_with_inference_blocked_from_source_node(node, |state| {
+            return self.run_with_inference_blocked_from_source_node(Some(node), node, |state| {
                 state.get_contextual_type(node, context_flags)
             });
         }
         self.get_contextual_type(node, context_flags)
     }
 
-    /// tsgo `runWithInferenceBlockedFromSourceNode`.
+    /// tsgo `GetContextualType` of a token tsc-rs's tree does not keep, by
+    /// its parent.
+    pub fn language_service_contextual_type_of_token(
+        &mut self,
+        parent: NodeId,
+        context_flags: ContextFlags,
+    ) -> CheckResult<Option<TypeId>> {
+        if context_flags.intersects(ContextFlags::IGNORE_NODE_INFERENCES) {
+            return self.run_with_inference_blocked_from_source_node(None, parent, |state| {
+                state.get_contextual_type_of_token(parent, context_flags)
+            });
+        }
+        self.get_contextual_type_of_token(parent, context_flags)
+    }
+
+    /// tsgo `runWithInferenceBlockedFromSourceNode` from `node`, or from a
+    /// token (`None`) of `start`. tsgo marks the token too, but no inference
+    /// reads a token.
     fn run_with_inference_blocked_from_source_node<T>(
         &mut self,
-        node: NodeId,
+        node: Option<NodeId>,
+        start: NodeId,
         run: impl FnOnce(&mut Self) -> CheckResult<T>,
     ) -> CheckResult<T> {
-        let mut containing_call = Some(node);
+        let mut containing_call = Some(start);
         while let Some(current) = containing_call {
             if self.is_call_like_expression(current) {
                 break;
@@ -67,17 +85,19 @@ impl CheckerState<'_> {
             containing_call = self.parent_of(current);
         }
         if let Some(containing_call) = containing_call {
-            let mut to_mark_skip = node;
-            loop {
-                self.skip_direct_inference_nodes.insert(to_mark_skip);
-                match self.parent_of(to_mark_skip) {
-                    Some(parent) if parent != containing_call => to_mark_skip = parent,
-                    _ => break,
-                }
+            let mut to_mark_skip = match node {
+                Some(node) => Some(node),
+                None => (start != containing_call).then_some(start),
+            };
+            while let Some(current) = to_mark_skip {
+                self.skip_direct_inference_nodes.insert(current);
+                to_mark_skip = self
+                    .parent_of(current)
+                    .filter(|&parent| parent != containing_call);
             }
         }
         self.is_inference_partially_blocked = true;
-        let result = self.run_without_resolved_signature_caching(node, run);
+        let result = self.run_without_resolved_signature_caching(start, run);
         self.is_inference_partially_blocked = false;
         self.skip_direct_inference_nodes.clear();
         result
@@ -471,5 +491,464 @@ impl CheckerState<'_> {
     /// tsgo `IsArgumentsSymbol`.
     pub fn is_arguments_symbol(&self, symbol: SymbolId) -> bool {
         symbol == self.arguments_symbol
+    }
+
+    /// tsgo `IsUnknownSymbol`.
+    pub fn is_unknown_symbol(&self, symbol: SymbolId) -> bool {
+        symbol == self.unknown_symbol
+    }
+}
+
+/// The services completions ask (tsgo `services.go`).
+impl CheckerState<'_> {
+    /// tsgo `SkipAlias` (utilities.go:1700-1705): an alias's target.
+    pub fn skip_alias(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
+        if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::ALIAS)
+        {
+            return self.get_aliased_symbol(symbol);
+        }
+        Ok(symbol)
+    }
+
+    /// tsgo `IsValidPropertyAccess` (services.go:164-178): whether the
+    /// property `name` (escaped) of the accessed expression's type, of a
+    /// qualified name's left side or of an import type is accessible there.
+    pub fn is_valid_property_access(
+        &mut self,
+        node: NodeId,
+        name: tsc_types::EscapedName,
+    ) -> CheckResult<bool> {
+        let (is_super, ty) = match self.data_of(node) {
+            NodeData::PropertyAccessExpression(data) => {
+                let expression = data.expression.expect("property access expression");
+                let is_super = self.kind_of(expression) == SyntaxKind::SuperKeyword;
+                let ty = self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
+                (is_super, self.get_widened_type(ty)?)
+            }
+            NodeData::QualifiedName(data) => {
+                let left = data.left.expect("qualified name");
+                let ty = self.check_expression(left, tsc_types::CheckMode::NORMAL)?;
+                (false, self.get_widened_type(ty)?)
+            }
+            NodeData::ImportType(_) => (false, self.get_type_from_type_node(node)?),
+            _ => panic!(
+                "Unexpected node kind in isValidPropertyAccess: {:?}",
+                self.kind_of(node)
+            ),
+        };
+        // tsgo isValidPropertyAccessWithType: any is short-circuited.
+        if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
+            return Ok(true);
+        }
+        let Some(property) = self.get_property_of_type_full(ty, name)? else {
+            return Ok(false);
+        };
+        self.is_property_accessible(node, is_super, false, ty, property)
+    }
+
+    /// tsgo `GetAllPossiblePropertiesOfTypes` (services.go:209-229): the
+    /// properties of each type of a union, as properties of the union.
+    pub fn get_all_possible_properties_of_types(
+        &mut self,
+        types: &[TypeId],
+    ) -> CheckResult<Vec<SymbolId>> {
+        let union_type = self.get_union_type_ex(types, tsc_types::UnionReduction::Literal)?;
+        if !self
+            .tables
+            .flags_of(union_type)
+            .intersects(TypeFlags::UNION)
+        {
+            return self.get_apparent_properties(union_type);
+        }
+        let mut names = std::collections::HashSet::new();
+        let mut properties = Vec::new();
+        for &member_type in types {
+            for property in self.get_apparent_properties(member_type)? {
+                let name = self.binder.symbol(property).escaped_name;
+                if names.contains(&name) {
+                    continue;
+                }
+                // None when the property is private.
+                if let Some(property) =
+                    self.create_union_or_intersection_property(union_type, name, false)?
+                {
+                    names.insert(name);
+                    properties.push(property);
+                }
+            }
+        }
+        Ok(properties)
+    }
+
+    /// tsgo `GetNonOptionalType` (services.go:244-246).
+    pub fn get_non_optional_type(&mut self, ty: TypeId) -> TypeId {
+        self.remove_optional_type_marker(ty)
+    }
+
+    /// tsgo `GetStringIndexType` (services.go:248-250).
+    pub fn get_string_index_type(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
+        let string_type = self.tables.intrinsics.string;
+        self.get_index_type_of_type(ty, string_type)
+    }
+
+    /// tsgo `GetNumberIndexType` (services.go:252-254).
+    pub fn get_number_index_type(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
+        let number_type = self.tables.intrinsics.number;
+        self.get_index_type_of_type(ty, number_type)
+    }
+
+    /// tsgo `TryGetMemberInModuleExportsAndProperties` (services.go:
+    /// 295-312): a module's export, or a property of its `export =` value.
+    pub fn try_get_member_in_module_exports_and_properties(
+        &mut self,
+        member_name: &str,
+        module_symbol: SymbolId,
+    ) -> CheckResult<Option<SymbolId>> {
+        if let Some(symbol) = self.try_get_member_in_module_exports(member_name, module_symbol)? {
+            return Ok(Some(symbol));
+        }
+        let export_equals = self
+            .resolve_external_module_symbol(Some(module_symbol), false)?
+            .expect("resolved module symbol");
+        if export_equals == module_symbol {
+            return Ok(None);
+        }
+        let ty = self.get_type_of_symbol(export_equals)?;
+        if self.should_treat_properties_of_external_module_as_exports(ty)? {
+            return self.get_property_of_type_full(
+                ty,
+                tsc_binder::escape_leading_underscores(member_name),
+            );
+        }
+        Ok(None)
+    }
+
+    /// tsgo `GetExportsAndPropertiesOfModule` (services.go:840-851): unlike
+    /// `GetExportsOfModule`, the properties of an `export =` value too.
+    pub fn get_exports_and_properties_of_module(
+        &mut self,
+        module_symbol: SymbolId,
+    ) -> CheckResult<Vec<SymbolId>> {
+        let mut exports = self.get_exports_of_module_symbols(module_symbol)?;
+        let export_equals = self
+            .resolve_external_module_symbol(Some(module_symbol), false)?
+            .expect("resolved module symbol");
+        if export_equals != module_symbol {
+            let ty = self.get_type_of_symbol(export_equals)?;
+            if self.should_treat_properties_of_external_module_as_exports(ty)? {
+                exports.extend(self.get_properties_of_type(ty)?);
+            }
+        }
+        Ok(exports)
+    }
+
+    /// tsgo `shouldTreatPropertiesOfExternalModuleAsExports`
+    /// (services.go:318-324).
+    fn should_treat_properties_of_external_module_as_exports(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult<bool> {
+        Ok(!self.tables.flags_of(ty).intersects(TypeFlags::PRIMITIVE)
+            || self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::CLASS)
+            || self.is_array_type(ty)?
+            || self.tables.is_tuple_type(ty))
+    }
+
+    /// tsgo `GetJsxIntrinsicTagNamesAt` (services.go:857-864): the
+    /// properties of `JSX.IntrinsicElements`.
+    pub fn get_jsx_intrinsic_tag_names_at(
+        &mut self,
+        location: NodeId,
+    ) -> CheckResult<Vec<SymbolId>> {
+        let intrinsics = self.get_jsx_type(crate::jsx::JSX_INTRINSIC_ELEMENTS, location)?;
+        self.get_properties_of_type(intrinsics)
+    }
+
+    /// tsgo `GetContextualTypeForJsxAttribute` (services.go:865-867).
+    pub fn get_contextual_type_for_jsx_attribute_like(
+        &mut self,
+        attribute: NodeId,
+    ) -> CheckResult<Option<TypeId>> {
+        self.get_contextual_type_for_jsx_attribute(attribute, ContextFlags::NONE)
+    }
+
+    /// tsgo `GetTypeOfPropertyOfContextualType` (exports.go:175-177), by
+    /// the property's escaped name.
+    pub fn get_type_of_property_of_contextual_type_by_name(
+        &mut self,
+        ty: TypeId,
+        name: tsc_types::EscapedName,
+    ) -> CheckResult<Option<TypeId>> {
+        self.get_type_of_property_of_contextual_type(ty, name, None)
+    }
+
+    /// tsgo `GetElementTypeOfArrayType` (services.go:256-258).
+    pub fn element_type_of_array_type(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
+        self.get_element_type_of_array_type(ty)
+    }
+
+    /// tsgo `GetContextualTypeForArrayLiteralAtPosition` (services.go:
+    /// 951-976): the contextual type of the element at a position of an
+    /// array literal that may be unfinished, so of unknown length.
+    pub fn get_contextual_type_for_array_literal_at_position(
+        &mut self,
+        contextual_array_type: TypeId,
+        array_literal: NodeId,
+        position: u32,
+    ) -> CheckResult<Option<TypeId>> {
+        let elements = match self.data_of(array_literal) {
+            NodeData::ArrayLiteralExpression(data) => data.elements,
+            _ => None,
+        };
+        let elements = match elements {
+            Some(elements) => self.binder.node_array(elements).nodes.to_vec(),
+            None => Vec::new(),
+        };
+        let mut first_spread_index = None;
+        let mut last_spread_index = None;
+        let mut element_index = 0;
+        for (index, &element) in elements.iter().enumerate() {
+            if self.binder.node_record(element).pos < position {
+                element_index += 1;
+            }
+            if self.kind_of(element) == SyntaxKind::SpreadElement {
+                if first_spread_index.is_none() {
+                    first_spread_index = Some(index as u32);
+                }
+                last_spread_index = Some(index as u32);
+            }
+        }
+        self.get_contextual_type_for_element_expression(
+            Some(contextual_array_type),
+            element_index,
+            None,
+            first_spread_index,
+            last_spread_index,
+        )
+    }
+
+    /// tsgo `GetTypeArgumentConstraint` (services.go:699-704, 741-811): the
+    /// constraint a type argument must meet, across the signatures of a
+    /// call-like expression, of an instantiation expression, or of a type
+    /// reference's type parameters.
+    pub fn get_type_argument_constraint(&mut self, node: NodeId) -> CheckResult<Option<TypeId>> {
+        if !self.is_type_node_kind(self.kind_of(node)) {
+            return Ok(None);
+        }
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(None);
+        };
+        let type_arguments = match self.data_of(parent) {
+            NodeData::CallExpression(data) => data.type_arguments,
+            NodeData::NewExpression(data) => data.type_arguments,
+            NodeData::TaggedTemplateExpression(data) => data.type_arguments,
+            NodeData::TypeReference(data) => data.type_arguments,
+            NodeData::ExpressionWithTypeArguments(_) => self.heritage_type_arguments(parent),
+            NodeData::ImportType(data) => data.type_arguments,
+            NodeData::TypeQuery(data) => data.type_arguments,
+            NodeData::JsxOpeningElement(data) => data.type_arguments,
+            NodeData::JsxSelfClosingElement(data) => data.type_arguments,
+            _ => None,
+        };
+        let Some(position) = type_arguments.and_then(|list| {
+            self.binder
+                .node_array(list)
+                .nodes
+                .iter()
+                .position(|&argument| argument == node)
+        }) else {
+            return Ok(None);
+        };
+        // A type argument of a call, a `new`, a decorator, an instantiation
+        // expression, or a generic type's instantiation.
+        if self.is_call_like_expression(parent) {
+            let signatures = self.uninstantiated_signatures(parent)?;
+            return Ok(Some(
+                self.type_parameter_constraint_for_position_across_signatures(
+                    &signatures,
+                    position,
+                )?,
+            ));
+        }
+        let grandparent = self.parent_of(parent);
+        if let Some(decorator) =
+            grandparent.filter(|&grandparent| self.kind_of(grandparent) == SyntaxKind::Decorator)
+        {
+            let signatures = self.uninstantiated_signatures(decorator)?;
+            return Ok(Some(
+                self.type_parameter_constraint_for_position_across_signatures(
+                    &signatures,
+                    position,
+                )?,
+            ));
+        }
+        if self.kind_of(parent) == SyntaxKind::ExpressionWithTypeArguments
+            && grandparent.is_some_and(|grandparent| {
+                self.kind_of(grandparent) == SyntaxKind::ExpressionStatement
+            })
+        {
+            let NodeData::ExpressionWithTypeArguments(data) = self.data_of(parent) else {
+                unreachable!("an expression with type arguments");
+            };
+            let expression = data
+                .expression
+                .expect("an instantiation expression's expression");
+            let uninstantiated_type =
+                self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
+            let call_signatures = self
+                .get_signatures_of_type(uninstantiated_type, crate::state::SignatureKind::Call)?;
+            let call_constraint = self.type_parameter_constraint_for_position_across_signatures(
+                &call_signatures,
+                position,
+            )?;
+            let construct_signatures = self.get_signatures_of_type(
+                uninstantiated_type,
+                crate::state::SignatureKind::Construct,
+            )?;
+            let construct_constraint = self
+                .type_parameter_constraint_for_position_across_signatures(
+                    &construct_signatures,
+                    position,
+                )?;
+            // An instantiation expression instantiates both kinds of
+            // signature, so the arguments meet both constraints.
+            if self
+                .tables
+                .flags_of(construct_constraint)
+                .intersects(TypeFlags::NEVER)
+            {
+                return Ok(Some(call_constraint));
+            }
+            if self
+                .tables
+                .flags_of(call_constraint)
+                .intersects(TypeFlags::NEVER)
+            {
+                return Ok(Some(construct_constraint));
+            }
+            return Ok(Some(self.get_intersection_type(
+                &[call_constraint, construct_constraint],
+                tsc_types::IntersectionFlags::NONE,
+            )?));
+        }
+        if matches!(
+            self.kind_of(parent),
+            SyntaxKind::TypeReference | SyntaxKind::ExpressionWithTypeArguments
+        ) {
+            let Some(type_parameters) =
+                self.get_type_parameters_for_type_reference_or_import(parent)?
+            else {
+                return Ok(None);
+            };
+            if position >= type_parameters.len() {
+                return Ok(None);
+            }
+            if let Some(constraint) =
+                self.get_constraint_of_type_parameter(type_parameters[position])?
+            {
+                let arguments = self.get_effective_type_arguments(parent, &type_parameters)?;
+                let mapper = self.create_type_mapper(type_parameters, Some(arguments));
+                return Ok(Some(self.instantiate_type(constraint, Some(mapper))?));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsgo `getTypeParameterConstraintForPositionAcrossSignatures`: the
+    /// union of the constraints of each signature's type parameter there.
+    fn type_parameter_constraint_for_position_across_signatures(
+        &mut self,
+        signatures: &[crate::state::SignatureId],
+        position: usize,
+    ) -> CheckResult<TypeId> {
+        let mut constraints = Vec::new();
+        for &signature in signatures {
+            let Some(type_parameter) = self
+                .signature_of(signature)
+                .type_parameters
+                .as_ref()
+                .and_then(|parameters| parameters.get(position).copied())
+            else {
+                continue;
+            };
+            if let Some(constraint) = self.get_constraint_of_type_parameter(type_parameter)? {
+                constraints.push(constraint);
+            }
+        }
+        self.get_union_type_ex(&constraints, tsc_types::UnionReduction::Literal)
+    }
+
+    /// tsgo `getUninstantiatedSignatures`: the generic signatures of a
+    /// call-like expression's callee.
+    fn uninstantiated_signatures(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Vec<crate::state::SignatureId>> {
+        use crate::state::SignatureKind;
+        let (target, kind) = match self.data_of(node) {
+            NodeData::CallExpression(data) => (data.expression, SignatureKind::Call),
+            NodeData::Decorator(data) => (data.expression, SignatureKind::Call),
+            NodeData::NewExpression(data) => (data.expression, SignatureKind::Construct),
+            NodeData::JsxOpeningElement(data) => {
+                let tag_name = data.tag_name.expect("a tag name");
+                if self.is_jsx_intrinsic_tag_name(tag_name) {
+                    return Ok(Vec::new());
+                }
+                (Some(tag_name), SignatureKind::Call)
+            }
+            NodeData::JsxSelfClosingElement(data) => {
+                let tag_name = data.tag_name.expect("a tag name");
+                if self.is_jsx_intrinsic_tag_name(tag_name) {
+                    return Ok(Vec::new());
+                }
+                (Some(tag_name), SignatureKind::Call)
+            }
+            NodeData::TaggedTemplateExpression(data) => (data.tag, SignatureKind::Call),
+            _ => return Ok(Vec::new()),
+        };
+        let Some(target) = target else {
+            return Ok(Vec::new());
+        };
+        let ty = self.get_type_of_expression(target)?;
+        self.get_signatures_of_type(ty, kind)
+    }
+
+    /// tsgo `GetAccessibleSymbolChain` (symbolaccessibility.go:444-458).
+    pub fn get_accessible_symbol_chain(
+        &mut self,
+        symbol: SymbolId,
+        enclosing_declaration: Option<NodeId>,
+        meaning: SymbolFlags,
+        use_only_external_aliasing: bool,
+    ) -> CheckResult<Option<Vec<SymbolId>>> {
+        self.accessible_symbol_chain_at(
+            symbol,
+            meaning,
+            enclosing_declaration,
+            use_only_external_aliasing,
+        )
+    }
+
+    /// tsgo `TryGetThisTypeAtEx` (checker.go:12378-12384): the type of
+    /// `this` at `node`, in `container` or the node's own `this` container.
+    pub fn try_get_this_type_at_ex(
+        &mut self,
+        node: NodeId,
+        include_global_this: bool,
+        container: Option<NodeId>,
+    ) -> CheckResult<Option<TypeId>> {
+        let Some(container) =
+            container.or_else(|| crate::expr::get_this_container_full(self, node, false, false))
+        else {
+            return Ok(None);
+        };
+        self.try_get_this_type_at(node, include_global_this, container)
     }
 }

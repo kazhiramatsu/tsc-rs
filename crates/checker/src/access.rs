@@ -963,7 +963,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isValidPropertyAccessForCompletions @6.0.3
     /// tsc-hash: 949fafb835b56c4e7369a29f47988f34f591ce99edb4862c902bbd16a1575614
     /// tsc-span: _tsc.js:75644-75677
-    pub(crate) fn is_valid_property_access_for_completions(
+    pub fn is_valid_property_access_for_completions(
         &mut self,
         node: NodeId,
         ty: TypeId,
@@ -979,7 +979,7 @@ impl<'a> CheckerState<'a> {
         self.is_property_accessible(node, is_super, /*is_write*/ false, ty, property)
     }
 
-    fn is_property_accessible(
+    pub(crate) fn is_property_accessible(
         &mut self,
         node: NodeId,
         is_super: bool,
@@ -3675,10 +3675,7 @@ impl<'a> CheckerState<'a> {
     /// consumer slice — errorNode/thisTypeForErrorOut stay 5.5f)
     /// tsc-hash: 34400f2efd43255c842416a05dbe9f0b0e3f9f09d13162db7e61e10a0f59541f
     /// tsc-span: _tsc.js:82316-82376
-    pub(crate) fn get_promised_type_of_promise(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult<Option<TypeId>> {
+    pub fn get_promised_type_of_promise(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         Ok(self
             .get_promised_type_of_promise_with_this_error(ty, None)?
             .0)

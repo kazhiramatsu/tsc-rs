@@ -41,7 +41,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isNullableType @6.0.3
     /// tsc-hash: f7b677457f8e94a6bd55aa41baf3f2dd44f4fcafb0b0c2b2ee9b5f0810c77b70
     /// tsc-span: _tsc.js:74993-74995
-    pub(crate) fn is_nullable_type(&mut self, ty: TypeId) -> CheckResult<bool> {
+    pub fn is_nullable_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         self.has_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL)
     }
 

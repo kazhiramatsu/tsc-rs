@@ -394,7 +394,7 @@ fn parser_calls_with_jsdoc_for_kind(kind: SyntaxKind) -> bool {
 
 /// tsc iterateCommentRanges/getLeadingCommentRanges/getTrailingCommentRanges.
 /// Ranges include their delimiters and use parser byte-position space.
-fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usize)> {
+pub fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usize)> {
     let mut cursor = pos.min(text.len());
     let mut collecting = trailing;
     let mut ranges = Vec::new();
