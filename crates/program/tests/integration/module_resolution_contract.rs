@@ -6380,7 +6380,7 @@ fn root_imports_patterns_are_gated_for_node16_but_enabled_elsewhere() {
 }
 
 #[test]
-fn relative_node_modules_targets_are_external_without_realpath_rewriting() {
+fn relative_targets_are_external_by_their_resolved_path_without_realpath_rewriting() {
     let forbidden_realpath = HostError::new(
         HostErrorKind::Other,
         HostOperation::Realpath,
@@ -6424,21 +6424,24 @@ fn relative_node_modules_targets_are_external_without_realpath_rewriting() {
     assert!(module.is_external_library_import());
     assert_eq!(module.original_path(), None);
 
-    let raw_external = resolved(
+    // tsgo classifies a relative name by its resolved path, so
+    // `./node_modules/../foo.js` is a local file (tsgo emits it; TS 6
+    // classified the unnormalized spelling as an external library).
+    let local = resolved(
         resolver
             .resolve(
                 "/work/main.ts",
                 "./node_modules/../foo.js",
                 ResolutionMode::CommonJs,
             )
-            .expect("classify the unnormalized relative path components"),
+            .expect("classify the resolved path"),
     );
     assert_eq!(
-        raw_external.resolved_file().display().scalar_test_path(),
+        local.resolved_file().display().scalar_test_path(),
         Path::new("/work/foo.js")
     );
-    assert!(raw_external.is_external_library_import());
-    assert_eq!(raw_external.original_path(), None);
+    assert!(!local.is_external_library_import());
+    assert_eq!(local.original_path(), None);
 }
 
 #[test]
@@ -8421,14 +8424,18 @@ fn current_directory_specifier_resolves_its_manifestless_index() {
 }
 
 #[test]
-fn custom_type_roots_preserve_combine_paths_spelling_and_rooted_children() {
+fn custom_type_roots_resolve_names_to_normalized_candidates() {
+    // tsgo getCandidateFromTypeRoot normalizes the name against the root
+    // (`--traceResolution` with `typeRoots`): `.` is the root itself, so its
+    // declaration file is `/types.d.ts`, not TS 6's final-dot twin
+    // `/types/.d..ts`; and a rooted name replaces the root.
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
-        .file("/types.d.ts", b"declare const wrong: true;".to_vec())
+        .file("/types.d.ts", b"declare const root: true;".to_vec())
         .file("/types/.d..ts", b"declare const dot: true;".to_vec())
         .file("/absolute.d.ts", b"declare const absolute: true;".to_vec())
         .build()
-        .expect("build raw custom-type-root host");
+        .expect("build custom-type-root host");
     let options = options_for_module(1);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let type_root = program_path("/types");
@@ -8440,13 +8447,13 @@ fn custom_type_roots_preserve_combine_paths_spelling_and_rooted_children() {
             ResolutionMode::CommonJs,
             Some(std::slice::from_ref(&type_root)),
         )
-        .expect("preserve a final-dot primary candidate")
+        .expect("resolve `.` against the custom type root")
     else {
-        panic!("expected the raw final-dot declaration twin");
+        panic!("expected the type root's own declaration file");
     };
     assert_eq!(
         dot.resolved_file().display().scalar_test_path(),
-        Path::new("/types/.d..ts")
+        Path::new("/types.d.ts")
     );
     assert!(dot.primary());
 
@@ -8466,6 +8473,120 @@ fn custom_type_roots_preserve_combine_paths_spelling_and_rooted_children() {
         Path::new("/absolute.d.ts")
     );
     assert!(absolute.primary());
+}
+
+#[test]
+fn default_type_roots_normalize_relative_names_and_trace_scoped_names_per_root() {
+    // tsgo `--traceResolution`: a relative name resolves against each type
+    // root to a normalized path, which the package.json lookup, the probes
+    // and the result use (a content mapper writes such references); and every
+    // type root traces a scoped name's mangling before its existence is
+    // checked.
+    let host = MemoryCompilerHost::builder("/work/project")
+        .file("/work/project/src/main.ts", b"export {};".to_vec())
+        .file(
+            "/work/project/node_modules/@types/dummy/index.d.ts",
+            b"declare const dummy: number;".to_vec(),
+        )
+        .file(
+            "/work/project/lib/x/index.d.ts",
+            b"declare const x: number;".to_vec(),
+        )
+        .build()
+        .expect("build default-type-root host");
+    let options = CompilerOptions {
+        trace_resolution: Some(true),
+        ..options_for_module(1)
+    };
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let roots = "/work/project/node_modules/@types,/work/node_modules/@types,/node_modules/@types";
+
+    let ResolutionOutcome::Resolved(relative) = resolver
+        .resolve_type_reference(
+            "/work/project/src/main.ts",
+            "../../lib/x",
+            ResolutionMode::CommonJs,
+            None,
+        )
+        .expect("resolve a relative name through the default type roots")
+    else {
+        panic!("expected the relative type reference to resolve");
+    };
+    assert_eq!(
+        relative.resolved_file().display().scalar_test_path(),
+        Path::new("/work/project/lib/x/index.d.ts")
+    );
+    assert!(relative.primary());
+    let trace = resolver
+        .take_trace()
+        .iter()
+        .map(|line| line.text())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        trace,
+        [
+            format!(
+                "======== Resolving type reference directive '../../lib/x', containing file '/work/project/src/main.ts', root directory '{roots}'. ========"
+            ),
+            format!(
+                "Resolving with primary search path '{}'.",
+                roots.replace(',', ", ")
+            ),
+            "File '/work/project/lib/x/package.json' does not exist.".to_owned(),
+            "File '/work/project/lib/x/index.d.ts' exists - use it as a name resolution result."
+                .to_owned(),
+            "Resolving real path for '/work/project/lib/x/index.d.ts', result '/work/project/lib/x/index.d.ts'."
+                .to_owned(),
+            "======== Type reference directive '../../lib/x' was successfully resolved to '/work/project/lib/x/index.d.ts', primary: true. ========"
+                .to_owned(),
+        ]
+    );
+
+    assert_eq!(
+        resolver
+            .resolve_type_reference(
+                "/work/project/src/main.ts",
+                "@scope/pkg",
+                ResolutionMode::CommonJs,
+                None,
+            )
+            .expect("look up a missing scoped name"),
+        ResolutionOutcome::NotFound
+    );
+    let trace = resolver
+        .take_trace()
+        .iter()
+        .map(|line| line.text())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        trace,
+        [
+            format!(
+                "======== Resolving type reference directive '@scope/pkg', containing file '/work/project/src/main.ts', root directory '{roots}'. ========"
+            ),
+            format!(
+                "Resolving with primary search path '{}'.",
+                roots.replace(',', ", ")
+            ),
+            "Scoped package detected, looking in 'scope__pkg'".to_owned(),
+            "Scoped package detected, looking in 'scope__pkg'".to_owned(),
+            "Directory '/work/node_modules/@types' does not exist, skipping all lookups in it."
+                .to_owned(),
+            "Scoped package detected, looking in 'scope__pkg'".to_owned(),
+            "Directory '/node_modules/@types' does not exist, skipping all lookups in it."
+                .to_owned(),
+            "Looking up in 'node_modules' folder, initial location '/work/project/src'.".to_owned(),
+            "Searching all ancestor node_modules directories for preferred extensions: Declaration."
+                .to_owned(),
+            "Directory '/work/project/src/node_modules' does not exist, skipping all lookups in it."
+                .to_owned(),
+            "Scoped package detected, looking in 'scope__pkg'".to_owned(),
+            "File '/work/project/node_modules/@types/scope__pkg.d.ts' does not exist.".to_owned(),
+            "Directory '/work/node_modules' does not exist, skipping all lookups in it.".to_owned(),
+            "Directory '/node_modules' does not exist, skipping all lookups in it.".to_owned(),
+            "======== Type reference directive '@scope/pkg' was not resolved. ========".to_owned(),
+        ]
+    );
 }
 
 #[test]
