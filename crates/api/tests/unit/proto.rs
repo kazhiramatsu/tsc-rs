@@ -175,7 +175,7 @@ fn a_diagnostic_response_round_trips_to_a_diagnostic() {
 fn uris_become_file_names_like_tsgo() {
     // tsgo `DocumentUri.FileName`, probed at 19dadef8 and aa8149273 (#64159's
     // dynamic names for other schemes; `crate::uri` holds tsgo's own pairs).
-    use crate::uri::uri_to_file_name;
+    use tsc_program::uri::uri_to_file_name;
     for (uri, file_name) in [
         ("file:///D%3A/repo/index.ts", "D:/repo/index.ts"),
         ("file:///a/b%20c.ts", "/a/b c.ts"),

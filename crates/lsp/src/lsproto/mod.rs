@@ -6,12 +6,17 @@
 pub mod codec;
 #[allow(clippy::all)]
 mod generated;
+pub mod message;
 
 use serde::{Serialize, Serializer};
 use serde_json::Value;
 
 pub use codec::{from_str, Decode, DecodeError};
 pub use generated::*;
+pub use message::{
+    decode_params, parse_message, Id, LspError, Message, RequestMessage, ResponseError,
+    ResponseMessage,
+};
 
 /// tsgo `DocumentUri`: a document's URI as the client wrote it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
@@ -104,5 +109,30 @@ impl Serialize for NoParams {
 impl Decode for NoParams {
     fn decode(_value: &Value) -> Result<Self, DecodeError> {
         Ok(Self)
+    }
+}
+
+impl CodeActionKind {
+    /// tsgo `CodeActionKindSourceFixAllTs`.
+    pub const SOURCE_FIX_ALL_TS: Self = Self(std::borrow::Cow::Borrowed("source.fixAll.ts"));
+    /// tsgo `CodeActionKindSourceOrganizeImportsTs`.
+    pub const SOURCE_ORGANIZE_IMPORTS_TS: Self =
+        Self(std::borrow::Cow::Borrowed("source.organizeImports.ts"));
+    /// tsgo `CodeActionKindSourceRemoveUnusedImportsTs`.
+    pub const SOURCE_REMOVE_UNUSED_IMPORTS_TS: Self =
+        Self(std::borrow::Cow::Borrowed("source.removeUnusedImports.ts"));
+    /// tsgo `CodeActionKindSourceSortImportsTs`.
+    pub const SOURCE_SORT_IMPORTS_TS: Self =
+        Self(std::borrow::Cow::Borrowed("source.sortImports.ts"));
+
+    /// tsgo `CodeActionKind.Contains`: whether `other` is this kind or one
+    /// of its children.
+    pub fn contains(&self, other: &Self) -> bool {
+        self == other
+            || *self == Self::EMPTY
+            || other
+                .0
+                .strip_prefix(self.0.as_ref())
+                .is_some_and(|rest| rest.starts_with('.'))
     }
 }

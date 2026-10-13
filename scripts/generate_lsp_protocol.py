@@ -151,6 +151,8 @@ class Model:
         self.text_document_uri = []  # struct names
         self.text_document_position = []
         self.resolved = set()
+        self.resolved_structs = {}  # name -> (doc, [Field])
+        self.resolvers = []  # (source struct, resolved struct, [(go field, form)])
         self.registration_methods = []  # (member, method string)
 
 
@@ -256,14 +258,41 @@ def parse(source):
                 if not am:
                     fail(f"{name}.{method}: unexpected body {body!r}")
                 store.append((name, am.group(1).split(".")))
-        if "resolve" in methods or "Resolve" in methods:
-            model.resolved.add(name)
+        for method in ("resolve", "Resolve"):
+            if method in methods:
+                body = methods[method][1]
+                forms = []
+                for text in body:
+                    fm = re.match(r"^\t\t(\w+): +(.+),$", text)
+                    if not fm:
+                        continue
+                    value = fm.group(2)
+                    if value == f"derefOr(v.{fm.group(1)})":
+                        forms.append((fm.group(1), "deref"))
+                    elif value == f"v.{fm.group(1)}.resolve()":
+                        forms.append((fm.group(1), "resolve"))
+                    elif value == f"v.{fm.group(1)}":
+                        forms.append((fm.group(1), "copy"))
+                    else:
+                        fail(f"{name}.{method}: unexpected field {text!r}")
+                model.resolvers.append((name, method, forms))
     plain = {}
     for name, (doc, body) in list(model.structs.items()):
         methods = funcs.get(name, {})
         marshal = methods.get("MarshalJSONTo")
         unmarshal = methods.get("UnmarshalJSONFrom")
         if name.startswith("Resolved"):
+            fields = []
+            for j, text in body:
+                if not text.strip() or text.strip().startswith("//"):
+                    continue
+                fm = re.match(r'^\t(\w+) +(.+?) +`json:"([^"]*)"(?: lsp:"([^"]*)")?`$', text)
+                if not fm:
+                    fail(f"struct {name}: unexpected field line {text!r}")
+                go_name, go_type, tag, lsp = fm.groups()
+                fields.append(Field(go_name, parse_go_type(go_type), tag.split(",")[0], False, True,
+                                    False, []))
+            model.resolved_structs[name] = (doc, fields)
             continue
         if marshal and marshal[1][0].strip().startswith("return enc.WriteValue(json.Value(`"):
             literal = re.search(r"json\.Value\(`(.*)`\)\)", marshal[1][0]).group(1)
@@ -488,7 +517,9 @@ class Emitter:
         self.line("use super::{DocumentUri, EmptyObject, NoParams, Null, Uri};")
         for kind, name in self.model.order:
             if kind == "struct":
-                if name in self.model.plain:
+                if name in self.model.resolved_structs:
+                    self.emit_resolved(name)
+                elif name in self.model.plain:
                     self.emit_struct(name)
                 elif name in self.model.unions:
                     self.emit_union(name)
@@ -503,6 +534,7 @@ class Emitter:
         self.emit_methods()
         self.emit_requests()
         self.emit_accessors()
+        self.emit_resolvers()
         return "\n".join(self.out) + "\n"
 
     def field_rust_type(self, owner, field):
@@ -896,6 +928,65 @@ class Emitter:
         self.line("        })")
         self.line("    }")
         self.line("}")
+
+    def resolved_union(self, field):
+        """A resolved union field: Go's zero union (no member) is `None`."""
+        return field.go_type.kind == "named" and field.go_type.name in self.model.unions
+
+    def emit_resolved(self, name):
+        """A resolved struct, written as tsgo's `omitzero` fields."""
+        doc, fields = self.model.resolved_structs[name]
+        self.line()
+        self.doc(doc)
+        self.line("#[derive(Clone, Debug, Default, PartialEq, Serialize)]")
+        self.line(f"pub struct {name} {{")
+        for field in fields:
+            rust = self.field_rust_type(name, field)
+            if self.resolved_union(field):
+                rust = f"Option<{rust}>"
+            self.line(f'    #[serde(rename = "{field.json_name}", skip_serializing_if = "IsZero::is_zero")]')
+            self.line(f"    pub {snake(field.json_name)}: {rust},")
+        self.line("}")
+        self.line()
+        self.line(f"impl IsZero for {name} {{")
+        self.line("    fn is_zero(&self) -> bool {")
+        self.line("        *self == Self::default()")
+        self.line("    }")
+        self.line("}")
+
+    def emit_resolvers(self):
+        for source, method, forms in self.model.resolvers:
+            target = f"Resolved{source}"
+            if target not in self.model.resolved_structs:
+                fail(f"{source}.{method}: no {target}")
+            source_fields = {f.go_name: f for f in self.model.plain[source][1]}
+            target_fields = {f.go_name: f for f in self.model.resolved_structs[target][1]}
+            self.line()
+            self.line(f"impl {source} {{")
+            self.line(f"    /// tsgo `{method}`: the capabilities with their defaults filled in.")
+            self.line(f"    pub fn resolve(&self) -> {target} {{")
+            self.line(f"        {target} {{")
+            for go_name, form in forms:
+                field = source_fields[go_name]
+                name = snake(target_fields[go_name].json_name)
+                member = f"self.{snake(field.json_name)}"
+                if form == "deref" and self.resolved_union(target_fields[go_name]):
+                    self.line(f"            {name}: {member}.clone(),")
+                elif form == "deref":
+                    self.line(f"            {name}: {member}.clone().unwrap_or_default(),")
+                elif form == "resolve":
+                    go = field.go_type
+                    while go.kind == "ptr":
+                        go = go.elem
+                    if self.optional(field):
+                        self.line(f"            {name}: {member}.as_ref().map({go.name}::resolve).unwrap_or_default(),")
+                    else:
+                        self.line(f"            {name}: {member}.resolve(),")
+                else:
+                    self.line(f"            {name}: {member}.clone(),")
+            self.line("        }")
+            self.line("    }")
+            self.line("}")
 
     def emit_methods(self):
         self.line()

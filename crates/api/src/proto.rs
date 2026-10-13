@@ -113,7 +113,7 @@ impl DocumentIdentifier {
             .to_string_lossy()
             .into_owned())
         } else {
-            crate::uri::uri_to_file_name(&self.uri)
+            tsc_program::uri::uri_to_file_name(&self.uri)
         }
     }
 }

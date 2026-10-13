@@ -482,6 +482,7 @@ dependencies = [
  "serde_json",
  "tsc-rs-api",
  "tsc-rs-compiler",
+ "tsc-rs-lsp",
  "tsc-rs-program",
  "tsc-rs-types",
 ]
@@ -587,6 +588,11 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "tsc-rs-compiler",
+ "tsc-rs-diagnostics",
+ "tsc-rs-host",
+ "tsc-rs-program",
+ "tsc-rs-types",
 ]
 
 [[package]]

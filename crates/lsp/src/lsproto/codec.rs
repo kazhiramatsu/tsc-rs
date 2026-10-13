@@ -339,3 +339,15 @@ impl IsZero for Value {
         self.is_null()
     }
 }
+
+impl<T> IsZero for Vec<T> {
+    fn is_zero(&self) -> bool {
+        self.is_empty()
+    }
+}
+
+impl<T> IsZero for Option<T> {
+    fn is_zero(&self) -> bool {
+        self.is_none()
+    }
+}
