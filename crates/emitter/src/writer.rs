@@ -134,6 +134,17 @@ pub struct TextWriter {
     /// at the end is never written.
     defers_trailing_semicolon: bool,
     pending_semicolon: bool,
+    /// tsgo's `displayPartsWriter` (ls/displaypartswriter.go): each write's
+    /// text with its classification.
+    display_parts: Option<Vec<DisplayPart>>,
+}
+
+/// A run of tsgo's `displayPartsWriter`: written text and the Visual Studio
+/// classification of the write (`keyword`, `punctuation`, `text`, …).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DisplayPart {
+    pub classification: &'static str,
+    pub text: String,
 }
 
 /// tsc-port: createTextWriter @6.0.3
@@ -162,6 +173,7 @@ impl TextWriter {
             recording: None,
             defers_trailing_semicolon: false,
             pending_semicolon: false,
+            display_parts: None,
         }
     }
 
@@ -182,6 +194,37 @@ impl TextWriter {
             recording: None,
             defers_trailing_semicolon: false,
             pending_semicolon: false,
+            display_parts: None,
+        }
+    }
+
+    /// tsgo `newDisplayPartsWriter(true)`: a single-line writer (a line
+    /// break is a space) that records each write's classification.
+    pub fn display_parts() -> Self {
+        let mut writer = Self::single_line();
+        writer.display_parts = Some(Vec::new());
+        writer
+    }
+
+    /// The recorded runs of a display parts writer.
+    pub fn take_display_parts(&mut self) -> Option<Vec<DisplayPart>> {
+        self.display_parts.take()
+    }
+
+    fn record(&mut self, classification: &'static str, text: &str) {
+        if let Some(parts) = &mut self.display_parts {
+            if !text.is_empty() {
+                parts.push(DisplayPart {
+                    classification,
+                    text: text.to_owned(),
+                });
+            }
+        }
+    }
+
+    fn record_utf16(&mut self, classification: &'static str, units: &[u16]) {
+        if self.display_parts.is_some() && !units.is_empty() {
+            self.record(classification, &String::from_utf16_lossy(units));
         }
     }
 
@@ -196,6 +239,7 @@ impl TextWriter {
         if self.pending_semicolon {
             self.pending_semicolon = false;
             self.has_trailing_comment = false;
+            self.record(PUNCTUATION, ";");
             self.write_text(";");
         }
     }
@@ -445,6 +489,12 @@ impl TextWriter {
     /// Write JavaScript units without replacing unpaired surrogates.
     pub fn write_utf16(&mut self, units: &[u16]) {
         self.commit_semicolon();
+        self.record_utf16(TEXT, units);
+        self.write_utf16_unrecorded(units);
+    }
+
+    fn write_utf16_unrecorded(&mut self, units: &[u16]) {
+        self.commit_semicolon();
         if !units.is_empty() {
             self.has_trailing_comment = false;
         }
@@ -453,6 +503,7 @@ impl TextWriter {
 
     pub fn raw_write_utf16(&mut self, units: &[u16]) {
         self.commit_semicolon();
+        self.record_utf16(TEXT, units);
         if self.single_line {
             self.append_single_line_utf16(units);
             return;
@@ -463,12 +514,15 @@ impl TextWriter {
 
     pub fn write_literal_utf16(&mut self, units: &[u16]) {
         if !units.is_empty() {
-            self.write_utf16(units);
+            self.commit_semicolon();
+            self.record_utf16(STRING, units);
+            self.write_utf16_unrecorded(units);
         }
     }
 
     pub fn write_comment_utf16(&mut self, units: &[u16]) {
         self.commit_semicolon();
+        self.record_utf16(TEXT, units);
         if !self.single_line && !units.is_empty() {
             self.has_trailing_comment = true;
         }
@@ -476,11 +530,19 @@ impl TextWriter {
     }
 
     pub fn write_string_literal_utf16(&mut self, units: &[u16]) {
-        self.write_utf16(units);
+        self.commit_semicolon();
+        self.record_utf16(STRING, units);
+        self.write_utf16_unrecorded(units);
     }
 
     pub fn write(&mut self, text: &str) {
+        self.write_classified(text, TEXT);
+    }
+
+    /// A write with its display parts classification.
+    fn write_classified(&mut self, text: &str, classification: &'static str) {
         self.commit_semicolon();
+        self.record(classification, text);
         if !text.is_empty() {
             self.has_trailing_comment = false;
         }
@@ -492,6 +554,7 @@ impl TextWriter {
     /// the defined-string branch in TypeScript's writer.
     pub fn raw_write(&mut self, text: &str) {
         self.commit_semicolon();
+        self.record(TEXT, text);
         if self.single_line {
             self.append_single_line(text);
             return;
@@ -506,12 +569,13 @@ impl TextWriter {
 
     pub fn write_literal(&mut self, text: &str) {
         if !text.is_empty() {
-            self.write(text);
+            self.write_classified(text, STRING);
         }
     }
 
     pub fn write_comment(&mut self, text: &str) {
         self.commit_semicolon();
+        self.record(TEXT, text);
         if !self.single_line && !text.is_empty() {
             self.has_trailing_comment = true;
         }
@@ -521,6 +585,7 @@ impl TextWriter {
     pub fn write_line(&mut self, force: bool) {
         self.commit_semicolon();
         if self.single_line {
+            self.record(WHITE_SPACE, " ");
             self.append_single_line(" ");
             return;
         }
@@ -638,35 +703,41 @@ impl TextWriter {
     }
 
     pub fn write_keyword(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, "keyword");
     }
 
     pub fn write_operator(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, "operator");
     }
 
     pub fn write_parameter(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, "parameter name");
     }
 
     pub fn write_property(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, "property name");
     }
 
     pub fn write_punctuation(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, PUNCTUATION);
     }
 
     pub fn write_space(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, WHITE_SPACE);
     }
 
     pub fn write_string_literal(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, STRING);
     }
 
+    /// tsgo `p.write` of a name without a symbol.
     pub fn write_symbol(&mut self, text: &str) {
-        self.write(text);
+        self.write_classified(text, TEXT);
+    }
+
+    /// tsgo `WriteSymbol`: a name with its symbol's classification.
+    pub fn write_symbol_classified(&mut self, text: &str, classification: &'static str) {
+        self.write_classified(text, classification);
     }
 
     pub fn write_trailing_semicolon(&mut self, text: &str) {
@@ -674,6 +745,12 @@ impl TextWriter {
             self.pending_semicolon = true;
             return;
         }
-        self.write(text);
+        self.write_classified(text, PUNCTUATION);
     }
 }
+
+// tsgo's `lsproto.ClassificationTypeName`s the writes record.
+const TEXT: &str = "text";
+const PUNCTUATION: &str = "punctuation";
+const WHITE_SPACE: &str = "whitespace";
+const STRING: &str = "string";
