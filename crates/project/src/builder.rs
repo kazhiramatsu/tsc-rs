@@ -28,6 +28,9 @@ use crate::snapshot::{
     ApiSnapshotRequest, ApiState, CreateProgramRequest, OpenedFile, ProjectCollection,
     ProjectError, SnapshotHost,
 };
+use crate::watch::{
+    path_globs, resolution_lookup_globs, ContentMapperWatch, WatchedFiles, WATCH_ALL,
+};
 use tsc_syntax::ScriptKind;
 
 type Projects = Arc<BTreeMap<ProjectId, Arc<Project>>>;
@@ -318,7 +321,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
             let directory = tsc_program::get_directory_path(JsStr::from_str(file_name))
                 .to_string_lossy()
                 .into_owned();
-            self.insert(Project::new_configured(file_name, path, directory));
+            self.insert(self.with_watches(Project::new_configured(file_name, path, directory)));
         }
         id
     }
@@ -352,11 +355,11 @@ impl<'a> ProjectCollectionBuilder<'a> {
         }
         let Some(project) = self.synthetic.get(id) else {
             let current_directory = self.host.options().current_directory.clone();
-            self.insert(Project::new_synthetic(
+            self.insert(self.with_watches(Project::new_synthetic(
                 id.clone(),
                 current_directory,
                 Arc::new(roots),
-            ));
+            )));
             return Ok(());
         };
         let changed = !matches!(
@@ -410,7 +413,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         if let (false, Some(path), Some(old)) = (update, &project.dirty_file_path, &project.program)
         {
             if let Some(program) = self.reuse_program(old, path)? {
-                let watched = self.content_mapper_watched_files(&project, &program);
+                let (watched, watch) = self.content_mapper_watch(&project, &program);
                 let snapshot_id = self.snapshot_id;
                 self.change(id, |project| {
                     project.program = Some(Arc::new(program));
@@ -419,12 +422,13 @@ impl<'a> ProjectCollectionBuilder<'a> {
                     project.dirty = false;
                     project.dirty_file_path = None;
                     project.content_mapper_watched_files = Some(Arc::new(watched));
+                    project.content_mapper_watch = watch;
                 });
                 return Ok(false);
             }
         }
         let (program, seen) = self.create_program(&project)?;
-        let watched = self.content_mapper_watched_files(&project, &program);
+        let (watched, content_mapper_watch) = self.content_mapper_watch(&project, &program);
         let update_kind = match &project.program {
             Some(old) if old.has_same_file_names(&program) => ProgramUpdateKind::SameFileNames,
             _ => ProgramUpdateKind::NewFiles,
@@ -440,10 +444,18 @@ impl<'a> ProjectCollectionBuilder<'a> {
             project.program = Some(Arc::new(program));
             project.program_update_kind = update_kind;
             project.program_last_update = snapshot_id;
+            // tsgo `CloneWatchers`: the build's files, when they changed.
+            if update_kind == ProgramUpdateKind::NewFiles {
+                project.program_files_watch = project
+                    .program_files_watch
+                    .as_ref()
+                    .map(|watch| Arc::new(watch.clone_with(seen.files().clone())));
+            }
             project.seen = Arc::new(seen);
             project.dirty = false;
             project.dirty_file_path = None;
             project.content_mapper_watched_files = Some(Arc::new(watched));
+            project.content_mapper_watch = content_mapper_watch;
         });
         Ok(update_kind == ProgramUpdateKind::NewFiles)
     }
@@ -452,11 +464,13 @@ impl<'a> ProjectCollectionBuilder<'a> {
     /// command line's mapper packages, and the files its dynamic mappers
     /// watch when the program has a mapped file (a mapper no file uses is
     /// not opened).
-    fn content_mapper_watched_files(
+    /// The paths of those files, and the project's content mapper watch of
+    /// them (tsgo `contentMapperWatch.Clone`).
+    fn content_mapper_watch(
         &self,
         project: &Project,
         program: &ProjectProgram,
-    ) -> BTreeSet<String> {
+    ) -> (BTreeSet<String>, Option<Arc<ContentMapperWatch>>) {
         let mut files = match &project.command_line {
             Some(CommandLine::Config(plan)) => plan.content_mapper_manifest_files(),
             _ => Vec::new(),
@@ -471,8 +485,54 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 files.extend(mapper_project.0.watched_files().unwrap_or_default());
             }
         }
+        files.sort();
+        files.dedup();
         let paths = self.host.paths();
-        files.iter().map(|file| paths.to_path(file)).collect()
+        let watched = files.iter().map(|file| paths.to_path(file)).collect();
+        let watch = project
+            .content_mapper_watch
+            .as_ref()
+            .map(|watch| Arc::new(watch.clone_with(files)));
+        (watched, watch)
+    }
+
+    /// tsgo `NewProject`'s watches: the program's files (the workspace, the
+    /// project's directory, the library and the directories its build
+    /// looked in) and the content mappers' files.
+    fn with_watches(&self, mut project: Project) -> Project {
+        let options = self.host.options();
+        let paths = self.host.paths();
+        let case_sensitive = paths.case_sensitive;
+        let relative_pattern_support = options.relative_pattern_support;
+        let workspace = paths.current_directory.clone();
+        let library = options
+            .library_catalog
+            .directory()
+            .to_string_lossy()
+            .into_owned();
+        let project_directory = project.current_directory.clone();
+        project.program_files_watch = Some(Arc::new(WatchedFiles::new(
+            format!("program files for {}", project.id),
+            WATCH_ALL,
+            relative_pattern_support,
+            move |files: &BTreeMap<String, String>| {
+                resolution_lookup_globs(
+                    &workspace,
+                    &library,
+                    &project_directory,
+                    case_sensitive,
+                    files,
+                )
+            },
+        )));
+        let workspace = paths.current_directory.clone();
+        project.content_mapper_watch = Some(Arc::new(WatchedFiles::new(
+            format!("content mapper configuration files for {}", project.id),
+            WATCH_ALL,
+            relative_pattern_support,
+            move |files: &Vec<String>| path_globs(&workspace, case_sensitive, files),
+        )));
+        project
     }
 
     /// tsgo `refreshContentMapperProjectForChanges`: a project whose content
@@ -596,7 +656,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 &mut |config_file_name| {
                     let file_name = config_file_name.to_string_lossy().into_owned();
                     let path = paths.to_path(&file_name);
-                    source.track_file(path.clone());
+                    source.track_file(path.clone(), file_name.clone());
                     references.insert(path.clone());
                     configs.acquire_config_for_project(&file_name, &path, &project.id)
                 },
@@ -1271,7 +1331,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let current_directory = self.host.options().current_directory.clone();
         let Some(project) = &self.inferred else {
             let roots = inferred_project_roots(roots, self.host.paths());
-            self.insert(Project::new_inferred(current_directory, roots));
+            self.insert(self.with_watches(Project::new_inferred(current_directory, roots)));
             return;
         };
         if project.root_file_names() != roots {

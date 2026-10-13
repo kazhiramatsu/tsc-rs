@@ -18,6 +18,10 @@ use tsc_program::{
 use crate::fs::{FileChangeSummary, SnapshotFsBuilder, SourceFs};
 use crate::id::ProjectId;
 use crate::snapshot::ProjectError;
+use crate::watch::{
+    common_parent_directories, contains_path, recursive_glob_pattern, PatternsAndIgnored,
+    WatchedFiles, WATCH_ALL,
+};
 
 /// What an entry's parse needs before use (tsgo `PendingReload`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,14 +46,28 @@ pub(crate) struct ConfigFileEntry {
     retaining_open_files: BTreeSet<String>,
     /// The configs that extend this one (by path).
     retaining_configs: BTreeSet<String>,
-    /// A project's config, whose roots a created file can add to (tsgo's
-    /// `rootFilesWatch`, absent for an entry only extended).
-    matches_root_files: bool,
+    /// tsgo `rootFilesWatch`: the watch of a project's config's roots, whose
+    /// created files can add to them (absent for an entry only extended).
+    root_files_watch: Option<Arc<WatchedFiles<PatternsAndIgnored>>>,
 }
 
 impl ConfigFileEntry {
-    /// tsgo `newConfigFileEntry`: parsed at its first use.
-    fn new(file_name: &str) -> Self {
+    /// tsgo `newConfigFileEntry`: parsed at its first use, its roots
+    /// watched.
+    fn new(file_name: &str, relative_pattern_support: bool) -> Self {
+        Self {
+            root_files_watch: Some(Arc::new(WatchedFiles::new(
+                format!("root files for {file_name}"),
+                WATCH_ALL,
+                relative_pattern_support,
+                PatternsAndIgnored::clone,
+            ))),
+            ..Self::new_extended(file_name)
+        }
+    }
+
+    /// tsgo `newExtendedConfigFileEntry`'s entry: no watch of its own.
+    fn new_extended(file_name: &str) -> Self {
         Self {
             file_name: file_name.to_owned(),
             pending_reload: PendingReload::Full,
@@ -57,8 +75,13 @@ impl ConfigFileEntry {
             retaining_projects: BTreeSet::new(),
             retaining_open_files: BTreeSet::new(),
             retaining_configs: BTreeSet::new(),
-            matches_root_files: true,
+            root_files_watch: None,
         }
+    }
+
+    /// The watch of the config's roots.
+    pub(crate) fn root_files_watch(&self) -> Option<&Arc<WatchedFiles<PatternsAndIgnored>>> {
+        self.root_files_watch.as_ref()
     }
 }
 
@@ -98,6 +121,16 @@ impl ConfigFileRegistry {
     /// tsgo `GetConfig`: the parse of the config at `path`.
     pub(crate) fn config(&self, path: &str) -> Option<&Arc<ConfigRootPlan>> {
         self.configs.get(path)?.plan.as_ref()
+    }
+
+    /// The configs' root file watches by path (none for an entry only
+    /// extended).
+    pub(crate) fn root_files_watches(
+        &self,
+    ) -> impl Iterator<Item = (&String, Option<&Arc<WatchedFiles<PatternsAndIgnored>>>)> {
+        self.configs
+            .iter()
+            .map(|(path, entry)| (path, entry.root_files_watch()))
     }
 
     /// tsgo `isTracked`: whether the registry has an entry for the config
@@ -155,6 +188,8 @@ pub(crate) struct ConfigFileRegistryBuilder<'a> {
     custom_config_file_name_changed: bool,
     /// The session's `run_external_code`.
     run_external_code: bool,
+    /// tsgo's client capability `relativePatternSupport` of watched files.
+    relative_pattern_support: bool,
 }
 
 impl<'a> ConfigFileRegistryBuilder<'a> {
@@ -163,6 +198,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
         fs: &'a SnapshotFsBuilder,
         base: &ConfigFileRegistry,
         run_external_code: bool,
+        relative_pattern_support: bool,
         custom_config_file_name: &str,
     ) -> Self {
         Self {
@@ -174,6 +210,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
             custom_config_file_name_changed: custom_config_file_name
                 != base.custom_config_file_name,
             run_external_code,
+            relative_pattern_support,
         }
     }
 
@@ -206,8 +243,13 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
         project: &ProjectId,
     ) -> Result<Option<Arc<ConfigRootPlan>>, ProjectError> {
         if !self.configs.contains_key(path) {
-            Arc::make_mut(&mut self.configs)
-                .insert(path.to_owned(), Arc::new(ConfigFileEntry::new(file_name)));
+            Arc::make_mut(&mut self.configs).insert(
+                path.to_owned(),
+                Arc::new(ConfigFileEntry::new(
+                    file_name,
+                    self.relative_pattern_support,
+                )),
+            );
         }
         let entry = &self.configs[path];
         if !entry.retaining_projects.contains(project)
@@ -233,8 +275,13 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
         file_path: &str,
     ) -> Result<Option<Arc<ConfigRootPlan>>, ProjectError> {
         if !self.configs.contains_key(path) {
-            Arc::make_mut(&mut self.configs)
-                .insert(path.to_owned(), Arc::new(ConfigFileEntry::new(file_name)));
+            Arc::make_mut(&mut self.configs).insert(
+                path.to_owned(),
+                Arc::new(ConfigFileEntry::new(
+                    file_name,
+                    self.relative_pattern_support,
+                )),
+            );
         }
         if self.fs.is_open_file(file_path)
             && !self.configs[path].retaining_open_files.contains(file_path)
@@ -310,8 +357,89 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
         entry.pending_reload = PendingReload::None;
         if full {
             self.update_extending_configs(path, plan.as_deref(), old_plan.as_deref());
+            self.update_root_files_watch(path);
         }
         Ok(())
+    }
+
+    /// tsgo `updateRootFilesWatch`: the workspace and the config's
+    /// directory recursively when its wildcard directories or literal files
+    /// are below them, its extended configs, and the common parents of the
+    /// other directories.
+    fn update_root_files_watch(&mut self, path: &str) {
+        let entry = &self.configs[path];
+        let Some(watch) = &entry.root_files_watch else {
+            return;
+        };
+        let paths = self.fs.paths();
+        let case_sensitive = paths.case_sensitive;
+        let workspace = paths.current_directory.as_str();
+        let config_directory = tsc_program::get_directory_path(JsStr::from_str(&entry.file_name))
+            .to_string_lossy()
+            .into_owned();
+        let (mut include_workspace, mut include_config_directory) = (false, false);
+        let mut external_directories = Vec::new();
+        let mut globs = Vec::new();
+        let mut ignored = BTreeSet::new();
+        if let Some(plan) = &entry.plan {
+            for directory in plan.wildcard_directories() {
+                let directory = directory.path.to_string_lossy();
+                if contains_path(workspace, &directory, case_sensitive) {
+                    include_workspace = true;
+                } else if contains_path(&config_directory, &directory, case_sensitive) {
+                    include_config_directory = true;
+                } else {
+                    external_directories.push(directory.into_owned());
+                }
+            }
+            for (file_name, reason) in plan.file_names().iter().zip(plan.root_reasons()) {
+                if !matches!(reason, tsc_program::RootFileReason::FilesList { .. }) {
+                    continue;
+                }
+                let file_name = file_name.to_string_lossy();
+                if contains_path(workspace, &file_name, case_sensitive) {
+                    include_workspace = true;
+                } else if contains_path(&config_directory, &file_name, case_sensitive) {
+                    include_config_directory = true;
+                } else {
+                    external_directories.push(
+                        tsc_program::get_directory_path(JsStr::from_str(&file_name))
+                            .to_string_lossy()
+                            .into_owned(),
+                    );
+                }
+            }
+        }
+        if include_workspace {
+            globs.push(recursive_glob_pattern(workspace));
+        }
+        if include_config_directory {
+            globs.push(recursive_glob_pattern(&config_directory));
+        }
+        if let Some(plan) = &entry.plan {
+            for extended in plan.extended_source_files() {
+                let extended = extended.to_string_lossy();
+                if include_workspace && contains_path(workspace, &extended, case_sensitive) {
+                    continue;
+                }
+                globs.push(extended.into_owned());
+            }
+        }
+        if !external_directories.is_empty() {
+            let (parents, ignored_directories) =
+                common_parent_directories(&external_directories, 2, case_sensitive);
+            globs.extend(parents.iter().map(|parent| recursive_glob_pattern(parent)));
+            ignored = ignored_directories;
+        }
+        globs.sort();
+        let watch = Arc::new(watch.clone_with(PatternsAndIgnored {
+            patterns_inside_workspace: globs,
+            ignored,
+            ..PatternsAndIgnored::default()
+        }));
+        self.entry_mut(path)
+            .expect("the entry exists")
+            .root_files_watch = Some(watch);
     }
 
     /// tsgo `GetParsedCommandLineOfConfigFilePath`: none when the config
@@ -392,8 +520,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
                         path,
                         Arc::new(ConfigFileEntry {
                             retaining_configs: BTreeSet::from([extending.to_owned()]),
-                            matches_root_files: false,
-                            ..ConfigFileEntry::new(file_name)
+                            ..ConfigFileEntry::new_extended(file_name)
                         }),
                     );
                 }
@@ -559,7 +686,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
                 .configs
                 .iter()
                 .filter(|(_, entry)| {
-                    entry.matches_root_files
+                    entry.root_files_watch.is_some()
                         && entry.pending_reload == PendingReload::None
                         && entry.plan.as_ref().is_some_and(|plan| {
                             created.iter().any(|(path, file_name)| {
