@@ -2797,25 +2797,30 @@ fn parse_program_inputs(
     let mut shared_documents = Vec::new();
     // tsgo's parse cache: a source whose text and address a Program already
     // holds is that Program's document; another is parsed and recorded.
-    let share = |file_name: JsStr<'_>,
-                 text: &str,
-                 parse_options: &tsc_syntax::ParseOptions,
-                 shared_documents: &mut Vec<SharedDocument>|
-     -> Option<Arc<tsc_syntax::SourceFile>> {
-        let documents = documents?;
-        let address = DocumentAddress::new(parse_options, identity_domain);
-        match documents.get(file_name, text, &address) {
-            Some(document) => {
-                let source = Arc::clone(&document.parsed.source);
-                shared_documents.push(SharedDocument::Found(document));
-                Some(source)
+    let share =
+        |file_name: JsStr<'_>,
+         text: &str,
+         parse_options: &tsc_syntax::ParseOptions,
+         content_mapped: Option<&Arc<tsc_program::content_mapper::source::ContentMappedSource>>,
+         shared_documents: &mut Vec<SharedDocument>|
+         -> Option<Arc<tsc_syntax::SourceFile>> {
+            let documents = documents?;
+            let mut address = DocumentAddress::new(parse_options, identity_domain);
+            if let Some(info) = content_mapped {
+                address = address.with_content_mapper(info);
             }
-            None => {
-                shared_documents.push(SharedDocument::New(Box::new(address)));
-                None
+            match documents.get(file_name, text, &address) {
+                Some(document) => {
+                    let source = Arc::clone(&document.parsed.source);
+                    shared_documents.push(SharedDocument::Found(document));
+                    Some(source)
+                }
+                None => {
+                    shared_documents.push(SharedDocument::New(Box::new(address)));
+                    None
+                }
             }
-        }
-    };
+        };
     let mut authoritative_program_metadata = Vec::new();
     let mut authoritative_file_index = 0;
     for (index, file) in files.iter().enumerate() {
@@ -2932,6 +2937,7 @@ fn parse_program_inputs(
                 file.name.as_js(),
                 file.text(),
                 &parse_options,
+                None,
                 &mut shared_documents,
             ) {
                 pending_sources.push(PendingProgramSource::Shared(source));
@@ -2973,16 +2979,17 @@ fn parse_program_inputs(
                 .unwrap_or(tsc_syntax::JSDocParsingMode::ParseAll),
         };
         // A source with the API's module name or renamed dependencies
-        // (transpile) is never shared, nor a content mapper's output (its
-        // mapper's diagnostics join its tree).
-        if file.module_name.is_none()
-            && file.renamed_dependencies.is_empty()
-            && file.content_mapped.is_none()
-        {
+        // (transpile) is never shared. A content mapper's output is shared
+        // by its transform (tsgo's content-mapped parse cache), with its
+        // mapper's diagnostics already joined to its tree, and a failure
+        // stub with the programs cloned from its own (tsgo makes one per
+        // program).
+        if file.module_name.is_none() && file.renamed_dependencies.is_empty() {
             if let Some(source) = share(
                 file.name.as_js(),
                 file.text(),
                 &parse_options,
+                file.content_mapped.as_ref(),
                 &mut shared_documents,
             ) {
                 // The loader's parse of the same text is not needed.

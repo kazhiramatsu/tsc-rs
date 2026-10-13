@@ -417,6 +417,8 @@ impl SnapshotFsBuilder {
         &self,
         mut changes: FileChangeSummary,
         base: &SnapshotFs,
+        content_mapper_extensions: &[String],
+        content_mapper_watched_files: &BTreeSet<String>,
     ) -> FileChangeSummary {
         if changes.has_excessive_watch_events() {
             if changes.invalidate_all || self.changes_overlap_cache(&changes) {
@@ -429,7 +431,11 @@ impl SnapshotFsBuilder {
             }
             return changes;
         }
-        self.expand_and_filter(&mut changes);
+        self.expand_and_filter(
+            &mut changes,
+            content_mapper_extensions,
+            content_mapper_watched_files,
+        );
         let mut changes = base.expand_realpath_aliases(changes);
         self.mark_dirty_files(&mut changes);
         changes
@@ -467,7 +473,20 @@ impl SnapshotFsBuilder {
     /// cached files below it; other deletions and changes count only for
     /// files that can affect a program (or anything in node_modules, for a
     /// deletion). Creations are kept: one may be a directory link.
-    fn expand_and_filter(&self, changes: &mut FileChangeSummary) {
+    fn expand_and_filter(
+        &self,
+        changes: &mut FileChangeSummary,
+        content_mapper_extensions: &[String],
+        content_mapper_watched_files: &BTreeSet<String>,
+    ) {
+        let relevant = |file_name: &str| {
+            is_relevant_file_name(
+                file_name,
+                &self.paths.to_path(file_name),
+                content_mapper_extensions,
+                content_mapper_watched_files,
+            )
+        };
         if !changes.deleted.is_empty() {
             let mut deleted = BTreeSet::new();
             self.with_files(|files| {
@@ -481,7 +500,7 @@ impl SnapshotFsBuilder {
                         .collect::<Vec<_>>();
                     if !below.is_empty() {
                         deleted.extend(below);
-                    } else if is_relevant_file_name(file_name)
+                    } else if relevant(file_name)
                         || path.ends_with("/node_modules")
                         || path.contains("/node_modules/")
                     {
@@ -491,9 +510,7 @@ impl SnapshotFsBuilder {
             });
             changes.deleted = deleted;
         }
-        changes
-            .changed
-            .retain(|file_name| is_relevant_file_name(file_name));
+        changes.changed.retain(|file_name| relevant(file_name));
     }
 
     /// tsgo `markDirtyFiles`: a changed file that is cached is read again
@@ -534,10 +551,21 @@ impl SnapshotFsBuilder {
     }
 }
 
-/// tsgo `isRelevantFileName` without open files and content mappers: a
-/// dynamic name or one with a script or JSON extension.
-fn is_relevant_file_name(file_name: &str) -> bool {
-    if file_name.starts_with("^/") {
+/// tsgo `isRelevantFileName` without open files: a file a content mapper
+/// watches (by `path`) or one of a content mapper's extension, a dynamic
+/// name, or one with a script or JSON extension.
+fn is_relevant_file_name(
+    file_name: &str,
+    path: &str,
+    content_mapper_extensions: &[String],
+    content_mapper_watched_files: &BTreeSet<String>,
+) -> bool {
+    if content_mapper_watched_files.contains(path)
+        || content_mapper_extensions.iter().any(|extension| {
+            file_name.len() > extension.len() && file_name.ends_with(extension.as_str())
+        })
+        || file_name.starts_with("^/")
+    {
         return true;
     }
     let Some(index) = file_name.rfind('.') else {

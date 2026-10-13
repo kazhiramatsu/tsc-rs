@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tsc_diagnostics::spanmap::{
@@ -118,6 +118,75 @@ impl Spawner for TestSpawner {
             stdin: Box::new(mapper_writer),
             control: Box::new(InProcess::default()),
         })
+    }
+}
+
+/// tsgo `recordingContentMapperSpawner`: the harness's in-process mappers,
+/// counting the processes started and closed, and the projects the dynamic
+/// mappers opened and closed (tsgo `ProjectLifecycle`).
+pub struct RecordingSpawner {
+    inner: TestSpawner,
+    pub lifecycle: Arc<ProjectLifecycle>,
+    pub spawns: AtomicUsize,
+    pub closes: Arc<AtomicUsize>,
+}
+
+impl RecordingSpawner {
+    pub fn new() -> Self {
+        let lifecycle = Arc::new(ProjectLifecycle::default());
+        Self {
+            inner: TestSpawner::with_project_lifecycle(Arc::clone(&lifecycle)),
+            lifecycle,
+            spawns: AtomicUsize::new(0),
+            closes: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+impl Default for RecordingSpawner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Spawner for RecordingSpawner {
+    fn spawn(
+        &self,
+        command: &[String],
+        dir: &str,
+        stderr: Box<dyn Write + Send>,
+    ) -> Result<MapperProcess, String> {
+        let process = self.inner.spawn(command, dir, stderr)?;
+        self.spawns.fetch_add(1, Ordering::SeqCst);
+        Ok(MapperProcess {
+            stdout: process.stdout,
+            stdin: process.stdin,
+            control: Box::new(RecordingControl {
+                inner: process.control,
+                closes: Arc::clone(&self.closes),
+                closed: AtomicBool::new(false),
+            }),
+        })
+    }
+}
+
+/// A test mapper process whose first close is counted.
+struct RecordingControl {
+    inner: Box<dyn ProcessControl>,
+    closes: Arc<AtomicUsize>,
+    closed: AtomicBool,
+}
+
+impl ProcessControl for RecordingControl {
+    fn close(&self) {
+        if !self.closed.swap(true, Ordering::SeqCst) {
+            self.closes.fetch_add(1, Ordering::SeqCst);
+        }
+        self.inner.close();
+    }
+
+    fn exit_code(&self) -> Option<i32> {
+        self.inner.exit_code()
     }
 }
 

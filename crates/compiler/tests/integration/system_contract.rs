@@ -3,16 +3,15 @@
 //! way a test or a WebAssembly embedding runs it.
 
 use std::collections::BTreeMap;
-use std::io::Write;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use tsc_harness::content_mappers::{
-    package_json, ProjectLifecycle, TestSpawner, DYNAMIC_VERBATIM_MAPPER,
+    package_json, RecordingSpawner, TestSpawner, DYNAMIC_VERBATIM_MAPPER,
     SUPPLEMENTAL_DIAGNOSTICS_MAPPER, SUPPLEMENTAL_MAPPER, VERBATIM_MAPPER,
 };
-use tsc_program::content_mapper::host::{MapperProcess, ProcessControl, Spawner};
+use tsc_program::content_mapper::host::Spawner;
 
 use tsc_compiler::system::{CommandLineTesting, ProgramReport, System};
 use tsc_compiler::watch::{
@@ -37,69 +36,6 @@ struct MemorySystem {
     watches: Mutex<Vec<(String, bool, WatchEvents)>>,
     /// The test content mappers the system starts, when it starts any.
     spawner: Option<Arc<RecordingSpawner>>,
-}
-
-/// tsgo `recordingContentMapperSpawner`: the harness's in-process mappers,
-/// counting the processes started and closed, and the projects the dynamic
-/// mappers opened and closed (tsgo `ProjectLifecycle`).
-struct RecordingSpawner {
-    inner: TestSpawner,
-    lifecycle: Arc<ProjectLifecycle>,
-    spawns: AtomicUsize,
-    closes: Arc<AtomicUsize>,
-}
-
-impl RecordingSpawner {
-    fn new() -> Self {
-        let lifecycle = Arc::new(ProjectLifecycle::default());
-        Self {
-            inner: TestSpawner::with_project_lifecycle(Arc::clone(&lifecycle)),
-            lifecycle,
-            spawns: AtomicUsize::new(0),
-            closes: Arc::new(AtomicUsize::new(0)),
-        }
-    }
-}
-
-impl Spawner for RecordingSpawner {
-    fn spawn(
-        &self,
-        command: &[String],
-        dir: &str,
-        stderr: Box<dyn Write + Send>,
-    ) -> Result<MapperProcess, String> {
-        let process = self.inner.spawn(command, dir, stderr)?;
-        self.spawns.fetch_add(1, Ordering::SeqCst);
-        Ok(MapperProcess {
-            stdout: process.stdout,
-            stdin: process.stdin,
-            control: Box::new(RecordingControl {
-                inner: process.control,
-                closes: Arc::clone(&self.closes),
-                closed: AtomicBool::new(false),
-            }),
-        })
-    }
-}
-
-/// A test mapper process whose first close is counted.
-struct RecordingControl {
-    inner: Box<dyn ProcessControl>,
-    closes: Arc<AtomicUsize>,
-    closed: AtomicBool,
-}
-
-impl ProcessControl for RecordingControl {
-    fn close(&self) {
-        if !self.closed.swap(true, Ordering::SeqCst) {
-            self.closes.fetch_add(1, Ordering::SeqCst);
-        }
-        self.inner.close();
-    }
-
-    fn exit_code(&self) -> Option<i32> {
-        self.inner.exit_code()
-    }
 }
 
 impl MemorySystem {

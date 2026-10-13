@@ -28,6 +28,8 @@ use tsc_compiler::transpile::{transpile_declaration, transpile_module};
 use tsc_compiler::BoundDocument;
 use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain};
 use tsc_host::vfs::{FileSystem, VfsCompilerHost};
+use tsc_program::content_mapper::host::Spawner;
+use tsc_program::content_mapper::source::ContentMappedSource;
 use tsc_program::go_json::{
     compiler_options_json, struct_json, GoJson, COMPILER_OPTIONS_FIELDS, TYPE_ACQUISITION_FIELDS,
 };
@@ -169,16 +171,19 @@ pub struct Session {
 }
 
 impl Session {
-    /// tsgo `NewStandaloneSession`: a session with its own snapshot host.
+    /// tsgo `NewStandaloneSession`: a session with its own snapshot host,
+    /// whose content mappers start through `spawner` under the options'
+    /// `run_external_code`.
     pub fn new(
         options: SessionOptions,
         fs: Arc<dyn FileSystem>,
+        spawner: Option<Arc<dyn Spawner>>,
         use_binary_responses: bool,
     ) -> Self {
         let id = SESSION_IDS.fetch_add(1, Ordering::Relaxed) + 1;
         Self {
             id: format!("api-session-{id}"),
-            host: SnapshotHost::new(options, Arc::clone(&fs)),
+            host: SnapshotHost::new(options, Arc::clone(&fs), spawner),
             fs,
             use_binary_responses,
             snapshots: Mutex::default(),
@@ -198,6 +203,11 @@ impl Session {
     /// tsgo `ID`.
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    /// tsgo `Session.Close`: the snapshot host's content mappers end.
+    pub fn close(&self) {
+        self.host.close();
     }
 
     /// The connection the client's module resolver callbacks go through
@@ -899,12 +909,15 @@ impl Session {
             .values()
             .map(|data| Arc::clone(&data.snapshot))
             .collect::<Vec<_>>();
+        // tsgo's parse cache holds ordinary files only: a content mapper's
+        // output is never found again.
         snapshots.iter().find_map(|snapshot| {
             snapshot.projects().find_map(|project| {
                 project.program()?.with_live(|live| {
                     (0..live.file_count()).find_map(|index| {
                         let document = live.document(index)?;
-                        accept(document).then(|| Arc::clone(document))
+                        (live.content_mapped(index).is_none() && accept(document))
+                            .then(|| Arc::clone(document))
                     })
                 })
             })
@@ -1104,6 +1117,7 @@ impl Session {
                     index,
                     path: path.to_owned(),
                     file_name,
+                    content_mapped: live.content_mapped(index).cloned(),
                 })
             })
         })
@@ -1197,6 +1211,7 @@ impl Session {
                 module_augmentations: &references.module_augmentations,
                 ambient_module_names: &references.ambient_module_names,
                 bind_data: Some(&file.document.data),
+                content_mapped: file.content_mapped.as_deref(),
                 ..SourceFileFacts::default()
             },
         );
@@ -1374,22 +1389,28 @@ impl Session {
                 "snapshot and inProgressSnapshot are mutually exclusive",
             ));
         }
-        let fs: Arc<dyn FileSystem> = if params.in_progress_snapshot != 0 {
-            match self.resolution.in_flight() {
-                Some(in_flight) if in_flight.context == params.in_progress_snapshot => in_flight.fs,
-                _ => {
-                    return Err(client_error(format!(
-                        "in-progress snapshot {} not found",
-                        params.in_progress_snapshot
-                    )))
+        // Over a snapshot, the resolver takes the extensions of the
+        // snapshot's content mappers (tsgo `ContentMapperExtensions`).
+        let (fs, extra_extensions): (Arc<dyn FileSystem>, Vec<String>) =
+            if params.in_progress_snapshot != 0 {
+                match self.resolution.in_flight() {
+                    Some(in_flight) if in_flight.context == params.in_progress_snapshot => {
+                        (in_flight.fs, Vec::new())
+                    }
+                    _ => {
+                        return Err(client_error(format!(
+                            "in-progress snapshot {} not found",
+                            params.in_progress_snapshot
+                        )))
+                    }
                 }
-            }
-        } else if params.snapshot != 0 {
-            // tsgo resolves over the snapshot, which keeps what it read.
-            self.snapshot(params.snapshot)?.file_system()
-        } else {
-            Arc::clone(&self.fs)
-        };
+            } else if params.snapshot != 0 {
+                // tsgo resolves over the snapshot, which keeps what it read.
+                let snapshot = self.snapshot(params.snapshot)?;
+                (snapshot.file_system(), snapshot.content_mapper_extensions())
+            } else {
+                (Arc::clone(&self.fs), Vec::new())
+            };
         let (module, trace) =
             match registration.chain(&params.module_name, &containing_directory, mode) {
                 Chain::Answered(module) => (module.map(|module| *module), Vec::new()),
@@ -1425,6 +1446,7 @@ impl Session {
                         &registration.program_options,
                     )
                     .map_err(|error| error.to_string())?;
+                    resolver.set_extra_extensions(extra_extensions);
                     let resolution = resolver
                         .resolve_from_directory(
                             JsStr::from_str(&containing_directory),
@@ -2213,6 +2235,9 @@ pub(crate) struct ProgramFile {
     /// The file name as the program spells it.
     file_name: String,
     path: String,
+    /// The content mapper's output the file is (tsgo
+    /// `ContentMapperSourceFileInfo`), when it is one.
+    content_mapped: Option<Arc<ContentMappedSource>>,
 }
 
 /// tsgo `DocumentIdentifier.ToFileName`: a URI's file name, or the file name
@@ -2331,7 +2356,7 @@ fn resolved_module(
             .unwrap_or_default(),
         extension: module.extension().as_js().to_string_lossy().into_owned(),
         resolved_using_ts_extension: module.resolved_using_ts_extension(),
-        resolved_using_extra_extensions: false,
+        resolved_using_extra_extensions: module.resolved_using_extra_extensions(),
         package_id: package_id(module.package_id()),
         is_external_library_import: module.is_external_library_import(),
         alternate_result: resolution
@@ -2357,7 +2382,7 @@ fn host_resolved_module_response(
             .unwrap_or_default(),
         extension: module.extension().as_js().to_string_lossy().into_owned(),
         resolved_using_ts_extension: module.resolved_using_ts_extension(),
-        resolved_using_extra_extensions: false,
+        resolved_using_extra_extensions: module.resolved_using_extra_extensions(),
         package_id: package_id(module.package_id()),
         is_external_library_import: module.is_external_library_import(),
         alternate_result: module

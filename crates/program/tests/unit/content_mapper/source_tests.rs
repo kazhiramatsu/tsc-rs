@@ -233,3 +233,47 @@ fn initialization_and_budget_diagnostics_have_no_file() {
         ["The content mapper 'vm' failed 5 times and will not be used."]
     );
 }
+
+/// tsgo `TestContentMappedParseCacheBundleLifetime`: the cache keeps a
+/// transform's outputs as one entry, found again with every output's
+/// identity, and forgets it when no program holds the outputs.
+#[test]
+fn the_cache_finds_a_transforms_outputs_while_a_program_holds_them() {
+    let cache = ContentMappedCache::default();
+    let file_name = JsStr::from("/component.vue");
+    let sources = virtual_sources(
+        file_name,
+        "<template />",
+        &mapper(),
+        "transform-identity",
+        output(".ts", &[".ts"]),
+    )
+    .unwrap();
+    cache.insert(&sources);
+    let found = cache
+        .get(file_name, "<template />", "transform-identity")
+        .expect("the held outputs are found");
+    assert!(Arc::ptr_eq(&found.canonical.text, &sources.canonical.text));
+    assert!(Arc::ptr_eq(&found.canonical.info, &sources.canonical.info));
+    assert!(Arc::ptr_eq(
+        &found.supplemental[0].info,
+        &sources.supplemental[0].info
+    ));
+    // Another content or transform identity is another key.
+    assert!(cache
+        .get(file_name, "<template></template>", "transform-identity")
+        .is_none());
+    assert!(cache
+        .get(file_name, "<template />", "other-identity")
+        .is_none());
+    drop(found);
+    assert_eq!(cache.len(), 1);
+    // The outputs and their entry go with the last program holding them.
+    drop(sources);
+    assert!(cache
+        .get(file_name, "<template />", "transform-identity")
+        .is_none());
+    assert!(cache.is_empty());
+    cache.purge();
+    assert!(cache.lock().is_empty());
+}

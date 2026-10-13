@@ -1,13 +1,19 @@
 //! tsgo `internal/api/encoder/encoder_test.go`.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use tsc_api::encoder::{
     build_node_index_table, encode_source_file, format_encoded_source_file, ScriptKind,
-    SourceFileFacts, HEADER_OFFSET_EXTENDED_DATA, HEADER_OFFSET_METADATA, HEADER_OFFSET_NODES,
+    SourceFileFacts, HEADER_OFFSET_EXTENDED_DATA, HEADER_OFFSET_HASH_HI0, HEADER_OFFSET_HASH_HI1,
+    HEADER_OFFSET_HASH_LO0, HEADER_OFFSET_HASH_LO1, HEADER_OFFSET_METADATA, HEADER_OFFSET_NODES,
+    HEADER_OFFSET_STRING_DATA, HEADER_OFFSET_STRING_OFFSETS, HEADER_OFFSET_STRUCTURED_DATA,
     NODE_DATA_STRING_INDEX_MASK, NODE_OFFSET_DATA, NODE_SIZE, NO_STRUCTURED_DATA, PROTOCOL_VERSION,
 };
 use tsc_api::parse_source_file;
+use tsc_diagnostics::spanmap::{DirectivePolicy, MappedDiagnosticDirective, SpanMap};
+use tsc_diagnostics::JsString;
+use tsc_program::content_mapper::source::ContentMappedSource;
 
 const PROFILE: &str = "7.1.0-dev-aa814927";
 
@@ -102,6 +108,119 @@ fn source_file_metadata_without_content_mapper() {
         read_u32(&encoded, extended + 48),
         read_u32(&encoded, extended)
     );
+}
+
+/// tsgo TestEncodeContentMapperSourceFileMetadata: a content mapper's
+/// output carries its mapper's identity, its virtual name and its
+/// diagnostic directives, at UTF-16 positions (tsc-rs keeps a mapped file's
+/// positions in UTF-16; tsgo converts its UTF-8 ones).
+#[test]
+fn source_file_metadata_of_a_content_mapper_output() {
+    assert_eq!(PROTOCOL_VERSION, 9);
+    let file = parse_source_file("/component.vue", "\u{1F600}virtual", ScriptKind::Ts);
+    let info = ContentMappedSource {
+        content_mapper: "mapper@1.0.0".to_owned(),
+        transform_identity: String::new(),
+        virtual_file_name: JsString::from("/component.vue.ts"),
+        original_text: Arc::from("\u{1F600}original"),
+        span_map: None,
+        diagnostic_directives: vec![MappedDiagnosticDirective {
+            original_range: (2, 3),
+            virtual_range: (2, 9),
+            policy: DirectivePolicy::Expect,
+            unused_code: 2578,
+            unused_message_text: "Unused framework directive.".to_owned(),
+            source: "mapper".to_owned(),
+        }],
+        supplemental: Vec::new(),
+        canonical: None,
+        diagnostics: Vec::new(),
+    };
+    let facts = SourceFileFacts {
+        path: Some("/component.vue"),
+        script_kind: ScriptKind::Ts,
+        content_mapped: Some(&info),
+        ..SourceFileFacts::default()
+    };
+    let encoded = encode_source_file(&file, &facts).0;
+    let nodes = read_u32(&encoded, HEADER_OFFSET_NODES) as usize;
+    let root_data = read_u32(&encoded, nodes + NODE_SIZE + NODE_OFFSET_DATA);
+    let extended = read_u32(&encoded, HEADER_OFFSET_EXTENDED_DATA) as usize
+        + (root_data & NODE_DATA_STRING_INDEX_MASK) as usize;
+    assert!(extended + 76 <= encoded.len());
+    let content_mapper = read_u32(&encoded, extended + 64);
+    let virtual_file_name = read_u32(&encoded, extended + 68);
+    let diagnostic_directives = read_u32(&encoded, extended + 72);
+    assert_eq!(encoded_string(&encoded, content_mapper), "mapper@1.0.0");
+    assert_eq!(
+        encoded_string(&encoded, virtual_file_name),
+        "/component.vue.ts"
+    );
+    let directive =
+        read_u32(&encoded, HEADER_OFFSET_STRUCTURED_DATA) as usize + diagnostic_directives as usize;
+    assert_eq!(
+        encoded[directive..directive + 10],
+        [
+            0x91, // one directive
+            0x96, // six-element tuple
+            2, 1, // original range [2, 3) in UTF-16
+            2, 7, // virtual range [2, 9) in UTF-16
+            1, // expect policy
+            0xcd, 10, 18, // unused diagnostic code 2578
+        ]
+    );
+    // A failure stub (no span map) has no hash: tsgo parses it outside the
+    // content-mapped parse cache.
+    assert_eq!(header_hash(&encoded), [0; 4]);
+}
+
+/// tsgo `contentMappedParseCacheKey`: a mapped output's hash is the cache
+/// key's, of the original text's hash and the transform identity's (with
+/// the default locale), as tsgo's xxh3 computes it.
+#[test]
+fn a_content_mapper_outputs_hash_is_its_cache_keys() {
+    let file = parse_source_file("/component.vue", "virtual", ScriptKind::Ts);
+    let info = ContentMappedSource {
+        content_mapper: "mapper@1.0.0".to_owned(),
+        transform_identity: "mapper@1.0.0:0123456789abcdef".to_owned(),
+        virtual_file_name: JsString::from("/component.vue.ts"),
+        original_text: Arc::from("\u{1F600}original"),
+        span_map: Some(SpanMap::new(Vec::new())),
+        diagnostic_directives: Vec::new(),
+        supplemental: Vec::new(),
+        canonical: None,
+        diagnostics: Vec::new(),
+    };
+    let facts = SourceFileFacts {
+        path: Some("/component.vue"),
+        script_kind: ScriptKind::Ts,
+        content_mapped: Some(&info),
+        ..SourceFileFacts::default()
+    };
+    let encoded = encode_source_file(&file, &facts).0;
+    assert_eq!(
+        header_hash(&encoded),
+        [3686241245, 4018713728, 1495025372, 2624729770]
+    );
+}
+
+/// The header's hash words, low half first.
+fn header_hash(encoded: &[u8]) -> [u32; 4] {
+    [
+        read_u32(encoded, HEADER_OFFSET_HASH_LO0),
+        read_u32(encoded, HEADER_OFFSET_HASH_LO1),
+        read_u32(encoded, HEADER_OFFSET_HASH_HI0),
+        read_u32(encoded, HEADER_OFFSET_HASH_HI1),
+    ]
+}
+
+/// tsgo `encodedString`: a string of the string table.
+fn encoded_string(encoded: &[u8], index: u32) -> String {
+    let offsets = read_u32(encoded, HEADER_OFFSET_STRING_OFFSETS) as usize;
+    let data = read_u32(encoded, HEADER_OFFSET_STRING_DATA) as usize;
+    let start = read_u32(encoded, offsets + index as usize * 4) as usize;
+    let end = read_u32(encoded, offsets + index as usize * 4 + 4) as usize;
+    String::from_utf8(encoded[data + start..data + end].to_vec()).expect("UTF-8")
 }
 
 /// tsgo parser/references.go: imports in source order (a nested ambient

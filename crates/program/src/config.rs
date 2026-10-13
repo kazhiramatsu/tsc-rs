@@ -1223,6 +1223,21 @@ impl ConfigRootPlan {
             .map(String::as_str)
     }
 
+    /// The manifests of the content mappers of a package (not of an
+    /// editor's contribution), whose changes a watch follows (tsgo
+    /// `contentMapperManifestPath`).
+    pub fn content_mapper_manifest_files(&self) -> Vec<String> {
+        self.content_mappers
+            .iter()
+            .filter(|mapper| {
+                !mapper.definition.package.is_empty()
+                    && mapper.contribution_id.is_empty()
+                    && !mapper.package_directory.is_empty()
+            })
+            .map(|mapper| format!("{}/package.json", mapper.package_directory))
+            .collect()
+    }
+
     /// tsgo `GetContentMapperForFileName`: the first mapper registering the
     /// longest of the extensions the file name ends with (in the host's
     /// case sensitivity).

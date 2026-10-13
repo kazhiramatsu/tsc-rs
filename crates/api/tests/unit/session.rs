@@ -32,8 +32,10 @@ fn session_in(current_directory: &str, files: &[(&str, &str)]) -> (Session, Arc<
             current_directory: current_directory.to_owned(),
             library_catalog: LibraryCatalog::typescript_7_1(Path::new(EMBEDDED_LIBRARY_DIRECTORY)),
             load_limits: DEFAULT_LOAD_LIMITS,
+            run_external_code: false,
         },
         Arc::new(BundledFs::new(Arc::clone(&fs))),
+        None,
         false,
     );
     (session, fs)
@@ -698,6 +700,7 @@ fn echo_answers_its_parameters() {
     let binary = Session::new(
         session.host.options().clone(),
         Arc::new(MemFs::new(false, Arc::new(SystemClock))),
+        None,
         true,
     );
     assert_eq!(
@@ -1384,6 +1387,9 @@ mod print;
 
 #[path = "session_build.rs"]
 mod build;
+
+#[path = "session_content_mappers.rs"]
+mod content_mappers;
 
 #[test]
 fn documents_of_other_schemes_open_by_their_dynamic_names() {

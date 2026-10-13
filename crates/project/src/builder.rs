@@ -14,7 +14,7 @@ use tsc_host::vfs::VfsCompilerHost;
 use tsc_program::{
     load_emitting_program, load_program, load_project_config_program,
     resolve_config_file_name_of_project_reference, resolve_project_references_with, CanonicalPath,
-    ConfigRootPlan,
+    ConfigRootPlan, ContentMapperProjectHandle,
 };
 
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
@@ -387,6 +387,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         if let (false, Some(path), Some(old)) = (update, &project.dirty_file_path, &project.program)
         {
             if let Some(program) = self.reuse_program(old, path)? {
+                let watched = self.content_mapper_watched_files(&project, &program);
                 let snapshot_id = self.snapshot_id;
                 self.change(id, |project| {
                     project.program = Some(Arc::new(program));
@@ -394,11 +395,13 @@ impl<'a> ProjectCollectionBuilder<'a> {
                     project.program_last_update = snapshot_id;
                     project.dirty = false;
                     project.dirty_file_path = None;
+                    project.content_mapper_watched_files = Some(Arc::new(watched));
                 });
                 return Ok(false);
             }
         }
         let (program, seen) = self.create_program(&project)?;
+        let watched = self.content_mapper_watched_files(&project, &program);
         let update_kind = match &project.program {
             Some(old) if old.has_same_file_names(&program) => ProgramUpdateKind::SameFileNames,
             _ => ProgramUpdateKind::NewFiles,
@@ -417,8 +420,75 @@ impl<'a> ProjectCollectionBuilder<'a> {
             project.seen = Arc::new(seen);
             project.dirty = false;
             project.dirty_file_path = None;
+            project.content_mapper_watched_files = Some(Arc::new(watched));
         });
         Ok(update_kind == ProgramUpdateKind::NewFiles)
+    }
+
+    /// tsgo `updateProgram`'s content mapper watch: the manifests of the
+    /// command line's mapper packages, and the files its dynamic mappers
+    /// watch when the program has a mapped file (a mapper no file uses is
+    /// not opened).
+    fn content_mapper_watched_files(
+        &self,
+        project: &Project,
+        program: &ProjectProgram,
+    ) -> BTreeSet<String> {
+        let mut files = match &project.command_line {
+            Some(CommandLine::Config(plan)) => plan.content_mapper_manifest_files(),
+            _ => Vec::new(),
+        };
+        let prepared = program.prepared();
+        if prepared
+            .source_files()
+            .iter()
+            .any(|source| source.content_mapped().is_some())
+        {
+            if let Some(mapper_project) = prepared.program_options().content_mapper_project() {
+                files.extend(mapper_project.0.watched_files().unwrap_or_default());
+            }
+        }
+        let paths = self.host.paths();
+        files.iter().map(|file| paths.to_path(file)).collect()
+    }
+
+    /// tsgo `refreshContentMapperProjectForChanges`: a project whose content
+    /// mapper watch has a changed file, or every project past the excessive
+    /// change threshold, refreshes its program's mapper project and builds
+    /// its program again.
+    fn refresh_content_mapper_project_for_changes(
+        &mut self,
+        id: &ProjectId,
+        changes: &[&[String]],
+        refresh_all: bool,
+    ) {
+        let Some(project) = self.project(id) else {
+            return;
+        };
+        let (Some(program), Some(watched)) =
+            (&project.program, &project.content_mapper_watched_files)
+        else {
+            return;
+        };
+        if !refresh_all
+            && !changes
+                .iter()
+                .flat_map(|paths| paths.iter())
+                .any(|path| watched.contains(path))
+        {
+            return;
+        }
+        if let Some(mapper_project) = program
+            .prepared()
+            .program_options()
+            .content_mapper_project()
+        {
+            let _ = mapper_project.0.refresh();
+        }
+        self.change(id, |project| {
+            project.dirty = true;
+            project.dirty_file_path = None;
+        });
     }
 
     /// tsgo `UpdateProgram`'s reuse: `old` with the file at `path` read
@@ -447,7 +517,13 @@ impl<'a> ProjectCollectionBuilder<'a> {
         else {
             return Ok(None);
         };
-        match LiveProgram::reuse(prepared, &canonical, text, self.host.documents()) {
+        // tsgo's new compiler host: a content mapper's file runs through
+        // its mapper again over the snapshot's files.
+        let host = VfsCompilerHost::new(
+            SourceFs::new(self.fs),
+            self.host.paths().current_directory.clone(),
+        );
+        match LiveProgram::reuse(prepared, &canonical, text, &host, self.host.documents()) {
             Some(Ok(live)) => Ok(Some(ProjectProgram::new(live, old.references().clone()))),
             Some(Err(error)) => Err(ProjectError::new(format!(
                 "cannot reuse the program for {file_name}: {error}"
@@ -501,7 +577,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let prepared = match command_line {
             CommandLine::Config(plan) => load_project_config_program(
                 &host,
-                plan,
+                &self.with_content_mapper_project(plan),
                 resolved,
                 plan.options()
                     .option_bool("disableSourceOfProjectReferenceRedirect")
@@ -542,6 +618,28 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let live = LiveProgram::with_documents(prepared, self.host.documents())
             .map_err(|error| failed(&error))?;
         Ok((ProjectProgram::new(live, references), source.into_seen()))
+    }
+
+    /// tsgo compiler host `ContentMapperProject`: the config's content
+    /// mappers (it has them under the session's `run_external_code`) run in
+    /// a project of the session's host, which the program's loader
+    /// transforms through, taking the outputs the session's programs hold
+    /// (tsgo's content-mapped parse cache). The program and those reused
+    /// from it keep the project until no snapshot holds them (tsgo
+    /// `Snapshot.dispose`).
+    fn with_content_mapper_project(&self, plan: &Arc<ConfigRootPlan>) -> Arc<ConfigRootPlan> {
+        let project = self.host.content_mapper_host().and_then(|host| {
+            let view = host.project(Arc::clone(plan.program_options().content_mapper_spec()?))?;
+            Some(view.with_content_mapped_cache(Arc::clone(self.host.content_mapped_cache())))
+        });
+        match project {
+            Some(project) => Arc::new(
+                (**plan)
+                    .clone()
+                    .with_content_mapper_project(ContentMapperProjectHandle(Arc::new(project))),
+            ),
+            None => Arc::clone(plan),
+        }
     }
 
     /// tsgo `deleteProject`: a configured project releases its config.
@@ -1096,6 +1194,16 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let changed = to_paths(&changes.changed);
         let deleted = to_paths(&changes.deleted);
         let created = to_paths(&changes.created);
+        if self.host.content_mapper_host().is_some() {
+            let refresh_all = changes.has_excessive_non_create_watch_events();
+            for id in self.project_ids() {
+                self.refresh_content_mapper_project_for_changes(
+                    &id,
+                    &[&changed, &deleted, &created],
+                    refresh_all,
+                );
+            }
+        }
 
         for id in self.configs.did_change_files(changes) {
             // tsgo `markProjectsAffectedByConfigChanges`.

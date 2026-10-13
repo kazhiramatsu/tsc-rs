@@ -153,6 +153,9 @@ pub struct SourceFileFacts<'a> {
     /// A file without tsgo's content hash (`SourceFile.Hash`, which the
     /// parse cache sets): a config file's source, whose header hash is zero.
     pub unhashed: bool,
+    /// What a content mapper's output carries (tsgo
+    /// `ContentMapperSourceFileInfo`), its positions in UTF-16 units.
+    pub content_mapped: Option<&'a tsc_program::content_mapper::source::ContentMappedSource>,
 }
 
 /// tsgo `NodeIndexTable`: the node of each encoded index (`None` for index
@@ -1150,7 +1153,10 @@ fn encode_tree<'a>(
     let mut parse_options = 0;
     if let Some(facts) = source_file_facts {
         if !facts.unhashed {
-            hash = xxhash_rust::xxh3::xxh3_128(file.text().as_bytes());
+            hash = match facts.content_mapped {
+                Some(info) => content_mapped_hash(info),
+                None => xxhash_rust::xxh3::xxh3_128(file.text().as_bytes()),
+            };
         }
         let indicator = file.external_module_indicator_options;
         parse_options = u32::from(indicator.jsx) | u32::from(indicator.force) << 1;
@@ -1581,6 +1587,13 @@ impl Encoder<'_> {
         let file = self.file;
         let root = file.arena.node(file.root);
         let text = self.strings.add_file_text(root.pos, root.end);
+        // tsgo: a content mapper's original text, when it is not the text.
+        let original_text = match facts.content_mapped {
+            Some(info) if info.original_text.as_bytes() != file.text().as_bytes() => {
+                self.strings.add(info.original_text.as_bytes(), 0, 0, 0)
+            }
+            _ => text,
+        };
         let file_name = file.file_name.as_bytes();
         let file_name_index = self.strings.add(file_name, 0, 0, 0);
         let path = facts.path.map_or(file_name, str::as_bytes);
@@ -1600,6 +1613,38 @@ impl Encoder<'_> {
             &mut self.structured_data,
         );
         let language_variant = u32::from(file.language_variant == tsc_syntax::LanguageVariant::Jsx);
+        let mapped = facts.content_mapped;
+        let span_map = mapped
+            .and_then(|info| info.span_map.as_ref())
+            .map_or(NO_STRUCTURED_DATA, |span_map| {
+                encode_span_map(span_map, &mut self.structured_data)
+            });
+        let supplemental_file_names = encode_string_array(
+            mapped
+                .map_or(&[][..], |info| &info.supplemental[..])
+                .iter()
+                .map(|name| name.as_bytes()),
+            &mut self.structured_data,
+        );
+        let canonical_file_name = mapped
+            .and_then(|info| info.canonical.as_ref())
+            .map_or(NO_STRUCTURED_DATA, |name| {
+                self.strings.add(name.as_bytes(), 0, 0, 0)
+            });
+        let content_mapper = mapped
+            .filter(|info| !info.content_mapper.is_empty())
+            .map_or(NO_STRUCTURED_DATA, |info| {
+                self.strings.add(info.content_mapper.as_bytes(), 0, 0, 0)
+            });
+        let virtual_file_name = mapped
+            .filter(|info| !info.virtual_file_name.is_empty())
+            .map_or(NO_STRUCTURED_DATA, |info| {
+                self.strings.add(info.virtual_file_name.as_bytes(), 0, 0, 0)
+            });
+        let diagnostic_directives = encode_diagnostic_directives(
+            mapped.map_or(&[][..], |info| &info.diagnostic_directives[..]),
+            &mut self.structured_data,
+        );
         [
             text,
             file_name_index,
@@ -1613,16 +1658,13 @@ impl Encoder<'_> {
             NO_STRUCTURED_DATA,
             NO_STRUCTURED_DATA,
             0,
-            // originalText: the text (no content mapper).
-            text,
-            // spanMap, supplementalSourceFileNames, canonicalSourceFileName,
-            // contentMapper, virtualFileName, diagnosticDirectives.
-            NO_STRUCTURED_DATA,
-            NO_STRUCTURED_DATA,
-            NO_STRUCTURED_DATA,
-            NO_STRUCTURED_DATA,
-            NO_STRUCTURED_DATA,
-            NO_STRUCTURED_DATA,
+            original_text,
+            span_map,
+            supplemental_file_names,
+            canonical_file_name,
+            content_mapper,
+            virtual_file_name,
+            diagnostic_directives,
         ]
     }
 }
@@ -1694,6 +1736,80 @@ fn encode_type_reference_directives(file: &SourceFile, out: &mut Vec<u8>) -> u32
         msgpack_string(out, directive.file_name.as_bytes());
         msgpack_uint(out, resolution_mode);
         msgpack_bool(out, directive.preserve);
+    }
+    offset
+}
+
+/// tsgo's hash of a content mapper's output (the content-mapped parse
+/// cache's key, `contentMappedParseCacheKey`): of the original text's hash
+/// and the transform identity's, each high half first, with the API's
+/// diagnostic locale (the default, written as nothing). A failure stub has
+/// none (tsgo parses it outside the cache).
+fn content_mapped_hash(info: &tsc_program::content_mapper::source::ContentMappedSource) -> u128 {
+    if info.is_failure_stub() {
+        return 0;
+    }
+    let raw = xxhash_rust::xxh3::xxh3_128(info.original_text.as_bytes());
+    let identity = xxhash_rust::xxh3::xxh3_128(info.transform_identity.as_bytes());
+    let mut buffer = [0; 32];
+    for (index, half) in [raw >> 64, raw, identity >> 64, identity]
+        .into_iter()
+        .enumerate()
+    {
+        buffer[index * 8..index * 8 + 8].copy_from_slice(&(half as u64).to_le_bytes());
+    }
+    xxhash_rust::xxh3::xxh3_128(&buffer)
+}
+
+/// tsgo `encodeSpanMap`: `[virtualStart, virtualLength, originalStart,
+/// originalLength, kind]` tuples, with the features when they are not all
+/// of them (tsc-rs keeps the positions in UTF-16).
+fn encode_span_map(span_map: &tsc_diagnostics::spanmap::SpanMap, out: &mut Vec<u8>) -> u32 {
+    let segments = span_map.segments();
+    let offset = out.len() as u32;
+    msgpack_array_header(out, segments.len());
+    for segment in segments {
+        let all = segment.features == tsc_diagnostics::spanmap::FEATURES_ALL;
+        msgpack_array_header(out, if all { 5 } else { 6 });
+        msgpack_uint(out, segment.virtual_start as u32);
+        msgpack_uint(out, (segment.virtual_end - segment.virtual_start) as u32);
+        msgpack_uint(out, segment.original_start as u32);
+        msgpack_uint(out, (segment.original_end - segment.original_start) as u32);
+        msgpack_uint(out, segment.kind as u32);
+        if !all {
+            msgpack_uint(out, segment.features as u32);
+        }
+    }
+    offset
+}
+
+/// tsgo `encodeDiagnosticDirectives`: `[originalStart, originalLength,
+/// virtualStart, virtualLength, policy, unusedCode]` tuples.
+fn encode_diagnostic_directives(
+    directives: &[tsc_diagnostics::spanmap::MappedDiagnosticDirective],
+    out: &mut Vec<u8>,
+) -> u32 {
+    if directives.is_empty() {
+        return NO_STRUCTURED_DATA;
+    }
+    let offset = out.len() as u32;
+    msgpack_array_header(out, directives.len());
+    for directive in directives {
+        let (original_start, original_end) = directive.original_range;
+        let (virtual_start, virtual_end) = directive.virtual_range;
+        msgpack_array_header(out, 6);
+        msgpack_uint(out, original_start as u32);
+        msgpack_uint(out, (original_end - original_start) as u32);
+        msgpack_uint(out, virtual_start as u32);
+        msgpack_uint(out, (virtual_end - virtual_start) as u32);
+        msgpack_uint(
+            out,
+            match directive.policy {
+                tsc_diagnostics::spanmap::DirectivePolicy::Ignore => 0,
+                tsc_diagnostics::spanmap::DirectivePolicy::Expect => 1,
+            },
+        );
+        msgpack_uint(out, directive.unused_code as u32);
     }
     offset
 }

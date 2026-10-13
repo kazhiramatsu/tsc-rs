@@ -21,6 +21,7 @@ use super::protocol::{
     OpenProjectParams, OpenProjectResult, PositionEncoding, TransformOutput, TransformParams,
     METHOD_CLOSE_PROJECT, METHOD_INITIALIZE, METHOD_OPEN_PROJECT, METHOD_TRANSFORM,
 };
+use super::source::ContentMappedCache;
 use super::{Mapper, Project};
 use crate::go_json::GoJson;
 
@@ -840,6 +841,7 @@ pub struct ProjectView {
     host: Host,
     key: String,
     released: AtomicBool,
+    cache: Option<Arc<ContentMappedCache>>,
 }
 
 impl ProjectView {
@@ -848,7 +850,15 @@ impl ProjectView {
             host: host.clone(),
             key,
             released: AtomicBool::new(false),
+            cache: None,
         }
+    }
+
+    /// The view of a project system, whose programs share their transform
+    /// outputs through `cache` (tsgo's project compiler host).
+    pub fn with_content_mapped_cache(mut self, cache: Arc<ContentMappedCache>) -> Self {
+        self.cache = Some(cache);
+        self
     }
 
     fn handle_of(&self, state: &State, mapper: &Arc<Mapper>) -> Option<String> {
@@ -1094,6 +1104,10 @@ impl Project for ProjectView {
         }
         self.host.release(&identities);
         result
+    }
+
+    fn content_mapped_cache(&self) -> Option<&ContentMappedCache> {
+        self.cache.as_deref()
     }
 }
 

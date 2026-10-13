@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
 use tsc_binder::{BindData, Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
+use tsc_program::content_mapper::source::ContentMappedSource;
 use tsc_syntax::{NodeArray, NodeArrayId, NodeId, ParseOptions, SourceFile};
 use tsc_types::{IdentityDomain, JsStr, JsString, SymbolFlags, TRANSIENT_SYMBOL_BIT};
 
@@ -77,6 +78,31 @@ impl BoundDocument {
 pub struct DocumentAddress {
     parse: ParseOptions,
     identity_domain: IdentityDomain,
+    /// A content mapper's output (tsgo's content-mapped parse cache).
+    content_mapper: Option<ContentMapperAddress>,
+}
+
+/// What a content mapper's output is found again by (tsgo's content-mapped
+/// parse cache): a transform's output by the mapper's transform identity
+/// and the original text it transformed, which give the same outputs with
+/// the same mapper diagnostics; a failure stub by itself, since tsgo makes
+/// one per program and a program cloned from it keeps it.
+#[derive(Clone, Debug)]
+enum ContentMapperAddress {
+    Transform(String, Arc<str>),
+    FailureStub(Arc<ContentMappedSource>),
+}
+
+impl PartialEq for ContentMapperAddress {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Transform(identity, text), Self::Transform(other_identity, other_text)) => {
+                identity == other_identity && text == other_text
+            }
+            (Self::FailureStub(stub), Self::FailureStub(other)) => Arc::ptr_eq(stub, other),
+            _ => false,
+        }
+    }
 }
 
 impl DocumentAddress {
@@ -90,13 +116,30 @@ impl DocumentAddress {
                 ..parse.clone()
             },
             identity_domain: identity_domain.clone(),
+            content_mapper: None,
         }
+    }
+
+    /// The address of a content mapper's output (tsgo
+    /// `contentMappedParseCacheKey`, see [`ContentMapperAddress`]).
+    pub fn with_content_mapper(mut self, info: &Arc<ContentMappedSource>) -> Self {
+        self.content_mapper = Some(if info.is_failure_stub() {
+            ContentMapperAddress::FailureStub(Arc::clone(info))
+        } else {
+            ContentMapperAddress::Transform(
+                info.transform_identity.clone(),
+                Arc::clone(&info.original_text),
+            )
+        });
+        self
     }
 }
 
 impl PartialEq for DocumentAddress {
     fn eq(&self, other: &Self) -> bool {
-        self.parse == other.parse && self.identity_domain.same_domain(&other.identity_domain)
+        self.parse == other.parse
+            && self.identity_domain.same_domain(&other.identity_domain)
+            && self.content_mapper == other.content_mapper
     }
 }
 
@@ -174,12 +217,17 @@ impl DocumentRegistry {
     }
 
     /// The live documents of `file_name`, at any address (tsgo's parse cache
-    /// entries of the file).
+    /// entries of the file). A content mapper's output is not one: tsgo
+    /// keeps it in a cache of its own.
     pub fn documents_of(&self, file_name: JsStr<'_>) -> Vec<Arc<BoundDocument>> {
         self.lock()
             .iter()
             .filter(|((name, _), _)| name.as_js() == file_name)
-            .flat_map(|(_, slot)| slot.iter().filter_map(|entry| entry.document.upgrade()))
+            .flat_map(|(_, slot)| {
+                slot.iter()
+                    .filter(|entry| entry.address.content_mapper.is_none())
+                    .filter_map(|entry| entry.document.upgrade())
+            })
             .collect()
     }
 

@@ -3,11 +3,13 @@
 //! with the file loader's content mapper diagnostics (compiler/
 //! fileloader.go).
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, PoisonError, Weak};
 
 use tsc_diagnostics::spanmap::{MappedDiagnosticDirective, MappingErrorKind, SpanMap};
 use tsc_diagnostics::{
-    gen, Diagnostic, DiagnosticCategory, DiagnosticMessage, JsStr, JsString, MessageChain,
+    gen, Diagnostic, DiagnosticCategory, DiagnosticMessage, DocumentVersion, JsStr, JsString,
+    MessageChain, TextSnapshot,
 };
 
 use super::errors::{
@@ -59,12 +61,23 @@ impl ContentMappedSource {
     }
 }
 
-/// One virtual output to load: its file name, its text and what it carries.
+/// One virtual output to load: its file name, its text and what it carries,
+/// shared with the programs that hold it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VirtualSource {
     pub file_name: JsString,
-    pub text: String,
-    pub info: ContentMappedSource,
+    pub text: Arc<TextSnapshot>,
+    pub info: Arc<ContentMappedSource>,
+}
+
+impl VirtualSource {
+    fn new(file_name: JsString, text: String, info: ContentMappedSource) -> Self {
+        Self {
+            file_name,
+            text: TextSnapshot::new(text, DocumentVersion::default()),
+            info: Arc::new(info),
+        }
+    }
 }
 
 /// tsgo `contentmapper.SourceFiles` before parsing: the canonical output
@@ -142,21 +155,148 @@ pub fn virtual_sources(
         .map(|(result, name)| {
             let mut info = info(name.clone(), result);
             info.canonical = Some(file_name.to_owned());
-            VirtualSource {
-                file_name: name,
-                text: result.text.clone(),
-                info,
-            }
+            VirtualSource::new(name, result.text.clone(), info)
         })
         .collect();
     Ok(VirtualSources {
-        canonical: VirtualSource {
-            file_name: file_name.to_owned(),
-            text: output.canonical.text,
-            info: canonical,
-        },
+        canonical: VirtualSource::new(file_name.to_owned(), output.canonical.text, canonical),
         supplemental,
     })
+}
+
+/// tsgo `ContentMappedParseCache` (the project system's): a file's
+/// transform outputs, found again by the file, its original text and the
+/// mapper's transform identity, so a program built again takes them without
+/// running the mapper. An entry lives while a program holds its outputs:
+/// tsgo counts the programs that acquired the bundle, and the `Weak`s here
+/// follow the programs' `Arc`s.
+#[derive(Debug, Default)]
+pub struct ContentMappedCache {
+    entries: Mutex<HashMap<(JsString, u64), Vec<CachedSources>>>,
+}
+
+#[derive(Debug)]
+struct CachedSources {
+    transform_identity: String,
+    canonical: CachedSource,
+    supplemental: Vec<CachedSource>,
+}
+
+#[derive(Debug)]
+struct CachedSource {
+    file_name: JsString,
+    text: Weak<TextSnapshot>,
+    info: Weak<ContentMappedSource>,
+}
+
+impl CachedSource {
+    fn new(source: &VirtualSource) -> Self {
+        Self {
+            file_name: source.file_name.clone(),
+            text: Arc::downgrade(&source.text),
+            info: Arc::downgrade(&source.info),
+        }
+    }
+
+    fn upgrade(&self) -> Option<VirtualSource> {
+        Some(VirtualSource {
+            file_name: self.file_name.clone(),
+            text: self.text.upgrade()?,
+            info: self.info.upgrade()?,
+        })
+    }
+
+    fn is_held(&self) -> bool {
+        self.text.strong_count() > 0 && self.info.strong_count() > 0
+    }
+}
+
+impl CachedSources {
+    fn is_held(&self) -> bool {
+        self.canonical.is_held() && self.supplemental.iter().all(CachedSource::is_held)
+    }
+
+    fn upgrade(&self) -> Option<VirtualSources> {
+        Some(VirtualSources {
+            canonical: self.canonical.upgrade()?,
+            supplemental: self
+                .supplemental
+                .iter()
+                .map(CachedSource::upgrade)
+                .collect::<Option<_>>()?,
+        })
+    }
+}
+
+impl ContentMappedCache {
+    /// The outputs a program holds for `file_name` with `content` under
+    /// `transform_identity` (tsgo `AcquireOrError` finding the key).
+    pub fn get(
+        &self,
+        file_name: JsStr<'_>,
+        content: &str,
+        transform_identity: &str,
+    ) -> Option<VirtualSources> {
+        self.lock()
+            .get(&(file_name.to_owned(), text_hash(content)))?
+            .iter()
+            .filter(|entry| entry.transform_identity == transform_identity)
+            .find_map(CachedSources::upgrade)
+            .filter(|sources| *sources.canonical.info.original_text == *content)
+    }
+
+    /// Record a transform's outputs, and forget the entries of the same file
+    /// and content no program holds any more.
+    pub fn insert(&self, sources: &VirtualSources) {
+        let info = &sources.canonical.info;
+        let key = (
+            sources.canonical.file_name.clone(),
+            text_hash(&info.original_text),
+        );
+        let mut entries = self.lock();
+        let slot = entries.entry(key).or_default();
+        slot.retain(CachedSources::is_held);
+        slot.push(CachedSources {
+            transform_identity: info.transform_identity.clone(),
+            canonical: CachedSource::new(&sources.canonical),
+            supplemental: sources.supplemental.iter().map(CachedSource::new).collect(),
+        });
+    }
+
+    /// Forget the entries no program holds (tsgo deletes an entry when its
+    /// count reaches zero).
+    pub fn purge(&self) {
+        self.lock().retain(|_, slot| {
+            slot.retain(CachedSources::is_held);
+            !slot.is_empty()
+        });
+    }
+
+    /// The number of entries a program still holds.
+    pub fn len(&self) -> usize {
+        self.lock()
+            .values()
+            .flatten()
+            .filter(|entry| entry.is_held())
+            .count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(JsString, u64), Vec<CachedSources>>> {
+        self.entries.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// The hash an original text is found by (tsgo hashes file contents with
+/// xxh3); a hit still compares the text.
+fn text_hash(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// tsgo `NewExternalDiagnostic` of a mapper's diagnostic: an error at its
@@ -191,10 +331,10 @@ pub fn failure_stub(
 ) -> VirtualSource {
     let mut virtual_file_name = file_name.to_owned();
     virtual_file_name.push_str(".ts");
-    VirtualSource {
-        file_name: file_name.to_owned(),
-        text: String::new(),
-        info: ContentMappedSource {
+    VirtualSource::new(
+        file_name.to_owned(),
+        String::new(),
+        ContentMappedSource {
             content_mapper: mapper.identity(),
             transform_identity: transform_identity.to_owned(),
             virtual_file_name,
@@ -205,7 +345,7 @@ pub fn failure_stub(
             canonical: None,
             diagnostics,
         },
-    }
+    )
 }
 
 fn chain(message: &'static DiagnosticMessage, args: &[JsString]) -> MessageChain {
