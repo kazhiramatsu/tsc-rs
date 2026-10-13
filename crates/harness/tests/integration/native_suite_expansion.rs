@@ -254,9 +254,9 @@ fn native_vendored_inputs_match_the_manifest() {
     // watch baselines, the libraries, the message catalogs and option
     // declarations the help, `--init`, `--showConfig` and `--locale` read,
     // the API encoder's baselines and tables, the token navigation
-    // baselines and the file they navigate, and the language server
-    // protocol's types.
-    assert_eq!(vendored, 59_634);
+    // baselines and the file they navigate, the language server
+    // protocol's types and the language service's user preferences schema.
+    assert_eq!(vendored, 59_635);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()

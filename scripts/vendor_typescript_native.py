@@ -36,6 +36,7 @@ vendor/typescript-native/<profile>/upstream/:
   tsc/internal/ast/kind_generated.go, tsc/internal/api/encoder/encoder_generated.go
                                                     the kinds and the API encoder's tables
   tsc/internal/lsp/lsproto/lsp_generated.go         the language server protocol's types
+  tools/userPreferences.schema.json                 the language service's user preferences
 
 and writes vendor/typescript-native/<profile>/manifest.json with the commit,
 each set's Git tree id (a single file's blob id; a filtered baseline set
@@ -96,6 +97,10 @@ FILES = [
     # The language server protocol's types, generated upstream from the LSP
     # meta model and tsgo's additions (scripts/generate_lsp_protocol.py).
     "tsc/internal/lsp/lsproto/lsp_generated.go",
+    # The language service's user preferences: their types, configuration
+    # paths and parsing (scripts/generate_lsp_preferences.py; upstream
+    # tools/gen-preferences).
+    "tools/userPreferences.schema.json",
     # The file the token navigation baselines navigate.
     "tsc/testdata/fixtures/services/mapCode.ts",
     # The localized diagnostic messages tsgo embeds (gzip-compressed JSON).

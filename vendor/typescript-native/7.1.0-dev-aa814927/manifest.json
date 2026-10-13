@@ -175,6 +175,13 @@
       "bytes": 631439
     },
     {
+      "path": "tools/userPreferences.schema.json",
+      "git_blob_sha1": "d2f1837b5c0c2f621120bc2b58cb8bdd4a0d020c",
+      "blob_inventory_sha256": "11ec004dff61fc18a728aff471b71d86e952d2a483a652cc094fe2a80e027866",
+      "files": 1,
+      "bytes": 24710
+    },
+    {
       "path": "tsc/testdata/fixtures/services/mapCode.ts",
       "git_blob_sha1": "11d9fb5acf2f93955c39cad8dc27e51c818edfb7",
       "blob_inventory_sha256": "e7f5bc95fd2654edb5a7e5b43f5340112e8f733a850cef52ccae2096c287c33c",
