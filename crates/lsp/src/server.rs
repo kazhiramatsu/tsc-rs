@@ -23,13 +23,15 @@ use tsc_compiler::DEFAULT_LOAD_LIMITS;
 use tsc_host::ipc::jsonrpc::{Reader, Writer};
 use tsc_host::vfs::FileSystem;
 use tsc_ls::lsutil::{parse_user_preferences, UserPreferences};
+use tsc_ls::{LanguageService, LsError};
 use tsc_lsproto::message::{decode_result, to_raw};
 use tsc_lsproto::{
-    self as lsproto, decode_params, method, parse_message, ErrorCode, Id, LspError, Message,
-    NoParams, Notification, Request, RequestMessage, ResponseError, ResponseMessage,
+    self as lsproto, decode_params, method, parse_message, ErrorCode, HasTextDocumentUri, Id,
+    LspError, Message, NoParams, Notification, Request, RequestMessage, ResponseError,
+    ResponseMessage,
 };
 use tsc_program::{ConfigOptionBag, LibraryCatalog};
-use tsc_project::{Session, SessionOptions};
+use tsc_project::{Project, Session, SessionOptions, Snapshot};
 
 use crate::gofmt;
 use crate::logger::{is_valid_log_verbosity, Logger};
@@ -677,6 +679,36 @@ impl Server {
 
     /// The session, which every handler but `initialize`'s and
     /// `initialized`'s has.
+    /// tsgo `NewLanguageService` over the project's program in the
+    /// snapshot, with the snapshot's converters and preferences and the
+    /// request's locale.
+    fn with_language_service<T>(
+        &self,
+        context: &RequestContext,
+        snapshot: &Arc<Snapshot>,
+        project: &Project,
+        handle: impl FnOnce(&mut LanguageService<'_>) -> Result<T, Failure>,
+    ) -> Result<T, Failure> {
+        let Some(program) = project.program() else {
+            return Err(
+                LspError::internal(format!("project {} has no program", project.id())).into(),
+            );
+        };
+        let converters = snapshot.converters(self.position_encoding());
+        let preferences = snapshot.user_preferences().clone();
+        let capabilities = self.client_capabilities();
+        program.with_live(|live| {
+            let mut service = LanguageService::new(
+                live,
+                &converters,
+                &preferences,
+                &capabilities,
+                context.locale.messages(),
+            );
+            handle(&mut service)
+        })
+    }
+
     fn initialized_session(&self) -> &Session {
         self.session
             .get()
@@ -975,6 +1007,19 @@ impl Server {
                 .configure(parse_user_preferences(settings));
         }
         Ok(())
+    }
+
+    /// tsgo `handleDocumentDiagnostic` (without the flaky diagnostics
+    /// logging, which reruns the request after an emit).
+    fn handle_document_diagnostic(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        service: &mut LanguageService<'_>,
+        params: lsproto::DocumentDiagnosticParams,
+    ) -> Result<lsproto::DocumentDiagnosticResponse, Failure> {
+        service
+            .provide_diagnostics(&params.text_document.uri)
+            .map_err(language_service_failure)
     }
 
     /// tsgo `handleShutdown`.
@@ -1282,6 +1327,10 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
             Server::handle_did_change_watched_files,
         );
         register_notification::<lsproto::SetTraceInfo>(&mut handlers, |_, _, _| Ok(()));
+        register_language_service_document_request::<lsproto::TextDocumentDiagnosticInfo>(
+            &mut handlers,
+            Server::handle_document_diagnostic,
+        );
         register_notification::<lsproto::CustomSetLogVerbosityInfo>(
             &mut handlers,
             Server::handle_set_log_verbosity,
@@ -1327,6 +1376,72 @@ fn register_request<R: Request + 'static>(
     );
 }
 
+/// A language service request's handler.
+type LanguageServiceHandler<R> = fn(
+    &Arc<Server>,
+    &RequestContext,
+    &mut LanguageService<'_>,
+    <R as Request>::Params,
+) -> Result<<R as Request>::Response, Failure>;
+
+/// tsgo `registerLanguageServiceDocumentRequestHandler`: the document's
+/// default project in the synchronous part; the handler on its program
+/// after, then the configs' diagnostics again if checking found new global
+/// ones, then the answer. A panic answers tsgo's `recover` error.
+fn register_language_service_document_request<R: Request + 'static>(
+    handlers: &mut HashMap<&'static str, Handler>,
+    handle: LanguageServiceHandler<R>,
+) where
+    R::Params: HasTextDocumentUri + Send + 'static,
+{
+    handlers.insert(
+        R::METHOD,
+        Box::new(move |server, context, request| {
+            if server.session().is_none() {
+                return Err(ErrorCode::SERVER_NOT_INITIALIZED.into());
+            }
+            let params = decode_params::<R::Params>(request)?;
+            let (snapshot, project) = server
+                .initialized_session()
+                .get_snapshot_and_default_project(params.text_document_uri())
+                .map_err(|error| LspError::internal(error.to_string()))?;
+            let server = Arc::clone(server);
+            let context = context.clone();
+            let id = request.id.clone();
+            Ok(Some(Box::new(move || {
+                let response = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    server.with_language_service(&context, &snapshot, &project, |service| {
+                        handle(&server, &context, service, params)
+                    })
+                }));
+                server
+                    .initialized_session()
+                    .enqueue_publish_global_diagnostics();
+                let response = match response {
+                    Ok(response) => response?,
+                    Err(panic) => {
+                        let detail = panic
+                            .downcast_ref::<String>()
+                            .cloned()
+                            .or_else(|| panic.downcast_ref::<&str>().map(|text| (*text).to_owned()))
+                            .unwrap_or_default();
+                        return Err(LspError::wrap(
+                            ErrorCode::INTERNAL_ERROR,
+                            format!("panic handling request {}: {detail}", R::METHOD),
+                        )
+                        .into());
+                    }
+                };
+                context.check()?;
+                server
+                    .send_result(id, &response)
+                    .map_err(LspError::internal)?;
+                Ok(())
+            })))
+        }),
+    );
+}
+
 /// tsgo `registerNotificationHandler`.
 fn register_notification<N: Notification + 'static>(
     handlers: &mut HashMap<&'static str, Handler>,
@@ -1346,6 +1461,11 @@ fn register_notification<N: Notification + 'static>(
             Ok(None)
         }),
     );
+}
+
+/// A language service failure: an internal error.
+fn language_service_failure(error: LsError) -> Failure {
+    LspError::internal(error.0).into()
 }
 
 /// The server as the session's client and logger (tsgo's `Client: s` and
