@@ -775,7 +775,7 @@ impl<'a> CheckerState<'a> {
             // observable.
             return Ok(());
         }
-        let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
+        let signature = self.get_resolved_signature(node, None, CheckMode::NORMAL)?;
         self.check_deprecated_signature(signature, node)?;
         if let Some(tag_name) = tag_name.filter(|_| is_opening_like) {
             let element_type_constraint = self.get_jsx_element_type_type_at(node)?;

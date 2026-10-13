@@ -2810,7 +2810,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if any_effects {
-                Some(self.get_resolved_signature(node, CheckMode::NORMAL)?)
+                Some(self.get_resolved_signature(node, None, CheckMode::NORMAL)?)
             } else {
                 None
             }

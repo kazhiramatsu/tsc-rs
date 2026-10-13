@@ -372,7 +372,7 @@ fn rejected_reduce_overloads_keep_tsc_contextual_state_and_failure_return_type()
                     .expect("reduce call")
             };
             let signature = state
-                .get_resolved_signature(call, CheckMode::NORMAL)
+                .get_resolved_signature(call, None, CheckMode::NORMAL)
                 .expect("failure signature");
             let return_type = state
                 .get_return_type_of_signature(signature)
