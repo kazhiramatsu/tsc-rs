@@ -16,6 +16,7 @@ path = "src/lib.rs"
 serde_json = "1.0"
 tsc-checker.workspace = true
 tsc-lsproto.workspace = true
+tsc-syntax.workspace = true
 
 [lints]
 workspace = true
