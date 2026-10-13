@@ -100,6 +100,12 @@ impl ConfigFileRegistry {
         self.configs.get(path)?.plan.as_ref()
     }
 
+    /// tsgo `isTracked`: whether the registry has an entry for the config
+    /// at `path`.
+    pub(crate) fn is_tracked(&self, path: &str) -> bool {
+        self.configs.contains_key(path)
+    }
+
     /// tsgo `customConfigFileName`.
     pub(crate) fn custom_config_file_name(&self) -> &str {
         &self.custom_config_file_name
@@ -644,7 +650,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
                 .into_owned()
         };
         let start = directory_of(&paths.absolute(file_name));
-        let search = |mut visit: Box<dyn FnMut(&str) -> Option<String> + '_>| {
+        let search = |visit: &mut dyn FnMut(&str) -> Option<String>| {
             let mut directory = start.clone();
             loop {
                 if let Some(found) = visit(&directory) {
@@ -662,7 +668,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
         };
         if !self.custom_config_file_name.is_empty() {
             let mut skip = skip_search_in_directory_of_file;
-            let found = search(Box::new(|directory: &str| {
+            let found = search(&mut |directory: &str| {
                 if !skip {
                     let candidate = combine(directory, &self.custom_config_file_name);
                     if self.fs.file_exists(&candidate) {
@@ -671,7 +677,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
                 }
                 skip = false;
                 None
-            }));
+            });
             if found.is_some() {
                 return found;
             }
@@ -679,7 +685,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
         let mut skip_tsconfig = skip_search_in_directory_of_file;
         let mut skip_jsconfig = skip_search_in_directory_of_file
             && file_name.rsplit('/').next() != Some("tsconfig.json");
-        search(Box::new(|directory: &str| {
+        search(&mut |directory: &str| {
             for (skip, name) in [
                 (skip_tsconfig, "tsconfig.json"),
                 (skip_jsconfig, "jsconfig.json"),
@@ -694,7 +700,7 @@ impl<'a> ConfigFileRegistryBuilder<'a> {
             skip_tsconfig = false;
             skip_jsconfig = false;
             None
-        }))
+        })
     }
 
     /// tsgo `getConfigFileNameForFile`: an open file's nearest config is

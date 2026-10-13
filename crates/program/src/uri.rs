@@ -211,7 +211,7 @@ fn decode_no_path(path: &str) -> Option<String> {
 
 /// Go's `hex.DecodeString` of valid UTF-8.
 fn unhex(text: &str) -> Option<String> {
-    if text.len() % 2 != 0 {
+    if !text.len().is_multiple_of(2) {
         return None;
     }
     let bytes = (0..text.len())

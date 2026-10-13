@@ -33,6 +33,13 @@ fn session_in(current_directory: &str, files: &[(&str, &str)]) -> (Session, Arc<
             library_catalog: LibraryCatalog::typescript_7_1(Path::new(EMBEDDED_LIBRARY_DIRECTORY)),
             load_limits: DEFAULT_LOAD_LIMITS,
             run_external_code: false,
+            // tsgo's API sessions: UTF-8 positions, no watching,
+            // logging or published diagnostics.
+            position_encoding: tsc_lsproto::PositionEncodingKind::UTF8,
+            watch_enabled: false,
+            logging_enabled: false,
+            push_diagnostics_enabled: false,
+            debounce_delay: std::time::Duration::ZERO,
         },
         Arc::new(BundledFs::new(Arc::clone(&fs))),
         None,
