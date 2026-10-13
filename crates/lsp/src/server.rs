@@ -19,14 +19,15 @@ use serde::Serialize;
 use serde_json::Value;
 use tsc_compiler::locale::Locale;
 use tsc_host::ipc::jsonrpc::{Reader, Writer};
+use tsc_ls::lsutil::{parse_user_preferences, UserPreferences};
+use tsc_lsproto::message::{decode_result, to_raw};
+use tsc_lsproto::{
+    self as lsproto, decode_params, method, parse_message, ErrorCode, Id, LspError, Message,
+    NoParams, Notification, Request, RequestMessage, ResponseError, ResponseMessage,
+};
 
 use crate::gofmt;
 use crate::logger::{is_valid_log_verbosity, Logger};
-use crate::lsproto::message::{decode_result, to_raw};
-use crate::lsproto::{
-    self, decode_params, method, parse_message, ErrorCode, Id, LspError, Message, NoParams,
-    Notification, Request, RequestMessage, ResponseError, ResponseMessage,
-};
 use crate::queue::DynamicQueue;
 
 /// Go's JSON encoder nests at most this deep (`jsontext`'s maximum depth).
@@ -135,10 +136,8 @@ struct ServerState {
     watch_enabled: bool,
     telemetry_enabled: bool,
     current_directory: String,
-    /// The `workspace/configuration` sections (or the initialization
-    /// options' preferences under `js/ts`) the session's preferences are
-    /// parsed from.
-    user_configuration: Option<Value>,
+    /// The preferences the client configured, which the session takes.
+    user_preferences: Option<UserPreferences>,
 }
 
 /// tsgo `Server`.
@@ -628,9 +627,9 @@ impl Server {
         lock(&self.state).current_directory.clone()
     }
 
-    /// The client's configuration the session's preferences come from.
-    pub fn user_configuration(&self) -> Option<Value> {
-        lock(&self.state).user_configuration.clone()
+    /// The preferences the client configured (once it initialized).
+    pub fn user_preferences(&self) -> Option<UserPreferences> {
+        lock(&self.state).user_preferences.clone()
     }
 
     fn session_created(&self) -> bool {
@@ -777,8 +776,8 @@ impl Server {
             state.current_directory = cwd;
         }
         self.session_created.store(true, Ordering::SeqCst);
-        let configuration = self.request_configuration(context)?;
-        lock(&self.state).user_configuration = Some(configuration);
+        let preferences = self.request_configuration(context)?;
+        lock(&self.state).user_preferences = Some(preferences);
         let registration = lsproto::RegistrationParams {
             registrations: vec![lsproto::Registration {
                 id: "typescript-config-watch-id".to_owned(),
@@ -801,11 +800,11 @@ impl Server {
         Ok(())
     }
 
-    /// tsgo `RequestConfiguration`: the `js/ts`, `typescript`, `javascript`
-    /// and `editor` sections from `workspace/configuration`, or without the
-    /// configuration capability the initialization options' preferences as
-    /// `js/ts`.
-    fn request_configuration(&self, context: &RequestContext) -> Result<Value, Failure> {
+    /// tsgo `RequestConfiguration`: the preferences of the `js/ts`,
+    /// `typescript`, `javascript` and `editor` sections from
+    /// `workspace/configuration`, or without the configuration capability of
+    /// the initialization options' preferences as `js/ts`.
+    fn request_configuration(&self, context: &RequestContext) -> Result<UserPreferences, Failure> {
         let (configuration, preferences) = {
             let state = lock(&self.state);
             (
@@ -830,9 +829,10 @@ impl Server {
                 );
                 if preferences.is_object() {
                     sections.insert("js/ts".to_owned(), preferences);
+                    return Ok(parse_user_preferences(&sections));
                 }
             }
-            return Ok(Value::Object(sections));
+            return Ok(UserPreferences::new_default());
         }
         let items = CONFIGURATION_SECTIONS
             .iter()
@@ -861,7 +861,20 @@ impl Server {
                 section("editor")
             ),
         );
-        Ok(Value::Object(sections))
+        Ok(parse_user_preferences(&sections))
+    }
+
+    /// tsgo `handleDidChangeWorkspaceConfiguration`: the preferences of the
+    /// settings the client sent (an object).
+    fn handle_did_change_workspace_configuration(
+        self: &Arc<Self>,
+        _context: &RequestContext,
+        params: lsproto::DidChangeConfigurationParams,
+    ) -> Result<(), Failure> {
+        if let Value::Object(settings) = &params.settings {
+            lock(&self.state).user_preferences = Some(parse_user_preferences(settings));
+        }
+        Ok(())
     }
 
     /// tsgo `handleShutdown`.
@@ -960,7 +973,7 @@ fn handlers() -> &'static HashMap<&'static str, Handler> {
         register_notification::<lsproto::ExitInfo>(&mut handlers, |_, _, _| Err(Failure::Exit));
         register_notification::<lsproto::WorkspaceDidChangeConfigurationInfo>(
             &mut handlers,
-            |_, _, _| Ok(()),
+            Server::handle_did_change_workspace_configuration,
         );
         register_notification::<lsproto::SetTraceInfo>(&mut handlers, |_, _, _| Ok(()));
         register_notification::<lsproto::CustomSetLogVerbosityInfo>(

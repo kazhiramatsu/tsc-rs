@@ -321,6 +321,9 @@
    "wait": 3
   },
   {
+   "waitMethod": "window/logMessage"
+  },
+  {
    "close": true
   }
  ]

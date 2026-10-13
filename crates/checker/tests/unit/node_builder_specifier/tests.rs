@@ -361,7 +361,7 @@ fn parse_tree_indices_drive_mode_and_nonrelative_reuse_gates() {
         }];
         let compiler_options = SpecifierCompilerOptions::new(state.options);
         let user_preferences = ModuleSpecifierUserPreferences {
-            import_module_specifier_preference: Some(ImportModuleSpecifierPreference::NonRelative),
+            import_module_specifier_preference: ImportModuleSpecifierPreference::NON_RELATIVE,
             ..ModuleSpecifierUserPreferences::default()
         };
         let options = ModuleSpecifierOptions::default();

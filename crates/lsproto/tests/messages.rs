@@ -2,8 +2,8 @@
 //! `jsonrpc/jsonrpc.go` and `UnmarshalParams`).
 
 use serde_json::value::RawValue;
-use tsc_lsp::lsproto::message::decode_result;
-use tsc_lsp::lsproto::*;
+use tsc_lsproto::message::decode_result;
+use tsc_lsproto::*;
 
 fn request(params: Option<&str>) -> RequestMessage {
     RequestMessage {

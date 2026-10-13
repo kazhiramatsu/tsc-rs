@@ -131,6 +131,11 @@ pub mod merge;
 pub mod modules;
 pub mod narrow;
 mod node_builder;
+// tsgo `modulespecifiers`' user preferences, which the language service sets.
+pub use node_builder::specifier::{
+    ImportModuleSpecifierEndingPreference, ImportModuleSpecifierPreference,
+    ModuleSpecifierUserPreferences,
+};
 pub mod operators;
 pub(crate) mod order_guard;
 mod plain_js_errors;

@@ -16,9 +16,12 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use tsc_host::ipc::jsonrpc::{Reader, Writer};
-use tsc_lsp::lsproto::message::RawJson;
-use tsc_lsp::lsproto::{self, Id, Message, ResponseMessage};
+use tsc_ls::lsutil::{
+    parse_user_preferences, QuotePreference, SemicolonPreference, UserPreferences,
+};
 use tsc_lsp::{Server, ServerOptions};
+use tsc_lsproto::message::RawJson;
+use tsc_lsproto::{self as lsproto, Id, Message, ResponseMessage};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -235,26 +238,123 @@ fn errors_match_tsgo() {
     replay("errors");
 }
 
+impl Session {
+    /// `initialize` with `params`, then `initialized`, answering the
+    /// server's `workspace/configuration` with `configuration` and its
+    /// registration with null, until the server is initialized.
+    fn initialize(&mut self, params: Value, configuration: Value) {
+        let initialize = serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": params});
+        self.send(&initialize.to_string());
+        self.send(r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#);
+        while let Some(text) = self.receive() {
+            let message: Value = serde_json::from_str(&text).unwrap();
+            let result = match message.get("method").and_then(Value::as_str) {
+                Some("workspace/configuration") => configuration.clone(),
+                Some("client/registerCapability") => Value::Null,
+                _ => continue,
+            };
+            let answer =
+                serde_json::json!({"jsonrpc": "2.0", "id": message["id"], "result": result});
+            self.send(&answer.to_string());
+            if message["method"] == "client/registerCapability" {
+                break;
+            }
+        }
+        self.server.wait_init_complete();
+    }
+}
+
 /// `exit` ends the server with tsgo's `context canceled` (the command's
 /// status 1).
 #[test]
 fn exit_stops_the_server() {
     let mut session = Session::start();
-    session.send(r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#);
-    session.send(r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#);
+    session.initialize(
+        serde_json::json!({"processId": null, "rootUri": null, "capabilities": {}}),
+        Value::Null,
+    );
+    session.send(r#"{"jsonrpc":"2.0","method":"exit"}"#);
+    assert_eq!(session.finish(), Err("context canceled".to_owned()));
+}
+
+/// tsgo `RequestConfiguration`: the preferences of the four sections the
+/// client answers, and of the settings `workspace/didChangeConfiguration`
+/// sends.
+#[test]
+fn preferences_come_from_the_configuration() {
+    let mut session = Session::start();
+    let configuration = serde_json::json!([
+        {"preferences": {"quoteStyle": "single"}},
+        {"format": {"semicolons": "remove"}},
+        null,
+        {"tabSize": 2, "insertSpaces": false},
+    ]);
+    session.initialize(
+        serde_json::json!({
+            "processId": null, "rootUri": null,
+            "capabilities": {"workspace": {"configuration": true}},
+        }),
+        configuration.clone(),
+    );
+    let expected = parse_user_preferences(
+        &serde_json::from_value(serde_json::json!({
+            "js/ts": configuration[0], "typescript": configuration[1],
+            "javascript": null, "editor": configuration[3],
+        }))
+        .unwrap(),
+    );
+    let preferences = session.server.user_preferences().unwrap();
+    assert_eq!(preferences, expected);
+    assert_eq!(preferences.quote_preference, QuotePreference::SINGLE);
+    assert_eq!(
+        preferences.format_code_settings.semicolons,
+        SemicolonPreference::REMOVE
+    );
+    assert_eq!(preferences.format_code_settings.editor_settings.tab_size, 2);
+
+    session.send(r#"{"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"js/ts":{"preferences":{"quoteStyle":"double"}}}}}"#);
+    session.send(r#"{"jsonrpc":"2.0","id":2,"method":"shutdown"}"#);
     while let Some(text) = session.receive() {
-        let message: Value = serde_json::from_str(&text).unwrap();
-        if message.get("method") == Some(&Value::from("client/registerCapability")) {
-            session.send(&format!(
-                r#"{{"jsonrpc":"2.0","id":{},"result":null}}"#,
-                message["id"]
-            ));
+        if text.contains(r#""id":2"#) {
             break;
         }
     }
-    session.server.wait_init_complete();
-    session.send(r#"{"jsonrpc":"2.0","method":"exit"}"#);
-    assert_eq!(session.finish(), Err("context canceled".to_owned()));
+    let preferences = session.server.user_preferences().unwrap();
+    assert_eq!(preferences.quote_preference, QuotePreference::DOUBLE);
+    session.close();
+    assert_eq!(session.finish(), Ok(()));
+}
+
+/// Without the configuration capability, the initialization options'
+/// preferences are the `js/ts` section; none are tsgo's defaults.
+#[test]
+fn preferences_come_from_the_initialization_options() {
+    let mut session = Session::start();
+    session.initialize(
+        serde_json::json!({
+            "processId": null, "rootUri": null, "capabilities": {},
+            "initializationOptions": {"userPreferences": {"preferences": {"quoteStyle": "single"}}},
+        }),
+        Value::Null,
+    );
+    assert_eq!(
+        session.server.user_preferences().unwrap().quote_preference,
+        QuotePreference::SINGLE
+    );
+    session.close();
+    assert_eq!(session.finish(), Ok(()));
+
+    let mut session = Session::start();
+    session.initialize(
+        serde_json::json!({"processId": null, "rootUri": null, "capabilities": {}}),
+        Value::Null,
+    );
+    assert_eq!(
+        session.server.user_preferences(),
+        Some(UserPreferences::new_default())
+    );
+    session.close();
+    assert_eq!(session.finish(), Ok(()));
 }
 
 /// Before `initialize` the server logs to its standard error.
