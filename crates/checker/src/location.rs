@@ -20,7 +20,7 @@ impl CheckerState<'_> {
     }
 
     /// tsgo `getTypeOfNode` (checker.go:32418-32516).
-    fn get_type_of_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
+    pub(crate) fn get_type_of_node(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let error = self.tables.intrinsics.error;
         if self.kind_of(node) == SyntaxKind::SourceFile {
             let file = self.binder.file_index_of_node(node);
@@ -1043,6 +1043,14 @@ impl CheckerState<'_> {
                 return true
             }
             NodeData::ExportDeclaration(data) if data.module_specifier == Some(node) => {
+                return true
+            }
+            // tsgo resolves a JSDoc `@import` through the declaration it
+            // reparses the tag into (KindJSImportDeclaration), when the tag
+            // imports something.
+            NodeData::JSDocImportTag(data)
+                if data.module_specifier == Some(node) && data.import_clause.is_some() =>
+            {
                 return true
             }
             _ => {}

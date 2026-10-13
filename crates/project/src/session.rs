@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use tsc_diagnostics::DiagnosticList;
 use tsc_host::go_time::duration_string;
 use tsc_host::vfs::FileSystem;
-use tsc_ls::lsconv::{diagnostic_to_lsp, DiagnosticFile, DiagnosticOptions};
+use tsc_ls::lsconv::{diagnostic_to_lsp, DiagnosticOptions, TextScript};
 use tsc_ls::lsutil::UserPreferences;
 use tsc_lsproto::{
     DocumentUri, FileChangeType, FileEvent, LanguageKind, PublishDiagnosticsParams,
@@ -688,7 +688,7 @@ impl Inner {
         let file = |file_name: &str| {
             texts
                 .get_key_value(file_name)
-                .map(|(file_name, text)| DiagnosticFile {
+                .map(|(file_name, text)| TextScript {
                     file_name: file_name.clone(),
                     text,
                 })

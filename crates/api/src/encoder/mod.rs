@@ -187,12 +187,6 @@ pub fn build_node_index_table(file: &SourceFile) -> NodeIndexTable {
     }
 }
 
-/// tsgo's `PossiblyContainsDynamicImport` of `file` (see
-/// `Tree::possibly_contains_dynamic_import`).
-pub(crate) fn tsgo_possibly_contains_dynamic_import(file: &SourceFile) -> bool {
-    Tree::new(file, None).possibly_contains_dynamic_import()
-}
-
 enum WalkEvent {
     /// `strip`: the flags tsgo's parse of this node did not have (see
     /// `Tree::lazy_js_doc_context`).

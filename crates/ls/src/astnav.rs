@@ -70,6 +70,12 @@ impl<'a> Navigator<'a> {
         )
     }
 
+    /// tsgo `GetTouchingToken`: the token at `position`, not one that ends
+    /// there.
+    pub fn touching_token(&self, position: u32) -> Found {
+        self.token_at_position(position, false, None)
+    }
+
     /// tsgo `getTokenAtPosition` (tokens.go:38-275).
     fn token_at_position(
         &self,
@@ -653,7 +659,7 @@ impl<'a> Navigator<'a> {
     }
 
     /// tsgo `GetTokenPosOfNode` (scanner.go:2525-2539).
-    fn start_of_node(&self, found: Found, include_js_doc: bool) -> u32 {
+    pub fn start_of_node(&self, found: Found, include_js_doc: bool) -> u32 {
         let kind = self.kind(found);
         let pos = self.pos(found);
         // A node without width keeps its position: skipping trivia would
@@ -691,14 +697,14 @@ impl<'a> Navigator<'a> {
         }
     }
 
-    fn pos(&self, found: Found) -> u32 {
+    pub fn pos(&self, found: Found) -> u32 {
         match found {
             Found::Node(view) => self.view_pos(view),
             Found::Token(token) => token.pos,
         }
     }
 
-    fn end(&self, found: Found) -> u32 {
+    pub fn end(&self, found: Found) -> u32 {
         match found {
             Found::Node(view) => self.view_end(view),
             Found::Token(token) => token.end,
@@ -785,7 +791,7 @@ fn is_token_kind(kind: SyntaxKind) -> bool {
 }
 
 /// tsgo `IsKeywordKind`.
-fn is_keyword_kind(kind: SyntaxKind) -> bool {
+pub(crate) fn is_keyword_kind(kind: SyntaxKind) -> bool {
     (SyntaxKind::FirstKeyword.value()..=SyntaxKind::LastKeyword.value()).contains(&kind.value())
 }
 

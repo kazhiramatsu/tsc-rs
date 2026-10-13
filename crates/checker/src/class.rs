@@ -107,7 +107,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getApplicableIndexInfos @6.0.3
     /// tsc-hash: a4db6e0cc48a2bac1fcdc015fbb18b8eb611da09d0b23e6bcf15ae597c0c4ef1
     /// tsc-span: _tsc.js:59473-59475
-    fn get_applicable_index_infos(
+    pub(crate) fn get_applicable_index_infos(
         &mut self,
         ty: TypeId,
         key_type: TypeId,

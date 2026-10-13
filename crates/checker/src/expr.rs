@@ -554,10 +554,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::SuperKeyword => self.check_super_expression(node),
             SyntaxKind::NullKeyword => Ok(self.tables.intrinsics.null_widening),
             SyntaxKind::NoSubstitutionTemplateLiteral | SyntaxKind::StringLiteral => {
-                // hasSkipDirectInferenceFlag → blockedStringType: the
-                // links flag is written only by inference (M6); no
-                // producer exists, so the fresh-literal arm is the
-                // whole behavior.
+                if self.has_skip_direct_inference_flag(node) {
+                    return Ok(self.tables.intrinsics.blocked_string);
+                }
                 let text = match self.data_of(node) {
                     NodeData::StringLiteral(data) => data.text.clone(),
                     NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),

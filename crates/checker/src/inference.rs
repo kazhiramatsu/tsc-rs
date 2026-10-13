@@ -802,30 +802,25 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// tsc-port: hasSkipDirectInferenceFlag @6.0.3
-    /// tsc-hash: acf0e7bd86bab58da75c3a803292e066114e5df6b23cfa64ebff9bacb7805004
-    /// tsc-span: _tsc.js:68509-68511
-    ///
-    /// Constant false: the only writer of links.skipDirectInference is
-    /// runWithInferenceBlockedFromSourceNode (46950-46977), a
-    /// services-only entry (completions' getResolvedSignature probe)
-    /// the conformance driver never reaches — same disposition as the
-    /// blockedStringType read in expr.rs's string-literal arm.
+    /// tsgo `isSkipDirectInferenceNode`: whether inference from the node
+    /// is blocked (only while the language service asks for a contextual
+    /// type that ignores the node's inferences).
     pub(crate) fn has_skip_direct_inference_flag(&self, node: NodeId) -> bool {
-        let _ = node;
-        false
+        self.skip_direct_inference_nodes.contains(&node)
     }
 
-    /// tsc-port: isFromInferenceBlockedSource @6.0.3
-    /// tsc-hash: 145bbe111d3b19425b1d192487d5a5a9f00f93a7f9e35dc3356a73cede4efb96
-    /// tsc-span: _tsc.js:68512-68514
-    ///
-    /// Constant false for the same reason as
-    /// `has_skip_direct_inference_flag` above: no declaration can
-    /// carry the flag while its only writer is services-only.
+    /// tsgo `isFromInferenceBlockedSource`.
     pub(crate) fn is_from_inference_blocked_source(&self, ty: TypeId) -> bool {
-        let _ = ty;
-        false
+        if self.skip_direct_inference_nodes.is_empty() {
+            return false;
+        }
+        self.tables.type_of(ty).symbol.is_some_and(|symbol| {
+            self.binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .any(|&declaration| self.has_skip_direct_inference_flag(declaration))
+        })
     }
 
     /// tsc-port: inferTypes @6.0.3
@@ -3535,8 +3530,8 @@ impl InferTypesWalker<'_, '_> {
             let Some(source_prop) = self.st.get_property_of_type_full(source, name)? else {
                 continue;
             };
-            // 69174: hasSkipDirectInferenceFlag over the declarations
-            // (constant false — services-only writer, see 7.2a).
+            // tsgo inferFromProperties: a property declared by a node whose
+            // inference is blocked infers nothing.
             let skipped = self
                 .st
                 .binder

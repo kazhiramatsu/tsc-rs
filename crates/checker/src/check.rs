@@ -5452,7 +5452,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolOfDeclaration @6.0.3
     /// tsc-hash: 197061af99891199274ec82eb08309cbb138441e9fcba571ac5aa6149bf1b3a0
     /// tsc-span: _tsc.js:49936-49938
-    pub(crate) fn get_symbol_of_declaration(&mut self, node: NodeId) -> CheckResult<SymbolId> {
+    pub fn get_symbol_of_declaration(&mut self, node: NodeId) -> CheckResult<SymbolId> {
         let Some(symbol) = self.node_symbol(node) else {
             // Binder-created declarations always carry a symbol. Recovery
             // or checker-synthetic nodes without one use the same stable

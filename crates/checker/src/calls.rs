@@ -801,6 +801,14 @@ impl<'a> CheckerState<'a> {
         let NodeData::Decorator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
+        // tsgo: a decorator where none can be (a function declaration's,
+        // which the language service resolves) is an error call.
+        if !self
+            .parent_of(node)
+            .is_some_and(|parent| crate::js_grammar::can_have_decorators(self.kind_of(parent)))
+        {
+            return self.resolve_error_call(node);
+        }
         let expression = data.expression.expect(
             "parser invariant: try_parse_decorator always stores an expression \
              (parse recovery stores a missing expression node)",
@@ -3953,10 +3961,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:76579-76870
     ///
     /// candidatesOutArray / IsForSignatureHelp are LSP-only (always
-    /// None/false — signatureHelpTrailingComma stays false);
-    /// isInferencePartiallyBlocked is M6 state (reportErrors stays
-    /// true). The chooseOverload/addImplementationSuccessElaboration
-    /// closures live on ResolveCallCtx.
+    /// None/false — signatureHelpTrailingComma stays false); reportErrors
+    /// is false only while the language service blocks inferences
+    /// (isInferencePartiallyBlocked). The chooseOverload/
+    /// addImplementationSuccessElaboration closures live on ResolveCallCtx.
     pub(crate) fn resolve_call(
         &mut self,
         node: NodeId,
@@ -3969,7 +3977,6 @@ impl<'a> CheckerState<'a> {
         let is_decorator = node_kind == SyntaxKind::Decorator;
         let is_instanceof = node_kind == SyntaxKind::BinaryExpression;
         let is_jsx_open_fragment = node_kind == SyntaxKind::JsxOpeningFragment;
-        debug_assert!(!self.is_inference_partially_blocked, "M6 state leaked");
         let is_super_call = matches!(self.data_of(node), NodeData::CallExpression(data)
             if data.expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::SuperKeyword));
 
@@ -4116,10 +4123,14 @@ impl<'a> CheckerState<'a> {
             LinkSlot::Resolved(result),
         );
 
-        if head_message.is_none() && is_instanceof {
-            head_message = Some(&diagnostics::The_left_hand_side_of_an_instanceof_expression_must_be_assignable_to_the_first_argument_of_the_right_hand_side_s_Symbol_hasInstance_method);
+        // tsgo `reportErrors`: none while the language service blocks
+        // the node's inferences.
+        if !self.is_inference_partially_blocked {
+            if head_message.is_none() && is_instanceof {
+                head_message = Some(&diagnostics::The_left_hand_side_of_an_instanceof_expression_must_be_assignable_to_the_first_argument_of_the_right_hand_side_s_Symbol_hasInstance_method);
+            }
+            self.report_call_resolution_failure(node, &mut ctx, signatures, head_message)?;
         }
-        self.report_call_resolution_failure(node, &mut ctx, signatures, head_message)?;
         Ok(result)
     }
 

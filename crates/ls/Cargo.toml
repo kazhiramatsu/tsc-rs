@@ -18,6 +18,7 @@ tsc-binder.workspace = true
 tsc-checker.workspace = true
 tsc-compiler.workspace = true
 tsc-diagnostics.workspace = true
+tsc-emitter.workspace = true
 tsc-lsproto.workspace = true
 tsc-program.workspace = true
 tsc-syntax.workspace = true
@@ -25,6 +26,7 @@ tsc-types.workspace = true
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
+tsc-host.workspace = true
 
 [lints]
 workspace = true

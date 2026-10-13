@@ -1067,7 +1067,8 @@ pub fn get_escaped_text_of_jsx_namespaced_name(
     )))
 }
 
-fn get_text_of_jsx_namespaced_name(source: &SourceFile, id: NodeId) -> Option<String> {
+/// tsgo `JsxNamespacedName.Text()`: `namespace:name`.
+pub fn get_text_of_jsx_namespaced_name(source: &SourceFile, id: NodeId) -> Option<String> {
     let NodeData::JsxNamespacedName(data) = &source.arena.node(id).data else {
         return None;
     };

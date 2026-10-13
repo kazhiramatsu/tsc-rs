@@ -7,7 +7,7 @@
 use tsc_syntax::{JSDocComment, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{JsString, NodeFlags};
 
-use crate::encoder::{tsgo_possibly_contains_dynamic_import, Property};
+use crate::tree::{for_each_property, tsgo_kind, Property, Tree};
 
 /// What tsgo `collectExternalModuleReferences` records on a file.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -27,7 +27,7 @@ pub fn collect_external_module_references(file: &SourceFile) -> ModuleReferences
     for &statement in statements(file, file.root) {
         collect_module_references(file, statement, false, &mut references);
     }
-    if javascript || tsgo_possibly_contains_dynamic_import(file) {
+    if javascript || Tree::new(file, None).possibly_contains_dynamic_import() {
         for_each_dynamic_import_or_require_call(file, |argument| references.imports.push(argument));
     }
     references
@@ -127,7 +127,7 @@ fn collect_module_references(
 }
 
 /// tsgo `tspath.IsExternalModuleNameRelative`: `.`/`..`-relative or rooted.
-fn is_external_module_name_relative(name: &JsString) -> bool {
+pub(crate) fn is_external_module_name_relative(name: &JsString) -> bool {
     let bytes = name.as_bytes();
     let relative = matches!(bytes, b"." | b"..")
         || matches!(bytes, [b'.', b'/' | b'\\', ..])
@@ -249,7 +249,7 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
                         .for_each(|&id| visit(id));
                 }
             };
-            crate::encoder::for_each_property(node, |property| match property {
+            for_each_property(node, |property| match property {
                 Property::Node(Some(id)) => visit(id),
                 Property::List(list)
                 | Property::Modifiers(list)
@@ -270,7 +270,7 @@ fn node_at_position(file: &SourceFile, position: u32, include_js_doc: bool) -> N
 
 /// tsgo `Kind >= KindFirstNode`: a node, not a token.
 fn is_node_kind(kind: SyntaxKind, first_node: SyntaxKind) -> bool {
-    let tsgo = |kind| crate::encoder::tsgo_kind(kind);
+    let tsgo = |kind| tsgo_kind(kind);
     match (tsgo(kind), tsgo(first_node)) {
         (Some(kind), Some(first)) => kind >= first,
         _ => false,
