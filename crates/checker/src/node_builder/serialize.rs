@@ -1280,6 +1280,71 @@ pub(crate) fn type_to_type_node(
     .map(Option::flatten)
 }
 
+/// The identifiers a node builder named symbols with (tsgo's `idToSymbol`).
+pub(crate) type IdentifierSymbols = Vec<(TransformNode, SymbolId)>;
+
+/// tsgo `NewNodeBuilderEx(c, emitContext, idToSymbol).TypeToTypeNode`
+/// without a verbosity context: the type node and the identifiers it names
+/// symbols with.
+pub(crate) fn type_to_type_node_with_identifier_symbols(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    r#type: TypeId,
+    enclosing_declaration: Option<NodeId>,
+    flags: EmitNodeBuilderFlags,
+) -> BuildResult<Option<(TransformNode, IdentifierSymbols)>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        Some(flags),
+        None,
+        None,
+        None,
+        None,
+        |checker, arena, target, context| {
+            let node = type_to_type_node_helper(checker, arena, target, r#type, context)?;
+            Ok(node.map(|node| (node, std::mem::take(&mut context.identifier_symbols))))
+        },
+        None,
+    )
+    .map(Option::flatten)
+}
+
+/// tsgo `NewNodeBuilderEx(c, emitContext, idToSymbol)
+/// .SignatureToSignatureDeclaration` without a verbosity context: the
+/// declaration and the identifiers it names symbols with.
+pub(crate) fn signature_to_signature_declaration_with_identifier_symbols(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    signature: SignatureId,
+    kind: SyntaxKind,
+    enclosing_declaration: Option<NodeId>,
+    flags: EmitNodeBuilderFlags,
+) -> BuildResult<Option<(TransformNode, IdentifierSymbols)>> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        Some(flags),
+        None,
+        None,
+        None,
+        None,
+        |checker, arena, target, context| {
+            let node = signature_to_signature_declaration_helper(
+                checker, arena, target, signature, kind, context, None,
+            )?;
+            Ok((node, std::mem::take(&mut context.identifier_symbols)))
+        },
+        None,
+    )
+}
+
 /// tsgo-port: NodeBuilder.SignatureToSignatureDeclaration @7.1 (nodebuilder.go:146-149).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn signature_to_signature_declaration(
@@ -2334,7 +2399,11 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                     )?
                 }
                 (None, data @ NodeData::Identifier(_)) => {
-                    super::type_nodes::create_node(arena, node.source(), data)?
+                    let identifier = super::type_nodes::create_node(arena, node.source(), data)?;
+                    if let Some(symbol) = symbol {
+                        context.name_identifier(identifier, symbol);
+                    }
+                    identifier
                 }
                 (None, _) => arena
                     .factory()

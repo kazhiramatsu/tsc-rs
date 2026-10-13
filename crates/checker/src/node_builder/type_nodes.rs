@@ -1950,6 +1950,9 @@ fn type_to_type_node_worker(
             // _tsc.js:53286-53289); that range must not reach a synthesized
             // reference, or the declaration map gains segments tsc lacks.
             let fresh = create_identifier(arena, target, &text)?;
+            if let Some(symbol) = ty.symbol {
+                context.name_identifier(fresh, symbol);
+            }
             return create_type_reference_node(arena, target, fresh, None).map(Some);
         }
         if object_flags.intersects(ObjectFlags::CLASS_OR_INTERFACE)
@@ -3576,13 +3579,15 @@ fn type_reference_to_type_node(
             return Ok(None);
         };
         if has_flag(context, WRITE_ARRAY_AS_GENERIC_TYPE) {
-            return create_named_type_reference(
+            let name = create_identifier(
                 arena,
                 target,
                 if readonly { "ReadonlyArray" } else { "Array" },
-                Some(vec![element]),
-            )
-            .map(Some);
+            )?;
+            if let Some(symbol) = checker.tables.type_of(target_type).symbol {
+                context.name_identifier(name, symbol);
+            }
+            return create_type_reference_node(arena, target, name, Some(vec![element])).map(Some);
         }
         let array = create_array_type_node(arena, target, element)?;
         let result = if readonly {

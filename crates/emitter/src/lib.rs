@@ -109,7 +109,7 @@ pub use transform::{
     UnsupportedTransformFeature,
 };
 pub use tsc_program::SourceFileId;
-pub use writer::{create_text_writer, NewLineKind, TextWriter};
+pub use writer::{create_text_writer, DisplayPart, NewLineKind, TextWriter};
 
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]

@@ -1533,7 +1533,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDeprecatedDeclaration @6.0.3
     /// tsc-hash: 0770c7a837e9843098d84cf804221d6b1098a3f9a41815ff22a08f16c4203b56
     /// tsc-span: _tsc.js:47641-47643
-    pub(crate) fn is_deprecated_declaration(&self, declaration: NodeId) -> bool {
+    pub fn is_deprecated_declaration(&self, declaration: NodeId) -> bool {
         // 47642: getCombinedNodeFlags & Deprecated. The parser sets the flag
         // on the JSDoc host exactly as tsc's withJSDoc does (29244), so the
         // combined modifier flags (a JSDoc tag scan per ancestor, called for

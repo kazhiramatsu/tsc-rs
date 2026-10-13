@@ -949,7 +949,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isThisInTypeQuery @6.0.3
     /// tsc-hash: d46d5bf707704973f7235f646a615c804429dede72625f14c8e6626cf76f94da
     /// tsc-span: _tsc.js:16707-16715
-    pub(crate) fn is_this_in_type_query(&self, node: NodeId) -> bool {
+    pub fn is_this_in_type_query(&self, node: NodeId) -> bool {
         if !self.is_this_identifier(node) {
             return false;
         }
