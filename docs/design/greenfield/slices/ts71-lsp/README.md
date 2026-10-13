@@ -119,3 +119,23 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
    `@types` を入れる）、profile の `custom/*` と telemetry（L11）。
 4. **editor での確認**：hover と definition が揃う L3 の後に VS Code で行う（利用者に伝えた予定）。
 5. **perf の再計測**：後で（利用者が居る時に nice なしで）。
+
+## L1 protocol と server（PR #772）
+
+- **merge**：#772 → `d55466f02`（hosted run 38351038264：rust 9m18s、conformance 13m12s、gates）。commit：958c06f97（protocol の型）、
+  905198a17（server）、1abf202bf（vendor の file 数の契約 test、59,634）。最初の hosted run（38347536520）はその契約で止まった。
+- **protocol の型**：`scripts/generate_lsp_protocol.py` が vendor した tsgo の `lsp_generated.go` から生成（402 struct、97 union、
+  47 列挙、81 request、23 notification、resolved capability の `omitzero` の JSON）。hosted の rust job が `--check` を実行する。
+- **server**：tsgo `lsp.Server` の三つの loop、取消、client への request（`ts<n>`）、`initialize`・`initialized`・`shutdown`・
+  `exit`・`$/setTrace`・`custom/setLogVerbosity`、`window/logMessage` の log（Go の `%v` と `time.Duration` の文字列）。params と
+  result は型の field 順で書いた raw JSON。`tsc-rs --lsp --stdio`（tsgo の flag、usage、status：入力の終わり 0、`exit` は
+  `context canceled` で 1、flag の誤り 2）と親 process の watchdog。Go の `flag` は `tsc_host::flag`（`--api` と共有）、URI の
+  file 名は `tsc_program::uri` に移した。
+- **tsgo との照合**：tsgo で記録した session（`scripts/lsp_transcript.py --normalize`、`crates/lsp/tests/fixtures/`）を test が
+  in-process で再生し、message が全て一致する（VS Code 型の initialize からの一連と、誤りの経路）。
+- **検査（905198a17）**：suites 0 regressions、conformance 0 regressions（15,339、483 s）、API client sync 337/356・async 346/365
+  （変わらず）、lsp の test（lsproto 26、message 5、queue 3、server 6）、clippy、fmt。
+- **有界の違い**：不正な params の誤りの詳細（tsgo の JSON v2 は最も内側の Go の型と JSON pointer（`within "/capabilities"`）か
+  byte offset を書く。tsc-rs は params の型名まで。JSON の構文誤りの文言も違う。Go は "cannot"／"unable to" を process ごとに
+  無作為に選ぶ）、内蔵の file 監視がまだない時の log、`--pprofDir` の profile、SIGINT・SIGTERM、128 段より深い入力の JSON、
+  client が送った空配列の capability の log、`exit` の log の競合（tsgo でも）。
