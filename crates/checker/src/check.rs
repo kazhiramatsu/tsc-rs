@@ -4139,6 +4139,9 @@ impl<'a> CheckerState<'a> {
                 self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
                 Ok(())
             }
+            SyntaxKind::ObjectLiteralExpression | SyntaxKind::JsxAttributes => {
+                self.check_contextual_deprecations(node)
+            }
             SyntaxKind::BinaryExpression => {
                 // 86960-86964: only instanceof binaries register
                 // deferrals (overload failure on [Symbol.hasInstance]).
@@ -4153,6 +4156,51 @@ impl<'a> CheckerState<'a> {
             }
             _ => Ok(()),
         }
+    }
+
+    /// tsgo `checkContextualDeprecations`: each named property of an object
+    /// literal or JSX attributes whose contextual type's property is
+    /// deprecated.
+    fn check_contextual_deprecations(&mut self, node: NodeId) -> CheckResult<()> {
+        let contextual_type =
+            self.get_apparent_type_of_contextual_type(node, tsc_types::ContextFlags::NONE)?;
+        let properties = match self.data_of(node) {
+            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
+            NodeData::JsxAttributes(data) => self.nodes_of(data.properties),
+            _ => Vec::new(),
+        };
+        for property in properties {
+            let Some(name) = self.name_of_node(property) else {
+                continue;
+            };
+            if self.kind_of(name) != SyntaxKind::ComputedPropertyName {
+                self.check_deprecated_property(name, contextual_type)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsgo `checkDeprecatedProperty`.
+    fn check_deprecated_property(
+        &mut self,
+        name: NodeId,
+        contextual_type: Option<TypeId>,
+    ) -> CheckResult<()> {
+        let Some(contextual_type) = contextual_type else {
+            return Ok(());
+        };
+        let Some(text) = self.try_get_text_of_property_name(name) else {
+            return Ok(());
+        };
+        let Some(property) = self.get_property_of_type_full(contextual_type, text)? else {
+            return Ok(());
+        };
+        let declarations = self.binder.symbol(property).declarations.clone();
+        if !declarations.is_empty() && self.is_deprecated_symbol(property) {
+            let entity = tsc_binder::unescape_leading_underscores(text).to_owned();
+            self.add_deprecated_suggestion(name, &declarations, &entity);
+        }
+        Ok(())
     }
 
     /// tsc-port: checkTypeParameterDeferred @6.0.3
@@ -9426,7 +9474,10 @@ impl<'a> CheckerState<'a> {
         };
         let symbol_flags = self.binder.symbol(property).flags;
         let name = self.property_name_display(property, fully_qualified)?;
-        self.display_add_approximate_length(Self::slice_js_length(&name) + 1);
+        // tsgo `len(ast.SymbolName(propertySymbol)) + 1`: the name, not
+        // its quoted display.
+        let symbol_name = self.symbol_name(property);
+        self.display_add_approximate_length(Self::slice_js_length(&symbol_name) + 1);
         // 52268-52343: accessor properties whose write type diverges
         // (or whose class parent takes the getter/setter arms) print
         // signature faces; the same-type non-class fall-through
@@ -9611,13 +9662,22 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsrs-native: call-signature adapter for resolveCall's
-    /// signatureToString(c) overload-error row.
-    pub(crate) fn signature_to_string_for_overload_error(
+    /// tsgo `signatureToString`: a construct signature (tsgo's
+    /// `SignatureFlagsConstruct`) prints as one, `new (...): R`.
+    pub(crate) fn signature_to_string_default(
         &mut self,
         signature: SignatureId,
     ) -> CheckResult<JsString> {
-        self.signature_to_string_for_diagnostic(signature, SliceSignatureKind::CallSignature)
+        let kind = if self
+            .signature_of(signature)
+            .flags
+            .intersects(tsc_types::SignatureFlags::CONSTRUCT)
+        {
+            SliceSignatureKind::ConstructSignature
+        } else {
+            SliceSignatureKind::CallSignature
+        };
+        self.signature_to_string_for_diagnostic(signature, kind)
     }
 
     /// tsrs-native: signatureToString's default-flags relation-error

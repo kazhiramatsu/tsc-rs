@@ -2182,7 +2182,8 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 &diagnostics::_0_is_defined_as_a_property_in_class_1_but_is_overridden_here_in_2_as_an_accessor
                             };
-                        let base_name = self.symbol_display_name(base);
+                        // tsgo `c.symbolToString(base)`.
+                        let base_name = self.emit_symbol_to_string_default(base)?;
                         let base_type_text = self.type_to_string(base_type)?;
                         let type_text = self.type_to_string(ty)?;
                         let error_node = self.derived_error_node(derived);
@@ -2190,7 +2191,7 @@ impl<'a> CheckerState<'a> {
                             error_node,
                             message,
                             &[
-                                base_name.as_js(),
+                                (&base_name).into(),
                                 (&base_type_text).into(),
                                 (&type_text).into(),
                             ],

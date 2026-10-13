@@ -152,6 +152,7 @@ impl Overlay {
                 content: Arc::from(self.content.as_bytes()),
                 needs_reload: false,
                 realpath_path: None,
+                line_map: OnceLock::new(),
             })
         }))
     }

@@ -4,11 +4,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::time::SystemTime;
 
 use tsc_diagnostics::JsStr;
 use tsc_host::vfs::{DirEntry, Entries, FileSystem, FileType, Metadata};
+use tsc_ls::lsconv::LspLineMap;
 
 use crate::overlay::Overlays;
 
@@ -102,6 +103,9 @@ pub(crate) struct CachedFile {
     /// tsgo `realpathPath`: the path of the file's real name, for a file in
     /// `node_modules` read through a link.
     pub(crate) realpath_path: Option<String>,
+    /// tsgo `fileBase.lineMap`: the protocol line starts of the decoded
+    /// text, made once.
+    pub(crate) line_map: OnceLock<Arc<LspLineMap>>,
 }
 
 impl CachedFile {
@@ -112,7 +116,17 @@ impl CachedFile {
             content,
             needs_reload: false,
             realpath_path: self.realpath_path.clone(),
+            line_map: OnceLock::new(),
         }
+    }
+
+    /// tsgo `LSPLineMap`: the line starts of the file's text.
+    pub(crate) fn line_map(&self) -> Arc<LspLineMap> {
+        Arc::clone(self.line_map.get_or_init(|| {
+            let text = tsc_program::decode_host_text(self.content.to_vec())
+                .unwrap_or_else(|_| String::from_utf8_lossy(&self.content).into_owned());
+            Arc::new(LspLineMap::new(&text))
+        }))
     }
 }
 
@@ -174,6 +188,7 @@ impl SnapshotFs {
                         content: content.into(),
                         needs_reload: false,
                         realpath_path: None,
+                        line_map: OnceLock::new(),
                     })
                 })
             })
@@ -421,6 +436,7 @@ impl SnapshotFsBuilder {
                         Some(entry) => entry.reloaded(content.into()),
                         None => CachedFile {
                             realpath_path: self.realpath_alias(&read_name, &path),
+                            line_map: OnceLock::new(),
                             file_name: read_name,
                             content: content.into(),
                             needs_reload: false,
@@ -710,6 +726,7 @@ impl SnapshotFsBuilder {
                     Some(entry) => entry.reloaded(content.into()),
                     None => CachedFile {
                         realpath_path: self.realpath_alias(file_name, path),
+                        line_map: OnceLock::new(),
                         file_name: file_name.to_owned(),
                         content: content.into(),
                         needs_reload: false,

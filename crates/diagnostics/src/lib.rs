@@ -474,17 +474,18 @@ pub fn sort_and_dedupe_equal_diagnostics(diagnostics: &mut DiagnosticList) {
 
 pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
     diagnostics.sort_by(compare_diagnostics);
-    // tsgo compactAndMergeRelatedInfos (compiler/program.go:1657-1688): a
-    // run of diagnostics that differ only by related information becomes
-    // one diagnostic whose related information is sorted and deduplicated.
+    // tsgo compactAndMergeRelatedInfos (compiler/program.go:1680-1708): a
+    // run of more than one diagnostic that differ at most by related
+    // information becomes one diagnostic whose related information (all
+    // of the run's, when any) is sorted and deduplicated.
     let mut kept: DiagnosticList = Vec::with_capacity(diagnostics.len());
     let mut merged = Vec::new();
     for mut diagnostic in std::mem::take(diagnostics) {
         if let Some(index) = kept.len().checked_sub(1) {
             let last = &mut kept[index];
             if diagnostics_equal(last, &diagnostic) {
-                if last.message == diagnostic.message && last.related != diagnostic.related {
-                    last.related.append(&mut diagnostic.related);
+                last.related.append(&mut diagnostic.related);
+                if !last.related.is_empty() {
                     last.related_information_present = true;
                     if merged.last() != Some(&index) {
                         merged.push(index);
