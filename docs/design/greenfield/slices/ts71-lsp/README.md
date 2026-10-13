@@ -440,3 +440,21 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   test（syntax 228、checker 1,797、ls 90、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：L4b〜L4e、auto-import（L5）、content mapper（L10）、JSDoc の `function(...)` 型（tsgo は `function` と
   いう名前の型参照として読み、name table に入る）。
+
+## L4b 決まった形の場所の completion（PR #785）
+
+- **merge**：#785 → `e4db6609f`（hosted run 38465407861：rust 11m48s、conformance 29m55s、gates）。commit：6702fcccd
+  （completion）、ratchet 65003da6b。
+- **言語 service**（`crates/ls/src/completions/searches.rs` ほか）：tsgo の `tryGetGlobalSymbols` が global の前に試す
+  探索。型引数の object 型の member（制約の member から書いたものを除く）、object literal の文脈上の property と binding
+  pattern の property（JavaScript の引数は `@param` の型。checker の `type_node_of` が tsgo の `Node.Type`）、書いた member と
+  spread 代入が宣言する名前を除く sortText、import・export 句の module の export、import attribute、`export { | }` の
+  local、class の基底の未実装 member と class・interface の member keyword、JSX element の attribute（optional と spread の
+  sortText）。JSX の閉じ tag、`break`・`continue` の label、JSX attribute の snippet（`name={$1}`・`name="$1"`）、method
+  snippet の設定時の object literal property の sortText も。
+- **回帰 test**：`crates/ls/tests/completion.rs` に 11（計 35）。
+- **検査（65003da6b）**：conformance 0 regressions（全 13,577 full、476 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（lsp 1,527 full、completion 1,550/2,419、156 行が none→full）、API client sync 337/356・async 346/365、test
+  （checker 1,797、ls 101、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
+- **有界の違い**：class member・object literal method・網羅的な switch の case の snippet は tsgo の formatter
+  （`format.FormatNodeGivenIndentation`）を使うので L8 の後。L4c〜L4e、L5、L10。
