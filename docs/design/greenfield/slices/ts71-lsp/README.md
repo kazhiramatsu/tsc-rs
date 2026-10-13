@@ -110,12 +110,12 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
 
 各 slice は他の slice と同じく PR と最終の検査（release build、conformance、suites、test、clippy、transcript）で閉じる。
 
-## 決定待ち
+## 決定（2026-10-13、利用者）
 
-1. **test の方式**：上の transcript の方式（tsgo の server の応答に完全一致）でよいか。代わりは fourslash の Go の test と判定の
-   method を移すこと（tsgo の test が見る範囲だけを合わせる）。
-2. **transcript の置き場所**：vendor に scenario と digest、応答の全文は手元で tsgo から作り直す、でよいか（全文を vendor に置くと
-   数百 MB になりうる）。
-3. **範囲**：ATA（npm を実行して `@types` を入れる）、内蔵の file 監視（client が監視の登録を持たない時の FSEvents など）、
-   profile の `custom/*` と telemetry を入れるか。
-4. **editor での確認**：VS Code などで tsc-rs を LSP として使う確認を、いつ、どの editor で行うか。
+1. **test の方式**：transcript の方式。tsgo の fourslash の test で server の入出力を記録し、tsc-rs に同じ入力を送って、
+   client の request への応答に id ごとの完全一致を求める（fourslash の判定の移植はしない）。
+2. **transcript の置き場所**：vendor には scenario と応答の digest を置き、応答の全文は違いを見る時に手元で tsgo から作り直す。
+3. **範囲**：全て入れる。内蔵の file 監視（client が監視の登録を持たない時、macOS の FSEvents など）、ATA（npm を実行して
+   `@types` を入れる）、profile の `custom/*` と telemetry（L11）。
+4. **editor での確認**：hover と definition が揃う L3 の後に VS Code で行う（利用者に伝えた予定）。
+5. **perf の再計測**：後で（利用者が居る時に nice なしで）。
