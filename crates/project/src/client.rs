@@ -28,4 +28,6 @@ pub trait Client: Send + Sync {
 pub trait Logger: Send + Sync {
     /// tsgo `Log`.
     fn log(&self, message: &str);
+    /// tsgo `IsVerbose`: the logs name each project's files.
+    fn is_verbose(&self) -> bool;
 }

@@ -25,6 +25,9 @@ pub struct ClientMock {
     pub unwatch_files_calls: Mutex<Vec<String>>,
     pub publish_diagnostics_calls: Mutex<Vec<PublishDiagnosticsParams>>,
     pub refresh_diagnostics_calls: Mutex<usize>,
+    pub refresh_code_lens_calls: Mutex<usize>,
+    pub refresh_inlay_hints_calls: Mutex<usize>,
+    pub set_locale_calls: Mutex<Vec<String>>,
 }
 
 impl ClientMock {
@@ -42,6 +45,18 @@ impl ClientMock {
 
     pub fn refresh_diagnostics_calls(&self) -> usize {
         *self.refresh_diagnostics_calls.lock().unwrap()
+    }
+
+    pub fn refresh_code_lens_calls(&self) -> usize {
+        *self.refresh_code_lens_calls.lock().unwrap()
+    }
+
+    pub fn refresh_inlay_hints_calls(&self) -> usize {
+        *self.refresh_inlay_hints_calls.lock().unwrap()
+    }
+
+    pub fn set_locale_calls(&self) -> Vec<String> {
+        self.set_locale_calls.lock().unwrap().clone()
     }
 }
 
@@ -70,14 +85,21 @@ impl Client for ClientMock {
     }
 
     fn refresh_inlay_hints(&self) -> Result<(), String> {
+        *self.refresh_inlay_hints_calls.lock().unwrap() += 1;
         Ok(())
     }
 
     fn refresh_code_lens(&self) -> Result<(), String> {
+        *self.refresh_code_lens_calls.lock().unwrap() += 1;
         Ok(())
     }
 
-    fn set_locale(&self, _locale: &str) {}
+    fn set_locale(&self, locale: &str) {
+        self.set_locale_calls
+            .lock()
+            .unwrap()
+            .push(locale.to_owned());
+    }
 
     fn locale(&self) -> Locale {
         Locale::default()

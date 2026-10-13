@@ -1395,4 +1395,10 @@ impl tsc_project::Logger for SessionHost {
             server.logger.log(&server, message);
         }
     }
+
+    fn is_verbose(&self) -> bool {
+        self.0
+            .upgrade()
+            .is_some_and(|server| server.logger.is_verbose())
+    }
 }

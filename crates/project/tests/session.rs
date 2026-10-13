@@ -1542,3 +1542,85 @@ fn a_custom_config_change_refreshes_the_diagnostics() {
     session.wait_for_background_tasks();
     assert!(client.refresh_diagnostics_calls() > baseline);
 }
+
+#[test]
+fn closing_does_not_wait_for_the_idle_clean() {
+    // tsgo `TestSessionCloseDoesNotBlockOnIdleCacheCleanTimer`: an open
+    // schedules the idle cache clean (thirty seconds); a close cancels it.
+    let files = [
+        (
+            "/home/projects/TS/p1/tsconfig.json",
+            r#"{ "compilerOptions": { "noLib": true } }"#,
+        ),
+        ("/home/projects/TS/p1/src/index.ts", "export const x = 1;"),
+    ];
+    let (session, _) = setup(&files);
+    open(
+        &session,
+        "file:///home/projects/TS/p1/src/index.ts",
+        files[1].1,
+    );
+    let start = std::time::Instant::now();
+    session.close();
+    assert!(start.elapsed() < std::time::Duration::from_secs(5));
+}
+
+#[test]
+fn code_lens_and_inlay_hint_preferences_refresh_them() {
+    // "refreshes code lenses and inlay hints when relevant user preferences
+    // change".
+    let files = [
+        ("/src/tsconfig.json", "{}"),
+        ("/src/index.ts", "export const x = 1;"),
+    ];
+    let (session, _, client) = setup_with_client(&files);
+    open(&session, "file:///src/index.ts", files[1].1);
+    program(&session, "file:///src/index.ts");
+    session.configure(UserPreferences::new_default());
+    let mut preferences = session.config();
+    preferences
+        .code_lens_user_preferences
+        .references_code_lens_enabled = Some(true);
+    preferences
+        .inlay_hints_preferences
+        .include_inlay_function_like_return_type_hints = Some(true);
+    session.configure(preferences);
+    assert_eq!(client.refresh_code_lens_calls(), 1);
+    assert_eq!(client.refresh_inlay_hints_calls(), 1);
+}
+
+#[test]
+fn a_configured_locale_reaches_the_client() {
+    // "sets locale when configured".
+    let (session, _, client) = setup_with_client(&[]);
+    let mut preferences = UserPreferences::new_default();
+    preferences.locale = "fr".to_owned();
+    session.configure(preferences);
+    assert_eq!(client.set_locale_calls(), ["fr"]);
+}
+
+#[test]
+fn a_locale_change_builds_the_programs_again() {
+    // "locale change invalidates programs": a code lens preference keeps
+    // the program, a locale does not.
+    let files = [
+        ("/src/tsconfig.json", "{}"),
+        ("/src/index.ts", "export const x = 1;"),
+    ];
+    let (session, _, _) = setup_with_client(&files);
+    let index = "file:///src/index.ts";
+    open(&session, index, files[1].1);
+    let initial = program(&session, index);
+
+    let mut preferences = session.config();
+    preferences
+        .code_lens_user_preferences
+        .references_code_lens_enabled = Some(true);
+    session.configure(preferences.clone());
+    assert!(Arc::ptr_eq(&program(&session, index), &initial));
+
+    preferences.locale = "fr".to_owned();
+    session.configure(preferences);
+    assert!(!Arc::ptr_eq(&program(&session, index), &initial));
+    session.close();
+}
