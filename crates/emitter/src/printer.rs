@@ -21644,8 +21644,9 @@ fn quote_string_literal(
     )
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum LiteralQuote {
+/// tsgo `printer.QuoteChar`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LiteralQuote {
     Double,
     Single,
     Backtick,
@@ -21686,11 +21687,10 @@ fn quote_javascript_string(
     crate::JavaScriptString::from_code_units(quoted)
 }
 
-/// tsgo `printer.EscapeString(s, '"')`: a double-quoted string's text,
-/// escaped without escaping non-ASCII characters (an unpaired surrogate is
-/// escaped).
-pub fn escape_double_quoted_string(units: &[u16]) -> String {
-    String::from_utf16_lossy(&escape_literal_text(units, LiteralQuote::Double, true))
+/// tsgo `printer.EscapeString`: a string's text for the quote, escaped
+/// without escaping non-ASCII characters (an unpaired surrogate is escaped).
+pub fn escape_string(units: &[u16], quote: LiteralQuote) -> String {
+    String::from_utf16_lossy(&escape_literal_text(units, quote, true))
 }
 
 /// escapeString / escapeNonAsciiString / escapeTemplateSubstitution @6.0.3,

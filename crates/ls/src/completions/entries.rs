@@ -118,7 +118,8 @@ impl Completions<'_, '_, '_> {
             return Ok(None);
         }
 
-        let (mut unique_names, mut sorted_entries) = self.completion_entries_from_symbols(data)?;
+        let (mut unique_names, mut sorted_entries) =
+            self.completion_entries_from_symbols(data, None)?;
 
         if data.keyword_filters != KeywordCompletionFilters::None {
             let filter_out_ts_only =
@@ -278,9 +279,10 @@ impl Completions<'_, '_, '_> {
 
     /// tsgo `getCompletionEntriesFromSymbols`: the items, and the names
     /// taken.
-    fn completion_entries_from_symbols(
+    pub(crate) fn completion_entries_from_symbols(
         &mut self,
         data: &CompletionDataData,
+        replacement_token: Option<Touching>,
     ) -> CheckResult<(HashSet<String>, Vec<CompletionItem>)> {
         let closest_symbol_declaration =
             self.closest_symbol_declaration(data.context_token, data.location);
@@ -328,6 +330,7 @@ impl Completions<'_, '_, '_> {
             let Some(entry) = self.create_completion_item(
                 symbol,
                 sort_text,
+                replacement_token,
                 data,
                 name.clone(),
                 needs_convert_property_access,
@@ -357,6 +360,7 @@ impl Completions<'_, '_, '_> {
         &mut self,
         symbol: SymbolId,
         sort_text: String,
+        replacement_token: Option<Touching>,
         data: &CompletionDataData,
         mut name: String,
         needs_convert_property_access: bool,
@@ -368,8 +372,7 @@ impl Completions<'_, '_, '_> {
         let mut insert_text = String::new();
         let filter_text = String::new();
         let mut is_snippet = false;
-        // tsgo `getReplacementRangeForContextToken` of no token.
-        let mut replacement_span: Option<Range> = None;
+        let mut replacement_span = self.replacement_range_for_context_token(replacement_token);
         let mut source = source_from_origin(origin).to_owned();
         let insert_question_dot = origin_is(origin, origin_kind::NULLABLE);
         let use_braces =
@@ -854,7 +857,7 @@ impl Completions<'_, '_, '_> {
                 }
                 (name, true)
             }
-            CompletionKind::None => (name, false),
+            CompletionKind::None | CompletionKind::String => (name, false),
         }
     }
 
@@ -1437,6 +1440,43 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `getOptionalReplacementSpan`: an identifier's range.
+    /// tsgo `getReplacementRangeForContextToken`: a string literal's
+    /// content, else the token.
+    pub(crate) fn replacement_range_for_context_token(
+        &self,
+        context_token: Option<Touching>,
+    ) -> Option<Range> {
+        let context_token = context_token?;
+        match (self.kind(context_token), context_token) {
+            (
+                SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral,
+                Touching::Node(node),
+            ) => self.range_from_string_literal_like_content(node),
+            _ => Some(self.request.lsp_range(
+                self.source,
+                self.start(context_token) as usize..self.end(context_token) as usize,
+            )),
+        }
+    }
+
+    /// tsgo `createRangeFromStringLiteralLikeContent`: inside the quotes,
+    /// up to the position in an unterminated literal (none in an empty
+    /// one).
+    pub(crate) fn range_from_string_literal_like_content(&self, node: NodeId) -> Option<Range> {
+        let mut replacement_end = self.record(node).end - 1;
+        let node_start = self.node_start(node);
+        if self.is_unterminated_literal(Touching::Node(node)) {
+            if node_start == replacement_end {
+                return None;
+            }
+            replacement_end = self.position.min(self.record(node).end);
+        }
+        Some(self.request.lsp_range(
+            self.source,
+            (node_start + 1) as usize..replacement_end as usize,
+        ))
+    }
+
     pub(crate) fn optional_replacement_span(&self, location: Option<Touching>) -> Option<Range> {
         let location = location?;
         if !matches!(
@@ -1452,7 +1492,10 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `newCaseClauseTracker`: the values of the case clauses.
-    fn case_clause_tracker(&mut self, case_block: NodeId) -> CheckResult<CaseClauseTracker> {
+    pub(crate) fn case_clause_tracker(
+        &mut self,
+        case_block: NodeId,
+    ) -> CheckResult<CaseClauseTracker> {
         let mut tracker = CaseClauseTracker::default();
         let NodeData::CaseBlock(block) = self.data(case_block) else {
             return Ok(tracker);
@@ -1521,14 +1564,14 @@ impl Completions<'_, '_, '_> {
 
 /// tsgo `caseClauseTracker`.
 #[derive(Default)]
-struct CaseClauseTracker {
+pub(crate) struct CaseClauseTracker {
     strings: HashSet<String>,
     numbers: Vec<f64>,
     big_ints: HashSet<String>,
 }
 
 impl CaseClauseTracker {
-    fn has_value(&self, literal: &LiteralValue) -> bool {
+    pub(crate) fn has_value(&self, literal: &LiteralValue) -> bool {
         match literal {
             LiteralValue::String(text) => self
                 .strings

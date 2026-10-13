@@ -375,7 +375,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// tsgo `getPropertiesForObjectExpression`.
-    fn properties_for_object_expression(
+    pub(crate) fn properties_for_object_expression(
         &mut self,
         contextual_type: TypeId,
         completions_type: Option<TypeId>,
@@ -715,7 +715,7 @@ impl Completions<'_, '_, '_> {
 
     /// The text of an import or export specifier's name (an identifier or a
     /// string literal).
-    fn module_export_name_text(&self, name: NodeId) -> String {
+    pub(super) fn module_export_name_text(&self, name: NodeId) -> String {
         let source = self.source_of(name);
         node_util::id_text(source, name)
             .map(str::to_owned)
@@ -1431,7 +1431,7 @@ impl Completions<'_, '_, '_> {
     }
 
     /// A JSX attribute's name text (`a` or `ns:a`).
-    fn jsx_attribute_name_text(&self, name: NodeId) -> String {
+    pub(super) fn jsx_attribute_name_text(&self, name: NodeId) -> String {
         let source = self.source_of(name);
         if let Some(text) = node_util::id_text(source, name) {
             return text.to_owned();

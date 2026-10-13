@@ -8,6 +8,7 @@ mod entries;
 mod items;
 mod keywords;
 mod searches;
+mod strings;
 
 use tsc_checker::state::CheckResult;
 use tsc_lsproto::{
@@ -72,6 +73,7 @@ pub(crate) enum CompletionKind {
     Global,
     PropertyAccess,
     MemberLike,
+    String,
 }
 
 /// tsgo `isMemberCompletionKind`.
@@ -216,8 +218,10 @@ impl Completions<'_, '_, '_> {
                 return Ok(None);
             }
         }
-        // JSDoc snippets (L4d) and string completions (L4c) come first in
-        // tsgo.
+        // JSDoc snippets (L4d) come first in tsgo.
+        if let Some(list) = self.string_literal_completions(previous_token)? {
+            return Ok(Some(list));
+        }
         if let Some(previous) = previous_token {
             let parent = self.parent(previous);
             if matches!(

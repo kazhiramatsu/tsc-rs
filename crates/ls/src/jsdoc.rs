@@ -271,9 +271,9 @@ impl Request<'_, '_> {
         let Some(call) = self.call_or_new_expression(node) else {
             return Ok(String::new());
         };
-        let signature = self
-            .state
-            .get_resolved_signature(call, tsc_types::CheckMode::NORMAL)?;
+        let signature =
+            self.state
+                .get_resolved_signature(call, None, tsc_types::CheckMode::NORMAL)?;
         let Some(declaration) = self.state.signature_of(signature).declaration else {
             return Ok(String::new());
         };
