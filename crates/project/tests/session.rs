@@ -9,9 +9,12 @@ use std::sync::Arc;
 use common::*;
 use tsc_host::vfs::FileSystem;
 use tsc_ls::lsutil::UserPreferences;
-use tsc_lsproto::{FileChangeType, LanguageKind};
+use tsc_lsproto::{
+    FileChangeType, LanguageKind, TextDocumentContentChangePartialOrWholeDocument,
+    TextDocumentContentChangeWholeDocument,
+};
 use tsc_program::uri::uri_to_file_name;
-use tsc_project::{DocumentProjectError, ProjectKind, Session};
+use tsc_project::{DocumentProjectError, ProgramUpdateKind, ProjectKind, ProjectProgram, Session};
 
 const P1_TSCONFIG: &str = r#"{
     "compilerOptions": {
@@ -1076,4 +1079,387 @@ fn imports_in_an_untitled_file() {
     session
         .get_snapshot_and_default_project(&uri("untitled:Untitled-1"))
         .expect("the untitled file's project");
+}
+
+// tsgo `TestConfigFileChanges` (configfilechanges_test.go).
+
+/// tsgo's files of the config change tests.
+fn config_change_files() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("/tsconfig.more-base.json", "{}"),
+        (
+            "/tsconfig.base.json",
+            r#"{"extends": "../tsconfig.more-base.json", "compilerOptions": {"strict": true}}"#,
+        ),
+        (
+            "/src/tsconfig.json",
+            r#"{"extends": "../tsconfig.base.json", "compilerOptions": {"target": "es6"}, "references": [{"path": "../utils"}]}"#,
+        ),
+        ("/src/index.ts", r#"console.log("Hello, world!");"#),
+        ("/src/subfolder/foo.ts", r#"export const foo = "bar";"#),
+        (
+            "/utils/tsconfig.json",
+            r#"{"compilerOptions": {"composite": true}}"#,
+        ),
+        ("/utils/index.ts", r#"console.log("Hello, test!");"#),
+    ]
+}
+
+const CONFIG_INDEX: &str = "file:///src/index.ts";
+
+/// The files opened with /src/index.ts, `file_name` written with `text`
+/// and its change reported; the program of index.ts after it.
+fn after_config_change(
+    files: &[(&str, &str)],
+    file_name: &str,
+    text: &str,
+    kind: FileChangeType,
+) -> (Session, Arc<ProjectProgram>) {
+    let (session, fs) = setup(files);
+    open(&session, CONFIG_INDEX, r#"console.log("Hello, world!");"#);
+    fs.write(file_name, text.as_bytes())
+        .expect("write the config");
+    session.did_change_watched_files(&[watch_event(&format!("file://{file_name}"), kind)]);
+    let program = program(&session, CONFIG_INDEX);
+    (session, program)
+}
+
+#[test]
+fn a_config_change_updates_the_program_options() {
+    // "should update program options on config file change".
+    const ESNEXT: i32 = 99;
+    let (_, program) = after_config_change(
+        &config_change_files(),
+        "/src/tsconfig.json",
+        r#"{"extends": "../tsconfig.base.json", "compilerOptions": {"target": "esnext"}, "references": [{"path": "../utils"}]}"#,
+        FileChangeType::CHANGED,
+    );
+    assert_eq!(program.prepared().compiler_options().target, Some(ESNEXT));
+}
+
+#[test]
+fn an_extended_config_change_updates_the_project() {
+    // "should update project on extended config file change".
+    let (_, program) = after_config_change(
+        &config_change_files(),
+        "/tsconfig.base.json",
+        r#"{"compilerOptions": {"strict": false}}"#,
+        FileChangeType::CHANGED,
+    );
+    assert_eq!(program.prepared().compiler_options().strict, Some(false));
+}
+
+#[test]
+fn a_doubly_extended_config_change_updates_the_project() {
+    // "should update project on doubly extended config file change".
+    let (_, program) = after_config_change(
+        &config_change_files(),
+        "/tsconfig.more-base.json",
+        r#"{"compilerOptions": {"verbatimModuleSyntax": true}}"#,
+        FileChangeType::CHANGED,
+    );
+    assert_eq!(
+        program.prepared().compiler_options().verbatim_module_syntax,
+        Some(true)
+    );
+}
+
+#[test]
+fn a_referenced_config_change_updates_the_snapshot() {
+    // "should update project on referenced config file change".
+    let files = config_change_files();
+    let (session, fs) = setup(&files);
+    open(&session, CONFIG_INDEX, files[3].1);
+    let before = session.snapshot();
+    fs.write(
+        "/utils/tsconfig.json",
+        br#"{"compilerOptions": {"composite": true, "target": "esnext"}}"#,
+    )
+    .expect("write the config");
+    session.did_change_watched_files(&[watch_event(
+        "file:///utils/tsconfig.json",
+        FileChangeType::CHANGED,
+    )]);
+    program(&session, CONFIG_INDEX);
+    assert!(!Arc::ptr_eq(&session.snapshot(), &before));
+}
+
+#[test]
+fn a_deleted_config_closes_its_project() {
+    // "should close project on config file deletion".
+    let files = config_change_files();
+    let (session, fs) = setup(&files);
+    open(&session, CONFIG_INDEX, files[3].1);
+    fs.remove("/src/tsconfig.json").expect("delete the config");
+    session.did_change_watched_files(&[watch_event(
+        "file:///src/tsconfig.json",
+        FileChangeType::DELETED,
+    )]);
+    program(&session, CONFIG_INDEX);
+    let snapshot = session.snapshot();
+    assert_eq!(snapshot.projects().count(), 1);
+    assert!(snapshot.inferred_project().is_some());
+}
+
+#[test]
+fn a_config_created_then_deleted() {
+    // "config file creation then deletion".
+    let files = config_change_files();
+    let (session, fs) = setup(&files);
+    let foo = "file:///src/subfolder/foo.ts";
+    open(&session, foo, files[4].1);
+
+    fs.write("/src/subfolder/tsconfig.json", b"{}")
+        .expect("write the config");
+    session.did_change_watched_files(&[watch_event(
+        "file:///src/subfolder/tsconfig.json",
+        FileChangeType::CREATED,
+    )]);
+    let (snapshot, project) = session
+        .get_snapshot_and_default_project(&uri(foo))
+        .expect("the project of foo.ts");
+    assert_eq!(snapshot.projects().count(), 2);
+    assert_eq!(
+        project.config_file_name(),
+        Some("/src/subfolder/tsconfig.json")
+    );
+
+    fs.remove("/src/subfolder/tsconfig.json")
+        .expect("delete the config");
+    session.did_change_watched_files(&[watch_event(
+        "file:///src/subfolder/tsconfig.json",
+        FileChangeType::DELETED,
+    )]);
+    let (snapshot, project) = session
+        .get_snapshot_and_default_project(&uri(foo))
+        .expect("the project of foo.ts");
+    assert_eq!(project.config_file_name(), Some("/src/tsconfig.json"));
+    // The old project goes at the next open.
+    assert_eq!(snapshot.projects().count(), 2);
+
+    open(&session, CONFIG_INDEX, files[3].1);
+    assert_eq!(session.snapshot().projects().count(), 1);
+}
+
+#[test]
+fn a_created_missing_extended_config_updates_the_project() {
+    // "should update project when missing extended config is created".
+    let mut files = config_change_files();
+    files.retain(|(name, _)| *name != "/tsconfig.base.json");
+    let (_, program) = after_config_change(
+        &files,
+        "/tsconfig.base.json",
+        r#"{"compilerOptions": {"strict": true}}"#,
+        FileChangeType::CREATED,
+    );
+    assert_eq!(program.prepared().compiler_options().strict, Some(true));
+}
+
+// tsgo `TestProjectProgramUpdateKind` (project_test.go); "compiler options
+// update inferred project" waits for the test harness's
+// SetCompilerOptionsForInferredProjects (L3).
+
+/// The configured project of /src/tsconfig.json.
+fn src_project(session: &Session) -> Arc<tsc_project::Project> {
+    Arc::clone(
+        session
+            .snapshot()
+            .project(&configured("/src/tsconfig.json"))
+            .expect("the configured project"),
+    )
+}
+
+#[test]
+fn an_initial_build_has_new_files() {
+    // "NewFiles on initial build".
+    let files = [
+        ("/src/tsconfig.json", "{}"),
+        ("/src/index.ts", "export const x = 1;"),
+    ];
+    let (session, _) = setup(&files);
+    open(&session, CONFIG_INDEX, files[1].1);
+    program(&session, CONFIG_INDEX);
+    assert_eq!(
+        src_project(&session).program_update_kind(),
+        ProgramUpdateKind::NewFiles
+    );
+}
+
+#[test]
+fn a_one_file_change_clones_the_program() {
+    // "Cloned on single-file change".
+    let files = [
+        ("/src/tsconfig.json", "{}"),
+        ("/src/index.ts", "console.log('Hello');"),
+    ];
+    let (session, _) = setup(&files);
+    open(&session, CONFIG_INDEX, files[1].1);
+    program(&session, CONFIG_INDEX);
+    session.did_change_file(&uri(CONFIG_INDEX), 2, vec![edit(20, 20, "\n")]);
+    program(&session, CONFIG_INDEX);
+    assert_eq!(
+        src_project(&session).program_update_kind(),
+        ProgramUpdateKind::Cloned
+    );
+}
+
+#[test]
+fn a_changed_resolution_mode_has_new_files() {
+    // "NewFiles when import resolution mode changes".
+    let files = [
+        (
+            "/src/tsconfig.json",
+            r#"{
+				"compilerOptions":{"module":"preserve","moduleResolution":"bundler","noEmit":true},
+				"files":["index.ts"]
+			}"#,
+        ),
+        (
+            "/src/index.ts",
+            "import type { Value } from \"pkg\" with { \"resolution-mode\": \"require\" };\nconst value: Value = { mode: \"require\" };",
+        ),
+        (
+            "/src/node_modules/pkg/package.json",
+            r#"{
+				"name": "pkg",
+				"version": "1.0.0",
+				"exports": {
+					".": {
+						"import": "./index.mjs",
+						"require": "./index.js"
+					}
+				}
+			}"#,
+        ),
+        (
+            "/src/node_modules/pkg/index.d.mts",
+            r#"export interface Value { mode: "import" }"#,
+        ),
+        (
+            "/src/node_modules/pkg/index.d.ts",
+            r#"export interface Value { mode: "require" }"#,
+        ),
+    ];
+    let (session, _) = setup(&files);
+    open(&session, CONFIG_INDEX, files[1].1);
+    let semantic = |session: &Session| {
+        program(session, CONFIG_INDEX).with_live(|live| {
+            let file = live.file_index("/src/index.ts").expect("index.ts");
+            live.semantic_diagnostics(file)
+                .expect("check index.ts")
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>()
+        })
+    };
+    assert_eq!(semantic(&session), Vec::<u32>::new());
+
+    session.did_change_file(
+        &uri(CONFIG_INDEX),
+        2,
+        vec![TextDocumentContentChangePartialOrWholeDocument::WholeDocument(
+            TextDocumentContentChangeWholeDocument {
+                text: "import type { Value } from \"pkg\" with { \"resolution-mode\": \"import\" };\nconst value: Value = { mode: \"require\" };".to_owned(),
+            },
+        )],
+    );
+    // TS2322: Type '{0}' is not assignable to type '{1}'.
+    assert_eq!(semantic(&session), [2322]);
+    assert_eq!(
+        src_project(&session).program_update_kind(),
+        ProgramUpdateKind::NewFiles
+    );
+}
+
+#[test]
+fn a_config_change_without_new_roots_keeps_the_file_names() {
+    // "SameFileNames on config change without root changes".
+    let files = [
+        (
+            "/src/tsconfig.json",
+            r#"{"compilerOptions": {"strict": true}}"#,
+        ),
+        ("/src/index.ts", "export const x = 1;"),
+    ];
+    let (session, fs) = setup(&files);
+    open(&session, CONFIG_INDEX, files[1].1);
+    program(&session, CONFIG_INDEX);
+    fs.write(
+        "/src/tsconfig.json",
+        br#"{"compilerOptions": {"strict": false}}"#,
+    )
+    .expect("write the config");
+    session.did_change_watched_files(&[watch_event(
+        "file:///src/tsconfig.json",
+        FileChangeType::CHANGED,
+    )]);
+    program(&session, CONFIG_INDEX);
+    assert_eq!(
+        src_project(&session).program_update_kind(),
+        ProgramUpdateKind::SameFileNames
+    );
+}
+
+#[test]
+fn a_new_root_has_new_files() {
+    // "NewFiles on root addition".
+    let files = [("/src/tsconfig.json", "{}"), ("/src/index.ts", "export {}")];
+    let (session, fs) = setup(&files);
+    open(&session, CONFIG_INDEX, files[1].1);
+    program(&session, CONFIG_INDEX);
+    let content = "export const y = 2;";
+    fs.write("/src/newfile.ts", content.as_bytes())
+        .expect("write newfile.ts");
+    session.did_change_watched_files(&[watch_event(
+        "file:///src/newfile.ts",
+        FileChangeType::CREATED,
+    )]);
+    open(&session, "file:///src/newfile.ts", content);
+    program(&session, "file:///src/newfile.ts");
+    assert_eq!(
+        src_project(&session).program_update_kind(),
+        ProgramUpdateKind::NewFiles
+    );
+}
+
+#[test]
+fn an_unresolvable_import_keeps_the_file_names() {
+    // "SameFileNames when adding an unresolvable import with multi-file
+    // change".
+    let files = [
+        ("/src/tsconfig.json", "{}"),
+        ("/src/index.ts", "export const x = 1;"),
+        ("/src/other.ts", "export const z = 3;"),
+    ];
+    let (session, _) = setup(&files);
+    open(&session, CONFIG_INDEX, files[1].1);
+    program(&session, CONFIG_INDEX);
+    session.did_change_file(
+        &uri(CONFIG_INDEX),
+        2,
+        vec![edit(0, 0, "\nimport \"./does-not-exist\";\n")],
+    );
+    program(&session, CONFIG_INDEX);
+    assert_eq!(
+        src_project(&session).program_update_kind(),
+        ProgramUpdateKind::SameFileNames
+    );
+}
+
+#[test]
+fn a_missing_file_is_not_read() {
+    // tsgo `TestSnapshot` "GetFile returns nil for non-existent files".
+    let files = [
+        ("/home/projects/TS/p1/tsconfig.json", "{}"),
+        (
+            "/home/projects/TS/p1/index.ts",
+            "console.log('Hello, world!');",
+        ),
+    ];
+    let (session, _) = setup(&files);
+    open(&session, "file:///home/projects/TS/p1/index.ts", files[1].1);
+    assert!(session
+        .snapshot()
+        .read_file("/home/projects/TS/p1/nonexistent.ts")
+        .is_none());
 }
