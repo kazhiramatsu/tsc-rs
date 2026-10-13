@@ -915,11 +915,24 @@ impl<'a> Request<'_, 'a> {
         if !self.can_expand_symbol(symbol, node, verbosity)? {
             return Ok(false);
         }
-        // tsgo `ExpandSymbolForHover` (the declarations a higher verbosity
-        // level shows) comes with the verbosity levels' slice; until then the
-        // symbol shows as at level 0.
-        let _ = (info, meaning, symbol_was_expanded);
-        Ok(false)
+        // The declarations, one level down.
+        let mut expand = VerbosityContext {
+            level: verbosity.level - 1,
+            max_truncation_length: verbosity.max_truncation_length,
+            ..VerbosityContext::default()
+        };
+        let expanded = self
+            .state
+            .expand_symbol_for_hover(symbol, meaning, &mut expand)
+            .unwrap_or_default();
+        if expanded.is_empty() {
+            return Ok(false);
+        }
+        verbosity.can_increase_verbosity |= expand.can_increase_verbosity;
+        verbosity.truncated |= expand.truncated;
+        info.write(&expanded);
+        *symbol_was_expanded = true;
+        Ok(true)
     }
 
     /// tsgo's `canExpandSymbol`.

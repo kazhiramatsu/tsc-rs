@@ -4488,7 +4488,7 @@ fn create_property_signature_with_name(
 /// tsc-port: addPropertyToElementList @6.0.3
 /// tsc-hash: 6c6b916aa8ce07acd5ac0ba435bbb827fea9ee957fdaf3e2843643414cba7580
 /// tsc-span: _tsc.js:52241-52397
-fn add_property_to_element_list(
+pub(super) fn add_property_to_element_list(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,

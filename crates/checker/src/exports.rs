@@ -517,15 +517,15 @@ impl CheckerState<'_> {
 
     /// A node builder's result in the display arena, in the source of the
     /// enclosing declaration's file (the first file without one).
-    fn build_display_node(
+    fn build_display_node<T>(
         &mut self,
         enclosing_declaration: Option<NodeId>,
         build: impl FnOnce(
             &mut Self,
             &mut TransformArena,
             TransformSourceId,
-        ) -> Result<Option<TransformNode>, EmitResolverError>,
-    ) -> Result<Option<TransformNode>, String> {
+        ) -> Result<T, EmitResolverError>,
+    ) -> Result<T, String> {
         // The display arena must know every file a type node may reach (a
         // reused annotation, a declaration's name).
         for index in 0..self.binder.file_count() {
@@ -1266,6 +1266,49 @@ impl CheckerState<'_> {
             .with_remove_comments(true)
             .with_declaration_syntax(true);
         self.print_display_node(node, options, StandaloneWriter::MultiLine)
+    }
+
+    /// tsgo `ExpandSymbolForHover` (printer.go:300-325): the declarations a
+    /// hover at the verbosity context's level shows for the symbol, printed
+    /// without comments and joined by newlines (empty when there are none).
+    pub fn expand_symbol_for_hover(
+        &mut self,
+        symbol: SymbolId,
+        meaning: SymbolFlags,
+        verbosity: &mut VerbosityContext,
+    ) -> Result<String, String> {
+        let declaration = self.binder.symbol(symbol).value_declaration;
+        let max_truncation_length = verbosity.max_truncation_length;
+        let level = verbosity.level;
+        let mut out = EmitSymbolExpansionOut::default();
+        let nodes = self.build_display_node(declaration, |checker, arena, target| {
+            crate::node_builder::expand_symbol_for_hover(
+                checker,
+                arena,
+                target,
+                symbol,
+                meaning,
+                (max_truncation_length > 0).then_some(max_truncation_length),
+                Some(level),
+                Some(&mut out),
+            )
+        })?;
+        verbosity.absorb(&out);
+        let mut result = String::new();
+        for (index, node) in nodes.into_iter().enumerate() {
+            if index > 0 {
+                result.push('\n');
+            }
+            let options = PrinterOptions::new(NewLineKind::LineFeed)
+                .with_remove_comments(true)
+                .with_declaration_syntax(true);
+            result.push_str(&self.print_display_node(
+                node,
+                options,
+                StandaloneWriter::MultiLine,
+            )?);
+        }
+        Ok(result)
     }
 
     /// A source node printed on one line (tsgo's `EFSingleLine` on it) with
