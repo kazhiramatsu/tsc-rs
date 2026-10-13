@@ -560,13 +560,16 @@ impl<'text> Scanner<'text> {
                 if ch == '{' {
                     break;
                 }
+                // tsgo: `@` starts a tag only after white space and before an
+                // identifier.
                 if ch == '@' && self.pos > 0 {
                     let previous = self.text[..self.pos].chars().next_back();
-                    let next = self.text[self.pos + ch.len_utf8()..].chars().next();
+                    let next = self.text
+                        [self.pos + ch.len_utf8()..self.end.max(self.pos + ch.len_utf8())]
+                        .chars()
+                        .next();
                     if previous.is_some_and(is_single_line_whitespace)
-                        && !next.is_some_and(|next| {
-                            is_single_line_whitespace(next) || is_line_break(next)
-                        })
+                        && next.is_some_and(chars::is_identifier_start)
                     {
                         break;
                     }
