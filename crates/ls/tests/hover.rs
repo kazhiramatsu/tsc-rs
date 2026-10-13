@@ -749,3 +749,540 @@ fn empty_enum_does_not_expand() {
         ))
     );
 }
+
+/// quickinfoVerbosityEnum: an expanded enum lists its members with their
+/// written initializers or constant values; a const enum keeps `const`.
+#[test]
+fn expanded_enums() {
+    let files = [
+        ("/a.ts", "export {};\nenum Color {\n    Red,\n    Green,\n    Blue,\n}\nconst x: Color = Color.Red;\nconst enum Direction {\n    Up,\n    Down,\n}\nconst y: Direction = Direction.Up;\nenum Flags {\n    None = 0,\n    IsDirectory = 1 << 0,\n    IsFile = 1 << 1,\n    IsSymlink = 1 << 2,\n}"),
+        ("/b.ts", "export enum Color {\n    Red = \"red\"\n}"),
+        ("/c.ts", "import { Color } from \"./b\";\nconst c: Color = Color.Red;"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/a.ts", (1, 10), Some(1)),
+        Some((
+            "```typescript\nenum Color {\n    Red = 0,\n    Green = 1,\n    Blue = 2\n}\n```\n"
+                .to_owned(),
+            ((1, 5), (1, 10)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/a.ts", (6, 7), Some(1)),
+        Some((
+            "```typescript\nconst x: Color.Red | Color.Green | Color.Blue\n```\n".to_owned(),
+            ((6, 6), (6, 7)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/a.ts", (7, 20), Some(1)),
+        Some((
+            "```typescript\nconst enum Direction {\n    Up = 0,\n    Down = 1\n}\n```\n".to_owned(),
+            ((7, 11), (7, 20)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/a.ts", (11, 7), Some(1)),
+        Some((
+            "```typescript\nconst y: Direction.Up | Direction.Down\n```\n".to_owned(),
+            ((11, 6), (11, 7)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/a.ts", (12, 10), Some(1)),
+        Some((
+            "```typescript\nenum Flags {\n    None = 0,\n    IsDirectory = 1 << 0,\n    IsFile = 1 << 1,\n    IsSymlink = 1 << 2\n}\n```\n".to_owned(),
+            ((12, 5), (12, 10)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/c.ts", (1, 14), Some(1)),
+        Some((
+            "```typescript\n(alias) enum Color {\n    Red = \"red\"\n}\n```\n".to_owned(),
+            ((1, 9), (1, 14)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityEmptyEnum: an empty enum's type stays its name at a
+/// higher level too.
+#[test]
+fn expanded_empty_enum() {
+    let files = [(
+        "/quickinfoVerbosityEmptyEnum.ts",
+        "\nenum Degree {}\n\ndeclare const e: Degree;\n",
+    )];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(
+            &files,
+            compiler_options(),
+            "/quickinfoVerbosityEmptyEnum.ts",
+            (3, 15),
+            Some(1)
+        ),
+        Some((
+            "```typescript\nconst e: Degree\n```\n".to_owned(),
+            ((3, 14), (3, 15)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityClass1: an expanded class lists its members, its
+/// constructors and heritage clauses.
+#[test]
+fn expanded_classes() {
+    let files = [
+        ("/quickinfoVerbosityClass1.ts", "{\n    class Foo {\n        a!: \"a\" | \"c\";\n    }\n    const f = new Foo();\n}\n{\n    type FooParam = \"a\" | \"b\";\n    class Foo {\n        constructor(public x: string) {\n            this.x = \"a\";\n        }\n        foo(p: FooParam): void {}\n    }\n    const f = new Foo(\"\");\n}\n{\n    class Bar {\n        a!: string;\n        bar(): void {}\n        baz(param: string): void {}\n    }\n    class Foo extends Bar {\n        b!: boolean;\n        override baz(param: string | number): void {}\n    }\n    const f = new Foo();\n}\n{\n    class Bar<B extends string> {\n        bar(param: B): void {}\n        baz(): this { return this; }\n    }\n    class Foo extends Bar<\"foo\"> {\n        foo(): this { return this; }\n    }\n    const b = new Bar();\n    const f = new Foo();\n}\n{\n    class Bar<B extends string> {\n        bar(param: B): void {}\n        baz(): this { return this; }\n    }\n    const noname = new (class extends Bar<\"foo\"> {\n        foo(): this { return this; }\n    })();\n    const klass = class extends Bar<\"foo\"> {\n        foo(): this { return this; }\n    };\n    const k = new klass();\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(
+            &files,
+            compiler_options(),
+            "/quickinfoVerbosityClass1.ts",
+            (4, 11),
+            Some(1)
+        ),
+        Some((
+            "```typescript\nconst f: {\n    a: \"a\" | \"c\";\n}\n```\n".to_owned(),
+            ((4, 10), (4, 11)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(
+            &files,
+            compiler_options(),
+            "/quickinfoVerbosityClass1.ts",
+            (14, 11),
+            Some(1)
+        ),
+        Some((
+            "```typescript\nconst f: {\n    x: string;\n    foo(p: FooParam): void;\n}\n```\n"
+                .to_owned(),
+            ((14, 10), (14, 11)),
+            true,
+        ))
+    );
+    assert_eq!(
+        hover(
+            &files,
+            compiler_options(),
+            "/quickinfoVerbosityClass1.ts",
+            (14, 11),
+            Some(2)
+        ),
+        Some((
+            "```typescript\nconst f: {\n    x: string;\n    foo(p: \"a\" | \"b\"): void;\n}\n```\n"
+                .to_owned(),
+            ((14, 10), (14, 11)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityClass1.ts", (17, 13), Some(1)),
+        Some((
+            "```typescript\nclass Bar {\n    a: string;\n    bar(): void;\n    baz(param: string): void;\n}\n```\n".to_owned(),
+            ((17, 10), (17, 13)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityClass1.ts", (26, 11), Some(1)),
+        Some((
+            "```typescript\nconst f: {\n    b: boolean;\n    baz(param: string | number): void;\n    a: string;\n    bar(): void;\n}\n```\n".to_owned(),
+            ((26, 10), (26, 11)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityClass1.ts", (36, 11), Some(1)),
+        Some((
+            "```typescript\nconst b: {\n    bar(param: string): void;\n    baz(): Bar<string>;\n}\n```\n".to_owned(),
+            ((36, 10), (36, 11)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityClass1.ts", (37, 11), Some(1)),
+        Some((
+            "```typescript\nconst f: {\n    foo(): Foo;\n    bar(param: \"foo\"): void;\n    baz(): Foo;\n}\n```\n".to_owned(),
+            ((37, 10), (37, 11)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityClass1.ts", (44, 16), Some(1)),
+        Some((
+            "```typescript\nconst noname: {\n    foo(): (Anonymous class);\n    bar(param: \"foo\"): void;\n    baz(): (Anonymous class);\n}\n```\n".to_owned(),
+            ((44, 10), (44, 16)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityClass1.ts", (50, 11), Some(1)),
+        Some((
+            "```typescript\nconst k: {\n    foo(): klass;\n    bar(param: \"foo\"): void;\n    baz(): klass;\n}\n```\n".to_owned(),
+            ((50, 10), (50, 11)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityAbstractClass: an expanded class keeps `abstract`.
+#[test]
+fn expanded_abstract_class() {
+    let files = [
+        ("/quickinfoVerbosityAbstractClass.ts", "\ndeclare abstract class Shape {\n    abstract area(): number;\n    abstract perimeter(): number;\n    toString(): string;\n}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityAbstractClass.ts", (1, 28), Some(1)),
+        Some((
+            "```typescript\nabstract class Shape {\n    abstract area(): number;\n    abstract perimeter(): number;\n    toString(): string;\n}\n```\n".to_owned(),
+            ((1, 23), (1, 28)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityClassWithMixinBase: a class whose base is a mixin call.
+#[test]
+fn expanded_class_with_mixin_base() {
+    let files = [
+        ("/quickinfoVerbosityClassWithMixinBase.ts", "\nclass Base {}\n\ndeclare const Mixin: new () => Base & { mixed: string };\n\nclass Derived extends Mixin {}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(
+            &files,
+            compiler_options(),
+            "/quickinfoVerbosityClassWithMixinBase.ts",
+            (5, 13),
+            Some(1)
+        ),
+        Some((
+            "```typescript\nclass Derived extends Mixin {\n}\n```\n".to_owned(),
+            ((5, 6), (5, 13)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityClassInterfaceMerge: a class merged with an interface
+/// expands as the class.
+#[test]
+fn expanded_class_and_interface() {
+    let files = [
+        ("/quickinfoVerbosityClassInterfaceMerge.ts", "\ndeclare class Foo {\n    x: number;\n}\ndeclare interface Foo {\n    y: string;\n}\nconst f: Foo = { x: 1, y: \"hello\" };\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(
+            &files,
+            compiler_options(),
+            "/quickinfoVerbosityClassInterfaceMerge.ts",
+            (1, 17),
+            Some(1)
+        ),
+        Some((
+            "```typescript\nclass Foo {\n    x: number;\n    y: string;\n}\n```\n".to_owned(),
+            ((1, 14), (1, 17)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(
+            &files,
+            compiler_options(),
+            "/quickinfoVerbosityClassInterfaceMerge.ts",
+            (7, 12),
+            Some(1)
+        ),
+        Some((
+            "```typescript\nclass Foo {\n    x: number;\n    y: string;\n}\n```\n".to_owned(),
+            ((7, 9), (7, 12)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityInterfaceMemberOrdering: index, construct and call
+/// signatures come before properties.
+#[test]
+fn expanded_interface_member_order() {
+    let files = [
+        ("/quickinfoVerbosityInterfaceMemberOrdering.ts", "\ninterface Callable {\n    (x: string): boolean;\n    new (x: string): Callable;\n    [key: string]: any;\n    name: string;\n}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityInterfaceMemberOrdering.ts", (1, 18), Some(1)),
+        Some((
+            "```typescript\ninterface Callable {\n    [key: string]: any;\n    new (x: string): Callable;\n    (x: string): boolean;\n    name: string;\n}\n```\n".to_owned(),
+            ((1, 10), (1, 18)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityNamespace: an expanded namespace lists its exports;
+/// an alias of a local is declared first and exported by name.
+#[test]
+fn expanded_namespaces() {
+    let files = [
+        ("/1.ts", "export {};\nclass Foo<T> {\n    y: string;\n}\nnamespace Foo {\n    export var y: number = 1;\n    export var x: string = \"hello\";\n    export var w = \"world\";\n    var z = 2;\n}"),
+        ("/2.ts", "export namespace Foo {\n    export var y: number = 1;\n    export var x: string = \"hello\";\n}"),
+        ("/3.ts", "import * as Foo_1 from \"./b\";\nexport declare namespace ns {\n    import Foo = Foo_1.Foo;\n    export { Foo };\n    export const c: number;\n    export const d = 1;\n    let e: Apple;\n    export let f: Apple;\n}\ninterface Apple {\n    a: string;\n}"),
+        ("/4.ts", "class Foo<T> {\n    y!: T;\n}\nnamespace Two {\n    export const f = new Foo<number>();\n}"),
+        ("/5.ts", "namespace Two {\n    export const g = new Foo<string>();\n}"),
+        ("/6.ts", "namespace OnlyLocal {\n    const bar: number;\n}"),
+        ("/foo.ts", "export function foo() { return \"foo\"; }\nimport(\"./foo\")\nvar x = import(\"./foo\")"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/1.ts", (4, 13), Some(1)),
+        Some((
+            "```typescript\nclass Foo<T> {\n    y: string;\n}\nnamespace Foo {\n    let y: number;\n    let x: string;\n    let w: string;\n}\n\n```\n".to_owned(),
+            ((4, 10), (4, 13)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/3.ts", (1, 27), Some(1)),
+        Some((
+            "```typescript\nnamespace ns {\n    export { Foo };\n    export let c: number;\n    export let d: 1;\n    export let f: Apple;\n}\n```\n".to_owned(),
+            ((1, 25), (1, 27)),
+            true,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/3.ts", (1, 27), Some(2)),
+        Some((
+            "```typescript\nnamespace ns {\n    export { Foo };\n    export let c: number;\n    export let d: 1;\n    export let f: {\n        a: string;\n    };\n}\n```\n".to_owned(),
+            ((1, 25), (1, 27)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/4.ts", (3, 13), Some(1)),
+        Some((
+            "```typescript\nnamespace Two {\n    let f: Foo<number>;\n    let g: Foo<string>;\n}\n```\n".to_owned(),
+            ((3, 10), (3, 13)),
+            true,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/4.ts", (3, 13), Some(2)),
+        Some((
+            "```typescript\nnamespace Two {\n    let f: {\n        y: number;\n    };\n    let g: {\n        y: string;\n    };\n}\n```\n".to_owned(),
+            ((3, 10), (3, 13)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/6.ts", (0, 19), Some(1)),
+        Some((
+            "```typescript\nnamespace OnlyLocal { }\n```\n".to_owned(),
+            ((0, 10), (0, 19)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/foo.ts", (1, 8), Some(1)),
+        Some((
+            "```typescript\nmodule \"/foo\" {\n    function foo(): string;\n    namespace foo { }\n}\n```\n".to_owned(),
+            ((1, 8), (1, 13)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityNamespaceDefaultExport: a namespace's default export
+/// is no identifier and is left out.
+#[test]
+fn expanded_namespace_default_export() {
+    let files = [
+        ("/quickinfoVerbosityNamespaceDefaultExport.ts", "\ndeclare namespace ns {\n    interface Shape {\n        sides: number;\n    }\n    const circle: Shape;\n    export default circle;\n    export { Shape };\n}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityNamespaceDefaultExport.ts", (1, 20), Some(1)),
+        Some((
+            "```typescript\nnamespace ns {\n    export let default: any;\n    export { Shape };\n}\n```\n".to_owned(),
+            ((1, 18), (1, 20)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityNamespaceTypeAliases: type aliases in an expanded
+/// namespace.
+#[test]
+fn expanded_namespace_type_aliases() {
+    let files = [
+        ("/quickinfoVerbosityNamespaceTypeAliases.ts", "\ntype BaseConfig = { host: string; port: number };\n\ndeclare namespace Config {\n    type Readonly<T> = { readonly [K in keyof T]: T[K] };\n    type Optional<T> = { [K in keyof T]?: T[K] };\n    type ServerConfig = Readonly<BaseConfig>;\n}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityNamespaceTypeAliases.ts", (3, 24), Some(1)),
+        Some((
+            "```typescript\nnamespace Config {\n    type Readonly<T> = { readonly [K in keyof T]: T[K]; };\n    type Optional<T> = { [K in keyof T]?: T[K] | undefined; };\n    type ServerConfig = {\n        readonly host: string;\n        readonly port: number;\n    };\n}\n```\n".to_owned(),
+            ((3, 18), (3, 24)),
+            false,
+        ))
+    );
+}
+
+/// quickInfoVerbosityNamespaceBindingWithDefaultExportedFunction1.
+#[test]
+fn expanded_namespace_binding_with_default_function() {
+    let files = [
+        (
+            "/a.ts",
+            "export default function fn() {}\nexport { fn as default };",
+        ),
+        ("/b.ts", "import * as ns from \"./a\";\n\nns;"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/b.ts", (2, 2), Some(1)),
+        Some((
+            "```typescript\n(alias) module \"/a\" {\n    export { default };\n}\n```\n".to_owned(),
+            ((2, 0), (2, 2)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityNamespaceInterfaceHeritageCrash: an interface's heritage
+/// clause as written.
+#[test]
+fn expanded_namespace_interface_heritage() {
+    let files = [(
+        "/quickinfoVerbosityNamespaceInterfaceHeritageCrash.ts",
+        "\ndeclare namespace NS {\n    interface Config extends Record<string, any> {}\n}\n",
+    )];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityNamespaceInterfaceHeritageCrash.ts", (1, 20), Some(1)),
+        Some((
+            "```typescript\nnamespace NS {\n    interface Config extends Record<string, any> {\n    }\n}\n```\n".to_owned(),
+            ((1, 18), (1, 20)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityNamespaceInterfaceHeritageIntersectionCrash.
+#[test]
+fn expanded_namespace_interface_heritage_intersection() {
+    let files = [
+        ("/quickinfoVerbosityNamespaceInterfaceHeritageIntersectionCrash.ts", "\ndeclare namespace NS {\n    type Mixin = { a: string } & { b: number };\n    interface Config extends Mixin {}\n}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityNamespaceInterfaceHeritageIntersectionCrash.ts", (1, 20), Some(1)),
+        Some((
+            "```typescript\nnamespace NS {\n    type Mixin = {\n        a: string;\n    } & {\n        b: number;\n    };\n    interface Config extends Mixin {\n    }\n}\n```\n".to_owned(),
+            ((1, 18), (1, 20)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityNamespaceErrorClassHeritage1: a class extending an
+/// unresolved name.
+#[test]
+fn expanded_namespace_error_class_heritage() {
+    let files = [
+        ("/quickinfoVerbosityNamespaceErrorClassHeritage1.ts", "\nnamespace NS {\n    export class Derived extends NonExistentClass {\n        derivedField: number;\n    }\n}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityNamespaceErrorClassHeritage1.ts", (1, 12), Some(1)),
+        Some((
+            "```typescript\nnamespace NS {\n    class Derived extends NonExistentClass {\n        derivedField: number;\n    }\n}\n```\n".to_owned(),
+            ((1, 10), (1, 12)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityNamespaceAnonymousClassHeritage1.
+#[test]
+fn expanded_namespace_anonymous_class_heritage() {
+    let files = [
+        ("/quickinfoVerbosityNamespaceAnonymousClassHeritage1.ts", "\nnamespace NS {\n    export class Derived extends class {\n        baseField: string;\n    } {\n        derivedField: number;\n    }\n}\n"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityNamespaceAnonymousClassHeritage1.ts", (1, 12), Some(1)),
+        Some((
+            "```typescript\nnamespace NS {\n    class Derived extends class {\n        baseField: string;\n    } {\n        derivedField: number;\n    }\n}\n```\n".to_owned(),
+            ((1, 10), (1, 12)),
+            false,
+        ))
+    );
+}
+
+/// quickinfoVerbosityToplevelTruncation1: a long expansion is cut with a
+/// count of the members left out.
+#[test]
+fn expanded_truncation() {
+    let files = [
+        ("/quickinfoVerbosityToplevelTruncation1.ts", "export enum LargeEnum {\n    Member1,\n    Member2,\n    Member3,\n    Member4,\n    Member5,\n    Member6,\n    Member7,\n    Member8,\n    Member9,\n    Member10,\n    Member11,\n    Member12,\n    Member13,\n    Member14,\n    Member15,\n    Member16,\n    Member17,\n    Member18,\n    Member19,\n    Member20,\n    Member21,\n    Member22,\n    Member23,\n    Member24,\n    Member25,\n}\nexport interface LargeInterface {\n    property1: string;\n    property2: number;\n    property3: boolean;\n    property4: Date;\n    property5: string[];\n    property6: number[];\n    property7: boolean[];\n    property8: { [key: string]: unknown };\n    property9: string | null;\n    property10: number | null;\n    property11: boolean | null;\n    property12: Date | null;\n    property13: string | number;\n    property14: number | boolean;\n    property15: string | boolean;\n    property16: Array<{ id: number; name: string }>;\n    property17: Array<{ key: string; value: unknown }>;\n    property18: { nestedProp1: string; nestedProp2: number };\n    property19: { nestedProp3: boolean; nestedProp4: Date };\n    property20: () => void;\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityToplevelTruncation1.ts", (0, 21), Some(1)),
+        Some((
+            "```typescript\nenum LargeEnum {\n    Member1 = 0,\n    Member2 = 1,\n    Member3 = 2,\n    Member4 = 3,\n    Member5 = 4,\n    Member6 = 5,\n    Member7 = 6,\n    Member8 = 7,\n    Member9 = 8,\n    Member10 = 9,\n    Member11 = 10,\n    Member12 = 11,\n    Member13 = 12,\n    Member14 = 13,\n    Member15 = 14,\n    Member16 = 15,\n    Member17 = 16,\n    Member18 = 17,\n    Member19 = 18,\n    Member20 = 19,\n    Member21 = 20,\n    Member22 = 21,\n    Member23 = 22,\n    Member24 = 23,\n    Member25 = 24\n}\n```\n".to_owned(),
+            ((0, 12), (0, 21)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/quickinfoVerbosityToplevelTruncation1.ts", (27, 31), Some(1)),
+        Some((
+            "```typescript\ninterface LargeInterface {\n    property1: string;\n    property2: number;\n    property3: boolean;\n    property4: Date;\n    property5: string[];\n    property6: number[];\n    property7: boolean[];\n    property8: {\n        [key: string]: unknown;\n    };\n    property9: string | null;\n    property10: number | null;\n    property11: boolean | null;\n    property12: Date | null;\n    property13: string | number;\n    property14: number | boolean;\n    property15: string | boolean;\n    property16: {\n        id: number;\n        name: string;\n    }[];\n    property17: {\n        key: string;\n        value: unknown;\n    }[];\n    property18: {\n        nestedProp1: string;\n        nestedProp2: number;\n    };\n    property19: {\n        nestedProp3: boolean;\n        nestedProp4: Date;\n    };\n    property20: ...;\n}\n```\n".to_owned(),
+            ((27, 17), (27, 31)),
+            false,
+        ))
+    );
+}
+
+/// quickInfoMergedPatternAmbientModuleWithImportAttributes: an expanded
+/// pattern ambient module keeps its import attributes on one line.
+#[test]
+fn expanded_pattern_ambient_modules() {
+    let files = [
+        ("/first.d.ts", "declare module \"*.asset\" with { type: \"css\" } {\n    export const cssOnly: \"css\";\n}\ndeclare module \"*.asset\" with { type: \"text\" } {\n    export const textOnly: \"text\";\n}\n"),
+        ("/second.d.ts", "declare module \"*.asset\" with { type: \"css\" } {\n    export const cssAlso: \"css-also\";\n}\ndeclare module \"*.asset\" with { type: \"text\" } {\n    export const textAlso: \"text-also\";\n}"),
+    ];
+    let compiler_options = || options(|_| {});
+    assert_eq!(
+        hover(&files, compiler_options(), "/first.d.ts", (0, 24), Some(1)),
+        Some((
+            "```typescript\nmodule \"*.asset\" with { type: \"css\"; } {\n    let cssOnly: \"css\";\n    let cssAlso: \"css-also\";\n}\n```\n".to_owned(),
+            ((0, 16), (0, 23)),
+            false,
+        ))
+    );
+    assert_eq!(
+        hover(&files, compiler_options(), "/first.d.ts", (3, 24), Some(1)),
+        Some((
+            "```typescript\nmodule \"*.asset\" with { type: \"text\"; } {\n    let textOnly: \"text\";\n    let textAlso: \"text-also\";\n}\n```\n".to_owned(),
+            ((3, 16), (3, 23)),
+            false,
+        ))
+    );
+}
