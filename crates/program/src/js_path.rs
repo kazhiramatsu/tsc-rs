@@ -169,7 +169,7 @@ fn replace_scalar(text: JsStr<'_>, separator: &str, replacement: &str) -> JsStri
     result
 }
 
-pub(crate) fn normalize_slashes(path: JsStr<'_>) -> JsString {
+pub fn normalize_slashes(path: JsStr<'_>) -> JsString {
     replace_scalar(path, "\\", "/")
 }
 

@@ -369,20 +369,7 @@ fn referenced_files(
             add_symbol(state, merged);
         }
     }
-    // GetAmbientModules: the ambient modules of the global scope and the
-    // pattern ambient modules.
-    let mut ambient = Vec::new();
-    for (name, &symbol) in state.globals.iter() {
-        if name.starts_with("\"") {
-            ambient.push(symbol);
-        }
-    }
-    for (_, _, symbol) in &state.pattern_ambient_modules {
-        ambient.push(state.get_merged_symbol(*symbol));
-    }
-    ambient.sort_unstable();
-    ambient.dedup();
-    for symbol in ambient {
+    for symbol in state.get_ambient_modules() {
         add_symbol(state, symbol);
     }
     referenced.into_iter().collect()
