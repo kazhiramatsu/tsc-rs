@@ -96,7 +96,7 @@ pub mod go_json;
 mod js_path;
 pub use js_path::{
     base_file_name, canonical_dynamic_uri_path, combine_paths,
-    directory_name as get_directory_path, normalize_path,
+    directory_name as get_directory_path, normalize_path, normalize_slashes,
     normalized_absolute_path as get_normalized_absolute_path, root_parts as path_root_parts,
 };
 pub use tsc_host::to_file_name_lower_case_js;
@@ -173,6 +173,10 @@ pub use module_requests::{
 };
 pub use module_resolution::js_own_property_entries as package_json_own_entries;
 pub use module_resolution::mangle_scoped_package_name;
+pub use module_resolution::{
+    compare_pattern_keys, default_type_roots, get_conditions,
+    json_object_entries_in_order as package_json_entries_in_order, types_versions_paths,
+};
 pub use module_resolution::{
     normalize_absolute_js_path_lexical, normalize_absolute_path_lexical, HostModuleResolution,
     HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolutionOverride,
