@@ -45,10 +45,20 @@ pub struct SessionOptions {
     /// tsgo `DebounceDelay`: how long a scheduled update waits for more
     /// events.
     pub debounce_delay: std::time::Duration,
-    /// tsgo's client capability `workspace.didChangeWatchedFiles.
-    /// relativePatternSupport`: directories outside the workspace are
-    /// watched with relative patterns.
-    pub relative_pattern_support: bool,
+    /// The client's capabilities (tsgo's `GetClientCapabilities` of the
+    /// session's background context): relative watch patterns, the
+    /// diagnostics the client takes.
+    pub client_capabilities: tsc_lsproto::ResolvedClientCapabilities,
+}
+
+impl SessionOptions {
+    /// tsgo's `relativePatternSupport` of watched files.
+    pub(crate) fn relative_pattern_support(&self) -> bool {
+        self.client_capabilities
+            .workspace
+            .did_change_watched_files
+            .relative_pattern_support
+    }
 }
 
 /// A failed snapshot update (tsgo's API errors), with tsgo's message.
@@ -363,6 +373,54 @@ impl Snapshot {
         )
     }
 
+    /// tsgo's `cacheDirectories[path]` or `hasOverlayWithin(path)`: whether
+    /// the snapshot read files below `path` or has open documents there.
+    pub(crate) fn has_files_within(&self, path: &str) -> bool {
+        let prefix = format!("{}/", path.trim_end_matches('/'));
+        self.fs
+            .files
+            .range(prefix.clone()..)
+            .next()
+            .is_some_and(|(cached, _)| cached.starts_with(&prefix))
+            || self
+                .fs
+                .overlays
+                .range(prefix.clone()..)
+                .next()
+                .is_some_and(|(open, _)| open.starts_with(&prefix))
+    }
+
+    /// tsgo `contentMapperWatchState`'s files, by path.
+    pub(crate) fn content_mapper_watched_paths(&self) -> BTreeSet<String> {
+        self.content_mapper_watched_files()
+    }
+
+    /// The path of `file_name` in the snapshot's file system.
+    pub(crate) fn to_path(&self, file_name: &str) -> String {
+        self.fs.paths().to_path(file_name)
+    }
+
+    /// tsgo `GetOpenConfiguredProjects`: the configured projects with an
+    /// open file, the default project of each open file or else every
+    /// configured project that has it.
+    pub fn open_configured_projects(&self) -> BTreeSet<ProjectId> {
+        let mut projects = BTreeSet::new();
+        for (path, overlay) in self.fs.overlays.iter() {
+            if let Some(project) = self.default_project(overlay.file_name()) {
+                if project.kind == ProjectKind::Configured {
+                    projects.insert(project.id.clone());
+                    continue;
+                }
+            }
+            for project in self.projects.configured.values() {
+                if project.contains_file(path) {
+                    projects.insert(project.id.clone());
+                }
+            }
+        }
+        projects
+    }
+
     /// tsgo `GetLanguageServiceProjectsContainingFile`: the configured
     /// projects whose programs have the file, then the inferred project.
     pub fn projects_containing_file(&self, file_name: &str) -> Vec<&Arc<Project>> {
@@ -603,7 +661,7 @@ impl SnapshotHost {
                 &fs,
                 &base.configs,
                 self.options.run_external_code,
-                self.options.relative_pattern_support,
+                self.options.relative_pattern_support(),
                 &custom_config_file_name,
             );
             let mut builder = ProjectCollectionBuilder::new(self, &fs, id, &base.projects, configs);

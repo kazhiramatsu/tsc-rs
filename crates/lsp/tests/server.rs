@@ -15,8 +15,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use serde_json::Value;
+use tsc_compiler::system::{BundledFs, EMBEDDED_LIBRARY_DIRECTORY};
 use tsc_host::ipc::jsonrpc::{Reader, Writer};
-use tsc_host::vfs::{MemFs, Seed, SystemClock};
+use tsc_host::vfs::{FileSystem, MemFs, Seed, SystemClock};
 use tsc_ls::lsutil::{
     parse_user_preferences, QuotePreference, SemicolonPreference, UserPreferences,
 };
@@ -95,8 +96,21 @@ impl Session {
         Self::start_with(Arc::new(MemFs::new(false, Arc::new(SystemClock))))
     }
 
+    /// A server whose session reads `fs` with the embedded library, as
+    /// tsgo's (`bundled.WrapFS`).
+    fn start_bundled(fs: Arc<MemFs>) -> Self {
+        Self::start_over(
+            Arc::new(BundledFs::new(fs)),
+            EMBEDDED_LIBRARY_DIRECTORY.to_owned(),
+        )
+    }
+
     /// A server whose session reads `fs`.
     fn start_with(fs: Arc<MemFs>) -> Self {
+        Self::start_over(fs, "/typescript/lib".to_owned())
+    }
+
+    fn start_over(fs: Arc<dyn FileSystem>, default_library_path: String) -> Self {
         let input_pipe = Pipe::default();
         let output_pipe = Pipe::default();
         let stderr = Pipe::default();
@@ -105,7 +119,7 @@ impl Session {
             cwd: "/".to_owned(),
             set_parent_process_id: None,
             fs,
-            default_library_path: "/typescript/lib".to_owned(),
+            default_library_path,
         });
         let run = {
             let server = Arc::clone(&server);
@@ -177,14 +191,70 @@ fn normalize(line: &str) -> String {
 /// Replays `fixtures/<name>.json` as `scripts/lsp_transcript.py` does and
 /// compares the messages, the result and the standard error with tsgo's.
 fn replay(name: &str) {
+    let (expected, actual) = run_fixture(name);
+    assert_eq!(actual, expected);
+}
+
+/// [`replay`] without the logs (the window's and the standard error's), and
+/// with the counters of tsgo's watch IDs (`watcher <n>.<i>`) left out.
+fn replay_messages(name: &str) {
+    let messages = |transcript: &str| {
+        transcript
+            .lines()
+            .filter(|line| {
+                !line.contains(r#""method":"window/logMessage""#) && !line.starts_with("STDERR ")
+            })
+            .map(|line| {
+                let mut text = String::new();
+                let mut rest = line;
+                while let Some(index) = rest.find(" watcher ") {
+                    text.push_str(&rest[..index + 9]);
+                    rest = rest[index + 9..].trim_start_matches(|c: char| c.is_ascii_digit());
+                    text.push('#');
+                }
+                text.push_str(rest);
+                text
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let (expected, actual) = run_fixture(name);
+    assert_eq!(messages(&actual), messages(&expected));
+}
+
+/// The fixture's tsgo transcript and the in-process server's. A fixture
+/// with files runs over them in its workspace (`${WS}`), with the embedded
+/// library, as the recording did.
+fn run_fixture(name: &str) -> (String, String) {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let script: Value = serde_json::from_str(
+    let mut script: Value = serde_json::from_str(
         &std::fs::read_to_string(fixtures.join(format!("{name}.json"))).unwrap(),
     )
     .unwrap();
     let expected = std::fs::read_to_string(fixtures.join(format!("{name}.tsgo.txt"))).unwrap();
     let answers = script["answers"].as_object().cloned().unwrap_or_default();
-    let mut session = Session::start();
+    let workspace = script["workspace"].as_str().map(str::to_owned);
+    let mut session = match (&workspace, script["files"].as_object()) {
+        (Some(workspace), Some(files)) => {
+            let entries = files
+                .iter()
+                .map(|(name, text)| {
+                    (
+                        format!("{workspace}/{name}"),
+                        Seed::file(text.as_str().unwrap()),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let steps = serde_json::to_string(&script["steps"])
+                .unwrap()
+                .replace("${WS}", workspace);
+            script["steps"] = serde_json::from_str(&steps).unwrap();
+            Session::start_bundled(Arc::new(
+                MemFs::from_entries(entries, false, Arc::new(SystemClock)).unwrap(),
+            ))
+        }
+        _ => Session::start(),
+    };
     let mut lines = Vec::new();
     let mut receive = |session: &mut Session, until: &dyn Fn(&Value) -> bool| {
         while let Some(text) = session.receive() {
@@ -227,7 +297,13 @@ fn replay(name: &str) {
         "STDERR {}",
         serde_json::to_string(&session.stderr.contents()).unwrap()
     ));
-    assert_eq!(lines.join("\n"), expected.trim_end());
+    let mut actual = lines.join("\n");
+    if let Some(workspace) = &workspace {
+        actual = actual
+            .replace(workspace.as_str(), "${WS}")
+            .replace(workspace.to_lowercase().as_str(), "${WS}");
+    }
+    (expected.trim_end().to_owned(), actual)
 }
 
 /// initialize with VS Code's kind of capabilities, initialized with the
@@ -241,6 +317,13 @@ fn lifecycle_matches_tsgo() {
 /// Requests before initialization, invalid params and messages,
 /// preferences from the initialization options, log verbosity and string
 /// ids.
+/// An opened config's watches and its diagnostics pushed on
+/// `tsconfig.json` (`publishProgramDiagnostics`), as tsgo sends them.
+#[test]
+fn pushed_config_diagnostics_match_tsgo() {
+    replay_messages("push_diagnostics");
+}
+
 #[test]
 fn errors_match_tsgo() {
     replay("errors");

@@ -302,6 +302,15 @@ impl LiveProgram {
         self.checker.global_diagnostics()
     }
 
+    /// tsgo's project `checkerPool.GetGlobalDiagnostics`: the checker's
+    /// global rows once it has checked or been queried, none before.
+    pub fn global_diagnostics_so_far(&self) -> DiagnosticList {
+        if self.prepared.roots().is_empty() {
+            return Vec::new();
+        }
+        self.checker.global_diagnostics_so_far()
+    }
+
     /// tsgo `GetDeclarationDiagnostics(file)` of each of `files` on the
     /// diagnostics checker.
     pub fn declaration_diagnostics(

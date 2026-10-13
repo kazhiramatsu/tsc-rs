@@ -1,20 +1,21 @@
-//! tsgo `projecttestutil` for the session tests (session.rs,
-//! collection_builder.rs): a session over a case-insensitive file system,
-//! and the documents, edits and programs the tests use.
+//! tsgo `projecttestutil` for the session tests: a session over a
+//! case-insensitive file system with the embedded standard library, and the
+//! documents, edits and programs the tests use.
 
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
 
 use tsc_compiler::locale::Locale;
-use tsc_compiler::BoundDocument;
+use tsc_compiler::system::{BundledFs, EMBEDDED_LIBRARY_DIRECTORY};
+use tsc_compiler::{BoundDocument, DEFAULT_LOAD_LIMITS};
 use tsc_host::vfs::{FileSystem, MemFs, Seed, SystemClock};
 use tsc_lsproto::{
     DocumentUri, FileChangeType, FileEvent, FileSystemWatcher, LanguageKind, Position,
-    PositionEncodingKind, Range, TextDocumentContentChangePartial,
+    PositionEncodingKind, PublishDiagnosticsParams, Range, TextDocumentContentChangePartial,
     TextDocumentContentChangePartialOrWholeDocument,
 };
-use tsc_program::{LibraryCatalog, ProgramLoadLimits};
+use tsc_program::LibraryCatalog;
 use tsc_project::{Client, ProjectId, ProjectProgram, Session, SessionOptions};
 
 /// tsgo `projecttestutil.ClientMock`: the watch calls the session made.
@@ -22,6 +23,8 @@ use tsc_project::{Client, ProjectId, ProjectProgram, Session, SessionOptions};
 pub struct ClientMock {
     pub watch_files_calls: Mutex<Vec<(String, Vec<FileSystemWatcher>)>>,
     pub unwatch_files_calls: Mutex<Vec<String>>,
+    pub publish_diagnostics_calls: Mutex<Vec<PublishDiagnosticsParams>>,
+    pub refresh_diagnostics_calls: Mutex<usize>,
 }
 
 impl ClientMock {
@@ -32,9 +35,22 @@ impl ClientMock {
     pub fn unwatch_files_calls(&self) -> Vec<String> {
         self.unwatch_files_calls.lock().unwrap().clone()
     }
+
+    pub fn publish_diagnostics_calls(&self) -> Vec<PublishDiagnosticsParams> {
+        self.publish_diagnostics_calls.lock().unwrap().clone()
+    }
+
+    pub fn refresh_diagnostics_calls(&self) -> usize {
+        *self.refresh_diagnostics_calls.lock().unwrap()
+    }
 }
 
 impl Client for ClientMock {
+    fn publish_diagnostics(&self, params: PublishDiagnosticsParams) -> Result<(), String> {
+        self.publish_diagnostics_calls.lock().unwrap().push(params);
+        Ok(())
+    }
+
     fn watch_files(&self, id: &str, watchers: Vec<FileSystemWatcher>) -> Result<(), String> {
         self.watch_files_calls
             .lock()
@@ -45,6 +61,11 @@ impl Client for ClientMock {
 
     fn unwatch_files(&self, id: &str) -> Result<(), String> {
         self.unwatch_files_calls.lock().unwrap().push(id.to_owned());
+        Ok(())
+    }
+
+    fn refresh_diagnostics(&self) -> Result<(), String> {
+        *self.refresh_diagnostics_calls.lock().unwrap() += 1;
         Ok(())
     }
 
@@ -93,17 +114,18 @@ pub fn setup_entries(
     let session = Session::new(
         SessionOptions {
             current_directory: workspace.to_owned(),
-            library_catalog: LibraryCatalog::typescript_7_1("/typescript/lib"),
-            load_limits: ProgramLoadLimits::new(1_000, 10_000, 64, 1 << 20, 1 << 24),
+            library_catalog: LibraryCatalog::typescript_7_1(EMBEDDED_LIBRARY_DIRECTORY),
+            load_limits: DEFAULT_LOAD_LIMITS,
             run_external_code: false,
             position_encoding: PositionEncodingKind::UTF8,
             watch_enabled: true,
             logging_enabled: true,
             push_diagnostics_enabled: true,
             debounce_delay: std::time::Duration::ZERO,
-            relative_pattern_support: false,
+            client_capabilities: Default::default(),
         },
-        Arc::clone(&fs) as Arc<dyn FileSystem>,
+        // tsgo `bundled.WrapFS`: the embedded standard library.
+        Arc::new(BundledFs::new(Arc::clone(&fs))) as Arc<dyn FileSystem>,
         Some(Arc::clone(&client) as Arc<dyn Client>),
         None,
         None,

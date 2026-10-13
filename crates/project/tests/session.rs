@@ -1507,3 +1507,38 @@ fn a_missing_file_is_not_read() {
         .read_file("/home/projects/TS/p1/nonexistent.ts")
         .is_none());
 }
+
+#[test]
+fn a_style_check_preference_change_refreshes_the_diagnostics() {
+    // "schedules diagnostics refresh when reportStyleChecksAsWarnings
+    // changes".
+    let files = [
+        ("/src/tsconfig.json", "{}"),
+        ("/src/index.ts", "export const x = 1;"),
+    ];
+    let (session, _, client) = setup_with_client(&files);
+    open(&session, "file:///src/index.ts", files[1].1);
+    program(&session, "file:///src/index.ts");
+    session.wait_for_background_tasks();
+    let baseline = client.refresh_diagnostics_calls();
+    let mut preferences = UserPreferences::new_default();
+    preferences.report_style_checks_as_warnings = Some(false);
+    session.configure(preferences);
+    session.wait_for_background_tasks();
+    assert!(client.refresh_diagnostics_calls() > baseline);
+}
+
+#[test]
+fn a_custom_config_change_refreshes_the_diagnostics() {
+    // tsgo `TestCustomConfigFileName` "schedules diagnostics refresh when
+    // custom config preference changes".
+    let (session, _, client) = setup_with_client(&CUSTOM_FILES);
+    open(&session, CUSTOM_INDEX, CUSTOM_FILES[2].1);
+    program(&session, CUSTOM_INDEX);
+    session.wait_for_background_tasks();
+    let baseline = client.refresh_diagnostics_calls();
+    session.configure(custom_config("tsconfig.all.json"));
+    program(&session, CUSTOM_INDEX);
+    session.wait_for_background_tasks();
+    assert!(client.refresh_diagnostics_calls() > baseline);
+}

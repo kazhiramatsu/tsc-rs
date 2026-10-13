@@ -17,8 +17,9 @@ pub use line_map::{
     compute_line_map, compute_line_starts, get_line_and_character_of_position, LineMap,
 };
 pub use render::{
-    format_diagnostic_with_color_and_context, format_diagnostics_with_color_and_context,
-    rendered_file_name, sort_and_dedupe_diagnostic_indices_with_context, split_rendered_file_name,
+    flattened_message, format_diagnostic_with_color_and_context,
+    format_diagnostics_with_color_and_context, rendered_file_name,
+    sort_and_dedupe_diagnostic_indices_with_context, split_rendered_file_name,
     write_error_summary_text, FormatDiagnosticsError, FormatDiagnosticsHost,
     PrettyDiagnosticSources,
 };
