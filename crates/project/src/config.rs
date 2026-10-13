@@ -123,6 +123,11 @@ impl ConfigFileRegistry {
         self.configs.get(path)?.plan.as_ref()
     }
 
+    /// The number of configs the registry keeps.
+    pub(crate) fn len(&self) -> usize {
+        self.configs.len()
+    }
+
     /// The configs' root file watches by path (none for an entry only
     /// extended).
     pub(crate) fn root_files_watches(

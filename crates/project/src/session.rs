@@ -74,6 +74,20 @@ struct Inner {
     diagnostics_refresh: Mutex<ScheduledUpdate>,
     /// tsgo `watches`: the globs registered with the editor.
     watches: WatchRegistry,
+    idle_clean: Mutex<IdleClean>,
+}
+
+/// tsgo `idleCacheCleanDelay`.
+const IDLE_CACHE_CLEAN_DELAY: Duration = Duration::from_secs(30);
+
+/// tsgo's idle cache clean timer (`idleCacheCleanTimer`, its wait group and
+/// `idleCacheCleanClosed`).
+#[derive(Default)]
+struct IdleClean {
+    cancellation: Option<Cancellation>,
+    generation: u64,
+    closed: bool,
+    timer: Option<std::thread::JoinHandle<()>>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -114,6 +128,7 @@ impl Session {
                 scheduled_update: Mutex::default(),
                 diagnostics_refresh: Mutex::default(),
                 watches: WatchRegistry::default(),
+                idle_clean: Mutex::default(),
             }),
         }
     }
@@ -192,6 +207,7 @@ impl Session {
         language_kind: &LanguageKind,
     ) -> Result<(), ProjectError> {
         let inner = &self.inner;
+        inner.schedule_idle_cache_clean();
         inner.cancel_scheduled_snapshot_update();
         let _update = lock(&inner.snapshot_update);
         let (changes, overlays) = {
@@ -220,6 +236,7 @@ impl Session {
 
     /// tsgo `DidCloseFile`: pending, with an update scheduled.
     pub fn did_close_file(&self, uri: &DocumentUri) {
+        self.inner.schedule_idle_cache_clean();
         lock(&self.inner.pending_file_changes)
             .push(FileChange::new(FileChangeKind::Close, uri.clone()));
         self.inner.schedule_snapshot_update();
@@ -232,6 +249,7 @@ impl Session {
         version: i32,
         changes: Vec<TextDocumentContentChangePartialOrWholeDocument>,
     ) {
+        self.inner.schedule_idle_cache_clean();
         lock(&self.inner.pending_file_changes).push(FileChange {
             version,
             changes,
@@ -254,6 +272,7 @@ impl Session {
 
     /// tsgo `DidSaveFile`: pending until the next update.
     pub fn did_save_file(&self, uri: &DocumentUri) {
+        self.inner.schedule_idle_cache_clean();
         lock(&self.inner.pending_file_changes)
             .push(FileChange::new(FileChangeKind::Save, uri.clone()));
     }
@@ -296,6 +315,7 @@ impl Session {
         if has_config_change {
             self.inner.schedule_snapshot_update();
         }
+        self.inner.schedule_idle_cache_clean();
     }
 
     /// tsgo `DidChangeWatchedFiles`' relevance: a content mapper's watched
@@ -400,8 +420,10 @@ impl Session {
         })
     }
 
-    /// tsgo `WaitForBackgroundTasks`.
+    /// tsgo `WaitForBackgroundTasks`: the idle clean cancelled, the
+    /// background work done.
     pub fn wait_for_background_tasks(&self) {
+        self.inner.cancel_idle_cache_clean();
         self.inner.background.wait();
     }
 
@@ -411,6 +433,7 @@ impl Session {
         let inner = &self.inner;
         inner.cancel_scheduled_snapshot_update();
         inner.cancel_diagnostics_refresh();
+        inner.close_idle_cache_clean();
         inner.background.close();
         let _update = lock(&inner.snapshot_update);
         inner.host.close();
@@ -446,10 +469,23 @@ impl Inner {
                 snapshot,
             )
         };
-        // tsgo's adoption task: the watches, then the configs' diagnostics.
+        // tsgo's adoption task: the logs, the watches, then the configs'
+        // diagnostics.
         let inner = Arc::clone(self);
         let new = Arc::clone(&snapshot);
         self.background.enqueue(&Cancellation::default(), move |_| {
+            inner.log(|| {
+                format!(
+                    "Adopted snapshot {} (parent {}) as current session snapshot (replacing {})",
+                    new.id(),
+                    new.parent_id(),
+                    old.id()
+                )
+            });
+            if inner.logging_enabled() {
+                inner.log_project_changes(&old, &new);
+            }
+            inner.log(String::new);
             if inner.host.options().watch_enabled {
                 if let Err(error) = inner.update_watches(&old, &new) {
                     inner.log(|| error);
@@ -621,6 +657,50 @@ impl Inner {
         if let Err(error) = client.publish_diagnostics(params) {
             self.log(|| format!("Error publishing diagnostics: {error}"));
         }
+    }
+
+    /// tsgo `logProjectChanges`: each project added or built with new
+    /// files, each removed, then the cache statistics when one was.
+    fn log_project_changes(&self, old: &Snapshot, new: &Snapshot) {
+        let verbose = self
+            .logger
+            .as_ref()
+            .is_some_and(|logger| logger.is_verbose());
+        let mut logged = false;
+        let mut log_project = |project: &Project| {
+            self.log(|| print_project(project, verbose));
+            logged = true;
+        };
+        for project in new.projects() {
+            if old.project(&project.id).is_none() {
+                log_project(project);
+            }
+        }
+        for project in old.projects() {
+            match new.project(&project.id) {
+                None => self.log(|| format!("\nProject '{}' removed\n{HR}", project.id)),
+                Some(new_project)
+                    if !Arc::ptr_eq(project, new_project)
+                        && new_project.program_update_kind == ProgramUpdateKind::NewFiles =>
+                {
+                    log_project(new_project);
+                }
+                Some(_) => {}
+            }
+        }
+        if logged || verbose {
+            let [open, cached, aliases, projects, configs] = new.cache_statistics();
+            self.log(|| "\n======== Cache Statistics ========".to_owned());
+            self.log(|| format!("Open file count:   {open:6}"));
+            self.log(|| format!("Cached disk files: {cached:6}"));
+            self.log(|| format!("Realpath aliases:  {aliases:6}"));
+            self.log(|| format!("Project count:     {projects:6}"));
+            self.log(|| format!("Config count:      {configs:6}"));
+        }
+    }
+
+    fn logging_enabled(&self) -> bool {
+        self.logger.is_some() && self.host.options().logging_enabled
     }
 
     /// tsgo `updateWatches`: the watches of the configs and projects the
@@ -885,6 +965,74 @@ impl Inner {
         }
     }
 
+    /// tsgo `scheduleIdleCacheClean`: after the editor has been quiet for
+    /// [`IDLE_CACHE_CLEAN_DELAY`], the pending changes applied with the
+    /// cached files no build looked at dropped.
+    fn schedule_idle_cache_clean(self: &Arc<Self>) {
+        let mut idle = lock(&self.idle_clean);
+        if idle.closed {
+            return;
+        }
+        if let Some(cancellation) = idle.cancellation.take() {
+            cancellation.cancel();
+        }
+        let cancellation = Cancellation::default();
+        idle.generation += 1;
+        let generation = idle.generation;
+        idle.cancellation = Some(cancellation.clone());
+        let inner = Arc::clone(self);
+        idle.timer = Some(std::thread::spawn(move || {
+            if !cancellation.sleep(IDLE_CACHE_CLEAN_DELAY) {
+                return;
+            }
+            {
+                let mut idle = lock(&inner.idle_clean);
+                if idle.generation != generation {
+                    return;
+                }
+                idle.cancellation = None;
+            }
+            let _update = lock(&inner.snapshot_update);
+            inner.cancel_scheduled_snapshot_update();
+            let (changes, overlays, new_config) = inner.flush_changes();
+            let _ = inner.update_snapshot(
+                overlays,
+                SnapshotChange {
+                    file_changes: changes,
+                    new_config,
+                    clean_file_cache: true,
+                    ..SnapshotChange::default()
+                },
+            );
+        }));
+    }
+
+    /// tsgo `cancelIdleCacheClean`.
+    fn cancel_idle_cache_clean(&self) {
+        let mut idle = lock(&self.idle_clean);
+        if let Some(cancellation) = idle.cancellation.take() {
+            cancellation.cancel();
+            idle.generation += 1;
+        }
+    }
+
+    /// tsgo `closeIdleCacheClean`: no clean after this, and a running one
+    /// done.
+    fn close_idle_cache_clean(&self) {
+        let timer = {
+            let mut idle = lock(&self.idle_clean);
+            idle.closed = true;
+            if let Some(cancellation) = idle.cancellation.take() {
+                cancellation.cancel();
+                idle.generation += 1;
+            }
+            idle.timer.take()
+        };
+        if let Some(timer) = timer {
+            let _ = timer.join();
+        }
+    }
+
     /// tsgo `cancelScheduledSnapshotUpdate`.
     fn cancel_scheduled_snapshot_update(&self) {
         let mut scheduled = lock(&self.scheduled_update);
@@ -935,6 +1083,31 @@ impl Inner {
             logger.log(&message());
         }
     }
+}
+
+/// tsgo's `hr` under a project in the logs.
+const HR: &str = "-----------------------------------------------";
+
+/// tsgo `Project.print`: the project and its file count (and, verbose, the
+/// files).
+fn print_project(project: &Project, write_file_names: bool) -> String {
+    let mut text = format!("\nProject '{}'\n", project.id);
+    match &project.program {
+        None => text.push_str("\tFiles (0) NoProgram\n"),
+        Some(program) => {
+            let files = program.prepared().source_files();
+            text.push_str(&format!("\tFiles ({})\n", files.len()));
+            if write_file_names {
+                for file in files {
+                    text.push_str("\t\t");
+                    text.push_str(&file.path().display().to_string_lossy());
+                    text.push('\n');
+                }
+            }
+        }
+    }
+    text.push_str(HR);
+    text
 }
 
 /// tsgo's errors for a document's default project.

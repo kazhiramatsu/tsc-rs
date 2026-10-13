@@ -166,6 +166,9 @@ pub struct SnapshotChange<'a> {
     /// tsgo `newConfig`: the user's preferences, when they changed.
     pub new_config: Option<UserPreferences>,
     pub api_request: Option<&'a ApiSnapshotRequest>,
+    /// tsgo `cleanFileCache`: the cached files no project's build looked at
+    /// are dropped (the session's idle clean).
+    pub clean_file_cache: bool,
 }
 
 /// The API's open state (tsgo `APIState`): the projects and files opened
@@ -400,6 +403,18 @@ impl Snapshot {
         self.fs.paths().to_path(file_name)
     }
 
+    /// tsgo `logCacheStats`' counts: the open documents, the cached disk
+    /// files, the realpath aliases, the projects and the configs.
+    pub(crate) fn cache_statistics(&self) -> [usize; 5] {
+        [
+            self.fs.overlays.len(),
+            self.fs.files.len(),
+            self.fs.aliases.len(),
+            self.projects().count(),
+            self.configs.len(),
+        ]
+    }
+
     /// tsgo `GetOpenConfiguredProjects`: the configured projects with an
     /// open file, the default project of each open file or else every
     /// configured project that has it.
@@ -610,6 +625,7 @@ impl SnapshotHost {
             configured_project_documents,
             new_config,
             api_request: request,
+            clean_file_cache,
         } = change;
         let overlays = overlays.unwrap_or_else(|| Arc::clone(&base.fs.overlays));
         // The documents and mapped outputs of the programs that are gone
@@ -697,11 +713,14 @@ impl SnapshotHost {
                 .chain(projects.synthetic.values())
                 .chain(projects.inferred.iter())
         };
-        let clean_file_cache = file_changes.opened.is_some()
+        // tsgo: on an open, a close, a deletion or when asked; the files a
+        // build looked at change only when a program was built anew.
+        let should_clean_file_cache = clean_file_cache
+            || file_changes.opened.is_some()
             || file_changes.reopened.is_some()
             || !file_changes.closed.is_empty()
             || !file_changes.deleted.is_empty();
-        if clean_file_cache && all_projects().any(built) {
+        if should_clean_file_cache && (clean_file_cache || all_projects().any(built)) {
             fs.retain_files(|path| all_projects().any(|project| project.seen.seen_file(path)));
         }
         Ok(Snapshot {
