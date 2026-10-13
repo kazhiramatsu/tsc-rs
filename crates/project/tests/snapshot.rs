@@ -14,7 +14,7 @@ use tsc_program::go_json::compiler_options_bag;
 use tsc_program::{ConfigOptionBag, ConfigProjectReference, LibraryCatalog, ProgramLoadLimits};
 use tsc_project::{
     ApiSnapshotRequest, CreateProgramRequest, FileChangeSummary, ProgramUpdateKind, ProjectId,
-    ProjectKind, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotHost,
+    ProjectKind, ReconfigureProgramRequest, SessionOptions, Snapshot, SnapshotChange, SnapshotHost,
 };
 
 fn session(files: &[(&str, &str)]) -> (SnapshotHost, Arc<MemFs>) {
@@ -65,8 +65,14 @@ fn update(
     base: &Snapshot,
     request: ApiSnapshotRequest,
 ) -> Result<Snapshot, String> {
-    host.clone_snapshot(base, FileChangeSummary::default(), Some(&request))
-        .map_err(|error| error.to_string())
+    host.clone_snapshot(
+        base,
+        SnapshotChange {
+            api_request: Some(&request),
+            ..SnapshotChange::default()
+        },
+    )
+    .map_err(|error| error.to_string())
 }
 
 fn changed(host: &SnapshotHost, base: &Snapshot, files: &[&str]) -> Snapshot {
@@ -74,8 +80,14 @@ fn changed(host: &SnapshotHost, base: &Snapshot, files: &[&str]) -> Snapshot {
         changed: files.iter().map(|name| (*name).to_owned()).collect(),
         ..FileChangeSummary::default()
     };
-    host.clone_snapshot(base, changes, None)
-        .expect("apply the file changes")
+    host.clone_snapshot(
+        base,
+        SnapshotChange {
+            file_changes: changes,
+            ..SnapshotChange::default()
+        },
+    )
+    .expect("apply the file changes")
 }
 
 fn open_projects(config_file_names: &[&str]) -> ApiSnapshotRequest {
@@ -678,11 +690,13 @@ fn a_created_file_the_includes_match_is_a_new_root() {
     let created = host
         .clone_snapshot(
             &opened,
-            FileChangeSummary {
-                created: BTreeSet::from(["/src/other.ts".to_owned()]),
-                ..FileChangeSummary::default()
+            SnapshotChange {
+                file_changes: FileChangeSummary {
+                    created: BTreeSet::from(["/src/other.ts".to_owned()]),
+                    ..FileChangeSummary::default()
+                },
+                ..SnapshotChange::default()
             },
-            None,
         )
         .expect("apply the creation");
     assert!(created.project(&id).unwrap().is_dirty());
@@ -1248,11 +1262,13 @@ fn a_file_added_to_a_referenced_project_rebuilds_the_program() {
     let created = host
         .clone_snapshot(
             &opened,
-            FileChangeSummary {
-                created: BTreeSet::from([added]),
-                ..FileChangeSummary::default()
+            SnapshotChange {
+                file_changes: FileChangeSummary {
+                    created: BTreeSet::from([added]),
+                    ..FileChangeSummary::default()
+                },
+                ..SnapshotChange::default()
             },
-            None,
         )
         .expect("apply the creation");
     let ensured = update(

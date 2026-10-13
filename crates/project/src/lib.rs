@@ -27,5 +27,5 @@ pub use overlay::{FileChange, FileChangeKind, Overlay};
 pub use project::{CommandLine, ProgramRoots, ProgramUpdateKind, Project, ProjectProgram};
 pub use snapshot::{
     ApiSnapshotRequest, CreateProgramRequest, ProjectError, ReconfigureProgramRequest,
-    SessionOptions, Snapshot, SnapshotHost,
+    SessionOptions, Snapshot, SnapshotChange, SnapshotHost,
 };

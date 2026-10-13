@@ -68,6 +68,14 @@ pub(crate) struct ProjectCollectionBuilder<'a> {
     file_default_projects: BTreeMap<String, ProjectId>,
     api_state: ApiState,
     created_programs: Vec<ProjectId>,
+    /// tsgo `openFilesChanged`: the editor opened or closed a file.
+    open_files_changed: bool,
+    /// tsgo `programStructureChanged`: a change may move files between
+    /// projects.
+    program_structure_changed: bool,
+    /// tsgo `defaultProjectsInvalidated`: every open file's default project
+    /// is searched for again.
+    default_projects_invalidated: bool,
 }
 
 impl<'a> ProjectCollectionBuilder<'a> {
@@ -90,7 +98,15 @@ impl<'a> ProjectCollectionBuilder<'a> {
             file_default_projects: BTreeMap::new(),
             api_state: base.api_state.clone(),
             created_programs: Vec::new(),
+            open_files_changed: !fs.overlays().keys().eq(base.open_files.iter()),
+            program_structure_changed: false,
+            default_projects_invalidated: false,
         }
+    }
+
+    /// tsgo `isOpenFile`.
+    fn is_open_file(&self, path: &str) -> bool {
+        self.fs.is_open_file(path)
     }
 
     /// tsgo `Finalize`: the base snapshot's collection when nothing changed.
@@ -104,6 +120,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let projects = if Arc::ptr_eq(&self.configured, &self.base.configured)
             && Arc::ptr_eq(&self.synthetic, &self.base.synthetic)
             && same_inferred
+            && !self.open_files_changed
             && self.file_default_projects == self.base.file_default_projects
             && self.api_state == self.base.api_state
         {
@@ -113,6 +130,11 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 configured: self.configured,
                 synthetic: self.synthetic,
                 inferred: self.inferred,
+                open_files: if self.open_files_changed {
+                    self.fs.overlays().keys().cloned().collect()
+                } else {
+                    self.base.open_files.clone()
+                },
                 file_default_projects: self.file_default_projects,
                 api_state: self.api_state,
             })
@@ -709,7 +731,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 )?;
                 retain.extend(result.retain);
                 if result.project.is_none() {
-                    if !is_supported_in_inferred_project(file_name) {
+                    if !self.is_supported_in_inferred_project(file_name) {
                         return Err(ProjectError::new(format!(
                             "no project found for opened file: {file_name}"
                         )));
@@ -770,15 +792,18 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 retain: BTreeSet::new(),
             });
         }
-        let Some(config_file_name) = self.config_file_name_for_file(file_name) else {
+        let Some(config_file_name) = self.configs.get_config_file_name_for_file(file_name, path)
+        else {
             return Ok(SearchResult::default());
         };
         let mut visited = BTreeSet::new();
         let result = self.find_or_create_default_configured_project_worker(
+            file_name,
             path,
             &config_file_name,
             load_kind,
             &mut visited,
+            None,
         )?;
         if let Some(project) = &result.project {
             self.file_default_projects
@@ -787,56 +812,21 @@ impl<'a> ProjectCollectionBuilder<'a> {
         Ok(result)
     }
 
-    /// tsgo `getConfigFileNameForFile` for a file no editor has open
-    /// (`computeConfigFileName`): the nearest `tsconfig.json`, else
-    /// `jsconfig.json`, in the file's directory and above it, not past a
-    /// `node_modules` directory.
-    fn config_file_name_for_file(&self, file_name: &str) -> Option<String> {
-        if file_name.starts_with("^/") {
-            return None;
-        }
-        let directory_of = |path: &str| {
-            tsc_program::get_directory_path(JsStr::from_str(path))
-                .to_string_lossy()
-                .into_owned()
-        };
-        // tsgo `ForEachAncestorDirectory` from the file's directory.
-        let mut directory = directory_of(&self.host.paths().absolute(file_name));
-        loop {
-            for config in ["tsconfig.json", "jsconfig.json"] {
-                let candidate = tsc_program::combine_paths(
-                    JsStr::from_str(&directory),
-                    JsStr::from_str(config),
-                )
-                .to_string_lossy()
-                .into_owned();
-                if self.fs.file_exists(&candidate) {
-                    return Some(candidate);
-                }
-            }
-            if directory.ends_with("/node_modules") {
-                return None;
-            }
-            let parent = directory_of(&directory);
-            if parent == directory {
-                return None;
-            }
-            directory = parent;
-        }
-    }
-
     /// tsgo `findOrCreateDefaultConfiguredProjectWorker`: a breadth-first
     /// search from the config through the project references for a project
     /// whose program has the file. tsgo visits a level's configs in
     /// parallel and keeps the lowest one that has the file; visiting them in
-    /// order finds the same one. A file the API opened has no search above
-    /// the config (no solution search).
+    /// order finds the same one. Without a direct inclusion, the search goes
+    /// on from the config above (a solution's), which only an open file has
+    /// a name for.
     fn find_or_create_default_configured_project_worker(
         &mut self,
+        file_name: &str,
         path: &str,
         config_file_name: &str,
         load_kind: LoadKind,
         visited: &mut BTreeSet<(String, LoadKind)>,
+        fallback: Option<SearchResult>,
     ) -> Result<SearchResult, ProjectError> {
         struct Job {
             config_file_name: String,
@@ -852,7 +842,8 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let mut level = vec![0];
         let mut configs: BTreeMap<String, Arc<ConfigRootPlan>> = BTreeMap::new();
         let mut found = None;
-        let mut fallback = None;
+        // The first project with the file as a referenced project's source.
+        let mut level_result = None;
         while !level.is_empty() && found.is_none() {
             // A find is dropped when the level also creates the same config.
             let creates = level
@@ -879,7 +870,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
                         found = Some(job);
                         break;
                     }
-                    if fallback.is_none() && level_fallback.is_none() {
+                    if level_result.is_none() && level_fallback.is_none() {
                         level_fallback = Some(job);
                     }
                 }
@@ -907,8 +898,8 @@ impl<'a> ProjectCollectionBuilder<'a> {
                     }
                 }
             }
-            if fallback.is_none() {
-                fallback = level_fallback;
+            if level_result.is_none() {
+                level_result = level_fallback;
             }
             let mut seen = BTreeSet::new();
             level = Vec::new();
@@ -927,21 +918,57 @@ impl<'a> ProjectCollectionBuilder<'a> {
             }
             names
         };
-        let result_names = result_path(found.or(fallback));
+        let result_names = result_path(found.or(level_result));
         let project = result_names
             .first()
             .and_then(|name| ProjectId::configured(&paths.to_path(name)))
             .filter(|id| self.configured.contains_key(id));
-        let mut retain = result_names
+        let retain = result_names
             .iter()
             .map(|name| paths.to_path(name))
             .collect::<BTreeSet<_>>();
-        if found.is_none() && project.is_none() {
-            // Nothing found: the whole graph was walked, so everything
-            // visited is kept.
-            retain.extend(visited.iter().map(|(name, _)| paths.to_path(name)));
+        if found.is_some() {
+            return Ok(SearchResult { project, retain });
         }
-        Ok(SearchResult { project, retain })
+        // A project with the file as a source of a referenced project.
+        let fallback = match project {
+            Some(project) => Some(SearchResult {
+                project: Some(project),
+                retain,
+            }),
+            None => fallback,
+        };
+        let disable_solution_searching =
+            configs
+                .get(&paths.to_path(config_file_name))
+                .is_some_and(|config| {
+                    config.options().option_bool("disableSolutionSearching") == Some(true)
+                });
+        if disable_solution_searching {
+            if let Some(fallback) = fallback {
+                return Ok(fallback);
+            }
+        }
+        if let Some(ancestor) =
+            self.configs
+                .get_ancestor_config_file_name(file_name, path, config_file_name)
+        {
+            return self.find_or_create_default_configured_project_worker(
+                file_name, path, &ancestor, load_kind, visited, fallback,
+            );
+        }
+        if let Some(fallback) = fallback {
+            return Ok(fallback);
+        }
+        // Nothing found: the whole graph was walked, so everything visited
+        // is kept.
+        Ok(SearchResult {
+            project: None,
+            retain: visited
+                .iter()
+                .map(|(name, _)| paths.to_path(name))
+                .collect(),
+        })
     }
 
     /// One config of the default-project search: whether its project has the
@@ -957,9 +984,10 @@ impl<'a> ProjectCollectionBuilder<'a> {
         let config_path = paths.to_path(config_file_name);
         let config = match load_kind {
             LoadKind::Find => self.configs.find_config(&config_path),
-            LoadKind::Create => self
-                .configs
-                .acquire_config_for_file(config_file_name, &config_path)?,
+            LoadKind::Create => {
+                self.configs
+                    .acquire_config_for_file(config_file_name, &config_path, path)?
+            }
         };
         let Some(config) = config else {
             return Ok((false, false));
@@ -1001,34 +1029,52 @@ impl<'a> ProjectCollectionBuilder<'a> {
         Ok((true, !project.is_source_from_project_reference(path)))
     }
 
-    /// tsgo `cleanupConfiguredProjects`: the configured projects no opened
-    /// file, open project or `retain` needs are deleted; the opened files
-    /// without a configured project are the inferred project's roots.
+    /// tsgo `cleanupConfiguredProjects`: the configured projects no open
+    /// file (the editor's, then the API's), open project or `retain` needs
+    /// are deleted; an open file keeps its default project, the configs its
+    /// program references, and (for an editor's open file) the projects of
+    /// the configs above it. The open files without a configured project
+    /// are the inferred project's roots.
     fn cleanup_configured_projects(
         &mut self,
         retain: Option<&BTreeSet<String>>,
     ) -> Result<(), ProjectError> {
+        let paths = self.host.paths().clone();
         let mut to_remove = self
             .configured
             .keys()
             .map(|id| id.as_str().to_owned())
             .collect::<BTreeSet<_>>();
         let mut inferred_project_files = Vec::new();
-        let opened = self
-            .api_state
-            .open_files
+        let mut open_files = self
+            .fs
+            .overlays()
             .iter()
-            .map(|(path, file)| (path.clone(), file.file_name.clone()))
+            .map(|(path, overlay)| (path.clone(), overlay.file_name().to_owned(), true))
             .collect::<Vec<_>>();
-        for (path, file_name) in opened {
+        open_files.extend(
+            self.api_state
+                .open_files
+                .iter()
+                .filter(|(path, _)| !self.is_open_file(path))
+                .map(|(path, file)| (path.clone(), file.file_name.clone(), false)),
+        );
+        for (path, file_name, editor) in open_files {
             match self.find_default_configured_project(&file_name, &path)? {
-                // tsgo `retainConfiguredProjectAndReferences`: the projects of
-                // the configs its program references stay too.
                 Some(id) => {
-                    to_remove.remove(id.as_str());
-                    if let Some(program) = self.project(&id).and_then(|project| project.program()) {
-                        for reference in program.references() {
-                            to_remove.remove(reference);
+                    self.retain_configured_project_and_references(&id, &mut to_remove);
+                    if editor {
+                        // tsgo `retainDefaultConfiguredProject`: the projects
+                        // of the configs above the file stay.
+                        for config_file_name in self.configs.config_file_names_for(&path) {
+                            let ancestor = ProjectId::configured(&paths.to_path(&config_file_name))
+                                .filter(|ancestor| self.configured.contains_key(ancestor));
+                            if let Some(ancestor) = ancestor {
+                                self.retain_configured_project_and_references(
+                                    &ancestor,
+                                    &mut to_remove,
+                                );
+                            }
                         }
                     }
                 }
@@ -1050,6 +1096,25 @@ impl<'a> ProjectCollectionBuilder<'a> {
         self.update_inferred_project_roots(inferred_project_files);
         self.configs.cleanup();
         Ok(())
+    }
+
+    /// tsgo `retainConfiguredProjectAndReferences`: the project and the
+    /// projects of the configs its program references stay.
+    fn retain_configured_project_and_references(
+        &self,
+        id: &ProjectId,
+        to_remove: &mut BTreeSet<String>,
+    ) {
+        to_remove.remove(id.as_str());
+        if let Some(program) = self.project(id).and_then(|project| project.program()) {
+            for reference in program.references() {
+                let configured = ProjectId::configured(reference)
+                    .is_some_and(|reference| self.configured.contains_key(&reference));
+                if configured {
+                    to_remove.remove(reference);
+                }
+            }
+        }
     }
 
     /// tsgo `findDefaultConfiguredProject` (builder): the default project
@@ -1130,17 +1195,25 @@ impl<'a> ProjectCollectionBuilder<'a> {
         Ok(())
     }
 
-    /// tsgo `collectInferredProjectRoots` (`appendAPIOpenedInferredRoots`):
-    /// the opened files without a default configured project.
+    /// tsgo `collectInferredProjectRoots` (with `appendAPIOpenedInferredRoots`):
+    /// the editor's open files, then the API's, without a default configured
+    /// project.
     fn collect_inferred_project_roots(&mut self) -> Result<Vec<String>, ProjectError> {
-        let opened = self
-            .api_state
-            .open_files
+        let mut open_files = self
+            .fs
+            .overlays()
             .iter()
-            .map(|(path, file)| (path.clone(), file.file_name.clone()))
+            .map(|(path, overlay)| (path.clone(), overlay.file_name().to_owned()))
             .collect::<Vec<_>>();
+        open_files.extend(
+            self.api_state
+                .open_files
+                .iter()
+                .filter(|(path, _)| !self.is_open_file(path))
+                .map(|(path, file)| (path.clone(), file.file_name.clone())),
+        );
         let mut roots = Vec::new();
-        for (path, file_name) in opened {
+        for (path, file_name) in open_files {
             if self
                 .find_default_configured_project(&file_name, &path)?
                 .is_none()
@@ -1157,7 +1230,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
     fn update_inferred_project_roots(&mut self, roots: Vec<String>) {
         let mut roots = roots
             .into_iter()
-            .filter(|root| is_supported_in_inferred_project(root))
+            .filter(|root| self.is_supported_in_inferred_project(root))
             .collect::<Vec<_>>();
         if roots.is_empty() {
             if self.inferred.is_some() {
@@ -1180,10 +1253,18 @@ impl<'a> ProjectCollectionBuilder<'a> {
         }
     }
 
-    /// tsgo `DidChangeFiles` (projectcollectionbuilder.go:388-463) without
-    /// open files: the configs a change concerns are marked, and a project
-    /// whose program read a changed, deleted or created file becomes dirty.
-    pub(crate) fn did_change_files(&mut self, changes: &FileChangeSummary) {
+    /// tsgo `DidChangeFiles` (projectcollectionbuilder.go:397-472): the
+    /// configs a change concerns are marked, a project whose program read a
+    /// changed, deleted or created file becomes dirty, a closed file leaves
+    /// the inferred project's roots, and an opened file gets its configured
+    /// project (and the configs above it) while the projects no open file
+    /// needs go.
+    pub(crate) fn did_change_files(
+        &mut self,
+        changes: &FileChangeSummary,
+    ) -> Result<(), ProjectError> {
+        self.open_files_changed =
+            self.open_files_changed || changes.opened.is_some() || !changes.closed.is_empty();
         let paths = self.host.paths().clone();
         let to_paths = |files: &BTreeSet<String>| {
             files
@@ -1205,18 +1286,9 @@ impl<'a> ProjectCollectionBuilder<'a> {
             }
         }
 
-        for id in self.configs.did_change_files(changes) {
-            // tsgo `markProjectsAffectedByConfigChanges`.
-            if self
-                .project(&id)
-                .is_some_and(|project| !project.dirty || project.dirty_file_path.is_some())
-            {
-                self.change(&id, |project| {
-                    project.dirty = true;
-                    project.dirty_file_path = None;
-                });
-            }
-        }
+        let config_changes = self.configs.did_change_files(changes);
+        self.program_structure_changed =
+            self.mark_projects_affected_by_config_changes(config_changes)?;
 
         let excessive = changes.has_excessive_non_create_watch_events();
         for id in self.project_ids() {
@@ -1228,6 +1300,21 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 continue;
             }
             self.mark_files_changed(&id, &changed, FileChange::Changed);
+            if id.kind() == Some(ProjectKind::Inferred) && !changes.closed.is_empty() {
+                let closed = changes
+                    .closed
+                    .iter()
+                    .map(|file_name| paths.to_path(file_name))
+                    .collect::<BTreeSet<_>>();
+                let roots = self
+                    .project(&id)
+                    .map(|project| project.root_file_names())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|root| !closed.contains(&paths.to_path(root)))
+                    .collect();
+                self.update_inferred_project_roots(roots);
+            }
             if !deleted.is_empty() {
                 self.mark_files_changed(&id, &deleted, FileChange::Deleted);
             }
@@ -1235,6 +1322,212 @@ impl<'a> ProjectCollectionBuilder<'a> {
                 self.mark_files_changed(&id, &created, FileChange::Created);
             }
         }
+
+        if let Some(file_name) = changes.opened.as_ref().or(changes.reopened.as_ref()) {
+            let path = paths.to_path(file_name);
+            let result = self.ensure_configured_project_and_ancestors_for_file(file_name, &path)?;
+            self.cleanup_configured_projects(Some(&result.retain))?;
+        }
+        Ok(())
+    }
+
+    /// tsgo `markProjectsAffectedByConfigChanges`: the projects using a
+    /// changed config become dirty, and the open files whose config names
+    /// may have changed get their configured projects again; whether any
+    /// did.
+    fn mark_projects_affected_by_config_changes(
+        &mut self,
+        config_changes: crate::config::ChangeFileResult,
+    ) -> Result<bool, ProjectError> {
+        for id in config_changes.affected_projects {
+            if self
+                .project(&id)
+                .is_some_and(|project| !project.dirty || project.dirty_file_path.is_some())
+            {
+                self.change(&id, |project| {
+                    project.dirty = true;
+                    project.dirty_file_path = None;
+                });
+            }
+        }
+        let mut has_changes = false;
+        for path in config_changes.affected_files {
+            let Some(overlay) = self.fs.overlays().get(&path).cloned() else {
+                continue;
+            };
+            self.ensure_configured_project_and_ancestors_for_file(overlay.file_name(), &path)?;
+            has_changes = true;
+        }
+        Ok(has_changes)
+    }
+
+    /// tsgo `DidChangeCustomConfigFileName`: every open file's default
+    /// project is searched for again.
+    pub(crate) fn did_change_custom_config_file_name(&mut self) {
+        if !self.configs.did_change_custom_config_file_name() {
+            return;
+        }
+        self.file_default_projects.clear();
+        self.default_projects_invalidated = true;
+        self.program_structure_changed = true;
+    }
+
+    /// tsgo `DidChangeUserPreferences`: a new locale makes every project
+    /// dirty.
+    pub(crate) fn did_change_user_preferences(
+        &mut self,
+        old: &tsc_ls::lsutil::UserPreferences,
+        new: &tsc_ls::lsutil::UserPreferences,
+    ) {
+        if old.locale == new.locale {
+            return;
+        }
+        for id in self.project_ids() {
+            self.change(&id, |project| {
+                project.dirty = true;
+                project.dirty_file_path = None;
+            });
+        }
+    }
+
+    /// tsgo `DidRequestFile`: the projects of a file a request needs are
+    /// loaded and brought up to date; a file no editor has open goes to the
+    /// inferred project when no configured project has it (unless
+    /// `configured_projects_only`).
+    pub(crate) fn did_request_file(
+        &mut self,
+        file_name: &str,
+        configured_projects_only: bool,
+    ) -> Result<(), ProjectError> {
+        let path = self.host.paths().to_path(file_name);
+        if self.default_projects_invalidated {
+            self.ensure_configured_project_and_ancestors_for_file(file_name, &path)?;
+            if !self.is_open_file(&path) {
+                return Ok(());
+            }
+        }
+        if self.is_open_file(&path) {
+            let mut has_changes = self.program_structure_changed;
+            // The default project, if it can be found without updating
+            // anything else.
+            if let Some(id) = self.find_default_project(file_name, &path)? {
+                has_changes = self.update_program(&id)? || has_changes;
+                if self
+                    .project(&id)
+                    .is_some_and(|project| project.contains_file(&path))
+                {
+                    if has_changes {
+                        self.cleanup_inferred_project()?;
+                        if self.inferred.is_some() {
+                            self.update_program(&ProjectId::inferred())?;
+                        }
+                    }
+                    return Ok(());
+                }
+            }
+            // Every known project brought up to date.
+            for id in self.configured.keys().cloned().collect::<Vec<_>>() {
+                has_changes = self.update_program(&id)? || has_changes;
+            }
+            if has_changes {
+                // Files may move in or out of the inferred project.
+                self.cleanup_inferred_project()?;
+            }
+            if self.inferred.is_some() {
+                self.update_program(&ProjectId::inferred())?;
+            }
+        } else {
+            let result = self.ensure_configured_project_and_ancestors_for_file(file_name, &path)?;
+            if result.project.is_none() && !configured_projects_only {
+                self.ensure_inferred_project_includes_closed_file(file_name)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// tsgo `ensureConfiguredProjectAndAncestorsForFile`: the file's default
+    /// configured project, created when missing, and for an open file the
+    /// projects of the configs above it.
+    fn ensure_configured_project_and_ancestors_for_file(
+        &mut self,
+        file_name: &str,
+        path: &str,
+    ) -> Result<SearchResult, ProjectError> {
+        let mut result = self.find_or_create_default_configured_project_for_file(
+            file_name,
+            path,
+            LoadKind::Create,
+        )?;
+        if result.project.is_some() && self.is_open_file(path) {
+            self.create_ancestor_tree(file_name, path, &mut result)?;
+        }
+        Ok(result)
+    }
+
+    /// tsgo `createAncestorTree`: the projects of the configs above a
+    /// composite project, created to load later (a solution's), kept with
+    /// the open file's result.
+    fn create_ancestor_tree(
+        &mut self,
+        file_name: &str,
+        path: &str,
+        result: &mut SearchResult,
+    ) -> Result<(), ProjectError> {
+        let paths = self.host.paths().clone();
+        let Some(mut id) = result.project.clone() else {
+            return Ok(());
+        };
+        loop {
+            let Some(project) = self.project(&id).cloned() else {
+                return Ok(());
+            };
+            // Only a composite project searches for its solution.
+            if let Some(command_line) = project.config_plan() {
+                if command_line.compiler_options().composite != Some(true)
+                    || command_line
+                        .options()
+                        .option_bool("disableSolutionSearching")
+                        == Some(true)
+                {
+                    return Ok(());
+                }
+            }
+            let Some(config_file_name) = project.config_file_name.clone() else {
+                return Ok(());
+            };
+            let Some(ancestor_name) =
+                self.configs
+                    .get_ancestor_config_file_name(file_name, path, &config_file_name)
+            else {
+                return Ok(());
+            };
+            let ancestor_path = paths.to_path(&ancestor_name);
+            let ancestor = self.find_or_create_configured_project(&ancestor_name, &ancestor_path);
+            result.retain.insert(ancestor_path);
+            // A new ancestor (not loaded yet) records this project as one it
+            // may reference.
+            let composite = project
+                .config_plan()
+                .is_none_or(|command_line| command_line.compiler_options().composite == Some(true));
+            if self
+                .project(&ancestor)
+                .is_some_and(|ancestor| ancestor.command_line.is_none())
+                && composite
+            {
+                let reference = project.config_file_path.clone();
+                self.change(&ancestor, |ancestor| {
+                    ancestor.set_potential_project_reference(reference);
+                });
+            }
+            id = ancestor;
+        }
+    }
+
+    /// tsgo `cleanupInferredProject`.
+    fn cleanup_inferred_project(&mut self) -> Result<(), ProjectError> {
+        let roots = self.collect_inferred_project_roots()?;
+        self.update_inferred_project_roots(roots);
+        Ok(())
     }
 
     /// tsgo `markFilesChanged`: one changed file of the program is kept as
@@ -1284,16 +1577,26 @@ impl<'a> ProjectCollectionBuilder<'a> {
     }
 }
 
-/// tsgo `isSupportedInInferredProject` for a file no editor has open: a
-/// dynamic name or one with a script kind (tsgo `GetScriptKindFromFileName`).
-fn is_supported_in_inferred_project(file_name: &str) -> bool {
-    if file_name.starts_with("^/") {
-        return true;
+impl ProjectCollectionBuilder<'_> {
+    /// tsgo `isSupportedInInferredProject`: a dynamic name, one with a script
+    /// kind (tsgo `GetScriptKindFromFileName`), or an open document without
+    /// an extension.
+    fn is_supported_in_inferred_project(&self, file_name: &str) -> bool {
+        if file_name.starts_with("^/") {
+            return true;
+        }
+        let extension = file_name
+            .rsplit('/')
+            .next()
+            .and_then(|name| name.rfind('.').map(|index| &name[index..]));
+        if extension.is_some_and(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                ".js" | ".cjs" | ".mjs" | ".jsx" | ".ts" | ".cts" | ".mts" | ".tsx" | ".json"
+            )
+        }) {
+            return true;
+        }
+        extension.is_none() && self.is_open_file(&self.host.paths().to_path(file_name))
     }
-    file_name.rfind('.').is_some_and(|index| {
-        matches!(
-            file_name[index..].to_ascii_lowercase().as_str(),
-            ".js" | ".cjs" | ".mjs" | ".jsx" | ".ts" | ".cts" | ".mts" | ".tsx" | ".json"
-        )
-    })
 }
