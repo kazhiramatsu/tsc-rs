@@ -16,6 +16,7 @@ pub mod regex;
 mod regex_unicode;
 mod relocate;
 pub mod scanner;
+mod script_kind;
 pub mod tokens;
 pub mod utilities;
 
@@ -59,6 +60,7 @@ pub use scanner::{
     ByteTokenIter, ByteTokenRecord, CommentDirective, CommentDirectiveKind, LanguageVariant,
     SkipTriviaOptions, TokenRecord, TokenScanner,
 };
+pub use script_kind::ScriptKind;
 
 /// Return the keyword kind represented by an identifier's escaped text.
 ///
