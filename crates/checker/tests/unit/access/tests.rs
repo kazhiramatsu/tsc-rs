@@ -1084,7 +1084,7 @@ fn checked_js_global_this_assignment_uses_the_merged_augmentation() {
 }
 
 #[test]
-fn jsdoc_deprecated_symbols_and_selected_signatures_match_tsc() {
+fn jsdoc_deprecated_symbols_and_selected_signatures_match_tsgo() {
     let text = "/** @deprecated use current */\n\
                     function old(value: string): string { return value; }\n\
                     const ref = old;\n\
@@ -1174,7 +1174,9 @@ fn jsdoc_deprecated_symbols_and_selected_signatures_match_tsc() {
                 (
                     6387,
                     tsc_diagnostics::DiagnosticCategory::Suggestion,
-                    "The signature '(): object' of 'C' is deprecated.".to_owned(),
+                    // tsgo `signatureToString` writes a construct
+                    // signature as one (verified with tsgo aa8149273).
+                    "The signature 'new (): object' of 'C' is deprecated.".to_owned(),
                     vec![2798],
                 ),
             ]
