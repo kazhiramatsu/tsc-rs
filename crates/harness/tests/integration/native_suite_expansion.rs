@@ -253,9 +253,10 @@ fn native_vendored_inputs_match_the_manifest() {
     // baselines, the command-line and tsconfig parsing, tsc, tsc -b and
     // watch baselines, the libraries, the message catalogs and option
     // declarations the help, `--init`, `--showConfig` and `--locale` read,
-    // the API encoder's baselines and tables, and the token navigation
-    // baselines and the file they navigate.
-    assert_eq!(vendored, 59_633);
+    // the API encoder's baselines and tables, the token navigation
+    // baselines and the file they navigate, and the language server
+    // protocol's types.
+    assert_eq!(vendored, 59_634);
     assert!(profile.diagnostic_messages_path().is_file());
     assert!(profile
         .bundled_libraries_root()
