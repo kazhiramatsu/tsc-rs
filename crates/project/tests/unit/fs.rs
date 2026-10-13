@@ -306,6 +306,13 @@ fn a_deletion_drops_the_files_no_project_read() {
             library_catalog: LibraryCatalog::typescript_7_1("/typescript/lib"),
             load_limits: ProgramLoadLimits::new(1_000, 10_000, 64, 1 << 20, 1 << 24),
             run_external_code: false,
+            // tsgo's API sessions: UTF-8 positions, no watching,
+            // logging or published diagnostics.
+            position_encoding: tsc_lsproto::PositionEncodingKind::UTF8,
+            watch_enabled: false,
+            logging_enabled: false,
+            push_diagnostics_enabled: false,
+            debounce_delay: std::time::Duration::ZERO,
         },
         Arc::clone(&fs) as Arc<dyn FileSystem>,
         None,

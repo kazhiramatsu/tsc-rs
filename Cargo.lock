@@ -436,6 +436,7 @@ dependencies = [
  "tsc-rs-emitter",
  "tsc-rs-harness",
  "tsc-rs-host",
+ "tsc-rs-lsproto",
  "tsc-rs-program",
  "tsc-rs-project",
  "tsc-rs-syntax",

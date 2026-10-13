@@ -101,8 +101,9 @@ fn just(kind: FileChangeKind, uri_text: &str) -> FileChange {
     FileChange::new(kind, uri(uri_text))
 }
 
+/// The open documents over the host's file system, as a file system.
 fn layer(fs: &OverlayFs) -> OverlayLayer {
-    fs.layer()
+    OverlayLayer::new(Arc::clone(&fs.host), fs.paths.clone(), fs.overlays())
 }
 
 #[test]

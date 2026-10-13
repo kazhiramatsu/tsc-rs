@@ -34,6 +34,17 @@ pub struct SessionOptions {
     /// tsgo `RunExternalCode`: the configs' content mappers may run their
     /// processes (the API server's `--runExternalCode`).
     pub run_external_code: bool,
+    /// tsgo `PositionEncoding`: how the editor counts characters.
+    pub position_encoding: tsc_lsproto::PositionEncodingKind,
+    /// tsgo `WatchEnabled`: the session registers file watchers.
+    pub watch_enabled: bool,
+    /// tsgo `LoggingEnabled`.
+    pub logging_enabled: bool,
+    /// tsgo `PushDiagnosticsEnabled`: config errors are published.
+    pub push_diagnostics_enabled: bool,
+    /// tsgo `DebounceDelay`: how long a scheduled update waits for more
+    /// events.
+    pub debounce_delay: std::time::Duration,
 }
 
 /// A failed snapshot update (tsgo's API errors), with tsgo's message.
@@ -348,6 +359,18 @@ impl Snapshot {
         )
     }
 
+    /// tsgo `GetLanguageServiceProjectsContainingFile`: the configured
+    /// projects whose programs have the file, then the inferred project.
+    pub fn projects_containing_file(&self, file_name: &str) -> Vec<&Arc<Project>> {
+        let path = self.fs.paths().to_path(file_name);
+        self.projects
+            .configured
+            .values()
+            .chain(self.projects.inferred.iter())
+            .filter(|project| project.contains_file(&path))
+            .collect()
+    }
+
     /// The synthetic programs the update created, in request order (tsgo
     /// `CreatedPrograms`).
     pub fn created_programs(&self) -> &[ProjectId] {
@@ -393,6 +416,12 @@ impl Snapshot {
         Arc::new(crate::fs::SnapshotView {
             fs: self.fs.clone(),
         })
+    }
+
+    /// tsgo `ConfigFileRegistry.isTracked`: whether the snapshot keeps an
+    /// entry for the config at `file_name`.
+    pub fn is_config_tracked(&self, file_name: &str) -> bool {
+        self.configs.is_tracked(&self.fs.paths().to_path(file_name))
     }
 
     /// tsgo `ConfigFileRegistry.GetConfig`: the parse of the config the

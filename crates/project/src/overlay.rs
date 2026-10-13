@@ -221,15 +221,6 @@ impl OverlayFs {
         Arc::clone(&self.overlays)
     }
 
-    /// The open documents over the host's file system, as a file system.
-    pub(crate) fn layer(&self) -> OverlayLayer {
-        OverlayLayer::new(
-            Arc::clone(&self.host),
-            self.paths.clone(),
-            Arc::clone(&self.overlays),
-        )
-    }
-
     /// tsgo `processChanges`: the batch's notifications applied, each
     /// file's reduced first (a delete after a create cancels it, a create
     /// after a delete is a change, an open replaces what came before), and
@@ -458,10 +449,6 @@ impl OverlayLayer {
             overlays,
             directories,
         }
-    }
-
-    pub(crate) fn overlays(&self) -> &Overlays {
-        &self.overlays
     }
 
     /// The overlay at `file_name`.
