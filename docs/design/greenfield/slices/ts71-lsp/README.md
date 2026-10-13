@@ -246,3 +246,37 @@ fourslash の Go の test を 1 本ずつ Rust に書き直すのでも、harnes
   lsp 14、api 298）、clippy、fmt。
 - **有界の違い**：builder の log tree と verbose の cache 統計、checking で見つかる global の診断の request 後の push（L3）、
   content mapper の span map（L10）。
+
+## L3a transcript の記録と再生（PR #778）
+
+- **merge**：#778 → `8bdd5df36`（hosted run 38377954175：rust 11m43s、conformance 20m31s、gates。一度目の run 38375873279 は
+  `documents_reach_the_session` が log の順に依って落ちた：L2c の採用 log が background で間に入るため。test を順に依らない形に
+  した ecc532dea）。commit：c8fb8f871、ratchet 8a3107fa1、ecc532dea。
+- **記録**（`scripts/lsp_transcripts.py`）：tsgo の fourslash の harness・4,372 の test file・その util と
+  `lsptestutil` を pin した checkout の `internal/tsrsfourslash` に写し、import を写しに向け、known failing の skip（383）を外し、
+  記録器（`scripts/lsp_transcripts_dump/tsrs_record.go`：pipe の frame の両方向、harness の file の書き込みと削除、file と
+  inferred project の option）を足して全 test を走らせる（`go test -json -parallel 2`、約 2 分）。失敗してよいのは known failing
+  だけ（383 中 383 が失敗、ほかは無し）。
+- **vendor**：`vendor/typescript-native/7.1.0-dev-aa814927/fourslash-transcripts.jsonl.gz`。4,584 harness、JSON lines で
+  43.6 MB、gzip で 1.9 MB（initialize と configuration は全 harness で同じ）。harness ごとに file、大文字小文字、inferred の
+  option、client の message と file の操作の列、`workspace/configuration` への harness の答え、request ごとの tsgo の応答の
+  digest（result か error の canonical JSON の SHA-256 の先頭 16 桁。当初案の xxh3 は Python の標準に無いので SHA-256）。全文は
+  手元の `target/lsp-transcripts/<profile>/raw.jsonl`。
+- **決定性**（5 回の記録を比較）：tsgo の配列の順が run ごとに変わるもの（Go の map の symbol table からの completion、
+  `crossproject.go` が sync map の順で合わせる複数 project の結果：references、implementation、rename、incoming calls、code lens
+  の resolve、willRenameFiles）は並べ替えて digest する（`UNORDERED`、runner も同じ表）。harness が map の順で request を送り file
+  を rename する test があるので、`--check` は step を多重集合で比べる。その順で tsgo の答え自体が変わる 4 test
+  （`NONDETERMINISTIC`：二つの export が共有する名前の completion、map の順で pull する JS の診断 ×2、`repeated.ts`／
+  `repeated.d.ts` の path completion）は `--check` で比べない。
+- **再生**（suites の `lsp`、`crates/conformance/src/ts71/suites/lsp.rs`）：場面ごとに MemFs と組込みの lib、tsc-rs の server を
+  pipe で動かし、message を順に送り（request は応答を待つ）、server の request には harness の `handleServerRequest` と同じに
+  答え、file の操作を間に適用し、応答の digest を比べる。method ごとの一致数を表示し、`--dump` で違う場面の request と応答を
+  書く。場面の後に session を閉じる（tsgo は GC 任せだが、ここではアイドルの timer が program を保つ：200 場面で 6.8 GB →
+  471 MB）。約 4 分。
+- **server**：tsgo `SetCompilerOptionsForInferredProjects`（`initialized` で適用）、session の
+  `DidChangeCompilerOptionsForInferredProjects`、snapshot と builder が inferred project の option を運ぶ。semantic token の
+  legend に tsgo の `local`（transcript で見つかった）。
+- **時点の結果**：initialize 4,584/4,584、完全一致の場面 18（ratchet に `lsp/<test>` 4,584 行）。
+- **検査（c8fb8f871 + 8a3107fa1）**：release build、`suites_ts71.py --update` と `--check` 0 regressions、
+  `lsp_transcripts.py --check` 一致、API client sync 337/356・async 346/365（変わらず）、test、clippy、fmt。compiler の経路に
+  届かないので conformance は回していない。
