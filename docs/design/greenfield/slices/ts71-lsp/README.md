@@ -476,3 +476,30 @@ transcript では 1,210 の場面に completion 2,419（null 233、auto-import �
   regressions（lsp 1,592 full、completion 1,688/2,419、65 行が none→full）、API client sync 337/356・async 346/365、test
   （checker 1,797、emitter 196、ls 112、lsp 14、api 295、compiler 225、conformance 49）、clippy、fmt。
 - **有界の違い**：path・module 名・triple-slash 参照（L4c-2）、snippet（L8）、L4d、L4e、L5、L10。
+
+## L4c-2 path の completion（PR #787）
+
+- **merge**：#787 → `c444c2d7c`（hosted run 38480483705：rust 8m27s、conformance 29m30s、gates）。commit：a9229cad1
+  （module 解決の部品）、c241be164（path completion）、ratchet f12c0b6d0。
+- **言語 service の host**：tsgo の `ls.Host` の file system（`ReadDirectory`・`GetDirectories`・`DirectoryExists`・
+  `FileExists`。module specifier の completion だけが使う）。snapshot は open document を除いた file system（tsgo の
+  `s.fs.fs`、`vfsmatch.ReadDirectory`）で答える。request が host を持つ。
+- **言語 service**（`crates/ls/src/completions/paths.rs`）：相対 path（`rootDirs` も）、`paths`、ambient module の名前、
+  typings（type root と各祖先の `node_modules/@types`）、script より上の各 package.json の依存、`node_modules` の
+  directory、package の `exports`・`imports`（条件・wildcard・末尾の `/`）、`typesVersions` の転送、`imports` の
+  `outDir`・`declarationDir` の入力 directory、許される module specifier の語尾による file 名、triple-slash の
+  `path`・`types` 参照。tsc-rs の program は load 後に host を持たないので、tsgo の `Program.GetPackageJsonInfo`・
+  `GetNearestAncestorDirectoryWithPackageJson` は言語 service の host から manifest を読む。
+- **checker・program**：`GetAmbientModules`（incremental build の referenced files も使う）、no old specifier の
+  `GetAllowedEndingsInPreferredOrder`、`TryGetJSExtensionForFile`、`TryGetRealFileNameForNonJSDeclarationFileName`、
+  `GetConditions`、`GetVersionPaths`、`ComparePatternKeys`、package.json の文書順の entry、`NormalizeSlashes`、既定の
+  type root（resolver 自身も使う）、options の `GetResolvePackageJsonExports`・`Imports`。
+- **回帰 test**：`crates/ls/tests/completion.rs` に 10（計 56）。test の host は test の file だけを並べる（tsgo は library
+  を bundle する）。
+- **検査（f12c0b6d0）**：conformance 0 regressions（全 13,577 full、488 s）、`--checkers 4` は既知の 4 だけ、suites 0
+  regressions（lsp 1,650 full、completion 1,935/2,419、58 行が none→full）、API client sync 337/356・async 346/365、test
+  （checker 1,797、program 114、types 44、ls 122、lsp 14、api 295、compiler 225、conformance 49、project 186）、clippy、
+  fmt。
+- **有界の違い**：`TestCompletionForStringLiteralNonrelativeImport2`（同じ名前の `repeated.ts` と `repeated.d.ts` の
+  どちらの拡張子を残すかが tsgo の実行ごとに変わる。`scripts/lsp_transcripts.py` が非決定として扱う）。content mapper の
+  file の path completion（L10）、L4d、L4e、L5、L8。
