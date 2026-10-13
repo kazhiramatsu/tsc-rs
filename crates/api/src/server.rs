@@ -82,6 +82,7 @@ pub fn run_server(options: &ServerOptions) -> Result<(), String> {
             logging_enabled: false,
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
+            relative_pattern_support: false,
         },
         fs,
         // tsgo `ContentMapperSpawner: system`.

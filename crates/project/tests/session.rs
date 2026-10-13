@@ -602,7 +602,7 @@ fn borrowed<'a>(files: &'a [(String, &'static str)]) -> Vec<(&'a str, &'a str)> 
 fn configured_projects_follow_the_open_files() {
     // "configured project".
     let files = three_projects(true);
-    let (session, _) = setup(&borrowed(&files));
+    let (session, _, client) = setup_with_client(&borrowed(&files));
     let index = |project: &str| format!("file:///home/projects/TS/{project}/src/index.ts");
     let config = |project: &str| format!("/home/projects/ts/{project}/tsconfig.json");
     let has_project = |snapshot: &tsc_project::Snapshot, project: &str| {
@@ -618,6 +618,8 @@ fn configured_projects_follow_the_open_files() {
     let snapshot = session.snapshot();
     assert_eq!(snapshot.projects().count(), 2);
     assert!(has_project(&snapshot, "p1") && has_project(&snapshot, "p2"));
+    // Every config and program is below the workspace: one glob.
+    assert_eq!(client.watch_files_calls().len(), 1);
     assert!(has_config(&snapshot, "p1") && has_config(&snapshot, "p2"));
 
     // Closing p1's file and opening p3's replaces p1 with p3.
@@ -630,6 +632,8 @@ fn configured_projects_follow_the_open_files() {
     assert!(has_project(&snapshot, "p2") && has_project(&snapshot, "p3"));
     assert!(!has_config(&snapshot, "p1"));
     assert!(has_config(&snapshot, "p2") && has_config(&snapshot, "p3"));
+    assert_eq!(client.watch_files_calls().len(), 1);
+    assert_eq!(client.unwatch_files_calls().len(), 0);
 
     session.did_close_file(&uri(&index("p2")));
     session.did_close_file(&uri(&index("p3")));
@@ -640,6 +644,8 @@ fn configured_projects_follow_the_open_files() {
     assert!(has_project(&snapshot, "p1"));
     assert!(has_config(&snapshot, "p1"));
     assert!(!has_config(&snapshot, "p2") && !has_config(&snapshot, "p3"));
+    assert_eq!(client.watch_files_calls().len(), 1);
+    assert_eq!(client.unwatch_files_calls().len(), 0);
 }
 
 #[test]

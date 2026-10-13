@@ -5,6 +5,7 @@
 //! watch event schedules an update in the background, each into a new
 //! snapshot the session adopts.
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
 use std::time::Instant;
@@ -26,6 +27,7 @@ use crate::fs::{FileChangeSummary, Paths};
 use crate::overlay::{FileChange, FileChangeKind, OverlayFs, Overlays};
 use crate::project::Project;
 use crate::snapshot::{ProjectError, SessionOptions, Snapshot, SnapshotChange, SnapshotHost};
+use crate::watch::{glob_string, WatchRegistry, WatchedFiles};
 
 /// The user's preferences (tsgo's `initialUserPreferences`,
 /// `workspaceUserPreferences` and `pendingUserConfigChanges`).
@@ -62,6 +64,8 @@ struct Inner {
     /// tsgo `backgroundQueue`.
     background: Arc<Queue>,
     scheduled_update: Mutex<ScheduledUpdate>,
+    /// tsgo `watches`: the globs registered with the editor.
+    watches: WatchRegistry,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -100,6 +104,7 @@ impl Session {
                 }),
                 background: Arc::default(),
                 scheduled_update: Mutex::default(),
+                watches: WatchRegistry::default(),
             }),
         }
     }
@@ -330,25 +335,214 @@ impl Inner {
         Arc::clone(&self.snapshot.read().unwrap_or_else(PoisonError::into_inner))
     }
 
-    /// tsgo `UpdateSnapshot`: the current snapshot with `change`, adopted.
+    /// tsgo `UpdateSnapshot`: the current snapshot with `change`, adopted;
+    /// the watches follow it in the background.
     fn update_snapshot(
-        &self,
+        self: &Arc<Self>,
         overlays: Overlays,
         change: SnapshotChange<'_>,
     ) -> Result<Arc<Snapshot>, ProjectError> {
-        let mut current = self
-            .snapshot
-            .write()
-            .unwrap_or_else(PoisonError::into_inner);
-        let snapshot = Arc::new(self.host.clone_snapshot(
-            &current,
-            SnapshotChange {
-                overlays: Some(overlays),
-                ..change
-            },
-        )?);
-        *current = Arc::clone(&snapshot);
+        let (old, snapshot) = {
+            let mut current = self
+                .snapshot
+                .write()
+                .unwrap_or_else(PoisonError::into_inner);
+            let snapshot = Arc::new(self.host.clone_snapshot(
+                &current,
+                SnapshotChange {
+                    overlays: Some(overlays),
+                    ..change
+                },
+            )?);
+            (
+                std::mem::replace(&mut *current, Arc::clone(&snapshot)),
+                snapshot,
+            )
+        };
+        if self.host.options().watch_enabled {
+            let inner = Arc::clone(self);
+            let new = Arc::clone(&snapshot);
+            self.background.enqueue(&Cancellation::default(), move |_| {
+                if let Err(error) = inner.update_watches(&old, &new) {
+                    inner.log(|| error);
+                }
+            });
+        }
         Ok(snapshot)
+    }
+
+    /// tsgo `updateWatches`: the watches of the configs and projects the
+    /// new snapshot added, changed or removed, and those whose registration
+    /// failed before.
+    fn update_watches(&self, old: &Snapshot, new: &Snapshot) -> Result<(), String> {
+        let start = Instant::now();
+        let mut errors = Vec::new();
+        let old_configs = old.configs.root_files_watches().collect::<BTreeMap<_, _>>();
+        let new_configs = new.configs.root_files_watches().collect::<BTreeMap<_, _>>();
+        let id = |watch: Option<&Arc<WatchedFiles<_>>>| watch.map(|watch| watch.id());
+        for (path, new_watch) in &new_configs {
+            if !old_configs.contains_key(path) {
+                errors.extend(self.update_watch(None, new_watch.map(Arc::as_ref)));
+            }
+        }
+        for (path, old_watch) in &old_configs {
+            match new_configs.get(path) {
+                Some(new_watch) if id(*old_watch) != id(*new_watch) => errors.extend(
+                    self.update_watch(old_watch.map(Arc::as_ref), new_watch.map(Arc::as_ref)),
+                ),
+                Some(_) => {}
+                None => errors.extend(self.update_watch(old_watch.map(Arc::as_ref), None)),
+            }
+        }
+        // Retry the config watches whose registration failed.
+        for (path, new_watch) in &new_configs {
+            if let (Some(old_watch), Some(new_watch)) = (old_configs.get(path), new_watch) {
+                if id(*old_watch) == Some(new_watch.id())
+                    && self.watches.is_pending(&new_watch.id())
+                {
+                    errors.extend(self.update_watch(None, Some(new_watch.as_ref())));
+                }
+            }
+        }
+        let old_projects = old
+            .projects()
+            .map(|project| (&project.id, project))
+            .collect::<BTreeMap<_, _>>();
+        let new_projects = new
+            .projects()
+            .map(|project| (&project.id, project))
+            .collect::<BTreeMap<_, _>>();
+        for project in new.projects() {
+            if !old_projects.contains_key(&project.id) {
+                errors.extend(self.update_watch(None, project.program_files_watch.as_deref()));
+                errors.extend(self.update_watch(None, project.content_mapper_watch.as_deref()));
+            }
+        }
+        for project in old.projects() {
+            let Some(new_project) = new_projects.get(&project.id) else {
+                errors.extend(self.update_watch(project.program_files_watch.as_deref(), None));
+                errors.extend(self.update_watch(project.content_mapper_watch.as_deref(), None));
+                continue;
+            };
+            if Arc::ptr_eq(project, new_project) {
+                continue;
+            }
+            errors.extend(self.update_changed_watch(
+                project.program_files_watch.as_deref(),
+                new_project.program_files_watch.as_deref(),
+            ));
+            errors.extend(self.update_changed_watch(
+                project.content_mapper_watch.as_deref(),
+                new_project.content_mapper_watch.as_deref(),
+            ));
+        }
+        if !errors.is_empty() {
+            return Err(format!("errors updating watches: [{}]", errors.join(" ")));
+        }
+        self.log(|| format!("Updated watches in {}", duration_string(start.elapsed())));
+        Ok(())
+    }
+
+    /// tsgo's per-watch step of `updateWatches` for a changed project: the
+    /// watch again when its ID changed, or when its registration failed.
+    fn update_changed_watch<T>(
+        &self,
+        old: Option<&WatchedFiles<T>>,
+        new: Option<&WatchedFiles<T>>,
+    ) -> Vec<String> {
+        let old_id = old.map(WatchedFiles::id).unwrap_or_default();
+        let new_id = new.map(WatchedFiles::id).unwrap_or_default();
+        if old_id != new_id {
+            return self.update_watch(old, new);
+        }
+        if self.watches.is_pending(&new_id) {
+            return self.update_watch(None, new);
+        }
+        Vec::new()
+    }
+
+    /// tsgo `updateWatch`: the new watch's globs registered (those another
+    /// watch has already are counted), the old one's released and
+    /// unregistered when no watch has them.
+    fn update_watch<T>(
+        &self,
+        old: Option<&WatchedFiles<T>>,
+        new: Option<&WatchedFiles<T>>,
+    ) -> Vec<String> {
+        let mut errors = Vec::new();
+        let Some(client) = &self.client else {
+            return errors;
+        };
+        if let Some(new) = new {
+            let watchers = new.watchers();
+            let all = watchers
+                .workspace_watchers
+                .iter()
+                .chain(&watchers.outside_workspace_watchers)
+                .collect::<Vec<_>>();
+            if !all.is_empty() {
+                let mut acquired = Vec::new();
+                for (index, watcher) in all.iter().enumerate() {
+                    let id = format!("{}.{index}", watchers.id);
+                    if self.watches.acquire(watcher, &id) {
+                        acquired.push((id, (*watcher).clone()));
+                    }
+                }
+                let mut watch_errors = Vec::new();
+                for (id, watcher) in &acquired {
+                    match client.watch_files(id, vec![watcher.clone()]) {
+                        Err(error) => watch_errors.push(error),
+                        Ok(()) => {
+                            self.log(|| {
+                                if old.is_none() {
+                                    format!("Added new watch: {id}")
+                                } else {
+                                    format!("Updated watch: {id}")
+                                }
+                            });
+                            self.log(|| format!("\t{}", glob_string(watcher)));
+                            self.log(String::new);
+                        }
+                    }
+                }
+                if watch_errors.is_empty() {
+                    self.watches.clear_pending(&watchers.id);
+                } else {
+                    // Every glob acquired here is released, to register
+                    // again at the retry.
+                    for (_, watcher) in &acquired {
+                        self.watches.release(watcher);
+                    }
+                    self.watches.mark_pending(&watchers.id);
+                    errors.extend(watch_errors);
+                }
+                if !watchers.ignored_paths.is_empty() {
+                    self.log(|| {
+                        format!(
+                            "{} paths ineligible for watching",
+                            watchers.ignored_paths.len()
+                        )
+                    });
+                }
+            }
+        }
+        if let Some(old) = old {
+            let watchers = old.watchers();
+            let removed = watchers
+                .workspace_watchers
+                .iter()
+                .chain(&watchers.outside_workspace_watchers)
+                .filter_map(|watcher| self.watches.release(watcher))
+                .collect::<Vec<_>>();
+            for id in removed {
+                match client.unwatch_files(&id) {
+                    Err(error) => errors.push(error),
+                    Ok(()) if new.is_none() => self.log(|| format!("Removed watch: {id}")),
+                    Ok(()) => {}
+                }
+            }
+        }
+        errors
     }
 
     /// tsgo `ScheduleSnapshotUpdate`: the pending changes applied in the

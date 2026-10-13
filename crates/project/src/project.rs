@@ -14,6 +14,7 @@ use tsc_program::{
 use crate::fs::{Paths, SeenFiles};
 use crate::id::{ProjectId, ProjectKind};
 use crate::snapshot::ProjectError;
+use crate::watch::{ContentMapperWatch, ProgramFilesWatch};
 
 /// How a project's program was last built (tsgo `ProgramUpdateKind`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -288,6 +289,11 @@ pub struct Project {
     /// tsgo `potentialProjectReferences`: for a solution created to load
     /// later, the paths of the configs below it that may be its references.
     pub(crate) potential_project_references: Option<Arc<BTreeSet<String>>>,
+    /// tsgo `programFilesWatch`: the files the program's build looked at.
+    pub(crate) program_files_watch: Option<Arc<ProgramFilesWatch>>,
+    /// tsgo `contentMapperWatch`: the content mappers' manifests and the
+    /// files their processes watch.
+    pub(crate) content_mapper_watch: Option<Arc<ContentMapperWatch>>,
 }
 
 impl Project {
@@ -308,6 +314,8 @@ impl Project {
             seen: Arc::default(),
             content_mapper_watched_files: None,
             potential_project_references: None,
+            program_files_watch: None,
+            content_mapper_watch: None,
         }
     }
 

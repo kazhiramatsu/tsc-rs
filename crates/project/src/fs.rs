@@ -838,20 +838,27 @@ impl FileSystem for SnapshotView {
 /// What a program build looked for.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SeenFiles {
-    files: BTreeSet<String>,
+    /// The files the build looked at: path to file name (tsgo
+    /// `seenFiles`).
+    files: BTreeMap<String, String>,
     missing_directories: BTreeSet<String>,
 }
 
 impl SeenFiles {
     /// tsgo `SeenFile`.
     pub(crate) fn seen_file(&self, path: &str) -> bool {
-        self.files.contains(path)
+        self.files.contains_key(path)
+    }
+
+    /// The files the build looked at, path to file name.
+    pub(crate) fn files(&self) -> &BTreeMap<String, String> {
+        &self.files
     }
 
     /// tsgo `SeenFileOrMissingParentDirectory`: the file, or the path or a
     /// directory above it that was looked for and missing.
     pub(crate) fn seen_file_or_missing_parent_directory(&self, path: &str) -> bool {
-        if self.files.contains(path) {
+        if self.files.contains_key(path) {
             return true;
         }
         let mut directory = path;
@@ -883,9 +890,9 @@ impl<'a> SourceFs<'a> {
     }
 
     /// tsgo `Track`: a file the program read without this file system.
-    pub(crate) fn track_file(&self, path: String) {
+    pub(crate) fn track_file(&self, path: String, file_name: String) {
         self.track(|seen| {
-            seen.files.insert(path);
+            seen.files.insert(path, file_name);
         });
     }
 
@@ -909,7 +916,10 @@ impl FileSystem for SourceFs<'_> {
 
     fn read(&self, path: &str) -> io::Result<Vec<u8>> {
         self.track(|seen| {
-            seen.files.insert(self.builder.paths.to_path(path));
+            seen.files.insert(
+                self.builder.paths.to_path(path),
+                self.builder.paths.absolute(path),
+            );
         });
         self.builder
             .get(path)
@@ -955,7 +965,10 @@ impl FileSystem for SourceFs<'_> {
 
     fn is_file(&self, path: &str) -> bool {
         self.track(|seen| {
-            seen.files.insert(self.builder.paths.to_path(path));
+            seen.files.insert(
+                self.builder.paths.to_path(path),
+                self.builder.paths.absolute(path),
+            );
         });
         self.builder.file_exists(path)
     }

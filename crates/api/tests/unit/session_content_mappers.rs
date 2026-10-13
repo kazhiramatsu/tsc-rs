@@ -60,6 +60,7 @@ fn mapper_session(
             logging_enabled: false,
             push_diagnostics_enabled: false,
             debounce_delay: std::time::Duration::ZERO,
+            relative_pattern_support: false,
         },
         Arc::new(BundledFs::new(Arc::clone(&fs) as Arc<dyn FileSystem>)),
         Some(spawner),

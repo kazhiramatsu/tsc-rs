@@ -8,7 +8,7 @@
 //! each handler's synchronous part in order; a handler may return work that
 //! runs on its own thread. The write loop sends the outgoing messages.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
@@ -96,6 +96,8 @@ impl From<ErrorCode> for Failure {
 pub struct RequestContext {
     cancelled: Arc<AtomicBool>,
     stopped: Arc<AtomicBool>,
+    /// tsgo `context.WithTimeout`'s deadline.
+    deadline: Option<Instant>,
     pub locale: Locale,
     pub request_id: Option<Id>,
 }
@@ -105,6 +107,12 @@ impl RequestContext {
     /// stopped.
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.load(Ordering::SeqCst) || self.stopped.load(Ordering::SeqCst)
+    }
+
+    /// tsgo `context.DeadlineExceeded`.
+    fn deadline_exceeded(&self) -> bool {
+        self.deadline
+            .is_some_and(|deadline| Instant::now() >= deadline)
     }
 
     /// tsgo's context check: a cancelled request ends.
@@ -167,6 +175,8 @@ pub struct Server {
     set_parent_process_id: Option<Box<dyn Fn(i32) + Send + Sync>>,
     fs: Arc<dyn FileSystem>,
     default_library_path: String,
+    /// tsgo `watchers`: the IDs of the watches the client registered.
+    watchers: Mutex<HashSet<String>>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -194,6 +204,7 @@ impl Server {
             set_parent_process_id: options.set_parent_process_id,
             fs: options.fs,
             default_library_path: options.default_library_path,
+            watchers: Mutex::default(),
         })
     }
 
@@ -352,6 +363,7 @@ impl Server {
             let context = RequestContext {
                 cancelled,
                 stopped: Arc::clone(&self.stopped),
+                deadline: None,
                 locale: self.locale(),
                 request_id: request.id.clone(),
             };
@@ -586,6 +598,9 @@ impl Server {
         let response = self.send(Message::Request(request)).and_then(|()| loop {
             match receiver.recv_timeout(Duration::from_millis(50)) {
                 Ok(response) => break Ok(response),
+                Err(mpsc::RecvTimeoutError::Timeout) if context.deadline_exceeded() => {
+                    break Err("context deadline exceeded".to_owned())
+                }
                 Err(mpsc::RecvTimeoutError::Timeout) if !context.is_cancelled() => {}
                 Err(_) => break Err("context canceled".to_owned()),
             }
@@ -806,11 +821,19 @@ impl Server {
                 cwd = tsc_program::uri::rooted_path_from_absolute(&path);
             }
         }
-        let (position_encoding, watch_enabled) = {
+        let (position_encoding, watch_enabled, relative_pattern_support) = {
             let mut state = lock(&self.state);
             state.telemetry_enabled = telemetry;
             state.current_directory = cwd.clone();
-            (state.position_encoding.clone(), state.watch_enabled)
+            (
+                state.position_encoding.clone(),
+                state.watch_enabled,
+                state
+                    .client_capabilities
+                    .workspace
+                    .did_change_watched_files
+                    .relative_pattern_support,
+            )
         };
         let host = Arc::new(SessionHost(Arc::downgrade(self)));
         let session = Session::new(
@@ -826,6 +849,7 @@ impl Server {
                 logging_enabled: true,
                 push_diagnostics_enabled: !disable_push_diagnostics,
                 debounce_delay: Duration::from_millis(500),
+                relative_pattern_support,
             },
             Arc::clone(&self.fs),
             Some(Arc::clone(&host) as Arc<dyn tsc_project::Client>),
@@ -1016,6 +1040,62 @@ impl Server {
     }
 
     // -- the session's client ------------------------------------------------
+
+    /// A context of the server's own request to the client, with tsgo's
+    /// `watchRequestTimeout` (one second).
+    fn watch_request_context(&self) -> RequestContext {
+        RequestContext {
+            cancelled: Arc::new(AtomicBool::new(false)),
+            stopped: Arc::clone(&self.stopped),
+            deadline: Some(Instant::now() + Duration::from_secs(1)),
+            locale: self.locale(),
+            request_id: None,
+        }
+    }
+
+    /// tsgo `WatchFiles`: `client/registerCapability` of the watchers.
+    fn watch_files(
+        &self,
+        id: &str,
+        watchers: Vec<lsproto::FileSystemWatcher>,
+    ) -> Result<(), String> {
+        let registration = lsproto::RegistrationParams {
+            registrations: vec![lsproto::Registration {
+                id: id.to_owned(),
+                register_options: Some(lsproto::RegisterOptions::WorkspaceDidChangeWatchedFiles(
+                    lsproto::DidChangeWatchedFilesRegistrationOptions { watchers },
+                )),
+            }],
+        };
+        self.send_client_request::<lsproto::ClientRegisterCapabilityInfo>(
+            &self.watch_request_context(),
+            &registration,
+        )
+        .map_err(|failure| format!("failed to register file watcher: {failure}"))?;
+        lock(&self.watchers).insert(id.to_owned());
+        Ok(())
+    }
+
+    /// tsgo `UnwatchFiles`: `client/unregisterCapability` of a registered
+    /// watch.
+    fn unwatch_files(&self, id: &str) -> Result<(), String> {
+        if !lock(&self.watchers).contains(id) {
+            return Err(format!("no file watcher exists with ID {id}"));
+        }
+        let unregistration = lsproto::UnregistrationParams {
+            unregisterations: vec![lsproto::Unregistration {
+                id: id.to_owned(),
+                method: lsproto::WorkspaceDidChangeWatchedFilesInfo::METHOD.to_owned(),
+            }],
+        };
+        self.send_client_request::<lsproto::ClientUnregisterCapabilityInfo>(
+            &self.watch_request_context(),
+            &unregistration,
+        )
+        .map_err(|failure| format!("failed to unregister file watcher: {failure}"))?;
+        lock(&self.watchers).remove(id);
+        Ok(())
+    }
 
     /// tsgo `RefreshInlayHints`.
     fn refresh_inlay_hints(&self) -> Result<(), String> {
@@ -1241,6 +1321,22 @@ fn register_notification<N: Notification + 'static>(
 struct SessionHost(Weak<Server>);
 
 impl tsc_project::Client for SessionHost {
+    fn watch_files(
+        &self,
+        id: &str,
+        watchers: Vec<lsproto::FileSystemWatcher>,
+    ) -> Result<(), String> {
+        self.0
+            .upgrade()
+            .map_or(Ok(()), |server| server.watch_files(id, watchers))
+    }
+
+    fn unwatch_files(&self, id: &str) -> Result<(), String> {
+        self.0
+            .upgrade()
+            .map_or(Ok(()), |server| server.unwatch_files(id))
+    }
+
     fn refresh_inlay_hints(&self) -> Result<(), String> {
         self.0
             .upgrade()
