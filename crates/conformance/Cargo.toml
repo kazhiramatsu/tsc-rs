@@ -13,6 +13,8 @@ name = "tsc_conformance"
 path = "src/lib.rs"
 
 [dependencies]
+# The language server's transcripts are vendored gzip-compressed.
+miniz_oxide = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
@@ -24,6 +26,7 @@ tsc-diagnostics.workspace = true
 tsc-harness.workspace = true
 tsc-host.workspace = true
 tsc-incremental.workspace = true
+tsc-lsp.workspace = true
 tsc-program.workspace = true
 
 [lints]

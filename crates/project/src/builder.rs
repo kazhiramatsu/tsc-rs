@@ -14,7 +14,7 @@ use tsc_host::vfs::VfsCompilerHost;
 use tsc_program::{
     load_emitting_program, load_program, load_project_config_program,
     resolve_config_file_name_of_project_reference, resolve_project_references_with, CanonicalPath,
-    ConfigRootPlan, ContentMapperProjectHandle,
+    ConfigOptionBag, ConfigRootPlan, ContentMapperProjectHandle,
 };
 
 use crate::config::{ConfigFileRegistry, ConfigFileRegistryBuilder};
@@ -80,6 +80,8 @@ pub(crate) struct ProjectCollectionBuilder<'a> {
     /// tsgo `defaultProjectsInvalidated`: every open file's default project
     /// is searched for again.
     default_projects_invalidated: bool,
+    /// tsgo `compilerOptionsForInferredProjects`.
+    compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
 }
 
 impl<'a> ProjectCollectionBuilder<'a> {
@@ -89,6 +91,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
         snapshot_id: u64,
         base: &'a Arc<ProjectCollection>,
         configs: ConfigFileRegistryBuilder<'a>,
+        compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
     ) -> Self {
         Self {
             host,
@@ -105,6 +108,7 @@ impl<'a> ProjectCollectionBuilder<'a> {
             open_files_changed: !fs.overlays().keys().eq(base.open_files.iter()),
             program_structure_changed: false,
             default_projects_invalidated: false,
+            compiler_options_for_inferred_projects,
         }
     }
 
@@ -1313,14 +1317,38 @@ impl<'a> ProjectCollectionBuilder<'a> {
         Ok(roots)
     }
 
-    /// tsgo `updateInferredProjectRoots` and `updateInferredProject`: no
-    /// supported root deletes the inferred project; otherwise its sorted
-    /// roots replace the old ones when they differ.
+    /// tsgo `updateInferredProjectRoots`: the supported roots with the
+    /// session's options for inferred projects.
     fn update_inferred_project_roots(&mut self, roots: Vec<String>) {
-        let mut roots = roots
+        let roots = roots
             .into_iter()
             .filter(|root| self.is_supported_in_inferred_project(root))
             .collect::<Vec<_>>();
+        let options = self.compiler_options_for_inferred_projects.clone();
+        self.update_inferred_project(roots, options.as_deref());
+    }
+
+    /// tsgo `DidChangeCompilerOptionsForInferredProjects`' step of `Clone`:
+    /// the inferred project, if any, takes the new options.
+    pub(crate) fn did_change_compiler_options_for_inferred_projects(
+        &mut self,
+        options: &ConfigOptionBag,
+    ) {
+        if let Some(project) = &self.inferred {
+            let roots = project.root_file_names();
+            self.update_inferred_project(roots, Some(options));
+        }
+    }
+
+    /// tsgo `updateInferredProject` and `updateOrCreateInferredProject`: no
+    /// root deletes the inferred project; otherwise its sorted roots and its
+    /// options (the project's own when none are given) replace the old ones
+    /// when they differ.
+    fn update_inferred_project(
+        &mut self,
+        mut roots: Vec<String>,
+        options: Option<&ConfigOptionBag>,
+    ) {
         if roots.is_empty() {
             if self.inferred.is_some() {
                 self.delete_project(&ProjectId::inferred());
@@ -1330,12 +1358,17 @@ impl<'a> ProjectCollectionBuilder<'a> {
         roots.sort();
         let current_directory = self.host.options().current_directory.clone();
         let Some(project) = &self.inferred else {
-            let roots = inferred_project_roots(roots, self.host.paths());
+            let roots = inferred_project_roots(roots, options, self.host.paths());
             self.insert(self.with_watches(Project::new_inferred(current_directory, roots)));
             return;
         };
-        if project.root_file_names() != roots {
-            let roots = Arc::new(inferred_project_roots(roots, self.host.paths()));
+        let current = match project.command_line() {
+            Some(CommandLine::Roots(roots)) => Some(&roots.options),
+            _ => None,
+        };
+        let options = options.or(current);
+        if project.root_file_names() != roots || options != current {
+            let roots = Arc::new(inferred_project_roots(roots, options, self.host.paths()));
             self.change(&ProjectId::inferred(), |project| {
                 project.set_command_line(CommandLine::Roots(roots));
             });

@@ -28,7 +28,7 @@ use tsc_lsproto::{
     self as lsproto, decode_params, method, parse_message, ErrorCode, Id, LspError, Message,
     NoParams, Notification, Request, RequestMessage, ResponseError, ResponseMessage,
 };
-use tsc_program::LibraryCatalog;
+use tsc_program::{ConfigOptionBag, LibraryCatalog};
 use tsc_project::{Session, SessionOptions};
 
 use crate::gofmt;
@@ -153,6 +153,8 @@ struct ServerState {
     watch_enabled: bool,
     telemetry_enabled: bool,
     current_directory: String,
+    /// tsgo `compilerOptionsForInferredProjects`.
+    compiler_options_for_inferred_projects: Option<Arc<ConfigOptionBag>>,
 }
 
 /// tsgo `Server`.
@@ -659,6 +661,16 @@ impl Server {
     }
 
     /// tsgo `session`: the projects, once `initialized` created them.
+    /// tsgo `SetCompilerOptionsForInferredProjects`: the inferred projects'
+    /// options, which its tests set before initializing the server.
+    pub fn set_compiler_options_for_inferred_projects(&self, options: ConfigOptionBag) {
+        let options = Arc::new(options);
+        lock(&self.state).compiler_options_for_inferred_projects = Some(Arc::clone(&options));
+        if let Some(session) = self.session.get() {
+            session.did_change_compiler_options_for_inferred_projects(options);
+        }
+    }
+
     pub fn session(&self) -> Option<&Session> {
         self.session.get()
     }
@@ -874,6 +886,13 @@ impl Server {
             .map_err(|failure| {
                 prefix_failure(failure, "failed to register configuration change watcher")
             })?;
+        let options = lock(&self.state)
+            .compiler_options_for_inferred_projects
+            .clone();
+        if let Some(options) = options {
+            self.initialized_session()
+                .did_change_compiler_options_for_inferred_projects(options);
+        }
         let (complete, ready) = &self.init_complete;
         *lock(complete) = true;
         ready.notify_all();
