@@ -926,7 +926,7 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.boolean);
         };
         debug_assert_eq!(self.kind_of(binary), SyntaxKind::BinaryExpression);
-        let signature = self.get_resolved_signature(binary, check_mode)?;
+        let signature = self.get_resolved_signature(binary, None, check_mode)?;
         if signature == self.resolving_signature {
             // 79568-79570: M6-dead (SkipGenericFunctions producer).
             return Ok(silent_never);

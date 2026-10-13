@@ -575,9 +575,9 @@ impl<'a> Request<'_, 'a> {
         let Some(call) = self.ancestor_call_like_expression(node) else {
             return Ok(None);
         };
-        let signature = self
-            .state
-            .get_resolved_signature(call, tsc_types::CheckMode::NORMAL)?;
+        let signature =
+            self.state
+                .get_resolved_signature(call, None, tsc_types::CheckMode::NORMAL)?;
         let Some(declaration) = self.state.signature_of(signature).declaration else {
             return Ok(None);
         };

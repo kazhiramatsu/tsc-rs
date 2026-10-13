@@ -983,7 +983,7 @@ impl<'a> CheckerState<'a> {
         {
             self.resolving_signature
         } else {
-            self.get_resolved_signature(call_target, tsc_types::CheckMode::NORMAL)?
+            self.get_resolved_signature(call_target, None, tsc_types::CheckMode::NORMAL)?
         };
         // 72919-72921: JSX opening-likes answer the effective first
         // argument (the sentinel valve above still applies — a

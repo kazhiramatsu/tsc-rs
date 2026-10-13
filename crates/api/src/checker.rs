@@ -935,7 +935,9 @@ impl Session {
             "getResolvedSignature" | "getSignatureFromDeclaration" => {
                 let node = query.resolve_node(&params.location)?;
                 let signature = if method == "getResolvedSignature" {
-                    query.state.get_resolved_signature(node, CheckMode::NORMAL)
+                    query
+                        .state
+                        .get_resolved_signature(node, None, CheckMode::NORMAL)
                 } else {
                     query.state.get_signature_from_declaration_checked(node)
                 }
