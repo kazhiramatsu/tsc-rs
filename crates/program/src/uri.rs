@@ -91,6 +91,136 @@ pub fn uri_to_file_name(uri: &str) -> Result<String, String> {
     ))
 }
 
+/// tsgo `lsconv.FileNameToDocumentURI` (`PathToDocumentURI`): a bundled
+/// library's name as it is, a dynamic name as the URI it stands for, and any
+/// other file name as a `file:` URI with its drive letter in lower case and
+/// every byte but the unreserved ones (`A-Z a-z 0-9 - _ . ~`) escaped.
+pub fn file_name_to_document_uri(file_name: &str) -> String {
+    if is_bundled(file_name) {
+        return file_name.to_owned();
+    }
+    if file_name.starts_with("^/") {
+        return dynamic_file_name_to_document_uri(file_name, false)
+            .unwrap_or_else(|| panic!("invalid file name: {file_name}"));
+    }
+    // tsgo `SplitVolumePath`.
+    let (volume, path) = match file_name.as_bytes() {
+        [letter, b':', ..] if letter.is_ascii_alphabetic() => (
+            format!("/{}%3A", char::from(letter.to_ascii_lowercase())),
+            &file_name[2..],
+        ),
+        _ => (String::new(), file_name),
+    };
+    let path = path.strip_prefix("//").unwrap_or(path);
+    let parts = path.split('/').map(escape_uri_segment).collect::<Vec<_>>();
+    format!("file://{volume}{}", parts.join("/"))
+}
+
+/// Go's `url.PathEscape` followed by tsgo's extra escapes (vscode-uri's):
+/// every byte but `A-Z a-z 0-9 - _ . ~` as `%XX`.
+fn escape_uri_segment(segment: &str) -> String {
+    let mut escaped = String::with_capacity(segment.len());
+    for &byte in segment.as_bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            escaped.push(char::from(byte));
+        } else {
+            escaped.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    escaped
+}
+
+/// tsgo `lsproto.dynamicFileNameToDocumentUri`: the URI a dynamic file name
+/// (`^/~ts-uri~/<scheme>/<authority>/<path>`, or the unencoded
+/// `^/<scheme>/<authority>/<path>`) stands for. Strictly, a malformed escape
+/// or a segment that needed one is refused; otherwise it stays as written.
+pub fn dynamic_file_name_to_document_uri(file_name: &str, strict: bool) -> Option<String> {
+    let encoded = file_name.starts_with(DYNAMIC_URI_FILE_NAME_PREFIX);
+    let start = if encoded {
+        DYNAMIC_URI_FILE_NAME_PREFIX.len()
+    } else {
+        2
+    };
+    let (scheme, rest) = file_name.get(start..)?.split_once('/')?;
+    if strict && scheme.is_empty() {
+        return None;
+    }
+    let (authority, path) = rest.split_once('/')?;
+    let has_authority = authority != NUL_AUTHORITY;
+    let authority = match (encoded, strict) {
+        (false, _) => authority.to_owned(),
+        (true, true) => try_decode_segment(authority)?,
+        (true, false) => decode_segment(authority),
+    };
+    if encoded && has_authority {
+        if let Some(suffix) = decode_no_path(path) {
+            return Some(format!("{scheme}://{authority}{suffix}"));
+        }
+    }
+    let path = match (encoded, strict) {
+        (false, _) => path.to_owned(),
+        (true, true) => path
+            .split('/')
+            .map(try_decode_segment)
+            .collect::<Option<Vec<_>>>()?
+            .join("/"),
+        (true, false) if path.contains(PATH_SEGMENT_ESCAPE_PREFIX) => path
+            .split('/')
+            .map(decode_segment)
+            .collect::<Vec<_>>()
+            .join("/"),
+        (true, false) => path.to_owned(),
+    };
+    if !has_authority {
+        return Some(format!("{scheme}:{path}"));
+    }
+    Some(format!("{scheme}://{authority}/{path}"))
+}
+
+/// tsgo `DecodeDynamicURIPathSegment`: a segment that does not decode stays
+/// as it is.
+fn decode_segment(segment: &str) -> String {
+    try_decode_segment(segment).unwrap_or_else(|| segment.to_owned())
+}
+
+/// tsgo `TryDecodeDynamicURIPathSegment`: an escaped segment's text (a
+/// folded query or fragment after its extension), an unescaped one as it is
+/// unless it needed an escape.
+fn try_decode_segment(segment: &str) -> Option<String> {
+    let Some(encoded) = segment.strip_prefix(PATH_SEGMENT_ESCAPE_PREFIX) else {
+        return (!segment_needs_encoding(segment)).then(|| segment.to_owned());
+    };
+    let (encoded, extension) = encoded.split_once('~')?;
+    let decoded = unhex(encoded)?;
+    Some(match decoded.split_once('\0') {
+        Some((base, suffix)) => format!("{base}{extension}{suffix}"),
+        None => format!("{decoded}{extension}"),
+    })
+}
+
+/// tsgo `DecodeDynamicURINoPath`: the query or fragment of a URI without a
+/// path.
+fn decode_no_path(path: &str) -> Option<String> {
+    let encoded = path.strip_prefix(NO_PATH_ESCAPE_PREFIX)?;
+    let (encoded, rest) = encoded.split_once('~')?;
+    if !rest.is_empty() {
+        return None;
+    }
+    unhex(encoded)
+}
+
+/// Go's `hex.DecodeString` of valid UTF-8.
+fn unhex(text: &str) -> Option<String> {
+    if text.len() % 2 != 0 {
+        return None;
+    }
+    let bytes = (0..text.len())
+        .step_by(2)
+        .map(|index| u8::from_str_radix(text.get(index..index + 2)?, 16).ok())
+        .collect::<Option<Vec<_>>>()?;
+    String::from_utf8(bytes).ok()
+}
+
 /// tsgo `RootedPathFromAbsolute`: normalized, a root alone ending with a
 /// separator.
 pub fn rooted_path_from_absolute(path: &str) -> String {
@@ -236,7 +366,117 @@ fn percent_decode(text: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::uri_to_file_name;
+    use super::{dynamic_file_name_to_document_uri, file_name_to_document_uri, uri_to_file_name};
+
+    /// tsgo `TestFileNameToDocumentURI` (ls/lsconv/converters_test.go).
+    #[test]
+    fn file_names_take_tsgos_uris() {
+        for (file_name, uri) in [
+            ("/path/to/file.ts", "file:///path/to/file.ts"),
+            ("//server/share/file.ts", "file://server/share/file.ts"),
+            ("d:/work/tsgo932/lib/utils.ts", "file:///d%3A/work/tsgo932/lib/utils.ts"),
+            ("D:/work/tsgo932/lib/utils.ts", "file:///d%3A/work/tsgo932/lib/utils.ts"),
+            (
+                "d:/work/tsgo932/app/(test)/comp/comp-test.tsx",
+                "file:///d%3A/work/tsgo932/app/%28test%29/comp/comp-test.tsx",
+            ),
+            ("c:/test/me", "file:///c%3A/test/me"),
+            ("//shares/files/c#/p.cs", "file://shares/files/c%23/p.cs"),
+            (
+                "c:/Source/Zürich or Zurich (ˈzjʊərɪk,/Code/resources/app/plugins/c#/plugin.json",
+                "file:///c%3A/Source/Z%C3%BCrich%20or%20Zurich%20%28%CB%88zj%CA%8A%C9%99r%C9%AAk%2C/Code/resources/app/plugins/c%23/plugin.json",
+            ),
+            ("c:/test %/path", "file:///c%3A/test%20%25/path"),
+            ("/", "file:///"),
+            ("/_:/path", "file:///_%3A/path"),
+            ("/users/me/c#-projects", "file:///users/me/c%23-projects"),
+            (
+                "//localhost/c$/GitDevelopment/express",
+                "file://localhost/c%24/GitDevelopment/express",
+            ),
+            ("c:/test with %25/c#code", "file:///c%3A/test%20with%20%2525/c%23code"),
+            ("^/untitled/ts-nul-authority/Untitled-1", "untitled:Untitled-1"),
+            (
+                "^/untitled/ts-nul-authority/c:/Users/jrieken/Code/abc.txt",
+                "untitled:c:/Users/jrieken/Code/abc.txt",
+            ),
+            (
+                "^/untitled/wsl%2Bubuntu/home/jabaile/work/TypeScript/newfile.ts",
+                "untitled://wsl%2Bubuntu/home/jabaile/work/TypeScript/newfile.ts",
+            ),
+            (
+                "^/custom/ts-nul-authority/~ts-uri-escape~666f6f~.ts",
+                "custom:~ts-uri-escape~666f6f~.ts",
+            ),
+            // An escape that is not UTF-8 stays as written.
+            (
+                "^/~ts-uri~/custom/ts-nul-authority/~ts-uri-escape~ff~",
+                "custom:~ts-uri-escape~ff~",
+            ),
+        ] {
+            assert_eq!(file_name_to_document_uri(file_name), uri, "{file_name}");
+        }
+    }
+
+    /// tsgo `TestNonFileDocumentURIRoundTripsThroughNormalizedFileName`: a
+    /// URI that is not a file's comes back from its file name.
+    #[test]
+    fn non_file_uris_round_trip() {
+        for uri in [
+            "untitled:folder/../file.ts",
+            "vscode-vfs://github/path//file.ts",
+            "custom:/path/./file.ts/",
+            "custom:",
+            "custom:///path",
+            "custom://authority",
+            "custom://authority/",
+            "custom:path/file.ts?rev=a/b#frag/c",
+            "custom://authority/path/file.ts#frag/a",
+            r"custom:path\file.ts",
+            "custom:.git/file.ts",
+            "custom:..hidden/file.ts",
+            "custom://~ts-uri~/path",
+            "custom://ts-nul-authority/path",
+            "custom:~ts-uri-escape~file.ts",
+            "custom:~ts-uri-escape~no-path",
+            "custom://authority/~ts-uri-no-path~~",
+            "custom:~ts-uri-spec~666f6f~/file.ts?x=1",
+            r"custom:folder/../~ts-uri~/café\file.ts",
+            r"custom:name.ts\",
+            "custom:name..ts",
+        ] {
+            let file_name = uri_to_file_name(uri).unwrap();
+            assert_eq!(file_name_to_document_uri(&file_name), uri, "{file_name}");
+        }
+        assert_ne!(
+            uri_to_file_name(r"custom:name.ts\").unwrap(),
+            uri_to_file_name("custom:name..ts").unwrap()
+        );
+    }
+
+    /// tsgo `TestTryDynamicFileNameToDocumentUri` (lsp/lsproto/lsp_test.go).
+    #[test]
+    fn dynamic_file_names_decode_strictly() {
+        let uri = "untitled://wsl+ubuntu/home/user/file.ts?version=1";
+        let file_name = uri_to_file_name(uri).unwrap();
+        assert_eq!(
+            dynamic_file_name_to_document_uri(&file_name, true).as_deref(),
+            Some(uri)
+        );
+        for malformed in [
+            "^/invalid",
+            "^/~ts-uri~//authority/path",
+            "^/~ts-uri~/scheme/~ts-uri-escape~zz~/path",
+            "^/~ts-uri~/scheme/authority/~ts-uri-escape~zz~",
+            "^/~ts-uri~/scheme/authority/~ts-uri-no-path~zz~",
+        ] {
+            assert_eq!(
+                dynamic_file_name_to_document_uri(malformed, true),
+                None,
+                "{malformed}"
+            );
+        }
+    }
 
     #[test]
     fn uris_take_tsgos_file_names() {

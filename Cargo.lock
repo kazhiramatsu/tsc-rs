@@ -589,6 +589,7 @@ dependencies = [
  "serde_json",
  "tsc-rs-checker",
  "tsc-rs-lsproto",
+ "tsc-rs-syntax",
 ]
 
 [[package]]
