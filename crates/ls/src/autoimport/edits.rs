@@ -82,7 +82,7 @@ pub(crate) fn fix_edits(
 }
 
 /// tsgo `fileEdits`: the tracker's edits of the file.
-pub(super) fn file_edits(
+pub(crate) fn file_edits(
     tracker: Tracker<'_>,
     file: &SourceFile,
     converters: &Converters,

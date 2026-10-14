@@ -84,6 +84,16 @@ impl Index {
         results
     }
 
+    /// The exports with the given ID (tsgo `SearchByExportID`'s filter of
+    /// the entries).
+    pub(crate) fn with_export_id(&self, id: &super::export::ExportId) -> Vec<Arc<Export>> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.id == *id)
+            .cloned()
+            .collect()
+    }
+
     /// tsgo `Clone`: the index of the exports `filter` keeps.
     pub(crate) fn clone_filtered(&self, filter: impl Fn(&Export) -> bool) -> Self {
         let mut entries = Vec::with_capacity(self.entries.len());

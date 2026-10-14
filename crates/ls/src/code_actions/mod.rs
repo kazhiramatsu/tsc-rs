@@ -3,7 +3,9 @@
 //! fixes of the code fix providers for the request's diagnostics with their
 //! "fix all" variants.
 
+mod implement_interface;
 mod import_fixes;
+mod missing_member;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -36,7 +38,10 @@ struct CodeFixProvider {
 }
 
 /// tsgo `codeFixProviders`: the registered code fix providers.
-const CODE_FIX_PROVIDERS: &[CodeFixProvider] = &[import_fixes::IMPORT_FIX_PROVIDER];
+const CODE_FIX_PROVIDERS: &[CodeFixProvider] = &[
+    import_fixes::IMPORT_FIX_PROVIDER,
+    implement_interface::PROVIDER,
+];
 
 /// tsgo `CodeFixContext`.
 pub(crate) struct CodeFixContext<'d> {

@@ -3,15 +3,22 @@
 
 use std::collections::BTreeMap;
 
+use std::collections::HashMap;
+use std::sync::Arc;
 use tsc_lsproto::{AddAsTypeOnly, AutoImportFix, AutoImportFixKind, ImportKind, TextEdit};
-use tsc_syntax::{NodeId, SourceFile};
-use tsc_types::CompilerOptions;
+
+use tsc_checker::state::{CheckResult, CheckerState};
+use tsc_emitter::{TransformArena, TransformError, TransformNode, TransformSourceId};
+use tsc_syntax::{NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SourceFile, SyntaxKind};
+use tsc_types::{CompilerOptions, InternalSymbolName, SymbolId};
 
 use super::edits::{
     add_import_type, add_namespace_qualifier, add_to_existing_import, file_edits,
     get_add_to_existing_import_fix, get_new_imports, get_new_requires, insert_imports,
     NewImportBinding,
 };
+use super::export::Export;
+use super::view::{Fix, View};
 use crate::change::Tracker;
 use crate::lsconv::Converters;
 use crate::lsutil::{get_quote_preference, new_line_kind, FormatCodeSettings, UserPreferences};
@@ -150,6 +157,30 @@ impl<'a> ImportAdder<'a> {
                 .map_err(to_error)?;
         }
         file_edits(tracker, file, self.converters)
+    }
+
+    /// tsgo `AddImportFromExportedSymbol`: the best fix importing a symbol's
+    /// export, none when the registry has no export of it (its file left
+    /// out by `autoImportFileExcludePatterns`).
+    pub(crate) fn add_import_from_exported_symbol(
+        &mut self,
+        checker: &mut CheckerState<'_>,
+        view: &mut View<'_>,
+        exported_symbol: SymbolId,
+        is_valid_type_only_use_site: bool,
+    ) -> CheckResult<()> {
+        let skipped = checker.skip_alias(exported_symbol)?;
+        let symbol = checker.get_merged_symbol(skipped);
+        let exports = get_all_exports_for_symbol(checker, view, symbol)?;
+        if exports.is_empty() {
+            return Ok(());
+        }
+        if let Some(fix) =
+            get_import_fix_for_symbol(checker, view, &exports, is_valid_type_only_use_site)?
+        {
+            self.add_import_fix(&fix.auto_import);
+        }
+        Ok(())
     }
 
     /// tsgo `AddImportFix`: the fix added to the others, its import merged
@@ -360,4 +391,256 @@ fn reduce_add_as_type_only_values(
         Some(previous) if previous.0 >= new.0 => previous,
         _ => new,
     }
+}
+
+/// tsgo `getAllExportsForSymbol`: the registry's exports of a symbol's
+/// export.
+fn get_all_exports_for_symbol(
+    checker: &mut CheckerState<'_>,
+    view: &View<'_>,
+    symbol: SymbolId,
+) -> CheckResult<Vec<Arc<Export>>> {
+    let path_of = |file_name: &str| view.path_of(file_name);
+    Ok(match super::symbol_to_export(checker, &path_of, symbol)? {
+        Some(export) => view.search_by_export_id(&export.id),
+        None => Vec::new(),
+    })
+}
+
+/// tsgo `getImportFixForSymbol`: the best fix of any of the exports.
+fn get_import_fix_for_symbol(
+    checker: &mut CheckerState<'_>,
+    view: &mut View<'_>,
+    exports: &[Arc<Export>],
+    is_valid_type_only_use_site: bool,
+) -> CheckResult<Option<Fix>> {
+    let mut fixes = Vec::new();
+    for export in exports {
+        fixes.extend(view.get_fixes(checker, export, false, is_valid_type_only_use_site, None)?);
+    }
+    fixes.sort_by(|a, b| view.compare_fixes_for_ranking(a, b));
+    Ok(fixes.into_iter().next())
+}
+
+/// tsgo `TryGetAutoImportableReferenceFromTypeNode`: a type node with each
+/// `import("./a").SomeType<…>` the node builder wrote for a symbol replaced
+/// by the type reference `SomeType<…>`, and the symbols to import for it.
+pub(crate) fn try_get_auto_importable_reference_from_type_node(
+    checker: &CheckerState<'_>,
+    arena: &mut TransformArena,
+    type_node: TransformNode,
+    id_to_symbol: &[(TransformNode, SymbolId)],
+) -> Result<(TransformNode, Vec<SymbolId>), TransformError> {
+    let mut visitor = AutoImportableReference {
+        checker,
+        arena,
+        source: type_node.source(),
+        id_to_symbol: id_to_symbol.iter().copied().collect(),
+        symbols: Vec::new(),
+    };
+    let node = visitor.visit(type_node)?;
+    Ok((node, visitor.symbols))
+}
+
+struct AutoImportableReference<'v, 'c> {
+    checker: &'v CheckerState<'c>,
+    arena: &'v mut TransformArena,
+    source: TransformSourceId,
+    id_to_symbol: HashMap<TransformNode, SymbolId>,
+    symbols: Vec<SymbolId>,
+}
+
+impl AutoImportableReference<'_, '_> {
+    fn visit(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
+        if let NodeData::ImportType(data) = &self.arena.node(node)?.data {
+            let data = data.clone();
+            if let (Some(qualifier), true) =
+                (data.qualifier, self.is_literal_argument(data.argument)?)
+            {
+                let qualifier = self.node_ref(qualifier)?;
+                // Symbol for the left-most thing after the dot
+                let first_identifier = self.first_identifier(qualifier)?;
+                if let Some(&symbol) = self.id_to_symbol.get(&first_identifier) {
+                    let name = get_name_for_exported_symbol(self.checker, symbol, false);
+                    let qualifier = if name != self.identifier_text(first_identifier)? {
+                        let identifier =
+                            self.arena.factory().create_identifier(self.source, name)?;
+                        self.replace_first_identifier_of_entity_name(qualifier, identifier)?
+                    } else {
+                        qualifier
+                    };
+                    self.symbols.push(symbol);
+                    let type_arguments = match data.type_arguments {
+                        Some(arguments) => Some(self.visit_array(arguments)?),
+                        None => None,
+                    };
+                    return self.arena.factory().create_type_reference_node(
+                        self.source,
+                        qualifier,
+                        type_arguments,
+                    );
+                }
+                // if symbol is missing then this doesn't come from a synthesized import type node
+                // it has to be an import type node authored by the user and thus it has to be valid
+                // it can't refer to reserved internal symbol names and such
+            }
+        }
+        let mut data = self.arena.node(node)?.data.clone();
+        let original = data.clone();
+        tsc_syntax::try_visit_each_child(&mut data, self)?;
+        if data == original {
+            return Ok(node);
+        }
+        self.arena
+            .factory()
+            .update_node(node, data, tsc_emitter::TransformFlags::NONE)
+    }
+
+    fn node_ref(&self, node: NodeId) -> Result<TransformNode, TransformError> {
+        self.arena
+            .node_ref(self.source, node)
+            .ok_or(TransformError::UnknownSource(self.source))
+    }
+
+    /// tsgo `IsLiteralImportTypeNode`'s argument: a literal type of a string.
+    fn is_literal_argument(&self, argument: Option<NodeId>) -> Result<bool, TransformError> {
+        let Some(argument) = argument else {
+            return Ok(false);
+        };
+        let argument = self.node_ref(argument)?;
+        let NodeData::LiteralType(literal) = &self.arena.node(argument)?.data else {
+            return Ok(false);
+        };
+        let Some(literal) = literal.literal else {
+            return Ok(false);
+        };
+        Ok(self.arena.node(self.node_ref(literal)?)?.kind == SyntaxKind::StringLiteral)
+    }
+
+    /// tsgo `GetFirstIdentifier`.
+    fn first_identifier(&self, name: TransformNode) -> Result<TransformNode, TransformError> {
+        match &self.arena.node(name)?.data {
+            NodeData::QualifiedName(data) => match data.left {
+                Some(left) => self.first_identifier(self.node_ref(left)?),
+                None => Ok(name),
+            },
+            _ => Ok(name),
+        }
+    }
+
+    fn identifier_text(&self, identifier: TransformNode) -> Result<String, TransformError> {
+        Ok(match &self.arena.node(identifier)?.data {
+            NodeData::Identifier(data) => data.text().to_owned(),
+            _ => String::new(),
+        })
+    }
+
+    /// tsgo `replaceFirstIdentifierOfEntityName`.
+    fn replace_first_identifier_of_entity_name(
+        &mut self,
+        name: TransformNode,
+        new_identifier: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::QualifiedName(data) = self.arena.node(name)?.data.clone() else {
+            return Ok(new_identifier);
+        };
+        let left = match data.left {
+            Some(left) => {
+                let left = self.node_ref(left)?;
+                self.replace_first_identifier_of_entity_name(left, new_identifier)?
+            }
+            None => new_identifier,
+        };
+        let right = match data.right {
+            Some(right) => self.node_ref(right)?,
+            None => return Ok(left),
+        };
+        self.arena
+            .factory()
+            .create_qualified_name(self.source, left, right)
+    }
+
+    fn visit_array(
+        &mut self,
+        array: NodeArrayId,
+    ) -> Result<tsc_emitter::TransformNodeArray, TransformError> {
+        let original = self
+            .arena
+            .node_array_ref(self.source, array)
+            .ok_or(TransformError::UnknownSource(self.source))?;
+        let nodes = self.arena.node_array(original)?.nodes.to_vec();
+        let mut visited = Vec::with_capacity(nodes.len());
+        let mut changed = false;
+        for node in nodes {
+            let node = self.node_ref(node)?;
+            let result = self.visit(node)?;
+            changed |= result != node;
+            visited.push(result);
+        }
+        if !changed {
+            return Ok(original);
+        }
+        self.arena.factory().create_node_array(self.source, visited)
+    }
+}
+
+impl NodeDataChildVisitor for AutoImportableReference<'_, '_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.node_ref(id)
+            .and_then(|node| self.arena.node(node).map(|node| node.kind))
+            .unwrap_or(SyntaxKind::Unknown)
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        let node = self.node_ref(id)?;
+        Ok(Some(self.visit(node)?.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        Ok(Some(self.visit_array(id)?.array()))
+    }
+
+    fn required_child_removed(&mut self, _parent: SyntaxKind, _field: &'static str) -> Self::Error {
+        TransformError::UnknownSource(self.source)
+    }
+}
+
+/// tsgo `getNameForExportedSymbol`: a default export's local name, else its
+/// module's name as an identifier; any other export's own name.
+pub(crate) fn get_name_for_exported_symbol(
+    checker: &CheckerState<'_>,
+    symbol: SymbolId,
+    prefer_capitalized: bool,
+) -> String {
+    let data = checker.binder.symbol(symbol);
+    let name = data.escaped_name.unescape().to_string_lossy().into_owned();
+    if name != InternalSymbolName::EXPORT_EQUALS && name != InternalSymbolName::DEFAULT {
+        return name;
+    }
+    // Names for default exports:
+    // - export default foo => foo
+    // - export { foo as default } => foo
+    // - export default 0 => filename converted to camelCase
+    let name = super::extract::get_default_like_export_name_from_declaration(checker, symbol);
+    if !name.is_empty() {
+        return name;
+    }
+    let parent = data
+        .parent
+        .expect("Expected exported symbol to have module symbol as parent");
+    // tsgo `lsutil.ModuleSymbolToValidIdentifier`.
+    let module_name = checker
+        .binder
+        .symbol(parent)
+        .escaped_name
+        .unescape()
+        .to_string_lossy()
+        .into_owned();
+    let module_name = module_name
+        .strip_prefix('"')
+        .and_then(|name| name.strip_suffix('"'))
+        .unwrap_or(&module_name);
+    crate::lsutil::module_specifier_to_valid_identifier(module_name, prefer_capitalized)
 }

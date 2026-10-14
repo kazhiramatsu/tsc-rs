@@ -960,7 +960,7 @@ fn is_unusable_name(name: &str) -> bool {
 }
 
 /// tsgo `getDefaultLikeExportNameFromDeclaration`.
-fn get_default_like_export_name_from_declaration(
+pub(super) fn get_default_like_export_name_from_declaration(
     checker: &CheckerState<'_>,
     symbol: SymbolId,
 ) -> String {
