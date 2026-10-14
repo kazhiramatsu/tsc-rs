@@ -1640,6 +1640,7 @@ impl Session {
         params: &CreateSnapshotParams,
     ) -> Result<CreateSnapshotResponse, String> {
         let mut request = self.to_api_snapshot_request(&params.changes)?;
+        request.user_preferences = params.user_preferences.clone();
         let open = self.reconcile_snapshot_opens(&mut request, OpenState::default());
         let mut file_changes = self.to_file_change_summary(params.file_notifications.as_ref())?;
         let mut file_system = None;
@@ -1697,6 +1698,7 @@ impl Session {
         };
         let changes = params.changes.unwrap_or_default();
         let mut request = self.to_api_snapshot_request(&changes.changes)?;
+        request.user_preferences = changes.user_preferences.clone();
         let open = self.reconcile_snapshot_opens(&mut request, base_open);
         let mut file_changes = self.to_file_change_summary(changes.file_notifications.as_ref())?;
         if let Some(supplied) = &changes.file_system {
@@ -1767,7 +1769,7 @@ impl Session {
         &*self.fs
     }
 
-    fn snapshot(&self, handle: SnapshotId) -> Result<Arc<Snapshot>, String> {
+    pub(crate) fn snapshot(&self, handle: SnapshotId) -> Result<Arc<Snapshot>, String> {
         self.lock_snapshots()
             .get(&handle)
             .map(|data| Arc::clone(&data.snapshot))

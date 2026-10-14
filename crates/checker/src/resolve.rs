@@ -3037,27 +3037,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: typed AST projection for tsc's direct declaration
     /// `type` property access.
     pub fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
-        match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => data.r#type,
-            NodeData::FunctionExpression(data) => data.r#type,
-            NodeData::ArrowFunction(data) => data.r#type,
-            NodeData::MethodDeclaration(data) => data.r#type,
-            NodeData::GetAccessor(data) => data.r#type,
-            NodeData::SetAccessor(data) => data.r#type,
-            NodeData::CallSignature(data) => data.r#type,
-            NodeData::ConstructSignature(data) => data.r#type,
-            NodeData::MethodSignature(data) => data.r#type,
-            NodeData::FunctionType(data) => data.r#type,
-            NodeData::ConstructorType(data) => data.r#type,
-            NodeData::Constructor(data) => data.r#type,
-            NodeData::PropertyDeclaration(data) => data.r#type,
-            NodeData::PropertySignature(data) => data.r#type,
-            NodeData::Parameter(data) => data.r#type,
-            NodeData::VariableDeclaration(data) => data.r#type,
-            NodeData::IndexSignature(data) => data.r#type,
-            NodeData::TypeAssertionExpression(data) => data.r#type,
-            _ => None,
-        }
+        tsc_binder::node_util::type_annotation_of_data(self.data_of(node))
     }
 
     fn parameters_of(&self, node: NodeId) -> Vec<NodeId> {

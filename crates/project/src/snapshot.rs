@@ -150,6 +150,9 @@ pub struct ApiSnapshotRequest {
     pub file_system: Option<Arc<dyn FileSystem>>,
     /// The file system replaces everything read before.
     pub replace_file_system: bool,
+    /// The language service's preferences from now on (tsgo
+    /// `UserPreferences`, the snapshot's `newConfig`).
+    pub user_preferences: Option<UserPreferences>,
 }
 
 /// What a snapshot update takes (tsgo `SnapshotChange` with the overlays
@@ -730,6 +733,10 @@ impl SnapshotHost {
             compiler_options_for_inferred_projects: new_inferred_options,
         } = change;
         let overlays = overlays.unwrap_or_else(|| Arc::clone(&base.fs.overlays));
+        // tsgo `CloneSnapshot`: an API request's preferences are the new
+        // configuration.
+        let new_config =
+            new_config.or_else(|| request.and_then(|request| request.user_preferences.clone()));
         // The documents and mapped outputs of the programs that are gone
         // (tsgo releases a program's files when its snapshot goes).
         self.documents.purge();
