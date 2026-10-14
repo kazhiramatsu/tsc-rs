@@ -2,6 +2,7 @@
 //! position, after or before a node, after a list item, among import
 //! specifiers, at the top of a file.
 
+use tsc_binder::node_util;
 use tsc_emitter::{TransformError, TransformFlags, TransformNode};
 use tsc_syntax::{
     comment_ranges, skip_trivia_ex, NodeArrayId, NodeData, NodeId, SkipTriviaOptions, SourceFile,
@@ -230,6 +231,78 @@ impl<'a> Tracker<'a> {
                 self.insert_text_at(file, close_brace_end - 1, new_line);
             }
         }
+    }
+
+    /// tsgo `TryInsertTypeAnnotation`: `: type` after a function's `)` (an
+    /// arrow function without one: after its parameter), or after a
+    /// variable's `!`, a property's or parameter's postfix token, else its
+    /// name; false when there is no such place.
+    pub(crate) fn try_insert_type_annotation(
+        &mut self,
+        file: &'a SourceFile,
+        node: NodeId,
+        type_node: TransformNode,
+    ) -> bool {
+        let record = file.arena.node(node);
+        let end_node = if node_util::is_function_like_kind(record.kind) {
+            let navigator = Navigator::new(file);
+            match navigator.child_of_kind(View::Node(node), SyntaxKind::CloseParenToken) {
+                Some(close_paren) => Some(navigator.end(close_paren) as usize),
+                // If no `)`, is an arrow function `x => x`, so use the end of
+                // the first parameter
+                None if record.kind == SyntaxKind::ArrowFunction => {
+                    crate::utilities::parameters_in(file, node)
+                        .first()
+                        .map(|&parameter| file.arena.node(parameter).end as usize)
+                }
+                None => None,
+            }
+        } else {
+            let postfix = match &record.data {
+                NodeData::VariableDeclaration(data) => data.exclamation_token,
+                NodeData::PropertySignature(data) => data.question_token,
+                NodeData::PropertyDeclaration(data) => {
+                    data.question_token.or(data.exclamation_token)
+                }
+                NodeData::Parameter(data) => data.question_token,
+                _ => None,
+            };
+            postfix
+                .or_else(|| node_util::get_name_of_declaration(file, node))
+                .map(|end_node| file.arena.node(end_node).end as usize)
+        };
+        let Some(end) = end_node else {
+            return false;
+        };
+        self.insert_node_at(
+            file,
+            end,
+            type_node,
+            NodeOptions {
+                prefix: ": ".to_owned(),
+                ..NodeOptions::default()
+            },
+        );
+        true
+    }
+
+    /// tsgo `ParenthesizeArrowParameters`: `(` and `)` around a paren-less
+    /// arrow function's parameters.
+    pub(crate) fn parenthesize_arrow_parameters(&mut self, file: &'a SourceFile, arrow: NodeId) {
+        let navigator = Navigator::new(file);
+        if navigator
+            .child_of_kind(View::Node(arrow), SyntaxKind::CloseParenToken)
+            .is_some()
+        {
+            return;
+        }
+        let parameters = crate::utilities::parameters_in(file, arrow);
+        let (Some(&first), Some(&last)) = (parameters.first(), parameters.last()) else {
+            return;
+        };
+        let start = start_of(file, first);
+        self.insert_text_at(file, start, "(".to_owned());
+        self.insert_text_at(file, file.arena.node(last).end as usize, ")".to_owned());
     }
 
     /// tsgo `InsertModifierBefore`: a modifier token (like `type`) before a
@@ -770,7 +843,7 @@ fn is_class_or_type_element(kind: SyntaxKind) -> bool {
 }
 
 /// tsgo `ast.IsStatement`.
-fn is_statement(file: &SourceFile, node: NodeId) -> bool {
+pub(crate) fn is_statement(file: &SourceFile, node: NodeId) -> bool {
     let kind = file.arena.node(node).kind;
     format::is_statement_but_not_declaration_kind(kind)
         || tsc_binder::bind::is_declaration_statement_kind(kind)

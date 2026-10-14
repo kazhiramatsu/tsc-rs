@@ -12,9 +12,12 @@
 mod delete;
 mod insert;
 
+pub(crate) use insert::is_statement;
+
 use tsc_emitter::{
-    print_and_position, transform_nodes, EmitFlags, NewLineKind, PositionedPrint, PrinterError,
-    TransformArena, TransformError, TransformNode, TransformSourceId,
+    create_printer, print_and_position, transform_nodes, EmitFlags, NewLineKind, PositionedPrint,
+    PrintRequest, PrinterError, PrinterOptions, StandaloneWriter, TransformArena, TransformError,
+    TransformNode, TransformSourceId,
 };
 use tsc_syntax::{
     comment_ranges, skip_trivia_ex, NodeArena, NodeId, SkipTriviaOptions, SourceFile,
@@ -217,6 +220,47 @@ impl<'a> Tracker<'a> {
         self.arena
             .metadata(node)
             .map_or(EmitFlags::NONE, |metadata| metadata.flags())
+    }
+
+    /// tsgo `typeToStringForDiag`'s print: `node` on one line by a printer
+    /// over the tracker's emit context, so the names it generates are the
+    /// edits'; cut to 157 bytes and `...` past 160.
+    pub(crate) fn print_single_line(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<String, TrackerError> {
+        let saved_flags = self.emit_flags(node);
+        self.set_emit_flags(node, saved_flags | EmitFlags::SINGLE_LINE);
+        let arena = std::mem::replace(&mut self.arena, TransformArena::new());
+        let mut transformation = transform_nodes(arena, Vec::new(), Vec::new(), true)?;
+        let printed = create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed).with_declaration_syntax(true),
+        )
+        .print(
+            &mut transformation,
+            PrintRequest::StandaloneNode {
+                node,
+                writer: StandaloneWriter::SingleLine,
+            },
+            None,
+        );
+        self.arena = transformation.into_arena();
+        self.set_emit_flags(node, saved_flags);
+        let text = printed?.text().to_owned();
+        if text.len() <= 160 {
+            return Ok(text);
+        }
+        // Go slices the bytes: a character cut in two leaves its bytes, each
+        // one replacement character in the response.
+        let bytes = &text.as_bytes()[..157];
+        let valid = match std::str::from_utf8(bytes) {
+            Ok(valid) => valid,
+            Err(error) => std::str::from_utf8(&bytes[..error.valid_up_to()]).unwrap_or_default(),
+        };
+        let mut result = valid.to_owned();
+        result.extend(std::iter::repeat_n('\u{FFFD}', bytes.len() - valid.len()));
+        result.push_str("...");
+        Ok(result)
     }
 
     fn add(&mut self, file: &'a SourceFile, edit: TrackerEdit) {

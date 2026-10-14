@@ -23,8 +23,8 @@ use tsc_syntax::SyntaxKind;
 
 use crate::language_service::{LanguageService, LsError};
 
-pub(crate) use context::is_type_element;
 use context::Completions;
+pub(crate) use context::{is_type_element, is_type_node_kind};
 use data::CompletionData;
 
 /// tsgo `SortText`s.

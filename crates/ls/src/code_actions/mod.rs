@@ -6,6 +6,7 @@
 mod implement_interface;
 mod import_fixes;
 mod missing_member;
+mod missing_type_annotation;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -40,6 +41,7 @@ struct CodeFixProvider {
 /// tsgo `codeFixProviders`: the registered code fix providers.
 const CODE_FIX_PROVIDERS: &[CodeFixProvider] = &[
     import_fixes::IMPORT_FIX_PROVIDER,
+    missing_type_annotation::PROVIDER,
     implement_interface::PROVIDER,
 ];
 
