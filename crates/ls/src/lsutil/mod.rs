@@ -3,12 +3,14 @@
 //! and the syntax utilities the language service features share.
 
 mod asi;
+mod completed_node;
 mod format_code_options;
 mod symbol_display;
 mod user_preferences;
 mod user_preferences_generated;
 
 pub(crate) use asi::*;
+pub(crate) use completed_node::*;
 pub use format_code_options::*;
 pub use symbol_display::*;
 pub use user_preferences::*;
