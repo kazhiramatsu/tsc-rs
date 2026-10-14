@@ -9,6 +9,7 @@ use tsc_lsproto::{CompletionItem, CompletionItemKind, Range};
 use tsc_syntax::{identifier_to_keyword_kind, NodeData, NodeId, SyntaxKind};
 use tsc_types::{LiteralValue, NodeFlags, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId};
 
+use crate::format::is_white_space_single_line;
 use crate::utilities::Touching;
 
 use super::context::{is_class_like, Completions};
@@ -1990,11 +1991,6 @@ fn left_most_name(source: &tsc_syntax::SourceFile, expression: NodeId) -> Option
         NodeData::PropertyAccessExpression(data) => left_most_name(source, data.expression?),
         _ => None,
     }
-}
-
-/// tsgo `stringutil.IsWhiteSpaceSingleLine`.
-pub(super) fn is_white_space_single_line(c: char) -> bool {
-    tsc_syntax::is_whitespace_like(c) && !tsc_syntax::is_line_break(c)
 }
 
 /// tsgo `ast.IsJSDocTag`.
