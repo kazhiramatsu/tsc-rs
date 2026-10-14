@@ -419,6 +419,87 @@ pub(crate) fn script_of(source: &SourceFile) -> TextScript<'_> {
     }
 }
 
+/// tsgo `isInComment`: `getRangeOfEnclosingComment` with the token before
+/// the position.
+pub(crate) fn is_in_comment(
+    navigator: &Navigator<'_>,
+    position: u32,
+    token_at_position: Found,
+) -> bool {
+    range_of_enclosing_comment(
+        navigator,
+        position,
+        navigator.preceding_token(position),
+        token_at_position,
+    )
+    .is_some()
+}
+
+/// tsgo `getRangeOfEnclosingComment`: the comment that contains the
+/// position, among the trailing comments of the token before it and the
+/// leading comments of the token at it (the host's, in a JSDoc comment).
+pub(crate) fn range_of_enclosing_comment(
+    navigator: &Navigator<'_>,
+    position: u32,
+    preceding_token: Option<Found>,
+    token_at_position: Found,
+) -> Option<(u32, u32)> {
+    let mut token = token_at_position;
+    let mut ancestor = Some(token_at_position);
+    while let Some(node) = ancestor {
+        if navigator.kind(node) == SyntaxKind::JSDoc {
+            token = navigator.parent(node).expect("a JSDoc comment's host");
+            break;
+        }
+        ancestor = navigator.parent(node);
+    }
+    let start = navigator.start_of_node(token, false);
+    if start <= position && position < navigator.end(token) {
+        return None;
+    }
+
+    let text = navigator.file().text();
+    // Between two consecutive tokens, all comments are either trailing on the former
+    // or leading on the latter (and none are in both lists).
+    let mut comment_ranges = Vec::new();
+    if let Some(preceding) = preceding_token {
+        comment_ranges.extend(tsc_syntax::comment_ranges(
+            text,
+            navigator.end(preceding) as usize,
+            true,
+        ));
+    }
+    if navigator.kind(token) != SyntaxKind::JsxText {
+        comment_ranges.extend(tsc_syntax::comment_ranges(
+            text,
+            navigator.pos(token) as usize,
+            false,
+        ));
+    }
+    let position = position as usize;
+    comment_ranges
+        .into_iter()
+        .find(|&(pos, end)| {
+            // The end marker of a single-line comment does not include the newline character.
+            // In the following case where the cursor is at `^`, we are inside a comment:
+            //
+            //    // asdf   ^\n
+            //
+            // But for closed multi-line comments, we don't want to be inside the comment in the following case:
+            //
+            //    /* asdf */^
+            //
+            // Internally, we represent the end of the comment prior to the newline and at the '/', respectively.
+            //
+            // However, unterminated multi-line comments lack a `/`, end at the end of the file, and *do* contain their end.
+            //
+            let single_line = text[pos..].starts_with("//");
+            (pos < position && position < end)
+                || position == end && (single_line || position == text.len())
+        })
+        .map(|(pos, end)| (pos as u32, end as u32))
+}
+
 /// tsgo `GetTokenPosOfNode(node, file, false)` of a node of the tree.
 pub(crate) fn token_start(source: &SourceFile, node: NodeId) -> usize {
     Navigator::new(source).start_of_node(Found::Node(crate::tree::View::Node(node)), false) as usize

@@ -163,6 +163,11 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
         }
     }
 
+    /// tsgo `GetECMALineStarts`.
+    pub(crate) fn line_starts(&self) -> &[usize] {
+        &self.line_starts
+    }
+
     /// tsgo `format.GetLineStartPositionForPosition`.
     pub(crate) fn line_start_of(&self, position: u32) -> u32 {
         self.line_starts[self.line_of(position)] as u32
@@ -407,46 +412,12 @@ impl<'r, 's, 'a> Completions<'r, 's, 'a> {
         preceding: Option<Touching>,
         at_position: Touching,
     ) -> Option<(u32, u32)> {
-        let mut token = at_position;
-        let js_doc = self.find_ancestor(
-            match token {
-                Touching::Node(node) => Some(node),
-                Touching::Token { parent, .. } => Some(parent),
-            },
-            |this, node| this.node_kind(node) == SyntaxKind::JSDoc,
-        );
-        if let Some(js_doc) = js_doc {
-            token = Touching::Node(self.parent_of(js_doc).expect("a JSDoc comment's host"));
-        }
-        let start = self.start(token);
-        if start <= position && position < self.end(token) {
-            return None;
-        }
-        let text = self.text();
-        let mut ranges = Vec::new();
-        if let Some(preceding) = preceding {
-            ranges.extend(tsc_syntax::comment_ranges(
-                text,
-                self.end(preceding) as usize,
-                true,
-            ));
-        }
-        if self.kind(token) != SyntaxKind::JsxText {
-            ranges.extend(tsc_syntax::comment_ranges(
-                text,
-                self.pos(token) as usize,
-                false,
-            ));
-        }
-        let position = position as usize;
-        ranges
-            .into_iter()
-            .find(|&(pos, end)| {
-                let single_line = text[pos..].starts_with("//");
-                (pos < position && position < end)
-                    || position == end && (single_line || position == text.len())
-            })
-            .map(|(pos, end)| (pos as u32, end as u32))
+        crate::utilities::range_of_enclosing_comment(
+            &self.navigator,
+            position,
+            preceding.map(|token| self.found(token)),
+            self.found(at_position),
+        )
     }
 
     /// tsgo `IsInString`.
