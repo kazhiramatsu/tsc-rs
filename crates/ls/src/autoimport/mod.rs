@@ -15,9 +15,9 @@ mod program_facts;
 mod registry;
 mod view;
 
-pub(crate) use edits::fix_edits;
+pub(crate) use edits::{file_edits, fix_edits};
 pub(crate) use extract::{symbol_to_export, Extractor};
-pub(crate) use import_adder::ImportAdder;
+pub(crate) use import_adder::{try_get_auto_importable_reference_from_type_node, ImportAdder};
 pub use index::Index;
 pub use package_json::{PackageJsonContents, PackageJsonInfo};
 pub use program_facts::program_package_facts;

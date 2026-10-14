@@ -85,6 +85,153 @@ impl<'a> Tracker<'a> {
         self.insert_node_at(file, pos, node, options);
     }
 
+    /// tsgo `InsertMemberAtStart` (`insertNodeAtStartWorker`): a member at the
+    /// start of a class, interface or object literal, indented as its
+    /// members are, else one level past the node's line.
+    pub(crate) fn insert_member_at_start(
+        &mut self,
+        file: &'a SourceFile,
+        node: NodeId,
+        new_element: TransformNode,
+    ) {
+        let indentation = self
+            .try_compute_indentation_from_existing_members(file, node)
+            .unwrap_or_else(|| self.try_compute_indentation_for_new_member(file, node));
+        let Some(members) = members_or_properties(file, node) else {
+            return;
+        };
+        let pos = file.arena.node_array(members).pos as usize;
+        let options = self.get_insert_node_at_start_insert_options(file, node, indentation);
+        self.insert_node_at(file, pos, new_element, options);
+    }
+
+    /// tsgo `tryComputeIndentationForNewMember`: one indentation level past
+    /// the column of the node's start.
+    fn try_compute_indentation_for_new_member(&self, file: &SourceFile, node: NodeId) -> i64 {
+        let node_start = start_of(file, node);
+        let line_start = line_start_of(file, node_start);
+        let tab_size = positive_or(self.format_settings.editor_settings.tab_size, 4);
+        let indent_size = positive_or(self.format_settings.editor_settings.indent_size, 4);
+        find_indentation_column(file.text(), line_start, node_start, tab_size).max(0) + indent_size
+    }
+
+    /// tsgo `tryComputeIndentationFromExistingMembers`: the column every
+    /// member starts at when each is on its own line, if any.
+    fn try_compute_indentation_from_existing_members(
+        &self,
+        file: &SourceFile,
+        node: NodeId,
+    ) -> Option<i64> {
+        let members = members_or_properties(file, node)?;
+        let tab_size = positive_or(self.format_settings.editor_settings.tab_size, 4);
+        let mut indentation: Option<i64> = None;
+        let mut last = node;
+        for &member in file.arena.node_array(members).nodes {
+            if tsc_emitter::range_start_positions_are_on_same_line(
+                file,
+                file.arena.node(last).pos,
+                file.arena.node(member).pos,
+            ) {
+                return None;
+            }
+            let member_start = start_of(file, member);
+            let line_start = line_start_of(file, member_start);
+            let column = find_indentation_column(file.text(), line_start, member_start, tab_size);
+            if column < 0 {
+                return None;
+            }
+            if let Some(indentation) = indentation {
+                if indentation != column {
+                    return None;
+                }
+                last = member;
+                continue;
+            }
+            indentation = Some(column);
+            last = member;
+        }
+        Some(indentation.unwrap_or(-1)).filter(|&indentation| indentation >= 0)
+    }
+
+    /// tsgo `getInsertNodeAtStartInsertOptions`.
+    fn get_insert_node_at_start_insert_options(
+        &mut self,
+        file: &'a SourceFile,
+        node: NodeId,
+        indentation: i64,
+    ) -> NodeOptions {
+        let file_index = self.file_index(file);
+        let has_previous_insertion = self
+            .nodes_with_insertions_at_start
+            .contains(&(file_index, node));
+        if !has_previous_insertion {
+            self.nodes_with_insertions_at_start.push((file_index, node));
+        }
+        let has_members = members_or_properties(file, node)
+            .is_some_and(|members| !file.arena.node_array(members).nodes.is_empty());
+        let kind = file.arena.node(node).kind;
+        let is_object_literal = kind == SyntaxKind::ObjectLiteralExpression;
+        let is_json = file.file_name.ends_with(".json");
+        let insert_trailing_comma = is_object_literal && (has_members || !is_json);
+        let insert_leading_comma =
+            is_object_literal && is_json && !has_members && has_previous_insertion;
+        let suffix = if insert_trailing_comma {
+            ",".to_owned()
+        } else if kind == SyntaxKind::InterfaceDeclaration && !has_members {
+            ";".to_owned()
+        } else {
+            String::new()
+        };
+        let new_line = self.new_line.text();
+        let prefix = if insert_leading_comma {
+            format!(",{new_line}")
+        } else {
+            new_line.to_owned()
+        };
+        NodeOptions {
+            indentation: Some(indentation),
+            prefix,
+            suffix,
+            ..NodeOptions::default()
+        }
+    }
+
+    /// tsgo `finishNodesWithInsertionsAtStart`: the braces of a node a
+    /// member was inserted at the start of on lines of their own.
+    pub(super) fn finish_nodes_with_insertions_at_start(&mut self) {
+        let nodes = std::mem::take(&mut self.nodes_with_insertions_at_start);
+        for (file_index, node) in nodes {
+            let file = self.files[file_index].0;
+            let navigator = Navigator::new(file);
+            let Some(open_brace) =
+                navigator.child_of_kind(View::Node(node), SyntaxKind::OpenBraceToken)
+            else {
+                continue;
+            };
+            let Some(close_brace) =
+                navigator.child_of_kind(View::Node(node), SyntaxKind::CloseBraceToken)
+            else {
+                continue;
+            };
+            let open_brace_end = navigator.end(open_brace) as usize;
+            let close_brace_end = navigator.end(close_brace) as usize;
+            let is_empty = members_or_properties(file, node)
+                .is_none_or(|members| file.arena.node_array(members).nodes.is_empty());
+            let is_single_line = positions_are_on_same_line(file, open_brace_end, close_brace_end);
+            if is_empty && is_single_line && open_brace_end != close_brace_end - 1 {
+                self.replace_range_with_text(
+                    file,
+                    (open_brace_end, close_brace_end - 1),
+                    String::new(),
+                );
+            }
+            if is_single_line {
+                let new_line = self.new_line.text().to_owned();
+                self.insert_text_at(file, close_brace_end - 1, new_line);
+            }
+        }
+    }
+
     /// tsgo `InsertModifierBefore`: a modifier token (like `type`) before a
     /// node, with a space after it.
     pub(crate) fn insert_modifier_before(
@@ -640,4 +787,54 @@ fn is_statement(file: &SourceFile, node: NodeId) -> bool {
                 Some(SyntaxKind::TryStatement | SyntaxKind::CatchClause)
             ) && !parent.is_some_and(crate::utilities::is_function_like_kind)
         }
+}
+
+/// tsgo `getMembersOrProperties`.
+fn members_or_properties(file: &SourceFile, node: NodeId) -> Option<NodeArrayId> {
+    match &file.arena.node(node).data {
+        NodeData::ObjectLiteralExpression(data) => data.properties,
+        NodeData::ClassDeclaration(data) => data.members,
+        NodeData::ClassExpression(data) => data.members,
+        NodeData::InterfaceDeclaration(data) => data.members,
+        NodeData::EnumDeclaration(data) => data.members,
+        NodeData::TypeLiteral(data) => data.members,
+        NodeData::MappedType(data) => data.members,
+        _ => None,
+    }
+}
+
+/// tsgo `findIndentationColumn`: the column of `member_start` when only
+/// white space precedes it on its line (tabs to the next tab stop), else
+/// the column of the first other character; -1 past a line break.
+fn find_indentation_column(
+    text: &str,
+    line_start: usize,
+    member_start: usize,
+    tab_size: i64,
+) -> i64 {
+    let mut column = 0;
+    for ch in text[line_start.min(text.len())..member_start.min(text.len())].chars() {
+        if tsc_syntax::is_line_break(ch) {
+            return -1;
+        }
+        if tsc_syntax::is_single_line_whitespace(ch) {
+            column = if ch == '\t' {
+                column + tab_size - (column % tab_size)
+            } else {
+                column + 1
+            };
+            continue;
+        }
+        return column;
+    }
+    column
+}
+
+/// A format setting, `default` unless positive.
+fn positive_or(value: i64, default: i64) -> i64 {
+    if value > 0 {
+        value
+    } else {
+        default
+    }
 }

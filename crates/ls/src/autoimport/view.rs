@@ -174,6 +174,11 @@ impl<'r> View<'r> {
         })
     }
 
+    /// tsgo `SearchByExportID`.
+    pub(crate) fn search_by_export_id(&self, id: &ExportId) -> Vec<Arc<Export>> {
+        self.search_buckets(|bucket| bucket.index.with_export_id(id))
+    }
+
     /// tsgo `search`: the project bucket's exports, and the exports of the
     /// packages in the node_modules buckets above the importing file that
     /// the package.json files above it depend on (a package in a lower
