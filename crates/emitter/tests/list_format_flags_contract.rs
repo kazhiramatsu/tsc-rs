@@ -23,6 +23,10 @@ fn list_format_flags_matches_typescript() {
         serde_json::from_slice(include_bytes!("fixtures/list-format-flags.json")).unwrap();
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["route"], "direct-factory-and-printer");
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1's emitList gives a MultiLine node's list
+    // PreferNewLine and Indented, and its shouldEmitOnNewLine reads the
+    // StartOnNewLine flag of any node (printer/printer.go:4726-4732).
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 160);

@@ -2251,6 +2251,26 @@ impl<'a> CheckerState<'a> {
         None
     }
 
+    /// tsgo `GetJsxFragmentFactory`: the first identifier of the JSX fragment
+    /// factory of `location`'s file (its `@jsxFrag` pragma's, else the
+    /// option's), if any.
+    pub fn get_jsx_fragment_factory(&self, location: NodeId) -> Option<EscapedName> {
+        let pragmas = leading_jsx_pragmas(self.binder.source_of_node(location).text());
+        match pragmas.fragment_factory {
+            Some(local) => first_entity_escaped_identifier(&local),
+            None => self
+                .options
+                .jsx_fragment_factory
+                .as_ref()
+                .and_then(first_entity_escaped_identifier),
+        }
+    }
+
+    /// tsgo `getJsxNamespace` for a service (`IsDeclarationUsed`).
+    pub fn get_jsx_namespace(&self, location: NodeId) -> EscapedName {
+        self.get_jsx_namespace_name(location)
+    }
+
     /// tsc-port: getJsxNamespace @6.0.3
     /// tsc-hash: 8ff29aa0c80ee1a5faf4121789c901358721fcc508acdf6030ee1d23e096462a
     /// tsc-span: _tsc.js:47491-47537

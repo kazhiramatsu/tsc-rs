@@ -36,7 +36,7 @@ pub(crate) fn syntax_may_be_asi_candidate(kind: SyntaxKind) -> bool {
 }
 
 /// tsgo `SyntaxRequiresTrailingCommaOrSemicolonOrASI`.
-fn syntax_requires_trailing_comma_or_semicolon_or_asi(kind: SyntaxKind) -> bool {
+pub(crate) fn syntax_requires_trailing_comma_or_semicolon_or_asi(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::CallSignature
@@ -65,7 +65,7 @@ fn syntax_requires_trailing_module_block_or_semicolon_or_asi(kind: SyntaxKind) -
 }
 
 /// tsgo `SyntaxRequiresTrailingSemicolonOrASI`.
-fn syntax_requires_trailing_semicolon_or_asi(kind: SyntaxKind) -> bool {
+pub(crate) fn syntax_requires_trailing_semicolon_or_asi(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::VariableStatement

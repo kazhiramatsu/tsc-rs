@@ -589,6 +589,9 @@ fn printer_failure_hooks_match_typescript() {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["route"], "direct-printer-hook-faults");
     assert_eq!(artifact["repetitions"], 2);
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1's getLeadingLineTerminatorCount reads the source
+    // lines only for a first child without a parent (printer/printer.go:539-542).
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 23);
     let mut mismatches = Vec::new();

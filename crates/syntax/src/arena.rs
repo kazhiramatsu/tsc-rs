@@ -99,6 +99,14 @@ impl SubtreeCopier {
         &self.new_arrays
     }
 
+    /// The old and new id of each node array the last copy copied.
+    fn array_lineage(&self) -> Vec<(NodeArrayId, NodeArrayId)> {
+        self.old_arrays
+            .iter()
+            .map(|&old| (old, self.array_map[self.array_index(old)]))
+            .collect()
+    }
+
     fn node_index(&self, id: NodeId) -> usize {
         let index = id
             .index()
@@ -307,6 +315,16 @@ fn relocate_raw(
         })
 }
 
+/// A subtree copied into an arena of its own ([`NodeArena::copy_subtree`]),
+/// with the old and new id of each node and node array.
+#[derive(Debug)]
+pub struct SubtreeCopy {
+    pub arena: NodeArena,
+    pub root: NodeId,
+    pub nodes: Vec<(NodeId, NodeId)>,
+    pub arrays: Vec<(NodeArrayId, NodeArrayId)>,
+}
+
 /// What a set of parsed trees allocates, by structure (memory accounting).
 #[derive(Clone, Debug, Default)]
 pub struct SyntaxMemory {
@@ -368,6 +386,21 @@ impl NodeArena {
     }
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The subtree at `root` copied into a new arena: each node and node
+    /// array reachable from it (JSDoc included), renumbered from zero, at
+    /// the same positions and without parents.
+    pub fn copy_subtree(&self, root: NodeId) -> SubtreeCopy {
+        let mut copier = SubtreeCopier::new(self);
+        let mut arena = NodeArena::default();
+        let root = copier.copy_subtree_from(&mut arena, self, root, 0);
+        SubtreeCopy {
+            arena,
+            root,
+            nodes: copier.node_lineage().to_vec(),
+            arrays: copier.array_lineage(),
+        }
     }
 
     /// Clone syntax storage without cloning its identity capabilities.

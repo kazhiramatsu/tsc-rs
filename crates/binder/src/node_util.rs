@@ -3,7 +3,7 @@
 //! spans. Anchors are into the vendored `_tsc.js`.
 
 use crate::symbols::escape_leading_underscores;
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{for_each_child_array, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{EscapedName, JsStr, JsString, ModifierFlags, NodeFlags};
 
 pub fn node_flags(source: &SourceFile, id: NodeId) -> NodeFlags {
@@ -520,6 +520,90 @@ pub fn type_annotation_of_data(data: &NodeData) -> Option<NodeId> {
 /// tsgo reparses from JSDoc (`@type`, `@param`, `@return`).
 pub fn type_node_of(source: &SourceFile, node: NodeId) -> Option<NodeId> {
     type_annotation_of(source, node).or_else(|| crate::jsdoc_hosted(source).type_of(node))
+}
+
+/// tsgo `printer.getContainingNodeArray`: the list of its parent that holds
+/// the node, for the lists tsgo knows (a parameter's, a type parameter's, a
+/// template span's, a decorator's, a heritage clause's; a type element's, a
+/// constituent's, an element's, a property's, an argument's, a JSX child's,
+/// a statement's, a clause's, a member's; a modifier's), if any.
+pub fn containing_node_array(source: &SourceFile, node: NodeId) -> Option<NodeArrayId> {
+    let record = source.arena.node(node);
+    let parent = record.parent?;
+    let known = match record.kind {
+        SyntaxKind::TypeParameter
+        | SyntaxKind::Parameter
+        | SyntaxKind::TemplateLiteralTypeSpan
+        | SyntaxKind::TemplateSpan
+        | SyntaxKind::Decorator
+        | SyntaxKind::HeritageClause => true,
+        kind => {
+            matches!(
+                source.arena.node(parent).kind,
+                SyntaxKind::TypeLiteral
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::UnionType
+                    | SyntaxKind::IntersectionType
+                    | SyntaxKind::ArrayLiteralExpression
+                    | SyntaxKind::TupleType
+                    | SyntaxKind::NamedImports
+                    | SyntaxKind::NamedExports
+                    | SyntaxKind::ObjectLiteralExpression
+                    | SyntaxKind::JsxAttributes
+                    | SyntaxKind::CallExpression
+                    | SyntaxKind::NewExpression
+                    | SyntaxKind::JsxElement
+                    | SyntaxKind::JsxFragment
+                    | SyntaxKind::JsxOpeningElement
+                    | SyntaxKind::JsxSelfClosingElement
+                    | SyntaxKind::Block
+                    | SyntaxKind::ModuleBlock
+                    | SyntaxKind::CaseClause
+                    | SyntaxKind::DefaultClause
+                    | SyntaxKind::CaseBlock
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::ClassExpression
+                    | SyntaxKind::EnumDeclaration
+                    | SyntaxKind::SourceFile
+            ) || is_modifier_kind(kind)
+        }
+    };
+    if !known {
+        return None;
+    }
+    // Within these parents, tsgo's kind tests pick the list that holds the
+    // node.
+    let mut containing = None;
+    for_each_child_array(source.arena.node(parent), |list| {
+        if source.arena.node_array(list).nodes.contains(&node) {
+            containing = Some(list);
+            return true;
+        }
+        false
+    });
+    containing
+}
+
+/// tsgo `ast.IsModifierKind`.
+pub fn is_modifier_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AbstractKeyword
+            | SyntaxKind::AccessorKeyword
+            | SyntaxKind::AsyncKeyword
+            | SyntaxKind::ConstKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::DefaultKeyword
+            | SyntaxKind::ExportKeyword
+            | SyntaxKind::InKeyword
+            | SyntaxKind::PublicKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::StaticKeyword
+            | SyntaxKind::OutKeyword
+            | SyntaxKind::OverrideKeyword
+    )
 }
 
 /// tsc `node.modifiers` dynamic access: the modifiers array of any kind

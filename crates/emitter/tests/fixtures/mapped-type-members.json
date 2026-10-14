@@ -2024,11 +2024,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7bWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2076,11 +2076,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7bWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2128,11 +2128,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7bWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2180,11 +2180,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nO2V4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2232,11 +2232,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nO2V4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2284,11 +2284,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -2336,11 +2336,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -2388,11 +2388,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7bWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2440,11 +2440,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7bWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2492,11 +2492,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nO2V4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2544,11 +2544,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nO2V4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2596,11 +2596,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -2648,11 +2648,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -2700,11 +2700,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7bWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2752,11 +2752,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7bWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2804,11 +2804,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nO2V4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2856,11 +2856,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nO2V4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 72,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KfQ==",
+        "utf8_bytes": 76,
         "end_utf16": {
-          "position": 72,
+          "position": 76,
           "line": 3,
           "column": 1
         }
@@ -2908,11 +2908,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -2960,11 +2960,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -3012,11 +3012,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjttZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3064,11 +3064,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjttZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3116,11 +3116,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjttZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3168,11 +3168,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;extra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7ZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3220,11 +3220,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;extra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7ZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3272,11 +3272,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -3324,11 +3324,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -3376,11 +3376,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjttZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3428,11 +3428,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjttZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3480,11 +3480,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;extra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7ZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3532,11 +3532,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;extra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7ZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3584,11 +3584,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -3636,11 +3636,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -3688,11 +3688,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjttZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3740,11 +3740,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyO21ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjttZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3792,11 +3792,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;extra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7ZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3844,11 +3844,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;extra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZztleHRyYTogbnVtYmVyOw0KIH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7ZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 69,
         "end_utf16": {
-          "position": 65,
+          "position": 69,
           "line": 2,
           "column": 2
         }
@@ -3896,11 +3896,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -3948,11 +3948,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -4988,12 +4988,12 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; extra: number;\r\nmethod(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgZXh0cmE6IG51bWJlcjsNCm1ldGhvZCh4OiBUKTogc3RyaW5nOw0KIH0=",
+        "utf8_bytes": 65,
         "end_utf16": {
-          "position": 67,
-          "line": 3,
+          "position": 65,
+          "line": 2,
           "column": 2
         }
       }
@@ -5040,12 +5040,12 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string; }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7IH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; extra: number;\r\nmethod(x: T): string; }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgZXh0cmE6IG51bWJlcjsNCm1ldGhvZCh4OiBUKTogc3RyaW5nOyB9",
+        "utf8_bytes": 63,
         "end_utf16": {
-          "position": 65,
-          "line": 2,
+          "position": 63,
+          "line": 1,
           "column": 23
         }
       }
@@ -5092,12 +5092,12 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string; }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7IH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; extra: number;\r\nmethod(x: T): string; }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgZXh0cmE6IG51bWJlcjsNCm1ldGhvZCh4OiBUKTogc3RyaW5nOyB9",
+        "utf8_bytes": 63,
         "end_utf16": {
-          "position": 65,
-          "line": 2,
+          "position": 63,
+          "line": 1,
           "column": 23
         }
       }
@@ -5144,12 +5144,12 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number; }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7IH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; method(x: T): string;\r\nextra: number; }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQpleHRyYTogbnVtYmVyOyB9",
+        "utf8_bytes": 63,
         "end_utf16": {
-          "position": 65,
-          "line": 2,
+          "position": 63,
+          "line": 1,
           "column": 16
         }
       }
@@ -5196,12 +5196,12 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number; }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7IH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; method(x: T): string;\r\nextra: number; }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQpleHRyYTogbnVtYmVyOyB9",
+        "utf8_bytes": 63,
         "end_utf16": {
-          "position": 65,
-          "line": 2,
+          "position": 63,
+          "line": 1,
           "column": 16
         }
       }
@@ -5976,11 +5976,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6028,11 +6028,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6080,11 +6080,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6132,11 +6132,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6184,11 +6184,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6236,11 +6236,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6288,11 +6288,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6340,11 +6340,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6392,11 +6392,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6444,11 +6444,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6496,11 +6496,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6548,11 +6548,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6600,11 +6600,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6652,11 +6652,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6704,11 +6704,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6756,11 +6756,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6808,11 +6808,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6860,11 +6860,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6912,11 +6912,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -6964,11 +6964,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7016,11 +7016,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7068,11 +7068,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7120,11 +7120,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7172,11 +7172,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7224,11 +7224,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7276,11 +7276,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7328,11 +7328,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7380,11 +7380,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7432,11 +7432,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7484,11 +7484,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7536,11 +7536,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7588,11 +7588,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7640,11 +7640,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7692,11 +7692,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7744,11 +7744,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7796,11 +7796,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7848,11 +7848,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -7900,11 +7900,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -8108,12 +8108,12 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* after */ \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGFmdGVyICovIA0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
+        "utf8_bytes": 143,
         "end_utf16": {
-          "position": 125,
-          "line": 4,
+          "position": 143,
+          "line": 5,
           "column": 1
         }
       }
@@ -8160,12 +8160,12 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* after */ \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGFmdGVyICovIA0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
+        "utf8_bytes": 143,
         "end_utf16": {
-          "position": 125,
-          "line": 4,
+          "position": 143,
+          "line": 5,
           "column": 1
         }
       }
@@ -9096,11 +9096,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */ }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8gfQ==",
-        "utf8_bytes": 112,
+        "text": "{ [K in keyof T]: T[K]; /* after */ \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */ }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgLyogYWZ0ZXIgKi8gDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8gfQ==",
+        "utf8_bytes": 124,
         "end_utf16": {
-          "position": 112,
+          "position": 124,
           "line": 2,
           "column": 41
         }
@@ -9148,11 +9148,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */ }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8gfQ==",
-        "utf8_bytes": 112,
+        "text": "{ [K in keyof T]: T[K]; /* after */ \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */ }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgLyogYWZ0ZXIgKi8gDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8gfQ==",
+        "utf8_bytes": 124,
         "end_utf16": {
-          "position": 112,
+          "position": 124,
           "line": 2,
           "column": 41
         }
@@ -9928,11 +9928,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number; /* after */\r\n        /** method */ method(x: T): string; // tail\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -9980,11 +9980,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number; /* after */\r\n        /** method */ method(x: T): string; // tail\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10032,11 +10032,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number; /* after */\r\n        /** method */ method(x: T): string; // tail\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10084,11 +10084,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /** method */ method(x: T): string; // tail\r\n        /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQogICAgICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10136,11 +10136,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /** method */ method(x: T): string; // tail\r\n        /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQogICAgICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10188,11 +10188,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 105,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number;\r\n        /** method */ method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 113,
         "end_utf16": {
-          "position": 105,
+          "position": 113,
           "line": 4,
           "column": 1
         }
@@ -10240,11 +10240,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 105,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number;\r\n        /** method */ method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 113,
         "end_utf16": {
-          "position": 105,
+          "position": 113,
           "line": 4,
           "column": 1
         }
@@ -10292,11 +10292,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number; /* after */\r\n        /** method */ method(x: T): string; // tail\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10344,11 +10344,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number; /* after */\r\n        /** method */ method(x: T): string; // tail\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10396,11 +10396,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /** method */ method(x: T): string; // tail\r\n        /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQogICAgICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10448,11 +10448,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /** method */ method(x: T): string; // tail\r\n        /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQogICAgICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10500,11 +10500,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 105,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number;\r\n        /** method */ method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 113,
         "end_utf16": {
-          "position": 105,
+          "position": 113,
           "line": 4,
           "column": 1
         }
@@ -10552,11 +10552,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 105,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number;\r\n        /** method */ method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 113,
         "end_utf16": {
-          "position": 105,
+          "position": 113,
           "line": 4,
           "column": 1
         }
@@ -10604,11 +10604,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number; /* after */\r\n        /** method */ method(x: T): string; // tail\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10656,11 +10656,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number; /* after */\r\n        /** method */ method(x: T): string; // tail\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10708,11 +10708,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /** method */ method(x: T): string; // tail\r\n        /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQogICAgICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10760,11 +10760,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCn0=",
-        "utf8_bytes": 125,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /** method */ method(x: T): string; // tail\r\n        /* before */ extra: number; /* after */\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQogICAgICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KfQ==",
+        "utf8_bytes": 133,
         "end_utf16": {
-          "position": 125,
+          "position": 133,
           "line": 4,
           "column": 1
         }
@@ -10812,11 +10812,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 105,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number;\r\n        /** method */ method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 113,
         "end_utf16": {
-          "position": 105,
+          "position": 113,
           "line": 4,
           "column": 1
         }
@@ -10864,11 +10864,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOw0KICAgIC8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 105,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        /* before */ extra: number;\r\n        /** method */ method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICAvKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCiAgICAgICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 113,
         "end_utf16": {
-          "position": 105,
+          "position": 113,
           "line": 4,
           "column": 1
         }
@@ -10916,11 +10916,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number; /* after */\r\n/** method */ method(x: T): string; // tail\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7IC8qIGFmdGVyICovDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -10968,11 +10968,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number; /* after */\r\n/** method */ method(x: T): string; // tail\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7IC8qIGFmdGVyICovDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11020,11 +11020,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number; /* after */\r\n/** method */ method(x: T): string; // tail\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7IC8qIGFmdGVyICovDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11072,11 +11072,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11124,11 +11124,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11176,11 +11176,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number;\r\n/** method */ method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 94,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7DQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 102,
         "end_utf16": {
-          "position": 94,
+          "position": 102,
           "line": 3,
           "column": 2
         }
@@ -11228,11 +11228,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number;\r\n/** method */ method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 94,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7DQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 102,
         "end_utf16": {
-          "position": 94,
+          "position": 102,
           "line": 3,
           "column": 2
         }
@@ -11280,11 +11280,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number; /* after */\r\n/** method */ method(x: T): string; // tail\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7IC8qIGFmdGVyICovDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11332,11 +11332,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number; /* after */\r\n/** method */ method(x: T): string; // tail\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7IC8qIGFmdGVyICovDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11384,11 +11384,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11436,11 +11436,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11488,11 +11488,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number;\r\n/** method */ method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 94,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7DQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 102,
         "end_utf16": {
-          "position": 94,
+          "position": 102,
           "line": 3,
           "column": 2
         }
@@ -11540,11 +11540,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number;\r\n/** method */ method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 94,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7DQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 102,
         "end_utf16": {
-          "position": 94,
+          "position": 102,
           "line": 3,
           "column": 2
         }
@@ -11592,11 +11592,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number; /* after */\r\n/** method */ method(x: T): string; // tail\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7IC8qIGFmdGVyICovDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11644,11 +11644,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number; /* after */\r\n/** method */ method(x: T): string; // tail\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7IC8vIHRhaWwNCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number; /* after */\r\n    /** method */ method(x: T): string; // tail\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7IC8qIGFmdGVyICovDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11696,11 +11696,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11748,11 +11748,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/** method */ method(x: T): string; // tail\r\n/* before */ extra: number; /* after */\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiogbWV0aG9kICovIG1ldGhvZCh4OiBUKTogc3RyaW5nOyAvLyB0YWlsDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsgLyogYWZ0ZXIgKi8NCiB9",
-        "utf8_bytes": 114,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /** method */ method(x: T): string; // tail\r\n    /* before */ extra: number; /* after */\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsgLy8gdGFpbA0KICAgIC8qIGJlZm9yZSAqLyBleHRyYTogbnVtYmVyOyAvKiBhZnRlciAqLw0KIH0=",
+        "utf8_bytes": 122,
         "end_utf16": {
-          "position": 114,
+          "position": 122,
           "line": 3,
           "column": 2
         }
@@ -11800,11 +11800,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number;\r\n/** method */ method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 94,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7DQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 102,
         "end_utf16": {
-          "position": 94,
+          "position": 102,
           "line": 3,
           "column": 2
         }
@@ -11852,11 +11852,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\n/* before */ extra: number;\r\n/** method */ method(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQovKiBiZWZvcmUgKi8gZXh0cmE6IG51bWJlcjsNCi8qKiBtZXRob2QgKi8gbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 94,
+        "text": "{ [K in keyof T]: T[K]; \r\n    /* before */ extra: number;\r\n    /** method */ method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgLyogYmVmb3JlICovIGV4dHJhOiBudW1iZXI7DQogICAgLyoqIG1ldGhvZCAqLyBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 102,
         "end_utf16": {
-          "position": 94,
+          "position": 102,
           "line": 3,
           "column": 2
         }
@@ -13048,12 +13048,12 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number; }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7IH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; method(x: T): string;\r\nextra: number; }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQpleHRyYTogbnVtYmVyOyB9",
+        "utf8_bytes": 63,
         "end_utf16": {
-          "position": 65,
-          "line": 2,
+          "position": 63,
+          "line": 1,
           "column": 16
         }
       }
@@ -13100,12 +13100,12 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number; }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7IH0=",
-        "utf8_bytes": 65,
+        "text": "{ [K in keyof T]: T[K]; method(x: T): string;\r\nextra: number; }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQpleHRyYTogbnVtYmVyOyB9",
+        "utf8_bytes": 63,
         "end_utf16": {
-          "position": 65,
-          "line": 2,
+          "position": 63,
+          "line": 1,
           "column": 16
         }
       }
@@ -13880,11 +13880,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -13932,11 +13932,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -13984,11 +13984,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14036,11 +14036,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14088,11 +14088,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14140,11 +14140,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14192,11 +14192,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14244,11 +14244,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14296,11 +14296,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14348,11 +14348,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14400,11 +14400,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14452,11 +14452,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14504,11 +14504,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14556,11 +14556,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14608,11 +14608,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14660,11 +14660,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14712,11 +14712,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    method(x: T): string;\r\n    extra: number;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIG1ldGhvZCh4OiBUKTogc3RyaW5nOw0KICAgIGV4dHJhOiBudW1iZXI7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        method(x: T): string;\r\n        extra: number;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiAgICAgICAgZXh0cmE6IG51bWJlcjsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14764,11 +14764,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14816,11 +14816,11 @@
             ]
           }
         },
-        "text": "{\r\n    [K in keyof T]: T[K];\r\n    extra: number;\r\n    method(x: T): string;\r\n}",
-        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgIGV4dHJhOiBudW1iZXI7DQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQp9",
-        "utf8_bytes": 78,
+        "text": "{\r\n    [K in keyof T]: T[K];\r\n        extra: number;\r\n        method(x: T): string;\r\n}",
+        "utf8_base64": "ew0KICAgIFtLIGluIGtleW9mIFRdOiBUW0tdOw0KICAgICAgICBleHRyYTogbnVtYmVyOw0KICAgICAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCn0=",
+        "utf8_bytes": 86,
         "end_utf16": {
-          "position": 78,
+          "position": 86,
           "line": 4,
           "column": 1
         }
@@ -14868,11 +14868,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -14920,11 +14920,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -14972,11 +14972,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15024,11 +15024,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15076,11 +15076,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15128,11 +15128,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15180,11 +15180,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15232,11 +15232,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15284,11 +15284,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15336,11 +15336,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15388,11 +15388,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15440,11 +15440,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15492,11 +15492,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15544,11 +15544,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15596,11 +15596,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15648,11 +15648,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15700,11 +15700,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nmethod(x: T): string;\r\nextra: number;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQptZXRob2QoeDogVCk6IHN0cmluZzsNCmV4dHJhOiBudW1iZXI7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    method(x: T): string;\r\n    extra: number;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogICAgZXh0cmE6IG51bWJlcjsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15752,11 +15752,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -15804,11 +15804,11 @@
             ]
           }
         },
-        "text": "{ [K in keyof T]: T[K]; \r\nextra: number;\r\nmethod(x: T): string;\r\n }",
-        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQpleHRyYTogbnVtYmVyOw0KbWV0aG9kKHg6IFQpOiBzdHJpbmc7DQogfQ==",
-        "utf8_bytes": 67,
+        "text": "{ [K in keyof T]: T[K]; \r\n    extra: number;\r\n    method(x: T): string;\r\n }",
+        "utf8_base64": "eyBbSyBpbiBrZXlvZiBUXTogVFtLXTsgDQogICAgZXh0cmE6IG51bWJlcjsNCiAgICBtZXRob2QoeDogVCk6IHN0cmluZzsNCiB9",
+        "utf8_bytes": 75,
         "end_utf16": {
-          "position": 67,
+          "position": 75,
           "line": 3,
           "column": 2
         }
@@ -16760,7 +16760,7 @@
     }
   ],
   "tsgo_overrides": {
-    "reason": "TypeScript 7.1's emitMappedType prints the members inside the braces' indentation, after a line (or a space) of their own, and a line (or a space) after them (printer/printer.go:2189-2206); tsc 6.0.3 closed the indentation before the members",
+    "reason": "TypeScript 7.1's emitMappedType prints the members inside the braces' indentation, after a line (or a space) of their own, and a line (or a space) after them (printer/printer.go:2189-2206); tsc 6.0.3 closed the indentation before the members. Inside them it gives a MultiLine mapped type's members PreferNewLine and Indented, as emitList does for any MultiLine node (printer/printer.go:4726-4732), and reads the source lines only for a first member without a parent and for parsed siblings of one original parent (getLeadingLineTerminatorCount, getSeparatingLineTerminatorCount: printer/printer.go:508-600)",
     "cases": [
       "mapped-members/inline/parsed/0",
       "mapped-members/inline/updated/keep/false/0",

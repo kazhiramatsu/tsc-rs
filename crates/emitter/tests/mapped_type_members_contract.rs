@@ -15,7 +15,10 @@ fn mapped_type_members_matches_typescript() {
     assert_eq!(artifact["repetitions"], 2);
     // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
     // cases: TypeScript 7.1's emitMappedType prints the members inside the
-    // braces' indentation (printer/printer.go:2189-2206).
+    // braces' indentation (printer/printer.go:2189-2206), its emitList gives a
+    // MultiLine node's members PreferNewLine and Indented, and its line
+    // terminators read the source lines of parsed children only without a
+    // parent or among siblings of one original parent.
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 328);
     let mut failures = Vec::new();
