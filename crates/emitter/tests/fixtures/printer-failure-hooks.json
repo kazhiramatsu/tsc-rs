@@ -5583,13 +5583,13 @@
           {
             "op": 0,
             "status": "returned",
-            "text": "[\r\n    b, c]",
-            "utf8_base64": "Ww0KICAgIGIsIGNd",
-            "utf8_bytes": 12,
+            "text": "[/*c1*/ b, c]",
+            "utf8_base64": "Wy8qYzEqLyBiLCBjXQ==",
+            "utf8_bytes": 13,
             "end_utf16": {
-              "position": 12,
-              "line": 1,
-              "column": 9
+              "position": 13,
+              "line": 0,
+              "column": 13
             }
           },
           {
@@ -5612,13 +5612,13 @@
           {
             "op": 3,
             "status": "returned",
-            "text": "[\r\n    b, c]",
-            "utf8_base64": "Ww0KICAgIGIsIGNd",
-            "utf8_bytes": 12,
+            "text": "[/*c1*/ b, c]",
+            "utf8_base64": "Wy8qYzEqLyBiLCBjXQ==",
+            "utf8_bytes": 13,
             "end_utf16": {
-              "position": 12,
-              "line": 1,
-              "column": 9
+              "position": 13,
+              "line": 0,
+              "column": 13
             }
           }
         ]
@@ -8028,5 +8028,11 @@
         ]
       }
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's getLeadingLineTerminatorCount reads the source lines only for a first child without a parent (printer/printer.go:539-542): the synthesized array's first parsed argument keeps its line and its leading comment as an intervening comment; tsc 6.0.3 also read them for a parsed child of the list's original parent and broke the line",
+    "cases": [
+      "printer-failure/printNode/before/list-item-3/cursor-array"
+    ]
+  }
 }

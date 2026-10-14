@@ -110,13 +110,13 @@
             ]
           }
         },
-        "text": "[a, b]",
-        "utf8_base64": "W2EsIGJd",
-        "utf8_bytes": 6,
+        "text": "[a, b\r\n]",
+        "utf8_base64": "W2EsIGINCl0=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 6,
-          "line": 0,
-          "column": 6
+          "position": 8,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -224,13 +224,13 @@
             ]
           }
         },
-        "text": "[a, b]",
-        "utf8_base64": "W2EsIGJd",
-        "utf8_bytes": 6,
+        "text": "[a, b\r\n]",
+        "utf8_base64": "W2EsIGINCl0=",
+        "utf8_bytes": 8,
         "end_utf16": {
-          "position": 6,
-          "line": 0,
-          "column": 6
+          "position": 8,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -281,13 +281,13 @@
             ]
           }
         },
-        "text": "[a, b]",
-        "utf8_base64": "W2EsIGJd",
-        "utf8_bytes": 6,
+        "text": "[\r\n    a, b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsIGINCl0=",
+        "utf8_bytes": 14,
         "end_utf16": {
-          "position": 6,
-          "line": 0,
-          "column": 6
+          "position": 14,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -338,13 +338,13 @@
             ]
           }
         },
-        "text": "[a, b]",
-        "utf8_base64": "W2EsIGJd",
-        "utf8_bytes": 6,
+        "text": "[\r\n    a, b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsIGINCl0=",
+        "utf8_bytes": 14,
         "end_utf16": {
-          "position": 6,
-          "line": 0,
-          "column": 6
+          "position": 14,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -395,13 +395,13 @@
             ]
           }
         },
-        "text": "[a, b]",
-        "utf8_base64": "W2EsIGJd",
-        "utf8_bytes": 6,
+        "text": "[\r\n    a, b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsIGINCl0=",
+        "utf8_bytes": 14,
         "end_utf16": {
-          "position": 6,
-          "line": 0,
-          "column": 6
+          "position": 14,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -452,13 +452,13 @@
             ]
           }
         },
-        "text": "[a, b]",
-        "utf8_base64": "W2EsIGJd",
-        "utf8_bytes": 6,
+        "text": "[\r\n    a, b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsIGINCl0=",
+        "utf8_bytes": 14,
         "end_utf16": {
-          "position": 6,
-          "line": 0,
-          "column": 6
+          "position": 14,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -1022,13 +1022,13 @@
             ]
           }
         },
-        "text": "[a,\r\n    b]",
-        "utf8_base64": "W2EsDQogICAgYl0=",
-        "utf8_bytes": 11,
+        "text": "[a,\r\n    b\r\n]",
+        "utf8_base64": "W2EsDQogICAgYg0KXQ==",
+        "utf8_bytes": 13,
         "end_utf16": {
-          "position": 11,
-          "line": 1,
-          "column": 6
+          "position": 13,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -1136,13 +1136,13 @@
             ]
           }
         },
-        "text": "[a,\r\n    b]",
-        "utf8_base64": "W2EsDQogICAgYl0=",
-        "utf8_bytes": 11,
+        "text": "[a,\r\n    b\r\n]",
+        "utf8_base64": "W2EsDQogICAgYg0KXQ==",
+        "utf8_bytes": 13,
         "end_utf16": {
-          "position": 11,
-          "line": 1,
-          "column": 6
+          "position": 13,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -1193,13 +1193,13 @@
             ]
           }
         },
-        "text": "[a,\r\n    b]",
-        "utf8_base64": "W2EsDQogICAgYl0=",
-        "utf8_bytes": 11,
+        "text": "[\r\n    a,\r\n    b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsDQogICAgYg0KXQ==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 11,
-          "line": 1,
-          "column": 6
+          "position": 19,
+          "line": 3,
+          "column": 1
         }
       }
     },
@@ -1250,13 +1250,13 @@
             ]
           }
         },
-        "text": "[a,\r\n    b]",
-        "utf8_base64": "W2EsDQogICAgYl0=",
-        "utf8_bytes": 11,
+        "text": "[\r\n    a,\r\n    b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsDQogICAgYg0KXQ==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 11,
-          "line": 1,
-          "column": 6
+          "position": 19,
+          "line": 3,
+          "column": 1
         }
       }
     },
@@ -1307,13 +1307,13 @@
             ]
           }
         },
-        "text": "[a,\r\n    b]",
-        "utf8_base64": "W2EsDQogICAgYl0=",
-        "utf8_bytes": 11,
+        "text": "[\r\n    a,\r\n    b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsDQogICAgYg0KXQ==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 11,
-          "line": 1,
-          "column": 6
+          "position": 19,
+          "line": 3,
+          "column": 1
         }
       }
     },
@@ -1364,13 +1364,13 @@
             ]
           }
         },
-        "text": "[a,\r\n    b]",
-        "utf8_base64": "W2EsDQogICAgYl0=",
-        "utf8_bytes": 11,
+        "text": "[\r\n    a,\r\n    b\r\n]",
+        "utf8_base64": "Ww0KICAgIGEsDQogICAgYg0KXQ==",
+        "utf8_bytes": 19,
         "end_utf16": {
-          "position": 11,
-          "line": 1,
-          "column": 6
+          "position": 19,
+          "line": 3,
+          "column": 1
         }
       }
     },
@@ -1934,13 +1934,13 @@
             ]
           }
         },
-        "text": "{ a: x, b: y }",
-        "utf8_base64": "eyBhOiB4LCBiOiB5IH0=",
-        "utf8_bytes": 14,
+        "text": "{ a: x, b: y\r\n}",
+        "utf8_base64": "eyBhOiB4LCBiOiB5DQp9",
+        "utf8_bytes": 15,
         "end_utf16": {
-          "position": 14,
-          "line": 0,
-          "column": 14
+          "position": 15,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -2048,13 +2048,13 @@
             ]
           }
         },
-        "text": "{ a: x, b: y }",
-        "utf8_base64": "eyBhOiB4LCBiOiB5IH0=",
-        "utf8_bytes": 14,
+        "text": "{ a: x, b: y\r\n}",
+        "utf8_base64": "eyBhOiB4LCBiOiB5DQp9",
+        "utf8_bytes": 15,
         "end_utf16": {
-          "position": 14,
-          "line": 0,
-          "column": 14
+          "position": 15,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -2846,13 +2846,13 @@
             ]
           }
         },
-        "text": "{ a: x,\r\n    b: y }",
-        "utf8_base64": "eyBhOiB4LA0KICAgIGI6IHkgfQ==",
-        "utf8_bytes": 19,
+        "text": "{ a: x,\r\n    b: y\r\n}",
+        "utf8_base64": "eyBhOiB4LA0KICAgIGI6IHkNCn0=",
+        "utf8_bytes": 20,
         "end_utf16": {
-          "position": 19,
-          "line": 1,
-          "column": 10
+          "position": 20,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -2960,13 +2960,13 @@
             ]
           }
         },
-        "text": "{ a: x,\r\n    b: y }",
-        "utf8_base64": "eyBhOiB4LA0KICAgIGI6IHkgfQ==",
-        "utf8_bytes": 19,
+        "text": "{ a: x,\r\n    b: y\r\n}",
+        "utf8_base64": "eyBhOiB4LA0KICAgIGI6IHkNCn0=",
+        "utf8_bytes": 20,
         "end_utf16": {
-          "position": 19,
-          "line": 1,
-          "column": 10
+          "position": 20,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -7406,13 +7406,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\", mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiIH0=",
-        "utf8_bytes": 32,
+        "text": "with { type: \"json\", mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiDQp9",
+        "utf8_bytes": 33,
         "end_utf16": {
-          "position": 32,
-          "line": 0,
-          "column": 32
+          "position": 33,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -7520,13 +7520,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\", mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiIH0=",
-        "utf8_bytes": 32,
+        "text": "with { type: \"json\", mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiDQp9",
+        "utf8_bytes": 33,
         "end_utf16": {
-          "position": 32,
-          "line": 0,
-          "column": 32
+          "position": 33,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -7862,13 +7862,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\", mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiIH0=",
-        "utf8_bytes": 32,
+        "text": "with { type: \"json\", mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiDQp9",
+        "utf8_bytes": 33,
         "end_utf16": {
-          "position": 32,
-          "line": 0,
-          "column": 32
+          "position": 33,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -7976,13 +7976,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\", mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiIH0=",
-        "utf8_bytes": 32,
+        "text": "with { type: \"json\", mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwgbW9kZTogIngiDQp9",
+        "utf8_bytes": 33,
         "end_utf16": {
-          "position": 32,
-          "line": 0,
-          "column": 32
+          "position": 33,
+          "line": 1,
+          "column": 1
         }
       }
     },
@@ -8318,13 +8318,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\",\r\n    mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCIgfQ==",
-        "utf8_bytes": 37,
+        "text": "with { type: \"json\",\r\n    mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCINCn0=",
+        "utf8_bytes": 38,
         "end_utf16": {
-          "position": 37,
-          "line": 1,
-          "column": 15
+          "position": 38,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -8432,13 +8432,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\",\r\n    mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCIgfQ==",
-        "utf8_bytes": 37,
+        "text": "with { type: \"json\",\r\n    mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCINCn0=",
+        "utf8_bytes": 38,
         "end_utf16": {
-          "position": 37,
-          "line": 1,
-          "column": 15
+          "position": 38,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -8774,13 +8774,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\",\r\n    mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCIgfQ==",
-        "utf8_bytes": 37,
+        "text": "with { type: \"json\",\r\n    mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCINCn0=",
+        "utf8_bytes": 38,
         "end_utf16": {
-          "position": 37,
-          "line": 1,
-          "column": 15
+          "position": 38,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -8888,13 +8888,13 @@
             ]
           }
         },
-        "text": "with { type: \"json\",\r\n    mode: \"x\" }",
-        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCIgfQ==",
-        "utf8_bytes": 37,
+        "text": "with { type: \"json\",\r\n    mode: \"x\"\r\n}",
+        "utf8_base64": "d2l0aCB7IHR5cGU6ICJqc29uIiwNCiAgICBtb2RlOiAieCINCn0=",
+        "utf8_bytes": 38,
         "end_utf16": {
-          "position": 37,
-          "line": 1,
-          "column": 15
+          "position": 38,
+          "line": 2,
+          "column": 1
         }
       }
     },
@@ -9126,5 +9126,34 @@
         }
       }
     }
-  ]
+  ],
+  "tsgo_overrides": {
+    "reason": "TypeScript 7.1's emitList gives a MultiLine node's list PreferNewLine and Indented, an array literal's too (printer/printer.go:4726-4732), and its shouldEmitOnNewLine reads a node's StartOnNewLine flag whether or not the node is synthesized (getClosingLineTerminatorCount then breaks the line before the closing bracket); tsc 6.0.3 emitted an array literal through emitExpressionList and read the flag of synthesized nodes only",
+    "cases": [
+      "list-format/array/inline/false/0/true",
+      "list-format/array/inline/false/1/true",
+      "list-format/array/inline/false/2/false",
+      "list-format/array/inline/false/2/true",
+      "list-format/array/inline/false/3/false",
+      "list-format/array/inline/false/3/true",
+      "list-format/array/lines/false/0/true",
+      "list-format/array/lines/false/1/true",
+      "list-format/array/lines/false/2/false",
+      "list-format/array/lines/false/2/true",
+      "list-format/array/lines/false/3/false",
+      "list-format/array/lines/false/3/true",
+      "list-format/attributes/inline/false/0/true",
+      "list-format/attributes/inline/false/1/true",
+      "list-format/attributes/inline/true/0/true",
+      "list-format/attributes/inline/true/1/true",
+      "list-format/attributes/lines/false/0/true",
+      "list-format/attributes/lines/false/1/true",
+      "list-format/attributes/lines/true/0/true",
+      "list-format/attributes/lines/true/1/true",
+      "list-format/object/inline/false/0/true",
+      "list-format/object/inline/false/1/true",
+      "list-format/object/lines/false/0/true",
+      "list-format/object/lines/false/1/true"
+    ]
+  }
 }

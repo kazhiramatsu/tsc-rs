@@ -4836,16 +4836,12 @@ impl Printer {
                     writer,
                 )?;
                 writer.write_space(" ");
-                let prefer_new_line = transformation
-                    .arena()
-                    .metadata(node)
-                    .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
                 self.emit_formatted_node_list(
                     transformation,
                     node,
                     data.elements,
                     Some(ListBrackets::Curly),
-                    prefer_new_line,
+                    false,
                     DelimitedListFormat::IMPORT_ATTRIBUTES,
                     EmitHint::Unspecified,
                     ExpressionSyntaxContext::NORMAL,
@@ -5835,11 +5831,7 @@ impl Printer {
                 if indented {
                     writer.increase_indent();
                 }
-                let prefer_new_line = multi_line
-                    || transformation
-                        .arena()
-                        .metadata(node)
-                        .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+                let prefer_new_line = multi_line;
                 // tsgo shouldAllowTrailingComma: an object literal keeps its
                 // trailing comma only in a source file that is not JSON.
                 let allow_trailing_comma = {
@@ -9089,11 +9081,17 @@ impl Printer {
                             self.emit_comment_after_open_brace(transformation, node, writer)?;
                         }
                         // tsgo emitListItems with MultiLineBlockStatements or
-                        // MultiLineFunctionBodyStatements (MultiLine, Indented).
+                        // MultiLineFunctionBodyStatements (MultiLine, Indented);
+                        // a block's emitList prefers new lines for a MultiLine
+                        // block (a function body's emitListRange does not).
                         let lines = ListLines {
                             multi_line: true,
                             ..ListLines::SINGLE_LINE
-                        };
+                        }
+                        .preferring_new_line(
+                            !function_body
+                                && Self::should_emit_on_multiple_lines(transformation, node),
+                        );
                         let first = TransformNode::new(node.source(), statements[0]);
                         if self.leading_line_terminator_count(
                             transformation,
@@ -9461,11 +9459,16 @@ impl Printer {
             (Vec::new(), None)
         };
         writer.set_list_pos(clause_list);
-        // tsgo emitListItems with CaseBlockClauses (MultiLine, Indented).
+        // tsgo emitListItems with CaseBlockClauses (MultiLine, Indented);
+        // emitList prefers new lines for a MultiLine node.
         let lines = ListLines {
             multi_line: true,
             ..ListLines::SINGLE_LINE
-        };
+        }
+        .preferring_new_line(Self::should_emit_on_multiple_lines(
+            transformation,
+            case_block,
+        ));
         if clauses.is_empty() {
             if self.empty_multi_line_list_breaks_line(transformation, case_block)? {
                 writer.write_line(false);
@@ -9645,12 +9648,14 @@ impl Printer {
             return Ok(());
         }
         // tsgo emitListItems with CaseOrDefaultClauseStatements (MultiLine,
-        // Indented, NoTrailingNewLine).
+        // Indented, NoTrailingNewLine); emitList prefers new lines for a
+        // MultiLine node.
         let lines = ListLines {
             multi_line: true,
             no_trailing_new_line: true,
             ..ListLines::SINGLE_LINE
-        };
+        }
+        .preferring_new_line(Self::should_emit_on_multiple_lines(transformation, clause));
         if self.leading_line_terminator_count(transformation, Some(clause), Some(first), lines)? > 0
         {
             writer.write_line(false);
@@ -9863,6 +9868,18 @@ impl Printer {
         let next = Self::start_position_of_range(source, pos, include_comments);
         let stop = Self::raw_position(stop_pos);
         Self::lines_between_positions(source, Self::raw_position(pos), stop.min(next))
+    }
+
+    /// tsgo `shouldEmitOnMultipleLines`: the node's MultiLine flag, which
+    /// `emitList` turns into PreferNewLine and Indented for its lists.
+    fn should_emit_on_multiple_lines(
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> bool {
+        transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE))
     }
 
     /// tsgo `RangeIsOnSingleLine`.
@@ -10621,6 +10638,11 @@ impl Printer {
         }
         let space_between_braces = brackets == Some(ListBrackets::Curly);
         let first = TransformNode::new(source, ids[0]);
+        // tsgo `emitList`: the list of a MultiLine node prefers new lines and
+        // is indented.
+        let parent_multi_line = Self::should_emit_on_multiple_lines(transformation, parent);
+        let prefer_new_line = prefer_new_line || parent_multi_line;
+        let indented = format.indentation.is_indented() || parent_multi_line;
         let lines = if format.lines.preserves_source() {
             ListLines::PRESERVE_LINES
         } else {
@@ -10635,7 +10657,7 @@ impl Printer {
         } else if space_between_braces {
             writer.write_space(" ");
         }
-        if format.indentation.is_indented() {
+        if indented {
             writer.increase_indent();
         }
         // A list owns positional callbacks; each item owns its complete
@@ -10669,9 +10691,8 @@ impl Printer {
                 } else {
                     false
                 };
-                let temporary_indent = separate_line
-                    && !format.lines.preserves_source()
-                    && !format.indentation.is_indented();
+                let temporary_indent =
+                    separate_line && !format.lines.preserves_source() && !indented;
                 if temporary_indent {
                     writer.increase_indent();
                 }
@@ -10741,7 +10762,7 @@ impl Printer {
             }
             Ok::<(), PrinterError>(())
         })();
-        if format.indentation.is_indented() {
+        if indented {
             writer.decrease_indent();
         }
         outcome?;
@@ -11366,11 +11387,16 @@ impl Printer {
                 .nodes
                 .to_vec();
             if !member_ids.is_empty() {
-                // tsgo emitListItems with ClassMembers (MultiLine, Indented).
+                // tsgo emitListItems with ClassMembers (MultiLine, Indented);
+                // emitList prefers new lines for a MultiLine node.
                 let lines = ListLines {
                     multi_line: true,
                     ..ListLines::SINGLE_LINE
-                };
+                }
+                .preferring_new_line(Self::should_emit_on_multiple_lines(
+                    transformation,
+                    class_node,
+                ));
                 let first = TransformNode::new(source, member_ids[0]);
                 if self.leading_line_terminator_count(
                     transformation,
@@ -12975,18 +13001,12 @@ impl Printer {
             } else {
                 writer.write_line(false);
             }
-            // emitList adds PreferNewLine from the parent's MultiLine flag;
-            // the mapped signature's SingleLine choice does not set that flag.
-            let prefer_new_line = transformation
-                .arena()
-                .metadata(node)
-                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
             self.emit_formatted_node_list(
                 transformation,
                 node,
                 data.members,
                 None,
-                prefer_new_line,
+                false,
                 DelimitedListFormat::MAPPED_TYPE_MEMBERS,
                 EmitHint::Unspecified,
                 ExpressionSyntaxContext::NORMAL,
@@ -13242,16 +13262,12 @@ impl Printer {
         });
         writer.write_punctuation(":");
         writer.write_space(" ");
-        let prefer_new_line = transformation
-            .arena()
-            .metadata(attributes_node)
-            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
         self.emit_formatted_node_list(
             transformation,
             attributes_node,
             data.elements,
             Some(ListBrackets::Curly),
-            prefer_new_line,
+            false,
             DelimitedListFormat::IMPORT_ATTRIBUTES,
             EmitHint::Unspecified,
             ExpressionSyntaxContext::NORMAL,
@@ -14127,12 +14143,8 @@ impl Printer {
         // tsgo emitListItems with a SingleLine format (an index signature's
         // parameters Indented); emitList adds PreferNewLine and Indented for
         // a MultiLine node. The delimiter precedes the line break.
-        let multi_line = parent.is_some_and(|parent| {
-            transformation
-                .arena()
-                .metadata(parent)
-                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE))
-        });
+        let multi_line = parent
+            .is_some_and(|parent| Self::should_emit_on_multiple_lines(transformation, parent));
         let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
         let indented = multi_line
             || parent.is_some_and(|parent| {
@@ -14423,11 +14435,13 @@ impl Printer {
         let force_line_after_comments =
             transformation.arena().node(parent)?.kind == SyntaxKind::TupleType;
         // tsgo emitListItems with EnumMembers or MultiLineTupleTypeElements
-        // (MultiLine, Indented; a tuple's SpaceBetweenSiblings).
+        // (MultiLine, Indented; a tuple's SpaceBetweenSiblings); emitList
+        // prefers new lines for a MultiLine node.
         let lines = ListLines {
             multi_line: true,
             ..ListLines::SINGLE_LINE
-        };
+        }
+        .preferring_new_line(Self::should_emit_on_multiple_lines(transformation, parent));
         writer.increase_indent();
         let first = transformation
             .arena()
@@ -14601,11 +14615,13 @@ impl Printer {
             return Ok(());
         }
         // tsgo emitListItems with InterfaceMembers, MultiLineTypeLiteralMembers
-        // or MultiLineBlockStatements (MultiLine, Indented).
+        // or MultiLineBlockStatements (MultiLine, Indented); emitList prefers
+        // new lines for a MultiLine node.
         let lines = ListLines {
             multi_line: true,
             ..ListLines::SINGLE_LINE
-        };
+        }
+        .preferring_new_line(Self::should_emit_on_multiple_lines(transformation, parent));
         let first = TransformNode::new(parent.source(), ids[0]);
         if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
         {
@@ -14706,10 +14722,7 @@ impl Printer {
         writer.set_list_pos(Some(type_arguments));
         // tsgo emitListItems with TypeArguments (SingleLine); emitList adds
         // PreferNewLine and Indented for a MultiLine node.
-        let multi_line = transformation
-            .arena()
-            .metadata(parent)
-            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let multi_line = Self::should_emit_on_multiple_lines(transformation, parent);
         let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
         let first = TransformNode::new(source, ids[0]);
         if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
@@ -14923,10 +14936,7 @@ impl Printer {
         } else {
             // tsgo emitListItems with Parameters (SingleLine); emitList adds
             // PreferNewLine and Indented for a MultiLine node.
-            let multi_line = transformation
-                .arena()
-                .metadata(parent)
-                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+            let multi_line = Self::should_emit_on_multiple_lines(transformation, parent);
             let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
             let first = TransformNode::new(source, ids[0]);
             if self.leading_line_terminator_count(
@@ -15602,10 +15612,7 @@ impl Printer {
         // tsgo emitListItems with NamedImportsOrExportsElements (SingleLine,
         // SpaceBetweenBraces); emitList adds PreferNewLine and Indented for
         // a MultiLine node.
-        let multi_line = transformation
-            .arena()
-            .metadata(parent)
-            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let multi_line = Self::should_emit_on_multiple_lines(transformation, parent);
         let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
         let first = TransformNode::new(source, ids[0]);
         if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0
@@ -16181,10 +16188,7 @@ impl Printer {
         // tsgo emitListItems with ClassHeritageClauses or HeritageClauseTypes
         // (SingleLine); emitList adds PreferNewLine and Indented for a
         // MultiLine node.
-        let multi_line = transformation
-            .arena()
-            .metadata(parent)
-            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let multi_line = Self::should_emit_on_multiple_lines(transformation, parent);
         let lines = ListLines::SINGLE_LINE.preferring_new_line(multi_line);
         if let Some(&first) = ids.first() {
             let first = TransformNode::new(parent.source(), first);
@@ -16438,10 +16442,7 @@ impl Printer {
         }
         // tsgo emitListItems with CallExpressionArguments (SingleLine);
         // emitList adds PreferNewLine and Indented for a MultiLine node.
-        let prefer_new_line = transformation
-            .arena()
-            .metadata(parent)
-            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        let prefer_new_line = Self::should_emit_on_multiple_lines(transformation, parent);
         let lines = ListLines::SINGLE_LINE.preferring_new_line(prefer_new_line);
         let first = TransformNode::new(source, ids[0]);
         if self.leading_line_terminator_count(transformation, Some(parent), Some(first), lines)? > 0

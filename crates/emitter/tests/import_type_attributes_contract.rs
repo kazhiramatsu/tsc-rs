@@ -102,6 +102,9 @@ fn import_type_attributes_matches_typescript() {
     // error; the emit hooks and the printed text are unchanged.
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["route"], "direct-factory-and-printer");
+    // The observations are tsc 6.0.3's except the fixture's `tsgo_overrides`
+    // cases: TypeScript 7.1's getLeadingLineTerminatorCount reads the source
+    // lines only for a first child without a parent (printer/printer.go:539-542).
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 84);
