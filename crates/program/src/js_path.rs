@@ -647,10 +647,31 @@ pub fn change_any_extension(path: &str, extension: &str) -> String {
     }
 }
 
-/// tsgo `ChangeFullExtension`: a path with its whole extension (a
-/// declaration extension included) replaced.
+/// tsgo `ChangeFullExtension`: a path with its whole extension replaced —
+/// a declaration extension from its `.d` (`.d.css.ts` among them), else
+/// one of [`EXTENSIONS_TO_REMOVE`] (tsgo `ChangeExtension`); a path with
+/// neither unchanged.
 pub fn change_full_extension<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> JsString {
-    let mut result = remove_file_extension(path);
+    let path = path.into();
+    let declaration = declaration_file_extension(&path.to_string_lossy()).to_owned();
+    let current = if declaration.is_empty() {
+        let Some(current) = EXTENSIONS_TO_REMOVE
+            .iter()
+            .find(|current| path.ends_with(current))
+        else {
+            return path.to_owned();
+        };
+        (*current).to_owned()
+    } else {
+        declaration
+    };
+    let mut result = path
+        .strip_suffix(current.as_str())
+        .expect("the extension ends the path")
+        .to_owned();
+    if !extension.is_empty() && !extension.starts_with('.') {
+        result.push_str(".");
+    }
     result.push_str(extension);
     result
 }
