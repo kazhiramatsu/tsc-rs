@@ -22,4 +22,5 @@ mod source_map;
 pub mod tree;
 mod utilities;
 
+pub use formatting::format_node_for_insertion;
 pub use language_service::{Host, LanguageService, LsError};

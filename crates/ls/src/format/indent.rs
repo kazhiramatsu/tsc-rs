@@ -8,7 +8,290 @@ use super::file::{
     Node,
 };
 use super::util::range_is_on_one_line;
-use crate::lsutil::FormatCodeSettings;
+use crate::lsutil::{FormatCodeSettings, IndentStyle};
+
+/// tsgo `GetIndentation`: the indentation expected at a position (the
+/// smart indenter's).
+pub(crate) fn get_indentation(
+    file: &File<'_>,
+    position: usize,
+    options: &FormatCodeSettings,
+    assume_new_line_before_close_brace: bool,
+) -> i64 {
+    if position > file.text().len() {
+        return options.editor_settings.base_indent_size; // past EOF
+    }
+
+    // no indentation when the indent style is set to none,
+    // so we can return fast
+    if options.editor_settings.indent_style == IndentStyle::NONE {
+        return 0;
+    }
+
+    let preceding_token = file.find_preceding_token_excluding_js_doc(position);
+
+    let enclosing_comment_range = crate::utilities::range_of_enclosing_comment(
+        &file.navigator,
+        position as u32,
+        preceding_token,
+        file.token_at_position(position),
+    );
+    if let Some((comment_pos, _)) = enclosing_comment_range {
+        if file.text()[comment_pos as usize..].starts_with("/*") {
+            return get_comment_indent(file, position, options, comment_pos as usize);
+        }
+    }
+
+    let Some(preceding_token) = preceding_token else {
+        return options.editor_settings.base_indent_size;
+    };
+
+    // no indentation in string/regex/template literals
+    if matches!(
+        file.kind(preceding_token),
+        SyntaxKind::StringLiteral
+            | SyntaxKind::RegularExpressionLiteral
+            | SyntaxKind::NoSubstitutionTemplateLiteral
+            | SyntaxKind::TemplateHead
+            | SyntaxKind::TemplateMiddle
+            | SyntaxKind::TemplateTail
+    ) {
+        let token_start = file.token_start(preceding_token);
+        if token_start <= position && position < file.end(preceding_token) {
+            return 0;
+        }
+    }
+
+    let line_at_position = file.line_of(position);
+
+    // indentation is first non-whitespace character in a previous line
+    // for block indentation, we should look for a line which contains something that's not
+    // whitespace.
+    let current_token = file.token_at_position(position);
+    // For object literals, we want indentation to work just like with blocks.
+    // If the `{` starts in any position (even in the middle of a line), then
+    // the following indentation should treat `{` as the start of that line (including leading whitespace).
+    let is_object_literal = file.kind(current_token) == SyntaxKind::OpenBraceToken
+        && file
+            .parent(current_token)
+            .is_some_and(|parent| file.kind(parent) == SyntaxKind::ObjectLiteralExpression);
+    if options.editor_settings.indent_style == IndentStyle::BLOCK || is_object_literal {
+        return get_block_indent(file, position, options);
+    }
+
+    if file.kind(preceding_token) == SyntaxKind::CommaToken
+        && file
+            .parent(preceding_token)
+            .is_some_and(|parent| file.kind(parent) != SyntaxKind::BinaryExpression)
+    {
+        // previous token is comma that separates items in list - find the previous item and try to derive indentation from it
+        let actual_indentation =
+            get_actual_indentation_for_list_item_before_comma(file, preceding_token, options);
+        if actual_indentation != -1 {
+            return actual_indentation;
+        }
+    }
+
+    let container_list = file
+        .parent(preceding_token)
+        .and_then(|parent| get_list_by_range(file, position, position, parent));
+    // use list position if the preceding token is before any list items
+    if let Some(container_list) = container_list {
+        let (list_pos, list_end) = file.list_range(container_list.id);
+        if !(list_pos <= file.pos(preceding_token) && file.end(preceding_token) <= list_end) {
+            let use_the_same_base_indentation = file.parent(current_token).is_some_and(|parent| {
+                matches!(
+                    file.kind(parent),
+                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+                )
+            });
+            let indent_size = if use_the_same_base_indentation {
+                0
+            } else {
+                options.editor_settings.indent_size
+            };
+            let res = get_actual_indentation_for_list_start_line(file, container_list, options);
+            if res == -1 {
+                return indent_size;
+            }
+            return res + indent_size;
+        }
+    }
+
+    get_smart_indent(
+        file,
+        position,
+        preceding_token,
+        line_at_position,
+        assume_new_line_before_close_brace,
+        options,
+    )
+}
+
+fn get_comment_indent(
+    file: &File<'_>,
+    position: usize,
+    options: &FormatCodeSettings,
+    comment_pos: usize,
+) -> i64 {
+    let previous_line = file.line_of(position) as i64 - 1;
+    let comment_start_line = file.line_of(comment_pos);
+
+    if previous_line <= comment_start_line as i64 {
+        return find_first_non_whitespace_column(
+            file,
+            file.line_starts()[comment_start_line],
+            position,
+            options,
+        );
+    }
+
+    let start_position_of_line = file.line_starts()[previous_line as usize];
+    let (character, column) = find_first_non_whitespace_character_and_column(
+        file,
+        start_position_of_line,
+        position,
+        options,
+    );
+
+    if column == 0 {
+        return column;
+    }
+
+    let first_non_whitespace_character_code =
+        file.text().as_bytes()[start_position_of_line + character];
+    if first_non_whitespace_character_code == b'*' {
+        return column - 1;
+    }
+    column
+}
+
+fn get_block_indent(file: &File<'_>, position: usize, options: &FormatCodeSettings) -> i64 {
+    // move backwards until we find a line with a non-whitespace character,
+    // then find the first non-whitespace character for that line.
+    let mut current = position;
+    while current > 0 {
+        let (ch, size) = decode_rune(file.text(), current);
+        if !tsc_syntax::is_whitespace_like(ch) {
+            break;
+        }
+        current -= size;
+    }
+
+    let line_start = super::util::get_line_start_position_for_position(file, current);
+    find_first_non_whitespace_column(file, line_start, current, options)
+}
+
+fn get_actual_indentation_for_list_item_before_comma(
+    file: &File<'_>,
+    comma_token: Node,
+    options: &FormatCodeSettings,
+) -> i64 {
+    // previous token is comma that separates items in list - find the previous item and try to derive indentation from it
+    let Some(containing_list) = get_containing_list(file, comma_token) else {
+        return -1;
+    };
+    let nodes = file.list_nodes(containing_list);
+    match nodes.iter().position(|&node| node == comma_token) {
+        Some(comma_index) if comma_index > 0 => {
+            derive_actual_indentation_from_list(file, &nodes, comma_index - 1, options)
+        }
+        _ => -1,
+    }
+}
+
+/// tsgo `nextTokenKind`.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum NextTokenKind {
+    Unknown,
+    OpenBrace,
+    CloseBrace,
+}
+
+fn next_token_is_curly_brace_on_same_line_as_cursor(
+    file: &File<'_>,
+    preceding_token: Node,
+    current: Node,
+    line_at_position: usize,
+) -> NextTokenKind {
+    let Some(next_token) = file.find_next_token(preceding_token, current) else {
+        return NextTokenKind::Unknown;
+    };
+
+    match file.kind(next_token) {
+        // open braces are always indented at the parent level
+        SyntaxKind::OpenBraceToken => NextTokenKind::OpenBrace,
+        // close braces are indented at the parent level if they are located on the same line with cursor
+        SyntaxKind::CloseBraceToken
+            if get_start_line_for_node(file, next_token) == line_at_position =>
+        {
+            NextTokenKind::CloseBrace
+        }
+        _ => NextTokenKind::Unknown,
+    }
+}
+
+fn get_smart_indent(
+    file: &File<'_>,
+    position: usize,
+    preceding_token: Node,
+    line_at_position: usize,
+    assume_new_line_before_close_brace: bool,
+    options: &FormatCodeSettings,
+) -> i64 {
+    // try to find node that can contribute to indentation and includes 'position' starting from 'precedingToken'
+    // if such node is found - compute initial indentation for 'position' inside this node
+    let mut previous = None;
+    let mut current = Some(preceding_token);
+
+    while let Some(node) = current {
+        if crate::lsutil::position_belongs_to_node(&file.navigator, node, position as u32)
+            && should_indent_child_node(options, file, node, previous, true, true)
+        {
+            let (current_start_line, current_start_char) =
+                get_start_line_and_character_for_node(file, node);
+            let ntk = next_token_is_curly_brace_on_same_line_as_cursor(
+                file,
+                preceding_token,
+                node,
+                line_at_position,
+            );
+            let mut indentation_delta = 0;
+            if ntk != NextTokenKind::Unknown {
+                // handle cases when codefix is about to be inserted before the close brace
+                if assume_new_line_before_close_brace && ntk == NextTokenKind::CloseBrace {
+                    indentation_delta = options.editor_settings.indent_size;
+                }
+            } else if line_at_position != current_start_line {
+                indentation_delta = options.editor_settings.indent_size;
+            }
+            return get_indentation_for_node_worker(
+                file,
+                node,
+                current_start_line,
+                current_start_char,
+                None,
+                indentation_delta,
+                true,
+                options,
+            );
+        }
+
+        // check if current node is a list item - if yes, take indentation from it
+        // do not consider parent-child line sharing yet:
+        // function foo(a
+        //    | preceding node 'a' does share line with its parent but indentation is expected
+        let actual_indentation = get_actual_indentation_for_list_item(file, node, options, true);
+        if actual_indentation != -1 {
+            return actual_indentation;
+        }
+
+        previous = Some(node);
+        current = file.parent(node);
+    }
+    // no parent was found - return the base indentation of the SourceFile
+    options.editor_settings.base_indent_size
+}
 
 /// tsgo `GetIndentationForNode`.
 pub(crate) fn get_indentation_for_node(
