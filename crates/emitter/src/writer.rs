@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use tsc_syntax::is_whitespace_like;
 
 use crate::{GeneratedUtf16Location, GeneratedUtf16Position};
@@ -137,6 +138,39 @@ pub struct TextWriter {
     /// tsgo's `displayPartsWriter` (ls/displaypartswriter.go): each write's
     /// text with its classification.
     display_parts: Option<Vec<DisplayPart>>,
+    /// tsgo's `ChangeTrackerWriter`: the positions of the printed nodes.
+    positions: Option<PrintPositions>,
+    /// The indentation of one level (tsgo's writer `indentSize`).
+    indent_width: usize,
+}
+
+/// tsgo `ChangeTrackerWriter`'s positions: where the last text that is not
+/// trivia ends, and that position when each node, token or node list began
+/// and ended printing (zero for one never printed).
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PrintPositions {
+    last_non_trivia_position: usize,
+    pos: HashMap<PositionKey, usize>,
+    end: HashMap<PositionKey, usize>,
+}
+
+/// A printed node or node list.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum PositionKey {
+    Node(crate::TransformNode),
+    List(crate::TransformNodeArray),
+}
+
+impl PrintPositions {
+    /// tsgo `getPos`.
+    pub fn pos(&self, key: PositionKey) -> usize {
+        self.pos.get(&key).copied().unwrap_or(0)
+    }
+
+    /// tsgo `getEnd`.
+    pub fn end(&self, key: PositionKey) -> usize {
+        self.end.get(&key).copied().unwrap_or(0)
+    }
 }
 
 /// A run of tsgo's `displayPartsWriter`: written text and the Visual Studio
@@ -174,6 +208,74 @@ impl TextWriter {
             defers_trailing_semicolon: false,
             pending_semicolon: false,
             display_parts: None,
+            positions: None,
+            indent_width: INDENT.len(),
+        }
+    }
+
+    /// tsgo `NewChangeTrackerWriter`: a writer that records the positions of
+    /// the printed nodes, indenting by `indent_size`.
+    pub(crate) fn change_tracker(new_line: NewLineKind, indent_size: usize) -> Self {
+        let mut writer = Self::new(new_line);
+        writer.positions = Some(PrintPositions::default());
+        writer.indent_width = indent_size;
+        writer
+    }
+
+    /// The recorded positions of a change tracker writer.
+    pub(crate) fn take_positions(&mut self) -> Option<PrintPositions> {
+        self.positions.take()
+    }
+
+    /// tsgo's `OnBefore*` print handlers of a change tracker writer.
+    pub(crate) fn set_pos(&mut self, key: PositionKey) {
+        if let Some(positions) = &mut self.positions {
+            positions
+                .pos
+                .insert(key, positions.last_non_trivia_position);
+        }
+    }
+
+    /// tsgo's `OnAfter*` print handlers of a change tracker writer.
+    pub(crate) fn set_end(&mut self, key: PositionKey) {
+        if let Some(positions) = &mut self.positions {
+            positions
+                .end
+                .insert(key, positions.last_non_trivia_position);
+        }
+    }
+
+    /// tsgo `OnBeforeEmitNodeList` (nothing for a nil list).
+    pub(crate) fn set_list_pos(&mut self, list: Option<crate::TransformNodeArray>) {
+        if let Some(list) = list {
+            self.set_pos(PositionKey::List(list));
+        }
+    }
+
+    /// tsgo `OnAfterEmitNodeList` (nothing for a nil list).
+    pub(crate) fn set_list_end(&mut self, list: Option<crate::TransformNodeArray>) {
+        if let Some(list) = list {
+            self.set_end(PositionKey::List(list));
+        }
+    }
+
+    /// tsgo `setLastNonTriviaPosition`: after a write of text that is not
+    /// all trivia (or `force`), the position after it, its trailing white
+    /// space left out.
+    fn set_last_non_trivia_position(&mut self, text: &str, force: bool) {
+        let text_pos = self.output.as_str().len();
+        let Some(positions) = &mut self.positions else {
+            return;
+        };
+        if force || tsc_syntax::skip_trivia(text, 0) != text.len() {
+            let trimmed = text.trim_end_matches(is_whitespace_like).len();
+            positions.last_non_trivia_position = text_pos - (text.len() - trimmed);
+        }
+    }
+
+    fn set_last_non_trivia_position_utf16(&mut self, units: &[u16], force: bool) {
+        if self.positions.is_some() {
+            self.set_last_non_trivia_position(&String::from_utf16_lossy(units), force);
         }
     }
 
@@ -195,6 +297,8 @@ impl TextWriter {
             defers_trailing_semicolon: false,
             pending_semicolon: false,
             display_parts: None,
+            positions: None,
+            indent_width: INDENT.len(),
         }
     }
 
@@ -345,7 +449,7 @@ impl TextWriter {
 
     fn write_pending_indent(&mut self) {
         if self.line_start {
-            let indentation = INDENT.repeat(self.indent as usize);
+            let indentation = " ".repeat(self.indent_width * self.indent as usize);
             self.append_and_measure(&indentation);
             self.line_start = false;
         }
@@ -491,6 +595,7 @@ impl TextWriter {
         self.commit_semicolon();
         self.record_utf16(TEXT, units);
         self.write_utf16_unrecorded(units);
+        self.set_last_non_trivia_position_utf16(units, false);
     }
 
     fn write_utf16_unrecorded(&mut self, units: &[u16]) {
@@ -510,6 +615,7 @@ impl TextWriter {
         }
         self.append_and_measure_utf16(units);
         self.has_trailing_comment = false;
+        self.set_last_non_trivia_position_utf16(units, false);
     }
 
     pub fn write_literal_utf16(&mut self, units: &[u16]) {
@@ -517,6 +623,7 @@ impl TextWriter {
             self.commit_semicolon();
             self.record_utf16(STRING, units);
             self.write_utf16_unrecorded(units);
+            self.set_last_non_trivia_position_utf16(units, true);
         }
     }
 
@@ -533,6 +640,7 @@ impl TextWriter {
         self.commit_semicolon();
         self.record_utf16(STRING, units);
         self.write_utf16_unrecorded(units);
+        self.set_last_non_trivia_position_utf16(units, false);
     }
 
     pub fn write(&mut self, text: &str) {
@@ -541,12 +649,17 @@ impl TextWriter {
 
     /// A write with its display parts classification.
     fn write_classified(&mut self, text: &str, classification: &'static str) {
+        self.write_classified_forced(text, classification, false);
+    }
+
+    fn write_classified_forced(&mut self, text: &str, classification: &'static str, force: bool) {
         self.commit_semicolon();
         self.record(classification, text);
         if !text.is_empty() {
             self.has_trailing_comment = false;
         }
         self.write_text(text);
+        self.set_last_non_trivia_position(text, force);
     }
 
     /// Append without applying pending indentation. Unlike `write`, an empty
@@ -565,11 +678,12 @@ impl TextWriter {
             self.append_and_measure(text);
         }
         self.has_trailing_comment = false;
+        self.set_last_non_trivia_position(text, false);
     }
 
     pub fn write_literal(&mut self, text: &str) {
         if !text.is_empty() {
-            self.write_classified(text, STRING);
+            self.write_classified_forced(text, STRING, true);
         }
     }
 
@@ -647,7 +761,7 @@ impl TextWriter {
         }
         if self.line_start {
             self.indent
-                .checked_mul(INDENT.len() as u32)
+                .checked_mul(self.indent_width as u32)
                 .expect("writer column overflowed")
         } else {
             self.text_position
@@ -692,6 +806,9 @@ impl TextWriter {
     }
 
     pub fn clear(&mut self) {
+        if let Some(positions) = &mut self.positions {
+            positions.last_non_trivia_position = 0;
+        }
         self.pending_semicolon = false;
         self.output.clear();
         self.indent = 0;
